@@ -11,7 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::builtin::detail {
+namespace numkit::lang::detail {
 
 void doubleToInt8 (const double *in, int8_t   *out, std::size_t n);
 void doubleToInt16(const double *in, int16_t  *out, std::size_t n);
@@ -22,4 +22,4 @@ void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::lang::detail

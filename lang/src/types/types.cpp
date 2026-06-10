@@ -20,7 +20,7 @@
 // language/types/casts_{highway,portable}.cpp).
 #include "types_detail.hpp"
 
-namespace numkit::builtin::detail {
+namespace numkit::lang::detail {
 void doubleToInt8 (const double *in, int8_t   *out, std::size_t n);
 void doubleToInt16(const double *in, int16_t  *out, std::size_t n);
 void doubleToInt32(const double *in, int32_t  *out, std::size_t n);
@@ -29,7 +29,7 @@ void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
 void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace numkit::lang::detail
 
 // Forward-declare the isnan/isinf/isfinite backend (defined in
 // math/arithmetic/isfinite_{highway,portable}.cpp — numkit::math::detail after C4).
@@ -39,7 +39,7 @@ void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
 } // namespace numkit::math::detail
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ════════════════════════════════════════════════════════════════════════
 // Implementation helpers
@@ -589,7 +589,7 @@ Value swapbytes(const Value &x, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════════
 
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
 
 // ════════════════════════════════════════════════════════════════════════
 // Registration — keep the BuiltinLibrary::registerTypeFunctions hook empty;

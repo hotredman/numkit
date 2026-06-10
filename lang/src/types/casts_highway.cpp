@@ -29,7 +29,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin::detail {
+namespace numkit::lang::detail {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -162,12 +162,12 @@ void DoubleToUInt8Loop(const double *HWY_RESTRICT in, uint8_t *HWY_RESTRICT out,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin::detail
+} // namespace numkit::lang::detail
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin::detail {
+namespace numkit::lang::detail {
 
 HWY_EXPORT(DoubleToInt32Loop);
 HWY_EXPORT(DoubleToUInt32Loop);
@@ -203,6 +203,6 @@ void doubleToUInt64(const double *in, uint64_t *out, std::size_t n) {
     HWY_DYNAMIC_DISPATCH(DoubleToUInt64Loop)(in, out, n);
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::lang::detail
 
 #endif // HWY_ONCE

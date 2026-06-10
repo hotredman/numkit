@@ -27,7 +27,7 @@
 #endif
 
 
-namespace numkit::builtin::detail {
+namespace numkit::lang::detail {
 // SIMD/portable cast + isfinite backend (defs in casts_{highway,portable}.cpp /
 // isfinite_{highway,portable}.cpp) — needed by the numericConstructor template below.
 void doubleToInt8 (const double *in, int8_t   *out, std::size_t n);
@@ -38,7 +38,7 @@ void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
 void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace numkit::lang::detail
 
 // isnan/isinf/isfinite backend lives in arithmetic → numkit::math::detail (C4).
 namespace numkit::math::detail {
@@ -47,7 +47,7 @@ void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
 } // namespace numkit::math::detail
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 
@@ -80,14 +80,14 @@ Value numericConstructor(ValueType targetType, const Value &x, std::pmr::memory_
     if constexpr (std::is_integral_v<T>) {
         if (x.type() == ValueType::DOUBLE && n > 0) {
             const double *src = x.doubleData();
-            if constexpr (std::is_same_v<T, int8_t>)        ::numkit::builtin::detail::doubleToInt8 (src, dst, n);
-            else if constexpr (std::is_same_v<T, int16_t>)  ::numkit::builtin::detail::doubleToInt16(src, dst, n);
-            else if constexpr (std::is_same_v<T, int32_t>)  ::numkit::builtin::detail::doubleToInt32(src, dst, n);
-            else if constexpr (std::is_same_v<T, int64_t>)  ::numkit::builtin::detail::doubleToInt64(src, dst, n);
-            else if constexpr (std::is_same_v<T, uint8_t>)  ::numkit::builtin::detail::doubleToUInt8 (src, dst, n);
-            else if constexpr (std::is_same_v<T, uint16_t>) ::numkit::builtin::detail::doubleToUInt16(src, dst, n);
-            else if constexpr (std::is_same_v<T, uint32_t>) ::numkit::builtin::detail::doubleToUInt32(src, dst, n);
-            else if constexpr (std::is_same_v<T, uint64_t>) ::numkit::builtin::detail::doubleToUInt64(src, dst, n);
+            if constexpr (std::is_same_v<T, int8_t>)        ::numkit::lang::detail::doubleToInt8 (src, dst, n);
+            else if constexpr (std::is_same_v<T, int16_t>)  ::numkit::lang::detail::doubleToInt16(src, dst, n);
+            else if constexpr (std::is_same_v<T, int32_t>)  ::numkit::lang::detail::doubleToInt32(src, dst, n);
+            else if constexpr (std::is_same_v<T, int64_t>)  ::numkit::lang::detail::doubleToInt64(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint8_t>)  ::numkit::lang::detail::doubleToUInt8 (src, dst, n);
+            else if constexpr (std::is_same_v<T, uint16_t>) ::numkit::lang::detail::doubleToUInt16(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint32_t>) ::numkit::lang::detail::doubleToUInt32(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint64_t>) ::numkit::lang::detail::doubleToUInt64(src, dst, n);
             return r;
         }
     }
@@ -341,4 +341,4 @@ size_t elemSizeOf(ValueType t)
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
