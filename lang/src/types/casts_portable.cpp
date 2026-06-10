@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace numkit::builtin::detail {
+namespace numkit::lang::detail {
 
 namespace {
 
@@ -50,4 +50,4 @@ void doubleToUInt16(const double *in, uint16_t *out, std::size_t n) { doubleToIn
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n) { doubleToIntLoopScalar<uint32_t>(in, out, n); }
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n) { doubleToIntLoopScalar<uint64_t>(in, out, n); }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::lang::detail

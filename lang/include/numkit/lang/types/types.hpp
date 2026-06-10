@@ -4,7 +4,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @file
 /// @brief Type conversion, type predicates, and limits.
@@ -416,4 +416,4 @@ Value swapbytes(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @see cast, swapbytes
 Value typecast(const Value &x, const std::string &classname, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
