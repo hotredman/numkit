@@ -19,7 +19,7 @@
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include "geom_detail.hpp"
+#include "geom/geom_detail.hpp"
 
 #include <algorithm>
 #include <cctype>

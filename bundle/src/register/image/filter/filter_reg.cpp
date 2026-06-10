@@ -17,7 +17,7 @@
 #include <numkit/core/vm.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include "filter_detail.hpp"
+#include "filter/filter_detail.hpp"
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
 

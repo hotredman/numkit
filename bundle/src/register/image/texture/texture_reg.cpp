@@ -11,7 +11,7 @@
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include "texture_detail.hpp"
+#include "texture/texture_detail.hpp"
 
 #include <algorithm>
 #include <cctype>
