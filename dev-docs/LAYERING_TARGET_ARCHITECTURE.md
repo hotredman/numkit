@@ -329,8 +329,9 @@ re-layering); G is the risky enforcement step.
   pure #include forwards (dropped wholesale in the later include-path migration). 11657
   pass / 1 skip / 0 fail and layering guard green at every step. **H ✅ DONE**
   (`d3d25e65`) — the layering guard now pins math/lang compute too. **C5 ✅ DONE**
-  (999117bd→5a5b5949) — all 223 `*_reg.cpp` relocated to bundle/src/register/. **Remaining:
-  G** (target-split + WASM, "THE risk").
+  (999117bd→5a5b5949) — all 223 `*_reg.cpp` relocated to bundle/src/register/. **G ✅ DONE**
+  (5dc385ca + c4f9e1f5) — monolith split into per-layer OBJECT libs, 12/12 buildable presets
+  lib-green (incl. WASM). **The Phase-3-A layering refactor (C0…C5 + H + G) is COMPLETE.**
   solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
   Shrinks runtime to the irreducible.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
@@ -350,8 +351,24 @@ re-layering); G is the risky enforcement step.
   monolith target — the target split is G). 11657 pass / 1 skip / 0 fail + layering
   guard green at every per-domain commit. `install`/library.cpp move to bundle is
   deferred to the target-split (G), where it matters.
-- **G. Target split:** separate `.lib` per layer; **WASM/emscripten
-  `-fexceptions` migration to the OBJECT libs**; validate ALL 12 presets + WASM.
+- **G. ✅ DONE (2026-06-10, 5dc385ca + c4f9e1f5).** The `numkit` monolith is split
+  into per-layer OBJECT libraries — numkit_{core,toolboxes,math,lang,runtime,bundle}_obj
+  — that the final `numkit` aggregates via `$<TARGET_OBJECTS>` (identical object set,
+  grouped). A shared `numkit_configure_layer()` helper applies the monolith compile
+  config to each OBJECT lib (include roots + SIMD/threads/matio defs + usage-requirement
+  links + the EMSCRIPTEN `-fexceptions` per OBJECT — the WASM exception-ABI migration).
+  Fixed one pre-existing layering inversion surfaced by validation: ops/src/fft_portable.cpp
+  reached up into signal's dsp_helpers.hpp for the scalar fftRadix2 butterfly (also pulling
+  core) — moved the butterfly to ops/include/numkit/ops/fft_radix2.hpp (guard-invisible
+  because it was a quoted include). **Validated lib-green on all 12 buildable presets:**
+  desktop-fast (11657) · portable (11651) · desktop-fast-threads (11666) · bench ·
+  bench-simd · bench-simd-threads · bench-clang · bench-simd-clang (desktop, `--target
+  numkit`); browser · browser-threads · bench-wasm · bench-wasm-threads (WASM OBJECT split
+  + `-fexceptions` confirmed). **apple-m** not buildable on the x86 host — validate on Apple
+  hardware separately. **Known pre-existing follow-up (NOT G):** the bench `*_bench.cpp`
+  executables call several post-C4-renamed functions with stale signatures/namespaces
+  (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`, …); they only build on bench* presets
+  and need an API-update pass — orthogonal to the split (the library is green everywhere).
 - **H. ✅ DONE (2026-06-10, `d3d25e65`).** Extended check_layering.py to pin the
   math/ and lang/ compute layers: they must not include core/runtime/toolbox
   headers (the `*_reg.cpp` glue is exempt; `builtin` transitionally allowed). Locks
