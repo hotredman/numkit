@@ -8,7 +8,7 @@ namespace numkit {
 class Engine;
 }
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @file
 /// @brief Scan family — `fscanf` / `sscanf` / `textscan`.
@@ -61,4 +61,4 @@ void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs,
 /// @see fscanf, sscanf
 void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);  // lint: engine-io
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

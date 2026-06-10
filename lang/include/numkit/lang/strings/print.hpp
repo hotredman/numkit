@@ -10,7 +10,7 @@ namespace numkit {
 class Engine;
 }
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @brief Format one `Value` the way `disp()` renders it, including
 /// the trailing newline.
@@ -52,4 +52,4 @@ void disp(Engine &engine, Span<const Value> args);  // lint: engine-io
 /// @see disp, dispFormat
 std::size_t fprintf(Engine &engine, Span<const Value> args);  // lint: engine-io
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

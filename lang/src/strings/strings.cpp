@@ -28,7 +28,7 @@
 
 #include "strings_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -1848,7 +1848,7 @@ std::pair<Value, Value> strtok(const Value &str, const std::string &delim,
 // ════════════════════════════════════════════════════════════════════════
 
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
 
 // ════════════════════════════════════════════════════════════════════════
 // Registration — keeps the existing BuiltinLibrary::registerStringFunctions

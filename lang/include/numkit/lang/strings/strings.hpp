@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @file
 /// @brief String and char builtins.
@@ -671,4 +671,4 @@ std::pair<Value, Value> strtok(const Value &str,
                                const std::string &delim = " \t\r\n\f\v",
                                std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
