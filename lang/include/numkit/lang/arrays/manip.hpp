@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @brief Tile an array (`B = repmat(A, m, n, p)`).
 ///
@@ -274,4 +274,4 @@ Value sub2ind(const Value &siz, Span<const Value> subs,
 std::vector<Value> ind2sub(const Value &siz, const Value &ind, size_t nout = 0,
                            std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

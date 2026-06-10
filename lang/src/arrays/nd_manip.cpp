@@ -22,7 +22,7 @@
 #include <numeric>
 #include <vector>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 
@@ -632,4 +632,4 @@ ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr)
     return { std::move(y), k };
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

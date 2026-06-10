@@ -29,7 +29,7 @@
 
 #include "matrix_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -1326,7 +1326,7 @@ Value cumsum(const Value &x, std::pmr::memory_resource *mr)
     }
     if (x.dims().isVector()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
-        cumsumScan(x.doubleData(), r.doubleDataMut(), x.numel());
+        numkit::math::cumsumScan(x.doubleData(), r.doubleDataMut(), x.numel());
         return r;
     }
     const size_t R = x.dims().rows(), C = x.dims().cols();
@@ -1335,7 +1335,7 @@ Value cumsum(const Value &x, std::pmr::memory_resource *mr)
     double *dst = r.doubleDataMut();
     // Per-column inclusive scan — column data is contiguous.
     for (size_t c = 0; c < C; ++c)
-        cumsumScan(src + c * R, dst + c * R, R);
+        numkit::math::cumsumScan(src + c * R, dst + c * R, R);
     return r;
 }
 
@@ -1353,7 +1353,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
     if (dim <= 0) return cumsum(x, mr);
     if (x.dims().isVector() || x.isScalar()) return cumsum(x, mr);
 
-    const int d = detail::resolveDim(x, dim, "cumsum");
+    const int d = numkit::ops::resolveDim(x, dim, "cumsum");
     const auto &dd = x.dims();
 
     // ND fallback for rank ≥ 4: per-slice scan along axis d-1. Inner
@@ -1376,7 +1376,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
         if (B == 1) {
             for (size_t o = 0; o < O; ++o) {
                 const size_t base = o * sliceLen;
-                cumsumScan(src + base, dst + base, sliceLen);
+                numkit::math::cumsumScan(src + base, dst + base, sliceLen);
             }
         } else {
             for (size_t o = 0; o < O; ++o)
@@ -1407,7 +1407,7 @@ Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr)
         for (size_t pp = 0; pp < P; ++pp)
             for (size_t c = 0; c < C; ++c) {
                 const size_t base = pp * R * C + c * R;
-                cumsumScan(src + base, dst + base, R);
+                numkit::math::cumsumScan(src + base, dst + base, R);
             }
     } else if (d == 2) {
         // Walk across columns for each (row, page). Stride = R.
@@ -1458,7 +1458,7 @@ Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr)
                                   /*isProd=*/true, mr);
     if (x.isLogical())
         return cumprod(toDoubleValue(x, mr), dim, mr);
-    return cumScanDispatch(x, dim, cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
+    return cumScanDispatch(x, dim, numkit::math::cumprodScan, [](double a, double b) { return a * b; }, "cumprod", mr);
 }
 
 
@@ -1473,7 +1473,7 @@ Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr)
     // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
     // and propagates otherwise. Default = 'omitnan' since R2018a; we
     // skip NaN here, treating them as identity.
-    return cumScanDispatch(x, dim, cummaxScan, [](double a, double b) {
+    return cumScanDispatch(x, dim, numkit::math::cummaxScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
                                return std::max(a, b);
@@ -1486,7 +1486,7 @@ Value cummin(const Value &x, int dim, std::pmr::memory_resource *mr)
         return logicalizeCumResult(cummin(toDoubleValue(x, mr), dim, mr), mr);
     if (isIntegerType(x.type()))
         return doubleToIntegerExact(cummin(toDoubleValue(x, mr), dim, mr), x.type(), mr);
-    return cumScanDispatch(x, dim, cumminScan, [](double a, double b) {
+    return cumScanDispatch(x, dim, numkit::math::cumminScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
                                return std::min(a, b);
@@ -1511,7 +1511,7 @@ Value diff(const Value &x, int n, int dim, std::pmr::memory_resource *mr)
     if (x.isScalar())
         return Value::matrix(1, 0, isInt ? x.type() : ValueType::DOUBLE, mr);
 
-    const int d = detail::resolveDim(x, dim, "diff");
+    const int d = numkit::ops::resolveDim(x, dim, "diff");
     const auto &dd = x.dims();
     const size_t sliceLen = (d >= 1 && d <= dd.ndim()) ? dd.dim(d - 1) : 1;
 
@@ -1581,4 +1581,4 @@ Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @file
 /// @brief Matrix builtins — constructors, linear algebra, shape, sort.
@@ -752,12 +752,12 @@ Value diff(const Value &x, int n = 1, int dim = 0, std::pmr::memory_resource *mr
 /// NOTE: anyOf/allOf are arithmetic logical-reductions (defined in
 /// math/arithmetic/logical_reductions_*.cpp); declared in numkit::math (C4),
 /// reachable from numkit::builtin via the library.hpp umbrella shim.
-} // namespace numkit::builtin
+} // namespace numkit::lang
 namespace numkit::math {
 Value anyOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 } // namespace numkit::math
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @brief Elementwise xor (`y = xor(a, b)`).
 ///
@@ -774,4 +774,4 @@ Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr = null
 // numkit/linalg/vector_ops.hpp). Engine registration also moved
 // from BuiltinLibrary::install → LinalgLibrary::install.
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

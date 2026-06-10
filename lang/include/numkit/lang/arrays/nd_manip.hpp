@@ -11,7 +11,7 @@
 
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 /// @brief Permute array dimensions (`B = permute(A, perm)`).
 ///
@@ -111,4 +111,4 @@ struct ShiftDimAuto {
 ShiftDimAuto shiftdimAuto(const Value &x,
                           std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

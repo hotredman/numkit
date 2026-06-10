@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 
@@ -396,4 +396,4 @@ inline bool isVectorLike(const Value &v)
 }
 } // anon
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
