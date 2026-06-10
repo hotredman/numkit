@@ -1,9 +1,9 @@
 #pragma once
-// geom.hpp moved to the math library (numkit/math/geom/geom.hpp) as step C1 of
-// the builtin -> math+lang split. This forwarding stub keeps the existing
-// <numkit/builtin/math/geom/geom.hpp> includers (other toolboxes + tests)
-// compiling unchanged during the migration; they retarget to
-// <numkit/math/geom/geom.hpp> in the C4 cleanup. The functions are still in
-// namespace numkit::builtin for now (the ns rename to numkit::math is the
-// separate C4 pass), so no namespace shim is needed here.
+// geom.hpp relocated to the math library (numkit/math/geom/geom.hpp) and its
+// compute renamed numkit::builtin -> numkit::math (Phase 3-A step C4). This
+// forwarding stub re-includes the relocated header AND re-exports numkit::math
+// into numkit::builtin, so existing <numkit/builtin/math/geom/geom.hpp> includers
+// that reference `numkit::builtin::<geom fn>` keep compiling unchanged. Both the
+// stub and the using-shim are dropped in step C4c (call-site migration).
 #include <numkit/math/geom/geom.hpp>
+namespace numkit::builtin { using namespace numkit::math; }

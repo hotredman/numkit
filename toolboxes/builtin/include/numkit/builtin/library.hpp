@@ -25,3 +25,17 @@ private:
 };
 
 } // namespace numkit
+
+// ── Phase 3-A step C4 transitional namespace-compatibility shim ──────────────
+// The relocated math/ + lang/ compute is being renamed numkit::builtin ->
+// numkit::math / numkit::lang area-by-area. These using-directives keep every
+// existing `numkit::builtin::<fn>` reference — the ~185 cross-toolbox call-sites
+// AND the in-place *_reg adapters that still live in numkit::builtin(::detail) —
+// compiling UNCHANGED during the migration. Removed in step C4c once the
+// call-sites are retargeted. library.hpp is included broadly, so the shim is
+// visible wherever relocated builtin math/lang names are referenced.
+namespace numkit { namespace math {} namespace lang {} }  // ensure both declared
+namespace numkit::builtin {
+    using namespace numkit::math;
+    using namespace numkit::lang;
+}

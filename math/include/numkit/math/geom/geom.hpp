@@ -11,7 +11,7 @@
 #include <string>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @brief N-D scattered-data interpolation (`vi = griddatan(X, v, xi)`).
 ///
@@ -193,4 +193,4 @@ MatchpairsResult matchpairs(const Value &Cost, double costUnmatched,
                             const std::string &mode = "min",
                             std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math
