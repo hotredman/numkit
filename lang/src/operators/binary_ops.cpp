@@ -433,25 +433,25 @@ namespace numkit {
 
 void BuiltinLibrary::registerBinaryOps(Engine &engine)
 {
-    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return builtin::plus(a, b, engine.resource()); });
-    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return builtin::minus(a, b, engine.resource()); });
-    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return builtin::times(a, b, engine.resource()); });
-    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return builtin::mtimes(a, b, engine.resource()); });
-    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return builtin::rdivide(a, b, engine.resource()); });
-    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return builtin::mrdivide(a, b, engine.resource()); });
-    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return builtin::mldivide(a, b, engine.resource()); });
-    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return builtin::power(a, b, engine.resource()); });
-    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return builtin::elementPower(a, b, engine.resource()); });
+    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return numkit::lang::plus(a, b, engine.resource()); });
+    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return numkit::lang::minus(a, b, engine.resource()); });
+    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return numkit::lang::times(a, b, engine.resource()); });
+    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return numkit::lang::mtimes(a, b, engine.resource()); });
+    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return numkit::lang::rdivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return numkit::lang::mrdivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return numkit::lang::mldivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return numkit::lang::power(a, b, engine.resource()); });
+    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return numkit::lang::elementPower(a, b, engine.resource()); });
 
-    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return builtin::eq(a, b, engine.resource()); });
-    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return builtin::ne(a, b, engine.resource()); });
-    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return builtin::lt(a, b, engine.resource()); });
-    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return builtin::gt(a, b, engine.resource()); });
-    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return builtin::le(a, b, engine.resource()); });
-    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return builtin::ge(a, b, engine.resource()); });
+    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return numkit::lang::eq(a, b, engine.resource()); });
+    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return numkit::lang::ne(a, b, engine.resource()); });
+    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return numkit::lang::lt(a, b, engine.resource()); });
+    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return numkit::lang::gt(a, b, engine.resource()); });
+    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return numkit::lang::le(a, b, engine.resource()); });
+    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return numkit::lang::ge(a, b, engine.resource()); });
 
-    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return builtin::logicalAnd(a, b, engine.resource()); });
-    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return builtin::logicalOr(a, b, engine.resource()); });
+    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return numkit::lang::logicalAnd(a, b, engine.resource()); });
+    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return numkit::lang::logicalOr(a, b, engine.resource()); });
 }
 
 } // namespace numkit

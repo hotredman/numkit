@@ -125,11 +125,11 @@ namespace numkit {
 
 void BuiltinLibrary::registerUnaryOps(Engine &engine)
 {
-    engine.registerUnaryOp("-",  [&engine](const Value &a) { return builtin::uminus(a, engine.resource()); });
-    engine.registerUnaryOp("+",  [&engine](const Value &a) { return builtin::uplus(a, engine.resource()); });
-    engine.registerUnaryOp("~",  [&engine](const Value &a) { return builtin::logicalNot(a, engine.resource()); });
-    engine.registerUnaryOp("'",  [&engine](const Value &a) { return builtin::ctranspose(a, engine.resource()); });
-    engine.registerUnaryOp(".'", [&engine](const Value &a) { return builtin::transposeNC(a, engine.resource()); });
+    engine.registerUnaryOp("-",  [&engine](const Value &a) { return numkit::lang::uminus(a, engine.resource()); });
+    engine.registerUnaryOp("+",  [&engine](const Value &a) { return numkit::lang::uplus(a, engine.resource()); });
+    engine.registerUnaryOp("~",  [&engine](const Value &a) { return numkit::lang::logicalNot(a, engine.resource()); });
+    engine.registerUnaryOp("'",  [&engine](const Value &a) { return numkit::lang::ctranspose(a, engine.resource()); });
+    engine.registerUnaryOp(".'", [&engine](const Value &a) { return numkit::lang::transposeNC(a, engine.resource()); });
 }
 
 } // namespace numkit

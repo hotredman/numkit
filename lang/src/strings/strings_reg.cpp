@@ -693,7 +693,7 @@ void strtok_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     const std::string delim = (args.size() >= 2)
                                   ? args[1].toString()
                                   : std::string(" \t\r\n\f\v");
-    auto [tok, rem] = numkit::builtin::strtok(args[0], delim,
+    auto [tok, rem] = numkit::lang::strtok(args[0], delim,
                                               ctx.engine->resource());
     outs[0] = std::move(tok);
     if (nargout > 1) outs[1] = std::move(rem);

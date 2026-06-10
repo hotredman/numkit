@@ -32,7 +32,7 @@ struct StateSpace {
 
 /// Convert tf coefficients to zero-pole-gain form.
 ///
-/// Roots are computed via @ref builtin::roots; complex conjugate pairs
+/// Roots are computed via @ref numkit::math::roots; complex conjugate pairs
 /// and trailing-zero roots are fully handled.
 ///
 /// @param num  Numerator polynomial (row, descending powers).
@@ -53,7 +53,7 @@ Tf2ZpResult tf2zp(const Value &num, const Value &den,
 /// Convert zero-pole-gain form to tf coefficients.
 ///
 /// Expands
-/// `num = k · ∏(s − z_i)` and `den = ∏(s − p_i)` via @ref builtin::poly.
+/// `num = k · ∏(s − z_i)` and `den = ∏(s − p_i)` via @ref numkit::math::poly.
 /// The result preserves complex coefficients if the inputs are complex.
 ///
 /// @param z   Zeros (column or row vector).

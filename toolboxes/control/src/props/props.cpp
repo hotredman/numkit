@@ -8,7 +8,7 @@
 // State-space poles are computed via the Faddeev–LeVerrier expansion
 // of det(sI − A) (already used by ss2tf in toolboxes/control/conversion);
 // the resulting characteristic polynomial is then handed to
-// builtin::roots. State-space *zeros* fall back to converting to a
+// numkit::math::roots. State-space *zeros* fall back to converting to a
 // transfer function via toolboxes/signal's ss2tf and taking roots(num) —
 // works for SISO systems, which is what `zero(sys)` is most useful
 // for in a function-form environment.
@@ -84,12 +84,12 @@ Value rowFromCoeffs(const std::vector<double> &v, std::pmr::memory_resource *mr)
 // Helper: poles as a column Value, regardless of input form.
 Value polesOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return builtin::roots(sys.field("den"), mr);
+        return numkit::math::roots(sys.field("den"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("p");
     if (hasKind(sys, "ss")) {
         auto cp = charPoly(sys.field("A"));
-        return builtin::roots(rowFromCoeffs(cp, mr), mr);
+        return numkit::math::roots(rowFromCoeffs(cp, mr), mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
                 0, 0, "lti", "", "numkit:lti:kind");
@@ -97,7 +97,7 @@ Value polesOf(const Value &sys, std::pmr::memory_resource *mr) {
 
 Value zerosOf(const Value &sys, std::pmr::memory_resource *mr) {
     if (hasKind(sys, "tf"))
-        return builtin::roots(sys.field("num"), mr);
+        return numkit::math::roots(sys.field("num"), mr);
     if (hasKind(sys, "zpk"))
         return sys.field("z");
     if (hasKind(sys, "ss")) {
@@ -118,7 +118,7 @@ Value zerosOf(const Value &sys, std::pmr::memory_resource *mr) {
                         0, 0, "zero", "", "numkit:zero:miso");
         }
         auto [num, den] = ss2tf(A, B, C, D, /*iu=*/1, mr);
-        return builtin::roots(num, mr);
+        return numkit::math::roots(num, mr);
     }
     throw Error("expected an LTI struct (tf/zpk/ss)",
                 0, 0, "lti", "", "numkit:lti:kind");

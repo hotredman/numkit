@@ -62,7 +62,7 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
             if (!(bi > 0.0)) return std::numeric_limits<double>::quiet_NaN();
             return (xi <= 0.0) ? 0.0 : xi / bi;
         });
-        v = ::numkit::builtin::gammainc(xs, a, mr);
+        v = ::numkit::math::gammainc(xs, a, mr);
     }
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
@@ -89,7 +89,7 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         return;
     }
     const size_t N = dist_match_numel({np, na, nb}, "gaminv");
-    Value q = ::numkit::builtin::gammaincinv(p, a, mr);
+    Value q = ::numkit::math::gammaincinv(p, a, mr);
     const size_t nq = q.numel();
     const Value &ref = (np == N) ? p : (na == N ? a : b);
     Value out = dist_empty_like(ref, mr);

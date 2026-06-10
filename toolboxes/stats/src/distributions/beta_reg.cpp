@@ -68,7 +68,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                 if (xi >= 1.0) return 1.0;
                 return xi;
             }, mr);
-            v = ::numkit::builtin::betainc(xc, a, b, mr);
+            v = ::numkit::math::betainc(xc, a, b, mr);
         }
     }
     if (upper) applyUpperInPlace(v);
@@ -95,7 +95,7 @@ void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         return;
     }
     dist_match_numel({np, na, nb}, "betainv");
-    outs[0] = ::numkit::builtin::betaincinv(p, a, b, mr);
+    outs[0] = ::numkit::math::betaincinv(p, a, b, mr);
 }
 
 void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

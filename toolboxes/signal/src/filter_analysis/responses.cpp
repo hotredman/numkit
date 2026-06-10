@@ -59,7 +59,7 @@ bool isTrivialA(const Value &a)
 double maxRootRadius(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.numel() < 2) return 0.0;
-    auto r = builtin::roots(p, mr);
+    auto r = numkit::math::roots(p, mr);
     double mx = 0.0;
     if (r.isComplex()) {
         const Complex *src = r.complexData();

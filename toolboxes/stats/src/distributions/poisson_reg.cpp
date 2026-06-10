@@ -62,7 +62,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         } else {
             const size_t N = dist_match_numel({nk, nl}, "poisscdf");
             Value xs = elementwise(k, [](double ki) { return ki < 0.0 ? 1.0 : std::floor(ki) + 1.0; }, mr);
-            Value lower = ::numkit::builtin::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
+            Value lower = ::numkit::math::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
             const Value &ref = (nl == N) ? lam : k;
             v = dist_empty_like(ref, mr);
             double *od = v.doubleDataMut();
