@@ -132,17 +132,24 @@ add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via
 add_subdirectory(runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
 add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
-# G1 (target-split): core compiled as the numkit_core_obj OBJECT library (defined
-# at the end of this file, after the dependency targets exist); aggregated into
-# numkit below via $<TARGET_OBJECTS>. Remaining layers still flow as source vars
-# until they are converted in turn.
-set(NUMKIT_SOURCES ${NUMKIT_LIBS_SOURCES} ${NUMKIT_MATH_SOURCES} ${NUMKIT_LANG_SOURCES} ${NUMKIT_RUNTIME_SOURCES} ${NUMKIT_BUNDLE_SOURCES})
+# G1 (target-split): every layer compiles as its own OBJECT library (numkit_<L>_obj,
+# defined at the end of this file once the dependency targets exist) carrying the
+# monolith compile config via numkit_configure_layer(). The final `numkit` aggregates
+# them through $<TARGET_OBJECTS> — same object set as the old monolith, grouped.
+set(NUMKIT_SOURCES )
+set(NUMKIT_LAYER_OBJECTS
+    $<TARGET_OBJECTS:numkit_core_obj>
+    $<TARGET_OBJECTS:numkit_toolboxes_obj>
+    $<TARGET_OBJECTS:numkit_math_obj>
+    $<TARGET_OBJECTS:numkit_lang_obj>
+    $<TARGET_OBJECTS:numkit_runtime_obj>
+    $<TARGET_OBJECTS:numkit_bundle_obj>)
 set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_MATH_HEADERS} ${NUMKIT_LANG_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
-    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} $<TARGET_OBJECTS:numkit_core_obj>)
+    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} ${NUMKIT_LAYER_OBJECTS})
 else()
-    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} $<TARGET_OBJECTS:numkit_core_obj>)
+    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} ${NUMKIT_LAYER_OBJECTS})
 endif()
 
 # Match install-tree NAMESPACE so add_subdirectory consumers can use the
@@ -350,8 +357,15 @@ function(numkit_configure_layer tgt)
     endif()
 endfunction()
 
-add_library(numkit_core_obj OBJECT ${NUMKIT_CORE_SOURCES})
-numkit_configure_layer(numkit_core_obj)
+add_library(numkit_core_obj      OBJECT ${NUMKIT_CORE_SOURCES})
+add_library(numkit_toolboxes_obj OBJECT ${NUMKIT_LIBS_SOURCES})
+add_library(numkit_math_obj      OBJECT ${NUMKIT_MATH_SOURCES})
+add_library(numkit_lang_obj      OBJECT ${NUMKIT_LANG_SOURCES})
+add_library(numkit_runtime_obj   OBJECT ${NUMKIT_RUNTIME_SOURCES})
+add_library(numkit_bundle_obj    OBJECT ${NUMKIT_BUNDLE_SOURCES})
+foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_math_obj numkit_lang_obj numkit_runtime_obj numkit_bundle_obj)
+    numkit_configure_layer(${_obj})
+endforeach()
 
 # Smoke binary (numkit_smoke) is now owned by tests/smoke/CMakeLists.txt;
 # add_subdirectory(tests) below pulls it in via tests/CMakeLists.txt.
