@@ -6,7 +6,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/signal/transforms/dct.hpp>
 #include <numkit/signal/transforms/fft.hpp>
-#include "dct_detail.hpp"
+#include "transforms/dct_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

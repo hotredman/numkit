@@ -7,7 +7,7 @@
 #include <numkit/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
 #include <numkit/signal/transforms/extras.hpp>
 #include <numkit/signal/transforms/fft.hpp>
-#include "extras_detail.hpp"
+#include "transforms/extras_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
