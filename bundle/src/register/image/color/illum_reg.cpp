@@ -7,7 +7,7 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
 #include <numkit/image/color/color.hpp>
-#include "illum_detail.hpp"
+#include "color/illum_detail.hpp"
 
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
 #include <numkit/value/value.hpp>

@@ -231,6 +231,15 @@ target_include_directories(numkit
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
+        # C5: register adapters relocated to bundle/src/register/<T>/ keep their
+        # area-own ("<subarea>/X_detail.hpp") includes resolvable via the toolbox
+        # src root on the -I path.
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/image/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/comm/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/control/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/audio/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/wavelet/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/linalg/src
         # Vendored single-header libs (stb_image, stb_image_write).
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
