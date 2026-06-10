@@ -23,7 +23,7 @@
 
 #include "binary_ops_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API — binary operators
@@ -423,7 +423,7 @@ Value logicalOr(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 // each binary operator under its MATLAB function name. Each adapter is
 // a thin wrapper over the existing public API.
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
 
 // ════════════════════════════════════════════════════════════════════════
 // Registration — forward BinaryOpFunc closures to the public API

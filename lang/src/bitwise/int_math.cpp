@@ -21,7 +21,7 @@
 
 #include "int_math_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 
 // ────────────────────────────────────────────────────────────────────
@@ -147,4 +147,4 @@ Value bitget(const Value &a, const Value &n, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

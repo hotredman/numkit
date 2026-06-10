@@ -29,7 +29,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 using namespace ::numkit::builtin::detail;
 
@@ -459,4 +459,4 @@ Value logicalBinary(const char *opName, Op op,
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

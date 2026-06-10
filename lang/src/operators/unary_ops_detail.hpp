@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 namespace {
 
@@ -95,4 +95,4 @@ Value transpose2D(const Value &x, bool conjugate, const char *fnName,
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace numkit::lang

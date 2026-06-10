@@ -15,7 +15,7 @@
 
 #include "unary_ops_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::lang {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API — unary operators
@@ -115,7 +115,7 @@ Value transposeNC(const Value &x, std::pmr::memory_resource *mr)
 // Pack 11: thin wrappers exposing the operator implementations under
 // their MATLAB function names.
 
-} // namespace numkit::builtin
+} // namespace numkit::lang
 
 // ════════════════════════════════════════════════════════════════════════
 // Registration — forward UnaryOpFunc closures to the public API
