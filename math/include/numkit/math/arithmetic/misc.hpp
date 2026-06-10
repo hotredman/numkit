@@ -8,7 +8,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @brief Degrees → radians (`y = deg2rad(x)`).
 ///
@@ -127,4 +127,4 @@ Value hypot(const Value &x, const Value &y, std::pmr::memory_resource *mr = null
 /// @return    Real n-th root, broadcast shape.
 Value nthroot(const Value &x, const Value &n, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

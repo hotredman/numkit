@@ -29,7 +29,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -72,13 +72,13 @@ void AbsLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 // ── Single external definition (only compiled on the final pass) ────────
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(AbsLoop);
 
@@ -123,6 +123,6 @@ Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 
 #endif // HWY_ONCE

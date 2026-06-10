@@ -7,11 +7,11 @@
 
 #include <cstddef>
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 void doubleCeilLoop  (const double *in, double *out, std::size_t n);
 void doubleFloorLoop (const double *in, double *out, std::size_t n);
 void doubleRoundLoop (const double *in, double *out, std::size_t n);  // round half-away-from-zero
 void doubleFixLoop   (const double *in, double *out, std::size_t n);  // trunc toward zero
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail

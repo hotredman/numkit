@@ -749,18 +749,15 @@ Value diff(const Value &x, int n = 1, int dim = 0, std::pmr::memory_resource *mr
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     LOGICAL reduction.
 /// @see allOf, xorOf
+/// NOTE: anyOf/allOf are arithmetic logical-reductions (defined in
+/// math/arithmetic/logical_reductions_*.cpp); declared in numkit::math (C4),
+/// reachable from numkit::builtin via the library.hpp umbrella shim.
+} // namespace numkit::builtin
+namespace numkit::math {
 Value anyOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief `all` reduction (`y = all(x, dim)`).
-///
-/// Empty slice → `true`.
-///
-/// @param x    Input array.
-/// @param dim  1-based dim (0 → first non-singleton).
-/// @param mr   Memory resource (nullptr → process default).
-/// @return     LOGICAL reduction.
-/// @see anyOf
 Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+} // namespace numkit::math
+namespace numkit::builtin {
 
 /// @brief Elementwise xor (`y = xor(a, b)`).
 ///

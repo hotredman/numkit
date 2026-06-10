@@ -11,10 +11,10 @@
 
 #include <cstddef>
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 void modLoopVV(const double *a, const double *b, double *out, std::size_t n);
 void modLoopVS(const double *a, double scalar, double *out, std::size_t n);
 void modLoopSV(double scalar, const double *b, double *out, std::size_t n);
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail

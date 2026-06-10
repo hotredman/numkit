@@ -19,7 +19,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // Emscripten / libc++ shim for the C++17 special-math Bessel family.
 // libc++ does not implement P0226's `std::cyl_bessel_*`, so on the
@@ -1097,4 +1097,4 @@ EllipJ ellipj(const Value &u, const Value &m, std::pmr::memory_resource *mr)
     return { std::move(sn), std::move(cn), std::move(dn) };
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

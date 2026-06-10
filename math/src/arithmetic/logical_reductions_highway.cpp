@@ -35,7 +35,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -134,11 +134,11 @@ bool AllByteScan(const uint8_t *HWY_RESTRICT p, std::size_t n)
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(AnyDoubleScan);
 HWY_EXPORT(AllDoubleScan);
@@ -230,13 +230,13 @@ Value logicalReduceImpl(const Value &x, int dim, std::pmr::memory_resource *mr)
         return Value::logicalScalar(v != 0, mr);
     }
 
-    const int d = detail::resolveDim(x, dim, IsAny ? "any" : "all");
+    const int d = numkit::ops::resolveDim(x, dim, IsAny ? "any" : "all");
     const auto &dd = x.dims();
 
     // ND fallback: rank ≥ 4 — use stride arithmetic.
     if (dd.ndim() >= 4 && d >= 1 && d <= dd.ndim()) {
         ScratchArena scratch(mr);
-        auto shape = detail::outShapeForDimND(&scratch, x, d);
+        auto shape = numkit::ops::outShapeForDimND(&scratch, x, d);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
                                       ValueType::LOGICAL, mr);
@@ -254,7 +254,7 @@ Value logicalReduceImpl(const Value &x, int dim, std::pmr::memory_resource *mr)
         return out;
     }
 
-    const auto outShape = detail::outShapeForDim(x, d);
+    const auto outShape = numkit::ops::outShapeForDim(x, d);
     Value out = createMatrix(outShape, ValueType::LOGICAL, mr);
     uint8_t *dst = out.logicalDataMut();
 
@@ -297,5 +297,5 @@ Value allOf(const Value &x, int dim, std::pmr::memory_resource *mr)
     return logicalReduceImpl<false>(x, dim, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 #endif // HWY_ONCE

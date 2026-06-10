@@ -38,10 +38,14 @@ void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
 void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
+} // namespace numkit::builtin::detail
+
+// isnan/isinf/isfinite backend lives in arithmetic → numkit::math::detail (C4).
+namespace numkit::math::detail {
 void doubleIsNaNLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail
 
 namespace numkit::builtin {
 

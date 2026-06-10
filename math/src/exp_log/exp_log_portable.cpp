@@ -16,7 +16,7 @@
 #include <complex>
 #include <stdexcept>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 namespace {
 
@@ -185,4 +185,4 @@ Value pow2(const Value &y, std::pmr::memory_resource *mr)
     return unaryDouble(y, [](double v) { return std::exp2(v); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

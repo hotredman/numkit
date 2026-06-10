@@ -21,7 +21,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -71,12 +71,12 @@ void ModLoopSV(double s, const double *HWY_RESTRICT b,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 HWY_EXPORT(ModLoopVV);
 HWY_EXPORT(ModLoopVS);
@@ -100,6 +100,6 @@ void modLoopSV(double scalar, const double *b, double *out, std::size_t n)
     HWY_DYNAMIC_DISPATCH(ModLoopSV)(scalar, b, out, n);
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail
 
 #endif // HWY_ONCE

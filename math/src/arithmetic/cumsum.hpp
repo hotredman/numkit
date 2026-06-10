@@ -18,7 +18,7 @@
 
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // Inclusive prefix sum over [src, src+n) into [dst, dst+n).
 void cumsumScan(const double *src, double *dst, std::size_t n);
@@ -33,4 +33,4 @@ void cumprodScan(const double *src, double *dst, std::size_t n);
 void cummaxScan(const double *src, double *dst, std::size_t n);
 void cumminScan(const double *src, double *dst, std::size_t n);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

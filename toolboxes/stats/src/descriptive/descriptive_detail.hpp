@@ -31,7 +31,7 @@
 namespace numkit::stats {
 
 using namespace ::numkit::builtin::detail;
-using ::numkit::builtin::varianceTwoPass;
+using ::numkit::math::varianceTwoPass;
 
 // Named (external-linkage) so the file-scope worker quantileWithOpts can
 // take it across the compute/register TU boundary.

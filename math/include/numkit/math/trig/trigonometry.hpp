@@ -7,7 +7,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @file
 /// @brief Trigonometric / hyperbolic builtins.
@@ -353,4 +353,4 @@ SphTriple cart2sph(const Value &x, const Value &y, const Value &z, std::pmr::mem
 /// @see cart2sph
 CartTriple sph2cart(const Value &az, const Value &el, const Value &r, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

@@ -15,7 +15,7 @@
 
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // Returns (sum) of [p, p+n). SIMD-dispatched when NUMKIT_WITH_SIMD=ON.
 double sumScan(const double *p, std::size_t n);
@@ -35,4 +35,4 @@ void addInto(double *dst, const double *src, std::size_t n);
 // Empty: NaN. n=1: 0 if normFlag==1 else NaN.
 double varianceTwoPass(const double *p, std::size_t n, int normFlag);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

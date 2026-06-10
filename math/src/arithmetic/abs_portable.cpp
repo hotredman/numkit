@@ -16,7 +16,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 {
@@ -48,4 +48,4 @@ Value abs(const Value &x, Value *hint, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::abs(v); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

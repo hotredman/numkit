@@ -36,7 +36,7 @@
 #include <hwy/contrib/math/math-inl.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -313,12 +313,12 @@ void AcotdLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(SecLoop);
 HWY_EXPORT(CscLoop);
@@ -581,6 +581,6 @@ Value acotd(const Value &x, std::pmr::memory_resource *mr)
         }, [](double v) { return std::atan(1.0 / v) * kRad2Deg; }, [](const Complex &c) { return std::atan(Complex(1.0) / c) * kRad2Deg; }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 
 #endif // HWY_ONCE

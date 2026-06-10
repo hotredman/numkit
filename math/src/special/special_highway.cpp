@@ -36,7 +36,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -285,12 +285,12 @@ void ErfLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(ErfLoop);
 
@@ -311,6 +311,6 @@ Value erf(const Value &x, std::pmr::memory_resource *mr)
     return r;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 
 #endif // HWY_ONCE

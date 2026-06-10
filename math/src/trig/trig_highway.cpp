@@ -36,7 +36,7 @@
 #include <hwy/contrib/math/math-inl.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -475,12 +475,12 @@ void CospiLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(SinLoop);
 HWY_EXPORT(CosLoop);
@@ -926,6 +926,6 @@ Value hypot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 
 #endif // HWY_ONCE

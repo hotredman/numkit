@@ -33,7 +33,7 @@
 #include <hwy/contrib/math/math-inl.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -167,12 +167,12 @@ void Exp2Loop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(ExpLoop);
 HWY_EXPORT(LogLoop);
@@ -473,6 +473,6 @@ Value pow2(const Value &y, std::pmr::memory_resource *mr)
         }, [](double v) { return std::exp2(v); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 
 #endif // HWY_ONCE

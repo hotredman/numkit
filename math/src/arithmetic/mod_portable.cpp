@@ -8,7 +8,7 @@
 
 #include <cmath>
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 void modLoopVV(const double *a, const double *b, double *out, std::size_t n)
 {
@@ -28,4 +28,4 @@ void modLoopSV(double s, const double *b, double *out, std::size_t n)
         out[i] = (b[i] != 0) ? s - std::floor(s / b[i]) * b[i] : s;
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail

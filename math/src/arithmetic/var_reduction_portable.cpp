@@ -10,7 +10,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 double sumScan(const double *p, std::size_t n)
 {
@@ -47,4 +47,4 @@ double varianceTwoPass(const double *p, std::size_t n, int normFlag)
     return ss / denom;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

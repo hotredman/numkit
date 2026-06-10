@@ -20,7 +20,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // ── Degree-input/-output trig ─────────────────────────────────────────
 //
@@ -156,4 +156,4 @@ CartTriple sph2cart(const Value &az, const Value &el, const Value &r, std::pmr::
     return { std::move(xv), std::move(yv), std::move(zv) };
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

@@ -17,7 +17,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -78,12 +78,12 @@ void RoundLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 HWY_EXPORT(CeilLoop);
 HWY_EXPORT(FloorLoop);
@@ -103,6 +103,6 @@ void doubleFixLoop(const double *in, double *out, std::size_t n) {
     HWY_DYNAMIC_DISPATCH(FixLoop)(in, out, n);
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail
 
 #endif // HWY_ONCE

@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 namespace {
 
@@ -71,4 +71,4 @@ inline double roundNScalar(double v, int n, bool significant)
 // round(x,n)/round(x,n,'significant') worker (def in rounding.cpp, external).
 Value roundN(const Value &x, int n, bool significant, std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

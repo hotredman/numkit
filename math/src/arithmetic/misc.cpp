@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 Value deg2rad(const Value &x, std::pmr::memory_resource *mr)
 {
@@ -163,4 +163,4 @@ Value nthroot(const Value &x, const Value &n, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

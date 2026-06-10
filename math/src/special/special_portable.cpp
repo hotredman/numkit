@@ -12,11 +12,11 @@
 
 #include <cmath>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 Value erf(const Value &x, std::pmr::memory_resource *mr)
 {
     return unaryDouble(x, [](double v) { return std::erf(v); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
