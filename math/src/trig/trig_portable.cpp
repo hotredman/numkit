@@ -18,7 +18,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 namespace {
 
@@ -301,4 +301,4 @@ Value hypot(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

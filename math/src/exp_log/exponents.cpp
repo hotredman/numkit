@@ -17,7 +17,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // Public 2-arg wrappers — delegate to the 3-arg overload in the SIMD
 // backends with no buffer hint.
@@ -57,4 +57,4 @@ Value realpow(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     return elementwiseDouble(x, y, checkPair, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

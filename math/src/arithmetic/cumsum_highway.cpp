@@ -31,7 +31,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -182,11 +182,11 @@ void CumminScanLoopBody(const double *HWY_RESTRICT src,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(CumsumScanLoop);
 HWY_EXPORT(CumprodScanLoop);
@@ -246,5 +246,5 @@ void cumminScan(const double *src, double *dst, std::size_t n)
                                              src[start]);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 #endif // HWY_ONCE

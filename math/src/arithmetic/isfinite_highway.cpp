@@ -20,7 +20,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -69,12 +69,12 @@ void IsFiniteLoop(const double *HWY_RESTRICT in, uint8_t *HWY_RESTRICT out, std:
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 HWY_EXPORT(IsNaNLoop);
 HWY_EXPORT(IsInfLoop);
@@ -90,6 +90,6 @@ void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n) {
     HWY_DYNAMIC_DISPATCH(IsFiniteLoop)(in, out, n);
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail
 
 #endif // HWY_ONCE

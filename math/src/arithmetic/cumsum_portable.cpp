@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 void cumsumScan(const double *src, double *dst, std::size_t n)
 {
@@ -60,4 +60,4 @@ void cumminScan(const double *src, double *dst, std::size_t n)
     }
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

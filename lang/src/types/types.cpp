@@ -29,13 +29,15 @@ void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
 void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
+} // namespace numkit::builtin::detail
 
 // Forward-declare the isnan/isinf/isfinite backend (defined in
-// math/arithmetic/isfinite_{highway,portable}.cpp).
+// math/arithmetic/isfinite_{highway,portable}.cpp — numkit::math::detail after C4).
+namespace numkit::math::detail {
 void doubleIsNaNLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail
 
 namespace numkit::builtin {
 
@@ -108,7 +110,7 @@ Value isnan(const Value &x, std::pmr::memory_resource *mr)
         return Value::logicalScalar(std::isnan(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
     if (x.numel() == 0) return r;
-    ::numkit::builtin::detail::doubleIsNaNLoop(x.doubleData(), r.logicalDataMut(), x.numel());
+    ::numkit::math::detail::doubleIsNaNLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -119,7 +121,7 @@ Value isinf(const Value &x, std::pmr::memory_resource *mr)
         return Value::logicalScalar(std::isinf(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
     if (x.numel() == 0) return r;
-    ::numkit::builtin::detail::doubleIsInfLoop(x.doubleData(), r.logicalDataMut(), x.numel());
+    ::numkit::math::detail::doubleIsInfLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -130,7 +132,7 @@ Value isfinite(const Value &x, std::pmr::memory_resource *mr)
         return Value::logicalScalar(std::isfinite(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
     if (x.numel() == 0) return r;
-    ::numkit::builtin::detail::doubleIsFiniteLoop(x.doubleData(), r.logicalDataMut(), x.numel());
+    ::numkit::math::detail::doubleIsFiniteLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -161,7 +163,7 @@ Value ismissing(const Value &x, const Value &indicator,
         // Standard missing only: NaN for float, never for ints/logical.
         if (float_class) {
             if (x.type() == ValueType::DOUBLE) {
-                ::numkit::builtin::detail::doubleIsNaNLoop(x.doubleData(), out, n);
+                ::numkit::math::detail::doubleIsNaNLoop(x.doubleData(), out, n);
             } else {  // SINGLE
                 const float *src = x.singleData();
                 for (std::size_t i = 0; i < n; ++i)

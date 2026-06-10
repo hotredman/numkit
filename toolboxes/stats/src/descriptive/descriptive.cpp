@@ -45,7 +45,7 @@ namespace numkit::stats {
 // firstNonSingletonDim, outShapeForDim, outShapeForDimND, sliceLenForDim,
 // varianceTwoPass, … by short name as before the move.
 using namespace ::numkit::builtin::detail;
-using ::numkit::builtin::varianceTwoPass;
+using ::numkit::math::varianceTwoPass;
 
 // ────────────────────────────────────────────────────────────────────
 // var / std

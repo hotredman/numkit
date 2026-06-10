@@ -7,7 +7,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @file
 /// @brief Special functions (gamma, erf, beta, Bessel, elliptic, Airy, …).
@@ -308,4 +308,4 @@ struct EllipJ {
 /// @see ellipke
 EllipJ ellipj(const Value &u, const Value &m, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

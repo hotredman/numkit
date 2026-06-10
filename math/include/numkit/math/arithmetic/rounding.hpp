@@ -7,7 +7,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @brief Absolute value (`y = abs(x)`).
 ///
@@ -74,4 +74,4 @@ Value sign(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return    Truncated positive part, same shape as `x`.
 Value subplus(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

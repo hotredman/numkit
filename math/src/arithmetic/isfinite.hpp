@@ -9,10 +9,10 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 void doubleIsNaNLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
 void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail

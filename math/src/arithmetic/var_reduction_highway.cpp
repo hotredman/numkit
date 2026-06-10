@@ -18,7 +18,7 @@
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::builtin {
+namespace numkit::math {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -105,11 +105,11 @@ double SumSquaredDeviationsScanLoop(const double *HWY_RESTRICT p, std::size_t n,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::builtin
+} // namespace numkit::math
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::builtin {
+namespace numkit::math {
 
 HWY_EXPORT(SumScanLoop);
 HWY_EXPORT(SumSquaredDeviationsScanLoop);
@@ -146,5 +146,5 @@ double varianceTwoPass(const double *p, std::size_t n, int normFlag)
     return ss / denom;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
 #endif // HWY_ONCE

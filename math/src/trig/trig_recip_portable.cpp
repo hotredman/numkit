@@ -16,7 +16,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 namespace {
 constexpr double kDeg2Rad = 3.14159265358979323846 / 180.0;
@@ -219,4 +219,4 @@ Value acotd(const Value &x, std::pmr::memory_resource *mr)
     return unaryDouble(x, [](double v) { return std::atan(1.0 / v) * kRad2Deg; }, mr);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math

@@ -7,7 +7,7 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @file
 /// @brief Exponentials and logarithms.
@@ -143,4 +143,4 @@ Value reallog(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @see sqrt
 Value realsqrt(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

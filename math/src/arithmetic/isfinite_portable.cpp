@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::builtin::detail {
+namespace numkit::math::detail {
 
 void doubleIsNaNLoop(const double *in, uint8_t *out, std::size_t n)
 {
@@ -30,4 +30,4 @@ void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n)
         out[i] = std::isfinite(in[i]) ? 1 : 0;
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::math::detail

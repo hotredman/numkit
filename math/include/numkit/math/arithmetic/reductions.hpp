@@ -10,7 +10,7 @@
 
 #include <tuple>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @file
 /// @brief Reductions and equally-spaced array generators.
@@ -148,4 +148,4 @@ Value linspace(double a, double b, size_t n = 100, std::pmr::memory_resource *mr
 /// @see linspace
 Value logspace(double a, double b, size_t n = 50, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

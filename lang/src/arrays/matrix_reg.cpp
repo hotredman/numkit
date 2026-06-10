@@ -1288,8 +1288,8 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         outs[0] = fn(args[0], dim, ctx.engine->resource());                   \
     }
 
-NK_LOGICAL_RED_REG(any, anyOf)
-NK_LOGICAL_RED_REG(all, allOf)
+NK_LOGICAL_RED_REG(any, numkit::math::anyOf)
+NK_LOGICAL_RED_REG(all, numkit::math::allOf)
 
 #undef NK_LOGICAL_RED_REG
 
