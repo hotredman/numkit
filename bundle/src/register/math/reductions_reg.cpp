@@ -12,11 +12,11 @@
 #include <numkit/builtin/math/trig/trigonometry.hpp>   // sin / cos adapters
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include "../_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads
+#include "_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads
 #include "helpers.hpp"
-#include "math/arithmetic/var_reduction.hpp"  // for sumScan + addInto
+#include "arithmetic/var_reduction.hpp"  // for sumScan + addInto
 #include "reduction_helpers.hpp"
-#include "reductions_detail.hpp"
+#include "arithmetic/reductions_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>

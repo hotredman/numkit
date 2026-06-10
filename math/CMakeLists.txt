@@ -19,42 +19,29 @@
 list(APPEND NUMKIT_MATH_SOURCES
     # geom/ (C1 pilot — inpolygon / convhull)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/geom/geom.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/geom/geom_reg.cpp
     # complex/ (abs/angle/conj/real/imag/complex/iscomplex/...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/complex/complex.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/complex/complex_reg.cpp
     # discrete/ (unique/ismember/union/intersect/setdiff/primes/factor/perms/histc...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/discrete/discrete.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/discrete/discrete_reg.cpp
     # interp/ (interp1 / interp2 / spline / pchip / ...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/interp/interp.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/interp/interp_reg.cpp
     # poly/ (roots / polyval / polyfit / conv / deconv / ...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/poly/polynomials.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/poly/polynomials_reg.cpp
     # permutations (top-level: perms / nchoosek / factorial / ...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/permutations.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/permutations_reg.cpp
     # random/ (rand / randn / randi / randperm / rng — engine in ops, wrappers here)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng_reg.cpp
     # trig/ (sin/cos/tan/asin/... compute + register; SIMD backends in the
     # NUMKIT_WITH_SIMD block below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trigonometry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trigonometry_reg.cpp
     # exp_log/ (exp/log/log2/log10/sqrt/pow/... compute + register; SIMD below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exponents.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exponents_reg.cpp
     # special/ (gamma/beta/erf/factorial-ish... compute + register; SIMD below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/special/special_reg.cpp
     # arithmetic/ (misc/reductions/rounding compute + register; SIMD backends below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/misc.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/misc_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/reductions.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/reductions_reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/rounding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arithmetic/rounding_reg.cpp
 )
 list(APPEND NUMKIT_MATH_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_MATH_HEADERS

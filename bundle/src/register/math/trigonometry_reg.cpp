@@ -9,7 +9,7 @@
 #include <numkit/builtin/math/trig/trigonometry.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include "../_unary_hint.hpp"   // 3-arg sin/cos hint overloads
+#include "_unary_hint.hpp"   // 3-arg sin/cos hint overloads
 #include "helpers.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

@@ -9,7 +9,7 @@
 #include <numkit/value/value.hpp>
 #include "helpers.hpp"
 #include "poly_helpers.hpp"
-#include "polynomials_detail.hpp"
+#include "poly/polynomials_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>

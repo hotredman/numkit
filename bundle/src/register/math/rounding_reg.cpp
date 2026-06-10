@@ -8,10 +8,10 @@
 #include <numkit/builtin/math/arithmetic/rounding.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include "../_unary_hint.hpp"  // 3-arg abs hint overload
+#include "_unary_hint.hpp"  // 3-arg abs hint overload
 #include "helpers.hpp"
-#include "rounding.hpp"      // detail::doubleCeilLoop / FloorLoop / RoundLoop / FixLoop
-#include "rounding_detail.hpp"
+#include "arithmetic/rounding.hpp"      // detail::doubleCeilLoop / FloorLoop / RoundLoop / FixLoop
+#include "arithmetic/rounding_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
