@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 namespace {
 
@@ -342,4 +342,4 @@ inline bool nearlyEqualTol(double x, double y, double tol)
 std::pair<Value, Value> ismemberComplex(const Value &a, const Value &b, bool wantLoc, std::pmr::memory_resource *mr);
 Value nchoosekCombinations(const Value &v, double kd, std::pmr::memory_resource *mr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

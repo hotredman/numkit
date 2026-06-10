@@ -9,7 +9,7 @@
 
 #include <tuple>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @file
 /// @brief Discrete-math builtins.
@@ -305,4 +305,4 @@ Value ismembertol(const Value &a, const Value &s, double tol = 1e-6,
 Value uniquetol(const Value &x, double tol = 1e-6,
                 std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math
