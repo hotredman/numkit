@@ -13,7 +13,7 @@
 #include <numkit/ops/rng.hpp>
 #include <numkit/builtin/math/random/matlab_mt19937.hpp>  // MatlabMT19937 → builtin::detail
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 using numkit::ops::rand;
 using numkit::ops::randn;
@@ -28,4 +28,4 @@ using numkit::ops::rngRestore;
 using numkit::ops::randi;
 using numkit::ops::randperm;
 
-} // namespace numkit::builtin
+} // namespace numkit::math

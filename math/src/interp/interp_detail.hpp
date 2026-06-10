@@ -26,7 +26,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 namespace {
 
@@ -993,4 +993,4 @@ Value interp3Impl(const Value &V, const double *xGrid, std::size_t xN, const dou
 
 } // namespace
 
-} // namespace numkit::builtin
+} // namespace numkit::math

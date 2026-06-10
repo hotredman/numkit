@@ -10,7 +10,7 @@
 
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @brief 1-D interpolation (`yq = interp1(x, y, xq, method)`).
 ///
@@ -173,4 +173,4 @@ Value mkpp(const Value &breaks, const Value &coefs,
 Value ppval(const Value &pp, const Value &x,
             std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::math

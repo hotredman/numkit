@@ -22,7 +22,7 @@
 
 #include "interp_detail.hpp"
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 // ── Internal algorithm helpers ────────────────────────────────────────
 
@@ -217,4 +217,4 @@ Value ppval(const Value &pp, const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::math
