@@ -3,7 +3,6 @@ set(STDLIB_SOURCES
     # recompile on every build by the `numkit_build_info` target in
     # the top-level CMakeLists, so the `version` builtin always
     # reflects the actual link time instead of stale __DATE__.
-    ${CMAKE_CURRENT_SOURCE_DIR}/version_string.cpp
     # language/ — MATLAB Language Fundamentals
     # commands/env moved to runtime (runtime/src/language/commands/) — Phase 3-A step C3
     # operators/ (binary_ops, unary_ops) moved to the lang library (lang/src/operators/) — Phase 3-A step C2
@@ -35,7 +34,6 @@ set(STDLIB_SOURCES
     # permutations moved to the math library (math/src/permutations.cpp) — Phase 3-A step C1
     # math/optim/ moved to toolboxes/optim/
     # programming/ — MATLAB Programming and Scripts
-    ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp # compute (engine-free)
 )
 
 # Backend-split functions: one definition per TU, picked at configure

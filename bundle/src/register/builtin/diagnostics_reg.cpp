@@ -6,7 +6,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/lang/strings/format.hpp>
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/programming/errors/diagnostics.hpp>
+#include <numkit/runtime/programming/errors/diagnostics.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

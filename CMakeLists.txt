@@ -190,7 +190,7 @@ endif()
 # Writes <build>/generated/numkit/core/build_info.hpp containing a
 # NUMKIT_BUILD_TIMESTAMP macro with current wall-clock time. The
 # `numkit_build_info` custom target is part of ALL so it runs on
-# every build; toolboxes/builtin/src/version_string.cpp depends on the
+# every build; bundle/src/version_string.cpp depends on the
 # generated header so only that tiny TU recompiles per build, not
 # the huge library.cpp.
 set(NUMKIT_BUILD_INFO_DIR    "${CMAKE_BINARY_DIR}/generated")
@@ -212,7 +212,7 @@ add_custom_target(numkit_build_info ALL
 add_dependencies(numkit numkit_build_info)
 target_include_directories(numkit PRIVATE "${NUMKIT_BUILD_INFO_DIR}")
 set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src/version_string.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/bundle/src/version_string.cpp"
     PROPERTIES OBJECT_DEPENDS "${NUMKIT_BUILD_INFO_HEADER}"
 )
 

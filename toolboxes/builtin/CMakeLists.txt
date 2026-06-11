@@ -15,7 +15,6 @@ list(APPEND NUMKIT_LIBS_HEADERS
     # math/ — all relocated (integration.hpp -> runtime in C3; the rest -> math lib in C1)
     # language/ — all relocated (cell/struct -> runtime in C3; the rest -> lang lib in C2)
     # programming/
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/programming/errors/diagnostics.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)
