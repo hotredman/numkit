@@ -6,7 +6,7 @@
 // only their declarations are reproduced in math/exp_log/exponents.hpp.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/exp_log/exponents.hpp>
+#include <numkit/math/exp_log/exponents.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

@@ -9,7 +9,7 @@
 
 #include <numkit/stats/distributions/normal.hpp>
 
-#include <numkit/builtin/math/random/rng.hpp>          // sharedEngine, randn
+#include <numkit/math/random/rng.hpp>          // sharedEngine, randn
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 

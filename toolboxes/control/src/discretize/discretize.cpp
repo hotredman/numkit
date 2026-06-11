@@ -12,7 +12,7 @@
 #include <numkit/control/conversion/conversion.hpp>
 #include <numkit/control/internal/numerics.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The c2d/d2c builtins

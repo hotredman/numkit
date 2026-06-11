@@ -4,7 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/math/interp/interp.hpp>     // interp1 (spline)
+#include <numkit/math/interp/interp.hpp>     // interp1 (spline)
 #include <numkit/signal/transforms/hilbert.hpp>
 #include <numkit/signal/windows/windows.hpp>          // kaiser
 #include <numkit/value/error.hpp>

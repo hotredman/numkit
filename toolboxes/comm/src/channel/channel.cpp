@@ -2,8 +2,8 @@
 
 #include <numkit/comm/channel/channel.hpp>
 
-#include <numkit/builtin/math/random/rng.hpp>
-#include <numkit/builtin/math/special/special.hpp>     // betaincinv
+#include <numkit/math/random/rng.hpp>
+#include <numkit/math/special/special.hpp>     // betaincinv
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

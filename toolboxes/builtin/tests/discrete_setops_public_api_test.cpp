@@ -5,7 +5,7 @@
 // numkit::builtin::{setxor, allunique, numunique, ismembertol, uniquetol}.
 // Calls the public functions directly (not via the engine).
 
-#include <numkit/builtin/math/discrete/discrete.hpp>
+#include <numkit/math/discrete/discrete.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <gtest/gtest.h>

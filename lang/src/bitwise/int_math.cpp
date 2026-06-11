@@ -7,9 +7,9 @@
 // outside the [-2^53, 2^53] safe integer range degrade like MATLAB:
 // the round-trip through double rounds.
 
-#include <numkit/builtin/language/bitwise/int_math.hpp>
+#include <numkit/lang/bitwise/int_math.hpp>
 
-#include <numkit/builtin/language/types/types.hpp>
+#include <numkit/lang/types/types.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value_type.hpp>

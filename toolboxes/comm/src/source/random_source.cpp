@@ -5,7 +5,7 @@
 
 #include <numkit/comm/source/random_source.hpp>
 
-#include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/math/random/rng.hpp>
 #include <numkit/builtin/math/random/matlab_mt19937.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>

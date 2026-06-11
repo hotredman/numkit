@@ -7,9 +7,9 @@
 // input index. Pure scalar gather; no SIMD opportunity in the
 // general case (input strides differ per axis after permutation).
 
-#include <numkit/builtin/language/arrays/nd_manip.hpp>
+#include <numkit/lang/arrays/nd_manip.hpp>
 
-#include <numkit/builtin/language/arrays/matrix.hpp>  // reshape, horzcat, vertcat
+#include <numkit/lang/arrays/matrix.hpp>  // reshape, horzcat, vertcat
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/shape_ops.hpp>      // computeStridesColMajor, incrementCoords

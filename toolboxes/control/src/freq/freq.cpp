@@ -12,7 +12,7 @@
 #include <numkit/control/conversion/conversion.hpp>
 #include <numkit/control/props/props.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The evalfr/freqresp/
 // bode/nyquist/rlocus builtins (CallContext wrappers) live in freq_reg.cpp.

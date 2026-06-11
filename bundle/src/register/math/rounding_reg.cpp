@@ -5,7 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/arithmetic/rounding.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "_unary_hint.hpp"  // 3-arg abs hint overload

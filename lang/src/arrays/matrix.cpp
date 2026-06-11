@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/lang/arrays/matrix.cpp
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/lang/arrays/matrix.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -12,10 +12,10 @@
 #include <numkit/ops/binary_ops.hpp>
 #include <numkit/ops/la_solve.hpp>
 #include "math/arithmetic/cumsum.hpp"
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
-#include <numkit/builtin/language/arrays/manip.hpp>     // flip()
-#include <numkit/builtin/language/operators/unary_ops.hpp>  // transposeNC()
+#include <numkit/lang/arrays/manip.hpp>     // flip()
+#include <numkit/lang/operators/unary_ops.hpp>  // transposeNC()
 
 #include <algorithm>
 #include <cctype>

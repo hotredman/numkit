@@ -15,7 +15,7 @@
 #include <numkit/control/state/state.hpp>
 #include <numkit/control/internal/numerics.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The acker / place
 // builtins (CallContext wrappers) live in state/place_reg.cpp.

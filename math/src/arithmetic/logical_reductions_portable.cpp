@@ -7,7 +7,7 @@
 // inner unit-stride scan loops differ (no Highway types here so the
 // portable build doesn't need the Highway include path).
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/lang/arrays/matrix.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

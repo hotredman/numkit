@@ -2,8 +2,8 @@
 
 #include <numkit/stats/distributions/ncx2.hpp>
 
-#include <numkit/builtin/math/special/special.hpp>   // besseli, gammainc
-#include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/math/special/special.hpp>   // besseli, gammainc
+#include <numkit/math/random/rng.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

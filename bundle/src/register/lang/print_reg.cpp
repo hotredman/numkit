@@ -4,8 +4,8 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/language/strings/format.hpp>
-#include <numkit/builtin/language/strings/print.hpp>
+#include <numkit/lang/strings/format.hpp>
+#include <numkit/lang/strings/print.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/shape_ops.hpp>

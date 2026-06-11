@@ -11,8 +11,8 @@
 // path). Sizes span L1 (1K) through DRAM (4M). The kernels are all
 // O(N) or O(N log N) for the median family.
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
-#include <numkit/builtin/math/arithmetic/reductions.hpp>
+#include <numkit/lang/arrays/matrix.hpp>
+#include <numkit/math/arithmetic/reductions.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/nan_aware/nan_aware.hpp>
 #include <memory_resource>

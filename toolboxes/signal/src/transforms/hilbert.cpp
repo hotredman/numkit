@@ -5,7 +5,7 @@
 
 #include <numkit/signal/transforms/hilbert.hpp>
 
-#include <numkit/builtin/math/interp/interp.hpp>     // interp1 (spline)
+#include <numkit/math/interp/interp.hpp>     // interp1 (spline)
 #include <numkit/signal/windows/windows.hpp>          // kaiser
 
 #include <numkit/value/value.hpp>

@@ -5,7 +5,7 @@
 //   splitapply   — apply function per group
 //   groupcounts  — count elements per group
 
-#include <numkit/builtin/math/group/group.hpp>
+#include <numkit/runtime/math/group/group.hpp>
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/callback_builtin.hpp>

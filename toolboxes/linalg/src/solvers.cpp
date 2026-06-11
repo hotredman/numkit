@@ -7,7 +7,7 @@
 
 #include <numkit/linalg/pseudo_subspace.hpp>      // pinv
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
-#include <numkit/builtin/language/operators/binary_ops.hpp>  // mtimes
+#include <numkit/lang/operators/binary_ops.hpp>  // mtimes
 
 // Compute-only TU: Value substrate + Error, no engine. The linsolve /
 // lsqminnorm / lsqnonneg builtins (CallContext wrappers) live in

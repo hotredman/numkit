@@ -4,7 +4,7 @@
 // hypot, nthroot.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/arithmetic/misc.hpp>
+#include <numkit/math/arithmetic/misc.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

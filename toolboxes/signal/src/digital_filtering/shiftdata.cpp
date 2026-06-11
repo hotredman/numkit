@@ -11,7 +11,7 @@
 
 #include <numkit/signal/digital_filtering/shiftdata.hpp>
 
-#include <numkit/builtin/language/arrays/nd_manip.hpp>
+#include <numkit/lang/arrays/nd_manip.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

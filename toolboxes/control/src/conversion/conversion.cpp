@@ -6,7 +6,7 @@
 
 #include <numkit/control/conversion/conversion.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. conversion.cpp has no
 // CallContext builtins of its own (the tf2ss/ss2tf/etc. register wrappers live

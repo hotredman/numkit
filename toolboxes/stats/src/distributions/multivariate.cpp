@@ -10,8 +10,8 @@
 
 #include <numkit/stats/distributions/multivariate.hpp>
 
-#include <numkit/builtin/math/random/rng.hpp>   // sharedEngine / rngMutex
-#include <numkit/builtin/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
+#include <numkit/math/random/rng.hpp>   // sharedEngine / rngMutex
+#include <numkit/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>

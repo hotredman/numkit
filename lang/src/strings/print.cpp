@@ -1,8 +1,8 @@
 // toolboxes/builtin/src/datatypes/strings/print.cpp
 
-#include <numkit/builtin/language/strings/format.hpp>
+#include <numkit/lang/strings/format.hpp>
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/language/strings/print.hpp>
+#include <numkit/lang/strings/print.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/shape_ops.hpp>

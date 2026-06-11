@@ -5,7 +5,7 @@
 // numkit::builtin::{colperm, symrcm}. Reference values match the
 // script-level colperm_test.cpp / symrcm_test.cpp guards (MATLAB R2025b).
 
-#include <numkit/builtin/math/permutations.hpp>
+#include <numkit/math/permutations.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <gtest/gtest.h>

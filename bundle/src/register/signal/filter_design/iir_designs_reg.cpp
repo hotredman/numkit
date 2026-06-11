@@ -5,8 +5,8 @@
 // TU; collected here verbatim (reg-side arg parsers nested in their anon
 // namespaces ride along). See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/math/poly/polynomials.hpp>
-#include <numkit/builtin/math/special/special.hpp>
+#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/math/special/special.hpp>
 #include <numkit/signal/filter_design/analog_filters.hpp>
 #include <numkit/signal/filter_design/iir_designs.hpp>
 #include <numkit/value/error.hpp>

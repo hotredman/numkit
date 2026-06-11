@@ -16,7 +16,7 @@
 // PMR HARD RULE: every fn takes std::pmr::memory_resource *mr.
 
 #include <numkit/audio/scale/freq_scales.hpp>
-#include <numkit/builtin/math/interp/interp.hpp>   // numkit::math::pchip (engine-free)
+#include <numkit/math/interp/interp.hpp>   // numkit::math::pchip (engine-free)
 
 // Compute-only TU: Value substrate + Error, no engine. The hz2mel / mel2hz
 // / hz2bark / bark2hz / hz2erb / erb2hz / phon2sone / sone2phon builtins

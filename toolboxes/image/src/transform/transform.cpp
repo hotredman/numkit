@@ -9,7 +9,7 @@
 #include <numkit/image/transform/transform.hpp>
 #include <numkit/image/filter/filter.hpp>
 
-#include <numkit/builtin/language/arrays/manip.hpp>
+#include <numkit/lang/arrays/manip.hpp>
 #include <numkit/signal/transforms/dct.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 #include <numkit/signal/convolution/convolution.hpp>

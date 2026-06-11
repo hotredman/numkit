@@ -16,7 +16,7 @@
 
 #include <numkit/signal/digital_filtering/poly_utils.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>  // numkit::math::roots / numkit::math::poly
+#include <numkit/math/poly/polynomials.hpp>  // numkit::math::roots / numkit::math::poly
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

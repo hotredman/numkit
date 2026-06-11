@@ -4,7 +4,7 @@
 // dispatched variant (SLEEF-ported dd kernel) lives in special_highway.cpp
 // and matches this file on every input outside the vectorised range.
 
-#include <numkit/builtin/math/special/special.hpp>
+#include <numkit/math/special/special.hpp>
 
 #include <numkit/value/error.hpp>
 

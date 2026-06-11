@@ -23,7 +23,7 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/lang/arrays/matrix.hpp>
 #include <numkit/linalg/eig.hpp>             // eig_symmetric (migrated)
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

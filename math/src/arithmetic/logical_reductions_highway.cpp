@@ -16,7 +16,7 @@
 // Scalar fallback for dim=2/3 (strided across column-major / page
 // strides) — gather isn't a win here and the slice is usually small.
 
-#include <numkit/builtin/language/arrays/matrix.hpp>
+#include <numkit/lang/arrays/matrix.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

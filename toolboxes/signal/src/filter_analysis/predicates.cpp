@@ -5,7 +5,7 @@
 #include <numkit/signal/filter_analysis/predicates.hpp>
 #include "predicates_detail.hpp"
 
-#include <numkit/builtin/math/poly/polynomials.hpp>             // roots()
+#include <numkit/math/poly/polynomials.hpp>             // roots()
 #include <numkit/signal/filter_analysis/frequency_response.hpp> // freqz()
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

@@ -2,8 +2,8 @@
 //
 // CallContext register half (Phase 2b multi-block split).
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/language/strings/strings.hpp>
-#include <numkit/builtin/language/types/types.hpp>
+#include <numkit/lang/strings/strings.hpp>
+#include <numkit/lang/types/types.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>

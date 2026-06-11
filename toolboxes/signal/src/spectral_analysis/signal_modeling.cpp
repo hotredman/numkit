@@ -8,7 +8,7 @@
 
 #include <numkit/signal/spectral_analysis/signal_modeling.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

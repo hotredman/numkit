@@ -3,7 +3,7 @@
 
 #include <numkit/signal/filter_implementation/conversions_extras.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>      // tf2zp / zp2tf / roots
+#include <numkit/math/poly/polynomials.hpp>      // tf2zp / zp2tf / roots
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>

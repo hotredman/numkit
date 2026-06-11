@@ -4,7 +4,7 @@
 // math/elementary/polynomials.cpp; trapz to math/integration/integration.cpp.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/interp/interp.hpp>
+#include <numkit/math/interp/interp.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

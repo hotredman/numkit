@@ -5,8 +5,8 @@
 
 #include <numkit/stats/distributions/chi2.hpp>
 
-#include <numkit/builtin/math/random/rng.hpp>      // sharedEngine, rngMutex
-#include <numkit/builtin/math/special/special.hpp> // gammainc, gammaincinv
+#include <numkit/math/random/rng.hpp>      // sharedEngine, rngMutex
+#include <numkit/math/special/special.hpp> // gammainc, gammaincinv
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

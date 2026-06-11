@@ -1,8 +1,8 @@
 // toolboxes/builtin/src/datatypes/numeric/types.cpp
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/language/types/types.hpp>
-#include <numkit/builtin/language/strings/strings.hpp>
+#include <numkit/lang/types/types.hpp>
+#include <numkit/lang/strings/strings.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

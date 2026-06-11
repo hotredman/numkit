@@ -7,8 +7,8 @@
 // trig_portable.cpp.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/arithmetic/misc.hpp>          // hypot decl
-#include <numkit/builtin/math/trig/trigonometry.hpp>
+#include <numkit/math/arithmetic/misc.hpp>          // hypot decl
+#include <numkit/math/trig/trigonometry.hpp>
 
 #include "../_unary_hint.hpp"   // 3-arg sin/cos hint overloads
 

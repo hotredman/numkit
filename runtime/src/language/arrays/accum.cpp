@@ -12,7 +12,7 @@
 //     replaced — never touch fillVal.
 //   * For `mean`, we keep a parallel count array and divide at the end.
 
-#include <numkit/builtin/language/arrays/accum.hpp>
+#include <numkit/runtime/language/arrays/accum.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>

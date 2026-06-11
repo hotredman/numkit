@@ -11,7 +11,7 @@
 // SIMD doesn't help there. Parity vs the scalar reference is
 // verified in toolboxes/builtin/tests/simd_parity_test.cpp.
 
-#include <numkit/builtin/math/exp_log/exponents.hpp>
+#include <numkit/math/exp_log/exponents.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/ops/parallel_for.hpp>

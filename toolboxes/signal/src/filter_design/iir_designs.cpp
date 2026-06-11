@@ -14,8 +14,8 @@
 #include <numkit/signal/filter_design/iir_designs.hpp>
 
 #include <numkit/signal/filter_design/analog_filters.hpp>
-#include <numkit/builtin/math/poly/polynomials.hpp>
-#include <numkit/builtin/math/special/special.hpp>
+#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/math/special/special.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
