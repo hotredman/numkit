@@ -11,7 +11,7 @@
 #pragma once
 
 #include <numkit/ops/rng.hpp>
-#include <numkit/builtin/math/random/matlab_mt19937.hpp>  // MatlabMT19937 → builtin::detail
+#include <numkit/ops/matlab_mt19937.hpp>  // MatlabMT19937 (ops layer)
 
 namespace numkit::math {
 

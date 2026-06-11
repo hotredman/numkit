@@ -6,7 +6,7 @@
 // C++ API functions per dev-docs/LIBRARY_API.md. Inputs are built via a
 // throwaway Engine; the assertions call the C++ function itself.
 
-#include <numkit/builtin/math/geom/geom.hpp>
+#include <numkit/math/geom/geom.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <cmath>

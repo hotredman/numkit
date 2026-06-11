@@ -4,6 +4,7 @@
 #pragma once
 
 #include <numkit/value/value.hpp>
+#include <numkit/ops/matlab_mt19937.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
@@ -33,7 +34,7 @@ namespace {
 // Sample K indices in [0..N-1] given (optional) weights.
 std::vector<int> sample_indices(int N, int K, bool with_replacement,
                                 const std::vector<double> &weights,
-                                numkit::builtin::detail::MatlabMT19937 &gen)
+                                numkit::ops::MatlabMT19937 &gen)
 {
     std::vector<int> out;
     out.reserve((size_t)K);

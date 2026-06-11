@@ -6,7 +6,7 @@
 #include <numkit/comm/source/random_source.hpp>
 
 #include <numkit/math/random/rng.hpp>
-#include <numkit/builtin/math/random/matlab_mt19937.hpp>
+#include <numkit/ops/matlab_mt19937.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -93,7 +93,7 @@ Value randsrc(size_t m, size_t n, const Value &alphabet,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr)
 {
-    using ::numkit::builtin::detail::MatlabMT19937;
+    using ::numkit::ops::MatlabMT19937;
 
     // Parse alphabet → cumulative probability table.
     double *alpha = nullptr;
@@ -247,7 +247,7 @@ Value randerr(size_t m, size_t n, const Value &errspec,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr)
 {
-    using ::numkit::builtin::detail::MatlabMT19937;
+    using ::numkit::ops::MatlabMT19937;
 
     int    *counts = nullptr;
     double *prob   = nullptr;

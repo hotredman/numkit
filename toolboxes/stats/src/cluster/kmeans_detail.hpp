@@ -4,6 +4,7 @@
 #pragma once
 
 #include <numkit/value/value.hpp>
+#include <numkit/ops/matlab_mt19937.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 
@@ -38,7 +39,7 @@ inline double sq_dist(const double *a, const double *b, size_t D) {
 // (flattened K*D-length buffer).
 ScratchVec<double> kmeanspp_init(const ScratchVec<double> &X,
                                  size_t N, size_t D, int K,
-                                 numkit::builtin::detail::MatlabMT19937 &gen,
+                                 numkit::ops::MatlabMT19937 &gen,
                                  std::pmr::memory_resource *scratch_mr)
 {
     ScratchVec<double> C((size_t)K * D, scratch_mr);
