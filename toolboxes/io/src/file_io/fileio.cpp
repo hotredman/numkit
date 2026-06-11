@@ -7,15 +7,16 @@
 
 #include <numkit/io/file_io/fileio.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/fs/fs_context.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
 
 #include <numkit/ops/io_helpers.hpp>
 
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <memory_resource>
 #include <string>
 
 namespace numkit::io {
@@ -27,12 +28,12 @@ using namespace ::numkit::ops;
 
 namespace {
 
-Engine::OpenFile *requireReadFid(Engine &engine, Span<const Value> args, const char *fn)
+FsContext::OpenFile *requireReadFid(FsContext &fs, Span<const Value> args, const char *fn)
 {
     if (args.empty() || !args[0].isScalar())
         throw Error(std::string(fn) + ": file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f || !f->forRead)
         throw Error(std::string(fn) + ": invalid file identifier");
     return f;
@@ -44,9 +45,8 @@ Engine::OpenFile *requireReadFid(Engine &engine, Span<const Value> args, const c
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-void fopen(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
+void fopen(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isChar())
         throw Error("fopen: filename must be a char array");
 
@@ -54,7 +54,7 @@ void fopen(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
     // of every user-opened fid. With a mode arg, 'all' becomes a literal
     // filename instead.
     if (args.size() == 1 && args[0].toString() == "all") {
-        auto ids = engine.openFileIds();
+        auto ids = fs.openFileIds();
         if (ids.empty()) {
             outs[0] = Value::matrix(1, 0, ValueType::DOUBLE, mr);
         } else {
@@ -69,21 +69,20 @@ void fopen(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
 
     std::string path = args[0].toString();
     std::string mode = (args.size() >= 2 && args[1].isChar()) ? args[1].toString() : "r";
-    int fid = engine.openFile(path, mode);
+    int fid = fs.openFile(path, mode);
     outs[0] = Value::scalar(static_cast<double>(fid), mr);
     // [fid, errmsg] = fopen(...) — errmsg is '' on success.
     if (nargout > 1)
-        outs[1] = Value::fromString(fid < 0 ? engine.lastFopenError() : std::string(), mr);
+        outs[1] = Value::fromString(fid < 0 ? fs.lastFopenError() : std::string(), mr);
 }
 
-void fclose(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
+void fclose(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty())
         throw Error("fclose: requires a file identifier or 'all'");
 
     if (args[0].isChar() && args[0].toString() == "all") {
-        engine.closeAllFiles();
+        fs.closeAllFiles();
         outs[0] = Value::scalar(0.0, mr);
         return;
     }
@@ -91,14 +90,13 @@ void fclose(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     if (!args[0].isScalar())
         throw Error("fclose: argument must be a numeric fid or 'all'");
     int fid = static_cast<int>(args[0].toScalar());
-    bool ok = engine.closeFile(fid);
+    bool ok = fs.closeFile(fid);
     outs[0] = Value::scalar(ok ? 0.0 : -1.0, mr);
 }
 
-void fgetl(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
+void fgetl(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
-    auto *f = requireReadFid(engine, args, "fgetl");
+    auto *f = requireReadFid(fs, args, "fgetl");
 
     if (f->cursor >= f->buffer.size()) {
         f->lastError = "End of file reached.";
@@ -118,10 +116,9 @@ void fgetl(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     outs[0] = Value::fromString(line, mr);
 }
 
-void fgets(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
+void fgets(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
-    auto *f = requireReadFid(engine, args, "fgets");
+    auto *f = requireReadFid(fs, args, "fgets");
 
     if (f->cursor >= f->buffer.size()) {
         f->lastError = "End of file reached.";
@@ -144,25 +141,23 @@ void fgets(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     outs[0] = Value::fromString(line, mr);
 }
 
-void feof(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
+void feof(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isScalar())
         throw Error("feof: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f)
         throw Error("feof: invalid file identifier");
     outs[0] = Value::logicalScalar(f->cursor >= f->buffer.size(), mr);
 }
 
-void ferror(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
+void ferror(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isScalar())
         throw Error("ferror: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f)
         throw Error("ferror: invalid file identifier");
 
@@ -176,13 +171,12 @@ void ferror(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
         outs[1] = Value::scalar(msg.empty() ? 0.0 : -1.0, mr);
 }
 
-void ftell(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
+void ftell(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isScalar())
         throw Error("ftell: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f) {
         outs[0] = Value::scalar(-1.0, mr);
         return;
@@ -192,16 +186,15 @@ void ftell(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     outs[0] = Value::scalar(static_cast<double>(pos), mr);
 }
 
-void fseek(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
+void fseek(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     auto fail = [&]() { outs[0] = Value::scalar(-1.0, mr); };
 
     if (args.size() < 2 || !args[0].isScalar() || !args[1].isScalar())
         return fail();
 
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f || !f->forRead)
         return fail();
 
@@ -242,12 +235,12 @@ void fseek(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     outs[0] = Value::scalar(0.0, mr);
 }
 
-void frewind(Engine &engine, Span<const Value> args, size_t, Span<Value>)
+void frewind(FsContext &fs, Span<const Value> args, size_t, Span<Value>, std::pmr::memory_resource *mr)
 {
     if (args.empty() || !args[0].isScalar())
         throw Error("frewind: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f || !f->forRead)
         throw Error("frewind: invalid file identifier");
     f->cursor = 0;
@@ -255,13 +248,12 @@ void frewind(Engine &engine, Span<const Value> args, size_t, Span<Value>)
 
 // ── Binary I/O ──────────────────────────────────────────────────────────
 
-void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
+void fread(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isScalar())
         throw Error("fread: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f || !f->forRead)
         throw Error("fread: invalid file identifier");
 
@@ -329,13 +321,12 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
         outs[1] = Value::scalar(static_cast<double>(n), mr);
 }
 
-void fwrite(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
+void fwrite(FsContext &fs, Span<const Value> args, size_t, Span<Value> outs, std::pmr::memory_resource *mr)
 {
-    std::pmr::memory_resource *mr = engine.resource();
     if (args.size() < 2 || !args[0].isScalar())
         throw Error("fwrite: requires (fid, array [, precision [, machineformat]])");
     int fid = static_cast<int>(args[0].toScalar());
-    auto *f = engine.findFile(fid);
+    auto *f = fs.findFile(fid);
     if (!f || !f->forWrite)
         throw Error("fwrite: invalid file identifier");
 
@@ -402,32 +393,5 @@ void fwrite(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     outs[0] = Value::scalar(static_cast<double>(numel), mr);
 }
 
-// ════════════════════════════════════════════════════════════════════════
-// Adapters
-// ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-#define NK_FILEIO_REG(FN)                                                                          \
-    void FN##_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)    \
-    {                                                                                              \
-        FN(*ctx.engine, args, nargout, outs);                                                      \
-    }
-
-NK_FILEIO_REG(fopen)
-NK_FILEIO_REG(fclose)
-NK_FILEIO_REG(fgetl)
-NK_FILEIO_REG(fgets)
-NK_FILEIO_REG(feof)
-NK_FILEIO_REG(ferror)
-NK_FILEIO_REG(ftell)
-NK_FILEIO_REG(fseek)
-NK_FILEIO_REG(frewind)
-NK_FILEIO_REG(fread)
-NK_FILEIO_REG(fwrite)
-
-#undef NK_FILEIO_REG
-
-} // namespace detail
 
 } // namespace numkit::io

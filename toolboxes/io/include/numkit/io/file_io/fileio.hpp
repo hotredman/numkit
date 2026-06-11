@@ -4,17 +4,19 @@
 #include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
+#include <memory_resource>
+
 namespace numkit {
-class Engine;
+class FsContext;
 }
 
 namespace numkit::io {
 
 /// @file
-/// @brief File I/O builtins — thin C++ API over `Engine::openFile` /
-/// `findFile`.
+/// @brief File I/O builtins — thin C++ API over the FsContext file-handle table
+/// (fopen/findFile).
 ///
-/// Each function takes the owning `Engine` (for the VFS + fid table)
+/// Each function takes the FsContext (VFS + fid table; moved out of Engine)
 /// and the argument span; results are written into
 /// `outs`. `nargout` is forwarded because several of these populate
 /// optional second returns (`[fid, errmsg]` from `fopen`,
@@ -30,96 +32,96 @@ namespace numkit::io {
 /// the engine's fid table, and returns it. On failure `fid = -1`
 /// and `errmsg` is populated.
 ///
-/// @param engine   Engine context (VFS + fid table).
+/// @param fs       FsContext (VFS + fid table).
 /// @param args     Args: `(filename [, permission
 ///                 [, machineformat]])`.
 /// @param nargout  Number of requested outputs (1 = fid only, 2 =
 ///                 `[fid, errmsg]`).
 /// @param outs     Output slot(s).
 /// @see fclose, fread, fwrite
-void fopen(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fopen(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Close a file (`status = fclose(fid)` or `fclose('all')`).
 ///
 /// Releases the fid back to the engine's fid table.
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid)` or `('all')`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the status code.
 /// @see fopen
-void fclose(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fclose(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Read one line, **without** the trailing newline
 /// (`line = fgetl(fid)`).
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid)`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the line string (or -1 on EOF).
 /// @see fgets, feof
-void fgetl(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fgetl(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Read one line, **including** the trailing newline
 /// (`line = fgets(fid [, nchar])`).
 ///
 /// Optional second argument caps the number of characters read.
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid [, nchar])`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the line string (or -1 on EOF).
 /// @see fgetl, feof
-void fgets(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fgets(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief End-of-file test (`tf = feof(fid)`).
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid)`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the boolean status.
 /// @see fgetl, fgets
-void feof(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void feof(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Last I/O error for a fid (`[msg, code] = ferror(fid [, 'clear'])`).
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid [, 'clear'])`.
 /// @param nargout  Number of requested outputs (1 = msg, 2 = `[msg, code]`).
 /// @param outs     Output slots.
-void ferror(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void ferror(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Current byte position in a file (`pos = ftell(fid)`).
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid)`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the byte offset.
 /// @see fseek, frewind
-void ftell(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void ftell(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Reposition a file pointer (`status = fseek(fid, offset, origin)`).
 ///
 /// `origin` is `'bof'`, `'cof'`, `'eof'`, or the corresponding
 /// numeric codes (-1, 0, 1).
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid, offset, origin)`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the status code.
 /// @see ftell, frewind
-void fseek(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fseek(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Rewind a file pointer to the beginning (`frewind(fid)`).
 ///
 /// Equivalent to `fseek(fid, 0, 'bof')`.
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid)`.
 /// @param nargout  Number of requested outputs (always 0).
 /// @param outs     Unused output slot.
 /// @see fseek
-void frewind(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void frewind(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 // ── Binary I/O ───────────────────────────────────────────────────────
 
@@ -130,23 +132,23 @@ void frewind(Engine &engine, Span<const Value> args, size_t nargout, Span<Value>
 /// output). `precision` selects the raw binary format;
 /// `machineformat` picks big/little-endian.
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid [, size [, precision [, machineformat]]])`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the read array.
 /// @see fwrite
-void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fread(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 /// @brief Write raw binary data
 /// (`count = fwrite(fid, array, precision, machineformat)`).
 ///
 /// Writes a `Value` as a packed binary stream into the fid's buffer.
 ///
-/// @param engine   Engine context.
+/// @param fs       FsContext.
 /// @param args     `(fid, array [, precision [, machineformat]])`.
 /// @param nargout  Number of requested outputs.
 /// @param outs     Output slot for the count of items written.
 /// @see fread
-void fwrite(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void fwrite(FsContext &fs, Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr);
 
 } // namespace numkit::io
