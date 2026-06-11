@@ -331,9 +331,28 @@ re-layering); G is the risky enforcement step.
   (`d3d25e65`) — the layering guard now pins math/lang compute too. **C5 ✅ DONE**
   (999117bd→5a5b5949) — all 223 `*_reg.cpp` relocated to bundle/src/register/. **G ✅ DONE**
   (5dc385ca + c4f9e1f5) — monolith split into per-layer OBJECT libs, 12/12 buildable presets
-  lib-green (incl. WASM). **The Phase-3-A layering refactor (C0…C5 + H + G) is COMPLETE.**
-  solvers): algorithm → math/lang/toolbox (core-free), adapter → runtime.
-  Shrinks runtime to the irreducible.
+  lib-green (incl. WASM). **C6 ✅ DONE** (C6a `6f3080ca` → C6d-6 `91d634ee`,
+  +169 vs main) — `toolboxes/builtin` **fully dissolved**: pure-forward +
+  re-export stub headers retired (consumers retargeted to
+  `<numkit/ops|math|lang/...>`, re-exported dim-infra requalified to
+  `numkit::ops::`); the `BuiltinLibrary` umbrella relocated to bundle
+  (`builtin_library.{hpp,cpp}`, ~280 includers swept); engine-coupled string
+  I/O (`disp`/`fprintf`/`fscanf`/`textscan`) + `_handlefn_helpers` +
+  `programming/errors/diagnostics` → `runtime`; `io_helpers` → `ops`
+  (`numkit::ops`); `version_string` → bundle; tests/benchmarks re-homed under
+  `tests/builtin` + `benchmarks/builtin`; the `builtin/src` shared-helper `-I`
+  bridge removed. `numkit::builtin` now survives ONLY as the namespace on the
+  bundle `*_reg` adapters + the runtime-relocated cell/struct/diagnostics/
+  handlefn TUs (the cell/struct precedent). **The Phase-3-A layering refactor
+  (C0…C6 + H + G) is COMPLETE.**
+
+- **D. (TODO — not started)** Solver 3-way split (esp. ode/optim): the raw
+  numerical kernel (RK step, Brent, Nelder-Mead, Levenberg-Marquardt,
+  FnHandle-parameterized) → `ops`; the Value-level MATLAB-API wrapper (option
+  parsing, output shaping) → its toolbox (`ode`/`optim`, core-free); the
+  `@objfun`→`FnHandle` adapter + pausable harness → `runtime`. Shrinks runtime
+  to the irreducible. Distinct from C (builtin dissolution); the hard FnHandle
+  decoupling for ode/optim is already done, so D is mostly relocation.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
   feval stays in builtin until F because of its FevalCallbackBuiltin adapter).
   containers.Map: `containers::` compute → `lang`, registry hooks → bundle (lands
