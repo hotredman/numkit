@@ -17,7 +17,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "reduction_helpers.hpp"
 #include "math/arithmetic/var_reduction.hpp"  // for sumScan + addInto
 #include "../_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads

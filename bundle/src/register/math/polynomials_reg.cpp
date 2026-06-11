@@ -7,7 +7,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "poly_helpers.hpp"
 #include "poly/polynomials_detail.hpp"
 #include <numkit/value/error.hpp>

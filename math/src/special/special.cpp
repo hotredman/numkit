@@ -7,7 +7,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 
 #define _USE_MATH_DEFINES
 #include <cmath>

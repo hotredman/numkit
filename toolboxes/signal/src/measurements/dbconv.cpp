@@ -7,7 +7,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"  // createLike (toolboxes/builtin/src/)
+#include <numkit/ops/helpers.hpp>  // createLike (toolboxes/builtin/src/)
 
 #include <algorithm>
 #include <cctype>

@@ -6,7 +6,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 
 #include <cmath>
 #include <cstring>

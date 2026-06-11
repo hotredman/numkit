@@ -10,7 +10,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "../_unary_hint.hpp"   // 3-arg exp/log hint overloads
 
 #include <cmath>

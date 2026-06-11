@@ -20,7 +20,7 @@
 #include <numkit/ops/parallel_for.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "sinpi_kernel.hpp"
 
 #include <cmath>

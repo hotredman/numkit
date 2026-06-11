@@ -13,7 +13,7 @@
 #include <numkit/value/error.hpp>
 
 #include "../dsp_helpers.hpp"  // Complex, FFT helpers
-#include "helpers.hpp"         // createLike
+#include <numkit/ops/helpers.hpp>         // createLike
 
 #include <algorithm>
 #include <cmath>

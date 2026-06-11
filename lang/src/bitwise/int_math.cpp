@@ -14,7 +14,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value_type.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 
 #include <cmath>
 #include <cstdint>

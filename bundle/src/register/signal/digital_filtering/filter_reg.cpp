@@ -11,7 +11,7 @@
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "digital_filtering/filter_detail.hpp"
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>

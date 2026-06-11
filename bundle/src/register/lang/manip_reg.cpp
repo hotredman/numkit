@@ -9,7 +9,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/shape_ops.hpp>
 #include <numkit/value/value.hpp>
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "arrays/manip_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
