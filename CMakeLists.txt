@@ -128,6 +128,7 @@ add_subdirectory(src/ops)     # L0.5: numeric primitives + threading (numkit_ops
 add_subdirectory(src/core)
 add_subdirectory(src/math)    # L2: MATLAB Mathematics compute (numkit math) — extracted from builtin (Phase 3-A step C)
 add_subdirectory(src/lang)    # L2: MATLAB Language Fundamentals compute (numkit lang) — extracted from builtin (Phase 3-A step C2)
+add_subdirectory(src/graphics)   # L2 service: plotting (figure/plot/…) — depends on no toolbox; toolboxes MAY depend on it
 add_subdirectory(src/toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
 add_subdirectory(src/runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
 add_subdirectory(src/bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
@@ -393,7 +394,10 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(src/core/tests)
-    foreach(_test_lib linalg signal stats graphics wavelet comm control image audio graph optim ode io)
+    if(EXISTS ${CMAKE_SOURCE_DIR}/src/graphics/tests/CMakeLists.txt)
+        add_subdirectory(src/graphics/tests)   # graphics is a top-level service lib now
+    endif()
+    foreach(_test_lib linalg signal stats wavelet comm control image audio graph optim ode io)
         if(EXISTS ${CMAKE_SOURCE_DIR}/src/toolboxes/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(src/toolboxes/${_test_lib}/tests)
         endif()

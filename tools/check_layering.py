@@ -61,7 +61,14 @@ ALLOWED = {
     # Two sanctioned core users are exempt per-file in scan(): each toolbox's
     # `library.cpp` installer (registration ABI) and io's `type.cpp`
     # (legitimately Engine& — it writes via engine.outputText).
-    "toolboxes": {"value", "fs", "ops", "math", "lang", "builtin"},
+    "toolboxes": {"value", "fs", "ops", "math", "lang", "builtin", "graphics"},
+    # graphics (L2 service): the plotting library (figure/plot/imshow/…). It is
+    # Engine-coupled via the figureManager, so core IS allowed here (unlike
+    # math/lang/toolboxes). The defining rule: graphics depends on NO toolbox —
+    # toolboxes MAY depend on graphics, never the reverse. (graphics→image was
+    # broken by routing imshow's file-decode through a by-name `imread` handle
+    # resolved at call time, not an image-toolbox include.)
+    "graphics": {"value", "fs", "ops", "core", "graphics"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -72,6 +79,7 @@ LAYER_DIRS = {
     "core":  ["src/core"],
     "math":  ["src/math"],
     "lang":  ["src/lang"],
+    "graphics": ["src/graphics"],
     "toolboxes": ["src/toolboxes"],
 }
 
@@ -186,7 +194,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print("Layering OK: value, fs, ops, core, math, lang, toolboxes respect the dependency direction.")
+    print("Layering OK: value, fs, ops, core, math, lang, graphics, toolboxes respect the dependency direction.")
     return 0
 
 
