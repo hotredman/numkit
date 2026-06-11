@@ -346,8 +346,7 @@ re-layering); G is the risky enforcement step.
   handlefn TUs (the cell/struct precedent). **The Phase-3-A layering refactor
   (C0…C6 + H + G) is COMPLETE.**
 
-- **D. Solver split — `ode`/`optim`/`nlinfit` ✅ DONE; `integral` PENDING
-  (adapter↔helper entanglement).** Pattern: the Engine-free FnHandle kernel stays
+- **D. Solver split — `ode`/`optim`/`nlinfit`/`integral` ✅ ALL DONE.** Pattern: the Engine-free FnHandle kernel stays
   in the toolbox (now core-free); the Engine adapter (`@handle`→`FnHandle`
   bridge) + embedded-.m pausable wrapper + (where the whole toolbox is solvers)
   the `install` relocate to `bundle/src/register/<tb>/`.
@@ -356,16 +355,21 @@ re-layering); G is the risky enforcement step.
   - nlinfit (stats) — kernel took `Engine *`; FnHandle-decoupled it (`8f9831f4`,
     LM/CI behaviour validated by NlinfitTest) then moved its adapter to
     bundle/register/stats/regress (`353372a2`). nlinfit kernel now core-free.
-  - **integral (runtime/integration) PENDING.** Its Gauss-Kronrod kernel is
-    ALREADY FnHandle-decoupled (no rewrite needed). But a clean carve was
-    attempted and **reverted**: integration.cpp is a 1001-line mixed TU whose
-    gradient/del2/cumtrapz/integral `*_reg` adapters reach deep into ~8 file-local
-    anon helpers (gradientND / cumtrapzDim / cumtrapzMatrix{Rows,Cols}±C /
-    toDoubleCopy / the kKronrodX GK-node constants) — dispatch logic, not thin
-    wrappers. A clean split needs all those exposed via the math header OR the
-    adapters refactored to call public high-level fns; plus the pure calculus
-    (gradient/del2/cumtrapz) wants carving runtime→math regardless. A focused,
-    correctness-sensitive lift — tracked for a dedicated session.
+  - integral (`4559df16`) — its Gauss-Kronrod kernel was already FnHandle-
+    decoupled, but integration.cpp was a 1001-line mixed TU in runtime whose
+    `*_reg` adapters reached into file-local anon helpers (dispatch logic, not
+    thin wrappers), so a first carve was reverted. Done cleanly on the retry:
+    the calculus (gradient/del2/cumtrapz/trapz) + integral kernel + the FnHandle
+    callback wrappers moved to `math/` (numkit::math, core-free); the lower-level
+    dispatch helpers the adapters need (gradientND / toDoubleCopy /
+    cumtrapzMatrix{Rows,Cols}±C / trapzImpl) + the GK node tables were lifted
+    from the anon namespace into `numkit::math::detail` via a new
+    `integration_detail.hpp` (cumtrapzDim joined the public header); the Engine
+    adapters + the embedded-.m wrapper + registerIntegralM went to
+    `bundle/register/math`, keeping numkit::builtin::detail (zero churn in
+    builtin_library.cpp) and pulling the compute in via explicit using-decls.
+    **runtime lost integration.cpp + _callback_helpers.hpp entirely** — the
+    first concrete shrink of the runtime layer that D set out to achieve.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
   feval stays in builtin until F because of its FevalCallbackBuiltin adapter).
   containers.Map: `containers::` compute → `lang`, registry hooks → bundle (lands
