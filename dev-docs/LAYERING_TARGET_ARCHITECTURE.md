@@ -478,3 +478,32 @@ Order is adjustable; A and B are the safest first real steps.
   numerical primitive buried in a toolbox migrate **down into `ops`**, not into a
   toolbox or runtime. Solvers are a 3-way split: `ops` kernel → toolbox Value-API
   → `runtime` adapter. `ops` never depends on core.
+
+---
+
+## 10. Post-merge follow-ups (after `refactor/layering` lands on main)
+
+Orthogonal to the A–H phases (all done); deferred out of the +188 layering branch
+to keep its diff semantic + reviewable.
+
+- **`src/` root restructure (DECIDED 2026-06-11, with the user).** The repo root
+  mixes the 9 layer libraries (value / fs / ops / core / math / lang / runtime /
+  toolboxes / bundle) with auxiliary content (brand / bugs / cmake / dev-docs /
+  docs / examples / ide / scripts / third_party / tools). Move the **9 libs into
+  `src/`** (Model 1, chosen over `cpp/`-holds-all-C++); `tests/ benchmarks/
+  wasm/ ide/` + aux stay at root. **Pure mechanical `git mv`** — every
+  `#include <numkit/...>` is logical (resolved through a `-I`), so NO source
+  edits; only path refs change: root `CMakeLists.txt` (9× `add_subdirectory` +
+  the ~6 absolute `${CMAKE_CURRENT_SOURCE_DIR}/<layer>/src` include roots +
+  `bundle/src/version_string.cpp`), `tools/check_layering.py` LAYER_DIRS (+ the
+  toolbox scan path + the `io/src/text/type.cpp` exempt path), `Doxyfile` INPUT,
+  `scripts/build.sh|deploy.sh`, `.gitignore`. Per-layer CMakeLists are unchanged
+  (all relative to `CMAKE_CURRENT_SOURCE_DIR`). **Its own coordinated branch** —
+  9 top-level `git mv`s are a huge shared surface; freeze the ide/lib worktrees
+  and land together (COORDINATION.md). Build is the detector.
+- **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
+  with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
+  build only on bench* presets (library is green everywhere). Needs an
+  API-update pass. Orthogonal.
+- **apple-m preset** — not buildable on the x86 host; validate on Apple hardware.
+- Housekeeping: drop the stray root `tmp_split_sig.sh` + untracked `_scratch_cls/`.
