@@ -1,5 +1,4 @@
 set(ODELIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/options.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ode45.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ode23.cpp
