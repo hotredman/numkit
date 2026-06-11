@@ -7,8 +7,8 @@
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
-#include "reduction_helpers.hpp"
-#include "rows_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
+#include <numkit/ops/rows_helpers.hpp>
 #include <numkit/ops/binary_ops.hpp>
 #include <numkit/ops/la_solve.hpp>
 #include "math/arithmetic/cumsum.hpp"

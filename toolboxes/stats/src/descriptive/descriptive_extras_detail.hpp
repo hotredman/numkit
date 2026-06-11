@@ -8,7 +8,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
-#include "reduction_helpers.hpp"  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
+#include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -29,7 +29,7 @@
 
 namespace numkit::stats {
 
-using namespace ::numkit::builtin::detail;
+using namespace ::numkit::ops;
 
 // result structs (Value-based) + file-scope worker forward-decls (defs in
 // descriptive_extras.cpp, external) — the reg adapters call these.
@@ -57,10 +57,10 @@ KsdensityFull ksdensity_full(const Value &x, const Value &pts, double bw_user, c
 
 namespace {
 
-using ::numkit::builtin::detail::applyAlongDim;
-using ::numkit::builtin::detail::firstNonSingletonDim;
-using ::numkit::builtin::detail::validateDim;
-using ::numkit::builtin::detail::applyAlongDimWithIndex;
+using ::numkit::ops::applyAlongDim;
+using ::numkit::ops::firstNonSingletonDim;
+using ::numkit::ops::validateDim;
+using ::numkit::ops::applyAlongDimWithIndex;
 
 int resolveDim(const Value &x, int dim, const char *fn)
 {

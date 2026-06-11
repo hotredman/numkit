@@ -15,7 +15,7 @@
 #include "_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads
 #include <numkit/ops/helpers.hpp>
 #include "arithmetic/var_reduction.hpp"  // for sumScan + addInto
-#include "reduction_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
 #include "arithmetic/reductions_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
@@ -202,10 +202,10 @@ inline Value allocReduceOutput(const Value &x, int redDim, ValueType outType, st
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
+        auto shape = numkit::ops::outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), outType, mr);
     }
-    auto outShape = detail::outShapeForDim(x, redDim);
+    auto outShape = numkit::ops::outShapeForDim(x, redDim);
     return createMatrix(outShape, outType, mr);
 }
 
@@ -224,7 +224,7 @@ Value reduceTypedAll(const Value &x, ValueType outType, std::pmr::memory_resourc
             acc = accumOp(acc, x.elemAsDouble(i));
         return makeNativeScalar<T>(finalize(acc, x.numel()), outType, mr);
     }
-    const int redDim = detail::firstNonSingletonDim(x);
+    const int redDim = numkit::ops::firstNonSingletonDim(x);
     Value out = allocReduceOutput(x, redDim, outType, mr);
     typedReduceAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()),
                            init, accumOp, finalize);
@@ -239,7 +239,7 @@ Value reduceTypedAlongDim(const Value &x, int dim, ValueType outType, std::pmr::
         return Value::matrix(0, 0, outType, mr);
     }
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != detail::firstNonSingletonDim(x)) {
+        if (dim != numkit::ops::firstNonSingletonDim(x)) {
             // Identity: copy x cast to T.
             const size_t n = x.numel();
             Value out;
@@ -328,10 +328,10 @@ inline Value allocComplexReduceOutput(const Value &x, int redDim, std::pmr::memo
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
+        auto shape = numkit::ops::outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, mr);
     }
-    auto outShape = detail::outShapeForDim(x, redDim);
+    auto outShape = numkit::ops::outShapeForDim(x, redDim);
     return createMatrix(outShape, ValueType::COMPLEX, mr);
 }
 
@@ -381,7 +381,7 @@ Value reduceComplexAll(const Value &x, std::pmr::memory_resource *mr,
             acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
         return Value::complexScalar(finalize(acc, x.numel()), mr);
     }
-    const int redDim = detail::firstNonSingletonDim(x);
+    const int redDim = numkit::ops::firstNonSingletonDim(x);
     Value out = allocComplexReduceOutput(x, redDim, mr);
     complexReduceAlongDim(x, redDim, out.complexDataMut(), init, accumOp, finalize);
     return out;
@@ -395,7 +395,7 @@ Value reduceComplexAlongDim(const Value &x, int dim, std::pmr::memory_resource *
         return Value::matrix(0, 0, ValueType::COMPLEX, mr);
     const bool typeMatches = (x.type() == ValueType::COMPLEX);
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != detail::firstNonSingletonDim(x)) {
+        if (dim != numkit::ops::firstNonSingletonDim(x)) {
             // Identity reduction.
             const size_t n = x.numel();
             if (!x.dims().isVector())
@@ -562,7 +562,7 @@ Value nanReduceAll(const Value &x, ValueType outType, std::pmr::memory_resource 
             nanAccumDouble<Op>(acc, count, x.elemAsDouble(i));
         return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, mr);
     }
-    const int redDim = detail::firstNonSingletonDim(x);
+    const int redDim = numkit::ops::firstNonSingletonDim(x);
     Value out = allocReduceOutput(x, redDim, outType, mr);
     nanReduceAlongDim<T, Op>(x, redDim, static_cast<T *>(out.rawDataMut()));
     return out;
@@ -574,7 +574,7 @@ Value nanReduceAlongDimImpl(const Value &x, int dim, ValueType outType, std::pmr
     if (x.isEmpty() && x.dims().ndim() < 4)
         return Value::matrix(0, 0, outType, mr);
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != detail::firstNonSingletonDim(x)) {
+        if (dim != numkit::ops::firstNonSingletonDim(x)) {
             // Identity: copy x as outType (cast where needed).
             const size_t n = x.numel();
             if (!x.dims().isVector())
@@ -666,7 +666,7 @@ Value runComplexNanReduction(const Value &x, int dim, std::pmr::memory_resource 
     if (isAll || x.isScalar() || x.dims().isVector()) {
         return Value::complexScalar(reduceRange(0, 1, x.numel()), mr);
     }
-    const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
+    const int d = (dim > 0) ? dim : numkit::ops::firstNonSingletonDim(x);
     Value out = allocComplexReduceOutput(x, d, mr);
     Complex *dst = out.complexDataMut();
 

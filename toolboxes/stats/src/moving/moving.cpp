@@ -13,7 +13,7 @@
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
-#include "reduction_helpers.hpp"  // numkit::builtin::detail::firstNonSingletonDim, validateDim
+#include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
 
 #include <algorithm>
 #include <cctype>

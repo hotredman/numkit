@@ -10,7 +10,7 @@
 #include <numkit/value/value.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 #include <numkit/ops/helpers.hpp>
-#include "reduction_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>

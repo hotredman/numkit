@@ -21,7 +21,7 @@
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
-#include "reduction_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
 #include "math/arithmetic/var_reduction.hpp"
 
 #include <algorithm>
@@ -44,7 +44,7 @@ namespace numkit::stats {
 // bodies can call applyAlongDim, resolveDim, compactNonNan,
 // firstNonSingletonDim, outShapeForDim, outShapeForDimND, sliceLenForDim,
 // varianceTwoPass, … by short name as before the move.
-using namespace ::numkit::builtin::detail;
+using namespace ::numkit::ops;
 using ::numkit::math::varianceTwoPass;
 
 // ────────────────────────────────────────────────────────────────────

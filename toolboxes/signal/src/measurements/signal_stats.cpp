@@ -9,7 +9,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include "reduction_helpers.hpp"  // numkit::builtin::detail::applyAlongDim
+#include <numkit/ops/reductions.hpp>  // numkit::ops::applyAlongDim
 
 #include <algorithm>
 #include <cmath>
@@ -19,9 +19,9 @@ namespace numkit::signal {
 
 namespace {
 
-using ::numkit::builtin::detail::applyAlongDim;
-using ::numkit::builtin::detail::firstNonSingletonDim;
-using ::numkit::builtin::detail::validateDim;
+using ::numkit::ops::applyAlongDim;
+using ::numkit::ops::firstNonSingletonDim;
+using ::numkit::ops::validateDim;
 
 // Resolve user-supplied dim (0 → first non-singleton, otherwise validate).
 int resolveDim(const Value &x, int dim, const char *fn)

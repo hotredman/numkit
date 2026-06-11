@@ -11,7 +11,7 @@
 #include "nan_aware/backends/nan_reductions.hpp"
 #include <numkit/ops/helpers.hpp>
 #include "nan_aware/nan_aware_detail.hpp"
-#include "reduction_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>

@@ -10,15 +10,15 @@
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
-#include "reduction_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
 
 #include <cmath>
 #include <utility>
 
 namespace numkit::stats {
 
-using ::numkit::builtin::detail::applyAlongDim;
-using ::numkit::builtin::detail::resolveDim;
+using ::numkit::ops::applyAlongDim;
+using ::numkit::ops::resolveDim;
 using ::numkit::createForDims;
 
 namespace {
