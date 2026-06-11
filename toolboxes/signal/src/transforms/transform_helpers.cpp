@@ -8,7 +8,7 @@
 #include <numkit/value/error.hpp>
 
 #include "../dsp_helpers.hpp"  // Complex typedef
-#include "helpers.hpp"         // createLike
+#include <numkit/ops/helpers.hpp>         // createLike
 
 #include <cmath>
 #include <complex>

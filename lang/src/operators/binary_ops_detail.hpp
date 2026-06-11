@@ -4,7 +4,7 @@
 #pragma once
 
 #include <numkit/value/value.hpp>
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "reduction_helpers.hpp"
 
 #include <numkit/value/error.hpp>

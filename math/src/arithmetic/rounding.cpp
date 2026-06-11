@@ -9,7 +9,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "rounding.hpp"      // detail::doubleCeilLoop / FloorLoop / RoundLoop / FixLoop
 #include "../_unary_hint.hpp"  // 3-arg abs hint overload
 

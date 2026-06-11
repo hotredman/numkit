@@ -12,7 +12,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "../_callback_helpers.hpp"
 
 #include <algorithm>

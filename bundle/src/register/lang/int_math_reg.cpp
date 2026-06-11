@@ -9,7 +9,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/value_type.hpp>
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "bitwise/int_math_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

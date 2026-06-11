@@ -8,7 +8,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
-#include "helpers.hpp"            // createLike, createForDims (toolboxes/builtin/src/)
+#include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
 #include "moving/moving_detail.hpp"
 #include "reduction_helpers.hpp"  // numkit::builtin::detail::firstNonSingletonDim, validateDim
 #include <numkit/value/error.hpp>

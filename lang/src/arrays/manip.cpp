@@ -12,7 +12,7 @@
 #include <numkit/value/shape_ops.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cstdint>

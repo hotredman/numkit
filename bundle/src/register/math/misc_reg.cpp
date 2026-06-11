@@ -8,7 +8,7 @@
 #include <numkit/math/arithmetic/misc.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "arithmetic/mod_simd.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

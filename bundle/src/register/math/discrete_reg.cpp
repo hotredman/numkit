@@ -9,7 +9,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "discrete/discrete_detail.hpp"
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "rows_helpers.hpp"  // detail::collectRowsByIndex
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

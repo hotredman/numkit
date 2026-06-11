@@ -12,7 +12,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "sinpi_kernel.hpp"
 
 #include <cmath>

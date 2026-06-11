@@ -19,7 +19,7 @@
 #include <numkit/core/types.hpp>
 #include <numkit/value/value_type.hpp>
 
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 
 #include <algorithm>
 #include <cmath>

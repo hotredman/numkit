@@ -7,7 +7,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include "helpers.hpp"
+#include <numkit/ops/helpers.hpp>
 #include "types/types_detail.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
