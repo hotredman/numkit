@@ -13,7 +13,7 @@
 #include <numkit/value/value.hpp>
 #include "descriptive/descriptive_detail.hpp"
 #include <numkit/ops/helpers.hpp>
-#include "math/arithmetic/var_reduction.hpp"
+#include "arithmetic/var_reduction.hpp"
 #include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
