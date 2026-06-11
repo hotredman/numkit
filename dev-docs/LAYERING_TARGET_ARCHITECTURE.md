@@ -554,6 +554,29 @@ to keep its diff semantic + reviewable.
       installer per-file exemption. Negative-tested (a core include in plots.cpp
       fails the guard). Validated: desktop-fast 11657 / portable 11651 /
       browser-WASM compiles; all green.
+- **Residual cross-layer audit (`9c6cefbd`).** Post graphics-core-free sweep for
+  remaining smells. Outcome:
+  - **FIXED:** the transitional `builtin` allowance in ALLOWED[math|lang|
+    toolboxes] was dead — zero `<numkit/builtin/...>` includes anywhere in src/
+    (no such include tree exists; only bundle/src/register/builtin = L3). Dropped
+    it from the guard; stays green.
+  - **CLEAN (no action):** no L2→runtime edges anywhere; core's only above-layer
+    include is `<numkit/figure/...>` (the Engine's FigureManager, step A1); io's
+    `type.cpp` core exemption is load-bearing (engine.outputText).
+  - **WORKING-AS-DESIGNED:** 104 quoted `"<lib>/<x>_detail.hpp"` includes from
+    bundle `_reg.cpp` + 4 from math/stats compute (e.g. `lang/matrix.cpp` →
+    `"arithmetic/cumsum.hpp"`) resolve to **src-PRIVATE** headers via the shared
+    `-I` (bundle is L3; math is an allowed dep of lang/stats). Not convertible to
+    `<numkit/...>` angle form (private headers); the guard's STRICT_QUOTED leak
+    check intentionally excludes these layers. No fix.
+  - **FLAGGED (follow-up):** the `graph` toolbox is mis-classified — it includes
+    `<numkit/core/{ast,lexer,parser}.hpp>` (parser/AST-lowering infra over core),
+    NOT core-free MATLAB compute. The whole-`/graph/` guard exemption is the
+    pragmatic holding pattern; a proper fix relocates it out of `toolboxes/` to a
+    core-coupled tier (e.g. `src/runtime/` or a dedicated tools tier). Structural,
+    deferred. The layer-agnostic `*_reg.cpp` exemption is currently dead (all 233
+    `_reg.cpp` live in bundle, which isn't a scanned layer) — kept as a
+    convention marker.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
