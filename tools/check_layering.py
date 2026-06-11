@@ -65,13 +65,18 @@ ALLOWED = {
     # `library.cpp` installer (registration ABI) and io's `type.cpp`
     # (legitimately Engine& — it writes via engine.outputText).
     "toolboxes": {"value", "fs", "ops", "math", "lang", "builtin", "graphics"},
-    # graphics (L2 service): the plotting library (figure/plot/imshow/…). It is
-    # Engine-coupled via the figureManager, so core IS allowed here (unlike
-    # math/lang/toolboxes). The defining rule: graphics depends on NO toolbox —
-    # toolboxes MAY depend on graphics, never the reverse. (graphics→image was
-    # broken by routing imshow's file-decode through a by-name `imread` handle
-    # resolved at call time, not an image-toolbox include.)
-    "graphics": {"value", "fs", "ops", "core", "figure", "graphics"},
+    # graphics (L2 service): the plotting library (figure/plot/imshow/…). Now
+    # core-free like every other L2 lib — the plotting bodies (plots.cpp) take a
+    # GraphicsContext (FigureManager + scratch arena + callBuiltin/callHandle
+    # escape hatches), never the Engine. The lone Engine-coupled file is the
+    # install hub library.cpp (registration ABI + the generic CallContext→
+    # GraphicsContext adapter), exempt per-file in scan() exactly like a toolbox
+    # installer. The figure session state lives below core in the figure/ layer.
+    # The defining rule: graphics depends on NO toolbox — toolboxes MAY depend on
+    # graphics, never the reverse. (graphics→image was broken by routing
+    # imshow's file-decode through a by-name `imread` handle resolved at call
+    # time, not an image-toolbox include.)
+    "graphics": {"value", "fs", "ops", "figure", "graphics"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -146,17 +151,25 @@ def scan(repo: Path) -> list[str]:
                 # so they are exempt from the compute-layer purity check.
                 if f.name.endswith("_reg.cpp"):
                     continue
-                # Toolbox purity exempts the sanctioned core users:
-                #  * each toolbox's library.{cpp,hpp} installer (the registration
-                #    ABI declares/defines <Lib>Library::install(Engine&));
+                # Sanctioned core-coupled installers (registration ABI): each
+                # toolbox's AND graphics' library.{cpp,hpp}. These define
+                # <Lib>Library::install(Engine&); graphics' library.cpp also
+                # hosts the generic CallContext→GraphicsContext adapter. The
+                # compute TUs around them (toolbox math, graphics' plots.cpp)
+                # are scanned and MUST stay core-free.
+                if f.name in ("library.cpp", "library.hpp") and layer in (
+                    "toolboxes",
+                    "graphics",
+                ):
+                    continue
+                # Toolbox-only extra exemptions:
                 #  * io's type.cpp (legitimately Engine& — engine.outputText);
                 #  * the whole `graph` toolbox — it is AST-serialization / AST->
                 #    bytecode-lowering infra over core's ast.hpp/lexer.hpp, not
                 #    core-free MATLAB-function compute (reclassification candidate).
                 # Every other toolbox compute TU must stay core/runtime-free.
                 if layer == "toolboxes" and (
-                    f.name in ("library.cpp", "library.hpp")
-                    or "/graph/" in f.as_posix()
+                    "/graph/" in f.as_posix()
                     or f.as_posix().endswith("toolboxes/io/src/text/type.cpp")
                 ):
                     continue
