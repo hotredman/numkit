@@ -4,7 +4,7 @@
 // classical CLCM-based texture-analysis toolchain; fingerprints
 // captured from MATLAB R2025b on the rotational 4x4 demo image.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/gpstat_test.cpp
 // gpstat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

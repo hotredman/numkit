@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/fbspwavf_test.cpp
 // fbspwavf.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

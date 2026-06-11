@@ -7,7 +7,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/vm.hpp>
 #include <chrono>
 #include <gtest/gtest.h>

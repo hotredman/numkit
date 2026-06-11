@@ -4,7 +4,7 @@
 //                              readmatrix/writematrix/type) and
 // C2 (paths: filesep/fullfile/fileparts/tempdir/tempname).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <filesystem>

@@ -17,7 +17,7 @@
 //     (MATLAB-compatible), so 'Canny' no longer silently fell through to
 //     the default Sobel branch.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

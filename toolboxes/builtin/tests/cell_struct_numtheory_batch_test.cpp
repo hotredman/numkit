@@ -11,7 +11,7 @@
 // returns the input unchanged for both anonymous lambda (@(x) x*2)
 // and named-fn (@sin) handles. Real bug; only structural shape pinned.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -6,7 +6,7 @@
 // separately, then recombines (vector + matrix single/2-output + N-D as of
 // 2026-06-05, bugs/builtin/gradient-3d.md). MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

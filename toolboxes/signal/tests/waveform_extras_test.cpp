@@ -3,7 +3,7 @@
 // Tests for package A4 (waveform_generation extras):
 //   square, sawtooth, sinc, gmonopuls, diric.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

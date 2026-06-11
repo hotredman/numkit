@@ -4,7 +4,7 @@
 // integer operands with MATLAB R2025b's per-operation saturating integer
 // arithmetic. Offline regression guard with hardcoded expected values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

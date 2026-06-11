@@ -12,7 +12,7 @@
 // (no-arg form, fractional input, vector input) — only the working
 // scalar-positive path is pinned here.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>

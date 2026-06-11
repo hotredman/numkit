@@ -10,7 +10,7 @@
 // (16 verified; 1 deferred — freqs returns scalar where MATLAB returns
 // length-N vector).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -2,7 +2,7 @@
 //
 // CallContext register half of math/complex/complex.cpp (Phase 2b split).
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/math/complex/complex.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>

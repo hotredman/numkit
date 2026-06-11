@@ -2,7 +2,7 @@
 //
 // Tests for F1: upfirdn / interp / intfilt / fftfilt.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

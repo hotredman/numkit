@@ -5,7 +5,7 @@
 // MATLAB R2025b reference values. (FIXED builtin bugs get real tests in
 // their own files, e.g. sort-missingplacement -> matrix_test.cpp.)
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

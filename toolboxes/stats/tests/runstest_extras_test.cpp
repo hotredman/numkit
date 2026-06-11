@@ -3,7 +3,7 @@
 // implemented; degenerate-case p-value for all-up sequences still
 // returns NaN, deferred).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

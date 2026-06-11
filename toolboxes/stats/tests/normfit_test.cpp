@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/normfit_test.cpp
 // normfit.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

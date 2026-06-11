@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/lognlike_test.cpp
 // lognlike. Reference values from MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

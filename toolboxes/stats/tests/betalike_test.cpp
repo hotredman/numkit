@@ -5,7 +5,7 @@
 // the Hessian — verified by direct MATLAB probe. The two estimators
 // only coincide at the MLE.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

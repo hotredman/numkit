@@ -3,7 +3,7 @@
 // three were already MATLAB-parity verified (no behavioural gap).
 // gtest provides regression coverage for all four.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

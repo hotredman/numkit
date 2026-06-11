@@ -4,7 +4,7 @@
 // now accumulate COMPLEX values element-wise (dim + 'reverse' honoured)
 // instead of throwing "Not a double array". MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

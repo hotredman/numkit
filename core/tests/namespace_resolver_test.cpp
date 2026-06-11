@@ -15,7 +15,7 @@
 // See NAMESPACE_DESIGN.md Sections 3-5.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 
 using namespace numkit;

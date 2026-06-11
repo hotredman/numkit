@@ -5,7 +5,6 @@
 // strlength / strrep / contains / startsWith / endsWith. The regex
 // builtins (regexp/regexpi/regexprep) live in regex.cpp.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/lang/strings/strings.hpp>
 #include <numkit/lang/strings/format.hpp>
 

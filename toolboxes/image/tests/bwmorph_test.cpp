@@ -8,7 +8,7 @@
 // 20x20 rng(0) matrix); the property test at the end verifies the
 // defining invariants of the operations MATLAB-independently.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

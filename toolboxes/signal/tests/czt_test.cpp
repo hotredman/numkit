@@ -5,7 +5,7 @@
 // path matching fft(x, m), and (c) the full 4-arg general chirp.
 // MATLAB fingerprints captured from R2025b probe.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

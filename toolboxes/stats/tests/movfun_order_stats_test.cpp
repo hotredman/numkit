@@ -7,7 +7,7 @@
 //   movmedian:     int->int (round half away from zero), logical->DOUBLE
 // Window 3 unless noted, endpoints 'shrink'. Bit-exact MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

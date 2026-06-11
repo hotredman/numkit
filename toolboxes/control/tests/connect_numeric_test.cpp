@@ -5,7 +5,7 @@
 // threw "expected tf/zpk/ss struct" for e.g. feedback(sys,1) (unity
 // feedback). Expected dcgain values verified vs MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

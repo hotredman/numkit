@@ -1,7 +1,6 @@
 // toolboxes/builtin/src/datatypes/strings/print.cpp
 
 #include <numkit/lang/strings/format.hpp>
-#include <numkit/builtin/library.hpp>
 #include <numkit/lang/strings/print.hpp>
 
 #include <numkit/value/value.hpp>
@@ -123,51 +122,6 @@ std::string dispFormat(const Value &a)
     }
     os << "\n";
     return os.str();
-}
-
-void disp(Engine &engine, Span<const Value> args)
-{
-    for (const auto &a : args)
-        engine.outputText(dispFormat(a));
-}
-
-std::size_t fprintf(Engine &engine, Span<const Value> args)
-{
-    if (args.empty())
-        return 0;
-    std::pmr::memory_resource *mr = engine.resource();
-
-    // First-arg-is-fid disambiguation: MATLAB allows both
-    //   fprintf(format, …)  and  fprintf(fid, format, …)
-    // We detect the latter via "leading numeric scalar followed by char".
-    int fid = 1;
-    size_t fmtIdx = 0;
-    if (args.size() >= 2 && args[0].isScalar() && args[1].isChar()) {
-        fid = static_cast<int>(args[0].toScalar());
-        fmtIdx = 1;
-    }
-    if (!args[fmtIdx].isChar())
-        return 0;
-
-    std::string result = formatCyclic(args[fmtIdx].toString(), args, fmtIdx + 1, mr);
-
-    if (fid == 1 || fid == 2) {
-        engine.outputText(result);
-    } else if (fid >= 3) {
-        auto *f = engine.findFile(fid);
-        if (!f || !f->forWrite)
-            throw Error("fprintf: invalid file identifier");
-        // For 'a'/'a+' (appendOnly) snap to end first — MATLAB's
-        // contract regardless of prior seek.
-        size_t writePos = f->appendOnly ? f->buffer.size() : f->cursor;
-        if (writePos + result.size() > f->buffer.size())
-            f->buffer.resize(writePos + result.size());
-        std::memcpy(f->buffer.data() + writePos, result.data(), result.size());
-        f->cursor = writePos + result.size();
-    } else {
-        throw Error("fprintf: invalid file identifier");
-    }
-    return result.size();
 }
 
 } // namespace numkit::lang

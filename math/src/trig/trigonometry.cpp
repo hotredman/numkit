@@ -6,7 +6,6 @@
 // acos, atan, atan2, asinh, acosh, atanh) live in trig_highway.cpp /
 // trig_portable.cpp.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/math/arithmetic/misc.hpp>          // hypot decl
 #include <numkit/math/trig/trigonometry.hpp>
 

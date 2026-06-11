@@ -8,7 +8,7 @@
 //   yu      = envelope(x, n)                -- == envelope(x, n, 'analytic')
 // All hardcoded values verified bit-identical against MATLAB R2025b's envelope.m.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

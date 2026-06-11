@@ -5,7 +5,7 @@
 // detrend of a complex array removes the trend from the real and imaginary
 // parts separately, then recombines. MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

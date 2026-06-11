@@ -5,7 +5,7 @@
 // row 2 = upper, one column per parameter), reusing the matching *fit CI
 // machinery. Default Alpha = 0.05; an 'Alpha' option is honoured. MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

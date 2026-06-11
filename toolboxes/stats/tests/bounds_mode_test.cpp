@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/bounds_mode_test.cpp
 // — 'all' / vecdim dispatch.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>

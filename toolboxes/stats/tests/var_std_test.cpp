@@ -2,7 +2,7 @@
 // — 'all' / vecdim / weight-vec
 // support. Reference values from MATLAB R2025b probe.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

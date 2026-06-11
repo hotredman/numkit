@@ -9,7 +9,7 @@
 // (16 working, 3 deferred — insertafter/insertbefore/replacebetween
 // undefined in numkit).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/ztest_extras_test.cpp
 // — Name-Value Alpha/Tail parsing.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

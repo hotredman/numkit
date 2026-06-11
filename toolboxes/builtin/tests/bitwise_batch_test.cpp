@@ -8,7 +8,7 @@
 // concat fails — separate adapter-level gaps, NOT in scope here.
 // Probed only via inputs that work; full type matrix is a follow-up.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

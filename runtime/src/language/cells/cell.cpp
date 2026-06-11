@@ -6,7 +6,7 @@
 
 #include <numkit/runtime/language/cells/cell.hpp>
 #include <numkit/lang/arrays/matrix.hpp>  // horzcat / vertcat
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>

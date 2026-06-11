@@ -8,7 +8,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/value/object.hpp>
 #include <numkit/runtime/containers.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>

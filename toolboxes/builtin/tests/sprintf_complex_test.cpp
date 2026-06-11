@@ -4,7 +4,7 @@
 // throw on a complex argument to a numeric conversion. MATLAB R2025b uses the
 // REAL part (imaginary discarded). Expected strings are bit-exact MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

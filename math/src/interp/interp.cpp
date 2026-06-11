@@ -3,7 +3,6 @@
 // 1-D / 2-D / 3-D interpolation. polyfit / polyval moved to
 // math/elementary/polynomials.cpp; trapz to math/integration/integration.cpp.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/math/interp/interp.hpp>
 
 #include <numkit/value/value.hpp>

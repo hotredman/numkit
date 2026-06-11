@@ -5,7 +5,7 @@
 // PROMOTES integer/logical to double for these arithmetic moving functions
 // (class NOT preserved). Window 3, endpoints 'shrink'. Bit-exact MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

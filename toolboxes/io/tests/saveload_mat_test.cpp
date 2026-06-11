@@ -7,7 +7,7 @@
 // CallbackFS staging is exercised separately in fileio_test.cpp's
 // FileIoTest.SaveLoadMat* group.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <cmath>

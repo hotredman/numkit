@@ -4,7 +4,7 @@
 // sgolayfilt() applied to vectors.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 
 #include <gtest/gtest.h>
 

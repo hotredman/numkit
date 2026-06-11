@@ -17,7 +17,7 @@
 //   Both inverses (iswt/imodwt) recover the original signal to machine
 //   precision — the structurally important invariant these tests pin.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

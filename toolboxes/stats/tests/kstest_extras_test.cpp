@@ -2,7 +2,7 @@
 // — Tail aliases
 // (unequal/larger/smaller) and Name-Value parsing (Alpha=, Tail=).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

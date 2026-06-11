@@ -8,7 +8,6 @@
 // files under math/elementary/. Random generators (rand/randn) live in
 // math/random/rng.cpp.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/lang/arrays/matrix.hpp>       // reshape (for 'all')
 #include <numkit/math/exp_log/exponents.hpp>      // exp / log adapters
 #include <numkit/math/arithmetic/reductions.hpp>

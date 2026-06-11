@@ -1,7 +1,6 @@
 // math/src/complex/complex.cpp
 
 #include <numkit/math/complex/complex.hpp>
-#include <numkit/builtin/library.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

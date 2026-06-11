@@ -5,7 +5,7 @@
 // default). Type 1 and Type 4 are self-inverse; Type 2 and Type 3 are
 // each other's inverse. Expected values from MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

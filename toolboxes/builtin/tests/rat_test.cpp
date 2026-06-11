@@ -12,7 +12,7 @@
 //   - rats yields fixed-width centred 'numer/denom' field
 //   - All bit-identical to MATLAB R2025b probes.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

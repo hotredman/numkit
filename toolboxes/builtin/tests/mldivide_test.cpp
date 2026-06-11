@@ -7,7 +7,7 @@
 //   - Scalar/scalar and matrix/scalar : pre-existing elementwise paths
 // All hardcoded expected values verified bit-identical vs MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

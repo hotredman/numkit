@@ -7,7 +7,7 @@
 // approach reports the FD value (~0.030, 0.098, -1.622) and not
 // MATLAB's analytical ACOV — documented as a known gap.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

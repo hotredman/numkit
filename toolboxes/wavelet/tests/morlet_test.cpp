@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/morlet_test.cpp
 // morlet.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

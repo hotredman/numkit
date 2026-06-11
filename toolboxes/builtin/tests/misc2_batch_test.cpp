@@ -8,7 +8,7 @@
 // implemented; freqspace size convention differs). Documented as
 // separate spec in their respective files
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

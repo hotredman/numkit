@@ -5,7 +5,7 @@
 // header below.
 
 #include <numkit/runtime/language/structures/struct.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>

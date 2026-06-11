@@ -5,7 +5,6 @@
 // (SIMD via Highway) and live in exp_log_highway.cpp / exp_log_portable.cpp;
 // only their declarations are reproduced in math/exp_log/exponents.hpp.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/math/exp_log/exponents.hpp>
 
 #include <numkit/value/value.hpp>

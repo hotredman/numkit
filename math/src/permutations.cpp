@@ -8,7 +8,6 @@
 // work on dense matrices too (any element != 0 counts as nonzero).
 
 #include <numkit/math/permutations.hpp>
-#include <numkit/builtin/library.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

@@ -1,7 +1,7 @@
 // toolboxes/signal/tests/hilbert_test.cpp
 // — sign convention fix.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

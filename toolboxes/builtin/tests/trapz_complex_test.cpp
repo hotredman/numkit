@@ -5,7 +5,7 @@
 // over Complex storage; the integration variable x stays real. dim + x-spacing
 // + matrix forms all honoured. MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

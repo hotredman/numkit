@@ -5,7 +5,7 @@
 // PRESERVING the char class on the values; the 2nd-output index stays double.
 // Values below are bit-exact MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

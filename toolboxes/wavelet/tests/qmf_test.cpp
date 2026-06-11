@@ -3,7 +3,7 @@
 // Backfill gtest for toolboxes/wavelet/src/filter/qmf.cpp::qmf.
 // Reference values captured from MATLAB R2025b probe.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -6,7 +6,7 @@
 // promote the whole array to complex if any element is out of range.
 // MATLAB R2025b reference values. acosh(2) = 1.3169578969248166.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

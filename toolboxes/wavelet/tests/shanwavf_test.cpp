@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/shanwavf_test.cpp
 // shanwavf.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

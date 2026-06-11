@@ -7,7 +7,7 @@
 //   per-point support violation → +Inf (not NaN)
 //   x < 0 OK as long as 1 + k*x/sigma > 0
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

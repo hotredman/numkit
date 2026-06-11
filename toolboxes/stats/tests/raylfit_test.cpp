@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/raylfit_test.cpp
 // raylfit.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -9,7 +9,7 @@
 //   misc:        newline · nnz · nonzeros · nthroot · num2cell · pad
 // All . Bit-identical MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

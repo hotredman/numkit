@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/detcoef_test.cpp
 // detcoef.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

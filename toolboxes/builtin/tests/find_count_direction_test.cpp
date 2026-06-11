@@ -5,7 +5,7 @@
 // single-output (linear index) and the [r,c] / [r,c,v] subscript forms.
 // MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

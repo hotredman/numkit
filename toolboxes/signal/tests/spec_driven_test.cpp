@@ -2,7 +2,7 @@
 //
 // Tests for D2 — spec-driven filters: lowpass / highpass / bandpass / bandstop.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

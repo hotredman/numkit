@@ -2,7 +2,7 @@
 // ComparisonMethod real/auto/abs
 // all supported ('abs' added DEEP-PROBE c171).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

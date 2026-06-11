@@ -4,7 +4,7 @@
 // movprod,movmad,movstd,movvar}.md). Hardcoded expected values
 // captured from MATLAB R2025b probe runs.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

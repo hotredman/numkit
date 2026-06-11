@@ -4,7 +4,7 @@
 // differences the real AND imaginary parts of a complex array (honouring n
 // and dim) instead of silently dropping the imaginary part. MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

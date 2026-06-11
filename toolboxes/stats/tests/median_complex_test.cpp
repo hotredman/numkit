@@ -5,7 +5,7 @@
 // median of a complex array orders by abs (ties by angle), same comparator
 // sort/max use; even n → mean of the two middle. MATLAB R2025b reference.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

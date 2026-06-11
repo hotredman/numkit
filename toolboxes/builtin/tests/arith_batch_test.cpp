@@ -8,7 +8,7 @@
 // implemented — only scalar^scalar tested.
 // mpower.md.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

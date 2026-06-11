@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/mexihat_test.cpp
 // mexihat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

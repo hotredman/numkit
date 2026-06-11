@@ -8,7 +8,7 @@
 // All  — bit-identical MATLAB R2025b
 // on probed inputs.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

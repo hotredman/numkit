@@ -8,7 +8,7 @@
 // Fix in toolboxes/signal/src/transforms/extras.cpp: change `-1` → `+1` in
 // both cceps() and icceps(), restoring the correct ifft pass.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

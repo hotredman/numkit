@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/cmorwavf_test.cpp
 // cmorwavf.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

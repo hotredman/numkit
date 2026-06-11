@@ -7,7 +7,7 @@
 // MATLAB (eig sign convention), so validation is sign-agnostic: the defining
 // relation, unit-norm columns, abs() / sum(abs()). MATLAB R2025b reference.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

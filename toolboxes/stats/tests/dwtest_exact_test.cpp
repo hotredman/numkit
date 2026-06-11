@@ -6,7 +6,7 @@
 // method, plus the 'Tail' option ('both' default / 'right' / 'left'). The DW
 // statistic was already correct. MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

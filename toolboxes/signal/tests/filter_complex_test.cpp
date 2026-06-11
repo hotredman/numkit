@@ -7,7 +7,7 @@
 // real/imag split. Covers FIR/IIR, complex b/a taps, zi, [y,zf], matrix.
 // MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 
