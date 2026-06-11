@@ -8,10 +8,9 @@
 
 #include <numkit/io/text/csv.hpp>
 
-#include <numkit/core/engine.hpp>
+#include <numkit/value/error.hpp>
 #include <numkit/fs/fs_context.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cstdio>
@@ -279,25 +278,5 @@ void csvwrite(FsContext &fs, Span<const Value> args)
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════
-// Adapters
-// ════════════════════════════════════════════════════════════════════════
-
-namespace detail {
-
-void csvread_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    (void)nargout;
-    outs[0] = csvread(ctx.engine->fsContext(), args, ctx.engine->resource());
-}
-
-void csvwrite_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
-{
-    (void)nargout;
-    (void)outs;
-    csvwrite(ctx.engine->fsContext(), args);
-}
-
-} // namespace detail
 
 } // namespace numkit::io
