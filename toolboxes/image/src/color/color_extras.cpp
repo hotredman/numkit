@@ -24,7 +24,7 @@
 #include <numkit/image/geom/geom.hpp>
 #include <numkit/image/contrast/contrast.hpp>
 
-#include <numkit/builtin/math/random/matlab_mt19937.hpp>
+#include <numkit/ops/matlab_mt19937.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -1629,7 +1629,7 @@ Value resolve_named_colormap(const std::string &name, int N,
 // after a stable sort give the permutation.
 std::vector<int> matlab_default_randperm(int N)
 {
-    ::numkit::builtin::detail::MatlabMT19937 rng;   // seed 0 → state[0] = 5489
+    ::numkit::ops::MatlabMT19937 rng;   // seed 0 → state[0] = 5489
     std::vector<double> u(static_cast<std::size_t>(N));
     for (int i = 0; i < N; ++i) u[i] = rng.genRes53();
     std::vector<int> p(static_cast<std::size_t>(N));
