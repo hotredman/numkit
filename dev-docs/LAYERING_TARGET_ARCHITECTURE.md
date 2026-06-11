@@ -346,20 +346,26 @@ re-layering); G is the risky enforcement step.
   handlefn TUs (the cell/struct precedent). **The Phase-3-A layering refactor
   (C0…C6 + H + G) is COMPLETE.**
 
-- **D. Solver split — `ode`/`optim` ✅ DONE (D-ode `80051215`, D-optim
-  `49329af7`); `nlinfit`/`integral` PENDING (need FnHandle decoupling first).**
-  The Engine-free FnHandle kernels stay in the toolbox (now core-free); the
-  Engine adapter (`@handle`→`FnHandle` bridge) + embedded-.m pausable wrapper +
-  the toolbox `install` relocate to `bundle/src/register/<tb>/`. Done for ode
-  (ode45/ode23) and optim (fzero/fminbnd/fminsearch) — their kernels were
-  already FnHandle-parameterized, so it was pure relocation.
-  **Remaining (NOT mechanical):** `nlinfit` (stats) and `integral`
-  (runtime/integration) kernels are NOT yet FnHandle-decoupled — they take
-  `Engine *` directly, so they need the hard callback-decoupling first
-  (rewrite the LM / Gauss-Kronrod kernel to take a `FnHandle`), THEN the split.
-  `integral` additionally sits in a mixed calculus TU (gradient/del2/cumtrapz —
-  pure compute mis-placed in runtime) that wants carving to `math` regardless.
-  These are a meatier, correctness-sensitive lift, tracked separately.
+- **D. Solver split — `ode`/`optim`/`nlinfit` ✅ DONE; `integral` PENDING
+  (adapter↔helper entanglement).** Pattern: the Engine-free FnHandle kernel stays
+  in the toolbox (now core-free); the Engine adapter (`@handle`→`FnHandle`
+  bridge) + embedded-.m pausable wrapper + (where the whole toolbox is solvers)
+  the `install` relocate to `bundle/src/register/<tb>/`.
+  - ode (ode45/ode23, `80051215`) + optim (fzero/fminbnd/fminsearch, `49329af7`)
+    — kernels were already FnHandle-parameterized → pure relocation.
+  - nlinfit (stats) — kernel took `Engine *`; FnHandle-decoupled it (`8f9831f4`,
+    LM/CI behaviour validated by NlinfitTest) then moved its adapter to
+    bundle/register/stats/regress (`353372a2`). nlinfit kernel now core-free.
+  - **integral (runtime/integration) PENDING.** Its Gauss-Kronrod kernel is
+    ALREADY FnHandle-decoupled (no rewrite needed). But a clean carve was
+    attempted and **reverted**: integration.cpp is a 1001-line mixed TU whose
+    gradient/del2/cumtrapz/integral `*_reg` adapters reach deep into ~8 file-local
+    anon helpers (gradientND / cumtrapzDim / cumtrapzMatrix{Rows,Cols}±C /
+    toDoubleCopy / the kKronrodX GK-node constants) — dispatch logic, not thin
+    wrappers. A clean split needs all those exposed via the math header OR the
+    adapters refactored to call public high-level fns; plus the pure calculus
+    (gradient/del2/cumtrapz) wants carving runtime→math regardless. A focused,
+    correctness-sensitive lift — tracked for a dedicated session.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
   feval stays in builtin until F because of its FevalCallbackBuiltin adapter).
   containers.Map: `containers::` compute → `lang`, registry hooks → bundle (lands
