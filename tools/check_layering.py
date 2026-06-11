@@ -16,10 +16,11 @@ This checker pins value, fs, ops, core and the math/lang COMPUTE: none may
 include headers from a layer above them. core MUST stay free of every toolbox
 (the original "core pulls libs" defect); math/lang compute MUST stay free of
 core / runtime / toolboxes (the point of the C4 numkit::math / numkit::lang
-split). The `*_reg.cpp` registration adapters in math/lang/src are core-coupled
-glue (CallContext / Engine) bound for the bundle layer in C5, so they are
-exempt. `builtin` is transitionally allowed in math/lang (old-path forwarding
-stubs + library.hpp Error) until the include-path migration. Toolbox purity is
+split). The `*_reg.cpp` registration adapters now live in bundle/src/register
+(core-coupled CallContext / Engine glue), so they are outside the scanned
+compute trees. (The transitional `builtin` allowance is gone — the C4
+include-path migration completed; no math/lang/toolbox TU includes a
+<numkit/builtin/...> header.) Toolbox purity is
 now ALSO enforced: every toolbox compute TU must stay core/runtime-free (their
 Engine glue moved to bundle in F; stateful surfaces decoupled via FsContext/
 FnHandle). Exempt: each toolbox's library.{cpp,hpp} installer, io's type.cpp
@@ -49,22 +50,23 @@ ALLOWED = {
     "figure": {"value", "fs", "ops", "figure"},
     # math/lang (L2 compute, ns numkit::math / numkit::lang after the C4 split)
     # must stay free of core / runtime / toolboxes — the whole point of the split.
-    # They may use value/fs/ops, each other (e.g. lang/arrays -> math/arithmetic
-    # cumsum), and — transitionally — `builtin` (the old-path forwarding stubs +
-    # library.hpp Error live there until the include-path migration). The
-    # core-coupled `*_reg.cpp` registration glue is excluded from the scan (it
-    # lives in math/lang/src by locality but belongs to bundle; relocated in C5).
-    "math":  {"value", "fs", "ops", "math", "lang", "builtin"},
-    "lang":  {"value", "fs", "ops", "math", "lang", "builtin"},
+    # They may use value/fs/ops and each other (e.g. lang/arrays -> math's private
+    # arithmetic/cumsum.hpp reduction kernel, via the shared src -I). The
+    # core-coupled `*_reg.cpp` registration glue lives in bundle/src/register and
+    # is excluded from the scan. (The transitional `builtin` allowance was dropped
+    # once the C4 include-path migration completed — no math/lang TU includes a
+    # <numkit/builtin/...> header any more.)
+    "math":  {"value", "fs", "ops", "math", "lang"},
+    "lang":  {"value", "fs", "ops", "math", "lang"},
     # toolboxes/* (L2 compute) must stay free of core / runtime — all their
     # Engine glue (the `*_reg.cpp` adapters) was relocated to bundle in F, and
     # the stateful surfaces were decoupled (FsContext / FnHandle). They may use
-    # value/fs/ops, math/lang compute, each other (sibling toolbox names added
-    # dynamically below), and — transitionally — `builtin` forwarding stubs.
-    # Two sanctioned core users are exempt per-file in scan(): each toolbox's
-    # `library.cpp` installer (registration ABI) and io's `type.cpp`
-    # (legitimately Engine& — it writes via engine.outputText).
-    "toolboxes": {"value", "fs", "ops", "math", "lang", "builtin", "graphics"},
+    # value/fs/ops, math/lang compute, graphics, and each other (sibling toolbox
+    # names added dynamically below). Two sanctioned core users are exempt
+    # per-file in scan(): each toolbox's `library.cpp` installer (registration
+    # ABI) and io's `type.cpp` (legitimately Engine& — it writes via
+    # engine.outputText).
+    "toolboxes": {"value", "fs", "ops", "math", "lang", "graphics"},
     # graphics (L2 service): the plotting library (figure/plot/imshow/…). Now
     # core-free like every other L2 lib — the plotting bodies (plots.cpp) take a
     # GraphicsContext (FigureManager + scratch arena + callBuiltin/callHandle
