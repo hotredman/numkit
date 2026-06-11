@@ -512,6 +512,34 @@ to keep its diff semantic + reviewable.
   value/fs/ops/core — it is Engine-coupled via the figureManager) and adds
   `graphics` to the toolbox allowed set (toolboxes→graphics OK, graphics→toolbox
   forbidden); negative-tested.
+- **FigureContext decoupling — (A) ✅ DONE + landed, (B) ⏳ PENDING (branch
+  `refactor/figure-context`, == main after A).** Goal: make `graphics` FULLY
+  core-free (the last core-coupled service) by pulling figure state out of the
+  Engine, mirroring FsContext. The user explicitly chose the full (A)+(B) over
+  leaving graphics a legit core-coupled service.
+  - **A0 (`69dab985`):** decimate kernel `core → ops` (it's a general numeric
+    primitive used by signal/image/wavelet/figure; was figure_manager's only
+    non-STL dep).
+  - **A1 (`99ea3ba2`):** `figure_manager.hpp` (FigureManager — figure/axes/
+    datasets-JSON state + an `OutputFunc` emit callback; header-only) → new
+    header-only **`src/figure/`** layer (L0.5, below core; allowed value/fs/ops).
+    Engine still owns one FigureManager (now from figure/) + wires its OutputFunc.
+    Figure state is OUT of the Engine layer. check_layering.py pins `figure`;
+    `figure` added to core's + graphics' allowed. **(A) landed on main.**
+  - **B (the 150-fn grind — multi-session, correctness-sensitive):** graphics'
+    **150 registration lambdas** in `src/graphics/src/library.cpp` use
+    `ctx.engine->` 149× (figureManager 116, resource 16, findExternal 11,
+    callFunctionHandle 6). Plan:
+    1. **B-setup:** a `GraphicsContext { FigureManager&, std::pmr::memory_resource*,
+       <resolver for findExternal/callFunctionHandle> }`; graphics' `reg`/`regCore`
+       build a `{sub,name,GraphicsFn}` TABLE (core-free) instead of registering
+       directly; a **bundle** loop registers each via a CallContext→GraphicsContext
+       adapter (`ctx.engine->figureManager()`/`resource()`/resolver).
+    2. **B1..Bn:** convert the 150 lambdas to take `GraphicsContext& gc`; bodies
+       `ctx.engine->X` → `gc.X` (mechanical), batched by sub-namespace (layout 58,
+       bar 28, line 27, polar 15, surface 14, + contour/image/regCore).
+    3. **B-fin:** graphics core-free → check_layering.py drop `core` from graphics'
+       allowed → `{value,fs,ops,figure,graphics}`.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
