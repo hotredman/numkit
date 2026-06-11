@@ -13,7 +13,6 @@
 //   2. compat.<name>           (so `import compat.*` flattens it)
 
 #include <numkit/graphics/library.hpp>
-#include <numkit/image/io/io.hpp>
 
 #include <algorithm>
 #include <array>
@@ -1502,14 +1501,17 @@ void GraphicsLibrary::install(Engine &engine)
 
         if (args.empty()) { outs[0] = Value(); return; }
 
-        // imshow('path/to/img.png') — decode via stb_image and feed
-        // the resulting H×W or H×W×{3,4} uint8 array through the rest
-        // of the pipeline. imread errors propagate up as Engine
-        // exceptions; we don't try/catch here.
-        Value decoded;   // owns lifetime of the decoded value
+        // imshow('path/to/img.png') — decode the file by calling the registered
+        // `imread` builtin THROUGH A HANDLE resolved by name at call time. This
+        // keeps graphics free of any image-toolbox C++ dependency (no include,
+        // no numkit::image:: symbol); imread is installed by the image toolbox
+        // in the same standard library and resolves at runtime.
+        Value decoded;   // owns the lifetime of the decoded value
         const Value *img0 = &args[0];
-        if (args[0].isChar()) {
-            decoded = numkit::image::imread(args[0].toString(), ctx.engine->resource());
+        if (args[0].isChar() || args[0].isString()) {
+            Value imreadFn = Value::funcHandle("imread", ctx.engine->resource());
+            decoded = ctx.engine->callFunctionHandle(imreadFn,
+                                                     Span<const Value>(&args[0], 1));
             img0 = &decoded;
         }
         const Value &I = *img0;

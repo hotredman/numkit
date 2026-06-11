@@ -33,7 +33,7 @@ INPUT                  = docs/doxygen_mainpage.dox \
                          src/toolboxes/wavelet/include  \
                          src/toolboxes/control/include  \
                          src/toolboxes/comm/include     \
-                         src/toolboxes/graphics/include \
+                         src/graphics/include \
                          src/toolboxes/io/include
 FILE_PATTERNS          = *.hpp *.h *.dox
 RECURSIVE              = YES
