@@ -11,7 +11,7 @@
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
-#include "reduction_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
 #include "backends/nan_reductions.hpp"
 
 #include <algorithm>
@@ -24,14 +24,14 @@
 
 namespace numkit::stats {
 
-using ::numkit::builtin::detail::applyAlongDim;
-using ::numkit::builtin::detail::resolveDim;
+using ::numkit::ops::applyAlongDim;
+using ::numkit::ops::resolveDim;
 using ::numkit::stats::detail::nanSumScan;
 using ::numkit::stats::detail::nanSumCountScan;
 using ::numkit::stats::detail::nanMaxScan;
 using ::numkit::stats::detail::nanMinScan;
 using ::numkit::stats::detail::nanVarianceTwoPass;
-using ::numkit::builtin::detail::compactNonNan;
+using ::numkit::ops::compactNonNan;
 
 
 Value nansum(const Value &x, int dim, std::pmr::memory_resource *mr)

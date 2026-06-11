@@ -12,7 +12,7 @@
 #include <numkit/value/error.hpp>
 
 #include "../dsp_helpers.hpp"           // Complex typedef
-#include "poly_helpers.hpp"             // polyExpandFromRoots
+#include <numkit/ops/poly_helpers.hpp>             // polyExpandFromRoots
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -50,7 +50,7 @@ ScratchVec<Complex> butterworthPoles(int N, std::pmr::memory_resource *mr)
     return poles;
 }
 
-using numkit::builtin::detail::polyExpandFromRoots;
+using numkit::ops::polyExpandFromRoots;
 
 // Bilinear-transform helper: take an arbitrary set of analog poles and
 // zeros (already pre-warped + frequency-transformed) and produce the

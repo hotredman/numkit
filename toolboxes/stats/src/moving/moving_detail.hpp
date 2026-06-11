@@ -7,7 +7,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/span.hpp>
 #include <numkit/value/scratch.hpp>
-#include "reduction_helpers.hpp"  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
+#include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 #include <numkit/value/scratch.hpp>
 
 #include <algorithm>
@@ -31,8 +31,8 @@ namespace numkit::stats {
 
 namespace {
 
-using ::numkit::builtin::detail::firstNonSingletonDim;
-using ::numkit::builtin::detail::validateDim;
+using ::numkit::ops::firstNonSingletonDim;
+using ::numkit::ops::validateDim;
 
 // Resolve user-supplied dim (0 → first non-singleton, otherwise validate).
 int resolveDim(const Value &x, int dim, const char *fn)

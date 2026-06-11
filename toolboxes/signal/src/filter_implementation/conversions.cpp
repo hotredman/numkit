@@ -11,7 +11,7 @@
 #include <tuple>
 
 #include "../dsp_helpers.hpp"
-#include "poly_helpers.hpp"
+#include <numkit/ops/poly_helpers.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@ using numkit::Complex;
 
 namespace {
 
-using numkit::builtin::detail::polyRootsDurandKerner;
+using numkit::ops::polyRootsDurandKerner;
 
 constexpr double kImagThresh = 1e-10;  // |Im(r)| below this → treat as real
 

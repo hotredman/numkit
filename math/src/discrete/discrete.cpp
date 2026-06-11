@@ -10,7 +10,7 @@
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
-#include "rows_helpers.hpp"  // numkit::ops::collectRowsByIndex
+#include <numkit/ops/rows_helpers.hpp>  // numkit::ops::collectRowsByIndex
 
 #include <algorithm>
 #include <cmath>

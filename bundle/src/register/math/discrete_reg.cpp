@@ -10,7 +10,7 @@
 #include <numkit/value/value.hpp>
 #include "discrete/discrete_detail.hpp"
 #include <numkit/ops/helpers.hpp>
-#include "rows_helpers.hpp"  // detail::collectRowsByIndex
+#include <numkit/ops/rows_helpers.hpp>  // numkit::ops::collectRowsByIndex
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
@@ -605,7 +605,7 @@ Value setOpRows(const Value &A, const Value &B, SetOpKind kind,
               [ad, ac, ar](size_t a, size_t b) { return rowLexCmp(ad, ac, ar, a, b) < 0; });
     nonNan.insert(nonNan.end(), nanIdx.begin(), nanIdx.end());
     if (nonNan.empty()) return emptyRowsResult(cols, mr);
-    return detail::collectRowsByIndex(mr, A, nonNan.data(), nonNan.size());
+    return numkit::ops::collectRowsByIndex(mr, A, nonNan.data(), nonNan.size());
 }
 
 // Row-wise setxor (MATLAB setxor(A,B,'rows')): the symmetric difference of the
@@ -664,7 +664,7 @@ Value setxorRows(const Value &A, const Value &B, const char *fn,
               [cdp, cols, nr](size_t a, size_t b) { return rowLexCmp(cdp, cols, nr, a, b) < 0; });
     nonNan.insert(nonNan.end(), nanIdx.begin(), nanIdx.end());
     if (nonNan.empty()) return emptyRowsResult(cols, mr);
-    return detail::collectRowsByIndex(mr, combined, nonNan.data(), nonNan.size());
+    return numkit::ops::collectRowsByIndex(mr, combined, nonNan.data(), nonNan.size());
 }
 } // namespace
 

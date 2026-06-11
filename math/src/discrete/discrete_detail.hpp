@@ -7,7 +7,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include "reduction_helpers.hpp"  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>
@@ -202,7 +202,7 @@ inline Value emptyRowsResult(size_t cols, std::pmr::memory_resource *mr)
 
 // Note: collectRowsByIndex moved to rows_helpers.hpp (shared with
 // matrix.cpp's sortRowsImpl). The duplicate definition that used to
-// live here has been removed in favour of detail::collectRowsByIndex.
+// live here has been removed in favour of numkit::ops::collectRowsByIndex.
 
 void validateUniqueRowsInput(const Value &x, const char *fn)
 {

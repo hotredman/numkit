@@ -5,13 +5,13 @@
 
 #include <numkit/value/value.hpp>
 #include <numkit/ops/helpers.hpp>
-#include "reduction_helpers.hpp"
-#include "rows_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
+#include <numkit/ops/rows_helpers.hpp>
 
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include "reduction_helpers.hpp"  // engine-free numkit::builtin::detail dim-infra (ops re-export)
+#include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
 #include <cmath>

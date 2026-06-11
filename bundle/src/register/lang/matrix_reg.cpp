@@ -16,8 +16,8 @@
 #include <numkit/ops/helpers.hpp>
 #include "math/arithmetic/cumsum.hpp"
 #include "arrays/matrix_detail.hpp"
-#include "reduction_helpers.hpp"
-#include "rows_helpers.hpp"
+#include <numkit/ops/reductions.hpp>
+#include <numkit/ops/rows_helpers.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
