@@ -10,7 +10,7 @@
 
 #include <memory_resource>
 #include <numkit/value/fn_handle.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 namespace numkit::optim::detail::callback {
