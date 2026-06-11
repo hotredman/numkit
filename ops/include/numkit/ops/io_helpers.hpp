@@ -7,7 +7,6 @@
 #pragma once
 
 #include <memory_resource>
-#include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
@@ -19,7 +18,7 @@
 #include <string>
 #include <utility>
 
-namespace numkit::builtin::detail {
+namespace numkit::ops {
 
 // ── SizeSpec: fread / fscanf size-argument parsing ───────────────────
 struct SizeSpec
@@ -127,4 +126,4 @@ inline void byteSwap(char *p, size_t n)
     for (size_t i = 0, j = n - 1; i < j; ++i, --j) std::swap(p[i], p[j]);
 }
 
-} // namespace numkit::builtin::detail
+} // namespace numkit::ops

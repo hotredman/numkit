@@ -17,7 +17,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include "io_helpers.hpp"                       // SizeSpec / parseReadSize (numkit::builtin::detail)
+#include <numkit/ops/io_helpers.hpp>                       // SizeSpec / parseReadSize (numkit::builtin::detail)
 
 #include <algorithm>
 #include <array>
@@ -45,9 +45,9 @@ void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
     if (!f || !f->forRead)
         throw Error("fscanf: invalid file identifier");
 
-    ::numkit::builtin::detail::SizeSpec sz{::numkit::builtin::detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    numkit::ops::SizeSpec sz{numkit::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
-        sz = ::numkit::builtin::detail::parseReadSize(args[2], "fscanf");
+        sz = numkit::ops::parseReadSize(args[2], "fscanf");
 
     std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
     std::string fmt = args[1].toString();

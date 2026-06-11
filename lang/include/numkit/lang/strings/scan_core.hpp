@@ -15,10 +15,10 @@
 #include <string>
 
 // SizeSpec is the read-size descriptor from the shared io_helpers infra
-// (numkit::builtin::detail). Passed by const-ref here so this header only
+// (numkit::ops). Passed by const-ref here so this header only
 // needs a forward declaration — the definition (io_helpers.hpp) is pulled in
 // by the .cpp callers, not by every includer of this header.
-namespace numkit::builtin::detail {
+namespace numkit::ops {
 struct SizeSpec;
 }
 
@@ -35,7 +35,7 @@ struct ScanfOut
 // parse `input` per `fmt` (cyclically, bounded by `sz`), write the shaped
 // result into outs[0] and (when nargout > 1) the count into outs[1].
 void scanfEmit(const std::string &input, const std::string &fmt,
-               const ::numkit::builtin::detail::SizeSpec &sz, std::size_t nargout,
+               const ::numkit::ops::SizeSpec &sz, std::size_t nargout,
                Span<Value> outs, std::pmr::memory_resource *mr, ScanfOut &r);
 
 } // namespace numkit::lang::detail

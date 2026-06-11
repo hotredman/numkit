@@ -10,7 +10,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
-#include "io_helpers.hpp"
+#include <numkit/ops/io_helpers.hpp>
 
 #include <algorithm>
 #include <array>
@@ -272,7 +272,7 @@ Value makeCharRow(const double *vals, size_t n, std::pmr::memory_resource *mr)
 // Column-major char matrix from the flat `vals` buffer. Unfilled
 // cells stay zero (MATLAB's documented fill for partial char reads).
 Value makeCharMatrix(const double *vals, size_t n,
-                     ::numkit::builtin::detail::SizeSpec sz, std::pmr::memory_resource *mr)
+                     numkit::ops::SizeSpec sz, std::pmr::memory_resource *mr)
 {
     size_t cols_out = (sz.cols == SIZE_MAX)
                          ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
@@ -309,7 +309,7 @@ Value shapeScanfOutput(const double *vals, size_t n,
 namespace detail {
 
 void scanfEmit(const std::string &input, const std::string &fmt,
-               const ::numkit::builtin::detail::SizeSpec &sz,
+               const numkit::ops::SizeSpec &sz,
                size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr, ScanfOut &r)
 {
     ScratchArena scratch(mr);
@@ -320,7 +320,7 @@ void scanfEmit(const std::string &input, const std::string &fmt,
     // pure-text format → char matrix. Flat size keeps the
     // per-format column-or-row shape from shapeScanfOutput.
     if (sz.matrix() && hasNum)
-        outs[0] = ::numkit::builtin::detail::shapeFreadOutput(values.data(), values.size(), sz, mr);
+        outs[0] = numkit::ops::shapeFreadOutput(values.data(), values.size(), sz, mr);
     else if (sz.matrix())
         outs[0] = makeCharMatrix(values.data(), values.size(), sz, mr);
     else
@@ -361,9 +361,9 @@ void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::
     if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
         throw Error("sscanf: requires (str, format [, size])");
 
-    ::numkit::builtin::detail::SizeSpec sz{::numkit::builtin::detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    numkit::ops::SizeSpec sz{numkit::ops::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
-        sz = ::numkit::builtin::detail::parseReadSize(args[2], "sscanf");
+        sz = numkit::ops::parseReadSize(args[2], "sscanf");
 
     std::string fmt = args[1].toString();
     ScanfOut r{0, 0};
