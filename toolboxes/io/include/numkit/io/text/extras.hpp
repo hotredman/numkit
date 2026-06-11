@@ -16,6 +16,12 @@ namespace numkit::io {
 using ::numkit::Engine;
 using ::numkit::FsContext;
 
+/// @brief Read a file's entire content through the FsContext VFS — shared by
+/// fileread / readlines / readmatrix and by `type`. Engine-free.
+/// @throws Error  on a read failure (`fnName` names the calling builtin).
+std::string slurpFile(FsContext &fs, const std::string &filename,
+                      const char *fnName);
+
 /// @file
 /// @brief Modern text-file helpers.
 ///
