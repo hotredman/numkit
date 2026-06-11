@@ -590,17 +590,3 @@ Value swapbytes(const Value &x, std::pmr::memory_resource *mr)
 
 
 } // namespace numkit::lang
-
-// ════════════════════════════════════════════════════════════════════════
-// Registration — keep the BuiltinLibrary::registerTypeFunctions hook empty;
-// actual wiring happens in library.cpp via Phase-6c function pointers.
-// ════════════════════════════════════════════════════════════════════════
-
-namespace numkit {
-
-void BuiltinLibrary::registerTypeFunctions(Engine &)
-{
-    // Intentionally empty — see BuiltinLibrary::install() in library.cpp.
-}
-
-} // namespace numkit

@@ -1849,19 +1849,3 @@ std::pair<Value, Value> strtok(const Value &str, const std::string &delim,
 
 
 } // namespace numkit::lang
-
-// ════════════════════════════════════════════════════════════════════════
-// Registration — keeps the existing BuiltinLibrary::registerStringFunctions
-// hook alive (now empty); actual wiring happens in library.cpp via
-// function-pointer adapters, matching Phase-6c pattern.
-// ════════════════════════════════════════════════════════════════════════
-
-namespace numkit {
-
-void BuiltinLibrary::registerStringFunctions(Engine &)
-{
-    // Intentionally empty — all string builtins now register via the
-    // Phase-6c function-pointer path in BuiltinLibrary::install().
-}
-
-} // namespace numkit

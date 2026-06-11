@@ -13,10 +13,6 @@ private:
     // Category registrators (implemented in separate TUs)
     static void registerBinaryOps(Engine &engine);
     static void registerUnaryOps(Engine &engine);
-    static void registerTypeFunctions(Engine &engine);
-    static void registerCellStructFunctions(Engine &engine);
-    static void registerStringFunctions(Engine &engine);
-    static void registerComplexFunctions(Engine &engine);
     // Key-value container classes: dictionary + containers.Map (object model).
     static void registerContainers(Engine &engine);
 

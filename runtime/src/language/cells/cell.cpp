@@ -734,17 +734,3 @@ void registerCellfunCallbackBuiltin(Engine &engine)
 }
 
 } // namespace numkit::builtin
-
-// ════════════════════════════════════════════════════════════════════════
-// Registration — keep the registerCellStructFunctions hook empty; actual
-// wiring happens in library.cpp via Phase-6c function pointers.
-// ════════════════════════════════════════════════════════════════════════
-
-namespace numkit {
-
-void BuiltinLibrary::registerCellStructFunctions(Engine &)
-{
-    // Intentionally empty — see BuiltinLibrary::install() in library.cpp.
-}
-
-} // namespace numkit
