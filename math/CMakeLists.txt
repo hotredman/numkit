@@ -29,6 +29,7 @@ list(APPEND NUMKIT_MATH_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/poly/polynomials.cpp
     # permutations (top-level: perms / nchoosek / factorial / ...)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/permutations.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/integration/integration.cpp
     # random/ (rand / randn / randi / randperm / rng — engine in ops, wrappers here)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng.cpp
     # trig/ (sin/cos/tan/asin/... compute + register; SIMD backends in the

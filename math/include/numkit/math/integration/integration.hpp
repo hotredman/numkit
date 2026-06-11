@@ -10,7 +10,7 @@
 
 #include <tuple>
 
-namespace numkit::builtin {
+namespace numkit::math {
 
 /// @brief Finite-difference gradient (`g = gradient(F, h)`).
 ///
@@ -127,4 +127,8 @@ Value trapz(const Value &y, std::pmr::memory_resource *mr = nullptr);
 Value trapz(const Value &x, const Value &y,
             std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+/// @brief cumtrapz along an explicit dim (the cumtrapz(Y,dim) dispatch).
+Value cumtrapzDim(const Value &y, int dim,
+                  std::pmr::memory_resource *mr = nullptr);
+
+} // namespace numkit::math
