@@ -9,7 +9,7 @@ Enforces the acyclic dependency direction established by the layering refactor:
     core/   (L1)    -> value, fs, ops
     math/   (L2)    -> value, fs, ops, math, lang (+ builtin, transitional)
     lang/   (L2)    -> value, fs, ops, math, lang (+ builtin, transitional)
-    toolboxes/*  (L2)    -> value, fs, ops, core         (toolboxes; not pinned yet)
+    toolboxes/*  (L2)    -> value, fs, ops, math, lang, sibling toolboxes
     bundle/ (L3)    -> everything
 
 This checker pins value, fs, ops, core and the math/lang COMPUTE: none may
@@ -20,7 +20,10 @@ split). The `*_reg.cpp` registration adapters in math/lang/src are core-coupled
 glue (CallContext / Engine) bound for the bundle layer in C5, so they are
 exempt. `builtin` is transitionally allowed in math/lang (old-path forwarding
 stubs + library.hpp Error) until the include-path migration. Toolbox purity is
-enforced later.
+now ALSO enforced: every toolbox compute TU must stay core/runtime-free (their
+Engine glue moved to bundle in F; stateful surfaces decoupled via FsContext/
+FnHandle). Exempt: each toolbox's library.{cpp,hpp} installer, io's type.cpp
+(engine.outputText), and the whole `graph` toolbox (AST/lowering infra).
 
 Scans each guarded layer's include/ + src/ trees for `#include <numkit/X/...>`
 and fails if X is not in that layer's allowed set. Exit 0 = clean, 1 = a
@@ -50,6 +53,15 @@ ALLOWED = {
     # lives in math/lang/src by locality but belongs to bundle; relocated in C5).
     "math":  {"value", "fs", "ops", "math", "lang", "builtin"},
     "lang":  {"value", "fs", "ops", "math", "lang", "builtin"},
+    # toolboxes/* (L2 compute) must stay free of core / runtime — all their
+    # Engine glue (the `*_reg.cpp` adapters) was relocated to bundle in F, and
+    # the stateful surfaces were decoupled (FsContext / FnHandle). They may use
+    # value/fs/ops, math/lang compute, each other (sibling toolbox names added
+    # dynamically below), and — transitionally — `builtin` forwarding stubs.
+    # Two sanctioned core users are exempt per-file in scan(): each toolbox's
+    # `library.cpp` installer (registration ABI) and io's `type.cpp`
+    # (legitimately Engine& — it writes via engine.outputText).
+    "toolboxes": {"value", "fs", "ops", "math", "lang", "builtin"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -60,6 +72,7 @@ LAYER_DIRS = {
     "core":  ["core"],
     "math":  ["math"],
     "lang":  ["lang"],
+    "toolboxes": ["toolboxes"],
 }
 
 INCLUDE_RE = re.compile(r'#\s*include\s*<numkit/([a-zA-Z0-9_]+)/')
@@ -86,8 +99,15 @@ def _header_basenames(base: Path) -> set[str]:
 
 def scan(repo: Path) -> list[str]:
     violations: list[str] = []
+    # Sibling toolbox names — a toolbox may depend on another toolbox's compute
+    # (all L2 peers), so they're allowed includes; discovered here rather than
+    # hard-coded in ALLOWED.
+    tb_root = repo / "toolboxes"
+    toolbox_names = {p.name for p in tb_root.iterdir() if p.is_dir()} if tb_root.is_dir() else set()
     for layer, dirs in LAYER_DIRS.items():
         allowed = ALLOWED[layer]
+        if layer == "toolboxes":
+            allowed = allowed | toolbox_names
         strict = layer in STRICT_QUOTED
         # For strict layers, the set of header basenames the layer owns — a
         # quoted include resolving outside this set is a cross-layer leak.
@@ -113,6 +133,20 @@ def scan(repo: Path) -> list[str]:
                 # but conceptually belong to the bundle layer (relocated in C5),
                 # so they are exempt from the compute-layer purity check.
                 if f.name.endswith("_reg.cpp"):
+                    continue
+                # Toolbox purity exempts the sanctioned core users:
+                #  * each toolbox's library.{cpp,hpp} installer (the registration
+                #    ABI declares/defines <Lib>Library::install(Engine&));
+                #  * io's type.cpp (legitimately Engine& — engine.outputText);
+                #  * the whole `graph` toolbox — it is AST-serialization / AST->
+                #    bytecode-lowering infra over core's ast.hpp/lexer.hpp, not
+                #    core-free MATLAB-function compute (reclassification candidate).
+                # Every other toolbox compute TU must stay core/runtime-free.
+                if layer == "toolboxes" and (
+                    f.name in ("library.cpp", "library.hpp")
+                    or "/graph/" in f.as_posix()
+                    or f.as_posix().endswith("toolboxes/io/src/text/type.cpp")
+                ):
                     continue
                 rel = f.relative_to(repo).as_posix()
                 for n, line in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
@@ -146,12 +180,13 @@ def main() -> int:
             print("  " + v, file=sys.stderr)
         print(
             f"\n{len(violations)} forbidden include(s). The guarded layers "
-            "(value/fs/ops/core + math/lang compute) must not depend on a layer "
-            "above them — in particular math/lang must stay core/runtime/toolbox-free.",
+            "(value/fs/ops/core + math/lang + toolbox compute) must not depend on "
+            "a layer above them — math/lang and toolbox compute must stay "
+            "core/runtime-free (toolbox installers + io/type.cpp + graph exempt).",
             file=sys.stderr,
         )
         return 1
-    print("Layering OK: value, fs, ops, core, math, lang respect the dependency direction.")
+    print("Layering OK: value, fs, ops, core, math, lang, toolboxes respect the dependency direction.")
     return 0
 
 
