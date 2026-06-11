@@ -346,13 +346,20 @@ re-layering); G is the risky enforcement step.
   handlefn TUs (the cell/struct precedent). **The Phase-3-A layering refactor
   (C0…C6 + H + G) is COMPLETE.**
 
-- **D. (TODO — not started)** Solver 3-way split (esp. ode/optim): the raw
-  numerical kernel (RK step, Brent, Nelder-Mead, Levenberg-Marquardt,
-  FnHandle-parameterized) → `ops`; the Value-level MATLAB-API wrapper (option
-  parsing, output shaping) → its toolbox (`ode`/`optim`, core-free); the
-  `@objfun`→`FnHandle` adapter + pausable harness → `runtime`. Shrinks runtime
-  to the irreducible. Distinct from C (builtin dissolution); the hard FnHandle
-  decoupling for ode/optim is already done, so D is mostly relocation.
+- **D. Solver split — `ode`/`optim` ✅ DONE (D-ode `80051215`, D-optim
+  `49329af7`); `nlinfit`/`integral` PENDING (need FnHandle decoupling first).**
+  The Engine-free FnHandle kernels stay in the toolbox (now core-free); the
+  Engine adapter (`@handle`→`FnHandle` bridge) + embedded-.m pausable wrapper +
+  the toolbox `install` relocate to `bundle/src/register/<tb>/`. Done for ode
+  (ode45/ode23) and optim (fzero/fminbnd/fminsearch) — their kernels were
+  already FnHandle-parameterized, so it was pure relocation.
+  **Remaining (NOT mechanical):** `nlinfit` (stats) and `integral`
+  (runtime/integration) kernels are NOT yet FnHandle-decoupled — they take
+  `Engine *` directly, so they need the hard callback-decoupling first
+  (rewrite the LM / Gauss-Kronrod kernel to take a `FnHandle`), THEN the split.
+  `integral` additionally sits in a mixed calculus TU (gradient/del2/cumtrapz —
+  pure compute mis-placed in runtime) that wants carving to `math` regardless.
+  These are a meatier, correctness-sensitive lift, tracked separately.
 - **E.** str2func/func2str → runtime ✅ DONE (1338c31b — runtime/function_handles.cpp;
   feval stays in builtin until F because of its FevalCallbackBuiltin adapter).
   containers.Map: `containers::` compute → `lang`, registry hooks → bundle (lands
