@@ -1,0 +1,951 @@
+#pragma once
+
+// NOTE: helpers.hpp is engine-free — it uses only the Value substrate + ops
+// factories, never Engine/CallContext. Keeping it off <numkit/core/engine.hpp>
+// is what lets toolbox compute files include it without dragging in the engine.
+#include <numkit/value/value.hpp>
+#include <numkit/ops/value_factory.hpp>   // DimsArg/createMatrix/createForDims/createLike (now in numkit::ops)
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/shape_ops.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <complex>
+#include <limits>
+#include <memory_resource>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
+
+namespace numkit {
+
+// ============================================================
+// Helper: promote pair to complex if needed
+// ============================================================
+inline std::pair<Value, Value> promoteToComplex(const Value &a, const Value &b, std::pmr::memory_resource *mr)
+{
+    Value ca = a, cb = b;
+    if (a.isComplex() && !b.isComplex())
+        cb.promoteToComplex(mr);
+    else if (!a.isComplex() && b.isComplex())
+        ca.promoteToComplex(mr);
+    return {ca, cb};
+}
+
+// ============================================================
+// Implicit expansion (broadcasting) check
+// Returns true if dims are compatible, sets outR/outC to result size.
+// Rule: each dim must match or one of them must be 1.
+// ============================================================
+inline bool broadcastDims(size_t ar, size_t ac, size_t br, size_t bc,
+                          size_t &outR, size_t &outC)
+{
+    if (ar != br && ar != 1 && br != 1) return false;
+    if (ac != bc && ac != 1 && bc != 1) return false;
+    outR = std::max(ar, br);
+    outC = std::max(ac, bc);
+    return true;
+}
+
+// 3D variant — each axis must match or be 1. A 2D operand is treated as
+// having pages = 1 (caller passes ap = 1 for 2D inputs).
+inline bool broadcastDims3D(size_t ar, size_t ac, size_t ap,
+                            size_t br, size_t bc, size_t bp,
+                            size_t &outR, size_t &outC, size_t &outP)
+{
+    if (ar != br && ar != 1 && br != 1) return false;
+    if (ac != bc && ac != 1 && bc != 1) return false;
+    if (ap != bp && ap != 1 && bp != 1) return false;
+    outR = std::max(ar, br);
+    outC = std::max(ac, bc);
+    outP = std::max(ap, bp);
+    return true;
+}
+
+// Linearise (r, c, p) into a column-major + page-stride buffer offset,
+// applying broadcast (an axis of 1 collapses its index to 0). Used by
+// the 3D broadcast loops in elementwise{Double,Complex} and compareImpl.
+inline size_t broadcastOffset3D(size_t r, size_t c, size_t p,
+                                size_t aR, size_t aC, size_t aP)
+{
+    const size_t rr = (aR == 1) ? 0 : r;
+    const size_t cc = (aC == 1) ? 0 : c;
+    const size_t pp = (aP == 1) ? 0 : p;
+    (void)aP; // strides are R*C per page regardless
+    return pp * aR * aC + cc * aR + rr;
+}
+
+// ============================================================
+// Shape helpers (must precede the elementwise templates below —
+// template bodies reference these as non-dependent names and the
+// two-phase lookup rule requires them to be visible at template
+// definition time, not at instantiation).
+// ============================================================
+
+// The Value-shape factories moved to the L0.5 ops layer
+// (<numkit/ops/value_factory.hpp>). Re-export them into numkit:: so the ~90
+// existing unqualified `createMatrix` / `createForDims` / `createLike` / DimsArg
+// call sites (here and in the toolboxes) are unchanged. ops owns the one
+// definition; toolboxes going pure will include ops/value_factory.hpp directly.
+using ops::DimsArg;
+using ops::createMatrix;
+using ops::createForDims;
+using ops::createLike;
+
+// abs() for an integer-typed Value: MATLAB keeps the integer class and
+// SATURATES, so abs(intmin) -> intmax (abs(int8(-128))=127 int8); unsigned
+// types are returned unchanged. Reading via elemAsDouble + clamp to the
+// type range handles every signed/unsigned width uniformly (|intmin| would
+// overflow the type, the clamp catches it). Caller guards isIntegerType().
+inline Value absIntegerSaturate(const Value &x, std::pmr::memory_resource *mr)
+{
+    Value r = createLike(x, x.type(), mr);
+    const size_t n = x.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = std::fabs(x.elemAsDouble(i));
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (x.type()) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
+// Cast a numeric Value to an integer class by per-element static_cast with
+// saturation. Used to restore the integer class after computing through the
+// double path (e.g. sort of an integer array; mod/rem of integers). Values
+// that are already exact in-range integers round-trip exactly. Reads via
+// elemAsDouble so a scalar-stored result is handled too. `vt` must be an
+// integer ValueType.
+inline Value doubleToIntegerExact(const Value &d, ValueType vt,
+                                  std::pmr::memory_resource *mr)
+{
+    Value r = createForDims(d.dims(), vt, mr);
+    const size_t n = d.numel();
+    auto fill = [&](auto *dst) {
+        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        const double lo = static_cast<double>(std::numeric_limits<T>::min());
+        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        for (size_t i = 0; i < n; ++i) {
+            double v = d.elemAsDouble(i);
+            if (v < lo) v = lo;
+            else if (v > hi) v = hi;
+            dst[i] = static_cast<T>(v);
+        }
+    };
+    switch (vt) {
+    case ValueType::INT8:   fill(r.int8DataMut());   break;
+    case ValueType::INT16:  fill(r.int16DataMut());  break;
+    case ValueType::INT32:  fill(r.int32DataMut());  break;
+    case ValueType::INT64:  fill(r.int64DataMut());  break;
+    case ValueType::UINT8:  fill(r.uint8DataMut());  break;
+    case ValueType::UINT16: fill(r.uint16DataMut()); break;
+    case ValueType::UINT32: fill(r.uint32DataMut()); break;
+    case ValueType::UINT64: fill(r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
+// Convert any numeric Value to a DOUBLE Value (element-wise via elemAsDouble,
+// so integer arrays — which lack a doubleData() buffer — are handled). A
+// DOUBLE input is returned as-is (shares storage). Used to route integer
+// operands through double-only elementwise helpers, then cast the result back.
+inline Value toDoubleValue(const Value &x, std::pmr::memory_resource *mr)
+{
+    if (x.type() == ValueType::DOUBLE) return x;
+    Value r = createForDims(x.dims(), ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) dst[i] = x.elemAsDouble(i);
+    return r;
+}
+
+// Exact same-class copy of an integer-typed Value (raw typed copy, so int64
+// values above 2^53 are preserved). Used for operations that are the
+// IDENTITY on integers but keep the class (floor/ceil/round/fix in MATLAB).
+// Caller guards isIntegerType().
+inline Value copyIntegerSameClass(const Value &x, std::pmr::memory_resource *mr)
+{
+    Value r = createLike(x, x.type(), mr);
+    const size_t n = x.numel();
+    switch (x.type()) {
+    case ValueType::INT8:   std::copy(x.int8Data(),   x.int8Data()   + n, r.int8DataMut());   break;
+    case ValueType::INT16:  std::copy(x.int16Data(),  x.int16Data()  + n, r.int16DataMut());  break;
+    case ValueType::INT32:  std::copy(x.int32Data(),  x.int32Data()  + n, r.int32DataMut());  break;
+    case ValueType::INT64:  std::copy(x.int64Data(),  x.int64Data()  + n, r.int64DataMut());  break;
+    case ValueType::UINT8:  std::copy(x.uint8Data(),  x.uint8Data()  + n, r.uint8DataMut());  break;
+    case ValueType::UINT16: std::copy(x.uint16Data(), x.uint16Data() + n, r.uint16DataMut()); break;
+    case ValueType::UINT32: std::copy(x.uint32Data(), x.uint32Data() + n, r.uint32DataMut()); break;
+    case ValueType::UINT64: std::copy(x.uint64Data(), x.uint64Data() + n, r.uint64DataMut()); break;
+    default: break;
+    }
+    return r;
+}
+
+// Shape-preserving empty result for a binary op where at least one
+// operand is empty. The non-scalar operand contributes the output
+// shape; if both are non-scalar the dims must match, otherwise throw.
+// `outType` is chosen by the caller based on its promotion rules.
+inline Value emptyResultForBinary(const Value &a, const Value &b,
+                                   ValueType outType, std::pmr::memory_resource *mr)
+{
+    const bool aShaper = !a.isScalar();
+    const bool bShaper = !b.isScalar();
+    if (aShaper && bShaper && a.dims() != b.dims())
+        throw std::runtime_error("Matrix dimensions must agree");
+    const Value &shape = aShaper ? a : (bShaper ? b : a);
+    return createLike(shape, outType, mr);
+}
+
+// Pick the arithmetic output type for a pair of operands using
+// MATLAB-style promotion: complex > single > integer > double.
+// Char and logical operands promote to double.
+inline ValueType arithOutType(const Value &a, const Value &b)
+{
+    if (a.isComplex() || b.isComplex()) return ValueType::COMPLEX;
+    if (a.type() == ValueType::SINGLE || b.type() == ValueType::SINGLE) return ValueType::SINGLE;
+    if (isIntegerType(a.type())) return a.type();
+    if (isIntegerType(b.type())) return b.type();
+    return ValueType::DOUBLE;
+}
+
+// Convenience wrapper: shape-preserving empty arithmetic result with
+// type chosen by arithOutType().
+inline Value emptyArithResult(const Value &a, const Value &b, std::pmr::memory_resource *mr)
+{
+    return emptyResultForBinary(a, b, arithOutType(a, b), mr);
+}
+
+// ============================================================
+// Elementwise binary op on double arrays (with implicit expansion)
+// ============================================================
+template<typename Op>
+Value elementwiseDouble(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
+{
+    if (a.isEmpty() || b.isEmpty())
+        return emptyResultForBinary(a, b, ValueType::DOUBLE, mr);
+    if (a.isScalar() && b.isScalar())
+        return Value::scalar(op(a.toScalar(), b.toScalar()), mr);
+
+    // ND fallback — at least one operand has rank ≥ 4, or NumPy-style
+    // broadcasting needed past 3D. Handles same-shape (fast path) and
+    // arbitrary-rank broadcast via per-operand offset arithmetic.
+    if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
+        if (a.isScalar()) {
+            auto r = createLike(b, ValueType::DOUBLE, mr);
+            const double s = a.toScalar();
+            const double *db = b.doubleData();
+            double *dst = r.doubleDataMut();
+            for (size_t i = 0; i < b.numel(); ++i) dst[i] = op(s, db[i]);
+            return r;
+        }
+        if (b.isScalar()) {
+            auto r = createLike(a, ValueType::DOUBLE, mr);
+            const double s = b.toScalar();
+            const double *da = a.doubleData();
+            double *dst = r.doubleDataMut();
+            for (size_t i = 0; i < a.numel(); ++i) dst[i] = op(da[i], s);
+            return r;
+        }
+        // ND broadcast (NumPy: align right, dims match or 1)
+        Dims outD;
+        if (!broadcastDimsND(a.dims(), b.dims(), outD))
+            throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
+        auto r = createForDims(outD, ValueType::DOUBLE, mr);
+        const double *da = a.doubleData(), *db = b.doubleData();
+        double *dst = r.doubleDataMut();
+        forEachNDPair(a.dims(), b.dims(), outD,
+            [&](size_t outIdx, size_t aOff, size_t bOff) {
+                dst[outIdx] = op(da[aOff], db[bOff]);
+            });
+        return r;
+    }
+
+    // 3D paths — same-shape, scalar, or general 3D broadcasting (each
+    // axis must equal or be 1; 2D operands implicitly have pages = 1).
+    if (a.dims().is3D() || b.dims().is3D()) {
+        if (a.isScalar()) {
+            auto r = createLike(b, ValueType::DOUBLE, mr);
+            double s = a.toScalar();
+            for (size_t i = 0; i < b.numel(); ++i)
+                r.doubleDataMut()[i] = op(s, b.doubleData()[i]);
+            return r;
+        }
+        if (b.isScalar()) {
+            auto r = createLike(a, ValueType::DOUBLE, mr);
+            double s = b.toScalar();
+            for (size_t i = 0; i < a.numel(); ++i)
+                r.doubleDataMut()[i] = op(a.doubleData()[i], s);
+            return r;
+        }
+        const size_t aR = a.dims().rows(), aC = a.dims().cols();
+        const size_t aP = a.dims().is3D() ? a.dims().pages() : 1;
+        const size_t bR = b.dims().rows(), bC = b.dims().cols();
+        const size_t bP = b.dims().is3D() ? b.dims().pages() : 1;
+        size_t outR, outC, outP;
+        if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
+            throw std::runtime_error(
+                "3D dimensions must broadcast: each axis must match or be 1");
+
+        // Same-shape fast path skips the per-axis broadcast index math.
+        if (aR == bR && aC == bC && aP == bP) {
+            auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr)
+                                : Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+            for (size_t i = 0; i < a.numel(); ++i)
+                r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
+            return r;
+        }
+        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr)
+                            : Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+        double *dst = r.doubleDataMut();
+        const double *da = a.doubleData(), *db = b.doubleData();
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t cc = 0; cc < outC; ++cc)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    const size_t aOff = broadcastOffset3D(rr, cc, pp, aR, aC, aP);
+                    const size_t bOff = broadcastOffset3D(rr, cc, pp, bR, bC, bP);
+                    dst[pp * outR * outC + cc * outR + rr] = op(da[aOff], db[bOff]);
+                }
+        return r;
+    }
+
+    size_t ar = a.dims().rows(), ac = a.dims().cols();
+    size_t br = b.dims().rows(), bc = b.dims().cols();
+    size_t outR, outC;
+    if (!broadcastDims(ar, ac, br, bc, outR, outC))
+        throw std::runtime_error("Matrix dimensions must agree");
+
+    // Fast path: same dimensions, no broadcasting needed
+    if (ar == br && ac == bc) {
+        auto r = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < a.numel(); ++i)
+            r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
+        return r;
+    }
+
+    // General broadcasting: column-major indexing
+    auto r = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    const double *da = a.doubleData(), *db = b.doubleData();
+    for (size_t c = 0; c < outC; ++c) {
+        size_t ca = (ac == 1) ? 0 : c;
+        size_t cb = (bc == 1) ? 0 : c;
+        for (size_t row = 0; row < outR; ++row) {
+            size_t ra = (ar == 1) ? 0 : row;
+            size_t rb = (br == 1) ? 0 : row;
+            dst[c * outR + row] = op(da[ca * ar + ra], db[cb * br + rb]);
+        }
+    }
+    return r;
+}
+
+// ============================================================
+// Elementwise binary op on complex arrays
+// ============================================================
+template<typename Op>
+Value elementwiseComplex(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
+{
+    if (a.isEmpty() || b.isEmpty())
+        return emptyResultForBinary(a, b, ValueType::COMPLEX, mr);
+    auto [ca, cb] = promoteToComplex(a, b, mr);
+    if (ca.isScalar() && cb.isScalar())
+        return Value::complexScalar(op(ca.toComplex(), cb.toComplex()), mr);
+
+    // ND fallback (rank ≥ 4 or NumPy-style broadcast past 3D)
+    if (ca.dims().ndim() >= 4 || cb.dims().ndim() >= 4) {
+        if (ca.isScalar()) {
+            auto r = createLike(cb, ValueType::COMPLEX, mr);
+            Complex s = ca.toComplex();
+            const Complex *db = cb.complexData();
+            Complex *dst = r.complexDataMut();
+            for (size_t i = 0; i < cb.numel(); ++i) dst[i] = op(s, db[i]);
+            return r;
+        }
+        if (cb.isScalar()) {
+            auto r = createLike(ca, ValueType::COMPLEX, mr);
+            Complex s = cb.toComplex();
+            const Complex *da = ca.complexData();
+            Complex *dst = r.complexDataMut();
+            for (size_t i = 0; i < ca.numel(); ++i) dst[i] = op(da[i], s);
+            return r;
+        }
+        Dims outD;
+        if (!broadcastDimsND(ca.dims(), cb.dims(), outD))
+            throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
+        auto r = createForDims(outD, ValueType::COMPLEX, mr);
+        const Complex *da = ca.complexData(), *db = cb.complexData();
+        Complex *dst = r.complexDataMut();
+        forEachNDPair(ca.dims(), cb.dims(), outD,
+            [&](size_t outIdx, size_t aOff, size_t bOff) {
+                dst[outIdx] = op(da[aOff], db[bOff]);
+            });
+        return r;
+    }
+
+    if (ca.dims().is3D() || cb.dims().is3D()) {
+        if (ca.isScalar()) {
+            auto r = createLike(cb, ValueType::COMPLEX, mr);
+            Complex s = ca.toComplex();
+            for (size_t i = 0; i < cb.numel(); ++i)
+                r.complexDataMut()[i] = op(s, cb.complexData()[i]);
+            return r;
+        }
+        if (cb.isScalar()) {
+            auto r = createLike(ca, ValueType::COMPLEX, mr);
+            Complex s = cb.toComplex();
+            for (size_t i = 0; i < ca.numel(); ++i)
+                r.complexDataMut()[i] = op(ca.complexData()[i], s);
+            return r;
+        }
+        const size_t aR = ca.dims().rows(), aC = ca.dims().cols();
+        const size_t aP = ca.dims().is3D() ? ca.dims().pages() : 1;
+        const size_t bR = cb.dims().rows(), bC = cb.dims().cols();
+        const size_t bP = cb.dims().is3D() ? cb.dims().pages() : 1;
+        size_t outR, outC, outP;
+        if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
+            throw std::runtime_error(
+                "3D dimensions must broadcast: each axis must match or be 1");
+
+        if (aR == bR && aC == bC && aP == bP) {
+            auto r = createLike(ca, ValueType::COMPLEX, mr);
+            for (size_t i = 0; i < ca.numel(); ++i)
+                r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
+            return r;
+        }
+        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::COMPLEX, mr)
+                            : Value::matrix(outR, outC, ValueType::COMPLEX, mr);
+        Complex *dst = r.complexDataMut();
+        const Complex *da = ca.complexData(), *db = cb.complexData();
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t cc = 0; cc < outC; ++cc)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    const size_t aOff = broadcastOffset3D(rr, cc, pp, aR, aC, aP);
+                    const size_t bOff = broadcastOffset3D(rr, cc, pp, bR, bC, bP);
+                    dst[pp * outR * outC + cc * outR + rr] = op(da[aOff], db[bOff]);
+                }
+        return r;
+    }
+
+    size_t ar = ca.dims().rows(), ac = ca.dims().cols();
+    size_t br = cb.dims().rows(), bc = cb.dims().cols();
+    size_t outR, outC;
+    if (!broadcastDims(ar, ac, br, bc, outR, outC))
+        throw std::runtime_error("Matrix dimensions must agree");
+
+    if (ar == br && ac == bc) {
+        auto r = Value::complexMatrix(outR, outC, mr);
+        for (size_t i = 0; i < ca.numel(); ++i)
+            r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
+        return r;
+    }
+
+    auto r = Value::complexMatrix(outR, outC, mr);
+    Complex *dst = r.complexDataMut();
+    const Complex *da = ca.complexData(), *db = cb.complexData();
+    for (size_t c = 0; c < outC; ++c) {
+        size_t cca = (ac == 1) ? 0 : c;
+        size_t ccb = (bc == 1) ? 0 : c;
+        for (size_t row = 0; row < outR; ++row) {
+            size_t ra = (ar == 1) ? 0 : row;
+            size_t rb = (br == 1) ? 0 : row;
+            dst[c * outR + row] = op(da[cca * ar + ra], db[ccb * br + rb]);
+        }
+    }
+    return r;
+}
+
+// ============================================================
+// Elementwise unary on double
+// ============================================================
+template<typename Op>
+Value unaryDouble(const Value &a, Op op, std::pmr::memory_resource *mr)
+{
+    if (a.isScalar())
+        return Value::scalar(op(a.toScalar()), mr);
+    auto r = createLike(a, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < a.numel(); ++i)
+        r.doubleDataMut()[i] = op(a.doubleData()[i]);
+    return r;
+}
+
+// ============================================================
+// Elementwise unary on complex
+// ============================================================
+template<typename Op>
+Value unaryComplex(const Value &a, Op op, std::pmr::memory_resource *mr)
+{
+    if (a.isScalar())
+        return Value::complexScalar(op(a.toComplex()), mr);
+    auto r = createLike(a, ValueType::COMPLEX, mr);
+    for (size_t i = 0; i < a.numel(); ++i)
+        r.complexDataMut()[i] = op(a.complexData()[i]);
+    return r;
+}
+
+// ============================================================
+// Parse dimension arguments for array creation functions
+// Supports: f(n), f(m,n), f(m,n,p), f([m n]), f([m n p]), f(size(x))
+// Returns {rows, cols, pages}. pages=0 means 2D.
+// ============================================================
+
+inline DimsArg parseDimsArgs(Span<const Value> args)
+{
+    if (args.empty())
+        return {1, 1, 0};
+
+    // Single vector argument: [m n] or [m n p]
+    if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
+        const double *d = args[0].doubleData();
+        size_t n = args[0].numel();
+        size_t r = static_cast<size_t>(d[0]);
+        size_t c = static_cast<size_t>(d[1]);
+        size_t p = (n >= 3) ? static_cast<size_t>(d[2]) : 0;
+        return {r, c, p};
+    }
+
+    // Single scalar: f(n) → n×n
+    if (args.size() == 1) {
+        size_t n = static_cast<size_t>(args[0].toScalar());
+        return {n, n, 0};
+    }
+
+    // Two scalars: f(m, n)
+    size_t r = static_cast<size_t>(args[0].toScalar());
+    size_t c = static_cast<size_t>(args[1].toScalar());
+
+    // Three scalars: f(m, n, p)
+    if (args.size() >= 3) {
+        size_t p = static_cast<size_t>(args[2].toScalar());
+        return {r, c, p};
+    }
+
+    return {r, c, 0};
+}
+
+// ND dim parser. Same call shapes as parseDimsArgs but produces a full
+// ND dim vector (no 3-cap). Returns at least 2 dims (matrices stay 2D).
+//   * f(n)              → {n, n}
+//   * f(m, n, p, ...)   → {m, n, p, ...}
+//   * f([m n])          → {m, n}
+//   * f([m n p q ...])  → {m, n, p, q, ...}
+// Caller can decide whether to use the 2D / 3D fast paths or matrixND.
+//
+// The returned vector is backed by `mr` — typical use is a per-call
+// ScratchArena for the array-creation builtin (zeros/ones/rand/...).
+inline ScratchVec<size_t> parseDimsArgsND(std::pmr::memory_resource *mr,
+                                          Span<const Value> args)
+{
+    ScratchVec<size_t> out(mr);
+    if (args.empty()) {
+        out.assign({1, 1});
+        return out;
+    }
+    // Vector form: f([m n p ...])
+    if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
+        const double *d = args[0].doubleData();
+        const size_t n = args[0].numel();
+        out.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            out.push_back(static_cast<size_t>(d[i]));
+        return out;
+    }
+    // Single scalar: f(n) → n×n
+    if (args.size() == 1) {
+        const size_t n = static_cast<size_t>(args[0].toScalar());
+        out.assign({n, n});
+        return out;
+    }
+    // Multiple scalars: f(m, n, p, ...)
+    out.reserve(args.size());
+    for (const auto &a : args)
+        out.push_back(static_cast<size_t>(a.toScalar()));
+    return out;
+}
+
+// Strip trailing 1s past the 2nd dim (MATLAB convention: ones(3,4,1)
+// returns a 2D matrix, not 3D). Keeps at least 2 dims so a vector stays
+// {1, n} rather than collapsing to scalar shape.
+inline void stripTrailingOnes(ScratchVec<size_t> &dims)
+{
+    while (dims.size() > 2 && dims.back() == 1)
+        dims.pop_back();
+}
+
+// Map a MATLAB class-name string to a ValueType. Returns true on
+// recognised names (the standard numeric / logical types accepted by
+// zeros/ones/true/false/rand). Unknown names return false (caller can
+// throw or fall through to default DOUBLE).
+inline bool valueTypeFromName(std::string_view name, ValueType &out)
+{
+    if      (name == "double")  { out = ValueType::DOUBLE;  return true; }
+    else if (name == "single")  { out = ValueType::SINGLE;  return true; }
+    else if (name == "int8")    { out = ValueType::INT8;    return true; }
+    else if (name == "int16")   { out = ValueType::INT16;   return true; }
+    else if (name == "int32")   { out = ValueType::INT32;   return true; }
+    else if (name == "int64")   { out = ValueType::INT64;   return true; }
+    else if (name == "uint8")   { out = ValueType::UINT8;   return true; }
+    else if (name == "uint16")  { out = ValueType::UINT16;  return true; }
+    else if (name == "uint32")  { out = ValueType::UINT32;  return true; }
+    else if (name == "uint64")  { out = ValueType::UINT64;  return true; }
+    else if (name == "logical") { out = ValueType::LOGICAL; return true; }
+    return false;
+}
+
+// Detect a trailing class-name argument in zeros/ones/etc. If args.back()
+// is a char/string with a recognised type name, return the matching
+// ValueType and trim args by one. Otherwise return DOUBLE (default) and
+// leave args unchanged. Also handles the 'like' form -- (..., 'like', X)
+// pulls the type from X.
+//
+// Sets `outType` and modifies `args` (Span is value-copied at callsite).
+inline Span<const Value>
+extractTypeArg(Span<const Value> args, ValueType &outType)
+{
+    outType = ValueType::DOUBLE;
+    if (args.empty()) return args;
+
+    // 'like' form: zeros(..., 'like', X). Need at least 2 trailing args.
+    if (args.size() >= 2) {
+        const Value &maybeLike = args[args.size() - 2];
+        if ((maybeLike.isChar() || maybeLike.isString())
+            && maybeLike.toString() == "like") {
+            outType = args[args.size() - 1].type();
+            return Span<const Value>(args.data(), args.size() - 2);
+        }
+    }
+
+    // Trailing class-name string: zeros(M, N, ..., 'uint8').
+    const Value &last = args[args.size() - 1];
+    if (last.isChar() || last.isString()) {
+        ValueType t;
+        if (valueTypeFromName(last.toString(), t)) {
+            outType = t;
+            return Span<const Value>(args.data(), args.size() - 1);
+        }
+    }
+    return args;
+}
+
+// Create a zero matrix from a flat ND dim list, picking the matrix /
+// matrix3d / matrixND constructor that matches the rank. Pointer + size
+// so the same helper composes with std::vector, std::pmr::vector, raw
+// arrays, etc.
+inline Value createMatrixND(const size_t *dims, std::size_t nDims,
+                             ValueType type, std::pmr::memory_resource *mr)
+{
+    const int nd = static_cast<int>(nDims);
+    if (nd <= 1) return Value::matrix(nd == 1 ? dims[0] : 0, 1, type, mr);
+    if (nd == 2) return Value::matrix(dims[0], dims[1], type, mr);
+    if (nd == 3) return Value::matrix3d(dims[0], dims[1], dims[2], type, mr);
+    return Value::matrixND(dims, nd, type, mr);
+}
+
+// ============================================================
+// Saturating arithmetic for integer types
+// ============================================================
+
+template <typename T>
+inline T saturateAdd(T a, T b)
+{
+    if constexpr (std::is_floating_point_v<T>) {
+        return a + b;
+    } else if constexpr (std::is_unsigned_v<T>) {
+        T r = a + b;
+        return (r < a) ? std::numeric_limits<T>::max() : r;
+    } else {
+        using W = int64_t;
+        W r = static_cast<W>(a) + static_cast<W>(b);
+        if (r > std::numeric_limits<T>::max()) return std::numeric_limits<T>::max();
+        if (r < std::numeric_limits<T>::min()) return std::numeric_limits<T>::min();
+        return static_cast<T>(r);
+    }
+}
+
+template <typename T>
+inline T saturateSub(T a, T b)
+{
+    if constexpr (std::is_floating_point_v<T>) {
+        return a - b;
+    } else if constexpr (std::is_unsigned_v<T>) {
+        return (b > a) ? T(0) : a - b;
+    } else {
+        using W = int64_t;
+        W r = static_cast<W>(a) - static_cast<W>(b);
+        if (r > std::numeric_limits<T>::max()) return std::numeric_limits<T>::max();
+        if (r < std::numeric_limits<T>::min()) return std::numeric_limits<T>::min();
+        return static_cast<T>(r);
+    }
+}
+
+template <typename T>
+inline T saturateMul(T a, T b)
+{
+    if constexpr (std::is_floating_point_v<T>) {
+        return a * b;
+    } else if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        double r = static_cast<double>(a) * static_cast<double>(b);
+        if (r > static_cast<double>(std::numeric_limits<T>::max())) return std::numeric_limits<T>::max();
+        if (r < static_cast<double>(std::numeric_limits<T>::min())) return std::numeric_limits<T>::min();
+        return a * b;
+    } else {
+        using W = int64_t;
+        W r = static_cast<W>(a) * static_cast<W>(b);
+        if (r > std::numeric_limits<T>::max()) return std::numeric_limits<T>::max();
+        if (r < std::numeric_limits<T>::min()) return std::numeric_limits<T>::min();
+        return static_cast<T>(r);
+    }
+}
+
+template <typename T>
+inline T saturateDiv(T a, T b)
+{
+    if constexpr (std::is_floating_point_v<T>) {
+        return a / b;
+    } else {
+        if (b == 0) {
+            if constexpr (std::is_unsigned_v<T>)
+                return (a == 0) ? T(0) : std::numeric_limits<T>::max();
+            else
+                return (a > 0) ? std::numeric_limits<T>::max()
+                     : (a < 0) ? std::numeric_limits<T>::min()
+                               : T(0);
+        }
+        if constexpr (!std::is_unsigned_v<T>) {
+            if (a == std::numeric_limits<T>::min() && b == T(-1))
+                return std::numeric_limits<T>::max();
+        }
+        // MATLAB integer division: round result
+        double r = static_cast<double>(a) / static_cast<double>(b);
+        r = std::round(r);
+        if (r > static_cast<double>(std::numeric_limits<T>::max())) return std::numeric_limits<T>::max();
+        if (r < static_cast<double>(std::numeric_limits<T>::min())) return std::numeric_limits<T>::min();
+        return static_cast<T>(r);
+    }
+}
+
+template <typename T>
+inline T saturateNeg(T a)
+{
+    if constexpr (std::is_floating_point_v<T>) {
+        return -a;
+    } else if constexpr (std::is_unsigned_v<T>) {
+        return T(0);
+    } else {
+        if (a == std::numeric_limits<T>::min()) return std::numeric_limits<T>::max();
+        return -a;
+    }
+}
+
+// ============================================================
+// Elementwise binary op on typed arrays (integer/single)
+// ============================================================
+
+template <typename T, typename Op>
+Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op op, std::pmr::memory_resource *mr)
+{
+    if (a.isEmpty() || b.isEmpty())
+        return emptyResultForBinary(a, b, targetType, mr);
+
+    // Read element from source, converting to target type
+    auto readAt = [](const Value &v, ValueType tgt, size_t r, size_t c) -> T {
+        size_t idx = c * v.dims().rows() + r; // column-major
+        if (v.type() == tgt) return static_cast<const T *>(v.rawData())[idx];
+        double d = v.doubleData()[idx];
+        if constexpr (std::is_integral_v<T>)
+            return static_cast<T>(std::clamp(std::round(d),
+                static_cast<double>(std::numeric_limits<T>::min()),
+                static_cast<double>(std::numeric_limits<T>::max())));
+        else
+            return static_cast<T>(d);
+    };
+    auto readLinearTyped = [](const Value &v, ValueType tgt, size_t i) -> T {
+        if (v.type() == tgt) return static_cast<const T *>(v.rawData())[i];
+        double d = v.elemAsDouble(i);
+        if constexpr (std::is_integral_v<T>)
+            return static_cast<T>(std::clamp(std::round(d),
+                static_cast<double>(std::numeric_limits<T>::min()),
+                static_cast<double>(std::numeric_limits<T>::max())));
+        else
+            return static_cast<T>(d);
+    };
+
+    // ND fallback (rank ≥ 4) — uses ND broadcast helpers.
+    if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
+        if (a.isScalar()) {
+            auto r = createLike(b, targetType, mr);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sa = readLinearTyped(a, targetType, 0);
+            for (size_t i = 0; i < b.numel(); ++i)
+                dst[i] = op(sa, readLinearTyped(b, targetType, i));
+            return r;
+        }
+        if (b.isScalar()) {
+            auto r = createLike(a, targetType, mr);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sb = readLinearTyped(b, targetType, 0);
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = op(readLinearTyped(a, targetType, i), sb);
+            return r;
+        }
+        Dims outD;
+        if (!broadcastDimsND(a.dims(), b.dims(), outD))
+            throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
+        auto r = createForDims(outD, targetType, mr);
+        T *dst = static_cast<T *>(r.rawDataMut());
+        forEachNDPair(a.dims(), b.dims(), outD,
+            [&](size_t outIdx, size_t aOff, size_t bOff) {
+                dst[outIdx] = op(readLinearTyped(a, targetType, aOff),
+                                 readLinearTyped(b, targetType, bOff));
+            });
+        return r;
+    }
+
+    // 3D path — same-shape elementwise and scalar broadcasting only.
+    // broadcastDims below is 2D-only; reach here for 3D and we would
+    // silently drop the page dim.
+    if (a.dims().is3D() || b.dims().is3D()) {
+        if (a.isScalar()) {
+            auto r = createLike(b, targetType, mr);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sa = readLinearTyped(a, targetType, 0);
+            for (size_t i = 0; i < b.numel(); ++i)
+                dst[i] = op(sa, readLinearTyped(b, targetType, i));
+            return r;
+        }
+        if (b.isScalar()) {
+            auto r = createLike(a, targetType, mr);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sb = readLinearTyped(b, targetType, 0);
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = op(readLinearTyped(a, targetType, i), sb);
+            return r;
+        }
+        const size_t aR = a.dims().rows(), aC = a.dims().cols();
+        const size_t aP = a.dims().is3D() ? a.dims().pages() : 1;
+        const size_t bR = b.dims().rows(), bC = b.dims().cols();
+        const size_t bP = b.dims().is3D() ? b.dims().pages() : 1;
+        size_t outR, outC, outP;
+        if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
+            throw std::runtime_error(
+                "3D dimensions must broadcast: each axis must match or be 1");
+
+        if (aR == bR && aC == bC && aP == bP) {
+            auto r = createLike(a, targetType, mr);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = op(readLinearTyped(a, targetType, i),
+                            readLinearTyped(b, targetType, i));
+            return r;
+        }
+        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, targetType, mr)
+                            : Value::matrix(outR, outC, targetType, mr);
+        T *dst = static_cast<T *>(r.rawDataMut());
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t cc = 0; cc < outC; ++cc)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    const size_t aOff = broadcastOffset3D(rr, cc, pp, aR, aC, aP);
+                    const size_t bOff = broadcastOffset3D(rr, cc, pp, bR, bC, bP);
+                    dst[pp * outR * outC + cc * outR + rr] =
+                        op(readLinearTyped(a, targetType, aOff),
+                           readLinearTyped(b, targetType, bOff));
+                }
+        return r;
+    }
+
+    size_t ar = a.dims().rows(), ac = a.dims().cols();
+    size_t br = b.dims().rows(), bc = b.dims().cols();
+    size_t outR, outC;
+    if (!broadcastDims(ar, ac, br, bc, outR, outC))
+        throw std::runtime_error("Matrix dimensions must agree");
+
+    auto r = Value::matrix(outR, outC, targetType, mr);
+    T *dst = static_cast<T *>(r.rawDataMut());
+    for (size_t c = 0; c < outC; ++c) {
+        size_t ca = (ac == 1) ? 0 : c;
+        size_t cb = (bc == 1) ? 0 : c;
+        for (size_t row = 0; row < outR; ++row) {
+            size_t ra = (ar == 1) ? 0 : row;
+            size_t rb = (br == 1) ? 0 : row;
+            dst[c * outR + row] = op(readAt(a, targetType, ra, ca),
+                                     readAt(b, targetType, rb, cb));
+        }
+    }
+    return r;
+}
+
+// ============================================================
+// Dispatch integer/single binary op by ValueType
+// ============================================================
+
+// Resolve the target integer type from a pair.
+// MATLAB rules: intN + double → intN, intN + intN → intN, intN + intM → error
+inline ValueType resolveIntegerPairType(const Value &a, const Value &b)
+{
+    ValueType ta = a.type(), tb = b.type();
+    bool ai = isIntegerType(ta), bi = isIntegerType(tb);
+    bool af = isFloatType(ta),  bf = isFloatType(tb);
+    bool aS = (ta == ValueType::SINGLE), bS = (tb == ValueType::SINGLE);
+
+    if (ai && bi) {
+        if (ta != tb)
+            throw std::runtime_error("Integers can only be combined with integers of the same class");
+        return ta;
+    }
+    if (ai && (bf || tb == ValueType::LOGICAL)) return ta;
+    if (bi && (af || ta == ValueType::LOGICAL)) return tb;
+    if (aS || bS) return ValueType::SINGLE;
+    return ValueType::EMPTY; // not an integer/single case
+}
+
+template <typename Op>
+Value dispatchIntegerBinaryOp(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
+{
+    ValueType target = resolveIntegerPairType(a, b);
+    if (target == ValueType::EMPTY) return Value(); // signal: not handled
+
+    switch (target) {
+    case ValueType::INT8:   return elementwiseTyped<int8_t>(a, b, target, [&](int8_t x, int8_t y) { return op(x, y); }, mr);
+    case ValueType::INT16:  return elementwiseTyped<int16_t>(a, b, target, [&](int16_t x, int16_t y) { return op(x, y); }, mr);
+    case ValueType::INT32:  return elementwiseTyped<int32_t>(a, b, target, [&](int32_t x, int32_t y) { return op(x, y); }, mr);
+    case ValueType::INT64:  return elementwiseTyped<int64_t>(a, b, target, [&](int64_t x, int64_t y) { return op(x, y); }, mr);
+    case ValueType::UINT8:  return elementwiseTyped<uint8_t>(a, b, target, [&](uint8_t x, uint8_t y) { return op(x, y); }, mr);
+    case ValueType::UINT16: return elementwiseTyped<uint16_t>(a, b, target, [&](uint16_t x, uint16_t y) { return op(x, y); }, mr);
+    case ValueType::UINT32: return elementwiseTyped<uint32_t>(a, b, target, [&](uint32_t x, uint32_t y) { return op(x, y); }, mr);
+    case ValueType::UINT64: return elementwiseTyped<uint64_t>(a, b, target, [&](uint64_t x, uint64_t y) { return op(x, y); }, mr);
+    case ValueType::SINGLE: return elementwiseTyped<float>(a, b, target, [&](float x, float y) { return op(x, y); }, mr);
+    default: return Value();
+    }
+}
+
+// ============================================================
+// Unary typed op
+// ============================================================
+
+template <typename T, typename Op>
+Value unaryTyped(const Value &a, ValueType targetType, Op op, std::pmr::memory_resource *mr)
+{
+    auto r = createLike(a, targetType, mr);
+    const T *src = static_cast<const T *>(a.rawData());
+    T *dst = static_cast<T *>(r.rawDataMut());
+    for (size_t i = 0; i < a.numel(); ++i)
+        dst[i] = op(src[i]);
+    return r;
+}
+
+} // namespace numkit

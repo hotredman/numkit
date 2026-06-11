@@ -7,7 +7,7 @@
 - **Fix:** `combnk_reg` always routes through the set (vector) path, so a
   scalar `v` is the 1-element set `{v}`. `combnkImpl` now returns an empty
   `0×K` for `K > N` instead of throwing (matches MATLAB). Guard:
-  `libs/stats/tests/combnk_test.cpp`.
+  `toolboxes/stats/tests/combnk_test.cpp`.
 
 ## Symptom
 `combnk(N, k)` with a SCALAR `N`: numkit treats it as `combnk(1:N, k)`;
@@ -33,5 +33,5 @@ low value (scalar input to combnk is unusual). Note: `nchoosek(N, k)` with
 a scalar N IS the count — `combnk` is the (set) enumerator; don't conflate.
 
 ## References
-- `libs/stats/src/.../combnk*`
+- `toolboxes/stats/src/.../combnk*`
 - MATLAB `doc combnk`

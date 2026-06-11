@@ -1,0 +1,186 @@
+// benchmarks/dsp_bench.cpp
+//
+// Phase-10 sweep covering the unbenched DSP surface:
+//   * Existing-but-previously-unbenched: filter, filtfilt, xcorr,
+//     pwelch, hilbert.
+//   * Phase 9 gaps: medfilt1, findpeaks, dct.
+//
+// Inputs are random real signals; lengths span from 1k (interactive
+// fast feedback) to 64k (where the FFT-backed kernels start to show
+// their cost).
+
+#include <numkit/signal/convolution/convolution.hpp>
+#include <numkit/signal/digital_filtering/filter.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>
+#include <numkit/signal/measurements/findpeaks.hpp>
+#include <numkit/signal/smoothing/medfilt.hpp>
+#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <numkit/signal/transforms/dct.hpp>
+#include <numkit/signal/transforms/hilbert.hpp>
+#include <memory_resource>
+#include <numkit/core/types.hpp>
+#include <numkit/value/value.hpp>
+
+#include <benchmark/benchmark.h>
+
+#include <random>
+
+namespace {
+
+using namespace numkit;
+
+Value makeSignal(size_t n, uint32_t seed = 7)
+{
+    std::mt19937 rng(seed);
+    std::normal_distribution<double> d(0.0, 1.0);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
+    double *p = v.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) p[i] = d(rng);
+    return v;
+}
+
+// Build a small lowpass filter (length 32) to feed filter / filtfilt.
+struct FilterCoeffs {
+    Value b;
+    Value a;
+};
+
+// mr must outlive the returned coeffs — fir1 stores mr inside b's
+// DataBuffer. Earlier this fn defaulted-constructed a local Allocator and
+// returned b pointing to it; on clang-cl the freed stack slot got
+// overwritten with 0xFF bytes that std::function read as a non-null target,
+// crashing inside ~DataBuffer (MSVC happened to retain a zero pattern that
+// passed the empty-check, masking the bug).
+FilterCoeffs makeLowpass32(std::pmr::memory_resource *mr)
+{
+    auto b = signal::fir1(32, 0.25, "low", mr);  // 33-tap FIR
+    // a = [1] for FIR
+    Value a = Value::matrix(1, 1, ValueType::DOUBLE, nullptr);
+    a.doubleDataMut()[0] = 1.0;
+    return {b, a};
+}
+
+} // namespace
+
+// ── filter / filtfilt (FIR length 33) ──────────────────────
+
+static void BM_FilterFIR33(benchmark::State &s)
+{
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto coeffs = makeLowpass32(mr);
+    for (auto _ : s) {
+        auto y = signal::filter(coeffs.b, coeffs.a, x, mr);
+        benchmark::DoNotOptimize(y);
+    }
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_FilterFIR33)->RangeMultiplier(4)->Range(1 << 10, 1 << 16);
+
+static void BM_FiltfiltFIR33(benchmark::State &s)
+{
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto coeffs = makeLowpass32(mr);
+    for (auto _ : s) {
+        auto y = signal::filtfilt(coeffs.b, coeffs.a, x, mr);
+        benchmark::DoNotOptimize(y);
+    }
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_FiltfiltFIR33)->RangeMultiplier(4)->Range(1 << 10, 1 << 16);
+
+// ── xcorr (FFT-backed for large N) ──────────────────────────
+
+static void BM_Xcorr(benchmark::State &s)
+{
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n, 1);
+    auto y = makeSignal(n, 2);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (auto _ : s) {
+        auto [c, lags] = signal::xcorr(x, y, mr);
+        benchmark::DoNotOptimize(c);
+        benchmark::DoNotOptimize(lags);
+    }
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_Xcorr)->RangeMultiplier(4)->Range(1 << 10, 1 << 16);
+
+// ── pwelch (segmented, default window/overlap) ─────────────
+
+static void BM_Pwelch(benchmark::State &s)
+{
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n);
+    Value emptyWin = Value::matrix(0, 0, ValueType::DOUBLE, nullptr);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (auto _ : s) {
+        auto [pxx, f] = signal::pwelch(x, emptyWin, 0, 0, mr);
+        benchmark::DoNotOptimize(pxx);
+        benchmark::DoNotOptimize(f);
+    }
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_Pwelch)->RangeMultiplier(4)->Range(1 << 12, 1 << 18);
+
+// ── hilbert (FFT-backed) ────────────────────────────────────
+
+static void BM_Hilbert(benchmark::State &s)
+{
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (auto _ : s) {
+        auto y = signal::hilbert(x, mr);
+        benchmark::DoNotOptimize(y);
+    }
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_Hilbert)->RangeMultiplier(4)->Range(1 << 10, 1 << 16);
+
+// ── Phase 9: medfilt1 / findpeaks / dct ────────────────────
+
+static void BM_Medfilt1_K7(benchmark::State &s)
+{
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (auto _ : s) {
+        auto y = signal::medfilt1(x, 7, /*zeropad=*/true, mr);
+        benchmark::DoNotOptimize(y);
+    }
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_Medfilt1_K7)->RangeMultiplier(4)->Range(1 << 10, 1 << 16);
+
+static void BM_Findpeaks(benchmark::State &s)
+{
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (auto _ : s) {
+        auto [v, idx] = signal::findpeaks(x, mr);
+        benchmark::DoNotOptimize(v);
+        benchmark::DoNotOptimize(idx);
+    }
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_Findpeaks)->RangeMultiplier(4)->Range(1 << 10, 1 << 18);
+
+static void BM_DCT(benchmark::State &s)
+{
+    // DCT is direct O(N^2); cap range much lower than the FFT-backed kernels.
+    const size_t n = static_cast<size_t>(s.range(0));
+    auto x = makeSignal(n);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    for (auto _ : s) {
+        auto y = signal::dct(x, mr);
+        benchmark::DoNotOptimize(y);
+    }
+    s.SetComplexityN(static_cast<int64_t>(n));
+    s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
+}
+BENCHMARK(BM_DCT)->RangeMultiplier(2)->Range(64, 2048)->Complexity(benchmark::oNSquared);

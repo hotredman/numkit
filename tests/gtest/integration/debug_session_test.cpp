@@ -13,7 +13,7 @@ using namespace numkit;
 class DebugSessionTest : public ::testing::Test
 {
 protected:
-    Engine engine;
+    StandardEngine engine;
     std::string output;
 
     void SetUp() override

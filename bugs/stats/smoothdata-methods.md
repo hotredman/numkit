@@ -31,6 +31,6 @@ The method dispatch in `smoothdata` only wires three methods.
 Start with `sgolay` (machinery exists). Moderate.
 
 ## References
-- `libs/stats/src/.../smoothdata*` (method dispatch)
+- `toolboxes/stats/src/.../smoothdata*` (method dispatch)
 - shipped: `sgolay`, `sgolayfilt`
 - MATLAB `doc smoothdata`

@@ -4,12 +4,12 @@
 // the regression guard for the Workspace / struct-inspector "Bytes" column,
 // which previously showed 0 for any struct.
 #include <numkit/core/engine.hpp>
-#include <numkit/core/value.hpp>
+#include <numkit/value/value.hpp>
 #include <gtest/gtest.h>
 
 class DeepBytesTest : public ::testing::Test {
 public:
-    numkit::Engine engine;
+    numkit::StandardEngine engine;
     // Trailing bare expression (e.g. `...; s`) makes eval return that value
     // rather than the last assignment's RHS.
     numkit::Value eval(const std::string &c) { return engine.eval(c); }

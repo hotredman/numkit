@@ -21,9 +21,9 @@ stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичны
 
 ## 1. Принцип одной строки
 
-> **Функция, физически живущая в `libs/<name>/`, регистрируется как
+> **Функция, физически живущая в `toolboxes/<name>/`, регистрируется как
 > `<name>.<funcname>` (или с поднамespace-ом: `<name>.<sub>.<funcname>`,
-> отражая каталог-иерархию). Функция в `libs/builtin/` — в core
+> отражая каталог-иерархию). Функция в `toolboxes/builtin/` — в core
 > (плоское, без namespace).**
 
 Из этого правила одно (закрытое) исключение — **9 промоций** (Section
@@ -96,7 +96,7 @@ import a.* b.*           ≡ import('a.*', 'b.*')
 ```
 
 Builtin сам парсит каждый строковый arg (path-сегменты, wildcard,
-3-arg alias-форма). Реализация: [`libs/builtin/src/library.cpp`](libs/builtin/src/library.cpp).
+3-arg alias-форма). Реализация: [`toolboxes/builtin/src/library.cpp`](toolboxes/builtin/src/library.cpp).
 Command-style glue склеивает `.*` как терминатор-суффикс
 ([`core/src/parser.cpp`](core/src/parser.cpp) parseCommandStyleCall).
 
@@ -132,7 +132,7 @@ import compat.*                  % MATLAB-режим
 **Регистрация в MATLAB-mirror либе:**
 
 ```cpp
-// libs/signal/src/library.cpp
+// toolboxes/signal/src/library.cpp
 void SignalLibrary::install(Engine &engine) {
     // Local helper — signal является MATLAB-mirror, поэтому каждая
     // функция регистрируется И в своём sub-namespace, И в compat.
@@ -163,7 +163,7 @@ void SignalLibrary::install(Engine &engine) {
 **Регистрация в numkit-only либе:**
 
 ```cpp
-// Будущая libs/numkit_gpu/src/library.cpp:
+// Будущая toolboxes/numkit_gpu/src/library.cpp:
 void GPULibrary::install(Engine &engine) {
     // numkit_gpu НЕ MATLAB-mirror — регистрируется только в собственном namespace.
     auto reg = [&](const std::string &name, ExternalFunc f) {
@@ -250,7 +250,7 @@ fft, ifft, fftshift, ifftshift, conv, xcorr
 **Dual-citizenship** (signal toolbox + core math) отражает их реальную
 природу.
 
-**Регистрация:** в `libs/signal/src/library.cpp`:
+**Регистрация:** в `toolboxes/signal/src/library.cpp`:
 ```cpp
 engine.registerFunction("", "fft", &fft_reg);
 // ... 5 других
@@ -265,10 +265,10 @@ close, figure, hold
 **Почему:** session-style команды на одном уровне с `clear` / `who` —
 не data-plotting (как `plot`/`bar`/`imagesc`), а workspace state
 manipulation. Пользователь ожидает их доступными без явного импорта,
-аналогично `clear`. Только эти три из libs/graphics удовлетворяют
+аналогично `clear`. Только эти три из toolboxes/graphics удовлетворяют
 критерию "session command, not plotting".
 
-**Регистрация:** в `libs/graphics/src/library.cpp` через `regCore`
+**Регистрация:** в `toolboxes/graphics/src/library.cpp` через `regCore`
 helper (triple-register):
 ```cpp
 auto regCore = [&](sub, name, fn) {
@@ -293,24 +293,24 @@ regCore("layout", "hold", ...);
 (критерий: general-purpose / session-command, не toolbox-specific
 data operation).
 
-## 8. Что в core (libs/builtin)
+## 8. Что в core (toolboxes/builtin)
 
 Core — плоский namespace (`""`). Сюда попадает всё что **физически
-живёт** в `libs/builtin/`. По принципу одной строки (Section 1).
+живёт** в `toolboxes/builtin/`. По принципу одной строки (Section 1).
 
 **Важные перемещения относительно текущего состояния:**
 
-| Сейчас в `libs/builtin/` | Переезжает в | Почему |
+| Сейчас в `toolboxes/builtin/` | Переезжает в | Почему |
 |---|---|---|
-| `var, std, median, mode, quantile, prctile, cov, corrcoef, iqr, maxk, mink, bounds, movmean, movstd, ...` (~30 функций) | `libs/stats/` → `stats.*` | Декомпозиция: skewness/kurtosis/nan* уже в stats |
-| `fopen, fclose, fread, fwrite, fprintf, fscanf, sscanf, textscan, csvread, csvwrite, dlmread, save, load, setenv, getenv` (~25 функций) | `libs/io/` → `io.*` | Чистый MATLAB-doc раздел "Data Import and Export" |
+| `var, std, median, mode, quantile, prctile, cov, corrcoef, iqr, maxk, mink, bounds, movmean, movstd, ...` (~30 функций) | `toolboxes/stats/` → `stats.*` | Декомпозиция: skewness/kurtosis/nan* уже в stats |
+| `fopen, fclose, fread, fwrite, fprintf, fscanf, sscanf, textscan, csvread, csvwrite, dlmread, save, load, setenv, getenv` (~25 функций) | `toolboxes/io/` → `io.*` | Чистый MATLAB-doc раздел "Data Import and Export" |
 
 После переезда **все** эти функции доступны через `import compat.*` или
 явно по namespace-у (`stats.std(x)`, `io.fopen(...)`).
 
 ## 9. Полная карта namespace-ов
 
-### 9.1 core (libs/builtin) — плоский
+### 9.1 core (toolboxes/builtin) — плоский
 
 Содержит:
 
@@ -385,13 +385,13 @@ Core — плоский namespace (`""`). Сюда попадает всё чт�
 - **Magnitude/phase утилиты**: `db`, `db2mag`, `db2pow`, `mag2db`,
   `pow2db`, `wrapToPi`, `wrap2Pi`, `wrapTo180`, `wrapTo360`
 - **6 промоций**: `fft`, `ifft`, `fftshift`, `ifftshift`, `conv`,
-  `xcorr` (физически в `libs/signal/`, но также прописаны в core)
+  `xcorr` (физически в `toolboxes/signal/`, но также прописаны в core)
 
 Итого **~310 имён** в core.
 
-### 9.2 `signal.*` (libs/signal) — sub-namespace по каталогам
+### 9.2 `signal.*` (toolboxes/signal) — sub-namespace по каталогам
 
-Иерархия = sub-каталоги внутри `libs/signal/src/`:
+Иерархия = sub-каталоги внутри `toolboxes/signal/src/`:
 
 | Sub-namespace | Каталог | Примеры |
 |---|---|---|
@@ -417,9 +417,9 @@ Section 5). 6 промоций (`fft, ifft, fftshift, ifftshift, conv, xcorr`)
 **тройная регистрация** — в `signal.transforms.*`, в `compat.*`, и в
 core.
 
-### 9.3 `stats.*` (libs/stats)
+### 9.3 `stats.*` (toolboxes/stats)
 
-Содержит то что переезжает из libs/builtin + текущее содержимое:
+Содержит то что переезжает из toolboxes/builtin + текущее содержимое:
 
 | Sub-namespace | Каталог | Примеры |
 |---|---|---|
@@ -429,9 +429,9 @@ core.
 
 Все функции также регистрируются в `compat.*` (Section 5).
 
-### 9.4 `io.*` (libs/io — новый)
+### 9.4 `io.*` (toolboxes/io — новый)
 
-Содержит то что переезжает из libs/builtin:
+Содержит то что переезжает из toolboxes/builtin:
 
 | Sub-namespace | Каталог | Примеры |
 |---|---|---|
@@ -443,7 +443,7 @@ core.
 
 Все функции также регистрируются в `compat.*` (Section 5).
 
-### 9.5 `graphics.*` (libs/graphics)
+### 9.5 `graphics.*` (toolboxes/graphics)
 
 | Sub-namespace | Каталог | Примеры |
 |---|---|---|
@@ -462,13 +462,13 @@ core.
 
 | Library | Когда | Namespace |
 |---|---|---|
-| `libs/linalg/` | LAPACK-class работы (det, inv, eig, svd, qr, chol, lu, norm) | `linalg.*` (с sub-разделами) |
-| `libs/sparse/` | Sparse matrix type + iterative solvers | `sparse.*` |
-| `libs/ode/` | ODE integrators (ode23, ode45, ode15s, …) | `ode.*` |
-| `libs/table/` | Table/timetable type + операции | `table.*` |
-| `libs/categorical/` | Categorical type | `categorical.*` |
-| `libs/datetime/` | datetime/duration types | `datetime.*` |
-| `libs/wavelet/` | cwt, dwt, modwt, vmd, hht, emd, fsst | `wavelet.*` |
+| `toolboxes/linalg/` | LAPACK-class работы (det, inv, eig, svd, qr, chol, lu, norm) | `linalg.*` (с sub-разделами) |
+| `toolboxes/sparse/` | Sparse matrix type + iterative solvers | `sparse.*` |
+| `toolboxes/ode/` | ODE integrators (ode23, ode45, ode15s, …) | `ode.*` |
+| `toolboxes/table/` | Table/timetable type + операции | `table.*` |
+| `toolboxes/categorical/` | Categorical type | `categorical.*` |
+| `toolboxes/datetime/` | datetime/duration types | `datetime.*` |
+| `toolboxes/wavelet/` | cwt, dwt, modwt, vmd, hht, emd, fsst | `wavelet.*` |
 
 Каждая регистрирует свои функции и в собственном namespace, и в
 `compat.*` (через локальный helper в своей `library.cpp`).
@@ -477,13 +477,13 @@ core.
 
 | Library | Namespace | Регистрируется в compat? |
 |---|---|---|
-| `libs/numkit_gpu/` | `numkit_gpu.*` | **НЕТ** (нет MATLAB-аналога) |
-| `libs/experimental/` | `experimental.*` | **НЕТ** (beta features) |
-| `libs/numkit_extras/` | `numkit_extras.*` | **НЕТ** |
+| `toolboxes/numkit_gpu/` | `numkit_gpu.*` | **НЕТ** (нет MATLAB-аналога) |
+| `toolboxes/experimental/` | `experimental.*` | **НЕТ** (beta features) |
+| `toolboxes/numkit_extras/` | `numkit_extras.*` | **НЕТ** |
 
 ## 10. Directory layout — Variant B (сокращённые MATLAB-mirror имена)
 
-### 10.1 libs/builtin/src/
+### 10.1 toolboxes/builtin/src/
 
 Полный refactor:
 
@@ -506,24 +506,24 @@ core.
 | `math/interpolation/` | `math/interp/` | Interpolation |
 | `math/optim/` | `math/optim/` | Optimization |
 | `math/random/` | `math/random/` | Random Number Generation |
-| `data_io/csv.cpp` | (переезжает в libs/io/) | — |
-| `data_io/fileio.cpp` | (переезжает в libs/io/) | — |
-| `data_io/saveload.cpp` | (переезжает в libs/io/) | — |
+| `data_io/csv.cpp` | (переезжает в toolboxes/io/) | — |
+| `data_io/fileio.cpp` | (переезжает в toolboxes/io/) | — |
+| `data_io/saveload.cpp` | (переезжает в toolboxes/io/) | — |
 | `datatypes/numeric/` | `language/types/` | Numeric Types |
 | `datatypes/strings/` | `language/strings/` | Characters and Strings |
 | `datatypes/strings/regex.cpp` | `language/regex/` | (sub of strings) |
 | `datatypes/struct/` | `language/structures/` | Structures |
 | `datatypes/cell/` | `language/cells/` | Cell Arrays |
 | `datatypes/_handlefn_helpers.hpp` | `language/handles/` | Function Handles |
-| `data_analysis/descriptive_statistics/` | (переезжает в libs/stats/) | — |
+| `data_analysis/descriptive_statistics/` | (переезжает в toolboxes/stats/) | — |
 | `programming/errors/` | `programming/errors/` | Error Handling |
 | `helpers.hpp` | `helpers.hpp` | (cross-cutting) |
 | `library.cpp` | `library.cpp` | (registration) |
 
-Финальная структура `libs/builtin/src/`:
+Финальная структура `toolboxes/builtin/src/`:
 
 ```
-libs/builtin/src/
+toolboxes/builtin/src/
   language/                # MATLAB: Language Fundamentals
     commands/              # Entering Commands
     arrays/                # Matrices and Arrays
@@ -566,10 +566,10 @@ libs/builtin/src/
 - `language/relational/` — для `eq, ne, lt, le, gt, ge, and, or, not`
   если они wrap-аются как функции (Tier 1.1 в parity plan).
 
-### 10.2 libs/io/src/ (новый)
+### 10.2 toolboxes/io/src/ (новый)
 
 ```
-libs/io/src/
+toolboxes/io/src/
   file_io/                 # Low-Level File I/O
   text/                    # Text Files
   folders/                 # File Operations
@@ -578,23 +578,23 @@ libs/io/src/
   library.cpp
 ```
 
-### 10.3 libs/stats/src/ (расширяется)
+### 10.3 toolboxes/stats/src/ (расширяется)
 
 ```
-libs/stats/src/
+toolboxes/stats/src/
   descriptive/             # var/std/median/cov/corrcoef/skewness/kurtosis/...
   moving/                  # movmean/movstd/...
   nan/                     # nansum/nanmean/...
   library.cpp
 ```
 
-### 10.4 libs/signal/src/ (минорные правки)
+### 10.4 toolboxes/signal/src/ (минорные правки)
 
 Уже в основном MATLAB-mirror. Возможны локальные переименования:
 - `parametric/` — новый sub-каталог (lpc/levinson/arburg/...)
 - `vibration/` — новый (envspectrum/modalfit/...)
 
-### 10.5 libs/graphics/src/
+### 10.5 toolboxes/graphics/src/
 
 Структура зависит от текущего состояния (не аудировано в этом
 документе). После Phase 7 (миграция) приведу к каталогам по разделам
@@ -602,7 +602,7 @@ MATLAB-doc (line/polar/contour/surface/volume/geographic/layout/bar).
 
 ## 11. VFS-инвариант
 
-> **Любой доступ к файловой системе из `core/` и `libs/*` идёт через
+> **Любой доступ к файловой системе из `core/` и `toolboxes/*` идёт через
 > `numkit::VirtualFS`. Прямые `std::filesystem`, `fopen`, `ifstream`,
 > `ofstream`, native `_open`, `CreateFile*` — запрещены.** Единственное
 > исключение — реализация `FilesystemFS` сама.
@@ -613,8 +613,8 @@ VFS-абстракцию, которая в native сборке делегиру
 
 **Под правило попадают:**
 - `core/` — Engine, runtime, всё что в WASM-сборке
-- `libs/builtin/`, `libs/signal/`, `libs/stats/`, `libs/graphics/`, `libs/io/`
-- Future libs/*
+- `toolboxes/builtin/`, `toolboxes/signal/`, `toolboxes/stats/`, `toolboxes/graphics/`, `toolboxes/io/`
+- Future toolboxes/*
 
 **Исключения (whitelist):**
 - `core/src/vfs.cpp`, `core/include/numkit/core/vfs.hpp` — VFS impl
@@ -694,7 +694,7 @@ std::unordered_map<std::string, CompiledScript> mFileCache_;
 
 ### 12.5 Builtins для path management
 
-Добавляются в core (libs/io/folders/ или libs/builtin/programming/path/):
+Добавляются в core (toolboxes/io/folders/ или toolboxes/builtin/programming/path/):
 
 - `addpath(dir)` — `engine.addPath(dir)`
 - `rmpath(dir)` — `engine.rmPath(dir)`
@@ -898,7 +898,7 @@ public:
 - Phase 0: FS-audit + lint script — **DONE**
 - Phase 1: Этот документ — **DONE**
 - Phase 2: TODO с namespace-аннотациями — **DONE**
-- Phase 3: Directory refactor (Variant B) — **DONE** (libs/{builtin,signal,stats,graphics,io})
+- Phase 3: Directory refactor (Variant B) — **DONE** (toolboxes/{builtin,signal,stats,graphics,io})
 - Phase 4: Engine API (registerFunction, indices, conflict detection) — **DONE**
 - Phase 5: `import` builtin (command-style + function-style) — **DONE**
 - Phase 6: Resolver + activeImports — **DONE**

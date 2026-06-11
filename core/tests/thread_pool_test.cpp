@@ -11,8 +11,8 @@
 
 #if defined(NUMKIT_WITH_THREADS)
 
-#include <numkit/core/parallel_for.hpp>
-#include <numkit/core/thread_pool.hpp>
+#include <numkit/ops/parallel_for.hpp>
+#include <numkit/ops/thread_pool.hpp>
 
 #include <atomic>
 #include <cstddef>

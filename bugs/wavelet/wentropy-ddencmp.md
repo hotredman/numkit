@@ -32,6 +32,6 @@ Not implemented.
 Both are small and good first wavelet wins.
 
 ## References
-- new file(s) under `libs/wavelet/src/...`
+- new file(s) under `toolboxes/wavelet/src/...`
 - shipped: `dwt`, `wthresh`, `wdenoise`
 - MATLAB `doc wentropy`, `doc ddencmp`

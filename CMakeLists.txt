@@ -32,7 +32,7 @@ include(NumkitOptions)
 # Pulled only when NUMKIT_WITH_SIMD=ON. Dispatch strategy is dynamic —
 # the library ships with backends for every ISA Highway supports and
 # picks one at first call (see HWY_DYNAMIC_DISPATCH in the _simd.cpp
-# files under libs/*/src/backends/).
+# files under toolboxes/*/src/backends/).
 
 if(NUMKIT_WITH_SIMD)
     include(FetchContent)
@@ -63,7 +63,7 @@ endif()
 # matio (MATLAB .mat file I/O) — gated by NUMKIT_WITH_MATIO
 # ──────────────────────────────────────────────
 #
-# Used by libs/io/src/workspace/saveload_mat.cpp to back save/load on
+# Used by runtime/src/saveload_mat.cpp to back save/load on
 # .mat files (v4 / v5 / v7). HDF5 backend (v7.3) is intentionally
 # disabled — adds a heavy dependency we don't need yet. ZLIB compression
 # (for `-v7`) is also off for the same reason; matio silently falls back
@@ -73,7 +73,7 @@ endif()
 #
 # Target: `matio` (static, PIC). Linked PRIVATE to numkit so matio.h
 # never leaks into our public headers (only the matio-backed cpp under
-# libs/io/src/ includes it).
+# runtime/src/ includes it).
 if(NUMKIT_WITH_MATIO)
     include(FetchContent)
 
@@ -117,33 +117,80 @@ endif()
 #
 # core/CMakeLists.txt   exports NUMKIT_CORE_SOURCES / NUMKIT_CORE_HEADERS
 #                              / NUMKIT_CORE_INCLUDE_DIRS
-# libs/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
+# toolboxes/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
 #                              / NUMKIT_LIBS_INCLUDE_DIRS
-# Each lib has its own libs/<name>/CMakeLists.txt for per-lib worker
+# Each lib has its own toolboxes/<name>/CMakeLists.txt for per-lib worker
 # ownership (see dev-docs/COORDINATION.md).
 
+add_subdirectory(value)   # L0:   Value substrate (numkit_value) — STL-only
+add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
+add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(core)
-add_subdirectory(libs)
+add_subdirectory(math)    # L2: MATLAB Mathematics compute (numkit math) — extracted from builtin (Phase 3-A step C)
+add_subdirectory(lang)    # L2: MATLAB Language Fundamentals compute (numkit lang) — extracted from builtin (Phase 3-A step C2)
+add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
+add_subdirectory(runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
+add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
-set(NUMKIT_SOURCES ${NUMKIT_CORE_SOURCES} ${NUMKIT_LIBS_SOURCES})
-set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS})
+# G1 (target-split): every layer compiles as its own OBJECT library (numkit_<L>_obj,
+# defined at the end of this file once the dependency targets exist) carrying the
+# monolith compile config via numkit_configure_layer(). The final `numkit` aggregates
+# them through $<TARGET_OBJECTS> — same object set as the old monolith, grouped.
+set(NUMKIT_SOURCES )
+set(NUMKIT_LAYER_OBJECTS
+    $<TARGET_OBJECTS:numkit_core_obj>
+    $<TARGET_OBJECTS:numkit_toolboxes_obj>
+    $<TARGET_OBJECTS:numkit_math_obj>
+    $<TARGET_OBJECTS:numkit_lang_obj>
+    $<TARGET_OBJECTS:numkit_runtime_obj>
+    $<TARGET_OBJECTS:numkit_bundle_obj>)
+set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_MATH_HEADERS} ${NUMKIT_LANG_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
-    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
+    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} ${NUMKIT_LAYER_OBJECTS})
 else()
-    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
+    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} ${NUMKIT_LAYER_OBJECTS})
 endif()
 
 # Match install-tree NAMESPACE so add_subdirectory consumers can use the
 # same `numkit::numkit` target as find_package() consumers do.
 add_library(numkit::numkit ALIAS numkit)
 
+# L0 foundation modules (Value substrate + filesystem abstraction). The
+# BUILD_INTERFACE genex keeps them out of the exported target set (mirrors the
+# matio / hwy pattern) — their PUBLIC include dirs + objects propagate to
+# numkit (and to build-tree consumers like the tests) at build time, which is
+# all we need.
+target_link_libraries(numkit PUBLIC
+    $<BUILD_INTERFACE:numkit_value>
+    $<BUILD_INTERFACE:numkit_ops>
+    $<BUILD_INTERFACE:numkit_fs>)
+
+# ── Architectural layering guard ────────────────────────────────────
+#
+# Fails the build if value/ fs/ ops/ core/ gain a forbidden *upward*
+# dependency (e.g. core including a toolbox, ops including core). Runs on every
+# build so the three parallel sessions can't silently re-couple the layers.
+# Skipped when Python is unavailable so it never blocks a build it can't
+# perform — it is a guard, not a hard build dependency.
+if(NUMKIT_BUILD_TESTS)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_FOUND)
+        add_custom_target(numkit_layering_check ALL
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_layering.py
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Checking architectural layering (value/fs/ops/core)"
+            VERBATIM)
+    endif()
+endif()
+
 # ── Build-info header (regenerated on every build) ──────────────────
 #
 # Writes <build>/generated/numkit/core/build_info.hpp containing a
 # NUMKIT_BUILD_TIMESTAMP macro with current wall-clock time. The
 # `numkit_build_info` custom target is part of ALL so it runs on
-# every build; libs/builtin/src/version_string.cpp depends on the
+# every build; bundle/src/version_string.cpp depends on the
 # generated header so only that tiny TU recompiles per build, not
 # the huge library.cpp.
 set(NUMKIT_BUILD_INFO_DIR    "${CMAKE_BINARY_DIR}/generated")
@@ -165,28 +212,44 @@ add_custom_target(numkit_build_info ALL
 add_dependencies(numkit numkit_build_info)
 target_include_directories(numkit PRIVATE "${NUMKIT_BUILD_INFO_DIR}")
 set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src/version_string.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/bundle/src/version_string.cpp"
     PROPERTIES OBJECT_DEPENDS "${NUMKIT_BUILD_INFO_HEADER}"
 )
 
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
-foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS})
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
     target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
 endforeach()
 target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
 
 target_include_directories(numkit
     PRIVATE
-        # Shared library-internal helpers (helpers.hpp under libs/*/src/)
+        # Shared library-internal helpers (helpers.hpp under toolboxes/*/src/)
         # AND the resolution root for every Highway HWY_TARGET_INCLUDE string
-        # (e.g. "transforms/backends/fft_r2_simd.cpp", relative to libs/<lib>/src/).
+        # (e.g. "transforms/backends/fft_r2_simd.cpp", relative to toolboxes/<lib>/src/).
         # TODO: formalize the helpers.hpp leak as public "detail/" headers
         #       or a common utility lib.
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/io/src
+        # math/ relocated from builtin (Phase 3-A step C) — same role: shared
+        # math helpers + the Highway HWY_TARGET_INCLUDE resolution root for the
+        # relocated SIMD backends under math/src/<area>/.
+        ${CMAKE_CURRENT_SOURCE_DIR}/math/src
+        # lang/ relocated from builtin (Phase 3-A step C2) — same role: Highway
+        # HWY_TARGET_INCLUDE resolution root for the relocated casts SIMD backend
+        # under lang/src/types/.
+        ${CMAKE_CURRENT_SOURCE_DIR}/lang/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
+        # C5: register adapters relocated to bundle/src/register/<T>/ keep their
+        # area-own ("<subarea>/X_detail.hpp") includes resolvable via the toolbox
+        # src root on the -I path.
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/image/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/comm/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/control/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/audio/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/wavelet/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/linalg/src
         # Vendored single-header libs (stb_image, stb_image_write).
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
@@ -198,8 +261,8 @@ if(EMSCRIPTEN)
     target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
 
-# matio is linked when NUMKIT_WITH_MATIO is ON — libs/io's .mat backend
-# (saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
+# matio is linked when NUMKIT_WITH_MATIO is ON — runtime' .mat backend
+# (runtime/src/saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
 # never appears in any of our public include/ trees. BUILD_INTERFACE
 # genex keeps the link dep out of the exported target set — matio isn't
 # exported via install(EXPORT) on our side. The compile-definition lets
@@ -208,7 +271,7 @@ if(NUMKIT_WITH_MATIO)
     target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:matio>)
     target_compile_definitions(numkit PRIVATE NUMKIT_WITH_MATIO)
     # zlib comes with matio's FetchContent block — used by the TIFF
-    # reader's Deflate path (libs/image/src/io/tiff_reader.cpp).
+    # reader's Deflate path (toolboxes/image/src/io/tiff_reader.cpp).
     if(TARGET zlibstatic)
         target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:zlibstatic>)
         target_compile_definitions(numkit PRIVATE NUMKIT_WITH_ZLIB)
@@ -217,7 +280,7 @@ endif()
 
 if(NUMKIT_WITH_SIMD)
     # PRIVATE — our public headers never mention Highway types; it's a pure
-    # implementation detail confined to libs/*/src/backends/*_simd.cpp.
+    # implementation detail confined to toolboxes/*/src/backends/*_simd.cpp.
     # BUILD_INTERFACE genex keeps the link dep out of the exported target
     # set (install(EXPORT) would otherwise complain that hwy / hwy_contrib
     # aren't themselves exported).
@@ -240,6 +303,67 @@ if(NUMKIT_WITH_THREADS)
     target_link_libraries(numkit PUBLIC Threads::Threads)
     target_compile_definitions(numkit PUBLIC NUMKIT_WITH_THREADS=1)
 endif()
+
+# ── G1 (target-split): per-layer OBJECT libraries ───────────────────
+#
+# Each compute/engine layer compiles into its own OBJECT library that the final
+# `numkit` aggregates via $<TARGET_OBJECTS:...>. The final binary is identical to
+# the old monolith (same object set, grouped). numkit_configure_layer() applies
+# the exact compile config the monolith used (include roots + SIMD/threads/matio
+# definitions + usage-requirement links for include dirs + the WASM -fexceptions).
+# Defined here so the dependency targets (hwy/matio/Threads) already exist.
+function(numkit_configure_layer tgt)
+    target_compile_features(${tgt} PRIVATE cxx_std_17)
+    target_include_directories(${tgt} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/math/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/lang/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/image/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/comm/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/control/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/audio/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/wavelet/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/linalg/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
+        ${NUMKIT_BUILD_INFO_DIR})
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+        target_include_directories(${tgt} PRIVATE $<BUILD_INTERFACE:${_dir}>)
+    endforeach()
+    target_link_libraries(${tgt} PRIVATE
+        $<BUILD_INTERFACE:numkit_value> $<BUILD_INTERFACE:numkit_ops> $<BUILD_INTERFACE:numkit_fs>)
+    if(NUMKIT_WITH_SIMD)
+        target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:hwy> $<BUILD_INTERFACE:hwy_contrib>)
+        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_SIMD=1)
+    endif()
+    if(NUMKIT_WITH_THREADS)
+        find_package(Threads REQUIRED)
+        target_link_libraries(${tgt} PRIVATE Threads::Threads)
+        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_THREADS=1)
+    endif()
+    if(NUMKIT_WITH_MATIO)
+        target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:matio>)
+        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_MATIO)
+        if(TARGET zlibstatic)
+            target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:zlibstatic>)
+            target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_ZLIB)
+        endif()
+    endif()
+    if(EMSCRIPTEN)
+        target_compile_options(${tgt} PRIVATE -fexceptions)
+    endif()
+endfunction()
+
+add_library(numkit_core_obj      OBJECT ${NUMKIT_CORE_SOURCES})
+add_library(numkit_toolboxes_obj OBJECT ${NUMKIT_LIBS_SOURCES})
+add_library(numkit_math_obj      OBJECT ${NUMKIT_MATH_SOURCES})
+add_library(numkit_lang_obj      OBJECT ${NUMKIT_LANG_SOURCES})
+add_library(numkit_runtime_obj   OBJECT ${NUMKIT_RUNTIME_SOURCES})
+add_library(numkit_bundle_obj    OBJECT ${NUMKIT_BUNDLE_SOURCES})
+foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_math_obj numkit_lang_obj numkit_runtime_obj numkit_bundle_obj)
+    numkit_configure_layer(${_obj})
+endforeach()
 
 # Smoke binary (numkit_smoke) is now owned by tests/smoke/CMakeLists.txt;
 # add_subdirectory(tests) below pulls it in via tests/CMakeLists.txt.
@@ -269,9 +393,9 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    foreach(_test_lib builtin linalg signal stats graphics io wavelet comm control image audio graph ode optim)
-        if(EXISTS ${CMAKE_SOURCE_DIR}/libs/${_test_lib}/tests/CMakeLists.txt)
-            add_subdirectory(libs/${_test_lib}/tests)
+    foreach(_test_lib linalg signal stats graphics wavelet comm control image audio graph optim ode io)
+        if(EXISTS ${CMAKE_SOURCE_DIR}/toolboxes/${_test_lib}/tests/CMakeLists.txt)
+            add_subdirectory(toolboxes/${_test_lib}/tests)
         endif()
     endforeach()
 endif()
@@ -339,7 +463,7 @@ if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
     )
 
     # Public headers — install each per-area include-dir's numkit/ subtree
-    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS})
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS})
         install(DIRECTORY ${_dir}/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endforeach()
 
@@ -375,7 +499,7 @@ endif()
 include(cmake/Doxygen.cmake)
 
 # ── API lint ─────────────────────────────────────────────────────────
-# `lint` target — checks libs/* public headers against the mechanically
+# `lint` target — checks toolboxes/* public headers against the mechanically
 # checkable subset of dev-docs/LIBRARY_API.md (no Engine in signatures, mr
 # by pointer, no const Value*). Not wired into the default build; run
 # explicitly or from CI. Safe no-op if Python 3 is not found.
@@ -385,6 +509,6 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/lint/check_api.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Linting libs/* public API headers (dev-docs/LIBRARY_API.md)"
+        COMMENT "Linting toolboxes/* public API headers (dev-docs/LIBRARY_API.md)"
         VERBATIM)
 endif()

@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 45),
-  `libs/builtin/src/language/arrays/matrix.cpp` (`sort_reg`). sort routed char
+  `toolboxes/builtin/src/language/arrays/matrix.cpp` (`sort_reg`). sort routed char
   through its DOUBLE path, whose `doubleData()` throws "Not a double array".
   MATLAB sorts char by CODE POINT and PRESERVES the char class on the values;
   the optional 2nd-output index stays double.
@@ -30,10 +30,10 @@
   `sort('dcba','descend')`=`'dcba'`;
   2-D `sort(['bd';'ca'])`=`['ba';'cd']`, dim2 `sort(['bd';'ca'],2)`=`['bd';'ac']`;
   scalar `sort('x')`=`'x'`; empty `sort('')`=`''` (char, numel 0).
-- Live guard: `libs/builtin/tests/sort_char_test.cpp` (6 TEST_F) +
+- Live guard: `toolboxes/builtin/tests/sort_char_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.SortChar` flipped live. Parity:
   `tools/parity/specs/sort_char.json` (correctness=OK). Smoke:
-  `libs/builtin/tests/smoke/sort_char_smoke.m`.
+  `toolboxes/builtin/tests/smoke/sort_char_smoke.m`.
 
 ## Symptom
 `sort` throws on a `char` array; MATLAB sorts it by code point preserving the
@@ -55,7 +55,7 @@ path) but no char branch, so char reached the DOUBLE `sort` overload's
 `doubleData()` and threw.
 
 ## References
-- `libs/builtin/src/language/arrays/matrix.cpp` (`sort_reg`, `charizeSortResult`)
+- `toolboxes/builtin/src/language/arrays/matrix.cpp` (`sort_reg`, `charizeSortResult`)
 - Completes the type-class sweep for `sort` (double/int/logical/char all keep
   their class; index stays double). See bugs/builtin/sort-logical.md.
 - MATLAB `doc sort`

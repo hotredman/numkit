@@ -6,9 +6,9 @@
 // level construct / dispatch arrives in P2/P3.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/object.hpp>
-#include <numkit/builtin/containers.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/value/object.hpp>
+#include <numkit/runtime/containers.hpp>
+#include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
 #include <filesystem>
@@ -48,7 +48,7 @@ void setBox(Value &obj, int x)
 class ObjectModelTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StandardEngine engine;
 
     void SetUp() override
     {
@@ -139,7 +139,7 @@ TEST_F(ObjectModelTest, DistinctHandlesDoNotAlias)
 class PointObjectTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
 
     void SetUp() override
     {
@@ -397,7 +397,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,
 class ObjectArrayTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
 
     static void registerBox(Engine &e, const std::string &name, bool isHandle)
     {
@@ -793,7 +793,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, ObjectArrayTest,
 class ClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -905,7 +905,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, ClassdefTest,
 class HandleClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -954,7 +954,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, HandleClassdefTest,
 class InheritanceClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1019,7 +1019,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, InheritanceClassdefTest,
 class AttrClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1078,7 +1078,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, AttrClassdefTest,
 class ClassdefRedefineTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override { engine.setBackend(GetParam()); }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
     void eval(const std::string &c) { engine.eval(c); }
@@ -1299,7 +1299,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, ClassdefRedefineTest,
 class AccessorClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1337,7 +1337,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, AccessorClassdefTest,
 class IntrospectClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1458,7 +1458,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, IntrospectClassdefTest,
 class SuperCallClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1536,7 +1536,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, SuperCallClassdefTest,
 class AccessClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1773,7 +1773,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, AccessClassdefTest,
 class OperatorOverloadClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1845,7 +1845,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, OperatorOverloadClassdefTest,
 class DisplayClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     std::string captured;
     void SetUp() override
     {
@@ -1901,7 +1901,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, DisplayClassdefTest,
 class SubsrefClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -1958,7 +1958,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, SubsrefClassdefTest,
 class PropElemAssignClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -2037,7 +2037,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, PropElemAssignClassdefTest,
 class EnumClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -2091,7 +2091,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, EnumClassdefTest,
 class AbstractClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -2149,7 +2149,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, AbstractClassdefTest,
 class SealedHiddenClassdefTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     void SetUp() override
     {
         engine.setBackend(GetParam());
@@ -2207,7 +2207,7 @@ TEST(ClassdefMFile, LoadFromFile)
              "end\n";
     }
     for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
-        Engine engine;
+        StandardEngine engine;
         engine.setBackend(backend);
         engine.addPath(dir.string());
         EXPECT_DOUBLE_EQ(engine.eval("v = Vec2(3, 4); v.x").toScalar(), 3.0);
@@ -2239,7 +2239,7 @@ TEST(ClassdefMFile, RehashReloadsEditedClass)
     };
     for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
         writeVer(10);
-        Engine engine;
+        StandardEngine engine;
         engine.setBackend(backend);
         engine.addPath(dir.string());
         EXPECT_DOUBLE_EQ(engine.eval("v = RhVec(5); v.bump()").toScalar(), 15.0);
@@ -2273,7 +2273,7 @@ TEST(ClassdefMFile, PackagedClassQualifiedIdentity)
     };
     for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
         writeVer(10);
-        Engine engine;
+        StandardEngine engine;
         engine.setBackend(backend);
         engine.addPath(dir.string());
         EXPECT_DOUBLE_EQ(engine.eval("v = geo.Vec(5); v.x").toScalar(), 5.0);
@@ -2306,7 +2306,7 @@ TEST(ClassdefMFile, RehashBaseRefreshesInlineSubclass)
     };
     for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
         writeBase(10);
-        Engine engine;
+        StandardEngine engine;
         engine.setBackend(backend);
         engine.addPath(dir.string());
         // Inline subclass of the FILE base (the base loads via the path).
@@ -2339,7 +2339,7 @@ TEST(ClassdefMFile, RehashPackagedBaseRefreshesInlineSubclass)
     };
     for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
         writeBase(10);
-        Engine engine;
+        StandardEngine engine;
         engine.setBackend(backend);
         engine.addPath(dir.string());
         engine.eval("classdef MyShape < geo.Shape\n"
@@ -2372,7 +2372,7 @@ TEST(ClassdefMFile, InheritanceOrderIndependent)
             << "classdef DogB < AnimalB\n  properties\n    barks = 1\n  end\nend\n";
     }
     for (auto backend : {Engine::Backend::TreeWalker, Engine::Backend::VM}) {
-        Engine engine;
+        StandardEngine engine;
         engine.setBackend(backend);
         engine.addPath(dir.string());
         // Reference DogB FIRST → DogB.m loads before AnimalB.m. The base must
@@ -2389,7 +2389,7 @@ TEST(ClassdefMFile, InheritanceOrderIndependent)
 // both engines), so test it directly on a C++-built array.
 TEST(ObjectArrayDisplay, ArrayHeaderAndProps)
 {
-    Engine engine;
+    StandardEngine engine;
     ObjectArrayTest::registerBox(engine, "Box", /*isHandle=*/false);
     engine.eval("a(1) = Box(10); a(2) = Box(20); a(3) = Box(30);");
     Value a = engine.eval("a;");
@@ -2402,7 +2402,7 @@ TEST(ObjectArrayDisplay, ArrayHeaderAndProps)
 // ============================================================
 // Public engine-free C++ API for the container objects
 // (numkit::containers::map/dictionary/set/get/...). No Engine — just
-// Value + memory_resource, like the rest of libs/builtin.
+// Value + memory_resource, like the rest of toolboxes/builtin.
 // ============================================================
 namespace c = numkit::containers;
 
@@ -2451,7 +2451,7 @@ TEST(ContainersCxxApi, DictionaryValueSemantics)
 // A C++-built object round-trips into the interpreter unchanged.
 TEST(ContainersCxxApi, RoundTripIntoEngine)
 {
-    Engine engine;
+    StandardEngine engine;
     Value m = c::map(engine.resource());
     c::set(m, S("k"), N(7.0));
     engine.setVariable("m", m);

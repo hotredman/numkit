@@ -41,7 +41,7 @@ bugs + ~30 new builtins. e2e set: ~140 cases added, all green.
 ## B1 — overlay relatives (DONE)
 
 All six landed on `fix/ide-bugs` between 2026-05-09 and 2026-05-10.
-Each function ships C++ builtin (`libs/graphics/src/library.cpp`) +
+Each function ships C++ builtin (`toolboxes/graphics/src/library.cpp`) +
 adapter wiring (`adapters.js`) + renderer mode
 (`CompositePlot.jsx`) + Playwright e2e spec under
 `ide/desktop/tests/e2e/b1-*.spec.js`.
@@ -285,7 +285,7 @@ and preview ↔ modal coherence).
       hook for inspection.
 
 - [x] **`imshow` — display image (grayscale + RGB).** Builtin in
-      `libs/graphics/src/library.cpp` covering:
+      `toolboxes/graphics/src/library.cpp` covering:
         - `imshow(I)` with class-default range (`uint8`→[0,255],
           `double/single/logical`→[0,1])
         - `imshow(I, [lo hi])` — explicit range

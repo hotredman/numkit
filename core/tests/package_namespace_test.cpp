@@ -10,7 +10,7 @@
 //   * Mtime-based re-parse after editing a +pkg file
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <chrono>
 #include <filesystem>
@@ -25,7 +25,7 @@ namespace {
 class PackageNamespaceTest : public ::testing::TestWithParam<Engine::Backend>
 {
 protected:
-    Engine engine;
+    StandardEngine engine;
     std::filesystem::path workDir;
 
     void SetUp() override

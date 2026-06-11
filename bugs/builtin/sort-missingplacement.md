@@ -23,7 +23,7 @@ The 'auto' default (NaN last for ascending, first for descending) was
 already correct and matches MATLAB.
 
 ## Root cause
-`sort_reg` (`libs/builtin/src/language/arrays/matrix.cpp`) skipped the
+`sort_reg` (`toolboxes/builtin/src/language/arrays/matrix.cpp`) skipped the
 `'MissingPlacement'` name-value token, and `sort`/`sortComplex` hard-coded
 the NaN side as `descend ? an : bn` (auto only).
 
@@ -36,6 +36,6 @@ Both comparators (real + complex) now use a `nanFirst` flag:
 correctness=OK) + gtest (SortFindTest.SortMissingPlacement, TW+VM) + smoke.
 
 ## References
-- `libs/builtin/src/language/arrays/matrix.cpp` (sort, sortComplex, sort_reg)
-- `libs/builtin/include/numkit/builtin/language/arrays/matrix.hpp`
+- `toolboxes/builtin/src/language/arrays/matrix.cpp` (sort, sortComplex, sort_reg)
+- `toolboxes/builtin/include/numkit/builtin/language/arrays/matrix.hpp`
 - MATLAB `doc sort` ('MissingPlacement')

@@ -30,7 +30,7 @@ the asymptotic approximation as a fallback for large n. Moderate. Validate p
 vs MATLAB across n and both tails ('left'/'right'/'both').
 
 ## Fixed
-- Fixed: 2026-06-05 (bug-fix loop, cycle 22), `libs/stats/src/test/ad_dw.cpp`.
+- Fixed: 2026-06-05 (bug-fix loop, cycle 22), `toolboxes/stats/src/test/ad_dw.cpp`.
 - **Exact p-value via Imhof (1961).** Under H0 the residuals are `e = Mε`,
   `M = I − X(X'X)⁻¹X'`; `DW < d ⟺ ε'M(A−d·I)Mε < 0` where `A` is the
   first-difference tridiagonal. The `n−k` residual-space eigenvalues `λ_j` of
@@ -46,12 +46,12 @@ vs MATLAB across n and both tails ('left'/'right'/'both').
 - `'Method','approximate'` is accepted but is numkit's own beta moment-fit (NOT
   MATLAB-identical — MATLAB's 'approximate' is a different algorithm); the
   default `'exact'` is the MATLAB-matching path. Documented, not validated.
-- Live guard: `libs/stats/tests/dwtest_exact_test.cpp` (5 TEST_F) + flipped
+- Live guard: `toolboxes/stats/tests/dwtest_exact_test.cpp` (5 TEST_F) + flipped
   `StatsKnownBug.DwtestPValue` live. Parity:
   `tools/parity/specs/dwtest_exact.json` (correctness=OK) +
   `adtest_dwtest.json` comment updated. Smoke:
-  `libs/stats/tests/smoke/dwtest_exact_smoke.m`.
+  `toolboxes/stats/tests/smoke/dwtest_exact_smoke.m`.
 
 ## References
-- `libs/stats/src/test/ad_dw.cpp` (dwtest, dwExactPLeft, imhofPLeft)
+- `toolboxes/stats/src/test/ad_dw.cpp` (dwtest, dwExactPLeft, imhofPLeft)
 - MATLAB `doc dwtest`

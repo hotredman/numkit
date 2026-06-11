@@ -10,7 +10,7 @@
 //   * `rehashMFiles` drops the cache wholesale
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <chrono>
 #include <filesystem>
@@ -46,7 +46,7 @@ private:
 class MFileResolverTest : public ::testing::TestWithParam<Engine::Backend>
 {
 protected:
-    Engine engine;
+    StandardEngine engine;
     std::filesystem::path workDir;
 
     void SetUp() override

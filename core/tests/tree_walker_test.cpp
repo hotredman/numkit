@@ -5,7 +5,7 @@
 // by comparing results against known values.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
@@ -19,7 +19,7 @@ using namespace numkit;
 class OptimizationRegressionTest : public ::testing::Test
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     std::string capturedOutput;
 
     void SetUp() override

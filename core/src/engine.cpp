@@ -1,23 +1,12 @@
 // src/engine.cpp
 #include <numkit/core/engine.hpp>
 #include <numkit/core/value_stats.hpp>
-#include <numkit/core/branding.hpp>
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
-#include <numkit/builtin/library.hpp>
-#include <numkit/linalg/library.hpp>
-#include <numkit/signal/library.hpp>
-#include <numkit/stats/library.hpp>
-#include <numkit/image/library.hpp>
-#include <numkit/comm/library.hpp>
-#include <numkit/wavelet/library.hpp>
-#include <numkit/control/library.hpp>
-#include <numkit/graphics/library.hpp>
-#include <numkit/io/library.hpp>
-#include <numkit/optim/library.hpp>
-#include <numkit/audio/library.hpp>
-#include <numkit/ode/library.hpp>
+// NOTE: core is library-agnostic — it includes ZERO <numkit/<lib>/library.hpp>.
+// The standard library is installed by bundle/ (installStandardLibrary), not
+// by the Engine ctor. This is what keeps core free of any toolbox dependency.
 #include <numkit/core/tree_walker.hpp>
 #include <numkit/core/vm.hpp>
 #include <algorithm>
@@ -73,19 +62,9 @@ Engine::Engine(std::pmr::memory_resource *mr)
 
     reinstallConstants();
     registerVirtualFS(std::make_unique<NativeFS>());
-    BuiltinLibrary::install(*this);
-    LinalgLibrary::install(*this);
-    SignalLibrary::install(*this);
-    StatsLibrary::install(*this);
-    ImageLibrary::install(*this);
-    CommLibrary::install(*this);
-    WaveletLibrary::install(*this);
-    ControlLibrary::install(*this);
-    GraphicsLibrary::install(*this);
-    IoLibrary::install(*this);
-    OptimLibrary::install(*this);
-    AudioLibrary::install(*this);
-    OdeLibrary::install(*this);
+    // No library installs here — a bare Engine has the language runtime,
+    // constants and primitive arithmetic, but no named functions. Call
+    // numkit::installStandardLibrary(engine) (bundle/) to load the full set.
 }
 
 Engine::~Engine()
@@ -102,12 +81,12 @@ void Engine::reinstallConstants()
     // `nan` / `NaN` / `inf` / `Inf` are MATLAB built-in functions, not
     // constants. Bare `nan` calls nan() → scalar NaN; `nan(M, N)` calls
     // nan(M, N) → MxN matrix of NaN; `nan(M, N, 'single')` returns
-    // single-precision. Registration lives in libs/builtin/src/library.cpp
+    // single-precision. Registration lives in toolboxes/builtin/src/library.cpp
     // via nan_reg / inf_reg. Same pattern as true/false (BUGS.md #30).
     // `true` and `false` are MATLAB built-in functions, not constants.
     // Bare `true` calls true() → scalar logical 1; `true(M, N)` calls
     // true(M, N) → MxN logical array. Registration lives in
-    // libs/builtin/src/library.cpp via true_reg / false_reg. See
+    // toolboxes/builtin/src/library.cpp via true_reg / false_reg. See
     // BUGS.md #30.
     constantsEnv_->set("i", Value::complexScalar(0.0, 1.0, mr_));
     constantsEnv_->set("j", Value::complexScalar(0.0, 1.0, mr_));
@@ -2762,267 +2741,63 @@ std::string Engine::workspaceJSON() const
 
 // ============================================================
 // Virtual filesystem registry + path resolver
+//
+// State + logic live in FsContext (fs/, L0). Engine HAS-A FsContext and
+// forwards; resolvePath additionally rethrows the fs-layer std::runtime_error
+// as numkit::Error so the MATLAB-visible error type is unchanged for
+// in-engine callers.
 // ============================================================
 
 void Engine::registerVirtualFS(std::unique_ptr<VirtualFS> fs)
 {
-    if (!fs)
-        return;
-    auto n = fs->name();
-    virtualFs_[n] = std::move(fs);
+    fsCtx_.registerVirtualFS(std::move(fs));
 }
 
 VirtualFS *Engine::findVirtualFS(const std::string &name) const
 {
-    auto it = virtualFs_.find(name);
-    return (it != virtualFs_.end()) ? it->second.get() : nullptr;
+    return fsCtx_.findVirtualFS(name);
 }
 
 void Engine::pushScriptOrigin(const std::string &fsName)
 {
-    scriptOriginStack_.push_back({fsName, std::string{}});
+    fsCtx_.pushScriptOrigin(fsName);
 }
 
 void Engine::pushScriptOrigin(const std::string &fsName, const std::string &scriptDir)
 {
-    scriptOriginStack_.push_back({fsName, scriptDir});
+    fsCtx_.pushScriptOrigin(fsName, scriptDir);
 }
 
 void Engine::popScriptOrigin()
 {
-    if (!scriptOriginStack_.empty())
-        scriptOriginStack_.pop_back();
+    fsCtx_.popScriptOrigin();
 }
 
 const std::string *Engine::currentScriptOrigin() const
 {
-    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back().fsName;
+    return fsCtx_.currentScriptOrigin();
 }
 
 const std::string *Engine::currentScriptDir() const
 {
-    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back().scriptDir;
+    return fsCtx_.currentScriptDir();
 }
-
-namespace {
-
-// Split "prefix:rest" into {prefix, rest} if `prefix` is a known FS name,
-// otherwise return {"", path}. Two guards against false positives on
-// paths that happen to contain ':':
-//   • colon must be at index >= 2, so Windows drive letters (C:/foo) and
-//     empty prefixes (":foo") never look like a scheme. This forbids
-//     single-character FS names by construction — acceptable because all
-//     current FS names ('native', 'temporary', 'local') are longer.
-//   • the prefix must match a registered FS. So a path like "http://..."
-//     or "mailto:..." falls through to the default FS untouched.
-std::pair<std::string, std::string> splitFsScheme(const std::string &path,
-                                                  const std::unordered_map<std::string, std::unique_ptr<VirtualFS>> &fsMap)
-{
-    auto colon = path.find(':');
-    if (colon == std::string::npos || colon < 2)
-        return {"", path};
-    std::string scheme = path.substr(0, colon);
-    if (fsMap.find(scheme) == fsMap.end())
-        return {"", path};
-    return {scheme, path.substr(colon + 1)};
-}
-
-bool isAbsolutePath(const std::string &p)
-{
-    if (p.empty())
-        return false;
-    if (p[0] == '/' || p[0] == '\\')
-        return true;
-#ifdef _WIN32
-    if (p.size() >= 2 && p[1] == ':' && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')))
-        return true;
-#endif
-    return false;
-}
-
-std::string joinPath(const std::string &base, const std::string &rel)
-{
-    if (base.empty())
-        return rel;
-    if (rel.empty())
-        return base;
-    char last = base.back();
-    if (last == '/' || last == '\\')
-        return base + rel;
-    return base + "/" + rel;
-}
-
-} // namespace
 
 Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
 {
-    // 1. Explicit scheme in the path wins.
-    auto [scheme, rest] = splitFsScheme(userPath, virtualFs_);
-    if (!scheme.empty()) {
-        auto *fs = findVirtualFS(scheme);
-        if (!fs)
-            throw Error("unknown filesystem '" + scheme + "' in path");
-        return {fs, rest};
+    // FsContext throws std::runtime_error for unknown/unavailable
+    // filesystems; rethrow as numkit::Error so the MATLAB-visible error type
+    // (and message) is exactly what in-engine callers saw before.
+    try {
+        return fsCtx_.resolvePath(userPath);
+    } catch (const std::runtime_error &e) {
+        throw Error(e.what());
     }
-
-    // 2. NUMKIT_FS env var selects the backend.
-    std::string fsName = envGet(envVarName("FS").c_str());
-    if (fsName == "auto")
-        fsName.clear();
-
-    // 3. Fall back to script origin, then to "native".
-    if (fsName.empty()) {
-        if (auto *o = currentScriptOrigin())
-            fsName = *o;
-    }
-    if (fsName.empty())
-        fsName = "native";
-
-    VirtualFS *fs = findVirtualFS(fsName);
-    if (!fs)
-        throw Error("filesystem '" + fsName + "' is not available");
-
-    // Normalize path: if relative, prepend the engine's cwd. Precedence:
-    //   1. Engine::cwd_ when set (`cd`/`setCwd` write here — canonical).
-    //   2. NUMKIT_CWD env var (host-runtime override; only consulted
-    //      when the engine hasn't been told a cwd of its own).
-    // No "two sources diverge" risk: cwd_ wins whenever it's non-empty.
-    // The env fallback exists so hosts can `setenv NUMKIT_CWD` after
-    // engine construction without needing to call setCwd explicitly.
-    std::string path = userPath;
-    if (!isAbsolutePath(path)) {
-        std::string cwd = !cwd_.empty() ? cwd_
-                                        : envGet(envVarName("CWD").c_str());
-        if (!cwd.empty())
-            path = joinPath(cwd, path);
-    }
-
-    return {fs, path};
 }
 
 // ============================================================
 // File descriptor table — MATLAB fopen/fclose/fprintf plumbing
 // ============================================================
 
-int Engine::openFile(const std::string &userPath, const std::string &modeRaw)
-{
-    lastFopenError_.clear();
-
-    // Strip Windows-style 't'/'b' suffix ("rt", "wb"). The underlying
-    // buffer is bytes anyway; we don't do CRLF translation.
-    std::string mode = modeRaw;
-    while (!mode.empty() && (mode.back() == 't' || mode.back() == 'b'))
-        mode.pop_back();
-
-    // Accept the six MATLAB modes. 'r+'/'w+'/'a+' grant both read and
-    // write permission; the base letter still governs seed/truncate/
-    // append behaviour.
-    bool canRead = false, canWrite = false, appendOnly = false, truncate = false, seedBuffer = false;
-    if      (mode == "r")  { canRead = true;  seedBuffer = true; }
-    else if (mode == "w")  { canWrite = true; truncate = true; }
-    else if (mode == "a")  { canWrite = true; appendOnly = true; seedBuffer = true; }
-    else if (mode == "r+") { canRead = true;  canWrite = true; seedBuffer = true; }
-    else if (mode == "w+") { canRead = true;  canWrite = true; truncate = true; }
-    else if (mode == "a+") { canRead = true;  canWrite = true; appendOnly = true; seedBuffer = true; }
-    else {
-        lastFopenError_ = "Invalid permission specified";
-        return -1;
-    }
-
-    ResolvedPath r;
-    try {
-        r = resolvePath(userPath);
-    } catch (const std::exception &e) {
-        lastFopenError_ = e.what();
-        return -1;
-    }
-
-    OpenFile f;
-    f.path = r.path;
-    f.mode = mode;
-    f.fs = r.fs;
-    f.forRead = canRead;
-    f.forWrite = canWrite;
-    f.appendOnly = appendOnly;
-
-    if (seedBuffer) {
-        // Plain 'r' and 'r+' demand the file exist (MATLAB: "File must
-        // exist"). 'a' / 'a+' tolerate a missing target and start from
-        // an empty buffer.
-        const bool requireExisting = (mode == "r" || mode == "r+");
-        try {
-            if (r.fs->exists(r.path))
-                f.buffer = r.fs->readFile(r.path);
-            else if (requireExisting) {
-                lastFopenError_ = "No such file or directory";
-                return -1;
-            }
-        } catch (const std::exception &e) {
-            if (requireExisting) {
-                lastFopenError_ = e.what();
-                return -1;
-            }
-            f.buffer.clear();
-        }
-    }
-    if (truncate)
-        f.buffer.clear();
-    if (appendOnly)
-        f.cursor = f.buffer.size();
-
-    int fid = nextFid_++;
-    openFiles_.emplace(fid, std::move(f));
-    return fid;
-}
-
-bool Engine::closeFile(int fid)
-{
-    auto it = openFiles_.find(fid);
-    if (it == openFiles_.end())
-        return false;
-
-    bool ok = true;
-    // Always commit on close for write modes — MATLAB semantics require
-    // fopen('w')+fclose to leave an empty file behind, and 'a' should
-    // preserve existing content even when no fprintf happened.
-    if (it->second.forWrite) {
-        try {
-            it->second.fs->writeFile(it->second.path, it->second.buffer);
-        } catch (const std::exception &) {
-            ok = false;
-        }
-    }
-    openFiles_.erase(it);
-    return ok;
-}
-
-void Engine::closeAllFiles()
-{
-    // Flush every user fid; swallow individual failures — the caller is
-    // typically a destructor or a `fclose('all')` where partial success
-    // shouldn't abort the rest.
-    std::vector<int> fids;
-    fids.reserve(openFiles_.size());
-    for (auto &kv : openFiles_)
-        fids.push_back(kv.first);
-    for (int fid : fids)
-        closeFile(fid);
-}
-
-Engine::OpenFile *Engine::findFile(int fid)
-{
-    auto it = openFiles_.find(fid);
-    return (it == openFiles_.end()) ? nullptr : &it->second;
-}
-
-std::vector<int> Engine::openFileIds() const
-{
-    std::vector<int> ids;
-    ids.reserve(openFiles_.size());
-    for (auto &kv : openFiles_)
-        ids.push_back(kv.first);
-    std::sort(ids.begin(), ids.end());
-    return ids;
-}
 
 } // namespace numkit

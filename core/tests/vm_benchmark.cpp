@@ -7,7 +7,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/vm.hpp>
 #include <chrono>
 #include <gtest/gtest.h>
@@ -18,7 +18,7 @@ using namespace numkit;
 class VMBenchmark : public ::testing::Test
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     Compiler compiler{engine};
     VM vm{engine};
 

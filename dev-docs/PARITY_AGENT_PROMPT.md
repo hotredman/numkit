@@ -69,9 +69,9 @@ Honest per-signature bulk-bench. **НЕ** реализовывать новые 
    (плоского `BUGS.md` больше нет — он расформирован в `bugs/`):
    - `bugs/<namespace>/<fn>.md` — самодостаточный repro (numkit output vs MATLAB
      R2025b), тег `Kind:` (`bug` / `stub` / `missing-output` / `missing-fn` /
-     `perf`), expected (MATLAB), actual (numkit), root cause (libs/ имя файла —
+     `perf`), expected (MATLAB), actual (numkit), root cause (toolboxes/ имя файла —
      или `core, area unknown`), `Status: 🔴 OPEN`;
-   - матчащий **`DISABLED_` gtest** в `libs/<ns>/tests/known_bugs_test.cpp`,
+   - матчащий **`DISABLED_` gtest** в `toolboxes/<ns>/tests/known_bugs_test.cpp`,
      утверждающий MATLAB-корректное поведение (found a bug → add a test);
    - строка в индексе `bugs/README.md` (+ обнови tally).
 
@@ -107,7 +107,7 @@ Honest per-signature bulk-bench. **НЕ** реализовывать новые 
 
 ## Правила (НЕ нарушать)
 
-- **libs/ only.** `core/` не трогать. Каждый core-баг → запись в `bugs/`
+- **toolboxes/ only.** `core/` не трогать. Каждый core-баг → запись в `bugs/`
   каталог (`Kind: bug`, root cause `core`), **не** фиксить без явного
   разрешения пользователя.
 - Если spec не работает с auto-параметрами — **НЕ** закрывать «OK по

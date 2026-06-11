@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 41),
-  `libs/signal/src/filter_design/analog_filters.cpp` (`impinvar`). Rewrote the
+  `toolboxes/signal/src/filter_design/analog_filters.cpp` (`impinvar`). Rewrote the
   whole partial-fraction → z-domain path to handle ANY pole multiplicity
   (distinct case reduces to the old formula and is unchanged). NO change to
   `builtin::residue` (kept residues inline — partial-fraction ORDER is
@@ -27,10 +27,10 @@
   `bz=[0 0.000452418709 0.0004093653765]`; quadruple `(s+1)⁴`; mixed
   `[1 2]/((s+1)²(s+2))` → `bz=[0 0.00904837418 -0.007408182207]`; distinct
   `1/((s+1)(s+2))` unchanged (regression).
-- Live guard: `libs/signal/tests/impinvar_test.cpp` (5 TEST_F) + flipped
+- Live guard: `toolboxes/signal/tests/impinvar_test.cpp` (5 TEST_F) + flipped
   `SignalKnownBug.ImpinvarRepeatedPoles` live. Parity:
   `tools/parity/specs/impinvar.json` strengthened with real bz/az fingerprints
-  (was numel-only; correctness=OK). Smoke: `libs/signal/tests/smoke/impinvar_smoke.m`.
+  (was numel-only; correctness=OK). Smoke: `toolboxes/signal/tests/smoke/impinvar_smoke.m`.
 
 ## Symptom
 `impinvar` (impulse-invariance analog→digital) gives the wrong **numerator**
@@ -85,6 +85,6 @@ vs MATLAB for double/triple poles.
   output order (low→high z^{-1}) already equals MATLAB's bz, so no reordering.
 
 ## References
-- `libs/signal/src/filter_design/analog_filters.cpp` (`impinvar`)
-- BLOCKER: `builtin::residue` repeated-pole gap (libs/builtin/.../polynomials)
+- `toolboxes/signal/src/filter_design/analog_filters.cpp` (`impinvar`)
+- BLOCKER: `builtin::residue` repeated-pole gap (toolboxes/builtin/.../polynomials)
 - MATLAB `doc impinvar`, `doc residue`

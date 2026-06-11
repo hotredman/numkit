@@ -32,5 +32,5 @@ Large; likely several separate items. File here as a known cluster; tackle
 Verify against MATLAB on small textbook problems.
 
 ## References
-- new files under `libs/optim/src/...`
+- new files under `toolboxes/optim/src/...`
 - MATLAB `doc fmincon`, `doc linprog`, `doc quadprog`, `doc fminunc`

@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 64),
-  `libs/linalg/src/vector_ops.cpp`. `crossCore` now keeps the integer class of
+  `toolboxes/linalg/src/vector_ops.cpp`. `crossCore` now keeps the integer class of
   integer operands using MATLAB's **per-operation saturating integer
   arithmetic** (`crossIntegerSaturating`): each element product saturates to
   the int range BEFORE the component subtraction, and the subtraction
@@ -24,10 +24,10 @@
   `cross(uint8([1 2 3]),uint8([4 5 6]))`=uint8 [0 6 0] (negatives clamp to 0);
   `cross(int8([1 2 3]),[4 5 6])`=int8 [-3 6 -3] (int + double); int16
   [-300 600 -300]; Nx3 layout; double*double unchanged [0 0 1].
-- Live guard: `libs/linalg/tests/cross_integer_class_test.cpp` (6 TEST_F) +
+- Live guard: `toolboxes/linalg/tests/cross_integer_class_test.cpp` (6 TEST_F) +
   `LinalgKnownBug.CrossIntegerClass` (flipped live). Parity:
   `tools/parity/specs/cross_integer_class.json` (correctness=OK). Smoke:
-  `libs/linalg/tests/smoke/cross_integer_class_smoke.m`.
+  `toolboxes/linalg/tests/smoke/cross_integer_class_smoke.m`.
 
 ## Symptom
 `cross` threw "Not a double array" whenever either operand was an integer
@@ -44,7 +44,7 @@ cross(int8([1 2 3]), [4 5 6])                  % MATLAB: int8 [-3 6 -3] (int + d
 ```
 
 ## Root cause
-`libs/linalg/src/vector_ops.cpp` `crossCore` (real path) read its operands
+`toolboxes/linalg/src/vector_ops.cpp` `crossCore` (real path) read its operands
 via `a.doubleData()` / `b.doubleData()`, which throw on non-`DOUBLE` storage,
 and always allocated a DOUBLE result.
 
@@ -62,10 +62,10 @@ saturates per operation to match.
   lenient (cf. `dot`, `deconv` na>nb edge). Not fingerprinted.
 
 ## Guard
-`libs/linalg/tests/known_bugs_test.cpp` → `LinalgKnownBug.CrossIntegerClass`
+`toolboxes/linalg/tests/known_bugs_test.cpp` → `LinalgKnownBug.CrossIntegerClass`
 (live) plus the dedicated `cross_integer_class_test.cpp`.
 
 ## References
-- `libs/linalg/src/vector_ops.cpp` (`crossCore`, `crossIntegerClass`,
+- `toolboxes/linalg/src/vector_ops.cpp` (`crossCore`, `crossIntegerClass`,
   `crossIntegerSaturating`, `intTypeRange`, `narrowKronToInteger`)
 - MATLAB `doc cross` + integer-class saturating arithmetic
