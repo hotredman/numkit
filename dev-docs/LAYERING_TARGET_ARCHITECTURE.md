@@ -212,11 +212,21 @@ re-layering); G is the risky enforcement step.
   csv/extras `*FromString`.
 - **A. ✅ DONE (ddfb1e38)** `core-libs → runtime` rename: dir, ns
   `numkit::corelibs → numkit::runtime`, `NUMKIT_CORELIBS_* → NUMKIT_RUNTIME_*`.
-- **B. ✅ DONE (B0/B1/B2a)** FsContext: B0 branding→fs (41a0dbd7); B1 extracted
+- **B. ✅ DONE (B0/B1/B1c/B2a)** FsContext: B0 branding→fs (41a0dbd7); B1 extracted
   `fs::FsContext` + Engine delegates (f23ee5fc); B2a io VFS-wrappers (csv/extras/
   paths + Engine::fsContext()) take `FsContext&` not `Engine&` (f2a172c6, 5df57ba7,
-  f24c8928). `type`/`fileio` legitimately stay `Engine&`. B2b (io TUs truly
-  core-free = move in-TU `_reg` adapters to bundle) folded into **F**.
+  f24c8928). **B1c (da51aadd): the fopen-family file-handle table** (struct
+  OpenFile + openFiles_/nextFid_/lastFopenError_ + openFile/closeFile/
+  closeAllFiles/findFile/openFileIds) **moved out of Engine onto FsContext** —
+  STL-only, reuses FsContext::resolvePath + VirtualFS r/w; Engine keeps inline
+  forwarders + `using OpenFile = FsContext::OpenFile` so consumers compile
+  unchanged. **All VFS / file-handle / cwd / script-origin STATE now lives in
+  FsContext** (Engine retains only the legitimately-Engine `mPath_` m-file
+  search path); the line-39 criterion ("stateful fopen-family Engine-free iff
+  its handle table lives in FsContext") is now MET. `type`/`fileio` builtin
+  *signatures* still take `Engine&`; B2b (io TUs truly core-free = file builtins
+  take `FsContext&`, move in-TU `_reg` adapters to bundle — the integral
+  pattern) folded into **F**.
 - **C. `builtin → math + lang`** out of `toolboxes/` (decision LOCKED 2026-06-09:
   full rename, ns `numkit::builtin → numkit::{math,lang}`, headers
   `<numkit/builtin/...>` → `<numkit/{math,lang}/...>`). **Per-TU map** (mirrors the
