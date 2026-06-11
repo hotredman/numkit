@@ -17,6 +17,7 @@
 #include <numkit/fs/branding.hpp>   // envGet / envVarName (NUMKIT_FS / NUMKIT_CWD)
 #include <numkit/fs/vfs.hpp>        // VirtualFS
 
+#include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -84,6 +85,43 @@ public:
     // unavailable. (The Engine rethrows these as numkit::Error.)
     ResolvedPath resolvePath(const std::string &userPath) const;
 
+    // ── MATLAB-style file descriptor table ────────────────────
+    //
+    // fopen / fclose / fprintf(fid, …) machinery. File IDs 0, 1, 2 are
+    // reserved for stdin/stdout/stderr (the fprintf builtin routes 1/2 to the
+    // engine output sink); user files get 3, 4, … from nextFid_. For 'r' the
+    // file is read into `buffer` on open and `cursor` advances as reading
+    // builtins consume it; for 'w' `buffer` accumulates fprintf output and is
+    // flushed via VirtualFS::writeFile on fclose; 'a' is 'w' seeded with the
+    // existing content. All writes are buffered in memory until close — the
+    // sync-mirror VirtualFS can't do partial writes efficiently, and MATLAB
+    // only guarantees visibility on close. Lives here (fs/, L0) so the
+    // stateful fopen-family is Engine-free; the Engine forwards to it.
+    struct OpenFile
+    {
+        std::string path;
+        std::string mode;
+        VirtualFS *fs = nullptr;
+        std::string buffer;
+        std::size_t cursor = 0;
+        // forRead and forWrite can BOTH be true ('r+'/'w+'/'a+'). appendOnly
+        // snaps the cursor to end-of-buffer before each write ('a'/'a+').
+        bool forRead = false;
+        bool forWrite = false;
+        bool appendOnly = false;
+        // Last soft-failure text for ferror(fid); cleared by ferror(fid,'clear').
+        std::string lastError;
+    };
+
+    int openFile(const std::string &userPath, const std::string &mode);
+    bool closeFile(int fid);
+    void closeAllFiles();
+    OpenFile *findFile(int fid);
+    // Sorted list of user-opened fids (>= 3). Powers `fopen('all')`.
+    std::vector<int> openFileIds() const;
+    // Error text from the most recent openFile() call ([fid, errmsg] = fopen).
+    const std::string &lastFopenError() const { return lastFopenError_; }
+
 private:
     std::unordered_map<std::string, std::unique_ptr<VirtualFS>> virtualFs_;
     struct ScriptOriginEntry
@@ -93,6 +131,12 @@ private:
     };
     std::vector<ScriptOriginEntry> scriptOriginStack_;
     std::string cwd_;
+
+    // open-file table (see OpenFile above) — the fopen-family state, moved
+    // out of the Engine so the stateful file builtins are Engine-free.
+    std::unordered_map<int, OpenFile> openFiles_;
+    int nextFid_ = 3;
+    std::string lastFopenError_;
 };
 
 } // namespace numkit

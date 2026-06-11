@@ -562,46 +562,19 @@ public:
 
     // ── MATLAB-style file descriptor table ────────────────────
     //
-    // fopen / fclose / fprintf(fid, …) machinery. File IDs 0, 1, 2 are
-    // reserved for stdin/stdout/stderr (fprintf to 1 or 2 routes to
-    // outputText()); user files get 3, 4, … from nextFid_.
-    //
-    // For 'r': the file is read into `buffer` on open; `cursor` advances
-    // as reading builtins consume it. For 'w': `buffer` accumulates
-    // fprintf output and is flushed via fs->writeFile() on fclose. 'a'
-    // is 'w' seeded with the file's existing content. All writes are
-    // buffered in memory until close — the sync-mirror VirtualFS can't
-    // support partial writes efficiently, and MATLAB's semantics only
-    // guarantee visibility on close anyway.
-    struct OpenFile
-    {
-        std::string path;
-        std::string mode;
-        VirtualFS *fs = nullptr;
-        std::string buffer;
-        size_t cursor = 0;
-        // Permission flags — forRead and forWrite can BOTH be true for
-        // 'r+' / 'w+' / 'a+' combined modes. forWrite with appendOnly
-        // means every fprintf/fwrite snaps the cursor to end-of-buffer
-        // before writing, matching MATLAB's 'a' / 'a+' semantics.
-        bool forRead = false;
-        bool forWrite = false;
-        bool appendOnly = false;
-        // Last soft-failure text for MATLAB's ferror(fid). Populated by
-        // fread on short reads, fgetl/fgets/fscanf on EOF, etc. Cleared
-        // by ferror(fid, 'clear'). Hard failures still throw Error.
-        std::string lastError;
-    };
-
-    int openFile(const std::string &userPath, const std::string &mode);
-    bool closeFile(int fid);
-    void closeAllFiles();
-    OpenFile *findFile(int fid);
-    // Sorted list of user-opened fids (>= 3). Powers `fopen('all')`.
-    std::vector<int> openFileIds() const;
-    // Error text from the most recent openFile() call. Empty string after
-    // a successful open. Powers MATLAB's `[fid, errmsg] = fopen(...)`.
-    const std::string &lastFopenError() const { return lastFopenError_; }
+    // The fopen / fclose / fprintf(fid, …) state + machinery now live on
+    // FsContext (fs/, L0) so the stateful fopen-family is Engine-free; the
+    // methods below forward to fsCtx_. `OpenFile` is aliased here so existing
+    // callers keep writing `Engine::OpenFile`. fids 0/1/2 are still routed to
+    // outputText() by the fprintf builtin, not by this table.
+    using OpenFile = FsContext::OpenFile;
+    int openFile(const std::string &userPath, const std::string &mode)
+    { return fsCtx_.openFile(userPath, mode); }
+    bool closeFile(int fid) { return fsCtx_.closeFile(fid); }
+    void closeAllFiles() { fsCtx_.closeAllFiles(); }
+    OpenFile *findFile(int fid) { return fsCtx_.findFile(fid); }
+    std::vector<int> openFileIds() const { return fsCtx_.openFileIds(); }
+    const std::string &lastFopenError() const { return fsCtx_.lastFopenError(); }
 
 private:
     std::pmr::memory_resource *mr_;  // not owned; caller-supplied or get_default_resource()
@@ -728,11 +701,6 @@ private:
     // delegating wrappers in engine.cpp). Owned by value — FsContext is
     // STL-only (fs/, L0).
     FsContext fsCtx_;
-
-    // MATLAB-style open-file table
-    std::unordered_map<int, OpenFile> openFiles_;
-    int nextFid_ = 3;
-    std::string lastFopenError_;
 
 public:
     void markClearAll() { clearAllCalled_ = true; }

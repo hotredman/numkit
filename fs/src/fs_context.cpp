@@ -6,6 +6,7 @@
 // numkit::Error to preserve the MATLAB-visible error type.
 #include <numkit/fs/fs_context.hpp>
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -151,6 +152,129 @@ FsContext::ResolvedPath FsContext::resolvePath(const std::string &userPath) cons
     }
 
     return {fs, path};
+}
+
+// ── MATLAB-style file descriptor table ─────────────────────────
+
+int FsContext::openFile(const std::string &userPath, const std::string &modeRaw)
+{
+    lastFopenError_.clear();
+
+    // Strip Windows-style 't'/'b' suffix ("rt", "wb"). The underlying
+    // buffer is bytes anyway; we don't do CRLF translation.
+    std::string mode = modeRaw;
+    while (!mode.empty() && (mode.back() == 't' || mode.back() == 'b'))
+        mode.pop_back();
+
+    // Accept the six MATLAB modes. 'r+'/'w+'/'a+' grant both read and
+    // write permission; the base letter still governs seed/truncate/
+    // append behaviour.
+    bool canRead = false, canWrite = false, appendOnly = false, truncate = false, seedBuffer = false;
+    if      (mode == "r")  { canRead = true;  seedBuffer = true; }
+    else if (mode == "w")  { canWrite = true; truncate = true; }
+    else if (mode == "a")  { canWrite = true; appendOnly = true; seedBuffer = true; }
+    else if (mode == "r+") { canRead = true;  canWrite = true; seedBuffer = true; }
+    else if (mode == "w+") { canRead = true;  canWrite = true; truncate = true; }
+    else if (mode == "a+") { canRead = true;  canWrite = true; appendOnly = true; seedBuffer = true; }
+    else {
+        lastFopenError_ = "Invalid permission specified";
+        return -1;
+    }
+
+    ResolvedPath r;
+    try {
+        r = resolvePath(userPath);
+    } catch (const std::exception &e) {
+        lastFopenError_ = e.what();
+        return -1;
+    }
+
+    OpenFile f;
+    f.path = r.path;
+    f.mode = mode;
+    f.fs = r.fs;
+    f.forRead = canRead;
+    f.forWrite = canWrite;
+    f.appendOnly = appendOnly;
+
+    if (seedBuffer) {
+        // Plain 'r' and 'r+' demand the file exist (MATLAB: "File must
+        // exist"). 'a' / 'a+' tolerate a missing target and start from
+        // an empty buffer.
+        const bool requireExisting = (mode == "r" || mode == "r+");
+        try {
+            if (r.fs->exists(r.path))
+                f.buffer = r.fs->readFile(r.path);
+            else if (requireExisting) {
+                lastFopenError_ = "No such file or directory";
+                return -1;
+            }
+        } catch (const std::exception &e) {
+            if (requireExisting) {
+                lastFopenError_ = e.what();
+                return -1;
+            }
+            f.buffer.clear();
+        }
+    }
+    if (truncate)
+        f.buffer.clear();
+    if (appendOnly)
+        f.cursor = f.buffer.size();
+
+    int fid = nextFid_++;
+    openFiles_.emplace(fid, std::move(f));
+    return fid;
+}
+
+bool FsContext::closeFile(int fid)
+{
+    auto it = openFiles_.find(fid);
+    if (it == openFiles_.end())
+        return false;
+
+    bool ok = true;
+    // Always commit on close for write modes — MATLAB semantics require
+    // fopen('w')+fclose to leave an empty file behind, and 'a' should
+    // preserve existing content even when no fprintf happened.
+    if (it->second.forWrite) {
+        try {
+            it->second.fs->writeFile(it->second.path, it->second.buffer);
+        } catch (const std::exception &) {
+            ok = false;
+        }
+    }
+    openFiles_.erase(it);
+    return ok;
+}
+
+void FsContext::closeAllFiles()
+{
+    // Flush every user fid; swallow individual failures — the caller is
+    // typically a destructor or a `fclose('all')` where partial success
+    // shouldn't abort the rest.
+    std::vector<int> fids;
+    fids.reserve(openFiles_.size());
+    for (auto &kv : openFiles_)
+        fids.push_back(kv.first);
+    for (int fid : fids)
+        closeFile(fid);
+}
+
+FsContext::OpenFile *FsContext::findFile(int fid)
+{
+    auto it = openFiles_.find(fid);
+    return (it == openFiles_.end()) ? nullptr : &it->second;
+}
+
+std::vector<int> FsContext::openFileIds() const
+{
+    std::vector<int> ids;
+    ids.reserve(openFiles_.size());
+    for (auto &kv : openFiles_)
+        ids.push_back(kv.first);
+    std::sort(ids.begin(), ids.end());
+    return ids;
 }
 
 } // namespace numkit
