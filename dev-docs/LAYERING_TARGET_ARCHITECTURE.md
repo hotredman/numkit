@@ -486,12 +486,11 @@ Order is adjustable; A and B are the safest first real steps.
 Orthogonal to the A–H phases (all done); deferred out of the +188 layering branch
 to keep its diff semantic + reviewable.
 
-- **`src/` root restructure (DECIDED 2026-06-11, with the user).** The repo root
-  mixes the 9 layer libraries (value / fs / ops / core / math / lang / runtime /
-  toolboxes / bundle) with auxiliary content (brand / bugs / cmake / dev-docs /
-  docs / examples / ide / scripts / third_party / tools). Move the **9 libs into
-  `src/`** (Model 1, chosen over `cpp/`-holds-all-C++); `tests/ benchmarks/
-  wasm/ ide/` + aux stay at root. **Pure mechanical `git mv`** — every
+- **`src/` root restructure — ✅ DONE (`d7e54b1f`, 2026-06-11).** The 9 layer
+  libraries (value / fs / ops / core / math / lang / runtime / toolboxes /
+  bundle) moved into `src/` (Model 1, chosen over `cpp/`-holds-all-C++);
+  `tests/ benchmarks/ wasm/ ide/` + aux (brand/bugs/cmake/dev-docs/docs/
+  examples/scripts/third_party/tools) stay at root. **Pure mechanical `git mv`** — every
   `#include <numkit/...>` is logical (resolved through a `-I`), so NO source
   edits; only path refs change: root `CMakeLists.txt` (9× `add_subdirectory` +
   the ~6 absolute `${CMAKE_CURRENT_SOURCE_DIR}/<layer>/src` include roots +
