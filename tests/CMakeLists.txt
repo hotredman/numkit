@@ -10,4 +10,5 @@
 # mental model — perf vs correctness, different cadence and output).
 
 add_subdirectory(gtest)
+add_subdirectory(${CMAKE_SOURCE_DIR}/tests/builtin ${CMAKE_BINARY_DIR}/tests/builtin_funcs)
 add_subdirectory(smoke)

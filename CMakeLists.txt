@@ -230,7 +230,6 @@ target_include_directories(numkit
         # (e.g. "transforms/backends/fft_r2_simd.cpp", relative to toolboxes/<lib>/src/).
         # TODO: formalize the helpers.hpp leak as public "detail/" headers
         #       or a common utility lib.
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src
         # math/ relocated from builtin (Phase 3-A step C) — same role: shared
         # math helpers + the Highway HWY_TARGET_INCLUDE resolution root for the
         # relocated SIMD backends under math/src/<area>/.
@@ -316,7 +315,6 @@ endif()
 function(numkit_configure_layer tgt)
     target_compile_features(${tgt} PRIVATE cxx_std_17)
     target_include_directories(${tgt} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/builtin/src
         ${CMAKE_CURRENT_SOURCE_DIR}/math/src
         ${CMAKE_CURRENT_SOURCE_DIR}/lang/src
         ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
@@ -395,7 +393,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(core/tests)
-    foreach(_test_lib builtin linalg signal stats graphics wavelet comm control image audio graph optim ode io)
+    foreach(_test_lib linalg signal stats graphics wavelet comm control image audio graph optim ode io)
         if(EXISTS ${CMAKE_SOURCE_DIR}/toolboxes/${_test_lib}/tests/CMakeLists.txt)
             add_subdirectory(toolboxes/${_test_lib}/tests)
         endif()
