@@ -24,16 +24,17 @@ OUTPUT_LANGUAGE        = English
 # Only the public include trees of each lib. Implementation .cpp files
 # under toolboxes/*/src are excluded (they're not user-facing API).
 INPUT                  = docs/doxygen_mainpage.dox \
-                         toolboxes/audio/include    \
-                         toolboxes/image/include    \
-                         toolboxes/signal/include   \
-                         toolboxes/stats/include    \
-                         toolboxes/builtin/include  \
-                         toolboxes/wavelet/include  \
-                         toolboxes/control/include  \
-                         toolboxes/comm/include     \
-                         toolboxes/graphics/include \
-                         toolboxes/io/include
+                         src/math/include               \
+                         src/lang/include               \
+                         src/toolboxes/audio/include    \
+                         src/toolboxes/image/include    \
+                         src/toolboxes/signal/include   \
+                         src/toolboxes/stats/include    \
+                         src/toolboxes/wavelet/include  \
+                         src/toolboxes/control/include  \
+                         src/toolboxes/comm/include     \
+                         src/toolboxes/graphics/include \
+                         src/toolboxes/io/include
 FILE_PATTERNS          = *.hpp *.h *.dox
 RECURSIVE              = YES
 EXCLUDE                = build build-* .claude

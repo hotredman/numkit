@@ -66,13 +66,13 @@ ALLOWED = {
 
 # Layer -> directories scanned (relative to repo root).
 LAYER_DIRS = {
-    "value": ["value"],
-    "fs":    ["fs"],
-    "ops":   ["ops"],
-    "core":  ["core"],
-    "math":  ["math"],
-    "lang":  ["lang"],
-    "toolboxes": ["toolboxes"],
+    "value": ["src/value"],
+    "fs":    ["src/fs"],
+    "ops":   ["src/ops"],
+    "core":  ["src/core"],
+    "math":  ["src/math"],
+    "lang":  ["src/lang"],
+    "toolboxes": ["src/toolboxes"],
 }
 
 INCLUDE_RE = re.compile(r'#\s*include\s*<numkit/([a-zA-Z0-9_]+)/')
@@ -102,7 +102,7 @@ def scan(repo: Path) -> list[str]:
     # Sibling toolbox names — a toolbox may depend on another toolbox's compute
     # (all L2 peers), so they're allowed includes; discovered here rather than
     # hard-coded in ALLOWED.
-    tb_root = repo / "toolboxes"
+    tb_root = repo / "src" / "toolboxes"
     toolbox_names = {p.name for p in tb_root.iterdir() if p.is_dir()} if tb_root.is_dir() else set()
     for layer, dirs in LAYER_DIRS.items():
         allowed = ALLOWED[layer]

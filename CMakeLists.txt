@@ -122,15 +122,15 @@ endif()
 # Each lib has its own toolboxes/<name>/CMakeLists.txt for per-lib worker
 # ownership (see dev-docs/COORDINATION.md).
 
-add_subdirectory(value)   # L0:   Value substrate (numkit_value) — STL-only
-add_subdirectory(fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
-add_subdirectory(ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
-add_subdirectory(core)
-add_subdirectory(math)    # L2: MATLAB Mathematics compute (numkit math) — extracted from builtin (Phase 3-A step C)
-add_subdirectory(lang)    # L2: MATLAB Language Fundamentals compute (numkit lang) — extracted from builtin (Phase 3-A step C2)
-add_subdirectory(toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
-add_subdirectory(runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
-add_subdirectory(bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
+add_subdirectory(src/value)   # L0:   Value substrate (numkit_value) — STL-only
+add_subdirectory(src/fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
+add_subdirectory(src/ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
+add_subdirectory(src/core)
+add_subdirectory(src/math)    # L2: MATLAB Mathematics compute (numkit math) — extracted from builtin (Phase 3-A step C)
+add_subdirectory(src/lang)    # L2: MATLAB Language Fundamentals compute (numkit lang) — extracted from builtin (Phase 3-A step C2)
+add_subdirectory(src/toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
+add_subdirectory(src/runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
+add_subdirectory(src/bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
 # G1 (target-split): every layer compiles as its own OBJECT library (numkit_<L>_obj,
 # defined at the end of this file once the dependency targets exist) carrying the
@@ -212,7 +212,7 @@ add_custom_target(numkit_build_info ALL
 add_dependencies(numkit numkit_build_info)
 target_include_directories(numkit PRIVATE "${NUMKIT_BUILD_INFO_DIR}")
 set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/bundle/src/version_string.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/bundle/src/version_string.cpp"
     PROPERTIES OBJECT_DEPENDS "${NUMKIT_BUILD_INFO_HEADER}"
 )
 
@@ -233,23 +233,23 @@ target_include_directories(numkit
         # math/ relocated from builtin (Phase 3-A step C) — same role: shared
         # math helpers + the Highway HWY_TARGET_INCLUDE resolution root for the
         # relocated SIMD backends under math/src/<area>/.
-        ${CMAKE_CURRENT_SOURCE_DIR}/math/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/math/src
         # lang/ relocated from builtin (Phase 3-A step C2) — same role: Highway
         # HWY_TARGET_INCLUDE resolution root for the relocated casts SIMD backend
         # under lang/src/types/.
-        ${CMAKE_CURRENT_SOURCE_DIR}/lang/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/signal/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/stats/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/io/src
         # C5: register adapters relocated to bundle/src/register/<T>/ keep their
         # area-own ("<subarea>/X_detail.hpp") includes resolvable via the toolbox
         # src root on the -I path.
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/image/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/comm/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/control/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/audio/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/wavelet/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/linalg/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/image/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/comm/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/control/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/audio/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/wavelet/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/linalg/src
         # Vendored single-header libs (stb_image, stb_image_write).
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
@@ -315,17 +315,17 @@ endif()
 function(numkit_configure_layer tgt)
     target_compile_features(${tgt} PRIVATE cxx_std_17)
     target_include_directories(${tgt} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/math/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/lang/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/signal/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/stats/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/io/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/image/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/comm/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/control/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/audio/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/wavelet/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/toolboxes/linalg/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/math/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/signal/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/stats/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/io/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/image/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/comm/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/control/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/audio/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/wavelet/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/linalg/src
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
         ${NUMKIT_BUILD_INFO_DIR})
     foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
@@ -392,10 +392,10 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # tests/smoke/). Per-component tests/ dirs contribute their gtest
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
-    add_subdirectory(core/tests)
+    add_subdirectory(src/core/tests)
     foreach(_test_lib linalg signal stats graphics wavelet comm control image audio graph optim ode io)
-        if(EXISTS ${CMAKE_SOURCE_DIR}/toolboxes/${_test_lib}/tests/CMakeLists.txt)
-            add_subdirectory(toolboxes/${_test_lib}/tests)
+        if(EXISTS ${CMAKE_SOURCE_DIR}/src/toolboxes/${_test_lib}/tests/CMakeLists.txt)
+            add_subdirectory(src/toolboxes/${_test_lib}/tests)
         endif()
     endforeach()
 endif()
