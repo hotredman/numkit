@@ -1,7 +1,6 @@
 // toolboxes/builtin/src/lang/operators/binary_ops.cpp
 
 #include <numkit/lang/operators/binary_ops.hpp>
-#include <numkit/builtin/library.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -424,34 +423,3 @@ Value logicalOr(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 // a thin wrapper over the existing public API.
 
 } // namespace numkit::lang
-
-// ════════════════════════════════════════════════════════════════════════
-// Registration — forward BinaryOpFunc closures to the public API
-// ════════════════════════════════════════════════════════════════════════
-
-namespace numkit {
-
-void BuiltinLibrary::registerBinaryOps(Engine &engine)
-{
-    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return numkit::lang::plus(a, b, engine.resource()); });
-    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return numkit::lang::minus(a, b, engine.resource()); });
-    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return numkit::lang::times(a, b, engine.resource()); });
-    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return numkit::lang::mtimes(a, b, engine.resource()); });
-    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return numkit::lang::rdivide(a, b, engine.resource()); });
-    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return numkit::lang::mrdivide(a, b, engine.resource()); });
-    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return numkit::lang::mldivide(a, b, engine.resource()); });
-    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return numkit::lang::power(a, b, engine.resource()); });
-    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return numkit::lang::elementPower(a, b, engine.resource()); });
-
-    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return numkit::lang::eq(a, b, engine.resource()); });
-    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return numkit::lang::ne(a, b, engine.resource()); });
-    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return numkit::lang::lt(a, b, engine.resource()); });
-    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return numkit::lang::gt(a, b, engine.resource()); });
-    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return numkit::lang::le(a, b, engine.resource()); });
-    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return numkit::lang::ge(a, b, engine.resource()); });
-
-    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return numkit::lang::logicalAnd(a, b, engine.resource()); });
-    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return numkit::lang::logicalOr(a, b, engine.resource()); });
-}
-
-} // namespace numkit

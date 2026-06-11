@@ -2,6 +2,7 @@
 #include <numkit/runtime/language/cells/cell.hpp>
 #include <numkit/runtime/language/structures/struct.hpp>
 #include <numkit/lang/operators/binary_ops.hpp>
+#include <numkit/lang/operators/unary_ops.hpp>
 #include <numkit/lang/types/types.hpp>
 #include <numkit/math/arithmetic/rounding.hpp>
 
@@ -758,7 +759,6 @@ void BuiltinLibrary::install(Engine &engine)
 {
     registerBinaryOps(engine);
     registerUnaryOps(engine);
-    registerContainers(engine); // dictionary + containers.Map (object model)
 
     registerWorkspaceBuiltins(engine);
 
@@ -4281,6 +4281,45 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     engine.registerFunction("isdatetime",        alwaysFalsePredicate);
     engine.registerFunction("isduration",        alwaysFalsePredicate);
     engine.registerFunction("iscalendarduration",alwaysFalsePredicate);
+}
+
+} // namespace numkit
+// ──────────────────────────────────────────────────────────────────────
+// Operator registration (relocated from lang/src/operators/ in C6c-2 so the
+// lang compute TUs stay free of the BuiltinLibrary / Engine dependency).
+// ──────────────────────────────────────────────────────────────────────
+namespace numkit {
+
+void BuiltinLibrary::registerBinaryOps(Engine &engine)
+{
+    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return numkit::lang::plus(a, b, engine.resource()); });
+    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return numkit::lang::minus(a, b, engine.resource()); });
+    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return numkit::lang::times(a, b, engine.resource()); });
+    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return numkit::lang::mtimes(a, b, engine.resource()); });
+    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return numkit::lang::rdivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return numkit::lang::mrdivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return numkit::lang::mldivide(a, b, engine.resource()); });
+    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return numkit::lang::power(a, b, engine.resource()); });
+    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return numkit::lang::elementPower(a, b, engine.resource()); });
+
+    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return numkit::lang::eq(a, b, engine.resource()); });
+    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return numkit::lang::ne(a, b, engine.resource()); });
+    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return numkit::lang::lt(a, b, engine.resource()); });
+    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return numkit::lang::gt(a, b, engine.resource()); });
+    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return numkit::lang::le(a, b, engine.resource()); });
+    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return numkit::lang::ge(a, b, engine.resource()); });
+
+    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return numkit::lang::logicalAnd(a, b, engine.resource()); });
+    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return numkit::lang::logicalOr(a, b, engine.resource()); });
+}
+
+void BuiltinLibrary::registerUnaryOps(Engine &engine)
+{
+    engine.registerUnaryOp("-",  [&engine](const Value &a) { return numkit::lang::uminus(a, engine.resource()); });
+    engine.registerUnaryOp("+",  [&engine](const Value &a) { return numkit::lang::uplus(a, engine.resource()); });
+    engine.registerUnaryOp("~",  [&engine](const Value &a) { return numkit::lang::logicalNot(a, engine.resource()); });
+    engine.registerUnaryOp("'",  [&engine](const Value &a) { return numkit::lang::ctranspose(a, engine.resource()); });
+    engine.registerUnaryOp(".'", [&engine](const Value &a) { return numkit::lang::transposeNC(a, engine.resource()); });
 }
 
 } // namespace numkit

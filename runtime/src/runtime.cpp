@@ -12,12 +12,14 @@ namespace numkit::runtime {
 void registerEvalFamily(Engine &engine);        // eval.cpp     — run / eval / evalin
 void registerWorkspaceRuntime(Engine &engine);  // workspace.cpp — assignin / inputname / …
 void registerFunctionHandles(Engine &engine);   // function_handles.cpp — str2func / func2str
+void registerContainersRuntime(Engine &engine);   // containers.cpp - dictionary / containers.Map
 
 void installRuntimeLibrary(Engine &engine)
 {
     registerEvalFamily(engine);
     registerWorkspaceRuntime(engine);
     registerFunctionHandles(engine);
+    registerContainersRuntime(engine);
 }
 
 } // namespace numkit::runtime
