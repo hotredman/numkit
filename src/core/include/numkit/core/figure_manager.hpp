@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <algorithm>
 
-#include <numkit/core/decimate.hpp>
+#include <numkit/ops/decimate.hpp>
 
 namespace numkit {
 

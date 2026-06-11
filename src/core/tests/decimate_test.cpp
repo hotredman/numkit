@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/core/decimate.hpp>
+#include <numkit/ops/decimate.hpp>
 
 #include <vector>
 #include <cmath>
