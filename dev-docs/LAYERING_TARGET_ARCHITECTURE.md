@@ -512,11 +512,11 @@ to keep its diff semantic + reviewable.
   value/fs/ops/core — it is Engine-coupled via the figureManager) and adds
   `graphics` to the toolbox allowed set (toolboxes→graphics OK, graphics→toolbox
   forbidden); negative-tested.
-- **FigureContext decoupling — (A) ✅ DONE + landed, (B) ⏳ PENDING (branch
-  `refactor/figure-context`, == main after A).** Goal: make `graphics` FULLY
-  core-free (the last core-coupled service) by pulling figure state out of the
-  Engine, mirroring FsContext. The user explicitly chose the full (A)+(B) over
-  leaving graphics a legit core-coupled service.
+- **FigureContext decoupling — (A) ✅ DONE + landed, (B) ✅ DONE (`adc073c9`).**
+  Goal: make `graphics` FULLY core-free (the last core-coupled service) by
+  pulling figure state out of the Engine, mirroring FsContext. The user
+  explicitly chose the full (A)+(B) over leaving graphics a legit core-coupled
+  service. **Both parts landed.**
   - **A0 (`69dab985`):** decimate kernel `core → ops` (it's a general numeric
     primitive used by signal/image/wavelet/figure; was figure_manager's only
     non-STL dep).
@@ -526,20 +526,34 @@ to keep its diff semantic + reviewable.
     Engine still owns one FigureManager (now from figure/) + wires its OutputFunc.
     Figure state is OUT of the Engine layer. check_layering.py pins `figure`;
     `figure` added to core's + graphics' allowed. **(A) landed on main.**
-  - **B (the 150-fn grind — multi-session, correctness-sensitive):** graphics'
-    **150 registration lambdas** in `src/graphics/src/library.cpp` use
-    `ctx.engine->` 149× (figureManager 116, resource 16, findExternal 11,
-    callFunctionHandle 6). Plan:
-    1. **B-setup:** a `GraphicsContext { FigureManager&, std::pmr::memory_resource*,
-       <resolver for findExternal/callFunctionHandle> }`; graphics' `reg`/`regCore`
-       build a `{sub,name,GraphicsFn}` TABLE (core-free) instead of registering
-       directly; a **bundle** loop registers each via a CallContext→GraphicsContext
-       adapter (`ctx.engine->figureManager()`/`resource()`/resolver).
-    2. **B1..Bn:** convert the 150 lambdas to take `GraphicsContext& gc`; bodies
-       `ctx.engine->X` → `gc.X` (mechanical), batched by sub-namespace (layout 58,
-       bar 28, line 27, polar 15, surface 14, + contour/image/regCore).
-    3. **B-fin:** graphics core-free → check_layering.py drop `core` from graphics'
-       allowed → `{value,fs,ops,figure,graphics}`.
+  - **B (`adc073c9`) — graphics core-free via GraphicsContext.** Graphics' 150
+    plotting bodies used `ctx.engine->` 149× (figureManager 116, resource 16,
+    findExternal 11, callFunctionHandle 6). What landed:
+    - **`graphics/graphics_context.hpp` (NEW, core-free):** `GraphicsContext
+      { FigureManager& fm; std::pmr::memory_resource* mr; callBuiltin(name,args,
+      nargout,outs)→bool; callHandle(fh,args)→Value }` + `GraphicsFn` typedef +
+      `PlotEntry{sub,name,core,fn}` + `buildPlotTable()` decl. The two escape
+      hatches (callBuiltin = forward to a registered plot builtin by name;
+      callHandle = eval a user @(x)) replace the findExternal/callFunctionHandle
+      Engine reach-backs. Includes value + figure + STL only.
+    - **`plots.cpp` (NEW, scanned core-free):** the 150 bodies moved out of
+      library.cpp, converted CallContext→GraphicsContext (figureManager→`gc.fm`,
+      resource→`gc.mr`, 11 findExternal→`gc.callBuiltin`, 6 callFunctionHandle→
+      `gc.callHandle`); `buildPlotTable()` collects them into the table.
+    - **`library.cpp` (rewritten, the lone Engine-coupled graphics TU):** iterates
+      the table, wraps each `GraphicsFn` in ONE generic CallContext→GraphicsContext
+      adapter (binds fm/mr, closes callBuiltin/callHandle over the live ctx),
+      registers graphics.<sub>.<name> + compat + (core). **NB: deviation from the
+      original plan** — the install loop + adapter live in graphics' own
+      library.cpp (exempt, exactly like a toolbox `library.cpp` installer), NOT a
+      bundle loop; graphics has one uniform adapter, so no per-fn `_reg` bridges
+      and nothing to relocate to bundle. `library.hpp` made core-free
+      (forward-declares Engine).
+    - **B-fin:** check_layering.py graphics ALLOWED → `{value,fs,ops,figure,
+      graphics}` (dropped `core`); graphics' `library.{cpp,hpp}` joins the toolbox
+      installer per-file exemption. Negative-tested (a core include in plots.cpp
+      fails the guard). Validated: desktop-fast 11657 / portable 11651 /
+      browser-WASM compiles; all green.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
