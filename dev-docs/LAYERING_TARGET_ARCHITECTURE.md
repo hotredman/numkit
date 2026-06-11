@@ -500,6 +500,18 @@ to keep its diff semantic + reviewable.
   (all relative to `CMAKE_CURRENT_SOURCE_DIR`). **Its own coordinated branch** —
   9 top-level `git mv`s are a huge shared surface; freeze the ide/lib worktrees
   and land together (COORDINATION.md). Build is the detector.
+- **`graphics` promoted to a service layer — ✅ DONE (`c866983d`, 2026-06-12).**
+  `src/toolboxes/graphics` → `src/graphics`: graphics (figure/plot/imshow/…) is a
+  plotting SERVICE, not a numerical peer — toolboxes MAY depend on it (to draw
+  results, as MATLAB freqz/spectrogram/histogram do), and it depends on NO
+  toolbox. DAG order: …math/lang → **graphics** → toolboxes. The one
+  graphics→toolbox edge (imshow's file-decode via `numkit::image::imread`) was
+  broken by resolving `imread` through a by-name function handle
+  (`Value::funcHandle("imread")` + `engine.callFunctionHandle`) at call time — no
+  `<numkit/image/…>` include. check_layering.py now pins `graphics` (allowed
+  value/fs/ops/core — it is Engine-coupled via the figureManager) and adds
+  `graphics` to the toolbox allowed set (toolboxes→graphics OK, graphics→toolbox
+  forbidden); negative-tested.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
