@@ -430,10 +430,15 @@ re-layering); G is the risky enforcement step.
   executables call several post-C4-renamed functions with stale signatures/namespaces
   (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`, …); they only build on bench* presets
   and need an API-update pass — orthogonal to the split (the library is green everywhere).
-- **H. ✅ DONE (2026-06-10, `d3d25e65`).** Extended check_layering.py to pin the
-  math/ and lang/ compute layers: they must not include core/runtime/toolbox
-  headers (the `*_reg.cpp` glue is exempt; `builtin` transitionally allowed). Locks
-  in the C4 split. Passes clean; negative-tested. (§6.1)
+- **H. ✅ DONE (2026-06-10, `d3d25e65`; toolbox pin `97932262`).** Extended
+  check_layering.py to pin the math/ and lang/ compute layers: they must not
+  include core/runtime/toolbox headers (the `*_reg.cpp` glue is exempt; `builtin`
+  transitionally allowed). Locks in the C4 split. **Toolbox pin (97932262):** now
+  also pins every `toolboxes/*` compute TU core/runtime-free — allowed = value/fs/
+  ops/math/lang/builtin + sibling toolboxes; exempt = each `library.{cpp,hpp}`
+  installer + `io/src/text/type.cpp` (engine.outputText) + the whole `graph`
+  toolbox (AST/lowering infra). Locks in this session's "all toolbox compute
+  Engine-free" result. Passes clean; negative-tested. (§6.1)
 
 Order is adjustable; A and B are the safest first real steps.
 
