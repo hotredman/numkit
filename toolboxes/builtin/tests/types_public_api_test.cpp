@@ -2,7 +2,7 @@
 //
 // Direct-call tests for numkit::builtin type functions.
 
-#include <numkit/builtin/language/types/types.hpp>
+#include <numkit/lang/types/types.hpp>
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>

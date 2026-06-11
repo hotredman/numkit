@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/math/elementary/polynomials.cpp
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -9,7 +9,7 @@
 #include "helpers.hpp"
 #include "poly_helpers.hpp"
 
-#include <numkit/builtin/language/arrays/matrix.hpp>  // poly_of_matrix
+#include <numkit/lang/arrays/matrix.hpp>  // poly_of_matrix
 
 #include <cmath>
 #include <cstring>

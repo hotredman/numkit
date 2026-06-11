@@ -4,7 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/math/special/special.hpp>   // gammainc (used by gamfit_full)
+#include <numkit/math/special/special.hpp>   // gammainc (used by gamfit_full)
 #include <numkit/stats/distributions/beta.hpp>
 #include <numkit/stats/distributions/extreme_value.hpp>
 #include <numkit/stats/distributions/gamma_dist.hpp>

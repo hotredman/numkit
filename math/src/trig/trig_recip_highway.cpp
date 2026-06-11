@@ -17,7 +17,7 @@
 // family fell back to scalar libm). Parity vs MATLAB R2025b verified
 // at ULP <= 1e-10 for the test domains.
 
-#include <numkit/builtin/math/trig/trigonometry.hpp>
+#include <numkit/math/trig/trigonometry.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/ops/parallel_for.hpp>

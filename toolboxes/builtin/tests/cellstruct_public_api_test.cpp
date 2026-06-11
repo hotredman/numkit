@@ -2,8 +2,8 @@
 //
 // Direct-call tests for numkit::builtin cell/struct functions.
 
-#include <numkit/builtin/language/cells/cell.hpp>
-#include <numkit/builtin/language/structures/struct.hpp>
+#include <numkit/runtime/language/cells/cell.hpp>
+#include <numkit/runtime/language/structures/struct.hpp>
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>

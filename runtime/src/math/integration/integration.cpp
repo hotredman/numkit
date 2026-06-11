@@ -6,7 +6,7 @@
 //   - integral             — adaptive Gauss-Kronrod definite integral
 // fzero lives in math/optim/fzero.cpp (uses the same callback helper).
 
-#include <numkit/builtin/math/integration/integration.hpp>
+#include <numkit/runtime/math/integration/integration.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>

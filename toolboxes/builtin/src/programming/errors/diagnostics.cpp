@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/programming/errors/diagnostics.cpp
 
 #include <numkit/builtin/programming/errors/diagnostics.hpp>
-#include <numkit/builtin/language/strings/format.hpp>
+#include <numkit/lang/strings/format.hpp>
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/value/value.hpp>

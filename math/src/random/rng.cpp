@@ -5,7 +5,7 @@
 // re-exports the ops:: generators into numkit::builtin so the unqualified calls
 // below resolve.
 
-#include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/math/random/rng.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

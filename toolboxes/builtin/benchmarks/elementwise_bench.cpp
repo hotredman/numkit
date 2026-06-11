@@ -6,9 +6,9 @@
 // should cluster within a factor of 2 across the family; any big
 // outlier on the baseline is worth investigating before Highway work.
 
-#include <numkit/builtin/math/exp_log/exponents.hpp>
-#include <numkit/builtin/math/arithmetic/rounding.hpp>
-#include <numkit/builtin/math/trig/trigonometry.hpp>
+#include <numkit/math/exp_log/exponents.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>
+#include <numkit/math/trig/trigonometry.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>

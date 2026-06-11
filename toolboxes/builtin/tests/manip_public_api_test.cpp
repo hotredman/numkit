@@ -5,7 +5,7 @@
 // (variadic subscripts via Span) and ind2sub (multi-output via
 // std::vector). Calls the public functions directly (not via the engine).
 
-#include <numkit/builtin/language/arrays/manip.hpp>
+#include <numkit/lang/arrays/manip.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <vector>

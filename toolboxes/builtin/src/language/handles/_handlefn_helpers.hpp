@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include <numkit/builtin/math/arithmetic/reductions.hpp>   // sum / prod / mean
-#include <numkit/builtin/language/arrays/matrix.hpp>  // length / ndims
+#include <numkit/math/arithmetic/reductions.hpp>   // sum / prod / mean
+#include <numkit/lang/arrays/matrix.hpp>  // length / ndims
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>

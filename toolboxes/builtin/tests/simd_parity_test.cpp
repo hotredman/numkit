@@ -12,11 +12,11 @@
 // identically). Transcendentals added in later phases will use an
 // ULP budget instead.
 
-#include <numkit/builtin/language/operators/binary_ops.hpp>
-#include <numkit/builtin/math/exp_log/exponents.hpp>
-#include <numkit/builtin/math/arithmetic/rounding.hpp>
-#include <numkit/builtin/math/trig/trigonometry.hpp>
-#include <numkit/builtin/math/special/special.hpp>
+#include <numkit/lang/operators/binary_ops.hpp>
+#include <numkit/math/exp_log/exponents.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>
+#include <numkit/math/trig/trigonometry.hpp>
+#include <numkit/math/special/special.hpp>
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>

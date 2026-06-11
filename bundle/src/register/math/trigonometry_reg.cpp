@@ -5,8 +5,8 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/arithmetic/misc.hpp>          // hypot decl
-#include <numkit/builtin/math/trig/trigonometry.hpp>
+#include <numkit/math/arithmetic/misc.hpp>          // hypot decl
+#include <numkit/math/trig/trigonometry.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "_unary_hint.hpp"   // 3-arg sin/cos hint overloads

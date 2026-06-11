@@ -2,7 +2,7 @@
 //
 // Process-environment builtins (setenv / getenv).
 
-#include <numkit/builtin/language/commands/env.hpp>
+#include <numkit/runtime/language/commands/env.hpp>
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/fs/branding.hpp>     // for envGet

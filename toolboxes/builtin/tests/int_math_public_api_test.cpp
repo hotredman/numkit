@@ -5,7 +5,7 @@
 // latter now takes its optional value as const Value& = Value::Empty per
 // dev-docs/LIBRARY_API.md, replacing the old const Value* parameter).
 
-#include <numkit/builtin/language/bitwise/int_math.hpp>
+#include <numkit/lang/bitwise/int_math.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <gtest/gtest.h>

@@ -3,7 +3,7 @@
 // regexp / regexpi / regexprep — ECMAScript regex via std::regex.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/language/strings/regex.hpp>
+#include <numkit/lang/strings/regex.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

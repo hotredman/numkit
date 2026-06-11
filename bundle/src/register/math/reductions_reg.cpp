@@ -4,12 +4,12 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/language/arrays/matrix.hpp>       // reshape (for 'all')
+#include <numkit/lang/arrays/matrix.hpp>       // reshape (for 'all')
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/arithmetic/reductions.hpp>
-#include <numkit/builtin/math/arithmetic/rounding.hpp>       // abs adapter
-#include <numkit/builtin/math/exp_log/exponents.hpp>      // exp / log adapters
-#include <numkit/builtin/math/trig/trigonometry.hpp>   // sin / cos adapters
+#include <numkit/math/arithmetic/reductions.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>       // abs adapter
+#include <numkit/math/exp_log/exponents.hpp>      // exp / log adapters
+#include <numkit/math/trig/trigonometry.hpp>   // sin / cos adapters
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads

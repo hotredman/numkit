@@ -2,8 +2,8 @@
 
 #include <numkit/stats/distributions/nakagami.hpp>
 
-#include <numkit/builtin/math/special/special.hpp>   // gammainc, gammaincinv
-#include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/math/special/special.hpp>   // gammainc, gammaincinv
+#include <numkit/math/random/rng.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

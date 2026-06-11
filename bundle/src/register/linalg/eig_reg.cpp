@@ -13,7 +13,7 @@
 #include <numkit/linalg/eig.hpp>
 
 #include <numkit/linalg/properties.hpp>               // inv (generalized eig B\A)
-#include <numkit/builtin/language/operators/binary_ops.hpp>  // mtimes (eig(A,B))
+#include <numkit/lang/operators/binary_ops.hpp>  // mtimes (eig(A,B))
 
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
 #include <numkit/value/value.hpp>

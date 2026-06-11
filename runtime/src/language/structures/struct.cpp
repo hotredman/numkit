@@ -4,7 +4,7 @@
 // Shares function-handle dispatch helpers with cell.cpp via the inline
 // header below.
 
-#include <numkit/builtin/language/structures/struct.hpp>
+#include <numkit/runtime/language/structures/struct.hpp>
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/callback_builtin.hpp>

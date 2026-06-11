@@ -5,7 +5,7 @@
 // movement (memcpy where possible) — no SIMD opportunity beyond what
 // the compiler auto-vectorises in the inner copy loops.
 
-#include <numkit/builtin/language/arrays/manip.hpp>
+#include <numkit/lang/arrays/manip.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

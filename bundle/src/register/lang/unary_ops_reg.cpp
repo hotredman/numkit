@@ -2,7 +2,7 @@
 //
 // CallContext register half (Phase 2b multi-block split).
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/language/operators/unary_ops.hpp>
+#include <numkit/lang/operators/unary_ops.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>

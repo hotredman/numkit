@@ -17,7 +17,7 @@
 #include <numkit/control/internal/numerics.hpp>
 #include <numkit/control/conversion/conversion.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The is*/order/pole/
 // zero/damp/pzmap/tzero builtins (CallContext wrappers) live in props_reg.cpp.

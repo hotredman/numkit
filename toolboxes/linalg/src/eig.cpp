@@ -17,7 +17,7 @@
 
 #include <numkit/linalg/decompositions.hpp>           // svd_decompose
 #include <numkit/linalg/properties.hpp>               // inv (polyeig companion)
-#include <numkit/builtin/math/poly/polynomials.hpp>   // roots
+#include <numkit/math/poly/polynomials.hpp>   // roots
 
 // Compute-only TU: Value substrate + Error, no engine. The eig / hess /
 // schur / sylvester / polyeig / ordeig builtins (CallContext wrappers)

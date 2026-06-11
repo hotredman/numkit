@@ -14,7 +14,7 @@
 // SIMD doesn't help there. Parity vs the scalar reference is
 // verified in toolboxes/builtin/tests/simd_parity_test.cpp.
 
-#include <numkit/builtin/math/trig/trigonometry.hpp>
+#include <numkit/math/trig/trigonometry.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/ops/parallel_for.hpp>

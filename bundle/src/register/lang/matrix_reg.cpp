@@ -4,10 +4,10 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/language/arrays/manip.hpp>     // flip()
-#include <numkit/builtin/language/arrays/matrix.hpp>
-#include <numkit/builtin/language/operators/unary_ops.hpp>  // transposeNC()
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/lang/arrays/manip.hpp>     // flip()
+#include <numkit/lang/arrays/matrix.hpp>
+#include <numkit/lang/operators/unary_ops.hpp>  // transposeNC()
+#include <numkit/math/poly/polynomials.hpp>
 #include <numkit/ops/binary_ops.hpp>
 #include <numkit/ops/la_solve.hpp>
 #include <numkit/value/error.hpp>

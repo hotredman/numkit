@@ -5,7 +5,7 @@
 // math/elementary/rounding.hpp.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/math/arithmetic/rounding.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

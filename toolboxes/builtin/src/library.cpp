@@ -1,9 +1,9 @@
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/language/cells/cell.hpp>
-#include <numkit/builtin/language/structures/struct.hpp>
-#include <numkit/builtin/language/operators/binary_ops.hpp>
-#include <numkit/builtin/language/types/types.hpp>
-#include <numkit/builtin/math/arithmetic/rounding.hpp>
+#include <numkit/runtime/language/cells/cell.hpp>
+#include <numkit/runtime/language/structures/struct.hpp>
+#include <numkit/lang/operators/binary_ops.hpp>
+#include <numkit/lang/types/types.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>
 
 #include <numkit/core/build_info.hpp>
 #include <numkit/core/callback_builtin.hpp>

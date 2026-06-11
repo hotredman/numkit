@@ -4,7 +4,7 @@
 // parseReadSize / shapeFreadOutput with fileio.cpp via io_helpers.hpp.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/language/strings/scan.hpp>
+#include <numkit/lang/strings/scan.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

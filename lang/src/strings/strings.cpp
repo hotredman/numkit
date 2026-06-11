@@ -6,8 +6,8 @@
 // builtins (regexp/regexpi/regexprep) live in regex.cpp.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/language/strings/strings.hpp>
-#include <numkit/builtin/language/strings/format.hpp>
+#include <numkit/lang/strings/strings.hpp>
+#include <numkit/lang/strings/format.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

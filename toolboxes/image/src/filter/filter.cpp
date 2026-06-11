@@ -3,7 +3,7 @@
 #include <numkit/image/filter/filter.hpp>
 #include <numkit/image/type_convert/type_convert.hpp>
 
-#include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/math/random/rng.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 #include <numkit/value/value.hpp>

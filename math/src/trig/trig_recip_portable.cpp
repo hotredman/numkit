@@ -6,7 +6,7 @@
 // variant lives in trig_recip_highway.cpp and matches this file
 // bit-for-bit on complex / scalar inputs (SIMD only helps real-vector).
 
-#include <numkit/builtin/math/trig/trigonometry.hpp>
+#include <numkit/math/trig/trigonometry.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

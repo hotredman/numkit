@@ -3,7 +3,7 @@
 // Discrete-math builtins. Three legacy TUs were merged here, separated
 // by section headers: set operations, number theory, combinatorics.
 
-#include <numkit/builtin/math/discrete/discrete.hpp>
+#include <numkit/math/discrete/discrete.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

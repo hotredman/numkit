@@ -4,8 +4,8 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/math/random/rng.hpp>
-#include <numkit/builtin/math/special/special.hpp>   // besseli
+#include <numkit/math/random/rng.hpp>
+#include <numkit/math/special/special.hpp>   // besseli
 #include <numkit/comm/channel/channel.hpp>           // marcumq
 #include <numkit/stats/distributions/rician.hpp>
 #include <numkit/value/error.hpp>

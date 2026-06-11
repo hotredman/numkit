@@ -5,7 +5,7 @@
 // exp_log_highway.cpp and matches this file bit-for-bit on complex
 // inputs (SIMD only helps the real-vector fast path).
 
-#include <numkit/builtin/math/exp_log/exponents.hpp>
+#include <numkit/math/exp_log/exponents.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

@@ -6,7 +6,7 @@
 
 #include <numkit/signal/filter_design/analog_filters.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

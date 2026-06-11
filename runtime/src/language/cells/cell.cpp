@@ -4,8 +4,8 @@
 // + cellfun. Shares the function-handle dispatch helpers with
 // struct.cpp via the inline header below.
 
-#include <numkit/builtin/language/cells/cell.hpp>
-#include <numkit/builtin/language/arrays/matrix.hpp>  // horzcat / vertcat
+#include <numkit/runtime/language/cells/cell.hpp>
+#include <numkit/lang/arrays/matrix.hpp>  // horzcat / vertcat
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/callback_builtin.hpp>

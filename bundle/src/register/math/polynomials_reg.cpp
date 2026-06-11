@@ -2,8 +2,8 @@
 //
 // CallContext register half (Phase 2b multi-block split).
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/language/arrays/matrix.hpp>  // poly_of_matrix
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/lang/arrays/matrix.hpp>  // poly_of_matrix
+#include <numkit/math/poly/polynomials.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>

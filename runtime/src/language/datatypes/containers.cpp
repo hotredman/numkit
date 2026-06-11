@@ -9,7 +9,7 @@
 // The public, ENGINE-FREE C++ API (numkit::containers::map/dictionary/
 // set/get/...) is the single source of truth; the interpreter's registry
 // hooks (construct/subsref/subsasgn/methods) are thin adapters over it.
-#include <numkit/builtin/containers.hpp>
+#include <numkit/runtime/containers.hpp>
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/value/object.hpp>

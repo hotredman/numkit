@@ -19,7 +19,7 @@
 // erfc/gamma (which need expk anyway). Parity vs the scalar reference is
 // checked in toolboxes/builtin/tests/simd_parity_test.cpp.
 
-#include <numkit/builtin/math/special/special.hpp>
+#include <numkit/math/special/special.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/ops/parallel_for.hpp>

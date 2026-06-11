@@ -9,11 +9,11 @@
 // math/random/rng.cpp.
 
 #include <numkit/builtin/library.hpp>
-#include <numkit/builtin/language/arrays/matrix.hpp>       // reshape (for 'all')
-#include <numkit/builtin/math/exp_log/exponents.hpp>      // exp / log adapters
-#include <numkit/builtin/math/arithmetic/reductions.hpp>
-#include <numkit/builtin/math/arithmetic/rounding.hpp>       // abs adapter
-#include <numkit/builtin/math/trig/trigonometry.hpp>   // sin / cos adapters
+#include <numkit/lang/arrays/matrix.hpp>       // reshape (for 'all')
+#include <numkit/math/exp_log/exponents.hpp>      // exp / log adapters
+#include <numkit/math/arithmetic/reductions.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>       // abs adapter
+#include <numkit/math/trig/trigonometry.hpp>   // sin / cos adapters
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

@@ -16,7 +16,7 @@
 #include <numkit/stats/distributions/gp.hpp>
 #include <numkit/stats/distributions/gev.hpp>
 
-#include <numkit/builtin/math/special/special.hpp>   // gammainc (used by gamfit_full)
+#include <numkit/math/special/special.hpp>   // gammainc (used by gamfit_full)
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

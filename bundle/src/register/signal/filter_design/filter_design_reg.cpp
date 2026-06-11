@@ -5,7 +5,7 @@
 // TU; collected here verbatim (reg-side arg parsers nested in their anon
 // namespaces ride along). See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/math/poly/polynomials.hpp>  // tf2zp (ZPK 3-output)
+#include <numkit/math/poly/polynomials.hpp>  // tf2zp (ZPK 3-output)
 #include <numkit/signal/filter_design/filter_design.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 #include <numkit/value/error.hpp>

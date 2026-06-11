@@ -4,7 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/math/poly/polynomials.hpp>
+#include <numkit/math/poly/polynomials.hpp>
 #include <numkit/signal/filter_design/analog_filters.hpp>
 #include <numkit/signal/filter_implementation/conversions_extras.hpp>
 #include <numkit/value/error.hpp>

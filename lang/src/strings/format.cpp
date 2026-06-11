@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/datatypes/strings/format.cpp
 
-#include <numkit/builtin/language/strings/format.hpp>
+#include <numkit/lang/strings/format.hpp>
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/value/value.hpp>

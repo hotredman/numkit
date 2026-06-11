@@ -6,7 +6,7 @@
 // HWY_ONCE pass at the bottom publishes the single external abs().
 // See abs_portable.cpp for the scalar reference.
 
-#include <numkit/builtin/math/arithmetic/rounding.hpp>
+#include <numkit/math/arithmetic/rounding.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/ops/parallel_for.hpp>

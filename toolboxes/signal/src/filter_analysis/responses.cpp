@@ -4,7 +4,7 @@
 
 #include <numkit/signal/filter_analysis/responses.hpp>
 
-#include <numkit/builtin/math/poly/polynomials.hpp>     // roots()
+#include <numkit/math/poly/polynomials.hpp>     // roots()
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>

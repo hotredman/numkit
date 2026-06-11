@@ -7,7 +7,7 @@
 
 #include <numkit/comm/channel/fading.hpp>
 
-#include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/math/random/rng.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
