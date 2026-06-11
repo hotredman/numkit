@@ -10,7 +10,6 @@
 // set/get/...) is the single source of truth; the interpreter's registry
 // hooks (construct/subsref/subsasgn/methods) are thin adapters over it.
 #include <numkit/runtime/containers.hpp>
-#include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/value/object.hpp>
 
@@ -262,7 +261,9 @@ Value values(const Value &m, std::pmr::memory_resource *mr)
 // ============================================================
 // Registry hooks — thin adapters over the public C++ API.
 // ============================================================
-void BuiltinLibrary::registerContainers(Engine &engine)
+namespace runtime {
+
+void registerContainersRuntime(Engine &engine)
 {
     // ── dictionary (value semantics) ─────────────────────────
     {
@@ -422,5 +423,7 @@ void BuiltinLibrary::registerContainers(Engine &engine)
         engine.registerClass(std::move(cm));
     }
 }
+
+} // namespace runtime
 
 } // namespace numkit

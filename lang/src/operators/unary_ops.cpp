@@ -1,7 +1,6 @@
 // toolboxes/builtin/src/lang/operators/unary_ops.cpp
 
 #include <numkit/lang/operators/unary_ops.hpp>
-#include <numkit/builtin/library.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -116,20 +115,3 @@ Value transposeNC(const Value &x, std::pmr::memory_resource *mr)
 // their MATLAB function names.
 
 } // namespace numkit::lang
-
-// ════════════════════════════════════════════════════════════════════════
-// Registration — forward UnaryOpFunc closures to the public API
-// ════════════════════════════════════════════════════════════════════════
-
-namespace numkit {
-
-void BuiltinLibrary::registerUnaryOps(Engine &engine)
-{
-    engine.registerUnaryOp("-",  [&engine](const Value &a) { return numkit::lang::uminus(a, engine.resource()); });
-    engine.registerUnaryOp("+",  [&engine](const Value &a) { return numkit::lang::uplus(a, engine.resource()); });
-    engine.registerUnaryOp("~",  [&engine](const Value &a) { return numkit::lang::logicalNot(a, engine.resource()); });
-    engine.registerUnaryOp("'",  [&engine](const Value &a) { return numkit::lang::ctranspose(a, engine.resource()); });
-    engine.registerUnaryOp(".'", [&engine](const Value &a) { return numkit::lang::transposeNC(a, engine.resource()); });
-}
-
-} // namespace numkit
