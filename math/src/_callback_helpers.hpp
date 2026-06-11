@@ -9,10 +9,10 @@
 
 #include <memory_resource>
 #include <numkit/value/fn_handle.hpp>
-#include <numkit/core/types.hpp>
+#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin::detail::callback {
+namespace numkit::math::detail::callback {
 
 /// @brief Invoke `fn(x)` with a scalar argument and return the scalar
 /// result.
@@ -35,4 +35,4 @@ inline double evalScalar(FnHandle fn, double x,
     return out.elemAsDouble(0);
 }
 
-} // namespace numkit::builtin::detail::callback
+} // namespace numkit::math::detail::callback
