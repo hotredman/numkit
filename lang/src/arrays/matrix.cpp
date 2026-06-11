@@ -11,7 +11,7 @@
 #include <numkit/ops/rows_helpers.hpp>
 #include <numkit/ops/binary_ops.hpp>
 #include <numkit/ops/la_solve.hpp>
-#include "math/arithmetic/cumsum.hpp"
+#include "arithmetic/cumsum.hpp"
 #include <numkit/math/poly/polynomials.hpp>
 
 #include <numkit/lang/arrays/manip.hpp>     // flip()

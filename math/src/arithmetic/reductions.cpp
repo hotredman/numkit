@@ -19,7 +19,7 @@
 
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
-#include "math/arithmetic/var_reduction.hpp"  // for sumScan + addInto
+#include "arithmetic/var_reduction.hpp"  // for sumScan + addInto
 #include "../_unary_hint.hpp"  // 3-arg sin/cos/exp/log/abs hint overloads
 
 #include <algorithm>

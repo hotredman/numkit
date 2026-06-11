@@ -22,7 +22,7 @@
 
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
-#include "math/arithmetic/var_reduction.hpp"
+#include "arithmetic/var_reduction.hpp"
 
 #include <algorithm>
 #include <cctype>

@@ -9,7 +9,7 @@
 #include <numkit/value/span.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
-#include "math/arithmetic/var_reduction.hpp" // varianceTwoPass (engine-free)
+#include "arithmetic/var_reduction.hpp" // varianceTwoPass (engine-free)
 
 #include <algorithm>
 #include <cmath>
