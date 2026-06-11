@@ -2,7 +2,7 @@
 //
 // CallContext register half (Phase 2b multi-block split).
 #include <numkit/core/engine.hpp>
-#include <numkit/core/figure_manager.hpp>
+#include <numkit/figure/figure_manager.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/math/geom/geom.hpp>
 #include <numkit/value/error.hpp>
