@@ -37,5 +37,5 @@ Defer unless requested. Verify reconstruction `Q*A*Z==AA` and the
 generalized singular values vs MATLAB when implementing.
 
 ## References
-- new file(s) under `libs/linalg/src/...`; cf. `eig(A,B)`/`svd`/`qr`
+- new file(s) under `toolboxes/linalg/src/...`; cf. `eig(A,B)`/`svd`/`qr`
 - MATLAB `doc qz`, `doc gsvd`

@@ -21,7 +21,7 @@ diff([1+1i 3+2i])
 ```
 
 ## Root cause
-`diff` (`libs/builtin/src/language/arrays/matrix.cpp`) computes successive
+`diff` (`toolboxes/builtin/src/language/arrays/matrix.cpp`) computes successive
 differences over `doubleData()` only — the complex elements' imaginary parts
 are never differenced (the result is materialised real, or complex with a
 zero imaginary part).
@@ -32,7 +32,7 @@ Add a `ValueType::COMPLEX` branch: difference `complexData()` element-wise
 `Value::complexMatrix`. Small — mirror the real path on `Complex`.
 
 ## References
-- `libs/builtin/src/language/arrays/matrix.cpp` (diff)
+- `toolboxes/builtin/src/language/arrays/matrix.cpp` (diff)
 - MATLAB `doc diff`
 - Related: cumsum/cumprod also lack complex (bugs/builtin/cumsum-complex.md);
   a broader survey is bugs/builtin/complex-input-unsupported.md.
@@ -44,8 +44,8 @@ Add a `ValueType::COMPLEX` branch: difference `complexData()` element-wise
   `ValueType::COMPLEX` branch in `diff()` (n-th order + dim, via
   `copyComplexSameShape` + the complex pass loop). The `n==0` identity path
   now also preserves both parts.
-- Live guard: `libs/builtin/tests/diff_complex_test.cpp` (4 cases). Parity:
+- Live guard: `toolboxes/builtin/tests/diff_complex_test.cpp` (4 cases). Parity:
   `tools/parity/specs/diff.json` extended (correctness=OK). Smoke:
-  `libs/builtin/tests/smoke/diff_complex_smoke.m`.
+  `toolboxes/builtin/tests/smoke/diff_complex_smoke.m`.
 - Spin-off finding: numkit accepts `diff(X,0)` (returns identity) where MATLAB
   errors — catalogued separately as bugs/builtin/diff-zero-order.md.

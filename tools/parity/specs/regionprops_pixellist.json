@@ -10,5 +10,5 @@
     "n1", "idxrows", "i1", "i2", "i3", "plr", "plc", "plx1", "ply1", "ply3", "r2a", "r2c"
   ],
   "deep_verified": true,
-  "comment": "regionprops PixelIdxList + PixelList fields vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, libs/image): both fields threw 'non-existent field'. Added: PixelIdxList = column vector of COLUMN-MAJOR 1-based linear indices of the region's pixels, sorted ascending; PixelList = P-by-2 [x y]=[col row] (1-based) in the same order. NOT part of the basic default set. 3-pixel region {(2,2),(2,3),(3,3)} in a 4x4: PixelIdxList=[6;10;11] (3x1), PixelList=[2 2;3 2;3 3]. Second region of BW2 {(3,3),(3,4),(4,4)} -> [13;18;19]. covers:[regionprops]."
+  "comment": "regionprops PixelIdxList + PixelList fields vs MATLAB R2025b. DEEP-PROBE 2026-05-31 (toolbox pivot, toolboxes/image): both fields threw 'non-existent field'. Added: PixelIdxList = column vector of COLUMN-MAJOR 1-based linear indices of the region's pixels, sorted ascending; PixelList = P-by-2 [x y]=[col row] (1-based) in the same order. NOT part of the basic default set. 3-pixel region {(2,2),(2,3),(3,3)} in a 4x4: PixelIdxList=[6;10;11] (3x1), PixelList=[2 2;3 2;3 3]. Second region of BW2 {(3,3),(3,4),(4,4)} -> [13;18;19]. covers:[regionprops]."
 }

@@ -27,7 +27,7 @@ cceps([1 2 3 4 3 2 1])
 Power-of-two cceps (e.g. `(1:8)'`) already matches MATLAB bit-for-bit.
 
 ## Root cause
-`libs/signal/src/transforms/extras.cpp` `cceps()` unwraps phase per-bin
+`toolboxes/signal/src/transforms/extras.cpp` `cceps()` unwraps phase per-bin
 (`while (phase-prev > pi) ...`) without MATLAB's `rcunwrap` linear-phase
 removal, and never computes/returns `nd`.
 
@@ -38,6 +38,6 @@ MATLAB-exact form), then `nd` becomes the 2nd output. Make `cceps_reg`
 nargout-aware. Validate the phase on several non-2ⁿ inputs.
 
 ## References
-- `libs/signal/src/transforms/extras.cpp` (cceps)
+- `toolboxes/signal/src/transforms/extras.cpp` (cceps)
 - `tools/parity/specs/cceps.json` (documents this gap)
 - related fix: `bugs/signal/rceps-cceps-padding.md`

@@ -6,5 +6,5 @@
   "iters": 3,
   "tol": 1e-12,
   "fingerprint": ["y1", "y2", "y3", "rgbsz(1)", "rgbsz(2)", "rgbsz(3)", "rgb1", "rgb2"],
-  "comment": "imshow is a display-only builtin — no scalar return. Probes set up canonical inputs (grayscale double, explicit/empty range, uint8, RGB via cat(3,...)), then read derived scalars from the SAME inputs to fingerprint that the calls didn't alter the workspace. correctness=OK confirms imshow runs in MATLAB / numkit / Octave without error and the inputs survived intact. Display fidelity (range, colormap, axis off) is covered by the gtest in libs/graphics/tests/figure_test.cpp + the e2e in ide/desktop/tests/e2e/imshow.spec.js."
+  "comment": "imshow is a display-only builtin — no scalar return. Probes set up canonical inputs (grayscale double, explicit/empty range, uint8, RGB via cat(3,...)), then read derived scalars from the SAME inputs to fingerprint that the calls didn't alter the workspace. correctness=OK confirms imshow runs in MATLAB / numkit / Octave without error and the inputs survived intact. Display fidelity (range, colormap, axis off) is covered by the gtest in toolboxes/graphics/tests/figure_test.cpp + the e2e in ide/desktop/tests/e2e/imshow.spec.js."
 }

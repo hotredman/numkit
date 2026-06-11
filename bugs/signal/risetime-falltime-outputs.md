@@ -17,7 +17,7 @@
      `falltime_reg` emit `[R, LT, UT, LL, UL]` by `nargout` (LT/UT crossing
      times — for falls LT is last, UT first; LL/UL reference levels).
   Verified all 5 outputs (single + multi-transition, rise + fall) vs MATLAB
-  R2025b. Guard: `libs/signal/tests/risetime_falltime_test.cpp`.
+  R2025b. Guard: `toolboxes/signal/tests/risetime_falltime_test.cpp`.
 
 ## Symptom
 MATLAB `risetime` returns `[R, LT, UT, LL, UL]` (rise durations, lower/upper
@@ -32,7 +32,7 @@ asking for more throws. `falltime` is almost certainly the same.
 ```
 
 ## Root cause
-`risetime`/`falltime` adapters in `libs/signal/src/measurements/` emit only
+`risetime`/`falltime` adapters in `toolboxes/signal/src/measurements/` emit only
 `outs[0]`. The transition crossing times (`LT`, `UT`) and the 10%/90%
 reference levels (`LL`, `UL`) are computed internally to get `R = UT - LT`,
 so the extra outputs are likely already available — just not wired to
@@ -44,5 +44,5 @@ the per-edge column shapes and the default 10%/90% percent-reference levels
 against MATLAB. Likely cheap (missing-Nth-output, data already there).
 
 ## References
-- `libs/signal/src/measurements/` (risetime/falltime)
+- `toolboxes/signal/src/measurements/` (risetime/falltime)
 - MATLAB `doc risetime`

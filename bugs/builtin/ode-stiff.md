@@ -35,5 +35,5 @@ solver. Verify `y(end)` on a stiff decay vs MATLAB. Large overall — defer
 unless requested; this entry tracks the gap.
 
 ## References
-- new file(s) under `libs/builtin/src/...`; reuse the ode45 driver + a solve
+- new file(s) under `toolboxes/builtin/src/...`; reuse the ode45 driver + a solve
 - MATLAB `doc ode15s`, `doc ode23s`, `doc ode113`

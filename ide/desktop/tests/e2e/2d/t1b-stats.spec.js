@@ -17,7 +17,7 @@ test.describe('Tier 1B — stat-chart wrappers', () => {
     )).toEqual([]);
   });
 
-  // `ecdf` itself is provided by libs/stats as a computational
+  // `ecdf` itself is provided by toolboxes/stats as a computational
   // routine that returns (F, x) — it doesn't draw. Users plot the
   // empirical CDF via cdfplot(x). No graphics-side wrapper needed.
 

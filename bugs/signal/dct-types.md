@@ -10,7 +10,7 @@
   needed. Routed `dct_reg`/`idct_reg` by `'Type'` (1–4; invalid values now
   error with the valid list). Verified all forward/inverse types + round-trip
   + non-pow2 + matrix vs MATLAB R2025b. Guard:
-  `libs/signal/tests/dct_types_test.cpp`.
+  `toolboxes/signal/tests/dct_types_test.cpp`.
 
 ## Symptom
 `dct`/`idct` accept a `'Type'` name-value (DCT variants 1–4 in MATLAB) but
@@ -28,7 +28,7 @@ dct([1 2 3 4], 4, 'Type', 4)
 ```
 
 ## Root cause
-`libs/signal/src/transforms/dct.cpp:337` (dct) and `:360` (idct) throw for
+`toolboxes/signal/src/transforms/dct.cpp:337` (dct) and `:360` (idct) throw for
 any Type ≠ 2.
 
 ## Suggested fix
@@ -38,5 +38,5 @@ Each Type is a closed-form cosine sum with a specific orthonormal scaling
 idct I/III/IV). Verify each scaling factor against MATLAB.
 
 ## References
-- `libs/signal/src/transforms/dct.cpp`
+- `toolboxes/signal/src/transforms/dct.cpp`
 - MATLAB `doc dct` (Type definitions)

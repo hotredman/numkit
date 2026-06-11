@@ -28,6 +28,6 @@ Validate the label matrix + ridge placement vs MATLAB on small inputs
 (note: MATLAB's exact tie-breaking / labeling order must be matched).
 
 ## References
-- new file under `libs/image/src/...`
+- new file under `toolboxes/image/src/...`
 - shipped: `bwdist`, `imhmin`, `bwlabel`, `imreconstruct`
 - MATLAB `doc watershed`

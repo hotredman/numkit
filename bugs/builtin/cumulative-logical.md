@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 42),
-  `libs/builtin/src/language/arrays/matrix.cpp`. The public `cumsum`,
+  `toolboxes/builtin/src/language/arrays/matrix.cpp`. The public `cumsum`,
   `cumprod`, `cummax`, `cummin` branched on `isIntegerType` and `COMPLEX` but
   let LOGICAL fall through to the DOUBLE path, whose `doubleData()` throws
   "Not a double array". Added a logical branch to each: promote with
@@ -29,10 +29,10 @@
   `cummax(logical([0 1 0 1]))`=`[0 1 1 1]` logical;
   `cummin(logical([1 1 0 1]))`=`[1 1 0 0]` logical;
   2-D column/dim2, scalar `cumsum(true)`=`1` double.
-- Live guard: `libs/builtin/tests/cumulative_logical_test.cpp` (6 TEST_F) +
+- Live guard: `toolboxes/builtin/tests/cumulative_logical_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.CumulativeLogical` flipped live. Parity:
   `tools/parity/specs/cumulative_logical.json` (correctness=OK). Smoke:
-  `libs/builtin/tests/smoke/cumulative_logical_smoke.m`.
+  `toolboxes/builtin/tests/smoke/cumulative_logical_smoke.m`.
 
 ## Symptom
 `cumsum`/`cumprod`/`cummax`/`cummin` throw on a `logical` array; MATLAB accepts
@@ -63,10 +63,10 @@ The same logical-input sweep mapped the rest of the surface (all re-verified
 (distinct functions in other files, each with their own multi-form complexity):
 - **`sort(logical(...))` throws** — MATLAB returns **logical** `[0 0 1 1]`
   (class preserved). Needs class-preserving coercion across the index-output /
-  `'descend'` / dim forms. `libs/builtin/.../sort`.
+  `'descend'` / dim forms. `toolboxes/builtin/.../sort`.
 - **`trapz(logical(...))` throws** — MATLAB returns **double** `2`. Needs
   promotion at the `trapz(Y)` / `trapz(X,Y)` / dim entry.
-  `libs/builtin/src/math/integration/integration.cpp`.
+  `toolboxes/builtin/src/math/integration/integration.cpp`.
 - Already correct (no fix needed): `max`/`min`/`mode` (return the logical
   class — guarded by `ReductionDimTest.MaxLogicalReturnsLogical` /
   `ModeLogicalReturnsLogical` in stats_test.cpp), `cumtrapz`, and
@@ -75,6 +75,6 @@ The same logical-input sweep mapped the rest of the surface (all re-verified
   not crash.
 
 ## References
-- `libs/builtin/src/language/arrays/matrix.cpp` (`cumsum` ×2, `cumprod`,
+- `toolboxes/builtin/src/language/arrays/matrix.cpp` (`cumsum` ×2, `cumprod`,
   `cummax`, `cummin`)
 - MATLAB `doc cumsum`, `doc cummax`

@@ -8,5 +8,5 @@
   "fingerprint": [
     "r1"
   ],
-  "comment": "Side-effect smoke test (file I/O round-trip via tempname). DEFERRED -- load round-trip via tempname '.mat' fails inside the parity harness sandbox (file path resolution differs between save and load steps); functionality validated in libs/builtin gtests instead."
+  "comment": "Side-effect smoke test (file I/O round-trip via tempname). DEFERRED -- load round-trip via tempname '.mat' fails inside the parity harness sandbox (file path resolution differs between save and load steps); functionality validated in toolboxes/builtin gtests instead."
 }

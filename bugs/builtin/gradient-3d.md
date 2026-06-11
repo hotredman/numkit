@@ -23,7 +23,7 @@ gradient(A)
 ```
 
 ## Root cause
-`gradient` (`libs/builtin/src/...`) caps the input rank at 2; there is no
+`gradient` (`toolboxes/builtin/src/...`) caps the input rank at 2; there is no
 loop over a third (or N-th) dimension and the multi-output form only emits
 2 gradients.
 
@@ -35,7 +35,7 @@ interior, one-sided at the ends), honouring optional per-dim spacing args
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 18),
-  `libs/builtin/src/math/integration/integration.cpp`.
+  `toolboxes/builtin/src/math/integration/integration.cpp`.
 - New generic strided kernel `gradientAlongDim(src, dst, shape, dim, h)` —
   central differences interior, one-sided ends, uniform spacing, along any
   0-based dimension of a column-major N-D array (generalises the old
@@ -53,15 +53,15 @@ interior, one-sided at the ends), honouring optional per-dim spacing args
   `[gx,gy,gz]` (1,1,1)=(2,1,4); 3×3×3 central bx(1,2,1)=3, bz(1,1,2)=9;
   spacing (2,3,4)→(1, 1/3, 1); single-spacing broadcast; non-cube 2×3×2; 4-D
   d4=8; complex 3-D zx(1,1,1)=2−2i.
-- Live guard: `libs/builtin/tests/gradient_nd_test.cpp` (11 TEST_F) + flipped
+- Live guard: `toolboxes/builtin/tests/gradient_nd_test.cpp` (11 TEST_F) + flipped
   `BuiltinKnownBug.Gradient3D` live; two stale throw-tests rewritten
   (`CalculusTest.Gradient3DInput`, `GradientComplexTest.NDComplexOk`). Parity:
   `tools/parity/specs/gradient_nd.json` (correctness=OK). Smoke:
-  `libs/builtin/tests/smoke/gradient_nd_smoke.m`.
+  `toolboxes/builtin/tests/smoke/gradient_nd_smoke.m`.
 - Deferred sub-gap: coordinate-vector spacing per dim (`gradient(A, xvec, ...)`)
   is still scalar-spacing only — the pre-existing 2-D path didn't support it
   either, so no regression. `del2` remains 1-D/2-D (separate).
 
 ## References
-- `libs/builtin/src/math/integration/integration.cpp` (gradient)
+- `toolboxes/builtin/src/math/integration/integration.cpp` (gradient)
 - MATLAB `doc gradient` (N-D)

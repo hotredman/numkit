@@ -13,7 +13,7 @@
 #pragma once
 
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
@@ -38,7 +38,7 @@ inline std::string backendName(const ::testing::TestParamInfo<BackendParam> &inf
 class DualEngineTest : public ::testing::TestWithParam<BackendParam>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
     std::string capturedOutput;
 
     void SetUp() override

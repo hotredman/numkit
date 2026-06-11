@@ -7,8 +7,8 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/core/dims.hpp>
-#include <numkit/core/shape_ops.hpp>
+#include <numkit/value/dims.hpp>
+#include <numkit/value/shape_ops.hpp>
 
 #include <array>
 #include <vector>

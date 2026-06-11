@@ -16,7 +16,7 @@
 - Families: **continuous** normal, exponential, gamma, beta, chi2, students_t,
   fisher_f, rayleigh, weibull, lognormal (c29-34); **discrete** binomial,
   poisson, unid, geometric, negbin, hypergeom (c35-37).
-- Mechanism (`libs/stats/src/distributions/dist_helpers.hpp`):
+- Mechanism (`toolboxes/stats/src/distributions/dist_helpers.hpp`):
   `broadcast_dist2` / `broadcast_dist3` / `broadcast_dist4` apply a scalar
   kernel under MATLAB broadcasting; `dist_param` resolves zero-copy defaults;
   `dist_match_numel` enforces the size rule. Closed-form pdf/cdf/inv use a
@@ -28,9 +28,9 @@
   parameters keep the untouched (hoisted-`lgamma`) public-fn fast path; only
   non-scalar parameters take the broadcast path, so there is no perf or
   behaviour change to the common scalar case.
-- Guards: `libs/stats/tests/dist_broadcast_test.cpp` (36 TEST_F, one block per
+- Guards: `toolboxes/stats/tests/dist_broadcast_test.cpp` (36 TEST_F, one block per
   family), `tools/parity/specs/dist_broadcast.json` (correctness=OK vs MATLAB
-  R2025b), `libs/stats/tests/smoke/dist_broadcast_smoke.m`, and the now-live
+  R2025b), `toolboxes/stats/tests/smoke/dist_broadcast_smoke.m`, and the now-live
   umbrella `StatsKnownBug.DistributionArrayParams`. Also retrofitted the
   `dist_match_numel` guard onto `betacdf`/`betainv` (the underlying
   `builtin::betainc`/`betaincinv` don't validate sizes and would OOB-read).
@@ -80,7 +80,7 @@ systemic — high value (vectorised pdf/cdf over parameter grids is common).
 ## Progress (multi-cycle — md stays OPEN until all families broadcast)
 
 Shared broadcast helpers added in
-`libs/stats/src/distributions/dist_helpers.hpp`: `broadcast_dist2` (data +
+`toolboxes/stats/src/distributions/dist_helpers.hpp`: `broadcast_dist2` (data +
 1 param) and `broadcast_dist3` (data + 2 params), plus `dist_param`
 (zero-copy default resolution). Each distribution supplies a scalar kernel
 that owns its per-element domain (param<=0 / NaN → NaN), and the adapter
@@ -134,7 +134,7 @@ The umbrella `DISABLED_DistributionArrayParams` gtest (which checks
 `normpdf` / `binopdf` / `gampdf` — all three now broadcast) stays disabled
 until the remaining discrete families land, when it is enabled together with
 the md flip to FIXED; the completed families are guarded live by
-`libs/stats/tests/dist_broadcast_test.cpp`.
+`toolboxes/stats/tests/dist_broadcast_test.cpp`.
 
 Verified vs MATLAB R2025b (cycle 29): `normpdf(0,0,[1 2 4])`,
 `normcdf([0 1 2],0,[1 2 4])`, `norminv([.1 .5 .9],0,[1 2 3])`,
@@ -142,9 +142,9 @@ Verified vs MATLAB R2025b (cycle 29): `normpdf(0,0,[1 2 4])`,
 per-element bad-param → NaN, 2×2 shape, empty→empty, size-mismatch error.
 
 ## References
-- `libs/stats/src/distributions/dist_helpers.hpp` (broadcast_dist2/3, dist_param)
-- `libs/stats/src/distributions/{normal,exponential}.cpp` (kernels + adapters)
-- `libs/stats/tests/dist_broadcast_test.cpp`, `tools/parity/specs/dist_broadcast.json`
+- `toolboxes/stats/src/distributions/dist_helpers.hpp` (broadcast_dist2/3, dist_param)
+- `toolboxes/stats/src/distributions/{normal,exponential}.cpp` (kernels + adapters)
+- `toolboxes/stats/tests/dist_broadcast_test.cpp`, `tools/parity/specs/dist_broadcast.json`
 - MATLAB `doc normpdf` etc. ("inputs ... must be the same size, or any can be
   a scalar")
 - related lesson: betastat scalar-only (memory feedback_audit_no_gap_can_lie)

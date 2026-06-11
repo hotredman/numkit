@@ -15,7 +15,7 @@
 // See NAMESPACE_DESIGN.md Sections 3-5.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -31,7 +31,7 @@ void answer_reg(Span<const Value>, size_t, Span<Value> outs, CallContext &ctx)
 class NamespaceResolverTest : public ::testing::TestWithParam<Engine::Backend>
 {
 public:
-    Engine engine;
+    StandardEngine engine;
 
     void SetUp() override
     {
@@ -93,7 +93,7 @@ TEST_P(NamespaceResolverTest, CompatNamespaceWorks)
 
 TEST_P(NamespaceResolverTest, WildcardImportFindsSubNamespaceFunction)
 {
-    // libs/signal registers functions under signal.<sub>.<name> (e.g.
+    // toolboxes/signal registers functions under signal.<sub>.<name> (e.g.
     // signal.transforms.fft). `import signal.*; fft(x)` must find them
     // — wildcard imports look one level deeper than just "signal.<name>".
     auto result = engine.eval("import signal.*; y = fft([1, 1, 1, 1]);");

@@ -7,7 +7,7 @@
 // the engine path).
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -20,7 +20,7 @@ namespace {
 class FolderBuiltinsTest : public ::testing::TestWithParam<Engine::Backend>
 {
 protected:
-    Engine engine;
+    StandardEngine engine;
     std::filesystem::path workDir;
 
     void SetUp() override

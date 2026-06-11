@@ -3,9 +3,10 @@
 
 #include <numkit/core/debugger.hpp>
 #include <numkit/core/figure_manager.hpp>
-#include <numkit/core/object.hpp>
+#include <numkit/value/object.hpp>
 #include <numkit/core/types.hpp>
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
+#include <numkit/fs/fs_context.hpp>
 #include <numkit/core/vm.hpp>
 
 #include <atomic>
@@ -544,58 +545,36 @@ public:
     // The two-tier model lets hosts seed cwd via `setenv NUMKIT_CWD`
     // without having to call setCwd, while still letting in-engine
     // `cd` calls take precedence once they happen.
-    const std::string &cwd() const { return cwd_; }
-    void setCwd(const std::string &p) { cwd_ = p; }
+    const std::string &cwd() const { return fsCtx_.cwd(); }
+    void setCwd(const std::string &p) { fsCtx_.setCwd(p); }
 
-    struct ResolvedPath
-    {
-        VirtualFS *fs;
-        std::string path;
-    };
+    // The path-resolution result type lives on FsContext (fs/, L0); aliased
+    // here so existing callers keep writing Engine::ResolvedPath.
+    using ResolvedPath = FsContext::ResolvedPath;
     ResolvedPath resolvePath(const std::string &userPath) const;
+
+    // Direct handle to the filesystem session (VFS registry + script-origin
+    // stack + cwd + resolver). Lets core-free toolbox code (io codecs, …)
+    // resolve paths through fs::FsContext WITHOUT depending on Engine — the
+    // Engine-free C++ API surface. Registration adapters pass engine.fsContext().
+    FsContext &fsContext() noexcept { return fsCtx_; }
+    const FsContext &fsContext() const noexcept { return fsCtx_; }
 
     // ── MATLAB-style file descriptor table ────────────────────
     //
-    // fopen / fclose / fprintf(fid, …) machinery. File IDs 0, 1, 2 are
-    // reserved for stdin/stdout/stderr (fprintf to 1 or 2 routes to
-    // outputText()); user files get 3, 4, … from nextFid_.
-    //
-    // For 'r': the file is read into `buffer` on open; `cursor` advances
-    // as reading builtins consume it. For 'w': `buffer` accumulates
-    // fprintf output and is flushed via fs->writeFile() on fclose. 'a'
-    // is 'w' seeded with the file's existing content. All writes are
-    // buffered in memory until close — the sync-mirror VirtualFS can't
-    // support partial writes efficiently, and MATLAB's semantics only
-    // guarantee visibility on close anyway.
-    struct OpenFile
-    {
-        std::string path;
-        std::string mode;
-        VirtualFS *fs = nullptr;
-        std::string buffer;
-        size_t cursor = 0;
-        // Permission flags — forRead and forWrite can BOTH be true for
-        // 'r+' / 'w+' / 'a+' combined modes. forWrite with appendOnly
-        // means every fprintf/fwrite snaps the cursor to end-of-buffer
-        // before writing, matching MATLAB's 'a' / 'a+' semantics.
-        bool forRead = false;
-        bool forWrite = false;
-        bool appendOnly = false;
-        // Last soft-failure text for MATLAB's ferror(fid). Populated by
-        // fread on short reads, fgetl/fgets/fscanf on EOF, etc. Cleared
-        // by ferror(fid, 'clear'). Hard failures still throw Error.
-        std::string lastError;
-    };
-
-    int openFile(const std::string &userPath, const std::string &mode);
-    bool closeFile(int fid);
-    void closeAllFiles();
-    OpenFile *findFile(int fid);
-    // Sorted list of user-opened fids (>= 3). Powers `fopen('all')`.
-    std::vector<int> openFileIds() const;
-    // Error text from the most recent openFile() call. Empty string after
-    // a successful open. Powers MATLAB's `[fid, errmsg] = fopen(...)`.
-    const std::string &lastFopenError() const { return lastFopenError_; }
+    // The fopen / fclose / fprintf(fid, …) state + machinery now live on
+    // FsContext (fs/, L0) so the stateful fopen-family is Engine-free; the
+    // methods below forward to fsCtx_. `OpenFile` is aliased here so existing
+    // callers keep writing `Engine::OpenFile`. fids 0/1/2 are still routed to
+    // outputText() by the fprintf builtin, not by this table.
+    using OpenFile = FsContext::OpenFile;
+    int openFile(const std::string &userPath, const std::string &mode)
+    { return fsCtx_.openFile(userPath, mode); }
+    bool closeFile(int fid) { return fsCtx_.closeFile(fid); }
+    void closeAllFiles() { fsCtx_.closeAllFiles(); }
+    OpenFile *findFile(int fid) { return fsCtx_.findFile(fid); }
+    std::vector<int> openFileIds() const { return fsCtx_.openFileIds(); }
+    const std::string &lastFopenError() const { return fsCtx_.lastFopenError(); }
 
 private:
     std::pmr::memory_resource *mr_;  // not owned; caller-supplied or get_default_resource()
@@ -717,20 +696,11 @@ private:
     BreakpointManager breakpointManager_;
     std::unique_ptr<DebugController> debugController_;  // created when observer is set
 
-    // Virtual filesystem registry + script-origin stack
-    std::unordered_map<std::string, std::unique_ptr<VirtualFS>> virtualFs_;
-    struct ScriptOriginEntry
-    {
-        std::string fsName;
-        std::string scriptDir;
-    };
-    std::vector<ScriptOriginEntry> scriptOriginStack_;
-    std::string cwd_;
-
-    // MATLAB-style open-file table
-    std::unordered_map<int, OpenFile> openFiles_;
-    int nextFid_ = 3;
-    std::string lastFopenError_;
+    // Virtual filesystem session: VFS registry + script-origin stack + cwd +
+    // path resolver. Engine forwards its filesystem API to this (see the
+    // delegating wrappers in engine.cpp). Owned by value — FsContext is
+    // STL-only (fs/, L0).
+    FsContext fsCtx_;
 
 public:
     void markClearAll() { clearAllCalled_ = true; }

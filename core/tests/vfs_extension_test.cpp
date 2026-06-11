@@ -3,7 +3,7 @@
 // Phase 8 VFS extension: listDir / stat / mkdir / rmdir / unlink / tempArea.
 // Tests use NativeFS against a temp directory.
 
-#include <numkit/core/vfs.hpp>
+#include <numkit/fs/vfs.hpp>
 
 #include <algorithm>
 #include <filesystem>
