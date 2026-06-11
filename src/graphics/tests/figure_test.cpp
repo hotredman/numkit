@@ -11,7 +11,7 @@
 //   - Subplot
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/figure_manager.hpp>
+#include <numkit/figure/figure_manager.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

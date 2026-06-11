@@ -42,7 +42,6 @@ set(NUMKIT_CORE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/debug_workspace.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/engine.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/environment.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/figure_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/lexer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/parser.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/tree_walker.hpp

@@ -9,7 +9,7 @@
 // handle, so the assertion is "doesn't crash" rather than data shape.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/figure_manager.hpp>
+#include <numkit/figure/figure_manager.hpp>
 #include <gtest/gtest.h>
 
 #ifndef M_PI

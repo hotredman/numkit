@@ -2,7 +2,7 @@
 #pragma once
 
 #include <numkit/core/debugger.hpp>
-#include <numkit/core/figure_manager.hpp>
+#include <numkit/figure/figure_manager.hpp>
 #include <numkit/value/object.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/fs/vfs.hpp>

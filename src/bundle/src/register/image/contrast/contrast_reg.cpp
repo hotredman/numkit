@@ -13,7 +13,7 @@
 #include <numkit/image/type_convert/type_convert.hpp>
 
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
-#include <numkit/core/figure_manager.hpp>
+#include <numkit/figure/figure_manager.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

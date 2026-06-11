@@ -43,7 +43,10 @@ ALLOWED = {
     "value": {"value"},
     "fs":    {"fs"},
     "ops":   {"value", "ops"},
-    "core":  {"value", "fs", "ops", "core"},
+    "core":  {"value", "fs", "ops", "core", "figure"},
+    # figure (L0.5 header-only): plot/figure session state (FigureManager); uses
+    # only ops (decimate) + STL, never core. core + graphics depend on it.
+    "figure": {"value", "fs", "ops", "figure"},
     # math/lang (L2 compute, ns numkit::math / numkit::lang after the C4 split)
     # must stay free of core / runtime / toolboxes — the whole point of the split.
     # They may use value/fs/ops, each other (e.g. lang/arrays -> math/arithmetic
@@ -68,7 +71,7 @@ ALLOWED = {
     # toolboxes MAY depend on graphics, never the reverse. (graphics→image was
     # broken by routing imshow's file-decode through a by-name `imread` handle
     # resolved at call time, not an image-toolbox include.)
-    "graphics": {"value", "fs", "ops", "core", "graphics"},
+    "graphics": {"value", "fs", "ops", "core", "figure", "graphics"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -77,6 +80,7 @@ LAYER_DIRS = {
     "fs":    ["src/fs"],
     "ops":   ["src/ops"],
     "core":  ["src/core"],
+    "figure": ["src/figure"],
     "math":  ["src/math"],
     "lang":  ["src/lang"],
     "graphics": ["src/graphics"],
@@ -194,7 +198,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print("Layering OK: value, fs, ops, core, math, lang, graphics, toolboxes respect the dependency direction.")
+    print("Layering OK: value, fs, ops, core, figure, math, lang, graphics, toolboxes respect the dependency direction.")
     return 0
 
 
