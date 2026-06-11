@@ -7,10 +7,10 @@
 #include <limits>
 #include <memory_resource>
 #include <numkit/value/value.hpp>
+#include <numkit/value/fn_handle.hpp>
 
 #include <tuple>
 
-namespace numkit { class Engine; }
 
 namespace numkit::stats {
 
@@ -107,8 +107,7 @@ struct NlinfitResult {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `{beta, R, J, CovB, MSE}`.
 NlinfitResult nlinfit(const Value &X, const Value &y,
-                      const Value &fun, const Value &beta0,
-                      ::numkit::Engine *engine,
+                      FnHandle model, const Value &beta0,
                       std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Parameter confidence intervals from an nlinfit fit
@@ -144,10 +143,9 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
 /// @param mr     Memory resource.
 /// @return       Tuple `(ypred, delta)` — predictions and CI half-widths.
 std::tuple<Value, Value>
-nlpredci(const Value &fun, const Value &X, const Value &beta,
+nlpredci(FnHandle model, const Value &X, const Value &beta,
          const Value &R, const Value &J,
          double alpha,
-         ::numkit::Engine *engine,
          std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Robust regression weight functions (MATLAB robustfit set).

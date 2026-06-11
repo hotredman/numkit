@@ -11,6 +11,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
+#include <numkit/value/fn_handle.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -42,26 +43,25 @@ Value flatToMatrix(const double *data, std::size_t rows, std::size_t cols,
     return out;
 }
 
-// Evaluate fun(beta, X) → returns flat predictions length n.
-std::vector<double> evalModel(const Value &fun, const std::vector<double> &beta,
+// Evaluate model(beta, X) → returns flat predictions length n.
+std::vector<double> evalModel(FnHandle model, const std::vector<double> &beta,
                                std::size_t p, const Value &X,
-                               Engine *engine, std::pmr::memory_resource *mr)
+                               std::pmr::memory_resource *mr)
 {
     auto betaVal = flatToMatrix(beta.data(), p, 1, mr);
     std::array<Value, 2> argv{ betaVal, X };
-    Value yhat = engine->callFunctionHandle(fun,
-                    Span<const Value>(argv.data(), 2));
+    Value yhat;
+    model(Span<const Value>(argv.data(), 2), Span<Value>(&yhat, 1), mr);
     return toFlatDouble(yhat);
 }
 
 // Numerical Jacobian via central differences.
 // Returns row-major matrix of size n × p stored column-major
 // (column-major: J[col * n + row]).
-std::vector<double> numericalJacobian(const Value &fun,
+std::vector<double> numericalJacobian(FnHandle model,
                                        const std::vector<double> &beta,
                                        std::size_t n, std::size_t p,
                                        const Value &X,
-                                       Engine *engine,
                                        std::pmr::memory_resource *mr)
 {
     std::vector<double> J(n * p);
@@ -72,8 +72,8 @@ std::vector<double> numericalJacobian(const Value &fun,
         const double h = 1e-7 * scale;
         bplus[j]  = beta[j] + h;
         bminus[j] = beta[j] - h;
-        auto fp = evalModel(fun, bplus,  p, X, engine, mr);
-        auto fm = evalModel(fun, bminus, p, X, engine, mr);
+        auto fp = evalModel(model, bplus,  p, X, mr);
+        auto fm = evalModel(model, bminus, p, X, mr);
         bplus[j]  = beta[j];
         bminus[j] = beta[j];
         const double inv2h = 1.0 / (2.0 * h);
@@ -195,16 +195,9 @@ std::vector<double> invJtJ(const std::vector<double> &J,
 } // namespace
 
 NlinfitResult nlinfit(const Value &X, const Value &y,
-                      const Value &fun, const Value &beta0,
-                      Engine *engine, std::pmr::memory_resource *mr)
+                      FnHandle model, const Value &beta0,
+                      std::pmr::memory_resource *mr)
 {
-    if (!engine)
-        throw Error("nlinfit: engine pointer required for function-handle eval",
-                    0, 0, "nlinfit", "", "numkit:nlinfit:noEngine");
-    if (!fun.isFuncHandle())
-        throw Error("nlinfit: `fun` must be a function handle",
-                    0, 0, "nlinfit", "", "numkit:nlinfit:notFuncHandle");
-
     const std::size_t n = y.numel();
     const std::size_t p = beta0.numel();
     if (p == 0)
@@ -217,7 +210,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
 
     // Initial residual + SSE.
     auto compute_r = [&](const std::vector<double> &b) {
-        auto yhat = evalModel(fun, b, p, X, engine, mr);
+        auto yhat = evalModel(model, b, p, X, mr);
         std::vector<double> r(n);
         for (std::size_t i = 0; i < n; ++i) r[i] = yv[i] - yhat[i];
         return r;
@@ -233,7 +226,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
 
     std::vector<double> J;
     for (int iter = 0; iter < maxIter; ++iter) {
-        J = numericalJacobian(fun, beta, n, p, X, engine, mr);
+        J = numericalJacobian(model, beta, n, p, X, mr);
         auto dbeta = lmStep(J, n, p, rv, lambda);
 
         // Trial step.
@@ -265,7 +258,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     }
 
     // Final Jacobian (refresh at the accepted beta).
-    J = numericalJacobian(fun, beta, n, p, X, engine, mr);
+    J = numericalJacobian(model, beta, n, p, X, mr);
 
     // MSE = SSE / (n - p).
     const double mse = (n > p) ? sse / static_cast<double>(n - p) : sse;
@@ -322,18 +315,11 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
 }
 
 std::tuple<Value, Value>
-nlpredci(const Value &fun, const Value &X, const Value &beta,
+nlpredci(FnHandle model, const Value &X, const Value &beta,
          const Value &R, const Value &J,
          double alpha,
-         Engine *engine, std::pmr::memory_resource *mr)
+         std::pmr::memory_resource *mr)
 {
-    if (!engine)
-        throw Error("nlpredci: engine pointer required",
-                    0, 0, "nlpredci", "", "numkit:nlpredci:noEngine");
-    if (!fun.isFuncHandle())
-        throw Error("nlpredci: `fun` must be a function handle",
-                    0, 0, "nlpredci", "", "numkit:nlpredci:notFuncHandle");
-
     const std::size_t p = beta.numel();
     const std::size_t n = R.numel();
     const std::size_t m = X.dims().rows();
@@ -356,7 +342,7 @@ nlpredci(const Value &fun, const Value &X, const Value &beta,
     auto betaFlat = toFlatDouble(beta);
 
     // ypred at query points: just fun(beta, X).
-    auto ypredFlat = evalModel(fun, betaFlat, p, X, engine, mr);
+    auto ypredFlat = evalModel(model, betaFlat, p, X, mr);
 
     // Per-row prediction sensitivity g_i = ∂fun/∂beta at X(i,:).
     // We compute by central diff on the full X (cheaper: one Jacobian
@@ -369,8 +355,8 @@ nlpredci(const Value &fun, const Value &X, const Value &beta,
         const double h = 1e-7 * scale;
         bplus[j]  = betaFlat[j] + h;
         bminus[j] = betaFlat[j] - h;
-        auto yp = evalModel(fun, bplus,  p, X, engine, mr);
-        auto ym = evalModel(fun, bminus, p, X, engine, mr);
+        auto yp = evalModel(model, bplus,  p, X, mr);
+        auto ym = evalModel(model, bminus, p, X, mr);
         bplus[j]  = betaFlat[j];
         bminus[j] = betaFlat[j];
         const double inv2h = 1.0 / (2.0 * h);
@@ -405,8 +391,17 @@ void nlinfit_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 4)
         throw Error("nlinfit: requires (X, y, fun, beta0)",
                     0, 0, "nlinfit", "", "numkit:nlinfit:nargin");
-    auto res = nlinfit(args[0], args[1], args[2], args[3],
-                       ctx.engine, ctx.engine->resource());
+    if (!args[2].isFuncHandle())
+        throw Error("nlinfit: `fun` must be a function handle",
+                    0, 0, "nlinfit", "", "numkit:nlinfit:notFuncHandle");
+    const Value &fun = args[2];
+    auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
+                              std::pmr::memory_resource * /*mr*/) {
+        Value r = ctx.engine->callFunctionHandle(fun, a);
+        if (!o.empty()) o[0] = std::move(r);
+    };
+    auto res = nlinfit(args[0], args[1], model, args[3],
+                       ctx.engine->resource());
     outs[0] = std::move(res.beta);
     if (nargout > 1) outs[1] = std::move(res.R);
     if (nargout > 2) outs[2] = std::move(res.J);
@@ -436,9 +431,18 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
     double alpha = 0.05;
     if (args.size() >= 6 && !args[5].isEmpty())
         alpha = args[5].toScalar();
-    auto [ypred, delta] = nlpredci(args[0], args[1], args[2],
+    if (!args[0].isFuncHandle())
+        throw Error("nlpredci: `fun` must be a function handle",
+                    0, 0, "nlpredci", "", "numkit:nlpredci:notFuncHandle");
+    const Value &fun = args[0];
+    auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
+                              std::pmr::memory_resource * /*mr*/) {
+        Value r = ctx.engine->callFunctionHandle(fun, a);
+        if (!o.empty()) o[0] = std::move(r);
+    };
+    auto [ypred, delta] = nlpredci(model, args[1], args[2],
                                     args[3], args[4], alpha,
-                                    ctx.engine, ctx.engine->resource());
+                                    ctx.engine->resource());
     outs[0] = std::move(ypred);
     if (nargout > 1) outs[1] = std::move(delta);
 }
