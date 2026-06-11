@@ -224,9 +224,16 @@ re-layering); G is the risky enforcement step.
   FsContext** (Engine retains only the legitimately-Engine `mPath_` m-file
   search path); the line-39 criterion ("stateful fopen-family Engine-free iff
   its handle table lives in FsContext") is now MET. `type`/`fileio` builtin
-  *signatures* still take `Engine&`; B2b (io TUs truly core-free = file builtins
-  take `FsContext&`, move in-TU `_reg` adapters to bundle — the integral
-  pattern) folded into **F**.
+  *signatures*: B2b (io TUs truly core-free = file builtins take `FsContext&`,
+  move in-TU `_reg` adapters to bundle — the integral pattern). **F-for-io
+  started (4115b8fe): `fileio.cpp` is now core-free** — the 11 file builtins
+  take `FsContext& + mr`, the `NK_FILEIO_REG` adapters moved to
+  `bundle/src/register/io/fileio_reg.cpp`, and `IoLibrary::install` is unchanged
+  (it already forward-declares + registers `io::detail::*_reg`; the defs resolve
+  to the bundle TU at link). **Remaining io core includes:** `csv.cpp` /
+  `extras.cpp` / `paths.cpp` (B2a converted their *compute* to `FsContext&` but
+  their in-TU `_reg` adapters still pull `CallContext` — same fileio treatment
+  pending) and the legitimately-Engine `library.cpp` installer + `type`.
 - **C. `builtin → math + lang`** out of `toolboxes/` (decision LOCKED 2026-06-09:
   full rename, ns `numkit::builtin → numkit::{math,lang}`, headers
   `<numkit/builtin/...>` → `<numkit/{math,lang}/...>`). **Per-TU map** (mirrors the
