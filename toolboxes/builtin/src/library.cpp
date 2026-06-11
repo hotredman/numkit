@@ -758,10 +758,6 @@ void BuiltinLibrary::install(Engine &engine)
 {
     registerBinaryOps(engine);
     registerUnaryOps(engine);
-    registerTypeFunctions(engine);
-    registerCellStructFunctions(engine);
-    registerStringFunctions(engine);
-    registerComplexFunctions(engine);
     registerContainers(engine); // dictionary + containers.Map (object model)
 
     registerWorkspaceBuiltins(engine);

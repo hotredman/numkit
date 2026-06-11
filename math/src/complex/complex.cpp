@@ -105,21 +105,3 @@ Value angle(const Value &x, std::pmr::memory_resource *mr)
 
 
 } // namespace numkit::math
-
-// ════════════════════════════════════════════════════════════════════════
-// Registration — hand off to library.cpp install() via forward decls.
-//
-// The existing BuiltinLibrary::registerComplexFunctions() is kept (empty) so
-// the library.hpp interface is unchanged. The actual registrations
-// happen in library.cpp alongside the other Phase-6c builtins.
-// ════════════════════════════════════════════════════════════════════════
-
-namespace numkit {
-
-void BuiltinLibrary::registerComplexFunctions(Engine &)
-{
-    // Intentionally empty — real/imag/conj/complex/angle now register
-    // via the Phase-6c function-pointer path in BuiltinLibrary::install().
-}
-
-} // namespace numkit
