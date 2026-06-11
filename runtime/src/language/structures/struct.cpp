@@ -13,7 +13,7 @@
 #include <numkit/core/types.hpp>
 #include <numkit/core/vm.hpp>
 
-#include "language/handles/_handlefn_helpers.hpp"
+#include "../handles/_handlefn_helpers.hpp"
 
 namespace numkit::builtin {
 

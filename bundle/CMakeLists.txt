@@ -11,6 +11,7 @@
 set(NUMKIT_BUNDLE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/standard_library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/builtin_library.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/version_string.cpp
 )
 # C5: per-domain registration adapters (*_reg) relocated here from the compute
 # libraries — registration glue (CallContext/Engine) belongs to the bundle layer.
