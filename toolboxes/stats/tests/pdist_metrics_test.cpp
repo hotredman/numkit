@@ -5,7 +5,7 @@
 // metrics return NaN (not 1) on a zero-norm / constant row. MATLAB R2025b
 // reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

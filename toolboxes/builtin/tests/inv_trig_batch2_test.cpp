@@ -7,7 +7,7 @@
 // bit-identical to MATLAB R2025b on domain-edge + interior probes.
 // Sibling of the first inverse-trig batch (acos/acot/acsc family).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

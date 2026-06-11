@@ -6,7 +6,7 @@
 // builds the default ind vector on the per-call ScratchArena and
 // dispatches into the same kernel.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

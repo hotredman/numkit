@@ -3,7 +3,7 @@
 // values from MATLAB R2025b probe.
 // (coverage gap).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

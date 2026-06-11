@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/ksdensity_test.cpp
 // ksdensity.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>

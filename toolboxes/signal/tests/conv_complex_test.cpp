@@ -6,7 +6,7 @@
 // multiply-accumulate (full[n] = sum_k a[k]*b[n-k]), NOT a real/imag split.
 // 'full' / 'same' / 'valid' trims all carry through. MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

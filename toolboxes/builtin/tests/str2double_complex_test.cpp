@@ -4,7 +4,7 @@
 // complex-number strings (was NaN). MATLAB R2025b reference values. Real strings
 // stay real double (zero regression).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -26,6 +26,8 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/math/integration/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/cells/cell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/structures/struct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/strings/print_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/strings/scan_io.cpp
 )
 # Binary .mat backend pulls in matio.h directly — only compile it when the
 # matio dep is linked (NUMKIT_WITH_MATIO=ON). matio.h and the

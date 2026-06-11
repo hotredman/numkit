@@ -4,7 +4,7 @@
 // Parity verified on Haar (where numkit's wavedec matches MATLAB);
 // db/sym/coif use a different boundary convention (BUGS.md #37).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

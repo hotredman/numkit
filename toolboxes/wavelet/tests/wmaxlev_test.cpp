@@ -3,7 +3,7 @@
 // Backfill gtest for toolboxes/wavelet/src/dwt/dyad.cpp::wmaxlev.
 // Reference values from MATLAB R2025b probe.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

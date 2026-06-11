@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/evlike_test.cpp
 // evlike.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

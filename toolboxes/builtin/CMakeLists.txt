@@ -9,7 +9,8 @@ list(APPEND NUMKIT_LIBS_SOURCES ${STDLIB_SOURCES})
 list(APPEND NUMKIT_LIBS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 list(APPEND NUMKIT_LIBS_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/library.hpp
+    # library.hpp (BuiltinLibrary umbrella) relocated to bundle/ in C6c-2b —
+    # it is registration glue, now <numkit/bundle/builtin_library.hpp>.
     # (la_solve internal kernel moved to ops/ — numkit::ops::la_solve.)
     # math/ — all relocated (integration.hpp -> runtime in C3; the rest -> math lib in C1)
     # language/ — all relocated (cell/struct -> runtime in C3; the rest -> lang lib in C2)

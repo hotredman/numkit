@@ -3,7 +3,7 @@
 // Tests for E1 — convolution extras:
 //   cconv, convmtx, xcorr2, finddelay, alignsignals.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

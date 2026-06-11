@@ -2,7 +2,6 @@
 //
 // Special functions — gamma / gammaln / erf / erfc / erfinv.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/math/special/special.hpp>
 
 #include <numkit/value/value.hpp>

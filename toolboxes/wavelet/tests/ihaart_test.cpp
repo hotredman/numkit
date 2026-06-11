@@ -2,7 +2,7 @@
 //
 // Backfill gtest for toolboxes/wavelet/src/dwt/ihaart.cpp::ihaart.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -6,7 +6,7 @@
 // cellfun('isempty'|'length'|'ndims'|'prodofsize'|'isreal'|'islogical', C),
 // plus cellfun('size', C, k) and cellfun('isclass', C, 'cls'). MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

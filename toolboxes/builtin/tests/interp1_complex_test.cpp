@@ -5,7 +5,7 @@
 // interp1 interpolates the real and imaginary parts of a complex y separately
 // (every method), then recombines. MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

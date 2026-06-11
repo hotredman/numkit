@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/rmse_mape_test.cpp
 // (partial — 'all'/vecdim).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

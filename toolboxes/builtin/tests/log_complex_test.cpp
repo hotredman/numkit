@@ -5,7 +5,7 @@
 // negative (previously only the scalar case promoted; array elements became
 // NaN). std::log's branch matches MATLAB. MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -4,7 +4,7 @@
 // R2025b — `sin(2π·0.05·n)` over 512 samples with a hann(64, 'periodic')
 // analysis window, 50% overlap, FFTLength 64.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

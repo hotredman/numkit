@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/poissfit_test.cpp
 // poissfit.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

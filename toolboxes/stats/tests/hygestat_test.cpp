@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/hygestat_test.cpp
 // Coverage for hygestat (vectorised in sweep 5dd32c38).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

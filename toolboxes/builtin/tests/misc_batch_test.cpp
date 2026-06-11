@@ -6,7 +6,7 @@
 // All  — bit-identical MATLAB R2025b
 // on probed inputs (parity tol=1e-12).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

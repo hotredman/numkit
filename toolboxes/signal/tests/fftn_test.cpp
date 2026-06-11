@@ -6,7 +6,7 @@
 // (2-D delegating to fft2-equivalent, 3-D pages, sz override, round-trip
 // identity) rather than re-testing the FFT kernel itself.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

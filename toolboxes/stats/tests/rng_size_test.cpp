@@ -3,7 +3,7 @@
 // Closes: betarnd, binornd, chi2rnd, exprnd, frnd, gamrnd, lognrnd,
 // normrnd, poissrnd, raylrnd, trnd, unidrnd, unifrnd, wblrnd.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

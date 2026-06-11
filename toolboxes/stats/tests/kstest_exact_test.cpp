@@ -6,7 +6,7 @@
 // values by inverting the same p-function, and kstest2 via Stephens' corrected
 // asymptotic. The KS statistic was already correct. MATLAB R2025b reference.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

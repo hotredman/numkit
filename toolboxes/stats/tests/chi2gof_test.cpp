@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/chi2gof_test.cpp
 // chi2gof.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

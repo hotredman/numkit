@@ -11,7 +11,7 @@
 // All flagged "no major gap detected". Bit-identical MATLAB R2025b
 // (12 verified, 1 deferred — imoverlay arg validation differs).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

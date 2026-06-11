@@ -5,7 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
 #include <numkit/lang/strings/format.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/builtin/programming/errors/diagnostics.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>

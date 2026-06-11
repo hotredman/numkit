@@ -3,7 +3,6 @@
 // Miscellaneous elementary-math builtins: deg2rad, rad2deg, mod, rem,
 // hypot, nthroot.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/math/arithmetic/misc.hpp>
 
 #include <numkit/value/value.hpp>

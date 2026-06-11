@@ -6,7 +6,7 @@
 // identity copy). Valid orders are unchanged. MATLAB R2025b: the rejected
 // forms all error "Difference order N must be a positive integer scalar".
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

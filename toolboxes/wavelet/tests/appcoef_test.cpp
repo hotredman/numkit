@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/appcoef_test.cpp
 // appcoef.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -3,7 +3,7 @@
 // Tests for D3 — filter form conversions:
 //   sos2tf / sos2zp / tf2zpk + tf↔ss + sos↔ss + zpk↔ss.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

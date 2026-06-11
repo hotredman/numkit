@@ -1,7 +1,7 @@
 // toolboxes/image/tests/wcodemat_test.cpp
 // wcodemat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

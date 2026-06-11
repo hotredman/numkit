@@ -4,7 +4,7 @@
 // accepts a data matrix whose COLUMNS are the groups. Expected values from
 // MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

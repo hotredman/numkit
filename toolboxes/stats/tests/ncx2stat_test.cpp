@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/ncx2stat_test.cpp
 // ncx2stat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

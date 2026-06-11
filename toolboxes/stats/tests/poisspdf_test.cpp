@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/poisspdf_test.cpp
 // poisspdf.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -2,7 +2,7 @@
 // Coverage for nakastat (MATLAB R2025b does not ship it).
 // Reference values from Octave statistics package.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

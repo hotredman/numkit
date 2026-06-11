@@ -8,7 +8,7 @@
 // diagonal is 1. MATLAB R2025b reference. (Large-n Spearman uses a
 // t-approximation -- MATLAB's AS 89 -- so only small-n exact is asserted.)
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

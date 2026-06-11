@@ -4,7 +4,7 @@
 // (MATLAB R2025b promotes to double; quotient AND remainder are always double,
 // never the integer class). Offline regression guard, hardcoded expecteds.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

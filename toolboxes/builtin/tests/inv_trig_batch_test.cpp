@@ -6,7 +6,7 @@
 // + interior probes (matching the corresponding parity-spec fingerprints).
 // All values verified bit-identical to MATLAB to tol=1e-12.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

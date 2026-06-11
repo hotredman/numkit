@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/unifit_test.cpp
 // unifit.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

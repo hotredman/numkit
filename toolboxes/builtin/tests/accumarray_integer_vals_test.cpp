@@ -4,7 +4,7 @@
 // vals (MATLAB R2025b). Output class follows the reducer: sum/prod/mean ->
 // double, but max/min PRESERVE the integer class. Offline regression guard.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/raylstat_test.cpp
 // raylstat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

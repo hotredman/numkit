@@ -12,7 +12,7 @@
 // the end of this file (a correct CLAHE must widen a low-contrast
 // image's dynamic range, and more clipping must spread it further).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -15,7 +15,7 @@
 // (24 verified, 2 deferred — bwconncomp struct field access + deltaE
 // output dims).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

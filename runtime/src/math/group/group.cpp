@@ -6,7 +6,7 @@
 //   groupcounts  — count elements per group
 
 #include <numkit/runtime/math/group/group.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/engine.hpp>

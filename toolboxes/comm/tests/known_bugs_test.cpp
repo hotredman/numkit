@@ -3,7 +3,7 @@
 // One DISABLED_ test per OPEN bug in bugs/comm/*.md. Disabled until fixed;
 // remove `DISABLED_` to turn into a live regression guard. MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

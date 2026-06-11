@@ -5,7 +5,7 @@
 // 'fro'), matching MATLAB. The complex matrix 2-norm (spectral) still needs a
 // complex SVD and is expected to throw. MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

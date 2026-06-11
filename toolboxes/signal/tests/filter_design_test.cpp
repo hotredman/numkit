@@ -1,7 +1,7 @@
 // tests/filter_design_test.cpp
 
 #include <numkit/core/engine.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 

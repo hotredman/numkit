@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/ttest_extras_test.cpp
 // Reference values from MATLAB R2025b probe.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

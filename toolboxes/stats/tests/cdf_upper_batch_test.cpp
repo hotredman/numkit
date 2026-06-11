@@ -9,7 +9,7 @@
 // All hardcoded "upper" expected values are computed by hand as 1 - p
 // from the lower-tail value the function would otherwise return.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

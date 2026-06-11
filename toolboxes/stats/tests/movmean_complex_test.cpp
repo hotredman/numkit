@@ -6,7 +6,7 @@
 // separately, then recombines (window / asymmetric / dim all carry through).
 // MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -2,7 +2,7 @@
 // Joint regression tests for quantile / prctile / iqr. Hardcoded
 // expected values captured from MATLAB R2025b probe.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

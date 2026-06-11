@@ -8,7 +8,7 @@
 // 14 verified bit-identical MATLAB R2025b; 6 deferred with separate specs
 // notes for default-NFFT or boundary-handling gaps.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

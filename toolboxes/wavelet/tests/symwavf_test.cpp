@@ -2,7 +2,7 @@
 //
 // Backfill gtest for toolboxes/wavelet/src/filter/families.cpp::symwavf.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

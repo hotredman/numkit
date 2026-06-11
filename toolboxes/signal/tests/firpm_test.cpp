@@ -6,7 +6,7 @@
 // detection at band edges, multiple-exchange alternation merge,
 // barycentric Lagrange interpolation, inverse-DCT-I reconstruction).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

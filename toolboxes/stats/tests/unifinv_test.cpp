@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/unifinv_test.cpp
 // unifinv.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

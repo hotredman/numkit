@@ -7,7 +7,7 @@
 // these (exact integer zeros, sign-of-zero, accuracy at 1/6, and the
 // ~1e-10 drift by x=1e7).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <gtest/gtest.h>

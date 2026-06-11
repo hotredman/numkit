@@ -1,5 +1,4 @@
 set(STDLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     # Tiny isolated TU owning the build-timestamp string. Forced to
     # recompile on every build by the `numkit_build_info` target in
     # the top-level CMakeLists, so the `version` builtin always

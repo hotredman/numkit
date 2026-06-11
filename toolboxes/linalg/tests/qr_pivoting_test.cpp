@@ -7,7 +7,7 @@
 // (Q signs may differ from MATLAB by a reflection — the QR is still valid).
 // MATLAB R2025b reference.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

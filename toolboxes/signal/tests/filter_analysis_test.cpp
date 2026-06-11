@@ -4,7 +4,7 @@
 //   impz / impzlength / stepz / phasedelay / zerophase
 //   isfir / isstable / isminphase / ismaxphase / islinphase / isallpass
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

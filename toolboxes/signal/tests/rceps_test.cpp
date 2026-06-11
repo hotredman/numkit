@@ -8,7 +8,7 @@
 // The fix also runs cceps/icceps at the exact length (no padding garbage),
 // preserving the existing power-of-two parity.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/signal/transforms/extras.hpp>
 #include <gtest/gtest.h>

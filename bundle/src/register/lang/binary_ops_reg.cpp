@@ -3,7 +3,7 @@
 // CallContext register half (Phase 2b multi-block split).
 #include <numkit/core/engine.hpp>
 #include <numkit/lang/operators/binary_ops.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/ops/binary_ops.hpp>
 #include <numkit/ops/compare.hpp>
 #include <numkit/ops/la_solve.hpp>

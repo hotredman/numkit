@@ -9,7 +9,7 @@
 
 #include <numkit/core/engine.hpp>
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/bundle/builtin_library.hpp>
 #include <numkit/linalg/library.hpp>
 #include <numkit/signal/library.hpp>
 #include <numkit/stats/library.hpp>

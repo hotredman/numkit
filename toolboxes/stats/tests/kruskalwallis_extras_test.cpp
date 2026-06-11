@@ -1,6 +1,6 @@
 // toolboxes/stats/tests/kruskalwallis_extras_test.cpp
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

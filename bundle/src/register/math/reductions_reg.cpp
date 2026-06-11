@@ -5,7 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
 #include <numkit/lang/arrays/matrix.hpp>       // reshape (for 'all')
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/math/arithmetic/reductions.hpp>
 #include <numkit/math/arithmetic/rounding.hpp>       // abs adapter
 #include <numkit/math/exp_log/exponents.hpp>      // exp / log adapters

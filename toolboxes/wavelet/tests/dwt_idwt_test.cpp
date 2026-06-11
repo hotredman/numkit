@@ -1,7 +1,7 @@
 // toolboxes/wavelet/tests/dwt_idwt_test.cpp
 // dwt + idwt + wavedec + waverec.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

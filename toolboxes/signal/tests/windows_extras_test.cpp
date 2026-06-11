@@ -4,7 +4,7 @@
 //   triang, tukeywin, flattopwin, gausswin, chebwin, parzenwin,
 //   nuttallwin, taylorwin, blackmanharris, bohmanwin, barthannwin.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

@@ -8,7 +8,7 @@
 // MATLAB R2025b on probed inputs (parity tol=1e-9, special-function
 // algorithms have ULP differences vs naive libm).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

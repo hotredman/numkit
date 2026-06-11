@@ -1,4 +1,4 @@
-#include <numkit/builtin/library.hpp>
+#include <numkit/bundle/builtin_library.hpp>
 #include <numkit/runtime/language/cells/cell.hpp>
 #include <numkit/runtime/language/structures/struct.hpp>
 #include <numkit/lang/operators/binary_ops.hpp>

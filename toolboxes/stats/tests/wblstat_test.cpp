@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/wblstat_test.cpp
 // wblstat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -2,7 +2,7 @@
 //
 // Tests for E2: dftmtx / bitrevorder / dst / idst / rceps / cceps / icceps.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

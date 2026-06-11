@@ -3,7 +3,7 @@
 // Tests for B1 (moving stats: mov*, smoothdata, hampel) and B2
 // (descriptive extras: bounds, iqr, maxk, mink, rmse).
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>

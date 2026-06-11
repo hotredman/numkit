@@ -4,7 +4,7 @@
 // (don't break the green baseline); remove `DISABLED_` to turn into a live
 // regression guard. Asserts MATLAB R2025b-correct behaviour.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

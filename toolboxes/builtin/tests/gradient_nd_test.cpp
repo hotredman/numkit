@@ -6,7 +6,7 @@
 // output ordering, single-spacing broadcast, and per-dim spacing. MATLAB
 // R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

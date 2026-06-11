@@ -7,7 +7,7 @@
 // std::atanh complex branch flips the imaginary sign), which also fixes the
 // scalar atanh(-2). MATLAB R2025b reference values.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

@@ -6,7 +6,7 @@
 // and complex input uses log(1+z). The real (x >= -1) path keeps the accurate
 // log1p (log1p(1e-15) == 1e-15, not the lossy log(1+1e-15)). MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

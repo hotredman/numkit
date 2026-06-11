@@ -7,7 +7,7 @@
 // different integer class / the real part of complex are cast with
 // round-half-away + saturate. Bit-exact MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

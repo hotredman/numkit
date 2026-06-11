@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/chi2pdf_test.cpp
 // chi2pdf. Reference values from MATLAB R2025b.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

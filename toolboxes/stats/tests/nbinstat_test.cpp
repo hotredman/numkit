@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/nbinstat_test.cpp
 // nbinstat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

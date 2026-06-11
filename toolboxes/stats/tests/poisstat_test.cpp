@@ -1,7 +1,7 @@
 // toolboxes/stats/tests/poisstat_test.cpp
 // poisstat.
 
-#include <numkit/builtin/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

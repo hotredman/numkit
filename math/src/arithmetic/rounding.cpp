@@ -4,7 +4,6 @@
 // MStdAbs_*.cpp (SIMD-backed) and only its declaration is in
 // math/elementary/rounding.hpp.
 
-#include <numkit/builtin/library.hpp>
 #include <numkit/math/arithmetic/rounding.hpp>
 
 #include <numkit/value/value.hpp>
