@@ -7,6 +7,8 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
+#include <numkit/value/fn_handle.hpp>
+#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <array>
@@ -2072,6 +2074,39 @@ Value bwtraceboundary(const Value &BW, const Value &P,
         out.doubleDataMut()[Q + i] = static_cast<double>(bc[i] + 1);
     }
     return out;
+}
+
+// ── makelut — build a bwlookup/applylut table by evaluating `fun` on every
+// n×n binary neighbourhood (`bwlookup(BW, makelut(fun, n))`). Core-free: the
+// user function handle is invoked through the FnHandle callback (the engine
+// adapter in bundle binds it to Engine::callFunctionHandle). The VM-pausable
+// path for user-code handles is the separate MakelutCallbackBuiltin in bundle.
+Value makelut(FnHandle fun, int n, std::pmr::memory_resource *mr)
+{
+    if (n != 2 && n != 3)
+        throw Error("makelut: N must be 2 or 3.",
+                    0, 0, "makelut", "", "numkit:makelut:badN");
+    const int nq = n * n;
+    const std::size_t N = std::size_t{1} << nq;   // 16 or 512
+    Value lut = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    double *ld = lut.doubleDataMut();
+
+    // Reusable logical neighbourhood, mutated per table entry.
+    Value nh = Value::matrix(static_cast<std::size_t>(n), static_cast<std::size_t>(n),
+                             ValueType::LOGICAL, mr);
+    uint8_t *nd = nh.logicalDataMut();
+    for (std::size_t k = 0; k < N; ++k) {
+        for (int i = 0; i < nq; ++i)
+            nd[i] = static_cast<uint8_t>((k >> (nq - 1 - i)) & std::size_t{1});
+        std::array<Value, 1> o;
+        fun(Span<const Value>(&nh, 1), Span<Value>(o.data(), 1), mr);
+        const Value &r = o[0];
+        if (r.numel() != 1)
+            throw Error("makelut: fun must return a scalar",
+                        0, 0, "makelut", "", "numkit:makelut:funScalar");
+        ld[k] = r.toScalar();
+    }
+    return lut;
 }
 
 } // namespace numkit::image

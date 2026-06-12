@@ -47,37 +47,10 @@ Value diamond_cross(std::pmr::memory_resource *mr) {
 }
 } // anonymous
 
-// makelut — build a bwlookup/applylut table by evaluating `fun` on every
-// 2^(n²) binary n×n neighbourhood. Index k's neighbourhood (col-major)
-// has position i set to bit (nq-1-i) of k — the inverse of the
-// reshape(2^[nq-1:-1:0], n, n) weight kernel used by applylut, so
-// bwlookup(BW, makelut(fun, n)) applies fun to each neighbourhood.
-Value makelut(numkit::Engine &eng, const Value &fun, int n,
-              std::pmr::memory_resource *mr)
-{
-    if (n != 2 && n != 3)
-        throw Error("makelut: N must be 2 or 3.",
-                    0, 0, "makelut", "", "numkit:makelut:badN");
-    const int nq = n * n;
-    const size_t N = size_t{1} << nq;   // 16 or 512
-    Value lut = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    double *ld = lut.doubleDataMut();
-
-    // Reusable logical neighbourhood, mutated per table entry.
-    Value nh = Value::matrix(static_cast<size_t>(n), static_cast<size_t>(n),
-                             ValueType::LOGICAL, mr);
-    uint8_t *nd = nh.logicalDataMut();
-    for (size_t k = 0; k < N; ++k) {
-        for (int i = 0; i < nq; ++i)
-            nd[i] = static_cast<uint8_t>((k >> (nq - 1 - i)) & size_t{1});
-        Value r = eng.callFunctionHandle(fun, Span<const Value>(&nh, 1));
-        if (r.numel() != 1)
-            throw Error("makelut: fun must return a scalar",
-                        0, 0, "makelut", "", "numkit:makelut:funScalar");
-        ld[k] = r.toScalar();
-    }
-    return lut;
-}
+// makelut's compute (Value makelut(FnHandle, int, mr)) lives in the image
+// toolbox (morph.cpp) — core-free. makelut_reg below is the synchronous
+// fallback adapter (builtin handles); the VM-pausable user-code path is
+// MakelutCallbackBuiltin further down.
 
 namespace detail {
 
@@ -382,7 +355,16 @@ void makelut_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("makelut: requires (fun, n)",
                     0, 0, "makelut", "", "numkit:makelut:nargin");
     const int n = static_cast<int>(args[1].toScalar());
-    outs[0] = makelut(*ctx.engine, args[0], n, ctx.engine->resource());
+    const Value &handle = args[0];
+    // Bind the user/builtin function handle into a core-free FnHandle for the
+    // toolbox compute (the VM-pausable user-code path is MakelutCallbackBuiltin).
+    auto cb = [&ctx, &handle](Span<const Value> a, Span<Value> o,
+                              std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, a, o.size());
+        for (size_t i = 0; i < o.size() && i < r.size(); ++i)
+            o[i] = std::move(r[i]);
+    };
+    outs[0] = makelut(cb, n, ctx.engine->resource());
 }
 
 void bwmorph3_reg(Span<const Value> args, size_t /*nargout*/,
