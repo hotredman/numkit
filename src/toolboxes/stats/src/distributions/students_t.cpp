@@ -136,17 +136,15 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value trnd(double nu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value trnd(::numkit::ops::RngContext &rng, double nu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (nu <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     std::normal_distribution<double> nd(0.0, 1.0);
     std::gamma_distribution<double>  gd(0.5 * nu, 2.0);  // χ²(ν) = Gamma(ν/2, 2)
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) {
         const double Z = nd(gen);
         const double X = gd(gen);
@@ -206,18 +204,16 @@ std::tuple<double, double> nctstat(double nu, double delta)
     return {m, v};
 }
 
-Value nctrnd(double nu, double delta, std::size_t rows, std::size_t cols,
+Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, std::size_t rows, std::size_t cols,
              std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!(nu > 0.0) || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const std::size_t n = rows * cols;
     std::normal_distribution<double> nd(0.0, 1.0);
     std::gamma_distribution<double>  gd(0.5 * nu, 2.0);   // χ²(ν) = Gamma(ν/2, 2)
-    std::lock_guard<std::mutex> lk(mtx);
     for (std::size_t i = 0; i < n; ++i) {
         const double Z = nd(gen);
         const double X = gd(gen);

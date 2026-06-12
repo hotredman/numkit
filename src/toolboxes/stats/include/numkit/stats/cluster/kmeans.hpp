@@ -7,6 +7,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// Lloyd's k-means clustering (`[idx, C, sumd] = kmeans(X, K, …)`).
@@ -27,7 +29,7 @@ namespace numkit::stats {
 ///
 /// @see kmedoids, linkage
 std::tuple<Value, Value, Value>
-kmeans(const Value &X, int K, int max_iter, int replicates,
+kmeans(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
        std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

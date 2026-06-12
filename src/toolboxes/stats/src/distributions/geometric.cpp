@@ -68,16 +68,14 @@ Value geoinv(const Value &q, double p, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value geornd(double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value geornd(::numkit::ops::RngContext &rng, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (p <= 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t cnt = rows * cols;
     std::geometric_distribution<int> gd(p);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < cnt; ++i) od[i] = static_cast<double>(gd(gen));
     return out;
 }

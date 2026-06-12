@@ -76,28 +76,26 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
     return elementwise(q, [=](double qi){ return b * qi; }, mr);
 }
 
-Value gamrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     std::gamma_distribution<double> gd(a, b);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = gd(gen);
     return out;
 }
 
-Value randg(double shape, size_t rows, size_t cols,
+Value randg(::numkit::ops::RngContext &rng, double shape, size_t rows, size_t cols,
             std::pmr::memory_resource *mr)
 {
     // randg(shape) ≡ gamrnd(shape, 1, rows, cols) — pure scale = 1.
-    return gamrnd(shape, 1.0, rows, cols, mr);
+    return gamrnd(rng, shape, 1.0, rows, cols, mr);
 }
 
-Value randg(const Value &shapeArray, std::pmr::memory_resource *mr)
+Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray, std::pmr::memory_resource *mr)
 {
     const std::size_t rows = shapeArray.dims().rows();
     const std::size_t cols = shapeArray.dims().cols();
@@ -105,9 +103,7 @@ Value randg(const Value &shapeArray, std::pmr::memory_resource *mr)
     const std::size_t n = rows * cols;
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
-    std::lock_guard<std::mutex> lk(mtx);
+    auto &gen = rng;
     for (std::size_t i = 0; i < n; ++i) {
         const double a = shapeArray.elemAsDouble(i);
         if (a <= 0.0) {

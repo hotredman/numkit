@@ -41,10 +41,9 @@ Value nbininv(const Value &q, double r, double p, std::pmr::memory_resource *mr)
     return elementwise(q, [=](double qi) { return nbin_inv_scalar(qi, r, p); }, mr);
 }
 
-Value nbinrnd(double r, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value nbinrnd(::numkit::ops::RngContext &rng, double r, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (r <= 0.0 || p <= 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
@@ -54,7 +53,6 @@ Value nbinrnd(double r, double p, size_t rows, size_t cols, std::pmr::memory_res
     // K | λ ~ Poisson(λ).
     std::gamma_distribution<double> gd(r, (1.0 - p) / p);
     std::poisson_distribution<int>  pd_dummy(1.0); (void)pd_dummy;
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < cnt; ++i) {
         const double lam = gd(gen);
         std::poisson_distribution<int> pd(lam <= 0.0 ? 0.0 : lam);

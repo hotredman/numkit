@@ -8,6 +8,8 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Multivariate normal random samples
@@ -35,7 +37,7 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `n × d` matrix of samples.
 /// @throws Error on shape mismatch or non-PD Sigma.
-Value mvnrnd(const Value &mu, const Value &Sigma, std::size_t n = 0,
+Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n = 0,
              std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Multivariate normal CDF (`p = mvncdf(X, mu, Sigma)`).
@@ -80,7 +82,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
 /// @param n    Sample count.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `n × d` matrix of samples.
-Value mvtrnd(const Value &C, double df, std::size_t n,
+Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, std::size_t n,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Multinomial random samples (`R = mnrnd(N, P, m)`).
@@ -101,7 +103,7 @@ Value mvtrnd(const Value &C, double df, std::size_t n,
 /// @param m   Number of samples (default 1).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `m × k` count matrix.
-Value mnrnd(std::size_t N, const Value &P, std::size_t m = 1,
+Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::size_t m = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Wishart random matrix (`W = wishrnd(Sigma, df)`).
@@ -123,7 +125,7 @@ Value mnrnd(std::size_t N, const Value &P, std::size_t m = 1,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Single `p × p` Wishart draw.
 /// @see iwishrnd, mvnrnd
-Value wishrnd(const Value &Sigma, double df,
+Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Inverse-Wishart random matrix (`W = iwishrnd(Tau, df)`).
@@ -142,7 +144,7 @@ Value wishrnd(const Value &Sigma, double df,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Single `p × p` inverse Wishart draw.
 /// @see wishrnd
-Value iwishrnd(const Value &Tau, double df,
+Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, double df,
                std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Wishart sample with pre-computed Cholesky factor
@@ -158,7 +160,7 @@ Value iwishrnd(const Value &Tau, double df,
 /// @param mr     Memory resource.
 /// @return       `{W, D}` — Wishart draw and the upper-Cholesky factor.
 std::tuple<Value, Value>
-wishrnd_factor(const Value &Sigma, double df,
+wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
                const Value &D, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Inverse-Wishart sample with pre-computed Cholesky factor
@@ -173,7 +175,7 @@ wishrnd_factor(const Value &Sigma, double df,
 ///
 /// @return  `{W, DI}` — Inv-Wishart draw and the lower-Cholesky of inv(Tau).
 std::tuple<Value, Value>
-iwishrnd_factor(const Value &Tau, double df,
+iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df,
                 const Value &DI, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Multivariate t cdf upper-tail (`p = mvtcdf(X, C, df)`).

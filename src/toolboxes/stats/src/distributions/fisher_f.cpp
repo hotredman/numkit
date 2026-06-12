@@ -91,17 +91,15 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value frnd(double v1, double v2, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (v1 <= 0.0 || v2 <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     std::gamma_distribution<double> g1(0.5 * v1, 2.0); // χ²(v1)
     std::gamma_distribution<double> g2(0.5 * v2, 2.0); // χ²(v2)
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) {
         const double x1 = g1(gen);
         const double x2 = g2(gen);
@@ -169,12 +167,11 @@ std::tuple<double, double> ncfstat(double nu1, double nu2, double delta)
     return {m, v};
 }
 
-Value ncfrnd(double nu1, double nu2, double delta,
+Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delta,
              std::size_t rows, std::size_t cols,
              std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0 || rows * cols == 0)
         return out;
@@ -182,7 +179,6 @@ Value ncfrnd(double nu1, double nu2, double delta,
     const std::size_t n = rows * cols;
     std::poisson_distribution<int>   pd(0.5 * delta);
     std::gamma_distribution<double>  g2(0.5 * nu2, 2.0);   // χ²(ν₂)
-    std::lock_guard<std::mutex> lk(mtx);
     for (std::size_t i = 0; i < n; ++i) {
         const int J = pd(gen);
         std::gamma_distribution<double> g1(0.5 * nu1 + static_cast<double>(J), 2.0);

@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief GEV pdf (`y = gevpdf(x, k, sigma, mu)`).
@@ -65,7 +67,7 @@ Value gevinv(const Value &p, double k, double sigma, double mu,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of GEV samples.
 /// @see gevpdf
-Value gevrnd(double k, double sigma, double mu,
+Value gevrnd(::numkit::ops::RngContext &rng, double k, double sigma, double mu,
              size_t rows = 1, size_t cols = 1,
              std::pmr::memory_resource *mr = nullptr);
 

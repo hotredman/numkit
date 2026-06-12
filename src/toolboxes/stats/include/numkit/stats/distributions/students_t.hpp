@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Student's t pdf (`y = tpdf(x, nu)`).
@@ -58,7 +60,7 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr = nullptr);
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of t-samples.
 /// @see tpdf
-Value trnd(double nu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value trnd(::numkit::ops::RngContext &rng, double nu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Student's t mean and variance (`[m, v] = tstat(nu)`).
 ///
@@ -153,7 +155,7 @@ std::tuple<double, double> nctstat(double nu, double delta);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of nct-samples.
 /// @see nctpdf
-Value nctrnd(double nu, double delta, std::size_t rows = 1, std::size_t cols = 1,
+Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, std::size_t rows = 1, std::size_t cols = 1,
              std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

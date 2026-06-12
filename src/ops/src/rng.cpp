@@ -1,10 +1,9 @@
 // ops/src/rng.cpp
-// Shared RNG compute: the process-static MT19937 stream + value-producing
-// generators (rand/randn/randi/randperm) + rng() state control. Routes all
-// RNG through one engine so MATLAB-style rng(seed) reproduces sequences across
-// the whole RNG-using surface. Bit-identical with MATLAB R2025b's rng()+rand()
-// (53-bit genRes53). Engine-free (Value + MatlabMT19937 only) — the builtins
-// that parse shape/type args live in toolboxes/builtin and call these.
+// Value-producing random generators + RngContext rng() control. Every generator
+// draws from a caller-provided RngContext (the Engine owns one; engine.rng()) —
+// no process-global stream, no mutex. A session shares ONE reproducible stream
+// (MATLAB `rng(seed)`); two Engines are independent. Bit-identical with MATLAB
+// R2025b's rng()+rand() (53-bit genRes53). Engine-free (Value + RngContext).
 
 #include <numkit/ops/rng.hpp>
 
@@ -13,7 +12,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <mutex>
 #include <numeric>
 #include <random>
 #include <sstream>
@@ -22,31 +20,17 @@
 namespace numkit::ops {
 
 // ────────────────────────────────────────────────────────────────────
-// Process-static RNG state
+// RngContext state control (seed lives inline in the header)
 // ────────────────────────────────────────────────────────────────────
-
-std::mutex &rngMutex()
-{
-    static std::mutex m;
-    return m;
-}
-
-MatlabMT19937 &sharedEngine()
-{
-    // Default-constructed = init_by_array([0]) = MATLAB rng('default').
-    static MatlabMT19937 gen;
-    return gen;
-}
 
 namespace {
 
-// Serialise MatlabMT19937 state to / from a text blob.
-// Format: "mt19937 <624 hex words> <index>"
-std::string serializeEngine()
+// Serialise / restore MT19937 state as a text blob: "mt19937 <624 words> <idx>".
+std::string serializeState(const MatlabMT19937 &gen)
 {
     uint32_t state[MatlabMT19937::STATE_SIZE];
     int idx;
-    sharedEngine().getState(state, idx);
+    gen.getState(state, idx);
     std::ostringstream os;
     os << "mt19937";
     for (std::size_t i = 0; i < MatlabMT19937::STATE_SIZE; ++i)
@@ -55,7 +39,7 @@ std::string serializeEngine()
     return os.str();
 }
 
-void deserializeEngine(const std::string &blob)
+void deserializeState(MatlabMT19937 &gen, const std::string &blob)
 {
     std::istringstream is(blob);
     std::string tag;
@@ -73,39 +57,27 @@ void deserializeEngine(const std::string &blob)
     if (!(is >> idx))
         throw Error("rng: malformed state blob",
                      0, 0, "rng", "", "numkit:rng:badState");
-    sharedEngine().setState(state, idx);
+    gen.setState(state, idx);
 }
 
 } // namespace
 
-// ────────────────────────────────────────────────────────────────────
-// Seeding / state control
-// ────────────────────────────────────────────────────────────────────
-
-void rngSeed(uint64_t seed)
+void RngContext::shuffle()
 {
-    std::lock_guard<std::mutex> lock(rngMutex());
-    sharedEngine().seed(static_cast<uint32_t>(seed));
-}
-
-void rngShuffle()
-{
-    std::lock_guard<std::mutex> lock(rngMutex());
     std::random_device rd;
-    sharedEngine().seed(rd());
+    gen_.seed(rd());
 }
 
-Value rngState(std::pmr::memory_resource *mr)
+Value RngContext::state(std::pmr::memory_resource *mr) const
 {
-    std::lock_guard<std::mutex> lock(rngMutex());
-    auto blob = serializeEngine();
+    auto blob = serializeState(gen_);
     auto s = Value::structure();
     s.field("Type")  = Value::fromString("twister", mr);
     s.field("State") = Value::fromString(blob, mr);
     return s;
 }
 
-void rngRestore(const Value &state)
+void RngContext::restore(const Value &state)
 {
     if (!state.isStruct())
         throw Error("rng: state must be a struct from rng()",
@@ -117,15 +89,14 @@ void rngRestore(const Value &state)
     if (!blob.isChar() && !blob.isString())
         throw Error("rng: .State must be a char array",
                      0, 0, "rng", "", "numkit:rng:badState");
-    std::lock_guard<std::mutex> lock(rngMutex());
-    deserializeEngine(blob.toString());
+    deserializeState(gen_, blob.toString());
 }
 
 // ────────────────────────────────────────────────────────────────────
 // Real-valued random (uniform / standard-normal)
 // ────────────────────────────────────────────────────────────────────
 
-Value rand(MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
+Value rand(RngContext &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -135,12 +106,11 @@ Value rand(MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, std::pmr:
     return m;
 }
 
-Value randn(MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
+Value randn(RngContext &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     // NOTE: std::normal_distribution is NOT MATLAB-bit-identical (MATLAB
-    // uses Marsaglia-Tsang Ziggurat with specific tables). Bit-identity
-    // for randn() is a separate spec. Sequence is still deterministic and
-    // seedable via rng().
+    // uses Marsaglia-Tsang Ziggurat with specific tables). Sequence is still
+    // deterministic and seedable via the session RngContext.
     std::normal_distribution<double> dist(0.0, 1.0);
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -149,7 +119,7 @@ Value randn(MatlabMT19937 &rng, size_t rows, size_t cols, size_t pages, std::pmr
     return m;
 }
 
-Value randND(MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
+Value randND(RngContext &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
     auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
@@ -157,7 +127,7 @@ Value randND(MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resou
     return m;
 }
 
-Value randnND(MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
+Value randnND(RngContext &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
     auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
     std::normal_distribution<double> dist(0.0, 1.0);
@@ -172,42 +142,41 @@ Value randnND(MatlabMT19937 &rng, Span<const size_t> dims, std::pmr::memory_reso
 
 namespace {
 
-void fillUniformInt(double *dst, size_t n, int64_t lo, int64_t hi)
+void fillUniformInt(RngContext &rng, double *dst, size_t n, int64_t lo, int64_t hi)
 {
     if (lo > hi)
         throw Error("randi: low bound must be <= high bound",
                      0, 0, "randi", "", "numkit:randi:badRange");
-    std::lock_guard<std::mutex> lock(rngMutex());
     std::uniform_int_distribution<int64_t> dist(lo, hi);
     for (size_t i = 0; i < n; ++i)
-        dst[i] = static_cast<double>(dist(sharedEngine()));
+        dst[i] = static_cast<double>(dist(rng));
 }
 
-Value makeIntMatrix(int64_t lo, int64_t hi, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
+Value makeIntMatrix(RngContext &rng, int64_t lo, int64_t hi, size_t rows, size_t cols,
+                    size_t pages, std::pmr::memory_resource *mr)
 {
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    fillUniformInt(m.doubleDataMut(), m.numel(), lo, hi);
+    fillUniformInt(rng, m.doubleDataMut(), m.numel(), lo, hi);
     return m;
 }
 
 } // namespace
 
-Value randi(int64_t imax, std::pmr::memory_resource *mr)
+Value randi(RngContext &rng, int64_t imax, std::pmr::memory_resource *mr)
 {
-    std::lock_guard<std::mutex> lock(rngMutex());
     std::uniform_int_distribution<int64_t> dist(1, imax);
-    return Value::scalar(static_cast<double>(dist(sharedEngine())), mr);
+    return Value::scalar(static_cast<double>(dist(rng)), mr);
 }
 
-Value randi(int64_t imax, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
+Value randi(RngContext &rng, int64_t imax, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
-    return makeIntMatrix(1, imax, rows, cols, pages, mr);
+    return makeIntMatrix(rng, 1, imax, rows, cols, pages, mr);
 }
 
-Value randi(int64_t imin, int64_t imax, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
+Value randi(RngContext &rng, int64_t imin, int64_t imax, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
-    return makeIntMatrix(imin, imax, rows, cols, pages, mr);
+    return makeIntMatrix(rng, imin, imax, rows, cols, pages, mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -217,12 +186,12 @@ Value randi(int64_t imin, int64_t imax, size_t rows, size_t cols, size_t pages, 
 // randperm(n, k) : partial Fisher-Yates — k iterations produce k unique
 // values without fully shuffling the rest.
 
-Value randperm(size_t n, std::pmr::memory_resource *mr)
+Value randperm(RngContext &rng, size_t n, std::pmr::memory_resource *mr)
 {
-    return randperm(n, n, mr);
+    return randperm(rng, n, n, mr);
 }
 
-Value randperm(size_t n, size_t k, std::pmr::memory_resource *mr)
+Value randperm(RngContext &rng, size_t n, size_t k, std::pmr::memory_resource *mr)
 {
     if (k > n)
         throw Error("randperm: k must not exceed n",
@@ -235,12 +204,10 @@ Value randperm(size_t n, size_t k, std::pmr::memory_resource *mr)
     auto pool = ScratchVec<int64_t>(n, &scratch);
     std::iota(pool.begin(), pool.end(), int64_t{1});
 
-    std::lock_guard<std::mutex> lock(rngMutex());
-    auto &gen = sharedEngine();
     double *dst = r.doubleDataMut();
     for (size_t i = 0; i < k; ++i) {
         std::uniform_int_distribution<size_t> dist(i, n - 1);
-        const size_t j = dist(gen);
+        const size_t j = dist(rng);
         std::swap(pool[i], pool[j]);
         dst[i] = static_cast<double>(pool[i]);
     }

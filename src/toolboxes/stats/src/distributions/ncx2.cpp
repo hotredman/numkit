@@ -80,17 +80,15 @@ Value ncx2inv(const Value &p, double k, double lambda, std::pmr::memory_resource
     }, mr);
 }
 
-Value ncx2rnd(double k, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (k <= 0.0 || lambda < 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     // Draw J ~ Poisson(λ/2), then X ~ chi²(k + 2J) = Gamma(shape=k/2+J, scale=2).
     std::poisson_distribution<int> pd(lambda / 2.0);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) {
         const int J = pd(gen);
         std::gamma_distribution<double> gd(k / 2.0 + double(J), 2.0);

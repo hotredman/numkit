@@ -59,10 +59,9 @@ Value wblinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value wblrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
@@ -70,7 +69,6 @@ Value wblrnd(double a, double b, size_t rows, size_t cols, std::pmr::memory_reso
     // std::weibull_distribution(shape=a, scale=b) — note ORDER FLIP relative
     // to MATLAB (a=scale, b=shape).
     std::weibull_distribution<double> wd(b, a);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = wd(gen);
     return out;
 }

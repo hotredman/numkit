@@ -44,17 +44,15 @@ Value hygeinv(const Value &q, double M, double K, double N, std::pmr::memory_res
     return elementwise(q, [=](double qi){ return hyge_inv_scalar(qi, M, K, N); }, mr);
 }
 
-Value hygernd(double M, double K, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!params_valid(M, K, N) || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t cnt = rows * cols;
     // Inverse-cdf walk per draw. M, K, N fixed so the walk is fast.
     std::uniform_real_distribution<double> ud(0.0, 1.0);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < cnt; ++i) od[i] = hyge_inv_scalar(ud(gen), M, K, N);
     return out;
 }

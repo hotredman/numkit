@@ -71,10 +71,9 @@ Value poissinv(const Value &p, double lambda, std::pmr::memory_resource *mr)
     return elementwise(p, [=](double pi){ return poiss_inv_scalar(pi, lambda); }, mr);
 }
 
-Value poissrnd(double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value poissrnd(::numkit::ops::RngContext &rng, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (lambda < 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
@@ -84,7 +83,6 @@ Value poissrnd(double lambda, size_t rows, size_t cols, std::pmr::memory_resourc
         return out;
     }
     std::poisson_distribution<int> pd(lambda);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = static_cast<double>(pd(gen));
     return out;
 }

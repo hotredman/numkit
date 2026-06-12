@@ -56,16 +56,14 @@ Value unidinv(const Value &p, double N, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unidrnd(double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value unidrnd(::numkit::ops::RngContext &rng, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (N < 1.0 || std::floor(N) != N || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t cnt = rows * cols;
     std::uniform_int_distribution<long long> ud(1, static_cast<long long>(N));
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < cnt; ++i) od[i] = static_cast<double>(ud(gen));
     return out;
 }

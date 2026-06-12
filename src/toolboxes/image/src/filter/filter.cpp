@@ -1632,7 +1632,7 @@ Value col2im(const Value &B, int m, int n, int mm, int nn, const std::string &bl
 //   speckle        J = I + I * sqrt(var) * N(0, 1)      multiplicative
 //   poisson        J = Poisson(I * scale) / scale       scale per class
 
-Value imnoise(const Value &I, const std::string &mode, const Value &p1, const Value &p2, std::pmr::memory_resource *mr)
+Value imnoise(::numkit::ops::RngContext &rng, const Value &I, const std::string &mode, const Value &p1, const Value &p2, std::pmr::memory_resource *mr)
 {
     const ValueType T = I.type();
     const size_t H = I.dims().rows();
@@ -1675,8 +1675,6 @@ Value imnoise(const Value &I, const std::string &mode, const Value &p1, const Va
 
     Value out = Value::matrix(H, W, T, mr);
 
-    auto &rng = numkit::math::sharedEngine();
-    std::lock_guard<std::mutex> lk(numkit::math::rngMutex());
 
     if (mode == "gaussian") {
         const double m = (p1.numel() > 0) ? p1.toScalar() : 0.0;

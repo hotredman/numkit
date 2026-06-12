@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Noncentral χ² pdf (`y = ncx2pdf(x, k, lambda)`).
@@ -65,7 +67,7 @@ Value ncx2inv(const Value &p, double k, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `rows × cols` matrix of noncentral χ² samples.
 /// @see ncx2pdf
-Value ncx2rnd(double k, double lambda, size_t rows = 1, size_t cols = 1,
+Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Noncentral χ² mean and variance (`[m, v] = ncx2stat(k, lambda)`).

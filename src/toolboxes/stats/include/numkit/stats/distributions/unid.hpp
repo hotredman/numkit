@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Discrete-uniform pmf (`y = unidpdf(k, N)`).
@@ -55,7 +57,7 @@ Value unidinv(const Value &p, double N,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of discrete-uniform samples.
 /// @see unidpdf
-Value unidrnd(double N, size_t rows = 1, size_t cols = 1,
+Value unidrnd(::numkit::ops::RngContext &rng, double N, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Discrete-uniform mean and variance (`[m, v] = unidstat(N)`).

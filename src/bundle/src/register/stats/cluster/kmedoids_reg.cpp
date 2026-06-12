@@ -56,7 +56,7 @@ void kmedoids_reg(Span<const Value> args, size_t nargout,
         else if (key == "start")      start      = lower(v.toString());
         // 'OnlinePhase' / 'Options' / 'PercentNeighbors' silently accepted.
     }
-    auto R = kmedoids_full(args[0], K, max_iter, replicates, metric, ctx.engine->resource());
+    auto R = kmedoids_full(ctx.engine->rng(), args[0], K, max_iter, replicates, metric, ctx.engine->resource());
     outs[0] = std::move(R.idx);
     if (nargout > 1) outs[1] = std::move(R.C);
     if (nargout > 2) outs[2] = std::move(R.sumd);

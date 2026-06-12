@@ -88,7 +88,7 @@ void wblrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double b = argB(args, 1);
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = wblrnd(a, b, rows, cols, ctx.engine->resource());
+    outs[0] = wblrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource());
 }
 
 void wblstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

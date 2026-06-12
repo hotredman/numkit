@@ -72,7 +72,7 @@ void ncx2rnd_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
     if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
     else if (args.size() >= 3) cols = rows;
-    outs[0] = ncx2rnd(k, lambda, rows, cols, ctx.engine->resource());
+    outs[0] = ncx2rnd(ctx.engine->rng(), k, lambda, rows, cols, ctx.engine->resource());
 }
 
 void ncx2stat_reg(Span<const Value> args, size_t nargout,

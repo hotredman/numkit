@@ -25,6 +25,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 namespace {
@@ -164,7 +166,7 @@ struct KmeansResult {
     Value sumd;
     Value D;     // optional N×K
 };
-KmeansResult kmeans_full(const Value &X, int K, int max_iter, int replicates,
+KmeansResult kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
                          std::pmr::memory_resource *mr);
 
 } // namespace numkit::stats

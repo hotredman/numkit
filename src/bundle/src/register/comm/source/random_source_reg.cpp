@@ -51,7 +51,7 @@ void randsrc_reg(Span<const Value> args, size_t /*nargout*/,
         state = static_cast<uint32_t>(s);
     }
 
-    outs[0] = randsrc(m, n, *alphabet, have_state, state, mr);
+    outs[0] = randsrc(ctx.engine->rng(), m, n, *alphabet, have_state, state, mr);
 }
 
 void randerr_reg(Span<const Value> args, size_t /*nargout*/,
@@ -85,7 +85,7 @@ void randerr_reg(Span<const Value> args, size_t /*nargout*/,
         state = static_cast<uint32_t>(s);
     }
 
-    outs[0] = randerr(m, n, *errspec, have_state, state, mr);
+    outs[0] = randerr(ctx.engine->rng(), m, n, *errspec, have_state, state, mr);
 }
 
 } // namespace detail

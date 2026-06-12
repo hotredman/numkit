@@ -8,6 +8,8 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Criterion for `lhsdesign` optimization.
@@ -47,13 +49,13 @@ enum class LhsCriterion {
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            `n × p` design matrix with entries in `(0, 1)`.
 /// @see lhsnorm
-Value lhsdesign(std::size_t n, std::size_t p,
+Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
                 bool smooth, LhsCriterion criterion, std::size_t iterations,
                 std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Latin Hypercube design with MATLAB defaults
 /// (smooth = on, criterion = maximin, iterations = 5).
-Value lhsdesign(std::size_t n, std::size_t p,
+Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
                 std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Latin Hypercube sample mapped to a Gaussian
@@ -73,7 +75,7 @@ Value lhsdesign(std::size_t n, std::size_t p,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `n × d` matrix of Gaussian-mapped LHS samples.
 /// @see lhsdesign, mvnrnd
-Value lhsnorm(const Value &mu, const Value &Sigma, std::size_t n,
+Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
               std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::stats

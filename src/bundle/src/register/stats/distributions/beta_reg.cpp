@@ -106,7 +106,7 @@ void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = betarnd(a, b, rows, cols, ctx.engine->resource());
+    outs[0] = betarnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource());
 }
 
 void betastat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

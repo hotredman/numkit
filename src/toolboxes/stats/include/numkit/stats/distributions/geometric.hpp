@@ -10,6 +10,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Geometric pmf (`y = geopdf(k, p)`).
@@ -58,7 +60,7 @@ Value geoinv(const Value &q, double p,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of geometric samples (failure counts).
 /// @see geopdf
-Value geornd(double p, size_t rows = 1, size_t cols = 1,
+Value geornd(::numkit::ops::RngContext &rng, double p, size_t rows = 1, size_t cols = 1,
              std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Geometric mean and variance (`[m, v] = geostat(p)`).

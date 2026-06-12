@@ -120,7 +120,7 @@ void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
     if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
     else if (args.size() >= 3) cols = rows;
-    outs[0] = nbinrnd(r, p, rows, cols, ctx.engine->resource());
+    outs[0] = nbinrnd(ctx.engine->rng(), r, p, rows, cols, ctx.engine->resource());
 }
 
 void nbinstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

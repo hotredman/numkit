@@ -10,7 +10,7 @@
 
 #include <numkit/stats/distributions/multivariate.hpp>
 
-#include <numkit/math/random/rng.hpp>   // sharedEngine / rngMutex
+#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -41,7 +41,7 @@ namespace numkit::stats {
 //
 // `mu` may be a row or column vector (length d) or an n×d matrix.
 // Sigma is d × d, symmetric positive-definite (Cholesky check).
-Value mvnrnd(const Value &mu, const Value &Sigma, std::size_t n,
+Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
              std::pmr::memory_resource *mr)
 {
     if (Sigma.dims().rows() != Sigma.dims().cols())
@@ -92,11 +92,9 @@ Value mvnrnd(const Value &mu, const Value &Sigma, std::size_t n,
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
 
-    std::lock_guard<std::mutex> lk(mtx);
     ScratchVec<double> z(d, &scratch);
     for (std::size_t r = 0; r < n; ++r) {
         for (std::size_t k = 0; k < d; ++k) z[k] = Nz(gen);
@@ -188,7 +186,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     return out;
 }
 
-Value mvtrnd(const Value &C, double df, std::size_t n,
+Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, std::size_t n,
               std::pmr::memory_resource *mr)
 {
     if (!(df > 0.0))
@@ -210,12 +208,10 @@ Value mvtrnd(const Value &C, double df, std::size_t n,
 
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::chi_squared_distribution<double> Chi(df);
 
-    std::lock_guard<std::mutex> lk(mtx);
     std::vector<double> z(d);
     for (std::size_t r = 0; r < n; ++r) {
         for (std::size_t k = 0; k < d; ++k) z[k] = Nz(gen);
@@ -229,7 +225,7 @@ Value mvtrnd(const Value &C, double df, std::size_t n,
     return out;
 }
 
-Value mnrnd(std::size_t N, const Value &P, std::size_t m,
+Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::size_t m,
               std::pmr::memory_resource *mr)
 {
     const std::size_t k = P.numel();
@@ -254,11 +250,9 @@ Value mnrnd(std::size_t N, const Value &P, std::size_t m,
 
     auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::uniform_real_distribution<double> U(0.0, 1.0);
 
-    std::lock_guard<std::mutex> lk(mtx);
     std::vector<std::size_t> counts(k);
     for (std::size_t r = 0; r < m; ++r) {
         std::fill(counts.begin(), counts.end(), 0u);
@@ -302,7 +296,7 @@ static void invertLowerTriInPlace(double *L, std::size_t d)
 }
 
 std::tuple<Value, Value>
-wishrnd_factor(const Value &Sigma, double df, const Value &D_in,
+wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, const Value &D_in,
                std::pmr::memory_resource *mr)
 {
     if (Sigma.dims().rows() != Sigma.dims().cols())
@@ -339,10 +333,8 @@ wishrnd_factor(const Value &Sigma, double df, const Value &D_in,
     }
 
     // Sample Bartlett factor B (lower-tri).
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
-    std::lock_guard<std::mutex> lk(mtx);
 
     std::vector<double> B(d * d, 0.0);
     for (std::size_t i = 0; i < d; ++i) {
@@ -386,14 +378,14 @@ wishrnd_factor(const Value &Sigma, double df, const Value &D_in,
     return {std::move(W), std::move(D)};
 }
 
-Value wishrnd(const Value &Sigma, double df,
+Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
               std::pmr::memory_resource *mr)
 {
-    return std::get<0>(wishrnd_factor(Sigma, df, Value::Empty, mr));
+    return std::get<0>(wishrnd_factor(rng, Sigma, df, Value::Empty, mr));
 }
 
 std::tuple<Value, Value>
-iwishrnd_factor(const Value &Tau, double df, const Value &DI_in,
+iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, const Value &DI_in,
                 std::pmr::memory_resource *mr)
 {
     if (Tau.dims().rows() != Tau.dims().cols())
@@ -446,10 +438,8 @@ iwishrnd_factor(const Value &Tau, double df, const Value &DI_in,
     }
 
     // Bartlett sample Y ~ W(inv(Tau), df).
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
-    std::lock_guard<std::mutex> lk(mtx);
 
     std::vector<double> B(d * d, 0.0);
     for (std::size_t i = 0; i < d; ++i) {
@@ -504,10 +494,10 @@ iwishrnd_factor(const Value &Tau, double df, const Value &DI_in,
     return {std::move(W), std::move(DI)};
 }
 
-Value iwishrnd(const Value &Tau, double df,
+Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, double df,
                std::pmr::memory_resource *mr)
 {
-    return std::get<0>(iwishrnd_factor(Tau, df, Value::Empty, mr));
+    return std::get<0>(iwishrnd_factor(rng, Tau, df, Value::Empty, mr));
 }
 
 // ── mvtcdf ──────────────────────────────────────────────────────────

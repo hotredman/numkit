@@ -20,7 +20,7 @@
 namespace numkit::stats {
 
 
-Value randsample(int N, int K, bool with_replacement, const Value &weights, std::pmr::memory_resource *mr)
+Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replacement, const Value &weights, std::pmr::memory_resource *mr)
 {
     if (N <= 0 || K <= 0)
         return Value::matrix(K > 0 ? K : 0, 1, ValueType::DOUBLE, mr);
@@ -31,12 +31,10 @@ Value randsample(int N, int K, bool with_replacement, const Value &weights, std:
         throw Error("randsample: weights length must equal N",
                     0, 0, "randsample", "", "numkit:randsample:size");
 
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::vector<int> idx;
     {
-        std::lock_guard<std::mutex> lk(mtx);
-        idx = sample_indices(N, K, with_replacement, w, gen);
+        idx = sample_indices(N, K, with_replacement, w, gen.engine());
     }
     Value out = Value::matrix((size_t)idx.size(), 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -44,7 +42,7 @@ Value randsample(int N, int K, bool with_replacement, const Value &weights, std:
     return out;
 }
 
-Value datasample(const Value &X, int K, int dim, bool with_replacement, const Value &weights, std::pmr::memory_resource *mr)
+Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim, bool with_replacement, const Value &weights, std::pmr::memory_resource *mr)
 {
     const size_t M = X.dims().rows();
     const size_t D = X.dims().cols();
@@ -59,12 +57,10 @@ Value datasample(const Value &X, int K, int dim, bool with_replacement, const Va
         throw Error("datasample: weights length must equal sample-axis size",
                     0, 0, "datasample", "", "numkit:datasample:size");
 
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::vector<int> idx;
     {
-        std::lock_guard<std::mutex> lk(mtx);
-        idx = sample_indices(N, K, with_replacement, w, gen);
+        idx = sample_indices(N, K, with_replacement, w, gen.engine());
     }
 
     if (dim == 2) {

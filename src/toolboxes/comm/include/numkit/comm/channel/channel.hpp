@@ -11,6 +11,8 @@
 #include <string>
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::comm {
 
 /// @brief Add white Gaussian noise so the resulting SNR is `snr_db` dB
@@ -26,7 +28,7 @@ namespace numkit::comm {
 /// @param mr           Memory resource (nullptr → process default).
 /// @return             Noisy signal of the same shape as `x`.
 /// @see wgn, bsc
-Value awgn(const Value &x, double snr_db, double sigpower_db,
+Value awgn(::numkit::ops::RngContext &rng, const Value &x, double snr_db, double sigpower_db,
            std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Generate an `m`×`n` matrix of white Gaussian noise samples
@@ -40,7 +42,7 @@ Value awgn(const Value &x, double snr_db, double sigpower_db,
 /// @param mr           Memory resource (nullptr → process default).
 /// @return             `m`×`n` matrix of noise samples.
 /// @see awgn
-Value wgn(int m, int n, double p, const std::string &type,
+Value wgn(::numkit::ops::RngContext &rng, int m, int n, double p, const std::string &type,
           bool complex_out,
           std::pmr::memory_resource *mr = nullptr);
 
@@ -52,7 +54,7 @@ Value wgn(int m, int n, double p, const std::string &type,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Output array of the same shape as `x`.
 /// @see awgn
-Value bsc(const Value &x, double p,
+Value bsc(::numkit::ops::RngContext &rng, const Value &x, double p,
           std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Gaussian Q-function: `Q(x) = 0.5·erfc(x/√2)`.

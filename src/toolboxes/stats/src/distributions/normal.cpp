@@ -9,7 +9,7 @@
 
 #include <numkit/stats/distributions/normal.hpp>
 
-#include <numkit/math/random/rng.hpp>          // sharedEngine, randn
+#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -45,16 +45,14 @@ Value norminv(const Value &p, double mu, double sigma, std::pmr::memory_resource
     return elementwise(p, [=](double pi) { return norminvK(pi, mu, sigma); }, mr);
 }
 
-Value normrnd(double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     if (sigma < 0.0) sigma = 0.0;
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     std::normal_distribution<double> nd(mu, sigma);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = nd(gen);
     return out;
 }

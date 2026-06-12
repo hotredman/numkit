@@ -22,7 +22,7 @@ void rayleighchan_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("rayleighchan: requires (x)",
                     0, 0, "rayleighchan", "", "numkit:rayleighchan:nargin");
-    outs[0] = rayleighchan(args[0], ctx.engine->resource());
+    outs[0] = rayleighchan(ctx.engine->rng(), args[0], ctx.engine->resource());
 }
 
 void ricianchan_reg(Span<const Value> args, size_t /*nargout*/,
@@ -31,7 +31,7 @@ void ricianchan_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("ricianchan: requires (x, K)",
                     0, 0, "ricianchan", "", "numkit:ricianchan:nargin");
-    outs[0] = ricianchan(args[0], args[1].toScalar(),
+    outs[0] = ricianchan(ctx.engine->rng(), args[0], args[1].toScalar(),
                          ctx.engine->resource());
 }
 

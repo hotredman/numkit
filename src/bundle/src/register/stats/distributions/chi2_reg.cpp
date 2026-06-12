@@ -4,7 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/random/rng.hpp>      // sharedEngine, rngMutex
+#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/math/special/special.hpp> // gammainc, gammaincinv
 #include <numkit/stats/distributions/chi2.hpp>
 #include <numkit/value/error.hpp>
@@ -106,7 +106,7 @@ void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double k = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = chi2rnd(k, rows, cols, ctx.engine->resource());
+    outs[0] = chi2rnd(ctx.engine->rng(), k, rows, cols, ctx.engine->resource());
 }
 
 void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

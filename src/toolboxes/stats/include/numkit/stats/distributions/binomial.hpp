@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Binomial pmf (`y = binopdf(k, n, p)`).
@@ -64,7 +66,7 @@ Value binoinv(const Value &p_in, double n, double p,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of binomial samples.
 /// @see binopdf
-Value binornd(double n, double p, size_t rows = 1, size_t cols = 1,
+Value binornd(::numkit::ops::RngContext &rng, double n, double p, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Binomial mean and variance (`[m, v] = binostat(n, p)`).

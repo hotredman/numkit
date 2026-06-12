@@ -41,16 +41,14 @@ Value binoinv(const Value &p_in, double n, double p, std::pmr::memory_resource *
     return elementwise(p_in, [=](double pi) { return bino_inv_scalar(pi, n, p); }, mr);
 }
 
-Value binornd(double n, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value binornd(::numkit::ops::RngContext &rng, double n, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t cnt = rows * cols;
     std::binomial_distribution<int> bd(static_cast<int>(n), p);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < cnt; ++i) od[i] = static_cast<double>(bd(gen));
     return out;
 }

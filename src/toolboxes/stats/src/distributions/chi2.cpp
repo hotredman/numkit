@@ -5,7 +5,7 @@
 
 #include <numkit/stats/distributions/chi2.hpp>
 
-#include <numkit/math/random/rng.hpp>      // sharedEngine, rngMutex
+#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/math/special/special.hpp> // gammainc, gammaincinv
 
 #include <numkit/value/value.hpp>
@@ -75,17 +75,15 @@ Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
     return elementwise(q, [](double v){ return 2.0 * v; }, mr);
 }
 
-Value chi2rnd(double k, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value chi2rnd(::numkit::ops::RngContext &rng, double k, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (k <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     // Sample from Gamma(k/2, 2) — std::gamma_distribution(shape, scale).
     std::gamma_distribution<double> gd(0.5 * k, 2.0);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = gd(gen);
     return out;
 }

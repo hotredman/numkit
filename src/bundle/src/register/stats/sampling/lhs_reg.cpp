@@ -64,7 +64,7 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badOption");
         }
     }
-    outs[0] = lhsdesign(n, p, smooth, crit, iters, ctx.engine->resource());
+    outs[0] = lhsdesign(ctx.engine->rng(), n, p, smooth, crit, iters, ctx.engine->resource());
 }
 
 void lhsnorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -73,7 +73,7 @@ void lhsnorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("lhsnorm: requires (mu, Sigma, n)",
                     0, 0, "lhsnorm", "", "numkit:lhsnorm:nargin");
     const std::size_t n = static_cast<std::size_t>(args[2].toScalar());
-    outs[0] = lhsnorm(args[0], args[1], n, ctx.engine->resource());
+    outs[0] = lhsnorm(ctx.engine->rng(), args[0], args[1], n, ctx.engine->resource());
 }
 
 } // namespace detail

@@ -4,7 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/random/rng.hpp>          // sharedEngine, randn
+#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/stats/distributions/normal.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
@@ -77,7 +77,7 @@ void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double sigma = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = normrnd(mu, sigma, rows, cols, ctx.engine->resource());
+    outs[0] = normrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->resource());
 }
 
 void normstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

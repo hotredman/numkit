@@ -8,6 +8,8 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::comm {
 
 /// @brief Apply iid frequency-flat Rayleigh fading
@@ -21,7 +23,7 @@ namespace numkit::comm {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Faded signal of the same shape as `x`, COMPLEX.
 /// @see ricianchan
-Value rayleighchan(const Value &x,
+Value rayleighchan(::numkit::ops::RngContext &rng, const Value &x,
                    std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Apply iid frequency-flat Rician fading
@@ -36,7 +38,7 @@ Value rayleighchan(const Value &x,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Faded signal of the same shape as `x`, COMPLEX.
 /// @see rayleighchan
-Value ricianchan(const Value &x, double K,
+Value ricianchan(::numkit::ops::RngContext &rng, const Value &x, double K,
                  std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::comm

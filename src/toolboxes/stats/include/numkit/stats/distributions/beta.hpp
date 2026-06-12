@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Beta pdf (`y = betapdf(x, a, b)`).
@@ -63,7 +65,7 @@ Value betainv(const Value &p, double a, double b,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Beta samples.
 /// @see betapdf
-Value betarnd(double a, double b, size_t rows = 1, size_t cols = 1,
+Value betarnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Beta mean and variance (`[m, v] = betastat(a, b)`).
