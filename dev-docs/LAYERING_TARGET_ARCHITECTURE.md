@@ -649,6 +649,12 @@ to keep its diff semantic + reviewable.
   - Per-Engine reproducible stream (correct MATLAB `rng(seed)` per session; two
     Engines now independent); single-threaded script never contends a lock. The
     thread_pool mutex (intrinsic) + value refcount atomics (correct) are untouched.
+  - **fft twiddle/Bluestein caches → thread_local (`e265dc8b`).** Follow-on: the
+    two process-global static memo caches in signal/transforms/fft.cpp (mutex on
+    lazy insert) made thread_local, matching the file's already-thread_local
+    working buffers — correctness-neutral memoization, FFT path is serial, so
+    lock-free with zero behavioural change and no FFT-API coupling. **Result: the
+    whole compute layer is lock-free; only thread_pool keeps its intrinsic mutex.**
     104 files; desktop-fast 11657 / 0 fail (seeded-RNG reproducibility green);
     browser-WASM links; guard green; zero std::mutex left in stats/comm/image.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
