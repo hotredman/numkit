@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Rician (Rice) pdf (`y = ricepdf(x, s, sigma)`).
@@ -62,7 +64,7 @@ Value riceinv(const Value &p, double s, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of Rician samples.
 /// @see ricepdf
-Value ricernd(double s, double sigma, size_t rows = 1, size_t cols = 1,
+Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Rician mean and variance (`[m, v] = ricestat(s, sigma)`).

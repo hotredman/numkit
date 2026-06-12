@@ -60,16 +60,14 @@ Value logninv(const Value &p, double mu, double sigma, std::pmr::memory_resource
     }, mr);
 }
 
-Value lognrnd(double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     std::lognormal_distribution<double> ld(mu, sigma);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = ld(gen);
     return out;
 }

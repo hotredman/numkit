@@ -10,6 +10,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Normal pdf (`y = normpdf(x, mu, sigma)`).
@@ -64,7 +66,7 @@ Value norminv(const Value &p, double mu = 0.0, double sigma = 1.0,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of normal samples.
 /// @see normpdf
-Value normrnd(double mu, double sigma, size_t rows = 1, size_t cols = 1,
+Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Normal mean and variance (`[m, v] = normstat(mu, sigma)`).

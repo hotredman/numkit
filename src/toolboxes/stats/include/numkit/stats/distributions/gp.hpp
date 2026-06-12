@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Generalised Pareto pdf (`y = gppdf(x, k, sigma, theta)`).
@@ -62,7 +64,7 @@ Value gpinv(const Value &p, double k, double sigma, double theta,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of GP samples.
 /// @see gppdf
-Value gprnd(double k, double sigma, double theta,
+Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta,
             size_t rows = 1, size_t cols = 1,
             std::pmr::memory_resource *mr = nullptr);
 

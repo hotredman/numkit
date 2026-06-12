@@ -72,7 +72,7 @@ void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 4 && !args[3].isEmpty()) rows = static_cast<size_t>(args[3].toScalar());
     if (args.size() >= 5 && !args[4].isEmpty()) cols = static_cast<size_t>(args[4].toScalar());
     else if (args.size() >= 4) cols = rows;
-    outs[0] = gevrnd(k, sigma, mu, rows, cols, ctx.engine->resource());
+    outs[0] = gevrnd(ctx.engine->rng(), k, sigma, mu, rows, cols, ctx.engine->resource());
 }
 
 void gevstat_reg(Span<const Value> args, size_t nargout,

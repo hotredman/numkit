@@ -8,6 +8,8 @@
 #include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Sample integers from `1..N` (`r = randsample(N, K, replacement, weights)`).
@@ -25,7 +27,7 @@ namespace numkit::stats {
 /// @param mr                Memory resource (nullptr → process default).
 /// @return                  `K × 1` column of 1-based indices.
 /// @see datasample
-Value randsample(int N, int K, bool with_replacement, const Value &weights,
+Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replacement, const Value &weights,
                  std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Sample rows / columns of an array
@@ -41,7 +43,7 @@ Value randsample(int N, int K, bool with_replacement, const Value &weights,
 /// @param mr                Memory resource (nullptr → process default).
 /// @return                  Subsample of `X`.
 /// @see randsample
-Value datasample(const Value &X, int K, int dim, bool with_replacement,
+Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim, bool with_replacement,
                  const Value &weights, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Bootstrap resampling (`B = bootstrp(nboot, fn, X)`).

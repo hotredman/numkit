@@ -88,7 +88,7 @@ void lognrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double sigma = argSigma(args, 1);
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = lognrnd(mu, sigma, rows, cols, ctx.engine->resource());
+    outs[0] = lognrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->resource());
 }
 
 void lognstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

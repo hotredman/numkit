@@ -64,7 +64,7 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
         // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
         // accepted (no-op).
     }
-    auto R = kmeans_full(args[0], K, max_iter, replicates, ctx.engine->resource());
+    auto R = kmeans_full(ctx.engine->rng(), args[0], K, max_iter, replicates, ctx.engine->resource());
     outs[0] = std::move(R.idx);
     if (nargout > 1) outs[1] = std::move(R.C);
     if (nargout > 2) outs[2] = std::move(R.sumd);

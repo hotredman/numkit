@@ -10,6 +10,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Chi-squared pdf (`y = chi2pdf(x, k)`).
@@ -58,7 +60,7 @@ Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr = nullptr)
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of χ² samples.
 /// @see chi2pdf
-Value chi2rnd(double k, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value chi2rnd(::numkit::ops::RngContext &rng, double k, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Chi-squared mean and variance (`[m, v] = chi2stat(k)`).
 ///

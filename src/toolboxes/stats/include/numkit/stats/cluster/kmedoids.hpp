@@ -8,6 +8,8 @@
 #include <string>
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// PAM-style k-medoids clustering (`[idx, medoids, sumd] = kmedoids(...)`).
@@ -26,7 +28,7 @@ namespace numkit::stats {
 ///
 /// @see kmeans, dbscan
 std::tuple<Value, Value, Value>
-kmedoids(const Value &X, int K, int max_iter, int replicates,
+kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
          const std::string &metric,
          std::pmr::memory_resource *mr = nullptr);
 

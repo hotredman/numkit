@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Negative binomial pmf (`y = nbinpdf(k, r, p)`).
@@ -62,7 +64,7 @@ Value nbininv(const Value &q, double r, double p,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of negative-binomial samples.
 /// @see nbinpdf
-Value nbinrnd(double r, double p, size_t rows = 1, size_t cols = 1,
+Value nbinrnd(::numkit::ops::RngContext &rng, double r, double p, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Negative binomial mean and variance (`[m, v] = nbinstat(r, p)`).

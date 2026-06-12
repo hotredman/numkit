@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Hypergeometric pmf (`y = hygepdf(k, M, K, N)`).
@@ -59,7 +61,7 @@ Value hygeinv(const Value &q, double M, double K, double N,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of hypergeometric samples.
 /// @see hygepdf
-Value hygernd(double M, double K, double N,
+Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N,
               size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 

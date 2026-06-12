@@ -75,7 +75,7 @@ void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() >= 2 && !args[1].isEmpty()) rows = static_cast<size_t>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty()) cols = static_cast<size_t>(args[2].toScalar());
     else if (args.size() >= 2) cols = rows;
-    outs[0] = geornd(p, rows, cols, ctx.engine->resource());
+    outs[0] = geornd(ctx.engine->rng(), p, rows, cols, ctx.engine->resource());
 }
 
 void geostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

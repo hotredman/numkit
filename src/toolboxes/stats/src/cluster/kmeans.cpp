@@ -28,7 +28,7 @@ namespace numkit::stats {
 // Full kmeans with optional 4th D output (N×K squared distances).
 
 KmeansResult
-kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
+kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
 {
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
@@ -47,8 +47,7 @@ kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memor
         for (size_t c = 0; c < D; ++c)
             Xv[r * D + c] = X.elemAsDouble(c * N + r);
 
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
 
     LloydResult best(&scratch);
     double best_total = std::numeric_limits<double>::infinity();
@@ -56,8 +55,7 @@ kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memor
     for (int rep = 0; rep < replicates; ++rep) {
         ScratchVec<double> C0(&scratch);
         {
-            std::lock_guard<std::mutex> lk(mtx);
-            C0 = kmeanspp_init(Xv, N, D, K, gen, &scratch);
+            C0 = kmeanspp_init(Xv, N, D, K, gen.engine(), &scratch);
         }
         LloydResult res = lloyd(Xv, N, D, K, std::move(C0), max_iter, &scratch);
         if (res.total < best_total) {
@@ -102,9 +100,9 @@ kmeans_full(const Value &X, int K, int max_iter, int replicates, std::pmr::memor
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmeans(const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
+kmeans(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
 {
-    auto R = kmeans_full(X, K, max_iter, replicates, mr);
+    auto R = kmeans_full(rng, X, K, max_iter, replicates, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),
                            std::move(R.sumd));
 }

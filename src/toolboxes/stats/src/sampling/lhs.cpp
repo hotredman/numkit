@@ -132,7 +132,7 @@ double maxAbsColCorrelation(const double *X, std::size_t n, std::size_t p)
 
 } // anonymous
 
-Value lhsdesign(std::size_t n, std::size_t p,
+Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
                 bool smooth, LhsCriterion criterion, std::size_t iterations,
                 std::pmr::memory_resource *mr)
 {
@@ -142,9 +142,7 @@ Value lhsdesign(std::size_t n, std::size_t p,
     if (iterations < 1) iterations = 1;
     if (criterion == LhsCriterion::None) iterations = 1;
 
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
-    std::lock_guard<std::mutex> lk(mtx);
+    auto &gen = rng;
 
     // First trial → direct write into `od`. Subsequent trials go to a
     // scratch buffer; replace `od` when the score improves.
@@ -172,14 +170,14 @@ Value lhsdesign(std::size_t n, std::size_t p,
     return out;
 }
 
-Value lhsdesign(std::size_t n, std::size_t p,
+Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
                 std::pmr::memory_resource *mr)
 {
     // MATLAB defaults: smooth=on, criterion=maximin, iterations=5.
-    return lhsdesign(n, p, /*smooth=*/true, LhsCriterion::Maximin, 5, mr);
+    return lhsdesign(rng, n, p, /*smooth=*/true, LhsCriterion::Maximin, 5, mr);
 }
 
-Value lhsnorm(const Value &mu, const Value &Sigma, std::size_t n,
+Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
               std::pmr::memory_resource *mr)
 {
     // Resolve d from mu's length, validate against Sigma's shape.
@@ -191,7 +189,7 @@ Value lhsnorm(const Value &mu, const Value &Sigma, std::size_t n,
                     0, 0, "lhsnorm", "", "numkit:lhsnorm:shape");
 
     // U is the LHS uniform design (n × d).
-    Value U = lhsdesign(n, d, mr);
+    Value U = lhsdesign(rng, n, d, mr);
     // Z = norminv(U), n × d standard-normal samples.
     Value Z = norminv(U, 0.0, 1.0, mr);
 

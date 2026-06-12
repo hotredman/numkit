@@ -7,6 +7,7 @@
 #include <numkit/core/types.hpp>
 #include <numkit/fs/vfs.hpp>
 #include <numkit/fs/fs_context.hpp>
+#include <numkit/ops/rng_context.hpp>
 #include <numkit/core/vm.hpp>
 
 #include <atomic>
@@ -560,6 +561,12 @@ public:
     FsContext &fsContext() noexcept { return fsCtx_; }
     const FsContext &fsContext() const noexcept { return fsCtx_; }
 
+    // The session RNG stream (rand/randn/randi/randperm + rng() control + every
+    // toolbox *rnd sampler draw from this). Registration adapters pass
+    // engine.rng() to the ops generators / RngContext&-taking samplers.
+    ops::RngContext &rng() noexcept { return rng_; }
+    const ops::RngContext &rng() const noexcept { return rng_; }
+
     // ── MATLAB-style file descriptor table ────────────────────
     //
     // The fopen / fclose / fprintf(fid, …) state + machinery now live on
@@ -701,6 +708,13 @@ private:
     // delegating wrappers in engine.cpp). Owned by value — FsContext is
     // STL-only (fs/, L0).
     FsContext fsCtx_;
+
+    // The session's random-number stream + rng() control. Owned by value —
+    // RngContext is an ops (L0.5) type. Default-constructed = rng('default').
+    // Each Engine has an independent, reproducible stream; registration
+    // adapters pass engine.rng() to the ops generators / toolbox samplers, so
+    // there is no process-global RNG and no mutex.
+    ops::RngContext rng_;
 
 public:
     void markClearAll() { clearAllCalled_ = true; }

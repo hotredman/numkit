@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Type-I EV (Gumbel-for-minima) pdf (`y = evpdf(x, mu, sigma)`).
@@ -63,7 +65,7 @@ Value evinv(const Value &p, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of EV samples.
 /// @see evpdf
-Value evrnd(double mu, double sigma, size_t rows = 1, size_t cols = 1,
+Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows = 1, size_t cols = 1,
             std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Type-I EV mean and variance (`[m, v] = evstat(mu, sigma)`).

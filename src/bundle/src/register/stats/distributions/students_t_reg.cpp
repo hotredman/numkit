@@ -140,7 +140,7 @@ void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const double nu = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = trnd(nu, rows, cols, ctx.engine->resource());
+    outs[0] = trnd(ctx.engine->rng(), nu, rows, cols, ctx.engine->resource());
 }
 
 void tstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -198,7 +198,7 @@ void nctrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double delta = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = nctrnd(nu, delta, rows, cols, ctx.engine->resource());
+    outs[0] = nctrnd(ctx.engine->rng(), nu, delta, rows, cols, ctx.engine->resource());
 }
 
 } // namespace detail

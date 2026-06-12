@@ -60,17 +60,15 @@ Value nakainv(const Value &p, double mu, double omega, std::pmr::memory_resource
     }, mr);
 }
 
-Value nakarnd(double mu, double omega, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (mu <= 0.0 || omega <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     // X² ~ Gamma(shape=mu, scale=omega/mu) ⇒ X = √Gamma.
     std::gamma_distribution<double> gd(mu, omega / mu);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = std::sqrt(gd(gen));
     return out;
 }

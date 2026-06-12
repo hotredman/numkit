@@ -34,16 +34,14 @@ Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr)
     return elementwise(p, [=](double pi) { return expinvK(pi, mu); }, mr);
 }
 
-Value exprnd(double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value exprnd(::numkit::ops::RngContext &rng, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (mu <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     std::exponential_distribution<double> ed(1.0 / mu);
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < n; ++i) od[i] = ed(gen);
     return out;
 }

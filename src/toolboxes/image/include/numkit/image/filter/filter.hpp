@@ -14,6 +14,8 @@
 #include <vector>
 #include <vector>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::image {
 
 /// @brief Boundary handling for image filtering / padding.
@@ -540,7 +542,7 @@ Value imbilatfilt(const Value &I, double degreeOfSmoothing, double spatialSigma,
 /// @param p2   Second parameter (see table).
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Noisy image, same class as `I`.
-Value imnoise(const Value &I, const std::string &mode,
+Value imnoise(::numkit::ops::RngContext &rng, const Value &I, const std::string &mode,
               const Value &p1, const Value &p2,
               std::pmr::memory_resource *mr = nullptr);
 

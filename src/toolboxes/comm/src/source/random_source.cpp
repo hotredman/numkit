@@ -89,7 +89,7 @@ void parseAlphabet(const Value &a,
 
 } // namespace
 
-Value randsrc(size_t m, size_t n, const Value &alphabet,
+Value randsrc(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &alphabet,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr)
 {
@@ -118,9 +118,7 @@ Value randsrc(size_t m, size_t n, const Value &alphabet,
             o[i] = alpha[idx];
         }
     } else {
-        auto &gen = ::numkit::math::sharedEngine();
-        auto &mtx = ::numkit::math::rngMutex();
-        std::lock_guard<std::mutex> lk(mtx);
+        auto &gen = rng;
         for (size_t i = 0; i < N; ++i) {
             const double r = gen.genRes53();
             size_t idx = 0;
@@ -243,7 +241,7 @@ void fillOneRow(double *o_col_major, size_t i, size_t m, size_t n,
 
 } // namespace
 
-Value randerr(size_t m, size_t n, const Value &errspec,
+Value randerr(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &errspec,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr)
 {
@@ -268,9 +266,7 @@ Value randerr(size_t m, size_t n, const Value &errspec,
         for (size_t i = 0; i < m; ++i)
             fillOneRow(o, i, m, n, counts, prob, K, local, rs, p);
     } else {
-        auto &gen = ::numkit::math::sharedEngine();
-        auto &mtx = ::numkit::math::rngMutex();
-        std::lock_guard<std::mutex> lk(mtx);
+        auto &gen = rng;
         for (size_t i = 0; i < m; ++i)
             fillOneRow(o, i, m, n, counts, prob, K, gen, rs, p);
     }

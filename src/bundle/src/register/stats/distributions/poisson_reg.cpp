@@ -118,7 +118,7 @@ void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const double lambda = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = poissrnd(lambda, rows, cols, ctx.engine->resource());
+    outs[0] = poissrnd(ctx.engine->rng(), lambda, rows, cols, ctx.engine->resource());
 }
 
 void poisstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

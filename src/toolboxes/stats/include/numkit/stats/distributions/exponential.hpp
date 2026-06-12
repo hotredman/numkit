@@ -10,6 +10,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Exponential pdf (`y = exppdf(x, mu)`).
@@ -56,7 +58,7 @@ Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr = nullptr)
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of exponential samples.
 /// @see exppdf
-Value exprnd(double mu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value exprnd(::numkit::ops::RngContext &rng, double mu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Exponential mean and variance (`[m, v] = expstat(mu)`).
 ///

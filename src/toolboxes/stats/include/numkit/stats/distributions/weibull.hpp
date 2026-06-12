@@ -11,6 +11,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Weibull pdf (`y = wblpdf(x, a, b)`).
@@ -63,7 +65,7 @@ Value wblinv(const Value &p, double a, double b,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Weibull samples.
 /// @see wblpdf
-Value wblrnd(double a, double b, size_t rows = 1, size_t cols = 1,
+Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1, size_t cols = 1,
              std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Weibull mean and variance (`[m, v] = wblstat(a, b)`).

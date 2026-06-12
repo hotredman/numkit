@@ -8,6 +8,8 @@
 #include <memory_resource>
 #include <string>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 struct KmedoidsResult {
@@ -20,7 +22,7 @@ struct KmedoidsResult {
     int   best_rep;
 };
 
-KmedoidsResult kmedoids_full(const Value &X, int K, int max_iter, int replicates,
+KmedoidsResult kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
                              const std::string &metric_name,
                              std::pmr::memory_resource *mr);
 

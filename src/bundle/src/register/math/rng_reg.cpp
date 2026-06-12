@@ -68,14 +68,13 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     stripTrailingOnes(dims);
     Value out;
     {
-        std::lock_guard<std::mutex> lock(rngMutex());
         if (dims.size() <= 3) {
             const size_t r = dims.size() >= 1 ? dims[0] : 1;
             const size_t c = dims.size() >= 2 ? dims[1] : 1;
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
-            out = rand(sharedEngine(), r, c, p, mr);
+            out = rand(ctx.engine->rng(), r, c, p, mr);
         } else {
-            out = randND(sharedEngine(), Span<const size_t>(dims.data(), dims.size()), mr);
+            out = randND(ctx.engine->rng(), Span<const size_t>(dims.data(), dims.size()), mr);
         }
     }
     outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(out, mr) : std::move(out);
@@ -95,14 +94,13 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     stripTrailingOnes(dims);
     Value out;
     {
-        std::lock_guard<std::mutex> lock(rngMutex());
         if (dims.size() <= 3) {
             const size_t r = dims.size() >= 1 ? dims[0] : 1;
             const size_t c = dims.size() >= 2 ? dims[1] : 1;
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
-            out = randn(sharedEngine(), r, c, p, mr);
+            out = randn(ctx.engine->rng(), r, c, p, mr);
         } else {
-            out = randnND(sharedEngine(), Span<const size_t>(dims.data(), dims.size()), mr);
+            out = randnND(ctx.engine->rng(), Span<const size_t>(dims.data(), dims.size()), mr);
         }
     }
     outs[0] = (t == ValueType::SINGLE) ? castDoubleToSingle(out, mr) : std::move(out);
@@ -179,7 +177,7 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     Value dbl_out;
     if (dimArgs.empty()) {
         // Scalar form.
-        dbl_out = randi(imin, imax, 1, 1, 0, mr);
+        dbl_out = randi(ctx.engine->rng(), imin, imax, 1, 1, 0, mr);
     } else {
         ScratchArena scratch(mr);
         auto dims = parseDimsArgsND(&scratch, dimArgs);
@@ -188,15 +186,14 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             const size_t r = dims.size() >= 1 ? dims[0] : 1;
             const size_t c = dims.size() >= 2 ? dims[1] : 1;
             const size_t p = dims.size() >= 3 ? dims[2] : 0;
-            dbl_out = randi(imin, imax, r, c, p, mr);
+            dbl_out = randi(ctx.engine->rng(), imin, imax, r, c, p, mr);
         } else {
             // ND form: allocate matrixND and fill via the same uniform-int pass.
             auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()),
                                       ValueType::DOUBLE, mr);
-            std::lock_guard<std::mutex> lock(rngMutex());
             std::uniform_int_distribution<int64_t> dist(imin, imax);
             for (size_t i = 0; i < m.numel(); ++i)
-                m.doubleDataMut()[i] = static_cast<double>(dist(sharedEngine()));
+                m.doubleDataMut()[i] = static_cast<double>(dist(ctx.engine->rng()));
             dbl_out = std::move(m);
         }
     }
@@ -212,10 +209,10 @@ void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "randperm", "", "numkit:randperm:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
-        outs[0] = randperm(n, ctx.engine->resource());
+        outs[0] = randperm(ctx.engine->rng(), n, ctx.engine->resource());
     } else {
         const size_t k = static_cast<size_t>(args[1].toScalar());
-        outs[0] = randperm(n, k, ctx.engine->resource());
+        outs[0] = randperm(ctx.engine->rng(), n, k, ctx.engine->resource());
     }
 }
 
@@ -235,7 +232,7 @@ void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     // Always snapshot current state first if caller asked for it.
     Value prev;
     if (nargout > 0)
-        prev = rngState(mr);
+        prev = ctx.engine->rng().state(mr);
 
     if (args.empty()) {
         // rng() with no return value is a no-op; with a return it
@@ -246,11 +243,11 @@ void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
     const Value &a = args[0];
     if (a.isStruct()) {
-        rngRestore(a);
+        ctx.engine->rng().restore(a);
     } else if (a.isChar() || a.isString()) {
         const auto s = a.toString();
-        if (s == "default") rngSeed(0);
-        else if (s == "shuffle") rngShuffle();
+        if (s == "default") ctx.engine->rng().seed(0);
+        else if (s == "shuffle") ctx.engine->rng().shuffle();
         else
             throw Error("rng: string argument must be 'default' or 'shuffle'",
                          0, 0, "rng", "", "numkit:rng:badStringArg");
@@ -259,7 +256,7 @@ void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (sd < 0.0)
             throw Error("rng: seed must be a non-negative integer",
                          0, 0, "rng", "", "numkit:rng:badSeed");
-        rngSeed(static_cast<uint64_t>(sd));
+        ctx.engine->rng().seed(static_cast<uint64_t>(sd));
     } else {
         throw Error("rng: argument must be a non-negative integer, "
                      "a struct from rng(), 'default', or 'shuffle'",

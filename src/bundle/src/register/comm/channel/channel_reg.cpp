@@ -35,7 +35,7 @@ void awgn_reg(Span<const Value> args, size_t /*nargout*/,
             sp = args[2].toScalar();
         }
     }
-    outs[0] = awgn(args[0], snr, sp, ctx.engine->resource());
+    outs[0] = awgn(ctx.engine->rng(), args[0], snr, sp, ctx.engine->resource());
 }
 
 void wgn_reg(Span<const Value> args, size_t /*nargout*/,
@@ -57,7 +57,7 @@ void wgn_reg(Span<const Value> args, size_t /*nargout*/,
             else if (s == "real")    complex_out = false;
         }
     }
-    outs[0] = wgn(m, n, p, type, complex_out, ctx.engine->resource());
+    outs[0] = wgn(ctx.engine->rng(), m, n, p, type, complex_out, ctx.engine->resource());
 }
 
 void bsc_reg(Span<const Value> args, size_t /*nargout*/,
@@ -66,7 +66,7 @@ void bsc_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("bsc: requires (input, p)", 0, 0, "bsc", "",
                     "numkit:bsc:nargin");
-    outs[0] = bsc(args[0], args[1].toScalar(), ctx.engine->resource());
+    outs[0] = bsc(ctx.engine->rng(), args[0], args[1].toScalar(), ctx.engine->resource());
 }
 
 void qfunc_reg(Span<const Value> args, size_t /*nargout*/,

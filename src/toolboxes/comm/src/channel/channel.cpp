@@ -62,7 +62,7 @@ Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op) {
 
 } // anonymous
 
-Value awgn(const Value &x, double snr_db, double sigpower_db,
+Value awgn(::numkit::ops::RngContext &rng, const Value &x, double snr_db, double sigpower_db,
            std::pmr::memory_resource *mr)
 {
     const bool is_complex = (x.type() == ValueType::COMPLEX);
@@ -82,10 +82,8 @@ Value awgn(const Value &x, double snr_db, double sigpower_db,
     else if (d.is3D())out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ty, mr);
     else              out = Value::matrix(d.rows(), d.cols(), ty, mr);
 
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::normal_distribution<double> nd(0.0, sigma);
-    std::lock_guard<std::mutex> lk(mtx);
     if (is_complex) {
         Cd *od = out.complexDataMut();
         const Cd *xd = x.complexData();
@@ -99,7 +97,7 @@ Value awgn(const Value &x, double snr_db, double sigpower_db,
     return out;
 }
 
-Value wgn(int m, int n, double p, const std::string &type,
+Value wgn(::numkit::ops::RngContext &rng, int m, int n, double p, const std::string &type,
           bool complex_out, std::pmr::memory_resource *mr)
 {
     double power_lin = 0.0;
@@ -109,10 +107,8 @@ Value wgn(int m, int n, double p, const std::string &type,
     if (power_lin < 0.0) power_lin = 0.0;
     const double sigma = std::sqrt(complex_out ? power_lin / 2.0 : power_lin);
 
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::normal_distribution<double> nd(0.0, sigma);
-    std::lock_guard<std::mutex> lk(mtx);
 
     if (complex_out) {
         Value out = Value::matrix(m, n, ValueType::COMPLEX, mr);
@@ -128,12 +124,11 @@ Value wgn(int m, int n, double p, const std::string &type,
     return out;
 }
 
-Value bsc(const Value &x, double p, std::pmr::memory_resource *mr) {
+Value bsc(::numkit::ops::RngContext &rng, const Value &x, double p, std::pmr::memory_resource *mr) {
     if (p < 0.0 || p > 1.0)
         throw Error("bsc: p must be in [0, 1]", 0, 0, "bsc", "",
                     "numkit:bsc:badp");
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
     std::uniform_real_distribution<double> ud(0.0, 1.0);
 
     const size_t N = x.numel();
@@ -143,7 +138,6 @@ Value bsc(const Value &x, double p, std::pmr::memory_resource *mr) {
     else if (d.is3D())out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
     else              out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    std::lock_guard<std::mutex> lk(mtx);
     for (size_t i = 0; i < N; ++i) {
         const int b = (int)x.elemAsDouble(i) & 1;
         od[i] = double(ud(gen) < p ? (b ^ 1) : b);

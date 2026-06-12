@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief F pdf (`y = fpdf(x, v1, v2)`).
@@ -62,7 +64,7 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr =
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of F-samples.
 /// @see fpdf
-Value frnd(double v1, double v2, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief F mean and variance (`[m, v] = fstat(v1, v2)`).
 ///
@@ -161,7 +163,7 @@ std::tuple<double, double> ncfstat(double nu1, double nu2, double delta);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of noncentral F samples.
 /// @see ncfpdf
-Value ncfrnd(double nu1, double nu2, double delta,
+Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delta,
              std::size_t rows = 1, std::size_t cols = 1,
              std::pmr::memory_resource *mr = nullptr);
 

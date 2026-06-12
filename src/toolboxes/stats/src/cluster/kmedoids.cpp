@@ -124,7 +124,7 @@ ScratchVec<double> read_rows(const Value &X, std::pmr::memory_resource *scratch_
 // `info` (the 6th MATLAB output) is built by the adapter via Value::structure.
 
 KmedoidsResult
-kmedoids_full(const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
+kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
@@ -138,8 +138,7 @@ kmedoids_full(const Value &X, int K, int max_iter, int replicates, const std::st
 
     ScratchArena scratch(mr);
     ScratchVec<double> Xv = read_rows(X, &scratch);
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
+    auto &gen = rng;
 
     ScratchVec<int>    best_med((size_t)K, &scratch);
     ScratchVec<int>    best_idx(N, &scratch);
@@ -157,7 +156,6 @@ kmedoids_full(const Value &X, int K, int max_iter, int replicates, const std::st
     for (int rep = 0; rep < replicates; ++rep) {
         // Random initial medoids — sample K distinct rows.
         {
-            std::lock_guard<std::mutex> lk(mtx);
             ScratchVec<int> all(N, &scratch);
             for (size_t i = 0; i < N; ++i) all[i] = (int)i;
             std::shuffle(all.begin(), all.end(), gen);
@@ -273,9 +271,9 @@ kmedoids_full(const Value &X, int K, int max_iter, int replicates, const std::st
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmedoids(const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
+kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
-    auto R = kmedoids_full(X, K, max_iter, replicates, metric_name, mr);
+    auto R = kmedoids_full(rng, X, K, max_iter, replicates, metric_name, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),
                            std::move(R.sumd));
 }

@@ -54,11 +54,11 @@ void randsample_reg(Span<const Value> args, size_t /*nargout*/,
     if (args[0].numel() == 1) {
         const int N = (int)args[0].toScalar();
         const int K = (int)args[1].toScalar();
-        outs[0] = randsample(N, K, with_replacement, weights, ctx.engine->resource());
+        outs[0] = randsample(ctx.engine->rng(), N, K, with_replacement, weights, ctx.engine->resource());
     } else {
         const int K = (int)args[1].toScalar();
         const int dim = (args[0].dims().rows() == 1) ? 2 : 1;
-        outs[0] = datasample(args[0], K, dim, with_replacement, weights, ctx.engine->resource());
+        outs[0] = datasample(ctx.engine->rng(), args[0], K, dim, with_replacement, weights, ctx.engine->resource());
     }
 }
 
@@ -86,15 +86,13 @@ void datasample_reg(Span<const Value> args, size_t /*nargout*/,
             else if (k == "Weights")  weights = args[i + 1];
         }
     }
-    outs[0] = datasample(args[0], K, dim, with_replacement, weights, ctx.engine->resource());
+    outs[0] = datasample(ctx.engine->rng(), args[0], K, dim, with_replacement, weights, ctx.engine->resource());
 }
 
 // Helper: draw N indices in [0, N-1] with replacement, write into idx_out.
-static void drawBootstrapIndices(int N, int *idx_out)
+static void drawBootstrapIndices(::numkit::ops::RngContext &rng, int N, int *idx_out)
 {
-    auto &gen = ::numkit::math::sharedEngine();
-    auto &mtx = ::numkit::math::rngMutex();
-    std::lock_guard<std::mutex> lk(mtx);
+    auto &gen = rng;
     std::uniform_int_distribution<int> dist(0, N - 1);
     for (int i = 0; i < N; ++i) idx_out[i] = dist(gen);
 }
@@ -151,9 +149,9 @@ struct BootstrpCallbackBuiltin : ::numkit::CallbackBuiltin
         cont->handle = args[1];
         cont->n = static_cast<std::size_t>(nboot);
         cont->dest = dest;
-        cont->makeArgs = [X, N, mr](std::size_t) -> std::vector<Value> {
+        cont->makeArgs = [X, N, mr, rngp = &eng.rng()](std::size_t) -> std::vector<Value> {
             std::vector<int> idx(static_cast<std::size_t>(N));
-            drawBootstrapIndices(N, idx.data());
+            drawBootstrapIndices(*rngp, N, idx.data());
             return {resampleRows(X, idx.data(), N, mr)};
         };
         cont->pack = [mr](std::vector<Value> &results) -> Value {
@@ -201,7 +199,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
     ScratchVec<int> idx(static_cast<std::size_t>(N), &scratch);
 
     // First call to determine output dimensionality of fn(sample).
-    drawBootstrapIndices(N, idx.data());
+    drawBootstrapIndices(ctx.engine->rng(), N, idx.data());
     auto sample0 = resampleRows(X, idx.data(), N, mr);
     Value callArgs0[1] = { sample0 };
     auto stat0 = ctx.engine->callFunctionHandle(
@@ -222,7 +220,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
 
     // Rows 1..nboot-1.
     for (int b = 1; b < nboot; ++b) {
-        drawBootstrapIndices(N, idx.data());
+        drawBootstrapIndices(ctx.engine->rng(), N, idx.data());
         auto sample = resampleRows(X, idx.data(), N, mr);
         Value callArgs[1] = { sample };
         auto stat = ctx.engine->callFunctionHandle(

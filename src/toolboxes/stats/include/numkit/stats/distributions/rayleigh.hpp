@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Rayleigh pdf (`y = raylpdf(x, b)`).
@@ -57,7 +59,7 @@ Value raylinv(const Value &p, double b,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Rayleigh samples.
 /// @see raylpdf
-Value raylrnd(double b, size_t rows = 1, size_t cols = 1,
+Value raylrnd(::numkit::ops::RngContext &rng, double b, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Rayleigh mean and variance (`[m, v] = raylstat(b)`).

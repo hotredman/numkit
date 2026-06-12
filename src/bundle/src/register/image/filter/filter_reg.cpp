@@ -880,7 +880,7 @@ void imnoise_reg(Span<const Value> args, size_t /*nargout*/,
     Value p1, p2;
     if (args.size() >= 3) p1 = args[2];
     if (args.size() >= 4) p2 = args[3];
-    outs[0] = imnoise(args[0], mode, p1, p2, ctx.engine->resource());
+    outs[0] = imnoise(ctx.engine->rng(), args[0], mode, p1, p2, ctx.engine->resource());
 }
 
 void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,

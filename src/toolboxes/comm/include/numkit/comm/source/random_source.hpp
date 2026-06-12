@@ -9,6 +9,8 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::comm {
 
 /// @brief Generate an `m`×`n` random matrix from a finite alphabet
@@ -33,7 +35,7 @@ namespace numkit::comm {
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            `m`×`n` matrix of drawn symbols.
 /// @see randerr
-Value randsrc(size_t m, size_t n, const Value &alphabet,
+Value randsrc(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &alphabet,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr = nullptr);
 
@@ -54,7 +56,7 @@ Value randsrc(size_t m, size_t n, const Value &alphabet,
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            `m`×`n` binary error matrix.
 /// @see randsrc
-Value randerr(size_t m, size_t n, const Value &errspec,
+Value randerr(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &errspec,
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr = nullptr);
 

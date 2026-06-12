@@ -115,7 +115,7 @@ void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols);
-    outs[0] = gamrnd(a, b, rows, cols, ctx.engine->resource());
+    outs[0] = gamrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource());
 }
 
 void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -126,13 +126,13 @@ void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
 // ── randg — undocumented but very widely used "raw" gamma RNG ─────────
 //
-// `randg(shape, ...)` is shorthand for gamma(shape, 1) — i.e. scale = 1.
+// `randg(ctx.engine->rng(), shape, ...)` is shorthand for gamma(shape, 1) — i.e. scale = 1.
 // Forms:
-//   r = randg(shape)            — scalar (or per-element if shape is an
+//   r = randg(ctx.engine->rng(), shape)            — scalar (or per-element if shape is an
 //                                  array)
-//   r = randg(shape, n)         — n×n matrix
-//   r = randg(shape, m, n)      — m×n matrix
-//   r = randg(shape, [m n])     — same
+//   r = randg(ctx.engine->rng(), shape, n)         — n×n matrix
+//   r = randg(ctx.engine->rng(), shape, m, n)      — m×n matrix
+//   r = randg(ctx.engine->rng(), shape, [m n])     — same
 //
 // Implementation: delegate to gamrnd with b = 1. When shape is an array
 // and no explicit size args are given, draw one sample per shape entry
@@ -141,19 +141,19 @@ void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 {
     auto *mr = ctx.engine->resource();
     if (args.empty()) {
-        outs[0] = randg(1.0, 1, 1, mr);
+        outs[0] = randg(ctx.engine->rng(), 1.0, 1, 1, mr);
         return;
     }
     const Value &shape = args[0];
     // Per-element form: array shape AND no extra size args.
     if (!shape.isScalar() && args.size() == 1) {
-        outs[0] = randg(shape, mr);
+        outs[0] = randg(ctx.engine->rng(), shape, mr);
         return;
     }
     // Scalar shape — pull size from the remaining args (or default 1×1).
     std::size_t rows = 1, cols = 1;
     parse_rng_size(args, 1, rows, cols);
-    outs[0] = randg(shape.toScalar(), rows, cols, mr);
+    outs[0] = randg(ctx.engine->rng(), shape.toScalar(), rows, cols, mr);
 }
 
 } // namespace detail

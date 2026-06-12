@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Nakagami pdf (`y = nakapdf(x, mu, omega)`).
@@ -62,7 +64,7 @@ Value nakainv(const Value &p, double mu, double omega,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of Nakagami samples.
 /// @see nakapdf
-Value nakarnd(double mu, double omega, size_t rows = 1, size_t cols = 1,
+Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Nakagami mean and variance (`[m, v] = nakastat(mu, omega)`).

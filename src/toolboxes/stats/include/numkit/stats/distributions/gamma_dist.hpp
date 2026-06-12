@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Gamma pdf (`y = gampdf(x, a, b)`).
@@ -60,7 +62,7 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr =
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Gamma samples.
 /// @see gampdf
-Value gamrnd(double a, double b, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Gamma mean and variance (`[m, v] = gamstat(a, b)`).
 ///
@@ -85,7 +87,7 @@ std::tuple<double, double> gamstat(double a, double b);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of Gamma(shape, 1) samples.
 /// @see gamrnd
-Value randg(double shape, size_t rows = 1, size_t cols = 1,
+Value randg(::numkit::ops::RngContext &rng, double shape, size_t rows = 1, size_t cols = 1,
             std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Per-element gamma RNG (`r = randg(shapeArray)`).
@@ -99,7 +101,7 @@ Value randg(double shape, size_t rows = 1, size_t cols = 1,
 /// @return            Array same size as `shapeArray`, one Gamma(shape, 1)
 ///                    draw per entry.
 /// @see randg
-Value randg(const Value &shapeArray,
+Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray,
             std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Gamma distribution MLE fit (`[ahat, bhat] = gamfit(x)`).

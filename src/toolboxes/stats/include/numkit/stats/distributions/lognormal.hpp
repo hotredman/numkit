@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Lognormal pdf (`y = lognpdf(x, mu, sigma)`).
@@ -64,7 +66,7 @@ Value logninv(const Value &p, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of lognormal samples.
 /// @see lognpdf
-Value lognrnd(double mu, double sigma, size_t rows = 1, size_t cols = 1,
+Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows = 1, size_t cols = 1,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Lognormal mean and variance (`[m, v] = lognstat(mu, sigma)`).

@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+namespace numkit { namespace ops { class RngContext; } }
+
 namespace numkit::stats {
 
 /// @brief Poisson pmf (`y = poisspdf(k, lambda)`).
@@ -61,7 +63,7 @@ Value poissinv(const Value &p, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `rows × cols` matrix of Poisson samples.
 /// @see poisspdf
-Value poissrnd(double lambda, size_t rows = 1, size_t cols = 1,
+Value poissrnd(::numkit::ops::RngContext &rng, double lambda, size_t rows = 1, size_t cols = 1,
                std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Poisson mean and variance (`[m, v] = poisstat(lambda)`).

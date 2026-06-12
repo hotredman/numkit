@@ -4,7 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/random/rng.hpp>   // sharedEngine / rngMutex
+#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/stats/distributions/multivariate.hpp>
 #include <numkit/value/error.hpp>
@@ -47,7 +47,7 @@ void mvnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                      0, 0, "mvnrnd", "", "numkit:mvnrnd:nargin");
     std::size_t n = 0;
     if (args.size() >= 3) n = static_cast<std::size_t>(args[2].toScalar());
-    outs[0] = mvnrnd(args[0], args[1], n, ctx.engine->resource());
+    outs[0] = mvnrnd(ctx.engine->rng(), args[0], args[1], n, ctx.engine->resource());
 }
 
 void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -57,7 +57,7 @@ void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:nargin");
     const double df = args[1].toScalar();
     const std::size_t n = static_cast<std::size_t>(args[2].toScalar());
-    outs[0] = mvtrnd(args[0], df, n, ctx.engine->resource());
+    outs[0] = mvtrnd(ctx.engine->rng(), args[0], df, n, ctx.engine->resource());
 }
 
 void mnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -69,7 +69,7 @@ void mnrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     std::size_t m = 1;
     if (args.size() >= 3 && !args[2].isEmpty())
         m = static_cast<std::size_t>(args[2].toScalar());
-    outs[0] = mnrnd(N, args[1], m, ctx.engine->resource());
+    outs[0] = mnrnd(ctx.engine->rng(), N, args[1], m, ctx.engine->resource());
 }
 
 void wishrnd_reg(Span<const Value> args, size_t nargout,
@@ -80,7 +80,7 @@ void wishrnd_reg(Span<const Value> args, size_t nargout,
                     0, 0, "wishrnd", "", "numkit:wishrnd:nargin");
     const double df = args[1].toScalar();
     const Value D_in = (args.size() > 2) ? args[2] : Value::Empty;
-    auto [W, D] = wishrnd_factor(args[0], df, D_in, ctx.engine->resource());
+    auto [W, D] = wishrnd_factor(ctx.engine->rng(), args[0], df, D_in, ctx.engine->resource());
     outs[0] = std::move(W);
     if (nargout >= 2) outs[1] = std::move(D);
 }
@@ -93,7 +93,7 @@ void iwishrnd_reg(Span<const Value> args, size_t nargout,
                     0, 0, "iwishrnd", "", "numkit:iwishrnd:nargin");
     const double df = args[1].toScalar();
     const Value DI_in = (args.size() > 2) ? args[2] : Value::Empty;
-    auto [W, DI] = iwishrnd_factor(args[0], df, DI_in, ctx.engine->resource());
+    auto [W, DI] = iwishrnd_factor(ctx.engine->rng(), args[0], df, DI_in, ctx.engine->resource());
     outs[0] = std::move(W);
     if (nargout >= 2) outs[1] = std::move(DI);
 }
