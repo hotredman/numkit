@@ -633,6 +633,24 @@ to keep its diff semantic + reviewable.
     VM-pausable user-code paths are untouched (BreakInsideNlfilterCallback still
     passes). **Result: no public toolbox header names `Engine` any more.**
     desktop-fast 11657 / 0 fail; guard green.
+- **RNG mutex removal — Engine-owned RngContext (`4a58e5d9`).** Same context-
+  decoupling family as FsContext / FigureManager / GraphicsContext, applied to the
+  last shared-mutable-global-behind-a-lock: the process-static `MatlabMT19937`
+  singleton + `std::mutex` (`ops::sharedEngine()` / `ops::rngMutex()`) that the
+  whole random surface (~40 call sites) locked per draw.
+  - **NEW `ops/rng_context.hpp`:** `RngContext` owns one MT19937 stream + the
+    rng() control (seed/shuffle/state/restore); models UniformRandomBitGenerator
+    (forwards operator()/min/max/result_type + genRes53) so `std::*_distribution`
+    draws via `dist(rng)` directly.
+  - **Engine owns one** (`engine.rng()`, default-seeded = rng(0)); ops generators
+    + every toolbox sampler (stats *rnd, comm noise, kmeans/kmedoids/lhs/resample,
+    image imnoise) take `RngContext&`, threaded from `engine.rng()` by the `_reg`
+    adapters. `sharedEngine()` / `rngMutex()` DELETED.
+  - Per-Engine reproducible stream (correct MATLAB `rng(seed)` per session; two
+    Engines now independent); single-threaded script never contends a lock. The
+    thread_pool mutex (intrinsic) + value refcount atomics (correct) are untouched.
+    104 files; desktop-fast 11657 / 0 fail (seeded-RNG reproducibility green);
+    browser-WASM links; guard green; zero std::mutex left in stats/comm/image.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
