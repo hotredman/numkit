@@ -18,9 +18,9 @@
 #include <numkit/fs/vfs.hpp>
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
-#include <numkit/graph/ast_serialize.hpp>
-#include <numkit/graph/lowering.hpp>
-#include <numkit/graph/serialize.hpp>
+#include <numkit/scriptgraph/ast_serialize.hpp>
+#include <numkit/scriptgraph/lowering.hpp>
+#include <numkit/scriptgraph/serialize.hpp>
 
 // ════════════════════════════════════════════════════════════════
 // Helper: format Value for variable preview
@@ -1472,8 +1472,8 @@ std::string buildScriptGraph(const std::string &source) {
         // positions to trim trailing `% ...` from per-node sourceText.
         // No second lex; the parser already filtered COMMENT tokens
         // internally via its centralized advance() helper.
-        auto g = numkit::graph::lowerScript(*root, source, tokens);
-        return numkit::graph::toJSON(g);
+        auto g = numkit::scriptgraph::lowerScript(*root, source, tokens);
+        return numkit::scriptgraph::toJSON(g);
     } catch (const std::exception &e) {
         return jsonError(e.what());
     } catch (...) {
@@ -1491,7 +1491,7 @@ std::string buildAST(const std::string &source) {
         numkit::Parser parser(tokens);
         auto root = parser.parse();
         if (!root) return jsonError("parser returned null AST");
-        return numkit::graph::toASTJSON(*root);
+        return numkit::scriptgraph::toASTJSON(*root);
     } catch (const std::exception &e) {
         return jsonError(e.what());
     } catch (...) {

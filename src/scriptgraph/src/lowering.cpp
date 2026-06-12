@@ -1,4 +1,4 @@
-// toolboxes/graph/src/lowering.cpp
+// scriptgraph/src/lowering.cpp
 //
 // AST → NodeGraph lowering. Phase-1 scope:
 //   • Top-level BLOCK iteration.
@@ -13,7 +13,7 @@
 // in the graph but their bodies don't get walked. Good-enough for
 // scripts without nested control flow during the proof-of-concept.
 
-#include <numkit/graph/lowering.hpp>
+#include <numkit/scriptgraph/lowering.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -22,7 +22,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace numkit::graph {
+namespace numkit::scriptgraph {
 namespace {
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -1294,4 +1294,4 @@ NodeGraph lowerScript(const ASTNode &root,
     return std::move(S.graph);
 }
 
-} // namespace numkit::graph
+} // namespace numkit::scriptgraph

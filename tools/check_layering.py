@@ -23,8 +23,9 @@ include-path migration completed; no math/lang/toolbox TU includes a
 <numkit/builtin/...> header.) Toolbox purity is
 now ALSO enforced: every toolbox compute TU must stay core/runtime-free (their
 Engine glue moved to bundle in F; stateful surfaces decoupled via FsContext/
-FnHandle). Exempt: each toolbox's library.{cpp,hpp} installer, io's type.cpp
-(engine.outputText), and the whole `graph` toolbox (AST/lowering infra).
+FnHandle). Exempt: each toolbox's library.{cpp,hpp} installer + io's type.cpp
+(engine.outputText). The AST→NodeGraph IDE-analysis pass (formerly the `graph`
+toolbox) now lives in its own `scriptgraph` layer, honestly core-allowed.
 
 Scans each guarded layer's include/ + src/ trees for `#include <numkit/X/...>`
 and fails if X is not in that layer's allowed set. Exit 0 = clean, 1 = a
@@ -79,6 +80,14 @@ ALLOWED = {
     # imshow's file-decode through a by-name `imread` handle resolved at call
     # time, not an image-toolbox include.)
     "graphics": {"value", "fs", "ops", "figure", "graphics"},
+    # scriptgraph (L2 IDE-analysis): the offline AST→NodeGraph→JSON pass behind
+    # the IDE's `buildScriptGraph` WASM export (data-flow graph view + AST view).
+    # It registers NO builtin — it is genuinely core-coupled (it walks core's
+    # ast/lexer/parser), so `core` IS allowed here, no per-file exemption needed.
+    # Formerly mis-filed as the `graph` toolbox (name clashed with MATLAB
+    # graph/digraph + implied a function toolbox); renamed + relocated out of
+    # toolboxes/ to its own tier. Nothing depends on it but the wasm bindings.
+    "scriptgraph": {"value", "fs", "ops", "core", "scriptgraph"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -91,6 +100,7 @@ LAYER_DIRS = {
     "math":  ["src/math"],
     "lang":  ["src/lang"],
     "graphics": ["src/graphics"],
+    "scriptgraph": ["src/scriptgraph"],
     "toolboxes": ["src/toolboxes"],
 }
 
@@ -164,15 +174,14 @@ def scan(repo: Path) -> list[str]:
                     "graphics",
                 ):
                     continue
-                # Toolbox-only extra exemptions:
-                #  * io's type.cpp (legitimately Engine& — engine.outputText);
-                #  * the whole `graph` toolbox — it is AST-serialization / AST->
-                #    bytecode-lowering infra over core's ast.hpp/lexer.hpp, not
-                #    core-free MATLAB-function compute (reclassification candidate).
-                # Every other toolbox compute TU must stay core/runtime-free.
+                # Toolbox-only extra exemption: io's type.cpp (legitimately
+                # Engine& — it writes via engine.outputText). Every other toolbox
+                # compute TU must stay core/runtime-free. (The former `/graph/`
+                # exemption is gone — that AST→NodeGraph analysis pass was renamed
+                # and relocated out of toolboxes/ to the `scriptgraph` layer, which
+                # is honestly `core`-allowed in ALLOWED, so it needs no exemption.)
                 if layer == "toolboxes" and (
-                    "/graph/" in f.as_posix()
-                    or f.as_posix().endswith("toolboxes/io/src/text/type.cpp")
+                    f.as_posix().endswith("toolboxes/io/src/text/type.cpp")
                 ):
                     continue
                 rel = f.relative_to(repo).as_posix()
@@ -213,7 +222,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print("Layering OK: value, fs, ops, core, figure, math, lang, graphics, toolboxes respect the dependency direction.")
+    print("Layering OK: value, fs, ops, core, figure, math, lang, graphics, scriptgraph, toolboxes respect the dependency direction.")
     return 0
 
 

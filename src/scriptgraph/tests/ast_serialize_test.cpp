@@ -1,4 +1,4 @@
-// toolboxes/graph/tests/ast_serialize_test.cpp — AST-JSON round-trip
+// scriptgraph/tests/ast_serialize_test.cpp — AST-JSON round-trip
 // coverage for the IDE's AST view.
 //
 // Strategy: lex+parse a small .m source, run toASTJSON(*root), and
@@ -8,7 +8,7 @@
 
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
-#include <numkit/graph/ast_serialize.hpp>
+#include <numkit/scriptgraph/ast_serialize.hpp>
 
 #include <gtest/gtest.h>
 
@@ -22,7 +22,7 @@ std::string serialize(const std::string &source)
     auto tokens = lex.tokenize();
     Parser parser(tokens);
     auto root = parser.parse();
-    return graph::toASTJSON(*root);
+    return scriptgraph::toASTJSON(*root);
 }
 
 } // namespace
@@ -118,6 +118,6 @@ TEST(AstSerialize, NaNLiteralEmittedAsString)
     auto node = std::make_unique<ASTNode>(NodeType::NUMBER_LITERAL);
     node->line = 1; node->col = 1;
     node->numValue = std::nan("");
-    auto j = graph::toASTJSON(*node);
+    auto j = scriptgraph::toASTJSON(*node);
     EXPECT_NE(j.find("\"numValue\":\"NaN\""), std::string::npos);
 }

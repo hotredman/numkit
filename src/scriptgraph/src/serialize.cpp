@@ -1,4 +1,4 @@
-// toolboxes/graph/src/serialize.cpp
+// scriptgraph/src/serialize.cpp
 //
 // NodeGraph → JSON. Hand-rolled via ostringstream to match the rest
 // of the project's WASM bindings (no nlohmann dep).
@@ -30,11 +30,11 @@
 //     ]
 //   }
 
-#include <numkit/graph/serialize.hpp>
+#include <numkit/scriptgraph/serialize.hpp>
 
 #include <sstream>
 
-namespace numkit::graph {
+namespace numkit::scriptgraph {
 namespace {
 
 void escapeTo(std::ostringstream &os, const std::string &s)
@@ -186,4 +186,4 @@ std::string toJSON(const NodeGraph &g)
     return os.str();
 }
 
-} // namespace numkit::graph
+} // namespace numkit::scriptgraph
