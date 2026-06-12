@@ -577,16 +577,36 @@ to keep its diff semantic + reviewable.
     (ALLOWED `{value,fs,ops,core,scriptgraph}` — honestly core-coupled, no
     exemption). The whole-`/graph/` guard exemption is GONE — it was the only
     AD-HOC / whole-directory carve-out (an entire misclassified toolbox whose
-    compute itself used core). `toolboxes/`'s remaining exemptions are all
-    PRINCIPLED: each toolbox's `library.{cpp,hpp}` installer (20 files — the
-    Engine-registration ABI; the compute TUs around them are still scanned and
-    must stay core-free) + the lone `io/src/text/type.cpp` (engine.outputText).
-    The name also dodges a future MATLAB `graph`/`digraph` collision. JS export name unchanged → IDE
-    unaffected. While WASM-validating, found+fixed a pre-existing dead
-    `<numkit/builtin/library.hpp>` include in `wasm/src/repl_bindings.cpp` that
-    broke the `numkit_ide_wasm` target (`30122c10`). The layer-agnostic
-    `*_reg.cpp` exemption stays dead-but-kept (all 233 `_reg.cpp` live in bundle,
-    not a scanned layer) — a convention marker.
+    compute itself used core). At this point `toolboxes/`'s only remaining
+    exemptions were the principled ones (each toolbox's `library.{cpp,hpp}`
+    installer + io/type.cpp + the dead `*_reg.cpp` catch-all) — all since removed,
+    see the next entry. The name also dodges a future MATLAB `graph`/`digraph`
+    collision. JS export name unchanged → IDE unaffected. While WASM-validating,
+    found+fixed a pre-existing dead `<numkit/builtin/library.hpp>` include in
+    `wasm/src/repl_bindings.cpp` that broke the `numkit_ide_wasm` target
+    (`30122c10`).
+- **Phase F completion — ZERO guard exemptions (`54774dc0`, `98a457c6`).** The
+  compute/register split had moved the per-function `_reg` adapters to bundle but
+  left the install MANIFESTS (`<Lib>Library::install`) in the toolboxes, exempt —
+  an incomplete migration (ode/optim already had theirs in bundle, proving the
+  intent). Finished it:
+  - **Installers → bundle (`54774dc0`):** moved the 9 straggler `library.cpp` +
+    graphics' `library.cpp` to `bundle/src/register/<lib>/<lib>_library.cpp` (each
+    is a pure `{name→ns→_reg}` manifest with no toolbox-local deps); made all 11
+    toolbox `library.hpp` + graphics core-free (forward-declare Engine). Removed
+    the `library.{cpp,hpp}` guard exemption. Also kills the old toolbox(L2)→
+    bundle(L3) upward link reference (installers took addresses of bundle `_reg`
+    symbols).
+  - **io/type decoupled (`98a457c6`):** `numkit::io::type` now takes a
+    `FsContext&` + an output-sink `std::function` instead of `Engine&`; the new
+    `bundle/src/register/io/type_reg.cpp` binds the sink to `engine.outputText`.
+    Removed the io/type.cpp exemption AND the dead `*_reg.cpp` catch-all.
+  - **Result: `check_layering.py scan()` has NO per-file exemptions left** —
+    every guarded layer's compute tree (value/fs/ops/core/figure/math/lang/
+    graphics/scriptgraph/toolboxes) is scanned unconditionally; all Engine glue
+    lives in `bundle/src/register`. Both steps negative-tested (a core include in
+    a toolbox header / type.cpp fails the guard). desktop-fast 11657 / browser-
+    WASM (`numkit_ide.js` links); guard green.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
