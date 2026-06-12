@@ -575,9 +575,13 @@ to keep its diff semantic + reviewable.
     `buildScriptGraph` WASM export. Renamed `numkit::graph` → `numkit::scriptgraph`
     and relocated `src/toolboxes/graph` → `src/scriptgraph` as its own L2 layer
     (ALLOWED `{value,fs,ops,core,scriptgraph}` — honestly core-coupled, no
-    exemption). The whole-`/graph/` guard exemption is GONE; `toolboxes/` now has
-    no graph carve-out (only io/type.cpp remains exempt). The name also dodges a
-    future MATLAB `graph`/`digraph` collision. JS export name unchanged → IDE
+    exemption). The whole-`/graph/` guard exemption is GONE — it was the only
+    AD-HOC / whole-directory carve-out (an entire misclassified toolbox whose
+    compute itself used core). `toolboxes/`'s remaining exemptions are all
+    PRINCIPLED: each toolbox's `library.{cpp,hpp}` installer (20 files — the
+    Engine-registration ABI; the compute TUs around them are still scanned and
+    must stay core-free) + the lone `io/src/text/type.cpp` (engine.outputText).
+    The name also dodges a future MATLAB `graph`/`digraph` collision. JS export name unchanged → IDE
     unaffected. While WASM-validating, found+fixed a pre-existing dead
     `<numkit/builtin/library.hpp>` include in `wasm/src/repl_bindings.cpp` that
     broke the `numkit_ide_wasm` target (`30122c10`). The layer-agnostic
