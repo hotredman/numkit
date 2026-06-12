@@ -22,6 +22,7 @@
 #include <numkit/value/span.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
@@ -54,17 +55,14 @@ namespace numkit::image {
 // The dispatch goes through Engine::callFunctionHandle, matching the
 // pattern adopted in toolboxes/ode/ode45 (function_ref couldn't carry
 // func-handle semantics through the round-trip).
-Value nlfilter(numkit::Engine &eng, const Value &A,
-               std::size_t m, std::size_t n, const Value &fun,
+Value nlfilter(const Value &A,
+               std::size_t m, std::size_t n, FnHandle fun,
                bool indexed,
                std::pmr::memory_resource *mr)
 {
     if (m < 1 || n < 1)
         throw Error("nlfilter: neighbourhood size must be positive",
                     0, 0, "nlfilter", "", "numkit:nlfilter:nhood");
-    if (!fun.isFuncHandle())
-        throw Error("nlfilter: 3rd argument must be a function handle",
-                    0, 0, "nlfilter", "", "numkit:nlfilter:fun");
 
     const auto &dA = A.dims();
     if (dA.is3D())
@@ -73,6 +71,14 @@ Value nlfilter(numkit::Engine &eng, const Value &A,
     const std::size_t H = dA.rows();
     const std::size_t W = dA.cols();
     const ValueType inT = A.type();
+
+    // Invoke the user callback on one input (core-free via FnHandle;
+    // the bundle adapter binds it to Engine::callFunctionHandle).
+    auto callFun = [&](const Value &arg) -> Value {
+        std::array<Value, 1> o;
+        fun(Span<const Value>(&arg, 1), Span<Value>(o.data(), 1), mr);
+        return std::move(o[0]);
+    };
 
     // Padding: 'indexed' uses 1.0 for single/double, else 0.
     double padval = 0.0;
@@ -112,8 +118,7 @@ Value nlfilter(numkit::Engine &eng, const Value &A,
     };
 
     fill_window(0, 0);
-    Value first = eng.callFunctionHandle(
-        fun, Span<const Value>(&window, 1));
+    Value first = callFun(window);
     if (first.numel() != 1)
         throw Error("nlfilter: fun must return a scalar",
                     0, 0, "nlfilter", "", "numkit:nlfilter:funScalar");
@@ -147,8 +152,7 @@ Value nlfilter(numkit::Engine &eng, const Value &A,
         for (std::size_t j = 0; j < W; ++j) {
             if (i == 0 && j == 0) continue;  // already filled
             fill_window(i, j);
-            Value r = eng.callFunctionHandle(
-                fun, Span<const Value>(&window, 1));
+            Value r = callFun(window);
             if (r.numel() != 1)
                 throw Error("nlfilter: fun must return a scalar at all (i,j)",
                             0, 0, "nlfilter", "", "numkit:nlfilter:funScalar");
@@ -185,18 +189,15 @@ Value nlfilter(numkit::Engine &eng, const Value &A,
 // engine adapter accepts and ignores it.
 //
 // Output class equals the class of fun()'s return value.
-Value colfilt(numkit::Engine &eng, const Value &A,
+Value colfilt(const Value &A,
               std::size_t m, std::size_t n,
-              const std::string &block_type, const Value &fun,
+              const std::string &block_type, FnHandle fun,
               bool indexed,
               std::pmr::memory_resource *mr)
 {
     if (m < 1 || n < 1)
         throw Error("colfilt: block size must be positive",
                     0, 0, "colfilt", "", "numkit:colfilt:nhood");
-    if (!fun.isFuncHandle())
-        throw Error("colfilt: fun must be a function handle",
-                    0, 0, "colfilt", "", "numkit:colfilt:fun");
 
     const auto &dA = A.dims();
     if (dA.is3D())
@@ -205,6 +206,14 @@ Value colfilt(numkit::Engine &eng, const Value &A,
     const std::size_t H = dA.rows();
     const std::size_t W = dA.cols();
     const ValueType inT = A.type();
+
+    // Invoke the user callback on one input (core-free via FnHandle;
+    // the bundle adapter binds it to Engine::callFunctionHandle).
+    auto callFun = [&](const Value &arg) -> Value {
+        std::array<Value, 1> o;
+        fun(Span<const Value>(&arg, 1), Span<Value>(o.data(), 1), mr);
+        return std::move(o[0]);
+    };
 
     std::string kind = block_type;
     for (auto &c : kind) c = static_cast<char>(
@@ -256,8 +265,7 @@ Value colfilt(numkit::Engine &eng, const Value &A,
             }
         }
 
-        Value result = eng.callFunctionHandle(
-            fun, Span<const Value>(&X, 1));
+        Value result = callFun(X);
         if (result.numel() != Ncol)
             throw Error("colfilt: sliding fun must return a 1 × N row "
                         "vector (one value per column)",
@@ -314,8 +322,7 @@ Value colfilt(numkit::Engine &eng, const Value &A,
         }
     }
 
-    Value result = eng.callFunctionHandle(
-        fun, Span<const Value>(&X, 1));
+    Value result = callFun(X);
     if (result.numel() != m * n * Ncol)
         throw Error("colfilt: distinct fun must return a matrix of the "
                     "same shape as its input (m*n × N)",
@@ -1197,7 +1204,16 @@ void nlfilter_reg(Span<const Value> args, std::size_t /*nargout*/,
                     0, 0, "nlfilter", "", "numkit:nlfilter:nhood");
     const std::size_t m = static_cast<std::size_t>(nh.elemAsDouble(0));
     const std::size_t n = static_cast<std::size_t>(nh.elemAsDouble(1));
-    outs[0] = nlfilter(*ctx.engine, args[0], m, n, fn, indexed, mr);
+    if (!fn.isFuncHandle())
+        throw Error("nlfilter: 3rd argument must be a function handle",
+                    0, 0, "nlfilter", "", "numkit:nlfilter:fun");
+    auto cb = [&ctx, &fn](Span<const Value> a, Span<Value> o,
+                          std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(fn, a, o.size());
+        for (size_t i = 0; i < o.size() && i < r.size(); ++i)
+            o[i] = std::move(r[i]);
+    };
+    outs[0] = nlfilter(args[0], m, n, cb, indexed, mr);
 }
 
 void colfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
@@ -1252,7 +1268,16 @@ void colfilt_reg(Span<const Value> args, std::size_t /*nargout*/,
                     0, 0, "colfilt", "", "numkit:colfilt:blockType");
     const std::string kind = args[bi].toString();
     const Value &fn = args[bi + 1];
-    outs[0] = colfilt(*ctx.engine, args[0], m, n, kind, fn, indexed, mr);
+    if (!fn.isFuncHandle())
+        throw Error("colfilt: fun must be a function handle",
+                    0, 0, "colfilt", "", "numkit:colfilt:fun");
+    auto cb = [&ctx, &fn](Span<const Value> a, Span<Value> o,
+                          std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(fn, a, o.size());
+        for (size_t i = 0; i < o.size() && i < r.size(); ++i)
+            o[i] = std::move(r[i]);
+    };
+    outs[0] = colfilt(args[0], m, n, kind, cb, indexed, mr);
 }
 
 void imnlmfilt_reg(Span<const Value> args, std::size_t nargout,

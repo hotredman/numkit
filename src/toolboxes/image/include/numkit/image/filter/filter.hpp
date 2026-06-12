@@ -6,14 +6,13 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/value/fn_handle.hpp>
 #include <numkit/value/value.hpp>
 
 #include <string>
 #include <tuple>
 #include <vector>
 #include <vector>
-
-namespace numkit { class Engine; }
 
 namespace numkit::image {
 
@@ -743,17 +742,17 @@ wiener2(const Value &I, size_t nh, size_t nw, double noise,
 /// **Padding.** Default `padval = 0`. The `'indexed'` form uses
 /// `padval = 1` for `single` / `double` `A`, otherwise `padval = 0`.
 ///
-/// @param eng         Engine used to dispatch `fun`.
 /// @param A           Input image.
 /// @param m           Neighbourhood row count.
 /// @param n           Neighbourhood column count.
-/// @param fun         Function-handle Value invoked as `fun(window)`.
+/// @param fun         Callback invoked once per `m×n` window; returns a scalar.
+///                    (Engine adapter binds it to the user handle; core-free.)
 /// @param indexed     `true` → 'indexed' padding rule (see above).
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            Filtered image, same H×W as `A`, class = output
 ///                    class of `fun`.
-Value nlfilter(numkit::Engine &eng, const Value &A,
-               std::size_t m, std::size_t n, const Value &fun,
+Value nlfilter(const Value &A,
+               std::size_t m, std::size_t n, FnHandle fun,
                bool indexed,
                std::pmr::memory_resource *mr = nullptr);
 
@@ -793,14 +792,16 @@ Value nlfilter(numkit::Engine &eng, const Value &A,
 /// @param n           Block cols.
 /// @param block_type  `"sliding"` or `"distinct"` (case-insensitive,
 ///                    abbreviated by leading character).
-/// @param fun         Function-handle Value.
+/// @param fun         Callback invoked on the m*n × Ncol column matrix;
+///                    returns the per-column result. (Engine adapter binds it
+///                    to the user handle; core-free.)
 /// @param indexed     `true` ⇒ `'indexed'` padding (1 for floats, 0 otherwise).
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            Filtered image (same H × W as `A` in sliding;
 ///                    same H × W as `A` in distinct, after cropping).
-Value colfilt(numkit::Engine &eng, const Value &A,
+Value colfilt(const Value &A,
               std::size_t m, std::size_t n,
-              const std::string &block_type, const Value &fun,
+              const std::string &block_type, FnHandle fun,
               bool indexed,
               std::pmr::memory_resource *mr = nullptr);
 
