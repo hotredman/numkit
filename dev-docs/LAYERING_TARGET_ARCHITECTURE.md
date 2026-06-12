@@ -1,15 +1,24 @@
 # Layering — Target Architecture (Phase 3-A spec)
 
-Status: **agreed 2026-06-08**, not yet executed. This is the end-state the
-layering refactor converges on. Read alongside COORDINATION.md (territories)
-and the layering memory note.
+Status: **agreed 2026-06-08; substantially EXECUTED.** Phases A–H, the
+FigureContext (A)+(B) decoupling, the `graph`→`scriptgraph` rename+relocation,
+the Phase-F installer relocation to bundle, and the FnHandle public-API
+decoupling all landed on `main`. The layering guard (`tools/check_layering.py`)
+now pins all 11 layers (value/fs/ops/core/figure/math/lang/graphics/scriptgraph/
+runtime/toolboxes) with **zero per-file exemptions**, and **no public toolbox
+header names `Engine`**. Remaining: bench API-rot + apple-m validation (both
+orthogonal/environmental — see §10). Read alongside COORDINATION.md (territories)
+and the layering memory note. The per-section notes below describe the converged
+end-state; §10 logs the post-merge execution history.
 
 ---
 
 ## 0. The invariant (the one rule)
 
-> **`core` ⊥ everything else. Of the libraries, only `runtime` depends on `core`.**
-> Registration is *bundle* plumbing, not a library dependency.
+> **`core` ⊥ everything else. Of the L2 libraries, only `runtime` and
+> `scriptgraph` depend on `core`** — both legitimately (runtime drives the
+> Engine; scriptgraph walks core's parser/AST). math/lang/graphics/toolboxes are
+> all core-free. Registration is *bundle* plumbing, not a library dependency.
 
 Concretely: the **compute** of `fs / ops / io / math / lang / toolboxes` never
 `#include <numkit/core/...>`. `core` (the engine) and the compute libraries are
@@ -607,6 +616,23 @@ to keep its diff semantic + reviewable.
     lives in `bundle/src/register`. Both steps negative-tested (a core include in
     a toolbox header / type.cpp fails the guard). desktop-fast 11657 / browser-
     WASM (`numkit_ide.js` links); guard green.
+- **Full layer coverage + Engine-free public API (`7fec1a81`, `36efc7ce`, `b1a7a6bf`).**
+  Two finishing strokes after the exemptions were gone:
+  - **runtime pinned (`7fec1a81`):** the guard scanned 10 layers but not
+    `runtime` (L2). Added `runtime → {value,fs,ops,core,math,lang,runtime}` (it
+    drives the Engine, so core is allowed, but it must not reach the libraries /
+    bundle — clean today). Every L2 layer is now guarded. Refreshed the docstring
+    DAG. Negative-tested.
+  - **FnHandle decoupling (`36efc7ce` makelut, `b1a7a6bf` nlfilter/colfilt):** the
+    only 3 public toolbox signatures still naming `Engine&` were image's callback
+    fns (apply a user `fun` to neighbourhoods). Converted to the canonical
+    `FnHandle` (function_ref over `(args, outs, mr)`): makelut's compute moved to
+    the toolbox (morph.cpp); nlfilter/colfilt became core-free in place
+    (filter_reg.cpp, co-located with their VM-continuation machinery). The bundle
+    `_reg` adapters bind the FnHandle to `engine.callFunctionHandleMulti`; the
+    VM-pausable user-code paths are untouched (BreakInsideNlfilterCallback still
+    passes). **Result: no public toolbox header names `Engine` any more.**
+    desktop-fast 11657 / 0 fail; guard green.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
