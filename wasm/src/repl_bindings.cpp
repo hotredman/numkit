@@ -13,7 +13,6 @@
 #include <numkit/bundle/standard_library.hpp>  // installStandardLibrary (Engine ctor no longer installs libs)
 #include <numkit/core/value_stats.hpp>
 #include <numkit/core/value_json.hpp>
-#include <numkit/builtin/library.hpp>
 #include <numkit/core/debug_session.hpp>
 #include <numkit/fs/vfs.hpp>
 #include <numkit/core/lexer.hpp>
