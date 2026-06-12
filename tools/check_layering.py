@@ -3,14 +3,17 @@
 
 Enforces the acyclic dependency direction established by the layering refactor:
 
-    value/  (L0)    STL only
-    fs/     (L0)    STL only
-    ops/    (L0.5)  -> value (+ Highway / Threads)
-    core/   (L1)    -> value, fs, ops
-    math/   (L2)    -> value, fs, ops, math, lang (+ builtin, transitional)
-    lang/   (L2)    -> value, fs, ops, math, lang (+ builtin, transitional)
-    toolboxes/*  (L2)    -> value, fs, ops, math, lang, sibling toolboxes
-    bundle/ (L3)    -> everything
+    value/      (L0)    STL only
+    fs/         (L0)    STL only
+    ops/        (L0.5)  -> value (+ Highway / Threads)
+    figure/     (L0.5)  -> value, fs, ops          (header-only plot session state)
+    core/       (L1)    -> value, fs, ops, figure
+    math/lang   (L2)    -> value, fs, ops, math, lang
+    graphics    (L2)    -> value, fs, ops, figure   (plotting service; core-free)
+    scriptgraph (L2)    -> value, fs, ops, core      (AST->NodeGraph; core-coupled)
+    runtime     (L2)    -> value, fs, ops, core, math, lang
+    toolboxes/* (L2)    -> value, fs, ops, math, lang, graphics, sibling toolboxes
+    bundle/     (L3)    -> everything (all install + *_reg glue lives here)
 
 This checker pins value, fs, ops, core and the math/lang COMPUTE: none may
 include headers from a layer above them. core MUST stay free of every toolbox
@@ -88,6 +91,12 @@ ALLOWED = {
     # graph/digraph + implied a function toolbox); renamed + relocated out of
     # toolboxes/ to its own tier. Nothing depends on it but the wasm bindings.
     "scriptgraph": {"value", "fs", "ops", "core", "scriptgraph"},
+    # runtime (L2): the language runtime extracted from builtin (eval-family,
+    # who/clear/import, error diagnostics). Legitimately core-coupled (it drives
+    # the Engine), so `core` is allowed — but it must NOT reach UP into the
+    # libraries (toolboxes / graphics / scriptgraph) or bundle. Pinned so that
+    # boundary is enforced, not just observed (it is clean today).
+    "runtime": {"value", "fs", "ops", "core", "math", "lang", "runtime"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -101,6 +110,7 @@ LAYER_DIRS = {
     "lang":  ["src/lang"],
     "graphics": ["src/graphics"],
     "scriptgraph": ["src/scriptgraph"],
+    "runtime": ["src/runtime"],
     "toolboxes": ["src/toolboxes"],
 }
 
@@ -208,7 +218,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print("Layering OK: value, fs, ops, core, figure, math, lang, graphics, scriptgraph, toolboxes respect the dependency direction.")
+    print("Layering OK: value, fs, ops, core, figure, math, lang, graphics, scriptgraph, runtime, toolboxes respect the dependency direction.")
     return 0
 
 
