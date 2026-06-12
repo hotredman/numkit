@@ -5,12 +5,11 @@
 #pragma once
 
 #include <memory_resource>
+#include <numkit/value/fn_handle.hpp>
 #include <numkit/value/value.hpp>
 
 #include <string>
 #include <vector>
-
-namespace numkit { class Engine; }
 
 namespace numkit::image {
 
@@ -359,11 +358,15 @@ Value bwlookup(const Value &BW, const Value &lut,
 /// @param eng  Engine used to invoke the function handle.
 /// @param fun  Function handle: `(logical n×n) → scalar`.
 /// @param n    Neighbourhood size (2 or 3).
+/// @param fun  Callback invoked once per `n×n` logical neighbourhood; must
+///             return a scalar. (The engine adapter binds it to the user
+///             function handle; core-free here.)
+/// @param n    Neighbourhood size (2 or 3).
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `2^(n²) × 1` DOUBLE lookup table.
 /// @throws Error  `n` not 2 or 3, or `fun` returns a non-scalar.
 /// @see bwlookup, applylut
-Value makelut(numkit::Engine &eng, const Value &fun, int n,
+Value makelut(FnHandle fun, int n,
               std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Morphological operations on a binary volume
