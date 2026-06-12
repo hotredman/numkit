@@ -569,14 +569,20 @@ to keep its diff semantic + reviewable.
     `-I` (bundle is L3; math is an allowed dep of lang/stats). Not convertible to
     `<numkit/...>` angle form (private headers); the guard's STRICT_QUOTED leak
     check intentionally excludes these layers. No fix.
-  - **FLAGGED (follow-up):** the `graph` toolbox is mis-classified — it includes
-    `<numkit/core/{ast,lexer,parser}.hpp>` (parser/AST-lowering infra over core),
-    NOT core-free MATLAB compute. The whole-`/graph/` guard exemption is the
-    pragmatic holding pattern; a proper fix relocates it out of `toolboxes/` to a
-    core-coupled tier (e.g. `src/runtime/` or a dedicated tools tier). Structural,
-    deferred. The layer-agnostic `*_reg.cpp` exemption is currently dead (all 233
-    `_reg.cpp` live in bundle, which isn't a scanned layer) — kept as a
-    convention marker.
+  - **RESOLVED (`a91baf99`):** the `graph` toolbox was mis-classified — it
+    includes `<numkit/core/{ast,lexer,parser}.hpp>` (parser/AST-lowering infra
+    over core), registers ZERO builtins, and only backed the IDE's
+    `buildScriptGraph` WASM export. Renamed `numkit::graph` → `numkit::scriptgraph`
+    and relocated `src/toolboxes/graph` → `src/scriptgraph` as its own L2 layer
+    (ALLOWED `{value,fs,ops,core,scriptgraph}` — honestly core-coupled, no
+    exemption). The whole-`/graph/` guard exemption is GONE; `toolboxes/` now has
+    no graph carve-out (only io/type.cpp remains exempt). The name also dodges a
+    future MATLAB `graph`/`digraph` collision. JS export name unchanged → IDE
+    unaffected. While WASM-validating, found+fixed a pre-existing dead
+    `<numkit/builtin/library.hpp>` include in `wasm/src/repl_bindings.cpp` that
+    broke the `numkit_ide_wasm` target (`30122c10`). The layer-agnostic
+    `*_reg.cpp` exemption stays dead-but-kept (all 233 `_reg.cpp` live in bundle,
+    not a scanned layer) — a convention marker.
 - **bench API-rot** — `benchmarks/**/*_bench.cpp` call post-C4-renamed functions
   with stale signatures (`unique(mr,…)`, `ops::plusLoop`, `mtimes(mr,…)`); they
   build only on bench* presets (library is green everywhere). Needs an
