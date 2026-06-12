@@ -1,4 +1,4 @@
-// toolboxes/graph/src/ast_serialize.cpp
+// scriptgraph/src/ast_serialize.cpp
 //
 // AST → JSON for the IDE's AST inspector view. Distinct from
 // serialize.cpp (which emits the lowered NodeGraph IR) — this is
@@ -30,13 +30,13 @@
 // renderer — keeps JSON small and avoids ambiguity ("did I forget
 // to emit, or is the value just default-empty?").
 
-#include <numkit/graph/ast_serialize.hpp>
+#include <numkit/scriptgraph/ast_serialize.hpp>
 
 #include <cmath>
 #include <cstdio>
 #include <sstream>
 
-namespace numkit::graph {
+namespace numkit::scriptgraph {
 namespace {
 
 void escapeTo(std::ostringstream &os, const std::string &s)
@@ -214,4 +214,4 @@ std::string toASTJSON(const numkit::ASTNode &root)
     return os.str();
 }
 
-} // namespace numkit::graph
+} // namespace numkit::scriptgraph

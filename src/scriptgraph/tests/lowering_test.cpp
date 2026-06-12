@@ -1,4 +1,4 @@
-// toolboxes/graph/tests/lowering_test.cpp — Phase 1 lowering coverage.
+// scriptgraph/tests/lowering_test.cpp — Phase 1 lowering coverage.
 //
 // Verifies that small scripts produce the expected NodeGraph shape:
 //   • Per-statement node counts + kinds
@@ -8,8 +8,8 @@
 
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
-#include <numkit/graph/lowering.hpp>
-#include <numkit/graph/serialize.hpp>
+#include <numkit/scriptgraph/lowering.hpp>
+#include <numkit/scriptgraph/serialize.hpp>
 
 #include <gtest/gtest.h>
 
@@ -17,7 +17,7 @@ using namespace numkit;
 
 namespace {
 
-graph::NodeGraph lowerSource(const std::string &source)
+scriptgraph::NodeGraph lowerSource(const std::string &source)
 {
     Lexer lex(source);
     auto tokens = lex.tokenize();
@@ -25,21 +25,21 @@ graph::NodeGraph lowerSource(const std::string &source)
     auto root = parser.parse();
     // Pass tokens so the lowering knows where COMMENT lives and can
     // trim sourceText accordingly (parity with WASM binding).
-    return graph::lowerScript(*root, source, tokens);
+    return scriptgraph::lowerScript(*root, source, tokens);
 }
 
 // Count edges that wire a specific variable name.
-int countDataEdges(const graph::NodeGraph &g, const std::string &var)
+int countDataEdges(const scriptgraph::NodeGraph &g, const std::string &var)
 {
     int n = 0;
     for (const auto &e : g.edges) {
-        if (e.kind == graph::EdgeKind::Data && e.varName == var) ++n;
+        if (e.kind == scriptgraph::EdgeKind::Data && e.varName == var) ++n;
     }
     return n;
 }
 
 // Find first node by kind (or -1).
-int firstNodeOfKind(const graph::NodeGraph &g, graph::NodeKind k)
+int firstNodeOfKind(const scriptgraph::NodeGraph &g, scriptgraph::NodeKind k)
 {
     for (size_t i = 0; i < g.nodes.size(); ++i) {
         if (g.nodes[i].kind == k) return static_cast<int>(i);
@@ -64,9 +64,9 @@ TEST(GraphLowering, ThreeStatementPipeline)
     auto g = lowerSource("x = 1;\ny = x + 2;\nplot(y);\n");
 
     ASSERT_EQ(g.nodes.size(), 3u);
-    EXPECT_EQ(g.nodes[0].kind, graph::NodeKind::Assignment);
-    EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::Assignment);
-    EXPECT_EQ(g.nodes[2].kind, graph::NodeKind::ExprStmt);
+    EXPECT_EQ(g.nodes[0].kind, scriptgraph::NodeKind::Assignment);
+    EXPECT_EQ(g.nodes[1].kind, scriptgraph::NodeKind::Assignment);
+    EXPECT_EQ(g.nodes[2].kind, scriptgraph::NodeKind::ExprStmt);
 
     EXPECT_EQ(g.nodes[0].outputs, (std::vector<std::string>{"x"}));
     EXPECT_TRUE(g.nodes[0].inputs.empty());
@@ -114,7 +114,7 @@ TEST(GraphLowering, MultiAssignProducesMultipleOutputs)
     auto g = lowerSource("M = magic(4);\n[a, b] = size(M);\ndisp(a);\ndisp(b);\n");
 
     ASSERT_EQ(g.nodes.size(), 4u);
-    EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::Assignment);
+    EXPECT_EQ(g.nodes[1].kind, scriptgraph::NodeKind::Assignment);
     EXPECT_EQ(g.nodes[1].outputs, (std::vector<std::string>{"a", "b"}));
     EXPECT_EQ(g.nodes[1].inputs,  (std::vector<std::string>{"M"}));
 
@@ -181,7 +181,7 @@ TEST(GraphLowering, BareExpressionIsExprStmtNoOutputs)
     auto g = lowerSource("x = 5;\nx + 1;\ndisp(x);\n");
 
     ASSERT_EQ(g.nodes.size(), 3u);
-    EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::ExprStmt);
+    EXPECT_EQ(g.nodes[1].kind, scriptgraph::NodeKind::ExprStmt);
     EXPECT_TRUE(g.nodes[1].outputs.empty());
     EXPECT_EQ(g.nodes[1].inputs, (std::vector<std::string>{"x"}));
     // Edges: 0→1 (x), 0→2 (x). lastProducer unchanged by ExprStmt.
@@ -248,7 +248,7 @@ TEST(GraphLowering, GlobalDeclRegistersProducer)
 {
     auto g = lowerSource("global X;\ny = X + 1;\n");
     ASSERT_EQ(g.nodes.size(), 2u);
-    EXPECT_EQ(g.nodes[0].kind, graph::NodeKind::GlobalDecl);
+    EXPECT_EQ(g.nodes[0].kind, scriptgraph::NodeKind::GlobalDecl);
     EXPECT_EQ(g.nodes[0].outputs, (std::vector<std::string>{"X"}));
     // y = X + 1 reads X — should wire from the global decl.
     EXPECT_EQ(countDataEdges(g, "X"), 1);
@@ -259,7 +259,7 @@ TEST(GraphLowering, GlobalDeclRegistersProducer)
 TEST(GraphLowering, JsonContainsExpectedKeys)
 {
     auto g = lowerSource("x = 1;\ny = x;\n");
-    std::string j = graph::toJSON(g);
+    std::string j = scriptgraph::toJSON(g);
     // Spot-check the keys are present.
     EXPECT_NE(j.find("\"functionName\""), std::string::npos);
     EXPECT_NE(j.find("\"nodes\""),        std::string::npos);
@@ -327,7 +327,7 @@ TEST(GraphLowering, CompactForLoopOneLineSliceClean)
     //   b=k+1:   "b=k+1;"
     auto g = lowerSource("for k=1:3, a=k; b=k+1; end\n");
     ASSERT_EQ(g.nodes.size(), 3u);
-    EXPECT_EQ(g.nodes[0].kind, graph::NodeKind::ForRegion);
+    EXPECT_EQ(g.nodes[0].kind, scriptgraph::NodeKind::ForRegion);
     EXPECT_EQ(g.nodes[0].sourceText, "for k=1:3");
     EXPECT_EQ(g.nodes[1].sourceText, "a=k;");
     EXPECT_EQ(g.nodes[2].sourceText, "b=k+1;");
@@ -343,12 +343,12 @@ TEST(GraphLowering, IfRegionRecursesIntoBodies)
     // (Phase 2c: the post-branch Merge sits between body assignments
     //  and disp(y) so the read routes through it.)
     ASSERT_EQ(g.nodes.size(), 6u);
-    EXPECT_EQ(g.nodes[0].kind, graph::NodeKind::Assignment);   // x = 1
-    EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::IfRegion);
-    EXPECT_EQ(g.nodes[2].kind, graph::NodeKind::Assignment);   // y = 2
-    EXPECT_EQ(g.nodes[3].kind, graph::NodeKind::Assignment);   // y = 3
-    EXPECT_EQ(g.nodes[4].kind, graph::NodeKind::Merge);        // φ(y)
-    EXPECT_EQ(g.nodes[5].kind, graph::NodeKind::ExprStmt);     // disp(y)
+    EXPECT_EQ(g.nodes[0].kind, scriptgraph::NodeKind::Assignment);   // x = 1
+    EXPECT_EQ(g.nodes[1].kind, scriptgraph::NodeKind::IfRegion);
+    EXPECT_EQ(g.nodes[2].kind, scriptgraph::NodeKind::Assignment);   // y = 2
+    EXPECT_EQ(g.nodes[3].kind, scriptgraph::NodeKind::Assignment);   // y = 3
+    EXPECT_EQ(g.nodes[4].kind, scriptgraph::NodeKind::Merge);        // φ(y)
+    EXPECT_EQ(g.nodes[5].kind, scriptgraph::NodeKind::ExprStmt);     // disp(y)
 
     // IfRegion has x as input + children for both branches.
     EXPECT_EQ(g.nodes[1].inputs, (std::vector<std::string>{"x"}));
@@ -369,7 +369,7 @@ TEST(GraphLowering, ForRegionRegistersIterVarAsProducer)
     auto g = lowerSource("s = 0;\nfor k = 1:10\n  disp(k);\nend\ndisp(s);\ndisp(k);\n");
     // 5 nodes: s=0, ForRegion, disp(k) inside, disp(s) after, disp(k) after
     ASSERT_EQ(g.nodes.size(), 5u);
-    EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::ForRegion);
+    EXPECT_EQ(g.nodes[1].kind, scriptgraph::NodeKind::ForRegion);
     EXPECT_EQ(g.nodes[1].outputs, (std::vector<std::string>{"k"}));
     // disp(k) INSIDE body
     EXPECT_EQ(g.nodes[2].inputs, (std::vector<std::string>{"k"}));
@@ -384,7 +384,7 @@ TEST(GraphLowering, WhileRegionHasNoIterVar)
 {
     auto g = lowerSource("x = 0;\nwhile x < 10\n  x = x + 1;\nend\ndisp(x);\n");
     ASSERT_GE(g.nodes.size(), 4u);
-    EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::WhileRegion);
+    EXPECT_EQ(g.nodes[1].kind, scriptgraph::NodeKind::WhileRegion);
     // `x` appears once in inputs (cond + loop-carried share the same
     // port — emitLoopPhis dedupes by name) and once in outputs (the
     // loop-carried scaffold's output slot). WhileRegion still has no
@@ -404,12 +404,12 @@ TEST(GraphLowering, SwitchRegionPartitionsCases)
         "end\ndisp(y);\n");
     // 7 nodes: x=1, SwitchRegion, y=10, y=20, y=0, Merge(y), disp(y).
     ASSERT_EQ(g.nodes.size(), 7u);
-    EXPECT_EQ(g.nodes[1].kind, graph::NodeKind::SwitchRegion);
+    EXPECT_EQ(g.nodes[1].kind, scriptgraph::NodeKind::SwitchRegion);
     EXPECT_EQ(g.nodes[1].inputs, (std::vector<std::string>{"x"}));
     EXPECT_EQ(g.nodes[1].branchPartitions, (std::vector<int>{0, 1, 2, 3}));
     EXPECT_EQ(g.nodes[1].childNodeIds.size(), 3u);
     // Merge sits at parent scope, NOT inside the SwitchRegion.
-    EXPECT_EQ(g.nodes[5].kind, graph::NodeKind::Merge);
+    EXPECT_EQ(g.nodes[5].kind, scriptgraph::NodeKind::Merge);
     EXPECT_FALSE(g.nodes[5].parentRegionId.has_value());
 }
 
@@ -419,7 +419,7 @@ TEST(GraphLowering, TryRegionCatchVarVisibleOnlyInCatchScope)
         "try\n  x = 1;\ncatch ME\n  disp(ME);\nend\ndisp(ME);\n");
     int tryRegionId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::TryRegion) { tryRegionId = (int)i; break; }
+        if (g.nodes[i].kind == scriptgraph::NodeKind::TryRegion) { tryRegionId = (int)i; break; }
     }
     ASSERT_NE(tryRegionId, -1);
     auto &outs = g.nodes[tryRegionId].outputs;
@@ -440,7 +440,7 @@ TEST(GraphLowering, NestedForRegionsShadowIterVar)
         "end\n");
     int innerFor = -1, outerFor = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::ForRegion) {
+        if (g.nodes[i].kind == scriptgraph::NodeKind::ForRegion) {
             if (outerFor < 0) outerFor = (int)i;
             else              innerFor = (int)i;
         }
@@ -449,7 +449,7 @@ TEST(GraphLowering, NestedForRegionsShadowIterVar)
     ASSERT_GE(innerFor, 0);
     int innerDisp = -1, outerDisp = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind != graph::NodeKind::ExprStmt) continue;
+        if (g.nodes[i].kind != scriptgraph::NodeKind::ExprStmt) continue;
         if (g.nodes[i].parentRegionId == innerFor)      innerDisp = (int)i;
         else if (g.nodes[i].parentRegionId == outerFor) outerDisp = (int)i;
     }
@@ -475,7 +475,7 @@ TEST(GraphLowering, IfElseEmitsMergeNodeForBranchedVar)
     // last-writer-wins approximation).
     auto g = lowerSource("x = 0;\nif x > 0\n  y = 1;\nelse\n  y = 2;\nend\ndisp(y);\n");
     ASSERT_EQ(g.nodes.size(), 6u);
-    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    int mergeId = firstNodeOfKind(g, scriptgraph::NodeKind::Merge);
     ASSERT_GE(mergeId, 0);
     EXPECT_EQ(g.nodes[mergeId].outputs, (std::vector<std::string>{"y"}));
     // Two inputs into the merge — one per branch.
@@ -483,7 +483,7 @@ TEST(GraphLowering, IfElseEmitsMergeNodeForBranchedVar)
     // disp(y) wires from the merge, not directly from y=2.
     int dispId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::ExprStmt
+        if (g.nodes[i].kind == scriptgraph::NodeKind::ExprStmt
          && g.nodes[i].sourceText.find("disp") != std::string::npos) {
             dispId = (int)i; break;
         }
@@ -506,7 +506,7 @@ TEST(GraphLowering, IfWithoutElseMergeHasFallThroughSlot)
     // pre-region y (`y = 0`). Merge has TWO inputs: the if-branch
     // writer and the pre-region producer.
     auto g = lowerSource("x = 0;\ny = 0;\nif x > 0\n  y = 1;\nend\ndisp(y);\n");
-    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    int mergeId = firstNodeOfKind(g, scriptgraph::NodeKind::Merge);
     ASSERT_GE(mergeId, 0);
     EXPECT_EQ(g.nodes[mergeId].inputs.size(), 2u);  // 1 branch + 1 fall-through
     // Two `y` edges land on the merge — from y=1 (branch) and y=0 (pre).
@@ -526,7 +526,7 @@ TEST(GraphLowering, SwitchEmitsMergeForCaseAssignedVar)
         "  case 2, y = 20;\n"
         "  otherwise, y = 0;\n"
         "end\ndisp(y);\n");
-    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    int mergeId = firstNodeOfKind(g, scriptgraph::NodeKind::Merge);
     ASSERT_GE(mergeId, 0);
     EXPECT_EQ(g.nodes[mergeId].outputs, (std::vector<std::string>{"y"}));
     // Three case-branches → 3 merge inputs, no fall-through (otherwise covers all).
@@ -536,7 +536,7 @@ TEST(GraphLowering, SwitchEmitsMergeForCaseAssignedVar)
 TEST(GraphLowering, TryCatchEmitsMergeForBothBranchAssignments)
 {
     auto g = lowerSource("try\n  y = 1;\ncatch\n  y = 2;\nend\ndisp(y);\n");
-    int mergeId = firstNodeOfKind(g, graph::NodeKind::Merge);
+    int mergeId = firstNodeOfKind(g, scriptgraph::NodeKind::Merge);
     ASSERT_GE(mergeId, 0);
     EXPECT_EQ(g.nodes[mergeId].outputs, (std::vector<std::string>{"y"}));
     EXPECT_EQ(g.nodes[mergeId].inputs.size(), 2u);
@@ -551,7 +551,7 @@ TEST(GraphLowering, NoMergeWhenVarAssignedInOnlyOneBranch_LegacyNote)
     // intact, which is a different φ-source.
     auto g = lowerSource("y = 0;\nif x > 0\n  y = 1;\nend\ndisp(y);\n");
     // Merge expected (covered by IfWithoutElseMergeHasFallThroughSlot).
-    EXPECT_GE(firstNodeOfKind(g, graph::NodeKind::Merge), 0);
+    EXPECT_GE(firstNodeOfKind(g, scriptgraph::NodeKind::Merge), 0);
 }
 
 TEST(GraphLowering, BreakAndContinueAreOwnNodes)
@@ -559,8 +559,8 @@ TEST(GraphLowering, BreakAndContinueAreOwnNodes)
     auto g = lowerSource("for k = 1:10\n  if k > 5\n    break;\n  end\n  continue;\nend\n");
     int brk = -1, cnt = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::JumpBreak)    brk = (int)i;
-        if (g.nodes[i].kind == graph::NodeKind::JumpContinue) cnt = (int)i;
+        if (g.nodes[i].kind == scriptgraph::NodeKind::JumpBreak)    brk = (int)i;
+        if (g.nodes[i].kind == scriptgraph::NodeKind::JumpContinue) cnt = (int)i;
     }
     EXPECT_GE(brk, 0);
     EXPECT_GE(cnt, 0);
@@ -571,13 +571,13 @@ TEST(GraphLowering, BreakAndContinueAreOwnNodes)
 TEST(GraphLowering, BreakWiresJumpEdgeToEnclosingForLoop)
 {
     auto g = lowerSource("for k = 1:10\n  break;\nend\n");
-    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
-    int brkId = firstNodeOfKind(g, graph::NodeKind::JumpBreak);
+    int forId = firstNodeOfKind(g, scriptgraph::NodeKind::ForRegion);
+    int brkId = firstNodeOfKind(g, scriptgraph::NodeKind::JumpBreak);
     ASSERT_GE(forId, 0);
     ASSERT_GE(brkId, 0);
     int jumpEdges = 0;
     for (const auto &e : g.edges) {
-        if (e.kind == graph::EdgeKind::Jump
+        if (e.kind == scriptgraph::EdgeKind::Jump
          && e.source.nodeId == brkId
          && e.target.nodeId == forId) {
             ++jumpEdges;
@@ -590,13 +590,13 @@ TEST(GraphLowering, BreakWiresJumpEdgeToEnclosingForLoop)
 TEST(GraphLowering, ContinueWiresJumpEdgeToEnclosingWhileLoop)
 {
     auto g = lowerSource("x = 0;\nwhile x < 10\n  continue;\nend\n");
-    int whId  = firstNodeOfKind(g, graph::NodeKind::WhileRegion);
-    int cntId = firstNodeOfKind(g, graph::NodeKind::JumpContinue);
+    int whId  = firstNodeOfKind(g, scriptgraph::NodeKind::WhileRegion);
+    int cntId = firstNodeOfKind(g, scriptgraph::NodeKind::JumpContinue);
     ASSERT_GE(whId, 0);
     ASSERT_GE(cntId, 0);
     bool wired = false;
     for (const auto &e : g.edges) {
-        if (e.kind == graph::EdgeKind::Jump
+        if (e.kind == scriptgraph::EdgeKind::Jump
          && e.source.nodeId == cntId
          && e.target.nodeId == whId) {
             wired = true;
@@ -617,17 +617,17 @@ TEST(GraphLowering, NestedBreakWiresToInnermostLoop)
         "end\n");
     int outerFor = -1, innerFor = -1, brkId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::ForRegion) {
+        if (g.nodes[i].kind == scriptgraph::NodeKind::ForRegion) {
             if (outerFor < 0) outerFor = (int)i;
             else              innerFor = (int)i;
         }
-        if (g.nodes[i].kind == graph::NodeKind::JumpBreak) brkId = (int)i;
+        if (g.nodes[i].kind == scriptgraph::NodeKind::JumpBreak) brkId = (int)i;
     }
     ASSERT_GE(outerFor, 0);
     ASSERT_GE(innerFor, 0);
     ASSERT_GE(brkId, 0);
     for (const auto &e : g.edges) {
-        if (e.kind == graph::EdgeKind::Jump && e.source.nodeId == brkId) {
+        if (e.kind == scriptgraph::EdgeKind::Jump && e.source.nodeId == brkId) {
             EXPECT_EQ(e.target.nodeId, innerFor);
             EXPECT_NE(e.target.nodeId, outerFor);
         }
@@ -643,14 +643,14 @@ TEST(GraphLowering, ForLoopCarriedVarExposesInOutPortsOnRegion)
     // in addition to the φ inside. This makes the data flow visible
     // at the region boundary, not just buried inside.
     auto g = lowerSource("s = 0;\nfor k = 1:5\n  s = s + k;\nend\ndisp(s);\n");
-    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
+    int forId = firstNodeOfKind(g, scriptgraph::NodeKind::ForRegion);
     ASSERT_GE(forId, 0);
     const auto &reg = g.nodes[forId];
     // `s` shows up on BOTH sides of the region.
     EXPECT_NE(std::find(reg.inputs.begin(),  reg.inputs.end(),  "s"), reg.inputs.end());
     EXPECT_NE(std::find(reg.outputs.begin(), reg.outputs.end(), "s"), reg.outputs.end());
     // Pre-producer (`s = 0`) wires into the region's `s` input port.
-    int s0 = firstNodeOfKind(g, graph::NodeKind::Assignment);
+    int s0 = firstNodeOfKind(g, scriptgraph::NodeKind::Assignment);
     ASSERT_GE(s0, 0);
     bool wiredIntoRegion = false;
     for (const auto &e : g.edges) {
@@ -678,10 +678,10 @@ TEST(GraphLowering, ForLoopCarriedVarGetsPhiAtHeader)
     //   (5) region       → disp(s)             (cross-hierarchy exit)
     auto g = lowerSource("s = 0;\nfor k = 1:5\n  s = s + k;\nend\ndisp(s);\n");
 
-    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
+    int forId = firstNodeOfKind(g, scriptgraph::NodeKind::ForRegion);
     int phiId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::Merge
+        if (g.nodes[i].kind == scriptgraph::NodeKind::Merge
          && g.nodes[i].parentRegionId == forId) {
             phiId = (int)i; break;
         }
@@ -698,7 +698,7 @@ TEST(GraphLowering, ForLoopCarriedVarGetsPhiAtHeader)
     // disp(s) reads via the REGION (port-routed), not directly from φ.
     int dispId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::ExprStmt
+        if (g.nodes[i].kind == scriptgraph::NodeKind::ExprStmt
          && !g.nodes[i].parentRegionId
          && g.nodes[i].sourceText.find("disp") != std::string::npos) {
             dispId = (int)i; break;
@@ -723,10 +723,10 @@ TEST(GraphLowering, ForNewBodyVarDoesNotGetLoopCarriedPhi)
 {
     // No pre-loop producer → not loop-carried → no φ for `b`.
     auto g = lowerSource("for k = 1:3\n  b = k * 2;\nend\ndisp(b);\n");
-    int forId = firstNodeOfKind(g, graph::NodeKind::ForRegion);
+    int forId = firstNodeOfKind(g, scriptgraph::NodeKind::ForRegion);
     // Walk merges INSIDE the for; none should mention `b`.
     for (const auto &n : g.nodes) {
-        if (n.kind == graph::NodeKind::Merge && n.parentRegionId == forId) {
+        if (n.kind == scriptgraph::NodeKind::Merge && n.parentRegionId == forId) {
             EXPECT_NE(n.sourceText, "b");
         }
     }
@@ -735,10 +735,10 @@ TEST(GraphLowering, ForNewBodyVarDoesNotGetLoopCarriedPhi)
 TEST(GraphLowering, WhileLoopCarriedVarGetsPhi)
 {
     auto g = lowerSource("x = 0;\nwhile x < 10\n  x = x + 1;\nend\ndisp(x);\n");
-    int whId  = firstNodeOfKind(g, graph::NodeKind::WhileRegion);
+    int whId  = firstNodeOfKind(g, scriptgraph::NodeKind::WhileRegion);
     int phiId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::Merge
+        if (g.nodes[i].kind == scriptgraph::NodeKind::Merge
          && g.nodes[i].parentRegionId == whId) {
             phiId = (int)i; break;
         }
@@ -773,10 +773,10 @@ TEST(GraphLowering, NestedLoopsChainPhiNodes)
     int outerPhi = -1, innerPhi = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
         const auto &n = g.nodes[i];
-        if (n.kind == graph::NodeKind::ForRegion) {
+        if (n.kind == scriptgraph::NodeKind::ForRegion) {
             if (outerFor < 0) outerFor = (int)i;
             else              innerFor = (int)i;
-        } else if (n.kind == graph::NodeKind::Merge) {
+        } else if (n.kind == scriptgraph::NodeKind::Merge) {
             if (n.parentRegionId == outerFor && outerPhi < 0) outerPhi = (int)i;
             if (n.parentRegionId == innerFor && innerPhi < 0) innerPhi = (int)i;
         }
@@ -827,9 +827,9 @@ TEST(GraphLowering, TryEmitsExceptionEdgeFromTryToCatch)
     // (first catch-body stmt).
     auto g = lowerSource("try\n  y = 1;\ncatch\n  y = 2;\nend\n");
     int tryAssignId = -1, catchAssignId = -1;
-    int tryId = firstNodeOfKind(g, graph::NodeKind::TryRegion);
+    int tryId = firstNodeOfKind(g, scriptgraph::NodeKind::TryRegion);
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind != graph::NodeKind::Assignment) continue;
+        if (g.nodes[i].kind != scriptgraph::NodeKind::Assignment) continue;
         if (g.nodes[i].parentRegionId != tryId) continue;
         if (tryAssignId < 0)        tryAssignId   = (int)i;
         else if (catchAssignId < 0) catchAssignId = (int)i;
@@ -838,7 +838,7 @@ TEST(GraphLowering, TryEmitsExceptionEdgeFromTryToCatch)
     ASSERT_GE(catchAssignId, 0);
     int excEdges = 0;
     for (const auto &e : g.edges) {
-        if (e.kind == graph::EdgeKind::Exception
+        if (e.kind == scriptgraph::EdgeKind::Exception
          && e.source.nodeId == tryAssignId
          && e.target.nodeId == catchAssignId) {
             ++excEdges;
@@ -856,7 +856,7 @@ TEST(GraphLowering, FunctionDefBecomesRegionWithParamsAndReturns)
         "function y = double_it(x)\n"
         "  y = 2 * x;\n"
         "end\n");
-    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    int fId = firstNodeOfKind(g, scriptgraph::NodeKind::FunctionDef);
     ASSERT_GE(fId, 0);
     EXPECT_EQ(g.nodes[fId].inputs,  (std::vector<std::string>{"x"}));
     EXPECT_EQ(g.nodes[fId].outputs, (std::vector<std::string>{"y"}));
@@ -871,10 +871,10 @@ TEST(GraphLowering, FunctionParamReadsWireFromFunctionDef)
         "function y = f(x)\n"
         "  y = x + 1;\n"
         "end\n");
-    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    int fId = firstNodeOfKind(g, scriptgraph::NodeKind::FunctionDef);
     int assignId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::Assignment
+        if (g.nodes[i].kind == scriptgraph::NodeKind::Assignment
          && g.nodes[i].parentRegionId == fId) {
             assignId = (int)i; break;
         }
@@ -900,10 +900,10 @@ TEST(GraphLowering, FunctionReturnWiresBackToFunctionDef)
         "function y = f(x)\n"
         "  y = x + 1;\n"
         "end\n");
-    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    int fId = firstNodeOfKind(g, scriptgraph::NodeKind::FunctionDef);
     int assignId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::Assignment
+        if (g.nodes[i].kind == scriptgraph::NodeKind::Assignment
          && g.nodes[i].parentRegionId == fId) {
             assignId = (int)i; break;
         }
@@ -927,7 +927,7 @@ TEST(GraphLowering, FunctionMultipleReturnsWireEachOutputPort)
         "  a = y;\n"
         "  b = x;\n"
         "end\n");
-    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
+    int fId = firstNodeOfKind(g, scriptgraph::NodeKind::FunctionDef);
     ASSERT_GE(fId, 0);
     EXPECT_EQ(g.nodes[fId].outputs, (std::vector<std::string>{"a", "b"}));
     int returnEdges = 0;
@@ -950,13 +950,13 @@ TEST(GraphLowering, ReturnInsideFunctionWiresJumpEdgeToFunctionDef)
         "  end\n"
         "  y = 2;\n"
         "end\n");
-    int fId = firstNodeOfKind(g, graph::NodeKind::FunctionDef);
-    int retId = firstNodeOfKind(g, graph::NodeKind::JumpReturn);
+    int fId = firstNodeOfKind(g, scriptgraph::NodeKind::FunctionDef);
+    int retId = firstNodeOfKind(g, scriptgraph::NodeKind::JumpReturn);
     ASSERT_GE(fId, 0);
     ASSERT_GE(retId, 0);
     bool wired = false;
     for (const auto &e : g.edges) {
-        if (e.kind == graph::EdgeKind::Jump
+        if (e.kind == scriptgraph::EdgeKind::Jump
          && e.source.nodeId == retId
          && e.target.nodeId == fId) {
             wired = true;
@@ -980,7 +980,7 @@ TEST(GraphLowering, FunctionLocalsDoNotLeakToScript)
     // disp(z) node has zero inputs.
     int dispId = -1;
     for (size_t i = 0; i < g.nodes.size(); ++i) {
-        if (g.nodes[i].kind == graph::NodeKind::ExprStmt
+        if (g.nodes[i].kind == scriptgraph::NodeKind::ExprStmt
          && !g.nodes[i].parentRegionId
          && g.nodes[i].sourceText.find("disp") != std::string::npos) {
             dispId = (int)i; break;
@@ -997,11 +997,11 @@ TEST(GraphLowering, BreakAtScriptTopLevelHasNoJumpEdge)
     // any Jump edge, leaving it dangling so the view can highlight
     // the orphan jump as a code-smell signal.
     auto g = lowerSource("break;\n");
-    int brkId = firstNodeOfKind(g, graph::NodeKind::JumpBreak);
+    int brkId = firstNodeOfKind(g, scriptgraph::NodeKind::JumpBreak);
     ASSERT_GE(brkId, 0);
     int jumpEdges = 0;
     for (const auto &e : g.edges) {
-        if (e.kind == graph::EdgeKind::Jump && e.source.nodeId == brkId) ++jumpEdges;
+        if (e.kind == scriptgraph::EdgeKind::Jump && e.source.nodeId == brkId) ++jumpEdges;
     }
     EXPECT_EQ(jumpEdges, 0);
 }

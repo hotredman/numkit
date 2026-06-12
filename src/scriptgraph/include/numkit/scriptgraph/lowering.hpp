@@ -1,4 +1,4 @@
-// toolboxes/graph/include/numkit/graph/lowering.hpp
+// scriptgraph/include/numkit/scriptgraph/lowering.hpp
 //
 // Public API: lower an AST root to a NodeGraph IR.
 
@@ -6,12 +6,12 @@
 
 #include <numkit/core/ast.hpp>
 #include <numkit/core/lexer.hpp>
-#include <numkit/graph/node_graph.hpp>
+#include <numkit/scriptgraph/node_graph.hpp>
 
 #include <string>
 #include <vector>
 
-namespace numkit::graph {
+namespace numkit::scriptgraph {
 
 /** Lower a parsed script (top-level BLOCK or single statement) to a
  *  NodeGraph. `sourceText` is the original .m text used for slicing
@@ -32,4 +32,4 @@ NodeGraph lowerScript(const ASTNode &root,
                       const std::string &sourceText = "",
                       const std::vector<Token> &tokens = {});
 
-} // namespace numkit::graph
+} // namespace numkit::scriptgraph

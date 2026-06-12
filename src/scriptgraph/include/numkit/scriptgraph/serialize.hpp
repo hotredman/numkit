@@ -1,4 +1,4 @@
-// toolboxes/graph/include/numkit/graph/serialize.hpp
+// scriptgraph/include/numkit/scriptgraph/serialize.hpp
 //
 // JSON serializer for NodeGraph. Hand-rolled (no nlohmann dep) to
 // match the rest of the project's WASM bindings. Output is a single
@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <numkit/graph/node_graph.hpp>
+#include <numkit/scriptgraph/node_graph.hpp>
 
 #include <string>
 
-namespace numkit::graph {
+namespace numkit::scriptgraph {
 
 std::string toJSON(const NodeGraph &g);
 
-} // namespace numkit::graph
+} // namespace numkit::scriptgraph

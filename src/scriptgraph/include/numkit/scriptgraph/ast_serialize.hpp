@@ -1,4 +1,4 @@
-// toolboxes/graph/include/numkit/graph/ast_serialize.hpp
+// scriptgraph/include/numkit/scriptgraph/ast_serialize.hpp
 //
 // AST → JSON serializer. The IDE's AST view consumes this to render
 // a literal parse-tree visualization side-by-side with the data-flow
@@ -14,7 +14,7 @@
 
 #include <string>
 
-namespace numkit::graph {
+namespace numkit::scriptgraph {
 
 /** Serialize a single AST subtree (typically the BLOCK returned by
  *  Parser::parse()) to a JSON string. The output is a nested object
@@ -24,4 +24,4 @@ namespace numkit::graph {
  *  emitted only when the node kind uses them. */
 std::string toASTJSON(const numkit::ASTNode &root);
 
-} // namespace numkit::graph
+} // namespace numkit::scriptgraph

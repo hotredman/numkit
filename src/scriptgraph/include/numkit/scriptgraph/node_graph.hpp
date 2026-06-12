@@ -1,10 +1,10 @@
-// toolboxes/graph/include/numkit/graph/node_graph.hpp
+// scriptgraph/include/numkit/scriptgraph/node_graph.hpp
 //
 // NodeGraph IR — statement-level data-flow graph derived from an AST.
 // Lives in toolboxes/graph (an offline analysis pass, NOT part of the
 // interpreter's eval pipeline). Consumed by:
-//   • toolboxes/graph/src/serialize.cpp  → JSON for the IDE
-//   • toolboxes/graph/tests/             → unit tests
+//   • scriptgraph/src/serialize.cpp  → JSON for the IDE
+//   • scriptgraph/tests/             → unit tests
 //
 // Design contract (MVP):
 //   • Granularity: one node per top-level statement (assignment,
@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::graph {
+namespace numkit::scriptgraph {
 
 enum class NodeKind {
     Assignment,       // lhs = rhs;
@@ -115,4 +115,4 @@ struct NodeGraph {
     std::vector<std::string> functionOutputs;
 };
 
-} // namespace numkit::graph
+} // namespace numkit::scriptgraph
