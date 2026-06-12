@@ -15,6 +15,7 @@
 // toolboxes/builtin/src/language/arrays/.
 
 #include <numkit/linalg/library.hpp>
+#include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
 namespace numkit::linalg::detail {

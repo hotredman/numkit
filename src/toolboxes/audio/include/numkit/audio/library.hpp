@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <numkit/core/engine.hpp>
+namespace numkit { class Engine; }  // fwd-decl — keep this public header core-free
 
 namespace numkit {
 

@@ -6,6 +6,7 @@
 
 #include <numkit/image/library.hpp>
 
+#include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
 namespace numkit::image::detail {

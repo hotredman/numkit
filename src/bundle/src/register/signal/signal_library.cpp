@@ -13,6 +13,7 @@
 
 #include <numkit/signal/library.hpp>
 
+#include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>  // ExternalFunc, CallContext, Span, Value
 
 namespace numkit::signal::detail {

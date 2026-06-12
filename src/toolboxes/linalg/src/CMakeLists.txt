@@ -4,7 +4,6 @@
 # as functions move out of toolboxes/builtin/src/language/arrays/.
 
 set(LINALGLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vector_ops.cpp          # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/norms.cpp                # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/properties.cpp          # compute (engine-free)

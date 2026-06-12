@@ -1,6 +1,6 @@
 #pragma once
 
-#include <numkit/core/engine.hpp>
+namespace numkit { class Engine; }
 
 namespace numkit {
 

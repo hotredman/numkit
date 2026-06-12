@@ -9,6 +9,7 @@
 
 #include <numkit/stats/library.hpp>
 
+#include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
 namespace numkit::stats::detail {

@@ -1,5 +1,4 @@
 set(COMMLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/psk.cpp              # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/qam.cpp              # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/fsk_ofdm.cpp         # compute (engine-free)

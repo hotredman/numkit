@@ -2,6 +2,7 @@
 
 #include <numkit/comm/library.hpp>
 
+#include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
 namespace numkit::comm::detail {

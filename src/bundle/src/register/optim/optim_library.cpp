@@ -11,6 +11,7 @@
 // `optim.*` instead — that decision is made per function as they land.
 
 #include <numkit/optim/library.hpp>
+#include <numkit/core/engine.hpp>
 
 #include <numkit/core/types.hpp>
 

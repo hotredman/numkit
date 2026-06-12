@@ -163,17 +163,13 @@ def scan(repo: Path) -> list[str]:
                 # so they are exempt from the compute-layer purity check.
                 if f.name.endswith("_reg.cpp"):
                     continue
-                # Sanctioned core-coupled installers (registration ABI): each
-                # toolbox's AND graphics' library.{cpp,hpp}. These define
-                # <Lib>Library::install(Engine&); graphics' library.cpp also
-                # hosts the generic CallContext→GraphicsContext adapter. The
-                # compute TUs around them (toolbox math, graphics' plots.cpp)
-                # are scanned and MUST stay core-free.
-                if f.name in ("library.cpp", "library.hpp") and layer in (
-                    "toolboxes",
-                    "graphics",
-                ):
-                    continue
+                # (Installers need NO exemption any more: every <Lib>Library::
+                # install(Engine&) DEFINITION was relocated to bundle/src/register/
+                # <lib>/<lib>_library.cpp — the Engine-coupled registration manifest
+                # belongs with the _reg adapters in L3, not in the L2 compute tree.
+                # The public library.hpp headers are core-free now (they forward-
+                # declare Engine for the install() signature), so they pass the
+                # scan unaided.)
                 # Toolbox-only extra exemption: io's type.cpp (legitimately
                 # Engine& — it writes via engine.outputText). Every other toolbox
                 # compute TU must stay core/runtime-free. (The former `/graph/`
