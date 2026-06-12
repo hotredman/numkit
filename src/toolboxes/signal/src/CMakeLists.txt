@@ -1,5 +1,4 @@
 set(SIGNALLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     # waveform_generation/
     ${CMAKE_CURRENT_SOURCE_DIR}/waveform_generation/waveform_generation.cpp # compute (engine-free)
     # filter_design/

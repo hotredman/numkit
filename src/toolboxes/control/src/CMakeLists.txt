@@ -1,5 +1,4 @@
 set(CONTROLLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/internal/numerics.cpp       # compute (engine-free, raw-buffer)
     ${CMAKE_CURRENT_SOURCE_DIR}/conversion/conversion.cpp   # compute (engine-free, no reg)
     ${CMAKE_CURRENT_SOURCE_DIR}/lti/lti.cpp                 # compute (engine-free)
