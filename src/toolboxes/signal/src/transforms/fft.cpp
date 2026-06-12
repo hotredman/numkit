@@ -26,7 +26,6 @@
 #include <cmath>
 #include <complex>
 #include <memory_resource>
-#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -44,11 +43,14 @@ namespace {
 // memory model has no per-page commit cost. We close the cliff by
 // caching both:
 //
-//   * Twiddle tables — pure function of fftLen, read-only after fill,
-//     safely sharable across worker threads. One process-global
-//     unordered_map keyed by fftLen, mutex-guarded insert. The
-//     table-vector is held by unique_ptr so the data() pointer stays
-//     valid across map rehashes.
+//   * Twiddle tables — pure function of fftLen, read-only after fill. A
+//     thread_local unordered_map keyed by fftLen (matching the per-thread
+//     working buffers below) — so it is lock-free with no shared state, and a
+//     single-threaded script keeps one cache exactly as a process-global would.
+//     The table-vector is held by unique_ptr so the data() pointer stays valid
+//     across map rehashes (the entry is computed once per size per thread).
+//     The cache is correctness-neutral memoization (recomputing twiddles yields
+//     the identical table), so per-thread duplication is harmless.
 //
 //   * The complex-typed working buffer — per-thread, grows monotonically.
 //     Each thread reuses the same heap allocation across FFT calls;
@@ -58,19 +60,18 @@ namespace {
 // Trade-off: scratch memory is no longer routed through the user's
 // memory_resource (so it doesn't show up in Engine accounting). Output
 // Values still go through the user's memory_resource — only the
-// internal scratch is process-cached. Cache memory is bounded: one entry per
-// distinct power-of-two FFT size used in the program, and one per
+// internal scratch is thread-cached. Cache memory is bounded: one entry per
+// distinct power-of-two FFT size used in the program (per thread), and one per
 // thread for the working buffer (sized to the largest fftLen seen).
 
 struct TwiddleCache
 {
-    std::mutex mtx;
     std::unordered_map<std::size_t, std::unique_ptr<std::vector<Complex>>> tables;
 };
 
 inline TwiddleCache &twiddleCache()
 {
-    static TwiddleCache c;
+    thread_local TwiddleCache c;
     return c;
 }
 
@@ -93,7 +94,6 @@ inline TwiddleCache &twiddleCache()
 const Complex *getCachedTwiddleFwd(std::size_t fftLen)
 {
     auto &c = twiddleCache();
-    std::lock_guard<std::mutex> g(c.mtx);
     auto it = c.tables.find(fftLen);
     if (it != c.tables.end())
         return it->second->data();
@@ -139,20 +139,18 @@ struct BluesteinPlan
 
 struct BluesteinCache
 {
-    std::mutex mtx;
     std::unordered_map<std::size_t, std::unique_ptr<BluesteinPlan>> plans;
 };
 
 inline BluesteinCache &bluesteinCache()
 {
-    static BluesteinCache c;
+    thread_local BluesteinCache c;
     return c;
 }
 
 const BluesteinPlan *getCachedBluesteinPlan(std::size_t N)
 {
     auto &c = bluesteinCache();
-    std::lock_guard<std::mutex> g(c.mtx);
     auto it = c.plans.find(N);
     if (it != c.plans.end())
         return it->second.get();
