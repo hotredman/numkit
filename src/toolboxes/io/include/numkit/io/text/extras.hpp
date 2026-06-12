@@ -4,16 +4,16 @@
 
 #pragma once
 
+#include <functional>
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
 #include <string>
 
-namespace numkit { class Engine; class FsContext; }
+namespace numkit { class FsContext; }
 
 namespace numkit::io {
 
-using ::numkit::Engine;
 using ::numkit::FsContext;
 
 /// @brief Read a file's entire content through the FsContext VFS — shared by
@@ -26,8 +26,8 @@ std::string slurpFile(FsContext &fs, const std::string &filename,
 /// @brief Modern text-file helpers.
 ///
 /// File routes go through the VFS via `FsContext` so callers see consistent
-/// path resolution (script origin, `NUMKIT_FS`, native fallback). `type`
-/// alone keeps `Engine &` — it also needs the engine for output.
+/// path resolution (script origin, `NUMKIT_FS`, native fallback). Every helper
+/// here is Engine-free — `type` takes an output-sink callback for emission.
 
 /// @brief Parse delimited text into a numeric DOUBLE matrix — **Engine-free**.
 ///
@@ -113,13 +113,19 @@ Value readmatrix(FsContext &fs, const std::string &filename,
 /// @see readmatrix
 void writematrix(FsContext &fs, const Value &m, const std::string &filename);
 
-/// @brief Print file content to the engine output (`type(filename)`).
+/// @brief Print file content to a caller-provided output sink (`type(filename)`).
 ///
-/// Streams the file via `engine.output()`. No return value.
+/// Reads the file via the VFS (`slurpFile`) and writes it to `out`, appending a
+/// trailing newline when the content lacks one. Core-free: the Engine coupling
+/// (its output sink) is injected by the caller — the bundle `type_reg` adapter
+/// binds `out` to `engine.outputText`. No return value.
 ///
-/// @param engine    Engine context.
+/// @param fs        Filesystem context (VFS read).
+/// @param out       Output sink — invoked with each chunk of text to emit.
 /// @param filename  Path to file.
-/// @throws Error    File not found.
-void type(Engine &engine, const std::string &filename);
+/// @throws Error    File not found (from slurpFile).
+void type(FsContext &fs,
+          const std::function<void(const std::string &)> &out,
+          const std::string &filename);
 
 } // namespace numkit::io

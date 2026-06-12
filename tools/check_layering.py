@@ -157,29 +157,18 @@ def scan(repo: Path) -> list[str]:
                     continue
                 if {"build", "tests", "test", "benchmarks", "benchmark"} & set(f.parts):
                     continue
-                # *_reg.cpp adapters are core-coupled registration glue
-                # (CallContext / Engine). They sit in math/lang/src by locality
-                # but conceptually belong to the bundle layer (relocated in C5),
-                # so they are exempt from the compute-layer purity check.
-                if f.name.endswith("_reg.cpp"):
-                    continue
-                # (Installers need NO exemption any more: every <Lib>Library::
-                # install(Engine&) DEFINITION was relocated to bundle/src/register/
-                # <lib>/<lib>_library.cpp — the Engine-coupled registration manifest
-                # belongs with the _reg adapters in L3, not in the L2 compute tree.
-                # The public library.hpp headers are core-free now (they forward-
-                # declare Engine for the install() signature), so they pass the
-                # scan unaided.)
-                # Toolbox-only extra exemption: io's type.cpp (legitimately
-                # Engine& — it writes via engine.outputText). Every other toolbox
-                # compute TU must stay core/runtime-free. (The former `/graph/`
-                # exemption is gone — that AST→NodeGraph analysis pass was renamed
-                # and relocated out of toolboxes/ to the `scriptgraph` layer, which
-                # is honestly `core`-allowed in ALLOWED, so it needs no exemption.)
-                if layer == "toolboxes" and (
-                    f.as_posix().endswith("toolboxes/io/src/text/type.cpp")
-                ):
-                    continue
+                # NO per-file exemptions remain — every guarded layer's compute
+                # tree is scanned unconditionally. The historical carve-outs are
+                # all gone:
+                #   * `*_reg.cpp` adapters + every <Lib>Library::install(Engine&)
+                #     installer now live in bundle/src/register (not a scanned
+                #     layer); the public library.hpp headers forward-declare Engine
+                #     so they stay core-free.
+                #   * io's type.cpp was decoupled — it takes an output-sink
+                #     callback instead of Engine& (bundle's type_reg binds it to
+                #     engine.outputText).
+                #   * the `graph` AST→NodeGraph pass was relocated to the
+                #     scriptgraph layer (honestly `core`-allowed in ALLOWED).
                 rel = f.relative_to(repo).as_posix()
                 for n, line in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
                     m = INCLUDE_RE.search(line)
@@ -212,9 +201,10 @@ def main() -> int:
             print("  " + v, file=sys.stderr)
         print(
             f"\n{len(violations)} forbidden include(s). The guarded layers "
-            "(value/fs/ops/core + math/lang + toolbox compute) must not depend on "
-            "a layer above them — math/lang and toolbox compute must stay "
-            "core/runtime-free (toolbox installers + io/type.cpp + graph exempt).",
+            "(value/fs/ops/core + figure + math/lang + graphics + scriptgraph + "
+            "toolbox compute) must not depend on a layer above them — math/lang "
+            "and toolbox compute must stay core/runtime-free. There are NO per-file "
+            "exemptions: every installer + _reg adapter lives in bundle/src/register.",
             file=sys.stderr,
         )
         return 1
