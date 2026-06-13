@@ -399,4 +399,25 @@ TEST_P(MatlabParity, WhileWithContinueInsideIf_MinimalRepro)
     EXPECT_DOUBLE_EQ(getVar("s"), 4.0);  // 1 + 3
 }
 
+// x(:) — the whole-array linear index is ALWAYS a numel x 1 column, regardless
+// of the source's orientation. Regression for a TreeWalker bug that returned a
+// row for row/matrix sources (bugs/comm/fsk_tw_divergence.md).
+TEST_P(MatlabParity, ColonLinearIndexRowVectorIsColumn)
+{
+    eval("r = [10 20 30 40]; c = r(:);");
+    EXPECT_EQ(eval("c").dims().rows(), 4u);
+    EXPECT_EQ(eval("c").dims().cols(), 1u);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 20.0);  // element order preserved
+}
+
+TEST_P(MatlabParity, ColonLinearIndexMatrixIsColumn)
+{
+    eval("M = [1 3; 2 4]; c = M(:);");  // column-major -> [1;2;3;4]
+    EXPECT_EQ(eval("c").dims().rows(), 4u);
+    EXPECT_EQ(eval("c").dims().cols(), 1u);
+    EXPECT_DOUBLE_EQ(evalScalar("c(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(3)"), 3.0);
+}
+
 INSTANTIATE_DUAL(MatlabParity);
