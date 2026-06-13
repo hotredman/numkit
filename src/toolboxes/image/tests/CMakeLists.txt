@@ -72,5 +72,9 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/imrotate3_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/demosaic_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/raw_planar_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/colormaps_predicates_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/colorspace_convert_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cast_util_metrics_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filtering_morphology_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
