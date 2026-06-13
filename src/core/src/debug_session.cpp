@@ -61,6 +61,15 @@ ExecStatus DebugSession::start(const std::string &code)
     active_ = true;
 
     try {
+        // The debugger runs exclusively on the bytecode VM: DebugSession drives
+        // vm_->startExecution / resumeExecution, and pause/step live in the VM
+        // dispatch loop (the TreeWalker only keeps the debug call-frame stack in
+        // sync). vm_ is always constructed, so this is a defensive invariant,
+        // surfaced as a clean session error rather than a null dereference.
+        if (!engine_.vm_)
+            throw Error("debugger requires the VM backend", 0, 0, "",
+                        "", "numkit:debug:requiresVM");
+
         Lexer lexer(code);
         auto tokens = lexer.tokenize();
         Parser parser(tokens);
