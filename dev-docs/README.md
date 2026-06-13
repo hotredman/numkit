@@ -18,6 +18,8 @@ Two groups, by when you reach for them:
 
 | File | What it is |
 |------|------------|
+| [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) | Point-in-time health check + **risk register** (2026-06-13): layer-DAG invariants, metrics, resolved tech-debt risks, and the dual-backend duplication decision. |
+| [LAYERING_TARGET_ARCHITECTURE.md](LAYERING_TARGET_ARCHITECTURE.md) | The 11-layer dependency DAG, per-layer ownership, and the Phase-3-A layering-refactor spec + status. |
 | [NAMESPACE_DESIGN.md](NAMESPACE_DESIGN.md) | `toolboxes/` namespace layout + conventions; how the MATLAB documentation taxonomy maps onto the source tree. |
 | [OBJECT_MODEL.md](OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
 | [VM_CALLBACKS_PLAN.md](VM_CALLBACKS_PLAN.md) | Build log + rationale behind VM-native pausable callbacks — the companion to the `CALLBACK_PAUSABILITY.md` guide. (Status: substantially implemented; a known tail is intentionally deferred.) |
