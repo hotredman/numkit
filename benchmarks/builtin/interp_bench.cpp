@@ -4,7 +4,7 @@
 // existed before the parity expansion but have never been benched.
 
 #include <numkit/math/poly/polynomials.hpp>
-#include <numkit/runtime/math/integration/integration.hpp>
+#include <numkit/math/integration/integration.hpp>
 #include <numkit/math/interp/interp.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
@@ -61,7 +61,7 @@ static void BM_Interp1Linear(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = numkit::math::interp1(mr, x, y, xq, "linear");
+        auto out = numkit::math::interp1(x, y, xq, "linear", mr);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -77,7 +77,7 @@ static void BM_Interp1Spline(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = numkit::math::interp1(mr, x, y, xq, "spline");
+        auto out = numkit::math::interp1(x, y, xq, "spline", mr);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -92,7 +92,7 @@ static void BM_Polyval(benchmark::State &s)
     auto xq = makeY(n, 5);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::math::polyval(mr, p, xq);
+        auto y = numkit::math::polyval(p, xq, mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -105,7 +105,7 @@ static void BM_TrapzUniform(benchmark::State &s)
     auto y = makeY(n);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = builtin::trapz(mr, y);
+        auto out = numkit::math::trapz(y, mr);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
