@@ -148,6 +148,23 @@
         "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
         "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6 -sINITIAL_MEMORY=536870912"
       }
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage (Ninja + clang-cl + llvm-cov)",
+      "description": "Source-based coverage build: Ninja + clang-cl with NUMKIT_COVERAGE=ON (Highway SIMD off, for clean line attribution). clang-cl drives the link so clang_rt.profile auto-links from -fprofile-instr-generate. Ninja needs the MSVC dev environment, so build via scripts/coverage.ps1 (it enters a VS Dev Shell first), which then runs numkit_gtest under LLVM_PROFILE_FILE and emits an llvm-cov report filtered to src/. Architecture-review risk #6.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/coverage",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "NUMKIT_WITH_SIMD": "OFF",
+        "NUMKIT_WITH_MATIO": "ON",
+        "NUMKIT_COVERAGE": "ON",
+        "NUMKIT_BUILD_BENCHMARKS": "OFF",
+        "NUMKIT_BUILD_TESTS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -163,7 +180,8 @@
     {"name": "browser",            "configurePreset": "browser",            "jobs": 0},
     {"name": "browser-threads",    "configurePreset": "browser-threads",    "jobs": 0},
     {"name": "bench-wasm",         "configurePreset": "bench-wasm",         "jobs": 0},
-    {"name": "bench-wasm-threads", "configurePreset": "bench-wasm-threads", "jobs": 0}
+    {"name": "bench-wasm-threads", "configurePreset": "bench-wasm-threads", "jobs": 0},
+    {"name": "coverage",           "configurePreset": "coverage",           "jobs": 0}
   ],
   "testPresets": [
     {
