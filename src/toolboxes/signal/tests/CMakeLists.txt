@@ -1,4 +1,5 @@
 target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/vibration_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/signal_core_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/conv_complex_test.cpp

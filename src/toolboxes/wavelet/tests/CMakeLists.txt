@@ -5,6 +5,7 @@
 # live in tests/smoke/ (next to this file) and are not compiled.
 
 target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt2_denoise_test.cpp
     # ── filter helpers ──────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/wrev_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/qmf_test.cpp
