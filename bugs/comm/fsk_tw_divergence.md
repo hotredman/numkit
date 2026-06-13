@@ -1,52 +1,70 @@
-# fskmod/fskdemod — round-trip throws on TreeWalker, works on VM
+# TreeWalker `x(:)` on a row vector returns a row, not a column (surfaced via fsk round-trip)
 
 - **Status:** 🔴 OPEN
-- **Severity:** P3 (backend divergence on one engine; VM — the default backend — is correct)
+- **Severity:** P2 (general core indexing-semantics divergence; masked in most code, but `x(:)` is fundamental)
 - **Kind:** bug
 - **Found:** 2026-06-13 via DualEngineTest while adding comm coverage (CommModulationTest)
+- **Real category:** core / TreeWalker indexing (NOT comm — fskmod/fskdemod are fine on both backends; this file kept at its original path so the spawned-task reference resolves).
 
 ## Symptom
 
-The `fskmod` → `fskdemod` round-trip throws `Cannot convert double to scalar`
-under the **TreeWalker** backend. The identical script runs correctly under the
-**VM** backend (default), returning the input symbols. Other modulators in the
-same suite (pskmod/pskdemod, dpskmod/dpskdemod, ofdmmod/ofdmdemod) round-trip
-fine on **both** backends, so the divergence is specific to the fsk path.
+On the **TreeWalker** backend, the whole-array colon index `x(:)` does **not**
+reshape a **row** vector to a column — it returns the row unchanged. MATLAB (and
+the numkit **VM**) always make `x(:)` a column (`numel × 1`). Matrices and
+column vectors are reshaped correctly; only the row-vector case is wrong, which
+is why it stayed hidden (the full suite is green).
+
+The fsk round-trip merely *exposed* it: `fskdemod` returns an `N×1` column while
+the comparison input `data` is a `1×N` row, so `out(:) - data(:)` is the first
+place the orientation mismatch matters.
 
 ## Repro
 
+Minimal (no comm involved):
+
 ```matlab
-data = [0 1 2 3 0 2 1 3];
-y   = fskmod(data, 4, 100, 10, 2000);       % 80x1 complex — OK on both backends
-out = fskdemod(y, 4, 100, 10, 2000);        % VM: [0 1 2 3 0 2 1 3]; TW: THROWS
+data = [1 2 3 4];
+size(data(:))     % VM: [4 1]  (correct);  TreeWalker: [1 4]  (BUG)
 ```
 
-- VM (default): `sum(abs(out(:) - data(:))) == 0`.
-- TreeWalker: throws `Cannot convert double to scalar` (somewhere inside the
-  fsk path — `fskmod` output is produced fine; the throw is on the
-  `fskdemod` leg).
+Original symptom (fsk):
+
+```matlab
+data = [0 1 2 3 0 2 1 3];
+out  = fskdemod(fskmod(data,4,100,10,2000), 4,100,10,2000);   % 8x1 column, OK on both
+e    = sum(abs(out(:) - data(:)));
+% VM:        out(:)=8x1, data(:)=8x1 -> diff 8x1 -> e = 0   (scalar)
+% TreeWalker: out(:)=8x1, data(:)=1x8 -> diff broadcasts 8x8 -> sum -> 1x8 (NON-scalar)
+%             -> downstream toScalar() throws "Cannot convert double to scalar"
+```
 
 ## Root cause
 
-Not yet diagnosed. `fskmod`/`fskdemod` are engine-free compute functions
-(`toolboxes/comm/src/modulation/fsk_ofdm.cpp`) reached through a `_reg`
-adapter, so a TW-vs-VM divergence points at how the script-level call is
-marshalled/dispatched on the TreeWalker for this particular signature (a
-`toScalar()` is being applied to a non-scalar only on the TW path). Same class
-of issue as other TW/VM dispatch-order divergences.
+`TreeWalker::execIndexAccess` (`src/core/src/tree_walker.cpp`, the `nargs == 1`
+branch ~line 2080): the magic colon `:` (an empty `COLON_EXPR` node) is resolved
+by `resolveIndex` to the full linear index list `[0 .. numel-1]`, then read via
+`var.indexGet(indices, count)`. `indexGet` shapes the result after the **source**
+orientation (row source → row result), so `rowvec(:)` stays a row. The `x(:)`
+operator must instead force a `numel × 1` column regardless of source shape. The
+VM handles this correctly — mirror it.
 
 ## Suggested fix
 
-Trace the `fskdemod` call on the TreeWalker (the `toScalar` site that fires on
-TW but not VM) — likely an argument-marshalling / output-shape difference in
-the reg adapter or the TW call path. fskmod's output is fine, so focus on the
-demod leg.
+In `TreeWalker::execIndexAccess`, `nargs == 1`: detect the whole-array colon
+(`callNode->children[1]` is `NodeType::COLON_EXPR` with empty `children`) and
+return the result as a column vector (`numel × 1`), matching the VM and MATLAB.
+Needs a core/value-level column reshape (`Value` has `objectReshape` for object
+arrays; numeric/char/logical/cell/complex need the equivalent — either add a
+small `Value` reshape primitive or build the column from the `indexGet` result).
+Keep the general linear-index case `x(idx)` (which follows the index shape)
+unchanged.
 
 ## References
 
 - Live (disabled) guard: `CommModulationTest.DISABLED_FskRoundTrip` in
-  `toolboxes/comm/tests/comm_modulation_test.cpp` — asserts the round-trip; runs
-  under `--gtest_also_run_disabled_tests` and fails on the `/TW` param.
-- Active coverage of `fskmod` length is `CommModulationTest.FskmodOutputLength`.
-- Parity specs `tools/parity/specs/fskmod.json`, `fskdemod.json` (validated via
-  the default/VM backend).
+  `toolboxes/comm/tests/comm_modulation_test.cpp` — runs under
+  `--gtest_also_run_disabled_tests` and fails on the `/TW` param.
+- Add a direct regression for the minimal repro (`size(rowvec(:))`) under
+  DualEngineTest when fixing.
+- fskmod/fskdemod themselves are correct (parity specs `fskmod.json` /
+  `fskdemod.json`, validated on the VM/default backend).
