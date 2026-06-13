@@ -39,7 +39,7 @@ DebugSession::~DebugSession()
 
 void DebugSession::setBreakpoints(const std::vector<uint16_t> &lines)
 {
-    auto &bpm = engine_.breakpointManager();
+    auto &bpm = engine_.debug().breakpoints();
     bpm.clearAll();
     for (auto line : lines)
         if (line > 0)
@@ -56,7 +56,7 @@ ExecStatus DebugSession::start(const std::string &code)
     ws_.reset();
 
     engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
-    engine_.setDebugObserver(observer_);
+    engine_.debug().setObserver(observer_);
 
     active_ = true;
 
@@ -85,7 +85,7 @@ ExecStatus DebugSession::start(const std::string &code)
         // No breakpoints and not stop-on-error → pause on the first line
         // (StepInto) so the user can step. Otherwise run (Continue) until a
         // breakpoint or an error.
-        bool runToStop = stopOnError_ || !engine_.breakpointManager().breakpoints().empty();
+        bool runToStop = stopOnError_ || !engine_.debug().breakpoints().breakpoints().empty();
         DebugAction initial = runToStop ? DebugAction::Continue : DebugAction::StepInto;
 
         ExecStatus status = engine_.vm_->startExecution(chunk_, nullptr, 0, initial);
@@ -129,7 +129,7 @@ ExecStatus DebugSession::resume(DebugAction action)
     ws_.unbindFrame();
 
     try {
-        ExecStatus status = engine_.debugResume(action);
+        ExecStatus status = engine_.debug().resume(action);
         status = skipFalseConditionalBreakpoints(status, action == DebugAction::Continue);
 
         if (status == ExecStatus::Paused) {
@@ -207,7 +207,7 @@ bool DebugSession::frameDown()
 
 std::string DebugSession::frameFocusLine() const
 {
-    auto *ctl = engine_.debugController();
+    auto *ctl = engine_.debug().controller();
     if (!ctl || ctl->callStack().empty())
         return "";
     auto &stack = ctl->callStack();
@@ -219,7 +219,7 @@ std::string DebugSession::frameFocusLine() const
 
 std::string DebugSession::formatDbStack() const
 {
-    auto *ctl = engine_.debugController();
+    auto *ctl = engine_.debug().controller();
     if (!ctl)
         return "";
     auto &stack = ctl->callStack();
@@ -274,11 +274,11 @@ ExecStatus DebugSession::skipFalseConditionalBreakpoints(ExecStatus status, bool
         return status;
 
     while (status == ExecStatus::Paused) {
-        auto *ctl = engine_.debugController();
+        auto *ctl = engine_.debug().controller();
         if (!ctl || ctl->callStack().empty())
             break;
         uint16_t line = ctl->currentFrame()->line;
-        std::string cond = engine_.breakpointManager().conditionForLine(line);
+        std::string cond = engine_.debug().breakpoints().conditionForLine(line);
         if (cond.empty())
             break; // unconditional breakpoint → genuine stop
 
@@ -299,7 +299,7 @@ ExecStatus DebugSession::skipFalseConditionalBreakpoints(ExecStatus status, bool
 
         // Condition false → keep running to the next breakpoint.
         engine_.vm_->setFrameDynVars(ws_.overlay().empty() ? nullptr : &ws_.overlay());
-        status = engine_.debugResume(DebugAction::Continue);
+        status = engine_.debug().resume(DebugAction::Continue);
     }
     return status;
 }
@@ -309,7 +309,7 @@ void DebugSession::deactivate()
     if (!active_)
         return;
     active_ = false;
-    engine_.setDebugObserver(nullptr);
+    engine_.debug().setObserver(nullptr);
     if (engine_.vm_)
         engine_.vm_->setStopOnError(false); // don't affect later non-debug runs
     // Pair with the beginScript() at the start of this session.
@@ -321,7 +321,7 @@ DebugSession::Snapshot DebugSession::snapshot() const
 {
     Snapshot snap;
 
-    auto *ctl = engine_.debugController();
+    auto *ctl = engine_.debug().controller();
     if (!ctl)
         return snap;
 
@@ -388,7 +388,7 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
 {
     // 1. Save debug controller + paused VM state. The inner engine.eval()
     //    runs a full VM pass and stomps both.
-    auto *ctl = engine_.debugController();
+    auto *ctl = engine_.debug().controller();
     std::vector<StackFrame> savedCallStack;
     uint16_t savedLine = 0;
     if (ctl) {
@@ -414,7 +414,7 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
                                                    genv.globalNames().end());
 
     // 3. Detach the observer so the inner eval doesn't trigger debug hooks.
-    engine_.setDebugObserver(nullptr);
+    engine_.debug().setObserver(nullptr);
 
     // 4. Inject current debug-workspace contents into workspaceEnv so the
     //    eval sees them like normal base-workspace variables. Value copy
@@ -477,8 +477,8 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
         engine_.clearAllCalled_ = false;
 
         engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
-        engine_.setDebugObserver(observer_);
-        if (auto *c = engine_.debugController()) {
+        engine_.debug().setObserver(observer_);
+        if (auto *c = engine_.debug().controller()) {
             c->callStack() = savedCallStack;
             c->setLastLine(savedLine);
         }

@@ -139,7 +139,7 @@ TEST_P(DebugPhase234Test, StepIntoSeesAllLines)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::StepInto;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     eval("x = 1;\ny = 2;\nz = 3;\n");
 
@@ -160,7 +160,7 @@ TEST_P(DebugPhase234Test, ContinueModeNoLineEvents)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     eval("x = 1;\ny = 2;\nz = 3;\n");
 
@@ -179,9 +179,9 @@ TEST_P(DebugPhase234Test, BreakpointHitsCorrectLine)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    engine.breakpointManager().addBreakpoint(2);
+    engine.debug().breakpoints().addBreakpoint(2);
 
     eval("x = 1;\ny = 2;\nz = 3;\n");
 
@@ -201,10 +201,10 @@ TEST_P(DebugPhase234Test, BreakpointDisabled)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    int bpId = engine.breakpointManager().addBreakpoint(2);
-    engine.breakpointManager().enableBreakpoint(bpId, false);
+    int bpId = engine.debug().breakpoints().addBreakpoint(2);
+    engine.debug().breakpoints().enableBreakpoint(bpId, false);
 
     eval("x = 1;\ny = 2;\nz = 3;\n");
 
@@ -216,10 +216,10 @@ TEST_P(DebugPhase234Test, BreakpointRemoved)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    int bpId = engine.breakpointManager().addBreakpoint(2);
-    engine.breakpointManager().removeBreakpoint(bpId);
+    int bpId = engine.debug().breakpoints().addBreakpoint(2);
+    engine.debug().breakpoints().removeBreakpoint(bpId);
 
     eval("x = 1;\ny = 2;\nz = 3;\n");
 
@@ -234,7 +234,7 @@ TEST_P(DebugPhase234Test, FunctionEntryExit)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     eval(R"(
         function r = add1(x)
@@ -270,7 +270,7 @@ TEST_P(DebugPhase234Test, StopAbortsExecution)
     obs->defaultAction = DebugAction::StepInto;
     // After first line, return Stop
     obs->actionQueue = {DebugAction::StepInto, DebugAction::Stop};
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     EXPECT_THROW(eval("x = 1;\ny = 2;\nz = 3;\n"), DebugStopException);
 
@@ -287,9 +287,9 @@ TEST_P(DebugPhase234Test, VariableInspectionAtBreakpoint)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    engine.breakpointManager().addBreakpoint(3);
+    engine.debug().breakpoints().addBreakpoint(3);
 
     eval("x = 42;\ny = 7;\nz = x + y;\n");
 
@@ -313,7 +313,7 @@ TEST_P(DebugPhase234Test, StepOverSkipsFunction)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::StepOver;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     eval(R"(
         function r = add1(x)
@@ -371,13 +371,13 @@ TEST_P(DebugPhase234Test, RemoveObserverMidway)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::StepInto;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     eval("x = 1;");
     EXPECT_GT(obs->events.size(), 0u);
 
     // Remove observer
-    engine.setDebugObserver(nullptr);
+    engine.debug().setObserver(nullptr);
     obs->events.clear();
 
     // Should still work normally
@@ -394,10 +394,10 @@ TEST_P(DebugPhase234Test, CallStackDepthAtBreakpoint)
 {
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     // Set breakpoint inside inner function
-    engine.breakpointManager().addBreakpoint(3); // "r = x + 1" line
+    engine.debug().breakpoints().addBreakpoint(3); // "r = x + 1" line
 
     eval(R"(
         function r = inner(x)
@@ -431,10 +431,10 @@ TEST_P(DebugPhase234Test, StepOverAtNestedDepth)
         DebugAction::StepOver,
         DebugAction::StepOver,
     };
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
     // bp at the first line of `mid` (the `y = inner(x)` call line)
-    engine.breakpointManager().addBreakpoint(6);
+    engine.debug().breakpoints().addBreakpoint(6);
 
     eval(R"(
         function r = inner(x)
@@ -472,9 +472,9 @@ TEST_P(DebugPhase234Test, StepOutReturnsToCaller)
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Continue;
     obs->actionQueue = { DebugAction::StepOut };
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    engine.breakpointManager().addBreakpoint(3); // "r = x * 2" inside helper
+    engine.debug().breakpoints().addBreakpoint(3); // "r = x * 2" inside helper
 
     eval(R"(
         function r = helper(x)
@@ -532,24 +532,24 @@ TEST_P(DebugPhase234Test, StepIntoEntersStepOverSkipsSameCode)
     {
         auto obs = std::make_shared<RecordingObserver>();
         obs->defaultAction = DebugAction::StepInto;
-        engine.setDebugObserver(obs);
+        engine.debug().setObserver(obs);
         eval(code);
         auto lines = obs->linesHit();
         bool sawBody = std::find(lines.begin(), lines.end(), (uint16_t)3) != lines.end();
         EXPECT_TRUE(sawBody) << "StepInto must observe function body (line 3)";
-        engine.setDebugObserver(nullptr);
+        engine.debug().setObserver(nullptr);
     }
 
     // Pass 2: StepOver must NOT see line 3
     {
         auto obs = std::make_shared<RecordingObserver>();
         obs->defaultAction = DebugAction::StepOver;
-        engine.setDebugObserver(obs);
+        engine.debug().setObserver(obs);
         eval(code);
         auto lines = obs->linesHit();
         bool sawBody = std::find(lines.begin(), lines.end(), (uint16_t)3) != lines.end();
         EXPECT_FALSE(sawBody) << "StepOver must NOT observe function body (line 3)";
-        engine.setDebugObserver(nullptr);
+        engine.debug().setObserver(nullptr);
     }
 }
 
@@ -568,9 +568,9 @@ TEST(DebugVMBackend, StopExceptionPropagates)
 
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Stop; // Stop on first event
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    engine.breakpointManager().addBreakpoint(2);
+    engine.debug().breakpoints().addBreakpoint(2);
 
     EXPECT_THROW(engine.eval("x = 1;\ny = 2;\nz = 3;\n"), DebugStopException)
         << "DebugStopException must not be swallowed by VMBackend catch(...)";
@@ -585,10 +585,10 @@ TEST(DebugVMBackend, BreakpointContinueThenStop)
     // Continue past first breakpoint, stop on second
     obs->actionQueue = {DebugAction::Continue, DebugAction::Stop};
     obs->defaultAction = DebugAction::Stop;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    engine.breakpointManager().addBreakpoint(1);
-    engine.breakpointManager().addBreakpoint(3);
+    engine.debug().breakpoints().addBreakpoint(1);
+    engine.debug().breakpoints().addBreakpoint(3);
 
     EXPECT_THROW(engine.eval("x = 1;\ny = 2;\nz = 3;\n"), DebugStopException);
 
@@ -613,9 +613,9 @@ TEST(DebugVMBackend, FunctionAtBottomWithClear)
 
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Stop;
-    engine.setDebugObserver(obs);
+    engine.debug().setObserver(obs);
 
-    engine.breakpointManager().addBreakpoint(5);
+    engine.debug().breakpoints().addBreakpoint(5);
 
     // Script with clear at top and function at bottom
     std::string code =
