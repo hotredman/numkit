@@ -386,13 +386,69 @@ void bootci_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = std::move(ci);
 }
 
+// jackknife(jackfun, X): leave-one-out resampling. Row i of the n x K output is
+// jackfun applied to X with the i-th observation deleted. Mirrors bootstrp_reg
+// (inline, via callFunctionHandle) rather than the old C++ stub. Observations
+// are rows of a matrix, or elements of a vector (either orientation).
 void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
                    Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
         throw Error("jackknife: requires (fn, X)", 0, 0, "jackknife", "",
                     "numkit:jackknife:nargin");
-    outs[0] = jackknife(args[0], args[1], ctx.engine->resource());
+    if (!args[0].isFuncHandle())
+        throw Error("jackknife: 1st argument must be a function handle",
+                    0, 0, "jackknife", "", "numkit:jackknife:notFuncHandle");
+    auto *mr = ctx.engine->resource();
+    const Value &X = args[1];
+    const auto &d = X.dims();
+    const bool isVec = (d.ndim() <= 1) || (d.dim(0) == 1) || (d.dim(1) == 1);
+    const int n = isVec ? static_cast<int>(X.numel()) : static_cast<int>(d.dim(0));
+    if (n < 1)
+        throw Error("jackknife: empty data", 0, 0, "jackknife", "",
+                    "numkit:jackknife:empty");
+
+    // Observations are rows; treat a vector (either orientation) as a column so
+    // resampleRows selects one element per observation (not one row of many).
+    const Value Xeff = isVec ? X.reshape(static_cast<std::size_t>(n), 1, mr) : X;
+
+    ScratchArena scratch(mr);
+    ScratchVec<int> idx(static_cast<std::size_t>(n > 1 ? n - 1 : 0), &scratch);
+    auto leaveOneOut = [&](int skip) {
+        int w = 0;
+        for (int i = 0; i < n; ++i)
+            if (i != skip) idx[w++] = i;
+        return resampleRows(Xeff, idx.data(), n - 1, mr);
+    };
+
+    // First leave-one-out replicate fixes the statistic width K.
+    Value sample0 = leaveOneOut(0);
+    Value callArgs0[1] = { sample0 };
+    auto stat0 = ctx.engine->callFunctionHandle(
+        args[0], Span<const Value>(callArgs0, 1), ctx.env);
+    const std::size_t K = stat0.numel();
+    if (K == 0)
+        throw Error("jackknife: jackfun returned empty", 0, 0, "jackknife", "",
+                    "numkit:jackknife:emptyStat");
+
+    auto out = Value::matrix(static_cast<std::size_t>(n), K, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t j = 0; j < K; ++j)
+        od[0 + j * static_cast<std::size_t>(n)] = stat0.elemAsDouble(j);
+
+    for (int s = 1; s < n; ++s) {
+        Value sample = leaveOneOut(s);
+        Value callArgs[1] = { sample };
+        auto stat = ctx.engine->callFunctionHandle(
+            args[0], Span<const Value>(callArgs, 1), ctx.env);
+        if (stat.numel() != K)
+            throw Error("jackknife: jackfun returned varying-size output",
+                        0, 0, "jackknife", "", "numkit:jackknife:varyingStat");
+        for (std::size_t j = 0; j < K; ++j)
+            od[static_cast<std::size_t>(s) + j * static_cast<std::size_t>(n)] =
+                stat.elemAsDouble(j);
+    }
+    outs[0] = std::move(out);
 }
 
 void combnk_reg(Span<const Value> args, size_t /*nargout*/,

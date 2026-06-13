@@ -1,9 +1,22 @@
 # jackknife(fn, X) throws "function-handle invocation not yet supported"
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-14)
 - **Severity:** P2 (documented function is non-functional for its only signature)
 - **Kind:** stub
 - **Found:** 2026-06-14 while closing the stats coverage gap (target-A: every public fn gtested)
+
+## Fixed
+
+2026-06-14. Rewrote `jackknife_reg`
+(`src/bundle/src/register/stats/resample/resample_reg.cpp`) to do the
+leave-one-out loop inline via `ctx.engine->callFunctionHandle`, exactly like
+`bootstrp_reg`, reusing the same-file `resampleRows` helper. Vector inputs are
+reshaped to a column (`Value::reshape`) so each element is one observation;
+matrices keep rows-as-observations. Output is the `n x K` matrix of
+leave-one-out statistics. Live guard `StatsKnownBug.JackknifeMean` (un-DISABLED)
+covers both the vector means `[3.5 3.25 3 2.75 2.5]` and a 3x2 matrix case. The
+dead C++ stub `stats::jackknife` is now unreferenced (left in place; safe to
+drop in a later cleanup).
 
 ## Symptom
 
