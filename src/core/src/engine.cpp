@@ -2517,8 +2517,15 @@ Engine::EvalResult Engine::evalSafe(const std::string &code)
 // ============================================================
 ExecStatus Engine::debugResume(DebugAction action)
 {
-    if (!vm_ || !vm_->isPaused())
-        return ExecStatus::Completed;
+    // The debugger runs exclusively on the bytecode VM — pause/step live in the
+    // VM dispatch loop and DebugSession drives vm_->startExecution/resumeExecution.
+    // The TreeWalker only keeps the debug call-frame stack in sync (no breakpoint
+    // pausing). vm_ is always constructed, so this is a defensive invariant.
+    if (!vm_)
+        throw Error("debugger requires the VM backend", 0, 0, "",
+                    "", "numkit:debug:requiresVM");
+    if (!vm_->isPaused())
+        return ExecStatus::Completed;   // not paused → nothing to resume
 
     // Set the resume action on the debug controller
     if (debugController_)
