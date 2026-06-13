@@ -11,7 +11,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # .cpp files of one project sequentially, even with `cmake --parallel`.
 # Combined with `"jobs": 0` in CMakePresets.json this gives both project-
 # level (MSBuild /m) and file-level (cl /MP) parallelism.
-if(MSVC)
+# Skip clang-cl (MSVC is true for it too): it ignores /MP and, under -Werror,
+# treats the unused flag as a fatal -Wunused-command-line-argument. clang-cl
+# builds (bench-clang, coverage) parallelise via the build tool's -j instead.
+if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(/MP)
 endif()
 
@@ -121,6 +124,24 @@ endif()
 #                              / NUMKIT_LIBS_INCLUDE_DIRS
 # Each lib has its own toolboxes/<name>/CMakeLists.txt for per-lib worker
 # ownership (see dev-docs/COORDINATION.md).
+
+# ── Coverage (NUMKIT_COVERAGE) — arch-review #6 ─────────────────────
+# Source-based coverage via llvm-cov (clang / clang-cl only). Declared HERE,
+# after the FetchContent third-party targets (highway/matio/zlib, created
+# above) but before the numkit add_subdirectory()s below — so add_compile_options
+# instruments only our own TUs, leaving third_party uninstrumented (less noise,
+# no risk of a third_party build break). The link flag pulls clang_rt.profile
+# into every executable created afterwards (numkit_gtest). Use the `coverage`
+# preset (Ninja + clang-cl); run scripts/coverage.ps1 to emit a report.
+option(NUMKIT_COVERAGE "Instrument numkit for llvm-cov source coverage (clang/clang-cl only)" OFF)
+if(NUMKIT_COVERAGE)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "NUMKIT_COVERAGE requires a Clang/clang-cl toolchain — use the 'coverage' preset.")
+    endif()
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+    add_link_options(-fprofile-instr-generate)
+    message(STATUS "numkit-m: source-coverage instrumentation ON (llvm-cov)")
+endif()
 
 add_subdirectory(src/value)   # L0:   Value substrate (numkit_value) — STL-only
 add_subdirectory(src/fs)      # L0:   filesystem abstraction (numkit_fs) — STL-only
