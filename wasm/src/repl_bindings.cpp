@@ -430,7 +430,7 @@ public:
 
         // Apply breakpoints (with optional per-line conditions) directly so the
         // conditions survive into the run.
-        auto &bpm = engine_->breakpointManager();
+        auto &bpm = engine_->debug().breakpoints();
         bpm.clearAll();
         for (uint16_t line : breakpointLines_) {
             auto it = breakpointConditions_.find(line);
@@ -509,7 +509,7 @@ public:
         // on a bad parse skipped the bpm.clearAll().
         breakpointLines_.clear();
         breakpointConditions_.clear(); // conditions are re-set after each setBreakpoints
-        auto &bpm = engine_->breakpointManager();
+        auto &bpm = engine_->debug().breakpoints();
         bpm.clearAll();
 
         // Parse simple JSON array: [1, 5, 10]
@@ -1126,7 +1126,7 @@ private:
 
             // Determine pause reason: error (dbstop if error) > breakpoint > step
             bool atError = debugSession_->atErrorPause();
-            bool onBreakpoint = engine_->breakpointManager().shouldBreak(snap.line);
+            bool onBreakpoint = engine_->debug().breakpoints().shouldBreak(snap.line);
             const char *reason = atError ? "error" : (onBreakpoint ? "breakpoint" : "step");
 
             result = "{\"status\":\"paused\",\"pauseState\":{";

@@ -23,6 +23,7 @@ namespace numkit {
 class TreeWalker;
 class VM;
 class Compiler;
+class DebugFacade;       // grouped debugger handle (engine.debug()); defined below
 struct ClassDefDesc;     // user-classdef descriptor; full type in engine.cpp
 struct CallbackBuiltin;  // higher-order builtin driver; callback_builtin.hpp
 
@@ -430,7 +431,14 @@ public:
     // script don't leak into base workspace.
     void promoteScriptLocalsToWorkspace();
 
-    // --- Debugger API ---
+    // --- Debugger API — grouped behind engine.debug() (see DebugFacade) ──
+    // The debugger accessors live off the public Engine surface (private,
+    // reached through the DebugFacade handle) to bound the class's public
+    // method count — architecture-review risk #3.
+    DebugFacade debug();
+
+private:
+    friend class DebugFacade;
     void setDebugObserver(std::shared_ptr<DebugObserver> observer);
     DebugObserver *debugObserver() const { return debugObserver_.get(); }
     BreakpointManager &breakpointManager() { return breakpointManager_; }
@@ -442,6 +450,8 @@ public:
     // Returns Paused on next breakpoint/step, Completed if execution finishes.
     // Throws DebugStopException if Stop is requested, Error on runtime errors.
     ExecStatus debugResume(DebugAction action);
+
+public:
 
     // Reinstall built-in constants (pi, eps, inf, etc.) into constantsEnv.
     // Called after clear to restore the standard environment. Also
@@ -749,5 +759,26 @@ private:
     friend class VM;
     friend class DebugSession;
 };
+
+// Thin grouped handle over the Engine's debugger surface (architecture-review
+// risk #3): keeps these accessors off the public Engine API. Obtain via
+// engine.debug(); forwards to the (now-private) Engine debugger methods.
+class DebugFacade
+{
+public:
+    explicit DebugFacade(Engine &e) : e_(e) {}
+    void setObserver(std::shared_ptr<DebugObserver> observer) { e_.setDebugObserver(std::move(observer)); }
+    DebugObserver *observer() const { return e_.debugObserver(); }
+    BreakpointManager &breakpoints() { return e_.breakpointManager(); }
+    const BreakpointManager &breakpoints() const { return e_.breakpointManager(); }
+    DebugController *controller() { return e_.debugController(); }
+    const DebugController *controller() const { return e_.debugController(); }
+    ExecStatus resume(DebugAction action) { return e_.debugResume(action); }
+
+private:
+    Engine &e_;
+};
+
+inline DebugFacade Engine::debug() { return DebugFacade(*this); }
 
 } // namespace numkit

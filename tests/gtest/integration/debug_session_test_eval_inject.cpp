@@ -1057,8 +1057,8 @@ TEST(DebugEvalInjectTest, ConditionalBreakpointStopsOnlyWhenTrue)
         "disp(x);\n";     // 4
 
     // Conditional breakpoint added directly (setBreakpoints only takes lines).
-    engine.breakpointManager().clearAll();
-    engine.breakpointManager().addBreakpoint(2, "i == 3");
+    engine.debug().breakpoints().clearAll();
+    engine.debug().breakpoints().addBreakpoint(2, "i == 3");
 
     auto status = session.start(code);
     ASSERT_EQ(status, ExecStatus::Paused);
