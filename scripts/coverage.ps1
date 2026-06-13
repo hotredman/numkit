@@ -67,10 +67,10 @@ if (-not (Test-Path $raw)) { throw "no profraw at $raw — was the build instrum
 if ($LASTEXITCODE -ne 0) { throw "llvm-profdata merge failed" }
 
 Write-Host "`n==== numkit source coverage (src/, third_party + tests excluded) ====`n"
-& "$llvm/llvm-cov.exe" report $exe -instr-profile=$pdata -ignore-filename-regex=$ignore "src"
+& "$llvm/llvm-cov.exe" report $exe "-instr-profile=$pdata" "-ignore-filename-regex=$ignore" "src"
 
 if ($Html) {
-    & "$llvm/llvm-cov.exe" show $exe -instr-profile=$pdata `
-        -format=html -output-dir="$build/html" -ignore-filename-regex=$ignore "src"
+    & "$llvm/llvm-cov.exe" show $exe "-instr-profile=$pdata" `
+        -format=html "-output-dir=$build/html" "-ignore-filename-regex=$ignore" "src"
     Write-Host "`nHTML report: $build/html/index.html"
 }
