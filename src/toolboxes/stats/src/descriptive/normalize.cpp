@@ -129,38 +129,41 @@ bool methodMatches(const std::string &m, const char *want) {
 
 } // anonymous
 
-Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr,
-                const Value *param, Value *cOut, Value *sOut)
+NormalizeResult normalize(const Value &A, const std::string &method,
+                          const Value &param, std::pmr::memory_resource *mr)
 {
     const size_t H = A.dims().rows();
     const size_t W = A.dims().cols();
-    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    NormalizeResult R;
+    R.n = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value &out = R.n;
     if (H == 0 || W == 0) {
-        if (cOut) *cOut = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        if (sOut) *sOut = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        return out;
+        R.c = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        R.s = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return R;
     }
     // Centering (C) and scaling (S) outputs for MATLAB [N,C,S]=normalize:
     // one value per operating slice — 1×1 for a vector, 1×W for a matrix
-    // (column-wise) — such that N == (A - C) ./ S.
+    // (column-wise) — such that N == (A - C) ./ S. The reg adapter discards
+    // c/s when nargout < 2/3.
     const size_t csW = (H == 1 || W == 1) ? 1 : W;
-    if (cOut) *cOut = Value::matrix(1, csW, ValueType::DOUBLE, mr);
-    if (sOut) *sOut = Value::matrix(1, csW, ValueType::DOUBLE, mr);
-    double *cOutD = cOut ? cOut->doubleDataMut() : nullptr;
-    double *sOutD = sOut ? sOut->doubleDataMut() : nullptr;
+    R.c = Value::matrix(1, csW, ValueType::DOUBLE, mr);
+    R.s = Value::matrix(1, csW, ValueType::DOUBLE, mr);
+    double *cOutD = R.c.doubleDataMut();
+    double *sOutD = R.s.doubleDataMut();
 
     const std::string m = method.empty() ? std::string("zscore") : method;
 
     // Decode the optional method parameter once. A string param (e.g.
     // 'first'/'median') vs a numeric param (range bounds / norm-p / divisor).
-    const bool hasParam = (param != nullptr && !param->isEmpty());
-    const bool paramIsStr = hasParam && (param->isChar() || param->isString());
+    const bool hasParam = !param.isEmpty();
+    const bool paramIsStr = hasParam && (param.isChar() || param.isString());
     std::string paramStr;
     if (paramIsStr) {
-        paramStr = param->toString();
+        paramStr = param.toString();
         for (char &c : paramStr) if (c >= 'A' && c <= 'Z') c = char(c + 32);
     }
-    const double paramNum = (hasParam && !paramIsStr) ? param->elemAsDouble(0) : 0.0;
+    const double paramNum = (hasParam && !paramIsStr) ? param.elemAsDouble(0) : 0.0;
 
     forEachColumn(A, [&](size_t j, double *col, size_t n) {
         std::vector<double> y(n);
@@ -212,9 +215,9 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
         } else if (methodMatches(m, "range")) {
             // default [0 1]; custom [lo hi] supported.
             double rlo = 0.0, rhi = 1.0;
-            if (hasParam && !paramIsStr && param->numel() >= 2) {
-                rlo = param->elemAsDouble(0);
-                rhi = param->elemAsDouble(1);
+            if (hasParam && !paramIsStr && param.numel() >= 2) {
+                rlo = param.elemAsDouble(0);
+                rhi = param.elemAsDouble(1);
             }
             double lo = col[0], hi = col[0];
             for (size_t i = 1; i < n; ++i) {
@@ -266,7 +269,7 @@ Value normalize(const Value &A, const std::string &method, std::pmr::memory_reso
         if (sOutD) sOutD[j] = sVal;
         writeColumn(out, j, y.data(), n, H, W);
     });
-    return out;
+    return R;
 }
 
 Value rescale(const Value &A, double lo, double hi, std::pmr::memory_resource *mr,

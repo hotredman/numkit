@@ -557,20 +557,21 @@ ecdfhist(const Value &f, const Value &x, int m = 10, std::pmr::memory_resource *
 ///
 /// @param A       Input matrix.
 /// @param method  Normalisation method name (see list above).
-/// @param mr      Memory resource (nullptr → process default).
-/// @param param   Optional method parameter (nullptr → default): for
+/// @param param   Optional method parameter (`Value::Empty` → default): for
 ///                "range" a `[lo hi]` vector; for "norm" the exponent p
 ///                (Inf allowed); for "scale" a divisor string
 ///                ('std'/'first'/'iqr'/'mad') or numeric; for "center"
 ///                'mean'/'median' or numeric.
-/// @param cOut    Optional out: the centering value C (MATLAB
-///                `[N,C,S]=normalize`). One value per operating slice —
-///                1×1 for a vector, 1×W for a matrix — with N == (A-C)./S.
-/// @param sOut    Optional out: the scaling value S (same shape as C).
-/// @return        Normalised matrix, same shape as `A`.
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        `{n, c, s}` — n the normalised matrix (same shape as `A`),
+///                c the centering value C, s the scaling value S (MATLAB
+///                `[N,C,S]=normalize`): one value per operating slice, 1×1 for
+///                a vector / 1×W for a matrix, with n == (A - c) ./ s.
 /// @see rescale, zscore
-Value normalize(const Value &A, const std::string &method, std::pmr::memory_resource *mr = nullptr,
-                const Value *param = nullptr, Value *cOut = nullptr, Value *sOut = nullptr);
+struct NormalizeResult { Value n; Value c; Value s; };
+NormalizeResult normalize(const Value &A, const std::string &method,
+                          const Value &param = Value::Empty,
+                          std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Linear range remap (`Y = rescale(A, lo, hi)`).
 ///
