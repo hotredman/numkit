@@ -135,6 +135,21 @@ add_subdirectory(src/toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O
 add_subdirectory(src/runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
 add_subdirectory(src/bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
+# Fail loudly if any aggregated layer include-dir variable came back empty — the owning
+# layer's CMakeLists forgot its `set(NUMKIT_<L>_INCLUDE_DIRS <dir> PARENT_SCOPE)` export.
+# These are consumed unconditionally by the include-dir foreach below; a silent empty
+# would drop that layer's headers from every target's include path and surface only as a
+# confusing downstream "file not found" (architecture review §5 — CMake aggregation).
+foreach(_inc_var NUMKIT_CORE_INCLUDE_DIRS NUMKIT_FIGURE_INCLUDE_DIRS NUMKIT_LIBS_INCLUDE_DIRS
+                 NUMKIT_MATH_INCLUDE_DIRS NUMKIT_LANG_INCLUDE_DIRS NUMKIT_RUNTIME_INCLUDE_DIRS
+                 NUMKIT_BUNDLE_INCLUDE_DIRS)
+    if(NOT ${_inc_var})
+        message(FATAL_ERROR
+            "Layer include-dir variable ${_inc_var} is empty — the owning layer's "
+            "CMakeLists likely missed its `set(${_inc_var} <dir> PARENT_SCOPE)` export.")
+    endif()
+endforeach()
+
 # G1 (target-split): every layer compiles as its own OBJECT library (numkit_<L>_obj,
 # defined at the end of this file once the dependency targets exist) carrying the
 # monolith compile config via numkit_configure_layer(). The final `numkit` aggregates
