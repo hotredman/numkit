@@ -179,17 +179,23 @@ TEST_F(StatsKnownBug, DISABLED_Autocorr)
 
 // NOTE: combnk scalar-set bug FIXED — see toolboxes/stats/tests/combnk_test.cpp.
 
-// bugs/stats/jackknife.md — jackknife(fn, X) throws "function-handle
-// invocation not yet supported" (jackknife_reg delegates to a C++ stub
-// instead of doing the leave-one-out loop inline like bootstrp_reg does).
-// MATLAB R2025b: jackknife(@mean,[1 2 3 4 5]) is the 5x1 column of
-// leave-one-out means [3.5; 3.25; 3; 2.75; 2.5].
-TEST_F(StatsKnownBug, DISABLED_JackknifeMean)
+// bugs/stats/jackknife.md — FIXED: jackknife_reg now does the leave-one-out
+// loop inline (via callFunctionHandle), like bootstrp_reg, instead of
+// delegating to a dead C++ stub. jackknife(@mean,[1 2 3 4 5]) is the 5x1
+// column of leave-one-out means [3.5; 3.25; 3; 2.75; 2.5].
+TEST_F(StatsKnownBug, JackknifeMean)
 {
+    // Vector: 5 leave-one-out means of [1..5].
     eval("j = jackknife(@mean, [1 2 3 4 5]);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(j)")), 5);
     EXPECT_NEAR(evalScalar("j(1)"), 3.5, 1e-12);    // mean without obs 1
     EXPECT_NEAR(evalScalar("j(2)"), 3.25, 1e-12);
     EXPECT_NEAR(evalScalar("j(3)"), 3.0, 1e-12);
     EXPECT_NEAR(evalScalar("j(5)"), 2.5, 1e-12);    // mean without obs 5
+    // Matrix: rows are observations -> n x K output.
+    eval("J = jackknife(@(x) mean(x), [1 1; 2 2; 3 3]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(J,1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(J,2)")), 2);
+    EXPECT_NEAR(evalScalar("J(1,1)"), 2.5, 1e-12);  // drop row 1 -> mean(2,3)
+    EXPECT_NEAR(evalScalar("J(3,1)"), 1.5, 1e-12);  // drop row 3 -> mean(1,2)
 }

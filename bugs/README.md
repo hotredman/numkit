@@ -130,10 +130,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (54)
+### ✅ FIXED (55)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| stub | [stats/jackknife](stats/jackknife.md) | P2 | jackknife(fn,X) now loops leave-one-out inline via callFunctionHandle (like bootstrp_reg) instead of a dead stub; vector reshaped to column observations (2026-06-14) |
 | bug | [linalg/cross-integer-class](linalg/cross-integer-class.md) | P2 | cross preserves the integer class of integer operands with per-operation saturation (cross(int8([100 100 0]),int8([0 100 100]))=[127 -127 127], not -128); int+double→int; different-int/int+logical lenient→double (2026-06-05) |
 | bug | [builtin/accumarray-integer-vals](builtin/accumarray-integer-vals.md) | P2 | accumarray accepts integer/logical vals (was: throw "vals must be DOUBLE") — sum/prod/mean→double, max/min preserve int class; logical+max/min & custom-handle class are lenient niches (2026-06-05) |
 | bug | [signal/deconv-integer-input](signal/deconv-integer-input.md) | P2 | deconv accepts integer/logical input (was: throw "Not a double array") — promotes to double (reuses convPromoteToDouble); q+r always double. na>nb int is numkit-lenient (MATLAB errors there) (2026-06-05) |
@@ -205,11 +206,10 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 6
+### 🔴 OPEN — stub (option/branch throws "not supported") — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [stats/jackknife](stats/jackknife.md) | P2 | jackknife(fn,X) throws nyi; jackknife_reg delegates to a dead C++ stub instead of looping inline like bootstrp_reg (2026-06-14) |
 | [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | schur(A) throws on non-symmetric A (real Schur form deferred; eig values work) |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
