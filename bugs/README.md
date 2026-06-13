@@ -205,10 +205,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | unknown property silently dropped |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 5
+### 🔴 OPEN — stub (option/branch throws "not supported") — 6
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [stats/jackknife](stats/jackknife.md) | P2 | jackknife(fn,X) throws nyi; jackknife_reg delegates to a dead C++ stub instead of looping inline like bootstrp_reg (2026-06-14) |
 | [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | schur(A) throws on non-symmetric A (real Schur form deferred; eig values work) |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
