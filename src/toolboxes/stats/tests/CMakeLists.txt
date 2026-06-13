@@ -2,6 +2,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster_dim_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist_qmc_spline_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dist_ncx2_rice_naka_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dist_ev_gev_gp_pdf_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/grp2idx_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lillietest_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filloutliers_public_api_test.cpp
