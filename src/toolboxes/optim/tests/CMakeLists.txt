@@ -5,5 +5,6 @@
 # in tests/smoke/ (next to this file) and are not compiled.
 
 target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/optim_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
