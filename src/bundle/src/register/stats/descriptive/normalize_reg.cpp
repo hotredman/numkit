@@ -44,14 +44,14 @@ void normalize_reg(Span<const Value> args, size_t nargout,
         if (args.size() >= 3 && !args[2].isEmpty())
             param = &args[2];
     }
-    // MATLAB [N, C, S] = normalize(...): C is the centering value, S the
-    // scaling value, with N == (A - C) ./ S.
-    Value cVal, sVal;
-    Value *cPtr = (nargout >= 2 && outs.size() >= 2) ? &cVal : nullptr;
-    Value *sPtr = (nargout >= 3 && outs.size() >= 3) ? &sVal : nullptr;
-    outs[0] = normalize(args[0], method, ctx.engine->resource(), param, cPtr, sPtr);
-    if (cPtr) outs[1] = std::move(cVal);
-    if (sPtr) outs[2] = std::move(sVal);
+    // MATLAB [N, C, S] = normalize(...): N normalised, C centering, S scaling,
+    // with N == (A - C) ./ S. Compute returns all three; discard per nargout.
+    NormalizeResult r = normalize(args[0], method,
+                                  param ? *param : Value::Empty,
+                                  ctx.engine->resource());
+    outs[0] = std::move(r.n);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(r.c);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(r.s);
 }
 
 void rescale_reg(Span<const Value> args, size_t /*nargout*/,
