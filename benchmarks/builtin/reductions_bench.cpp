@@ -90,12 +90,12 @@ void runMatDimBench(benchmark::State &s, Fn fn, int dim)
 
 // ── Existing reductions (vector form) ───────────────────────
 
-static void BM_Sum   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::sum(a, x); }); }
-static void BM_Mean  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::mean(a, x); }); }
-static void BM_Prod  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::prod(a, x); }); }
-static void BM_Max   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(numkit::math::max(a, x)); }); }
-static void BM_Min   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(numkit::math::min(a, x)); }); }
-static void BM_Cumsum(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::lang::cumsum(a, x); }); }
+static void BM_Sum   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::sum(x, a); }); }
+static void BM_Mean  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::mean(x, a); }); }
+static void BM_Prod  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::prod(x, a); }); }
+static void BM_Max   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(numkit::math::max(x, a)); }); }
+static void BM_Min   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(numkit::math::min(x, a)); }); }
+static void BM_Cumsum(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::lang::cumsum(x, a); }); }
 
 BENCHMARK(BM_Sum)    ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 BENCHMARK(BM_Mean)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
@@ -106,9 +106,9 @@ BENCHMARK(BM_Cumsum) ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 
 // ── Dim-overload variants on matrices ──────────────────────
 
-static void BM_SumDim1 (benchmark::State &s) { runMatDimBench(s, [](auto &a, auto &x, int d){ return numkit::math::sum (a, x, d); }, 1); }
-static void BM_SumDim2 (benchmark::State &s) { runMatDimBench(s, [](auto &a, auto &x, int d){ return numkit::math::sum (a, x, d); }, 2); }
-static void BM_MeanDim2(benchmark::State &s) { runMatDimBench(s, [](auto &a, auto &x, int d){ return numkit::math::mean(a, x, d); }, 2); }
+static void BM_SumDim1 (benchmark::State &s) { runMatDimBench(s, [](auto &a, auto &x, int d){ return numkit::math::sum (x, d, a); }, 1); }
+static void BM_SumDim2 (benchmark::State &s) { runMatDimBench(s, [](auto &a, auto &x, int d){ return numkit::math::sum (x, d, a); }, 2); }
+static void BM_MeanDim2(benchmark::State &s) { runMatDimBench(s, [](auto &a, auto &x, int d){ return numkit::math::mean(x, d, a); }, 2); }
 
 BENCHMARK(BM_SumDim1) ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 BENCHMARK(BM_SumDim2) ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
@@ -151,10 +151,10 @@ BENCHMARK(BM_Nanmedian)->RangeMultiplier(4)->Range(1 << 10, 1 << 18);
 
 // ── Phase 3 cumulative + logical ───────────────────────────
 
-static void BM_Cumprod(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::lang::cumprod(a, x); }); }
-static void BM_Cummax (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::lang::cummax (a, x); }); }
-static void BM_Any    (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::anyOf  (a, x); }); }
-static void BM_All    (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::allOf  (a, x); }); }
+static void BM_Cumprod(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::lang::cumprod(x, 0, a); }); }
+static void BM_Cummax (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::lang::cummax (x, 0, a); }); }
+static void BM_Any    (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::anyOf  (x, 0, a); }); }
+static void BM_All    (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return numkit::math::allOf  (x, 0, a); }); }
 
 BENCHMARK(BM_Cumprod)->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 BENCHMARK(BM_Cummax) ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);

@@ -63,12 +63,12 @@ void runSquareBench(benchmark::State &s, Fn fn)
 
 // ── Phase 5: flips / rotates / shifts ───────────────────────
 
-static void BM_Fliplr   (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::fliplr(a, x); }); }
-static void BM_Flipud   (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::flipud(a, x); }); }
-static void BM_Rot90    (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::rot90(a, x, 1); }); }
-static void BM_Circshift(benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::circshift(a, x, 7, 13); }); }
-static void BM_Tril     (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::tril(a, x, 0); }); }
-static void BM_Triu     (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::triu(a, x, 0); }); }
+static void BM_Fliplr   (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::fliplr(x, a); }); }
+static void BM_Flipud   (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::flipud(x, a); }); }
+static void BM_Rot90    (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::rot90(x, 1, a); }); }
+static void BM_Circshift(benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::circshift(x, 7, 13, a); }); }
+static void BM_Tril     (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::tril(x, 0, a); }); }
+static void BM_Triu     (benchmark::State &s) { runSquareBench(s, [](auto &a, auto &x){ return numkit::lang::triu(x, 0, a); }); }
 
 BENCHMARK(BM_Fliplr)   ->RangeMultiplier(2)->Range(64, 2048);
 BENCHMARK(BM_Flipud)   ->RangeMultiplier(2)->Range(64, 2048);
@@ -84,7 +84,7 @@ static void BM_RepmatTile(benchmark::State &s)
     auto m = makeMat(64, 64);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::lang::repmat(mr, m, tiles, tiles);
+        auto y = numkit::lang::repmat(m, tiles, tiles, 1, mr);
         benchmark::DoNotOptimize(y);
     }
     const size_t totalElems = 64 * 64 * tiles * tiles;
@@ -137,7 +137,7 @@ static void BM_CatDim3(benchmark::State &s)
         mats.push_back(makeMat(256, 256, 100 + static_cast<uint32_t>(i)));
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::lang::cat(mr, 3, mats.data(), mats.size());
+        auto y = numkit::lang::cat(3, Span<const Value>(mats.data(), mats.size()), mr);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(256 * 256 * n));
@@ -154,7 +154,7 @@ static void BM_Blkdiag(benchmark::State &s)
         mats.push_back(makeMat(64, 64, 200 + static_cast<uint32_t>(i)));
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = numkit::lang::blkdiag(mr, mats.data(), mats.size());
+        auto y = numkit::lang::blkdiag(Span<const Value>(mats.data(), mats.size()), mr);
         benchmark::DoNotOptimize(y);
     }
     const size_t side = 64 * blocks;

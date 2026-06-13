@@ -45,7 +45,7 @@ void runSortBench(benchmark::State &state, Pattern p)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        auto [sorted, idx] = numkit::lang::sort(mr, x);
+        auto [sorted, idx] = numkit::lang::sort(x, mr);
         benchmark::DoNotOptimize(sorted);
         benchmark::DoNotOptimize(idx);
     }

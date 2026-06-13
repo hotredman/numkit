@@ -8,6 +8,7 @@
 // up sooner.
 
 #include <numkit/lang/operators/binary_ops.hpp>
+#include <numkit/ops/binary_ops.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
@@ -41,7 +42,7 @@ void runBinaryBench(benchmark::State &state, Fn fn)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value c = fn(mr, a, b);
+        Value c = fn(a, b, mr);
         benchmark::DoNotOptimize(c);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

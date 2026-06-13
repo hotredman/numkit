@@ -44,10 +44,7 @@ void runElementwiseBench(benchmark::State &state, Fn fn, double lo, double hi)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        // Pass nullptr hint explicitly so the call signature matches both
-        // the legacy 2-arg signature and the newer 3-arg one (with the
-        // optional output-reuse hint added in Phase B+).
-        Value y = fn(mr, x, nullptr);
+        Value y = fn(x, mr);   // unary math: (value, mr) — mr last.
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

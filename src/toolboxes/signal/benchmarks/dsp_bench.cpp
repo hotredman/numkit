@@ -118,7 +118,7 @@ static void BM_Pwelch(benchmark::State &s)
     Value emptyWin = Value::matrix(0, 0, ValueType::DOUBLE, nullptr);
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [pxx, f] = signal::pwelch(x, emptyWin, 0, 0, mr);
+        auto [pxx, f] = signal::pwelch(x, emptyWin, 0, 0, 1.0, mr);
         benchmark::DoNotOptimize(pxx);
         benchmark::DoNotOptimize(f);
     }
