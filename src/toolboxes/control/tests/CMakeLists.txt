@@ -11,5 +11,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/response_xtraj_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/c2d_foh_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connect_numeric_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lti_introspection_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
