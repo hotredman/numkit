@@ -6,6 +6,7 @@
 
 target_sources(numkit_gtest PRIVATE
     # Add per-function gtest TUs here.
+    ${CMAKE_CURRENT_SOURCE_DIR}/control_core_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/response_xtraj_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/c2d_foh_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connect_numeric_test.cpp
