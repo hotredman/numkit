@@ -23,6 +23,7 @@ namespace {
 
 using numkit::Engine;
 using numkit::Lexer;
+using numkit::StandardEngine;
 using numkit::TokenType;
 
 // Decide whether the accumulated buffer is still waiting for more input.
