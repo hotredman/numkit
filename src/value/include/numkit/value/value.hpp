@@ -207,6 +207,11 @@ public:
     // CHAR / COMPLEX (real part) / INT8..INT64 / UINT8..UINT64.
     double elemAsDouble(size_t idx) const;
     Value indexGet(const size_t *indices, size_t count, std::pmr::memory_resource *mr = nullptr) const;
+    // Reshape to rows x cols (numel must match), column-major-preserving. The
+    // L0 primitive behind the reshape builtin and the `x(:)` linear-index
+    // column form: OBJECT -> objectReshape, CELL/STRING copy element-wise,
+    // contiguous types memcpy the buffer.
+    Value reshape(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr) const;
     Value indexGet2D(const size_t *rowIdx, size_t nrows,
                       const size_t *colIdx, size_t ncols, std::pmr::memory_resource *mr = nullptr) const;
     Value indexGet3D(const size_t *rowIdx, size_t nrows,

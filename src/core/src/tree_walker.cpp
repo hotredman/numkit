@@ -2078,6 +2078,16 @@ Value TreeWalker::execIndexAccess(const Value &var, const ASTNode *callNode, Env
     // matrix shape). Indexed assignment works via writeElem / writeScalar.
 
     if (nargs == 1) {
+        // x(:) — the whole-array linear index ALWAYS yields a numel×1 column,
+        // independent of the source's orientation. (General linear indices
+        // x(idx) follow the index/source shape and go through the paths below.)
+        // The bare colon parses as an empty COLON_EXPR. Matches the VM + MATLAB.
+        {
+            const ASTNode *sub = callNode->children[1].get();
+            if (sub->type == NodeType::COLON_EXPR && sub->children.empty())
+                return var.reshape(var.numel(), 1, engine_.mr_);
+        }
+
         // ── scalar fast path: skip resolveIndex + vector<size_t> entirely ──
         size_t scalarIdx;
         if (tryResolveScalarIndex(callNode->children[1].get(), var, 0, 1, env, scalarIdx)) {

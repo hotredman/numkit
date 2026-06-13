@@ -44,10 +44,10 @@ TEST_P(CommModulationTest, FskmodOutputLength)
     EXPECT_EQ(eval("y").numel(), 80u);  // 8 symbols x 10 samples/symbol
 }
 
-// KNOWN BUG (TreeWalker only): the fskmod->fskdemod round-trip throws
-// "Cannot convert double to scalar" under the TreeWalker backend; it works on
-// the VM. See bugs/comm/fsk_tw_divergence.md. Remove DISABLED_ once fixed.
-TEST_P(CommModulationTest, DISABLED_FskRoundTrip)
+// fskmod -> fskdemod round-trip. Also guards bugs/comm/fsk_tw_divergence.md: a
+// TreeWalker x(:) row->column bug used to break this on TW (fskdemod returns a
+// column, the input is a row, so out(:) - data(:) needs both column-ified).
+TEST_P(CommModulationTest, FskRoundTrip)
 {
     eval("data = [0 1 2 3 0 2 1 3]; out = fskdemod(fskmod(data, 4, 100, 10, 2000), "
          "4, 100, 10, 2000); e = sum(abs(out(:) - data(:)));");

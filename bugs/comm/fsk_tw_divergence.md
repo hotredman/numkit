@@ -1,10 +1,20 @@
 # TreeWalker `x(:)` on a row vector returns a row, not a column (surfaced via fsk round-trip)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-13)
 - **Severity:** P2 (general core indexing-semantics divergence; masked in most code, but `x(:)` is fundamental)
 - **Kind:** bug
 - **Found:** 2026-06-13 via DualEngineTest while adding comm coverage (CommModulationTest)
 - **Real category:** core / TreeWalker indexing (NOT comm — fskmod/fskdemod are fine on both backends; this file kept at its original path so the spawned-task reference resolves).
+
+## Fixed
+
+2026-06-13. Added a core `Value::reshape(rows, cols, mr)` primitive
+(`src/value/src/value.cpp`, decl in `value.hpp`) and routed the whole-array
+colon `x(:)` (an empty `COLON_EXPR`) in `TreeWalker::execIndexAccess` through it,
+forcing a `numel × 1` column for any source orientation — matching the VM and
+MATLAB. Live guards: `CommModulationTest.FskRoundTrip` (un-DISABLED) +
+`MatlabParity.ColonLinearIndex{RowVectorIsColumn,MatrixIsColumn}`. Full
+desktop-fast suite green (11796 passed / 1 skipped, TW + VM).
 
 ## Symptom
 

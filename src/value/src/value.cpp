@@ -1097,6 +1097,29 @@ Value Value::elemAt(size_t idx, std::pmr::memory_resource *mr) const
 }
 
 // 1D slice: extract elements at given linear indices.
+Value Value::reshape(size_t rows, size_t cols, std::pmr::memory_resource *mr) const
+{
+    if (rows * cols != numel())
+        throw std::runtime_error("reshape: number of elements must not change");
+    if (numel() == 1)
+        return *this;  // 1x1 reshape is a no-op (matrix(1,1,DOUBLE) is inline, no buffer)
+    if (isObject())
+        return objectReshape(Dims(rows, cols), mr);
+    if (type() == ValueType::CELL || type() == ValueType::STRING) {
+        Value r = (type() == ValueType::CELL) ? Value::cell(rows, cols)
+                                              : Value::stringArray(rows, cols);
+        const auto &src = cellDataVec();
+        auto &dst = r.cellDataVec();
+        for (size_t i = 0; i < src.size() && i < dst.size(); ++i)
+            dst[i] = src[i];
+        return r;
+    }
+    Value r = Value::matrix(rows, cols, type(), mr);  // numel>1 -> heap-backed
+    if (rawBytes() > 0)
+        std::memcpy(r.rawDataMut(), rawData(), rawBytes());
+    return r;
+}
+
 // Shape rule: column vector source → column result; otherwise → row result.
 // CELL: always returns sub-cell (even for count==1), matching MATLAB c(i) semantics.
 Value Value::indexGet(const size_t *indices, size_t count, std::pmr::memory_resource *mr) const
