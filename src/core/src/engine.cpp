@@ -2104,6 +2104,40 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
         e.sourceCode = std::make_shared<const std::string>(std::move(content));
         mFileCache_[name] = std::move(e);
 
+        // Register the file's OTHER top-level functions as local
+        // (sub)functions — a `.m` file may define a main function followed by
+        // helper functions that the main one calls (a core MATLAB feature).
+        // We register them under their bare names so the entry's calls
+        // resolve, mirroring how beginScript registers entry-SCRIPT locals.
+        // Guard: never shadow an existing builtin / already-loaded function
+        // (keeps locals from leaking over the global namespace). File-private
+        // scoping is a known simplification — same-named locals in two files
+        // resolve to the first loaded.
+        if (ast->type == NodeType::BLOCK) {
+            for (const auto &c : ast->children) {
+                if (!c || c->type != NodeType::FUNCTION_DEF || c.get() == funcDef)
+                    continue;
+                const std::string &ln = c->strValue;
+                if (ln.empty() || ln == name || ln == leafName)
+                    continue;
+                if (externalFuncs_.count(ln) || userFuncs_.count(ln))
+                    continue;
+                if (c->children.empty())
+                    continue;
+                if (compiler_) {
+                    try { compiler_->registerFunctionAs(ln, c.get()); }
+                    catch (const std::exception &) { /* TW still dispatches via userFuncs_ */ }
+                }
+                UserFunction lf;
+                lf.name       = ln;
+                lf.params     = c->paramNames;
+                lf.returns    = c->returnNames;
+                lf.body       = std::shared_ptr<const ASTNode>(cloneNode(c->children[0].get()));
+                lf.closureEnv = nullptr;
+                userFuncs_[ln] = std::move(lf);
+            }
+        }
+
         return &userFuncs_[name];
     }
     return nullptr;
