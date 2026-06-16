@@ -1,16 +1,12 @@
 // toolboxes/image/tests/adapthisteq_test.cpp
 // gtest coverage for adapthisteq — Contrast-Limited Adaptive Histogram
 // Equalisation (CLAHE).
-// adapthisteq is a clean-room implementation from public references
-// (Zuiderveld 1994; Pizer et al. 1990 / 1987 — see
-//). It is functionally equivalent to
-// MATLAB's adapthisteq but not bit-identical: MATLAB's clip/redistribute
-// and interpolation rounding have undocumented details. Accordingly the
-// pixel-value tests below are *regression anchors* pinned to the
-// clean-room output, NOT bit-exact MATLAB parity claims. Real
-// correctness is verified MATLAB-independently by the property tests at
-// the end of this file (a correct CLAHE must widen a low-contrast
-// image's dynamic range, and more clipping must spread it further).
+// adapthisteq ports MATLAB R2025b's adapthisteq.m (clip count ceil/round +
+// two-tier clip + even step-redistribution; uniform/rayleigh/exponential
+// mapping; integer-weight region interpolation). It matches MATLAB to within
+// ±1 gray level (residual = final round-half-away FP order). The pixel-value
+// tests below are pinned to MATLAB R2025b with a ±2 tolerance; the property
+// tests at the end give a MATLAB-independent correctness check.
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>
@@ -34,23 +30,21 @@ TEST_F(AdaptHistEqTest, PreservesClassAndSize)
     EXPECT_DOUBLE_EQ(eval_scalar("size(J, 2)"), 16.0);
 }
 
-// Regression anchor — smooth gradient, default options. Values pinned to
-// the clean-room CLAHE output (not MATLAB). Guards against accidental
-// algorithm drift.
+// Smooth gradient, default options. Values pinned to MATLAB R2025b (±2 for
+// the final-rounding FP residual).
 TEST_F(AdaptHistEqTest, GradientRegressionAnchor)
 {
     engine.eval("[X, Y] = meshgrid(linspace(0, 1, 64), linspace(0, 1, 64));");
     engine.eval("I = uint8(255 * sqrt(X.*Y));");
     engine.eval("J = adapthisteq(I);");
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(1, 1))"),     8.0);
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(16, 16))"), 219.0);
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(32, 32))"), 217.0);
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(48, 48))"), 221.0);
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(64, 64))"), 255.0);
+    EXPECT_NEAR(eval_scalar("double(J(1, 1))"),     8.0, 2.0);
+    EXPECT_NEAR(eval_scalar("double(J(16, 16))"), 134.0, 2.0);
+    EXPECT_NEAR(eval_scalar("double(J(32, 32))"), 137.0, 2.0);
+    EXPECT_NEAR(eval_scalar("double(J(48, 48))"), 166.0, 2.0);
+    EXPECT_NEAR(eval_scalar("double(J(64, 64))"), 255.0, 2.0);
 }
 
-// Regression anchor — 8x8 rotational pattern, [2 2] tiles. Values
-// pinned to the clean-room CLAHE output.
+// 8x8 rotational pattern, [2 2] tiles. Values pinned to MATLAB R2025b.
 TEST_F(AdaptHistEqTest, SmallPatternRegressionAnchor)
 {
     engine.eval("I = uint8([0 32 64 96 128 160 192 224;"
@@ -62,10 +56,10 @@ TEST_F(AdaptHistEqTest, SmallPatternRegressionAnchor)
                           " 192 224 32 64 96 128 160 192;"
                           " 224 32 64 96 128 160 192 224]);");
     engine.eval("J = adapthisteq(I, 'NumTiles', [2 2], 'ClipLimit', 0.01);");
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(1, 1))"),  19.0);
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(1, 4))"), 252.0);
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(4, 5))"), 255.0);
-    EXPECT_DOUBLE_EQ(eval_scalar("double(J(8, 8))"), 255.0);
+    EXPECT_NEAR(eval_scalar("double(J(1, 1))"),  16.0, 2.0);
+    EXPECT_NEAR(eval_scalar("double(J(1, 4))"), 112.0, 2.0);
+    EXPECT_NEAR(eval_scalar("double(J(4, 5))"), 239.0, 2.0);
+    EXPECT_NEAR(eval_scalar("double(J(8, 8))"), 239.0, 2.0);
 }
 
 // NumTiles must be >= 2.
