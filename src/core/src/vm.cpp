@@ -705,6 +705,26 @@ enter_frame:
                           R[I.a] = unarySlowPath(I.op, R[I.b]); }
                 break;
 
+            // ── Fused element-wise idiom ─────────────────────────
+            case OpCode::FUSE_EWISE: {
+                // Gather the contiguous operand register block and run the
+                // kernel; on success write dst and skip the `e` fallback
+                // instructions, else fall through to them (the normally
+                // compiled idiom). The runtime gate lets setFusion(false)
+                // disable fusion even for already-compiled bytecode.
+                if (engine_.fusionEnabled()) {
+                    const FusionRule &rule =
+                        engine_.fusionRules()[static_cast<size_t>(I.d)];
+                    Value fout;
+                    if (rule.execute(&R[I.b], I.c, fout, engine_.mr_)) {
+                        R[I.a] = std::move(fout);
+                        ip += static_cast<int>(I.e) + 1;
+                        continue;
+                    }
+                }
+                break;  // disabled or declined → execute the fallback opcodes
+            }
+
             // ── Control flow ─────────────────────────────────────
             case OpCode::JMP:
                 ip += I.d;

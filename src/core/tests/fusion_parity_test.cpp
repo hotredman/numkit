@@ -21,11 +21,11 @@ namespace {
 
 // isequaln: exact, NaN-aware (NaN==NaN) — the right fused-vs-unfused comparator.
 bool sameOnOff(numkit::Engine &e, const char *expr) {
-    e.eval(std::string("__fon = ") + expr + ";");          // fusion default-on
+    e.eval(std::string("nkfon = ") + expr + ";");          // fusion default-on
     e.setFusion(false);
-    e.eval(std::string("__foff = ") + expr + ";");
+    e.eval(std::string("nkfoff = ") + expr + ";");
     e.setFusion(true);
-    return e.eval("isequaln(__fon, __foff)").toBool();
+    return e.eval("isequaln(nkfon, nkfoff)").toBool();
 }
 
 } // namespace

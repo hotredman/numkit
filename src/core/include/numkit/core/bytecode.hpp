@@ -74,6 +74,12 @@ enum class OpCode : uint8_t {
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)
     CALL_INDIRECT, // dst, fhReg, base, nargs         R[dst] = R[fhReg](R[base..base+nargs-1])
+    // Fused element-wise idiom (VM fusion). a=dst, b=operandBase, c=nOps,
+    // d=ruleIdx (into engine.fusionRules()), e=skip. Gather R[base..base+nOps)
+    // → rule.execute; on success R[dst]=result and skip the `e` following
+    // fallback instructions; on decline fall through to them — the normally
+    // compiled idiom, i.e. exact per-op semantics.
+    FUSE_EWISE,
 
     // ── Array indexing ───────────────────────────────────────
     INDEX_GET,       // dst, arr, idx          R[dst] = R[arr](R[idx])         1D
