@@ -32,15 +32,8 @@ namespace numkit::stats {
 namespace {
 
 using ::numkit::ops::firstNonSingletonDim;
+using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
 using ::numkit::ops::validateDim;
-
-// Resolve user-supplied dim (0 → first non-singleton, otherwise validate).
-int resolveDim(const Value &x, int dim, const char *fn)
-{
-    if (dim == 0)
-        return firstNonSingletonDim(x);
-    return validateDim(x, dim, fn);
-}
 
 // Decode the `k` argument: scalar → MATLAB backward-leaning window
 // [floor(k/2), floor((k-1)/2)] (even k centred on current+previous; odd k
