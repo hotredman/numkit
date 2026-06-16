@@ -22,6 +22,7 @@ if(NUMKIT_WITH_SIMD)
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_affine_clamp_highway.cpp
         # Backend-split FFT kernel — the SIMD path splits across several TUs
         # (one per radix family) so MSVC's per-TU inliner budget isn't shared
         # across butterflies; see feedback_fft_msvc_limits memory.
@@ -35,6 +36,7 @@ else()
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_kernels_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_portable.cpp)
 endif()
 
