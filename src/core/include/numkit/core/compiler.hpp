@@ -138,6 +138,9 @@ private:
     int maxVarReg_ = 0;
     int anonCounter_ = 0;
     bool isTopLevel_ = false;
+    // True while compiling a fusion idiom's fallback path (the normal compile),
+    // so the nested compileCall doesn't re-attempt fusion (infinite recursion).
+    bool inFusionFallback_ = false;
     uint8_t nargoutContext_ = 1; // expected number of outputs (0=statement, 1=expression)
 
     // Index context for END_VAL compilation
@@ -308,6 +311,11 @@ private:
 
     // Phase 4+5: function calls
     uint8_t compileCall(const ASTNode *node);
+    // Element-wise fusion: emit FUSE_EWISE for the matched idiom + the normally
+    // compiled idiom as the runtime fallback (patched dst + skip). `ruleIdx`
+    // indexes engine.fusionRules(); `operands` are the rule's operand sub-exprs.
+    uint8_t compileFused(const ASTNode *node, size_t ruleIdx,
+                         const std::vector<const ASTNode *> &operands);
     uint8_t compileCommandCall(const ASTNode *node);
     // Record per-CALL-site arg names into chunk_.callSiteArgNames so
     // inputname(k) inside the callee can introspect the call site.

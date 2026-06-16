@@ -2681,8 +2681,74 @@ void Compiler::recordCallArgNames(const ASTNode *callNode, size_t callInstrIdx)
     }
 }
 
+uint8_t Compiler::compileFused(const ASTNode *node, size_t ruleIdx,
+                               const std::vector<const ASTNode *> &operands)
+{
+    // 1. Compile the operand sub-exprs into a contiguous register block
+    //    (same shape as call args) so the VM can read R[base..base+n).
+    std::vector<uint8_t> opRegs;
+    opRegs.reserve(operands.size());
+    for (const ASTNode *op : operands)
+        opRegs.push_back(compileNode(op));
+    const uint8_t opBase = static_cast<uint8_t>(nextReg_);
+    for (uint8_t r : opRegs) {
+        uint8_t slot = tempReg();
+        if (r != slot) emitAB(OpCode::MOVE, slot, r);
+    }
+    // 2. FUSE_EWISE with placeholder dst (a) and skip (e) — patched in step 4.
+    emit(Instruction::make_abcde(OpCode::FUSE_EWISE, /*dst*/ 0, opBase,
+                                 static_cast<uint8_t>(operands.size()),
+                                 static_cast<int16_t>(ruleIdx), /*skip*/ 0));
+    const size_t fusePos = chunk_.code.size() - 1;
+    const size_t spanStart = chunk_.code.size();
+    // 3. Fallback = the normally compiled idiom (exact per-op semantics). The
+    //    flag stops the nested compileCall from re-attempting fusion; reset is
+    //    exception-safe (compileNode may throw RegisterExhaustionError).
+    uint8_t fbDst;
+    {
+        struct Guard {
+            bool &f;
+            explicit Guard(bool &x) : f(x) { f = true; }
+            ~Guard() { f = false; }
+        } guard(inFusionFallback_);
+        fbDst = compileCall(node);
+    }
+    // 4. Both paths write fbDst; on success FUSE_EWISE skips the fallback span.
+    const size_t span = chunk_.code.size() - spanStart;
+    if (span > 255) {
+        // Fallback too large for the 8-bit skip field (never happens for the
+        // small idioms we fuse). Neuter the FUSE into a no-op; the fallback
+        // alone produces the result.
+        chunk_.code[fusePos] = Instruction::make_abc(OpCode::MOVE, fbDst, fbDst, 0);
+        return fbDst;
+    }
+    chunk_.code[fusePos].a = fbDst;
+    chunk_.code[fusePos].e = static_cast<uint8_t>(span);
+    // Both paths write fbDst — FUSE_EWISE on success (then skips the span),
+    // the fallback's last op on decline. Funnel through one explicit MOVE
+    // (placed AFTER the skipped span, so it runs on both paths) into a fresh
+    // result register. Without this, an enclosing assignment's MOVE-elimination
+    // keys off the fallback's last instruction and never receives the
+    // FUSE-success write, so the target variable is left unset.
+    const uint8_t res = tempReg();
+    emitAB(OpCode::MOVE, res, fbDst);
+    return res;
+}
+
 uint8_t Compiler::compileCall(const ASTNode *node)
 {
+    // Element-wise fusion fast path: if `node` matches a registered idiom, emit
+    // FUSE_EWISE + the normally compiled idiom as fallback. Skipped while
+    // compiling a fallback (no recursion) and under register pressure (keep
+    // headroom below the 255-register limit).
+    if (!inFusionFallback_ && engine_.fusionEnabled() && nextReg_ < 200) {
+        const auto &rules = engine_.fusionRules();
+        for (size_t ri = 0; ri < rules.size(); ++ri) {
+            auto operands = rules[ri].match(node);
+            if (operands) return compileFused(node, ri, *operands);
+        }
+    }
+
     auto *funcNode = node->children[0].get();
 
     // Superclass-qualified call `lhs@Base(args)`. Only meaningful inside a
