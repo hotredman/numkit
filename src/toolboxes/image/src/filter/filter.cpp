@@ -9,6 +9,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
+#include <numkit/ops/parallel_for.hpp>
 #include "filter_detail.hpp"
 
 #include <cctype>
@@ -541,18 +542,32 @@ Value imfilter(const Value &I, const Value &h, PadMode boundary, double pad_valu
         const int ic0 = std::max(0, half_c), ic1 = std::min(W, W - kW + 1 + half_c);
 
         if (ir1 > ir0 && ic1 > ic0) {
-            for (int oc = ic0; oc < ic1; ++oc) {
-                double *dcol = dst + (size_t)oc * (size_t)H;
-                for (int r = ir0; r < ir1; ++r) dcol[r] = 0.0;
-                for (int kj = 0; kj < kW; ++kj) {
-                    const int c_in = oc + kj - half_c;
-                    for (int ki = 0; ki < kH; ++ki) {
-                        const double w = getK(ki, kj);
-                        const double *scol = src + (size_t)c_in * (size_t)H + (ki - half_r);
-                        for (int r = ir0; r < ir1; ++r) dcol[r] += w * scol[r];
+            // Each output column writes a disjoint dst column and only reads
+            // src + the read-only kernel, so the column loop is data-parallel.
+            // parallel_for is a no-op (plain fn(0,n)) unless NUMKIT_WITH_THREADS
+            // is set; thread only when the interior work dwarfs the pool
+            // hand-off (~1M tap-multiplies), else stay on the caller's thread.
+            const std::size_t ncols = (std::size_t)(ic1 - ic0);
+            const std::size_t work  = ncols * (std::size_t)(ir1 - ir0) *
+                                      (std::size_t)kH * (std::size_t)kW;
+            const std::size_t threshold =
+                (work >= (std::size_t{1} << 20)) ? std::size_t{1} : ncols + 1;
+            numkit::detail::parallel_for(ncols, threshold,
+                [&](std::size_t cs, std::size_t ce) {
+                    for (std::size_t cc = cs; cc < ce; ++cc) {
+                        const int oc = ic0 + (int)cc;
+                        double *dcol = dst + (size_t)oc * (size_t)H;
+                        for (int r = ir0; r < ir1; ++r) dcol[r] = 0.0;
+                        for (int kj = 0; kj < kW; ++kj) {
+                            const int c_in = oc + kj - half_c;
+                            for (int ki = 0; ki < kH; ++ki) {
+                                const double w = getK(ki, kj);
+                                const double *scol = src + (size_t)c_in * (size_t)H + (ki - half_r);
+                                for (int r = ir0; r < ir1; ++r) dcol[r] += w * scol[r];
+                            }
+                        }
                     }
-                }
-            }
+                });
         }
         // Border pixels (kernel overhangs the edge) — scalar, exact.
         for (int oc = 0; oc < W; ++oc) {
