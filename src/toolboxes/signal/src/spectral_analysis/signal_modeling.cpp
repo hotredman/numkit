@@ -371,21 +371,24 @@ rc2poly(const Value &k, double r0, std::pmr::memory_resource *mr)
     return std::make_tuple(rowVec(a, mr), Value::scalar(r0 * prod, mr));
 }
 
-// is2rc / rc2is — inverse-sine parameterisation, k = sin(is).
+// is2rc / rc2is — inverse-sine parameterisation. MATLAB scales the inverse
+// sine into [-1, 1]: isin = (2/pi)*asin(k), so k = sin((pi/2)*isin).
 Value is2rc(const Value &is, std::pmr::memory_resource *mr)
 {
+    constexpr double kHalfPi = 1.5707963267948966;  // pi/2
     auto v = readVec(is);
-    for (auto &y : v) y = std::sin(y);
+    for (auto &y : v) y = std::sin(kHalfPi * y);
     return colVec(v, mr);
 }
 Value rc2is(const Value &k, std::pmr::memory_resource *mr)
 {
+    constexpr double kTwoOverPi = 0.6366197723675814;  // 2/pi
     auto v = readVec(k);
     for (auto &y : v) {
         // Clamp into [-1, 1] to avoid asin domain errors on numerical
         // overshoots.
         const double c = std::max(-1.0, std::min(1.0, y));
-        y = std::asin(c);
+        y = kTwoOverPi * std::asin(c);
     }
     return colVec(v, mr);
 }

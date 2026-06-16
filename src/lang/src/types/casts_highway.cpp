@@ -54,18 +54,11 @@ inline T saturate_cast_scalar(double v)
 // Strategy:
 //   1. Load N doubles
 //   2. Replace NaN with 0 (Highway IsNaN + IfThenElse)
-//   3. Round half-away-from-zero (use Highway Round which is
-//      round-to-nearest-even — but for ties the difference is
-//      a lane-count number of edge cases; bench-OK for now)
+//   3. Round half-away-from-zero: trunc(v + copysign(0.5, v)). Highway's
+//      Round is ties-to-even, which diverges from MATLAB int*()/round on
+//      exact half-integers (2.5 -> 2 instead of 3), so we do not use it.
 //   4. Clamp to [target_min, target_max]
 //   5. ConvertTo<int64> (or DemoteTo for narrow)
-//
-// Note: Highway's Round is RTNE (round to nearest, ties to even).
-// MATLAB's int*() uses round-half-away-from-zero. Difference shows
-// only at exact half-integer values (0.5, 1.5, ...). For 1M-pt
-// `linspace` inputs the chance of an exact half-integer is ~0, so
-// bench passes. Documented; if tests catch a tie case, we can
-// add a half-away-from-zero adjustment.
 
 void DoubleToInt32Loop(const double *HWY_RESTRICT in, int32_t *HWY_RESTRICT out, std::size_t n)
 {
@@ -80,7 +73,7 @@ void DoubleToInt32Loop(const double *HWY_RESTRICT in, int32_t *HWY_RESTRICT out,
     for (; i + N <= n; i += N) {
         auto v = hn::LoadU(d, in + i);
         v = hn::IfThenElse(hn::IsNaN(v), zero, v);
-        v = hn::Round(v);
+        v = hn::Trunc(hn::Add(v, hn::CopySign(hn::Set(d, 0.5), v)));  // half-away (MATLAB int*/round)
         v = hn::Min(hn::Max(v, lo), hi);
         auto vi = hn::DemoteTo(di_rebind, v);
         hn::StoreU(vi, di_rebind, out + i);
@@ -100,7 +93,7 @@ void DoubleToUInt32Loop(const double *HWY_RESTRICT in, uint32_t *HWY_RESTRICT ou
     for (; i + N <= n; i += N) {
         auto v = hn::LoadU(d, in + i);
         v = hn::IfThenElse(hn::IsNaN(v), zero, v);
-        v = hn::Round(v);
+        v = hn::Trunc(hn::Add(v, hn::CopySign(hn::Set(d, 0.5), v)));  // half-away (MATLAB int*/round)
         v = hn::Min(hn::Max(v, lo), hi);
         // Highway: doubles in [0, 2^32-1] convert via DemoteTo<uint32>.
         auto vi = hn::DemoteTo(du_rebind, v);
@@ -124,7 +117,7 @@ void DoubleToInt64Loop(const double *HWY_RESTRICT in, int64_t *HWY_RESTRICT out,
     for (; i + N <= n; i += N) {
         auto v = hn::LoadU(d, in + i);
         v = hn::IfThenElse(hn::IsNaN(v), zero, v);
-        v = hn::Round(v);
+        v = hn::Trunc(hn::Add(v, hn::CopySign(hn::Set(d, 0.5), v)));  // half-away (MATLAB int*/round)
         v = hn::Min(hn::Max(v, lo), hi);
         auto vi = hn::ConvertTo(di, v);
         hn::StoreU(vi, di, out + i);

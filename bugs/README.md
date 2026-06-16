@@ -130,10 +130,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (55)
+### ✅ FIXED (56)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [lang/int-cast-rtne](lang/int-cast-rtne.md) | P2 | int32/int64/uint32 SIMD cast rounded ties-to-even; now half-away-from-zero (MATLAB) via trunc(v+copysign(0.5,v)) (2026-06-14) |
 | stub | [stats/jackknife](stats/jackknife.md) | P2 | jackknife(fn,X) now loops leave-one-out inline via callFunctionHandle (like bootstrp_reg) instead of a dead stub; vector reshaped to column observations (2026-06-14) |
 | bug | [linalg/cross-integer-class](linalg/cross-integer-class.md) | P2 | cross preserves the integer class of integer operands with per-operation saturation (cross(int8([100 100 0]),int8([0 100 100]))=[127 -127 127], not -128); int+double→int; different-int/int+logical lenient→double (2026-06-05) |
 | bug | [builtin/accumarray-integer-vals](builtin/accumarray-integer-vals.md) | P2 | accumarray accepts integer/logical vals (was: throw "vals must be DOUBLE") — sum/prod/mean→double, max/min preserve int class; logical+max/min & custom-handle class are lenient niches (2026-06-05) |
