@@ -461,6 +461,35 @@ TEST_P(MFileResolverTest, PathReturnsRegisteredDirs)
     EXPECT_EQ(engine.path().size(), 2u);
 }
 
+// A .m file may define a main function followed by local (sub)functions it
+// calls — a core MATLAB feature. Loading the main via the path must also
+// register its locals so the internal call chain resolves.
+TEST_P(MFileResolverTest, LocalSubfunctionsResolve)
+{
+    writeMFile("mainf.m",
+               "function y = mainf(x)\n"
+               "  y = helper1(x) + helper2(x);\n"
+               "end\n"
+               "function a = helper1(x)\n"
+               "  a = x * 2;\n"
+               "end\n"
+               "function b = helper2(x)\n"
+               "  b = x + 10;\n"
+               "end\n");
+    engine.addPath(workDir.string());
+    engine.eval("y = mainf(5);");   // 5*2 + (5+10) = 25
+    ASSERT_NE(engine.getVariable("y"), nullptr);
+    EXPECT_DOUBLE_EQ(engine.getVariable("y")->toScalar(), 25.0);
+
+    // A local must not leak over an existing builtin of the same name: a
+    // file whose local is named like a builtin keeps the builtin globally.
+    writeMFile("usesmax.m",
+               "function y = usesmax(x)\n  y = mymaxhelper(x);\nend\n"
+               "function m = mymaxhelper(x)\n  m = max(x) + 1;\nend\n");
+    engine.eval("y2 = usesmax([3 7 2]);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("y2")->toScalar(), 8.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, MFileResolverTest,
                           ::testing::Values(Engine::Backend::TreeWalker,
                                             Engine::Backend::VM),
