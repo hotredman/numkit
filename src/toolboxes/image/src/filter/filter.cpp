@@ -1231,8 +1231,44 @@ Value imsharpen(const Value &I, double radius, double amount, double threshold, 
     const size_t Hh = I.dims().rows();
     const size_t Ww = I.dims().cols();
     const size_t N = I.numel();
+    const bool useThreshold = (threshold > 0.0);
 
-    // High-pass component, in DOUBLE for headroom.
+    Value out = Value::matrix(Hh, Ww, I.type(), mr);
+
+    // Typed DOUBLE fast path: raw pointers, no per-element elemAsDouble /
+    // store_classed dispatch. When threshold == 0 (the MATLAB default) the
+    // high-pass needs no max-abs reduction and no temp buffer, so it fuses
+    // into a single vectorisable pass  out = I + amount·(I − blurred).
+    // Bit-for-bit identical to the generic path (same ops, same order;
+    // store_classed(DOUBLE) is a plain write).
+    if (I.type() == ValueType::DOUBLE && !I.isComplex() &&
+        blurred.type() == ValueType::DOUBLE && !blurred.isComplex()) {
+        const double *Id = I.doubleData();
+        const double *Bd = blurred.doubleData();
+        double *od = out.doubleDataMut();
+        if (!useThreshold) {
+            for (size_t i = 0; i < N; ++i)
+                od[i] = Id[i] + amount * (Id[i] - Bd[i]);
+        } else {
+            std::vector<double> Hbuf(N);
+            double max_abs = 0.0;
+            for (size_t i = 0; i < N; ++i) {
+                const double v = Id[i] - Bd[i];
+                Hbuf[i] = v;
+                const double a = std::abs(v);
+                if (a > max_abs) max_abs = a;
+            }
+            const double thr_abs = threshold * max_abs;
+            for (size_t i = 0; i < N; ++i) {
+                double h = Hbuf[i];
+                if (std::abs(h) < thr_abs) h = 0.0;
+                od[i] = Id[i] + amount * h;
+            }
+        }
+        return out;
+    }
+
+    // Generic path (single / uintN / int16, or complex) — unchanged.
     std::vector<double> Hbuf(N);
     double max_abs = 0.0;
     for (size_t i = 0; i < N; ++i) {
@@ -1242,11 +1278,9 @@ Value imsharpen(const Value &I, double radius, double amount, double threshold, 
         if (a > max_abs) max_abs = a;
     }
     const double thr_abs = threshold * max_abs;
-
-    Value out = Value::matrix(Hh, Ww, I.type(), mr);
     for (size_t i = 0; i < N; ++i) {
         double h = Hbuf[i];
-        if (threshold > 0.0 && std::abs(h) < thr_abs) h = 0.0;
+        if (useThreshold && std::abs(h) < thr_abs) h = 0.0;
         const double v = I.elemAsDouble(i) + amount * h;
         store_classed(out, i, v, I.type());
     }

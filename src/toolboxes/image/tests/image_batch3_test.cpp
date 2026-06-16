@@ -355,6 +355,17 @@ TEST_F(ImageBatch3Test, Filters)
 {
     eval("B = imsharpen([1 2 3; 4 5 6; 7 8 9]);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 9.0);
+    // Value guard for the DOUBLE/threshold==0 fused path (verified vs MATLAB
+    // R2025b): unsharp mask leaves the centre pixel and total sum unchanged,
+    // corners get the symmetric high-pass.
+    EXPECT_NEAR(evalScalar("B(1,1)"),  -0.1301718755, 1e-9);
+    EXPECT_NEAR(evalScalar("B(2,2)"),   5.0,          1e-12);
+    EXPECT_NEAR(evalScalar("B(3,3)"),  10.1301718755, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(B(:))"), 45.0,        1e-9);
+    // Generic (non-double) path with thresholding: stays uint8; centre is
+    // below threshold so it is left unchanged (verified vs MATLAB R2025b).
+    eval("C = imsharpen(uint8([10 20 30; 40 50 60; 70 80 90]), 'Threshold', 0.2);");
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2,2))"), 50.0);
 
     eval("B = imboxfilt([1 2; 3 4]);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 4.0);
