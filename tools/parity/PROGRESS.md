@@ -1766,7 +1766,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | comment |
 |---|:---:|---|
-| `adapthisteq` | ✅ ❗ | Sig: J = adapthisteq(I [, NV...]). CLAHE. Covers default (uniform, ClipLimit 0.01, NumTiles [8 8]), explicit ClipLimit+NumTiles, Distribution 'rayleigh', and double[0,1] input. Pins interior + corner pixels and the global min/max/sum so a CDF-mapping / clip-redistribution / tile-interpolation divergence from MATLAB R2025b is caught. Deterministic textured setup (no rng). |
+| `adapthisteq` | ✅ | Sig: J = adapthisteq(I [, NV...]). CLAHE — covers uniform default, ClipLimit+NumTiles, rayleigh, double[0,1]. Faithful MATLAB R2025b port of the clip (ceil/round count + two-tier + even step-redistribution), the uniform/rayleigh/exponential mapping, AND the integer-weight region interpolation over even-tile padding. Matches MATLAB to within ±1 gray level (tol=2; residual = final round-half-away FP order). j/jmin/jmax/jd are bit-exact on this setup. |
 | `decorrstretch` | ❌ | decorrelation stretch |
 | `histeq` | ✅ | Sig: r = histeq(...). Spec-extension batch 2026-05-09. |
 | `imadjust` | ✅ | Sig: r = imadjust(...). DEEP-PROBE c169: an explicitly-passed empty [] for the in-range endpoints means MATLAB's default [0 1] (identity, NO stretch) — distinct from the ABSENT 1-arg form imadjust(I), which auto-stretches via stretchlim (1% saturation). e1=e2=e3=1 (empty in-range / empty out-range == identity), ne4=1 + j4=204 confirm the 1-arg stretchlim form; j5 covers explicit-range + gamma=2 (j5=154). j6/j6b cover the EMPTY-ranges + gamma form imadjust(I,[],[],1.2) (no stretch, pure gamma = input^1.2); g2/g3 pin the gamma curve on a double row (0.25^1.2, 0.5^1.2). covers:[imadjust]. |

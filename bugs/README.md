@@ -130,10 +130,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (56)
+### ✅ FIXED (57)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [image/adapthisteq-mapping](image/adapthisteq-mapping.md) | P2 | CLAHE was ~54% too bright; ported MATLAB clip (ceil/round + step-redistribute) + map (rayleigh vmax) + integer-weight region interpolation over even-tile padding → matches MATLAB to ±1 level (was a regression; tonemap re-matches too) (2026-06-14) |
 | bug | [lang/int-cast-rtne](lang/int-cast-rtne.md) | P2 | int32/int64/uint32 SIMD cast rounded ties-to-even; now half-away-from-zero (MATLAB) via trunc(v+copysign(0.5,v)) (2026-06-14) |
 | stub | [stats/jackknife](stats/jackknife.md) | P2 | jackknife(fn,X) now loops leave-one-out inline via callFunctionHandle (like bootstrp_reg) instead of a dead stub; vector reshaped to column observations (2026-06-14) |
 | bug | [linalg/cross-integer-class](linalg/cross-integer-class.md) | P2 | cross preserves the integer class of integer operands with per-operation saturation (cross(int8([100 100 0]),int8([0 100 100]))=[127 -127 127], not -128); int+double→int; different-int/int+logical lenient→double (2026-06-05) |
@@ -191,11 +192,10 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 12
+### 🔴 OPEN — bug (defect on an implemented function) — 11
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [image/adapthisteq-mapping](image/adapthisteq-mapping.md) | P2 | CLAHE output ~54% too bright vs MATLAB (per-tile CDF not anchored at display min; affects uniform+rayleigh, uint8+double) (2026-06-14) |
 | [builtin/interpn-nan](builtin/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |

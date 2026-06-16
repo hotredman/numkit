@@ -1,9 +1,34 @@
 # adapthisteq (CLAHE) output is systematically ~54% too bright vs MATLAB
 
-- **Status:** 🔴 OPEN
-- **Severity:** P2 (implemented + accepts all options, but values diverge badly from MATLAB)
+- **Status:** ✅ FIXED (2026-06-14) — full MATLAB port; matches to ±1 gray level
+- **Severity:** P2
 - **Kind:** bug
 - **Found:** 2026-06-14 building a parity spec for adapthisteq (weld-defect pipeline review).
+
+## Fixed
+
+2026-06-14, `src/toolboxes/image/src/contrast/contrast.cpp`. Ported MATLAB
+R2025b's `adapthisteq.m` clip + map exactly:
+1. **clip count** — `minClipLimit = ceil(numPix/nBins)` and
+   `clipLimit = minClipLimit + round(normClip*(numPix-minClipLimit))` (was a
+   fractional count with no `ceil`/`round`);
+2. **clipHistogram** — two-tier clip + **even step-redistribution**
+   (`stepSize = max(floor(numBins/excess),1)`) instead of front-loading the
+   remainder into bins 0..r-1 (that inflated the low-end CDF → too bright);
+3. **mapProbability** — rayleigh/exponential now scale `val = vmax·p`
+   (`vmax = 1-exp(-1/2α²)` etc.) as MATLAB does; uniform clamps to the range top.
+4. **interpolation** — replaced the per-pixel float bilinear with MATLAB's
+   `makeClaheImage` integer-weight region scheme (`rowRevW = regH..1`,
+   `/normFactor`, half-tile edge regions); padding now pads to a multiple of
+   `2·numTiles` so each tile is even (the half-tile regions are exact).
+
+Result on the repro: `J(32,32)` 205→**128** (= MATLAB), `min` 127→**20** (=),
+`max`/`mean` exact, gradient interior ≤±1. numkit now matches MATLAB R2025b to
+**±1 gray level** (residual = final round-half-away FP order); `j`/`jmin`/`jmax`/
+`jd` are bit-exact on the parity setup. tonemap (which calls adapthisteq)
+re-matches MATLAB exactly. Guard `ImageKnownBug.AdapthisteqMapping` live at ±2;
+parity spec `adapthisteq.json` OK at tol=2; adapthisteq_test anchors re-pinned to
+MATLAB values.
 
 ## Symptom
 

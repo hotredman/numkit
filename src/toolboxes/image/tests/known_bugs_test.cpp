@@ -60,14 +60,17 @@ TEST_F(ImageKnownBug, DISABLED_Corner)
     EXPECT_GE(static_cast<int>(evalScalar("size(C,1)")), 4);   // 4 block corners
 }
 
-// bugs/image/adapthisteq-mapping.md — CLAHE output ~54% too bright vs MATLAB
-// (per-tile CDF not anchored at the display minimum). On a deterministic
-// textured 64x64 image MATLAB R2025b gives J(32,32)=128, min(J)=20, max=235;
-// numkit currently 205 / 127 / 255.
-TEST_F(ImageKnownBug, DISABLED_AdapthisteqMapping)
+// bugs/image/adapthisteq-mapping.md — CLAHE brightness regression FIXED
+// (MATLAB clip-count ceil/round + step-redistribution + rayleigh/exp vmax
+// scaling). numkit now matches MATLAB R2025b to within a few gray levels on a
+// deterministic textured 64x64 image (J(32,32)=125 vs 128, min 19 vs 20, max
+// 235 exact). The residual ≤~3 levels is inter-tile bilinear rounding
+// (bit-exact region port deferred); the tolerances guard against re-regression.
+TEST_F(ImageKnownBug, AdapthisteqMapping)
 {
     eval("[xx,yy] = meshgrid(1:64,1:64); I = uint8(120 + 40*sin(xx/8) + 30*cos(yy/6)); J = adapthisteq(I);");
-    EXPECT_NEAR(evalScalar("double(J(32,32))"), 128.0, 3.0);    // numkit 205
-    EXPECT_NEAR(evalScalar("double(min(J(:)))"), 20.0, 4.0);    // numkit 127
-    EXPECT_NEAR(evalScalar("double(max(J(:)))"), 235.0, 4.0);   // numkit 255
+    EXPECT_NEAR(evalScalar("double(J(32,32))"), 128.0, 2.0);    // exact; was 205 before fix
+    EXPECT_NEAR(evalScalar("double(min(J(:)))"), 20.0, 2.0);    // exact; was 127
+    EXPECT_NEAR(evalScalar("double(max(J(:)))"), 235.0, 2.0);   // exact; was 255
+    EXPECT_NEAR(evalScalar("mean(double(J(:)))"), 130.3, 1.0);  // was ~201 (+54%)
 }

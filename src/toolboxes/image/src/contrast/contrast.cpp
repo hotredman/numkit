@@ -289,40 +289,47 @@ static void classRange(ValueType t, double &lo, double &hi)
 }
 
 // ---- per-tile clipped+redistributed histogram --------------------
-// hist[]    : raw bin counts (length nBins), modified in place to the
-//             clipped/redistributed counts.
-// numPix    : pixels in the tile.
-// clipLimit : fraction in [0,1] (0 = no clipping).
-static void clipAndRedistribute(double *hist, int nBins,
-                                double numPix, double clipLimit)
+// Faithful port of MATLAB R2025b adapthisteq.m `clipHistogram`.
+// hist[]    : raw bin counts (length nBins), modified in place.
+// clipLimit : the clip COUNT (integer-valued; see caller).
+// Two-tier clip (high bins → clipLimit, low bins raised by avgBinIncr),
+// then the remainder is redistributed one pixel at a time stepping
+// EVENLY across all bins — never front-loaded (front-loading inflated
+// the low-end CDF and made the output systematically too bright).
+static void clipHistogram(double *hist, int nBins, double clipLimit)
 {
-    // Flat-histogram height; the clip ceiling sits between the flat
-    // height (clipLimit==0 ⇒ ordinary uniformisation) and numPix
-    // (clipLimit==1 ⇒ maximum contrast).
-    const double minLimit  = numPix / static_cast<double>(nBins);
-    const double clipCount = minLimit + clipLimit * (numPix - minLimit);
+    double totalExcess = 0.0;
+    for (int b = 0; b < nBins; ++b)
+        if (hist[b] > clipLimit) totalExcess += hist[b] - clipLimit;
 
-    // Clip every bin, accumulate the removed excess.
-    double excess = 0.0;
-    for (int b = 0; b < nBins; ++b) {
-        if (hist[b] > clipCount) {
-            excess += hist[b] - clipCount;
-            hist[b] = clipCount;
+    const double avgBinIncr = std::floor(totalExcess / static_cast<double>(nBins));
+    const double upperLimit = clipLimit - avgBinIncr;
+    for (int k = 0; k < nBins; ++k) {
+        if (hist[k] > clipLimit) {
+            hist[k] = clipLimit;
+        } else if (hist[k] > upperLimit) {   // high bin count
+            totalExcess -= (clipLimit - hist[k]);
+            hist[k] = clipLimit;
+        } else {
+            totalExcess -= avgBinIncr;
+            hist[k] += avgBinIncr;
         }
     }
 
-    // Redistribute the excess uniformly: a flat increment to every
-    // bin plus a one-count-per-bin sweep for the remainder. A single
-    // pass per Pizer 1990 — bins may end slightly above clipCount.
-    if (excess > 0.0) {
-        const double perBin = std::floor(excess / static_cast<double>(nBins));
-        double remainder    = excess - perBin * static_cast<double>(nBins);
-        for (int b = 0; b < nBins; ++b)
-            hist[b] += perBin;
-        for (int b = 0; b < nBins && remainder > 0.0; ++b) {
-            hist[b] += 1.0;
-            remainder -= 1.0;
+    // Redistribute the remaining excess, spreading it evenly.
+    int k = 0;
+    while (totalExcess > 0.0) {
+        int stepSize = static_cast<int>(
+            std::floor(static_cast<double>(nBins) / totalExcess));
+        if (stepSize < 1) stepSize = 1;
+        for (int m = k; m < nBins; m += stepSize) {
+            if (hist[m] < clipLimit) {
+                hist[m] += 1.0;
+                totalExcess -= 1.0;
+                if (totalExcess <= 0.0) break;
+            }
         }
+        if (++k >= nBins) k = 0;   // don't always start at bin 0
     }
 }
 
@@ -330,48 +337,34 @@ static void clipAndRedistribute(double *hist, int nBins,
 // Converts the cumulative probability P (in [0,1]) into an output
 // intensity in [outMin, outMax] according to the chosen target
 // histogram shape. dist: 0=uniform, 1=rayleigh, 2=exponential.
+// Faithful port of MATLAB R2025b adapthisteq.m `makeMapping`: the
+// cumulative probability p (= histSum/numPix, in [0,1]) is shaped by the
+// target distribution. MATLAB scales p by vmax (the CDF value at the range
+// top) BEFORE the inverse transform — omitting that factor was wrong.
 static double mapProbability(double p, int dist, double alpha,
                              double outMin, double outMax)
 {
     const double span = outMax - outMin;
+    constexpr double kEps = 2.220446049250313e-16;   // eps
     switch (dist) {
-        case 1: {  // rayleigh — inverse CDF
-            // y = outMin + span·sqrt( 2·alpha²·ln(1/(1-P)) ),
-            // P clamped just below 1 so the log stays finite.
-            double pc = p;
-            if (pc > 1.0 - 1e-12) pc = 1.0 - 1e-12;
-            const double v = std::sqrt(2.0 * alpha * alpha
-                                       * std::log(1.0 / (1.0 - pc)));
-            double y = outMin + span * v;
-            if (y < outMin) y = outMin;
-            if (y > outMax) y = outMax;
-            return y;
+        case 1: {  // rayleigh: temp = sqrt(-hconst*log(1-vmax*p))
+            const double hconst = 2.0 * alpha * alpha;
+            const double vmax   = 1.0 - std::exp(-1.0 / hconst);
+            double val = vmax * p;
+            if (val >= 1.0) val = 1.0 - kEps;          // avoid log(0)
+            const double temp = std::sqrt(-hconst * std::log(1.0 - val));
+            return std::min(outMin + temp * span, outMax);
         }
-        case 2: {  // exponential — inverse CDF
-            // y = outMin - span·(1/alpha)·ln(1-P), clamped to range.
-            double pc = p;
-            if (pc > 1.0 - 1e-12) pc = 1.0 - 1e-12;
-            const double v = -(1.0 / alpha) * std::log(1.0 - pc);
-            double y = outMin + span * v;
-            if (y < outMin) y = outMin;
-            if (y > outMax) y = outMax;
-            return y;
+        case 2: {  // exponential: temp = -(1/alpha)*log(1-vmax*p)
+            const double vmax = 1.0 - std::exp(-alpha);
+            double val = vmax * p;
+            if (val >= 1.0) val = 1.0 - kEps;
+            const double temp = -(1.0 / alpha) * std::log(1.0 - val);
+            return std::min(outMin + temp * span, outMax);
         }
-        default:   // uniform
-            return outMin + p * span;
+        default:   // uniform: outMin + p*span, limited to the range top
+            return std::min(outMin + p * span, outMax);
     }
-}
-
-// ---- bilinear blend of up to four tile LUTs ----------------------
-// Looks the bin up in the four neighbouring tile LUTs and blends them
-// with the given fractional weights. fr/fc in [0,1].
-static double bilinearLUT(const double *lutTL, const double *lutTR,
-                          const double *lutBL, const double *lutBR,
-                          int bin, double fr, double fc)
-{
-    const double top = lutTL[bin] * (1.0 - fc) + lutTR[bin] * fc;
-    const double bot = lutBL[bin] * (1.0 - fc) + lutBR[bin] * fc;
-    return top * (1.0 - fr) + bot * fr;
 }
 
 }  // namespace
@@ -467,8 +460,12 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
 
     // ---- 5. symmetric (mirror) padding --------------------------
     // Pad each dimension up to the next multiple of the tile count.
-    const size_t padBottom = (numTilesR - (H % numTilesR)) % numTilesR;
-    const size_t padRight  = (numTilesC - (W % numTilesC)) % numTilesC;
+    // Pad so each tile dimension is EVEN (a multiple of 2*numTiles): the
+    // inter-tile interpolation uses half-tile (tileH/2) edge regions.
+    const size_t unitR = 2 * static_cast<size_t>(numTilesR);
+    const size_t unitC = 2 * static_cast<size_t>(numTilesC);
+    const size_t padBottom = (unitR - (H % unitR)) % unitR;
+    const size_t padRight  = (unitC - (W % unitC)) % unitC;
     const size_t Hp = H + padBottom;
     const size_t Wp = W + padRight;
     const size_t tileH = Hp / static_cast<size_t>(numTilesR);
@@ -504,6 +501,11 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
 
     const int    nTiles  = numTilesR * numTilesC;
     const double numPix  = static_cast<double>(tileH * tileW);
+    // MATLAB clip COUNT: minClipLimit = ceil(numPix/nBins);
+    // clipLimit = minClipLimit + round(normClip*(numPix - minClipLimit)).
+    const double minClipLimit = std::ceil(numPix / static_cast<double>(nBins));
+    const double clipCount = minClipLimit
+        + std::round(opts.clipLimit * (numPix - minClipLimit));
     // luts: nTiles consecutive LUTs of nBins entries each.
     ScratchVec<double> luts(static_cast<size_t>(nTiles) * nBins, &arena);
     ScratchVec<double> hist(static_cast<size_t>(nBins), &arena);
@@ -518,8 +520,8 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
                 for (size_t rr = 0; rr < tileH; ++rr)
                     hist[binOf(img[(c0 + cc) * Hp + (r0 + rr)])] += 1.0;
 
-            // contrast-limit (clip + redistribute)
-            clipAndRedistribute(hist.data(), nBins, numPix, opts.clipLimit);
+            // contrast-limit (clip + redistribute), MATLAB clipHistogram
+            clipHistogram(hist.data(), nBins, clipCount);
 
             // CDF → mapping LUT, shaped by the target distribution
             double *lut = luts.data()
@@ -533,47 +535,58 @@ Value adapthisteq(const Value &I, const AdaptHistEqOptions &opts,
         }
     }
 
-    // ---- 7. bilinear interpolation between tile mappings --------
-    // Tile centre tr sits at row  (tr + 0.5)·tileH  in padded coords.
-    // A pixel at padded row r belongs between the two tile rows whose
-    // centres bracket it; outside the outermost centres it clamps to
-    // the single nearest tile row (handles the corner / border
-    // regions uniformly).
+    // ---- 7. inter-tile interpolation (MATLAB makeClaheImage) ----
+    // The padded image is covered by (numTilesR+1)×(numTilesC+1) regions.
+    // The first/last region in each axis is a HALF-tile that maps to the
+    // single outer tile; interior regions span a full tile and blend the two
+    // bracketing tile mappings with integer weights — rowRevW = regH..1,
+    // rowW = 0..regH-1 (summing to regH), normalised by the region area.
+    // Tiles are even (padding step), so tileH/2 is exact.
     ScratchVec<double> outImg(Hp * Wp, &arena);
 
-    for (size_t c = 0; c < Wp; ++c) {
-        // column tile interpolation parameters
-        double cx = (static_cast<double>(c) + 0.5) / tileW - 0.5;
-        int    tc0;
-        double fc;
-        if (cx <= 0.0)                       { tc0 = 0;            fc = 0.0; }
-        else if (cx >= numTilesC - 1)        { tc0 = numTilesC-1;  fc = 0.0; }
-        else { tc0 = static_cast<int>(cx);   fc = cx - tc0; }
-        const int tc1 = (tc0 + 1 < numTilesC) ? tc0 + 1 : tc0;
+    auto lutAt = [&](int tr, int tc) -> const double * {
+        return luts.data() + (static_cast<size_t>(tr) * numTilesC + tc) * nBins;
+    };
 
-        for (size_t r = 0; r < Hp; ++r) {
-            double rx = (static_cast<double>(r) + 0.5) / tileH - 0.5;
-            int    tr0;
-            double fr;
-            if (rx <= 0.0)                   { tr0 = 0;            fr = 0.0; }
-            else if (rx >= numTilesR - 1)    { tr0 = numTilesR-1;  fr = 0.0; }
-            else { tr0 = static_cast<int>(rx); fr = rx - tr0; }
-            const int tr1 = (tr0 + 1 < numTilesR) ? tr0 + 1 : tr0;
+    size_t regRow0 = 0;
+    for (int kr = 0; kr <= numTilesR; ++kr) {
+        size_t regH; int trU, trL;
+        if      (kr == 0)         { regH = tileH / 2; trU = 0;             trL = 0; }
+        else if (kr == numTilesR) { regH = tileH / 2; trU = numTilesR - 1; trL = numTilesR - 1; }
+        else                      { regH = tileH;     trU = kr - 1;        trL = kr; }
 
-            const int bin = binOf(img[c * Hp + r]);
+        size_t regCol0 = 0;
+        for (int kc = 0; kc <= numTilesC; ++kc) {
+            size_t regW; int tcL, tcR;
+            if      (kc == 0)         { regW = tileW / 2; tcL = 0;             tcR = 0; }
+            else if (kc == numTilesC) { regW = tileW / 2; tcL = numTilesC - 1; tcR = numTilesC - 1; }
+            else                      { regW = tileW;     tcL = kc - 1;        tcR = kc; }
 
-            const double *lutTL = luts.data()
-                + (static_cast<size_t>(tr0) * numTilesC + tc0) * nBins;
-            const double *lutTR = luts.data()
-                + (static_cast<size_t>(tr0) * numTilesC + tc1) * nBins;
-            const double *lutBL = luts.data()
-                + (static_cast<size_t>(tr1) * numTilesC + tc0) * nBins;
-            const double *lutBR = luts.data()
-                + (static_cast<size_t>(tr1) * numTilesC + tc1) * nBins;
+            const double *lutUL = lutAt(trU, tcL);
+            const double *lutUR = lutAt(trU, tcR);
+            const double *lutBL = lutAt(trL, tcL);
+            const double *lutBR = lutAt(trL, tcR);
+            const double normFactor =
+                static_cast<double>(regH) * static_cast<double>(regW);
 
-            outImg[c * Hp + r] =
-                bilinearLUT(lutTL, lutTR, lutBL, lutBR, bin, fr, fc);
+            for (size_t rr = 0; rr < regH; ++rr) {
+                const size_t r      = regRow0 + rr;
+                const double rowW    = static_cast<double>(rr);
+                const double rowRevW = static_cast<double>(regH - rr);
+                for (size_t cc = 0; cc < regW; ++cc) {
+                    const size_t c       = regCol0 + cc;
+                    const double colW    = static_cast<double>(cc);
+                    const double colRevW = static_cast<double>(regW - cc);
+                    const int bin = binOf(img[c * Hp + r]);
+                    outImg[c * Hp + r] =
+                        ( rowRevW * (colRevW * lutUL[bin] + colW * lutUR[bin])
+                        + rowW    * (colRevW * lutBL[bin] + colW * lutBR[bin]) )
+                        / normFactor;
+                }
+            }
+            regCol0 += regW;
         }
+        regRow0 += regH;
     }
 
     // ---- 8. strip padding, cast back to the input element type --
