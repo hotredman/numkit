@@ -150,6 +150,12 @@ private:
     Value execBlock(const ASTNode *node, Environment *env);
     bool tryEvalFast(const ASTNode *expr, Environment *env, Value &out);
 
+    // Element-wise fusion: if `node` matches a registered idiom, evaluate its
+    // (side-effect-free) operands and run the fused kernel into `out`; returns
+    // true on success. false = no match / kernel declined → caller uses the
+    // normal path (re-evaluating the pure operands is safe).
+    bool tryFusion(const ASTNode *node, Environment *env, Value &out);
+
     // Statements
     Value execIdentifier(const ASTNode *node, Environment *env, size_t nargout = 1);
     Value execAssign(const ASTNode *node, Environment *env);

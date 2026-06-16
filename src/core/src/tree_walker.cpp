@@ -1787,8 +1787,35 @@ std::vector<Value> TreeWalker::execSuperCall(const ASTNode *superRef, const ASTN
     return {std::move(out)};
 }
 
+bool TreeWalker::tryFusion(const ASTNode *node, Environment *env, Value &out)
+{
+    for (const FusionRule &rule : engine_.fusionRules()) {
+        auto operands = rule.match(node);
+        if (!operands) continue;
+        // Matched this idiom's shape. Evaluate its (side-effect-free) operands
+        // and try the kernel; if it declines, fall back (the normal path may
+        // safely re-evaluate the pure operands). A node maps to one idiom, so
+        // we don't try further rules after a structural match.
+        std::vector<Value> vals;
+        vals.reserve(operands->size());
+        for (const ASTNode *opNode : *operands)
+            vals.push_back(execNode(opNode, env));
+        return rule.execute(vals.data(), vals.size(), out, engine_.resource());
+    }
+    return false;
+}
+
 Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout)
 {
+    // Element-wise fusion fast path: a registered idiom (e.g. max(lo,min(hi,x)))
+    // runs as one fused SIMD kernel. Single-output context only; operands are
+    // gated side-effect-free, so a declined kernel falls back to the normal
+    // path below without re-running side effects.
+    if (nargout <= 1 && engine_.fusionEnabled()) {
+        Value fused;
+        if (tryFusion(node, env, fused)) return fused;
+    }
+
     auto *funcNode = node->children[0].get();
 
     // Superclass-qualified call `lhs@Base(args)` (classdef super-call).

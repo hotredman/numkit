@@ -27,6 +27,10 @@
 
 namespace numkit {
 
+// Defined in register/fusion/fused_rules.cpp — registers element-wise fusion
+// rules (idiom → ops kernel) on the engine's FusionRule registry.
+void registerFusionRules(Engine &engine);
+
 void installStandardLibrary(Engine &engine)
 {
     BuiltinLibrary::install(engine);
@@ -43,6 +47,9 @@ void installStandardLibrary(Engine &engine)
     OptimLibrary::install(engine);
     AudioLibrary::install(engine);
     OdeLibrary::install(engine);
+
+    // Element-wise fusion rules — registered last, after all builtins exist.
+    registerFusionRules(engine);
 }
 
 std::unique_ptr<Engine> makeStandardEngine(std::pmr::memory_resource *mr)
