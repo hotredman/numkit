@@ -1729,7 +1729,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter3` |  |  |  |  |  |  |  |
 | `integralImage` |  |  |  |  |  |  |  |
 | `integralImage3` |  |  |  |  |  |  |  |
-| `medfilt2` | 0.07725 | 6.15× |  | 10.17 | 0.44× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `medfilt2` | 0.07819 | 5.25× |  | 9.933 | 0.48× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `medfilt3` |  |  |  |  |  |  |  |
 | `modefilt` |  |  |  |  |  |  |  |
 | `nlfilter` |  |  |  |  |  |  |  |
@@ -1749,7 +1749,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `adapthisteq` |  |  |  |  |  |  |  |
 | `decorrstretch` |  |  |  |  |  |  | not implemented |
 | `histeq` |  |  |  |  |  |  |  |
-| `imadjust` | 0.1727 | 3.80× |  | 14.67 | 0.55× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `imadjust` | 0.6007 | 0.89× |  | 15.42 | 0.52× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imadjustn` |  |  |  |  |  |  |  |
 | `imflatfield` |  |  |  |  |  |  |  |
 | `imhistmatch` |  |  |  |  |  |  |  |

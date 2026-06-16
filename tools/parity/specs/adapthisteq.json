@@ -1,0 +1,10 @@
+{
+  "name": "adapthisteq",
+  "namespace": "image",
+  "setup": "[xx, yy] = meshgrid(1:64, 1:64); I = uint8(120 + 40*sin(xx/8) + 30*cos(yy/6));",
+  "expr": "J = adapthisteq(I); Jc = adapthisteq(I, 'ClipLimit', 0.01, 'NumTiles', [8 8]); Jr = adapthisteq(I, 'ClipLimit', 0.01, 'NumTiles', [8 8], 'Distribution', 'rayleigh'); Jd = adapthisteq(double(I)/255); j = double(J(32,32)); j11 = double(J(1,1)); jmin = double(min(J(:))); jmax = double(max(J(:))); jsum = sum(double(J(:))); jc = double(Jc(32,32)); jr = double(Jr(32,32)); jr2 = double(Jr(10,50)); jrsum = sum(double(Jr(:))); jd = Jd(32,32);",
+  "iters": 5,
+  "tol": 1e-06,
+  "fingerprint": ["j", "j11", "jmin", "jmax", "jsum", "jc", "jr", "jr2", "jrsum", "jd"],
+  "comment": "Sig: J = adapthisteq(I [, NV...]). CLAHE. Covers default (uniform, ClipLimit 0.01, NumTiles [8 8]), explicit ClipLimit+NumTiles, Distribution 'rayleigh', double[0,1]. CURRENTLY MISMATCH vs MATLAB R2025b (output ~54% too bright; min 127 vs 20) — see bugs/image/adapthisteq-mapping.md. SUSPECTED REGRESSION: PROGRESS previously recorded this fn as tol=0 bit-exact (uniform) with non-uniform Distribution deferred, so adding rayleigh/exponential likely broke the per-tile CDF mapping. Deterministic textured setup (no rng)."
+}

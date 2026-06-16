@@ -59,3 +59,15 @@ TEST_F(ImageKnownBug, DISABLED_Corner)
     EXPECT_EQ(static_cast<int>(evalScalar("size(C,2)")), 2);   // [x y] coords
     EXPECT_GE(static_cast<int>(evalScalar("size(C,1)")), 4);   // 4 block corners
 }
+
+// bugs/image/adapthisteq-mapping.md — CLAHE output ~54% too bright vs MATLAB
+// (per-tile CDF not anchored at the display minimum). On a deterministic
+// textured 64x64 image MATLAB R2025b gives J(32,32)=128, min(J)=20, max=235;
+// numkit currently 205 / 127 / 255.
+TEST_F(ImageKnownBug, DISABLED_AdapthisteqMapping)
+{
+    eval("[xx,yy] = meshgrid(1:64,1:64); I = uint8(120 + 40*sin(xx/8) + 30*cos(yy/6)); J = adapthisteq(I);");
+    EXPECT_NEAR(evalScalar("double(J(32,32))"), 128.0, 3.0);    // numkit 205
+    EXPECT_NEAR(evalScalar("double(min(J(:)))"), 20.0, 4.0);    // numkit 127
+    EXPECT_NEAR(evalScalar("double(max(J(:)))"), 235.0, 4.0);   // numkit 255
+}
