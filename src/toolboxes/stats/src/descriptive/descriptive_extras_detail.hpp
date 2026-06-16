@@ -61,12 +61,7 @@ using ::numkit::ops::applyAlongDim;
 using ::numkit::ops::firstNonSingletonDim;
 using ::numkit::ops::validateDim;
 using ::numkit::ops::applyAlongDimWithIndex;
-
-int resolveDim(const Value &x, int dim, const char *fn)
-{
-    if (dim == 0) return firstNonSingletonDim(x);
-    return validateDim(x, dim, fn);
-}
+using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
 
 double sliceMin(const double *s, size_t n)
 {
