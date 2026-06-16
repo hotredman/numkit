@@ -63,6 +63,47 @@ Value to_float_impl(const Value &x, ValueType target, std::pmr::memory_resource 
     Float *od = nullptr;
     if constexpr (std::is_same_v<Float, double>) od = out.doubleDataMut();
     else                                          od = out.singleDataMut();
+
+    // Typed raw-pointer paths (no per-element element_to_unit/elemAsDouble
+    // dispatch) — contiguous inner loops auto-vectorise. Divisors match
+    // element_to_unit exactly (÷255 / ÷65535, not ×reciprocal) to stay
+    // bit-for-bit identical with the generic path.
+    if (!x.isComplex()) {
+        switch (x.type()) {
+            case ValueType::DOUBLE: {
+                const double *s = x.doubleData();
+                for (size_t i = 0; i < n; ++i) od[i] = static_cast<Float>(s[i]);
+                return out;
+            }
+            case ValueType::SINGLE: {
+                const float *s = x.singleData();
+                for (size_t i = 0; i < n; ++i) od[i] = static_cast<Float>(s[i]);
+                return out;
+            }
+            case ValueType::UINT8: {
+                const uint8_t *s = x.uint8Data();
+                for (size_t i = 0; i < n; ++i) od[i] = static_cast<Float>(s[i] / 255.0);
+                return out;
+            }
+            case ValueType::UINT16: {
+                const uint16_t *s = x.uint16Data();
+                for (size_t i = 0; i < n; ++i) od[i] = static_cast<Float>(s[i] / 65535.0);
+                return out;
+            }
+            case ValueType::INT16: {
+                const int16_t *s = x.int16Data();
+                for (size_t i = 0; i < n; ++i)
+                    od[i] = static_cast<Float>((s[i] + 32768.0) / 65535.0);
+                return out;
+            }
+            case ValueType::LOGICAL: {
+                const uint8_t *s = x.logicalData();
+                for (size_t i = 0; i < n; ++i) od[i] = s[i] ? Float(1) : Float(0);
+                return out;
+            }
+            default: break;
+        }
+    }
     for (size_t i = 0; i < n; ++i)
         od[i] = static_cast<Float>(element_to_unit(x, i));
     return out;
@@ -89,20 +130,48 @@ Value to_int_impl(const Value &x, ValueType target, double scale, double bias_af
 
     // Float → int: scale unit value by `scale` then round, plus optional bias.
     // Int → int: use proportional rescale (handled per-source below for accuracy).
+    //
+    // The float/logical path runs a branchless `convert` lambda over a typed raw
+    // pointer — no per-element element_to_unit/elemAsDouble dispatch and no
+    // std::lround (errno + rounding-mode overhead, does not vectorise). For
+    // u·scale ≥ 0, round-half-away-from-zero == trunc(u·scale + 0.5); the clamp
+    // forces u ∈ [0,1] first, so this is bit-exact with the old lround + satCast
+    // (incl. NaN → 0). The clean contiguous loop auto-vectorises under AVX2.
+    const double sc = scale, bi = bias_after;
+    auto convert = [sc, bi](double v) -> Int {
+        constexpr double clamp_lo =
+            static_cast<double>(std::numeric_limits<Int>::lowest());
+        constexpr double clamp_hi =
+            static_cast<double>(std::numeric_limits<Int>::max());
+        const bool nan = !(v == v);
+        double u = nan ? 0.0 : v;
+        if (u < 0.0) u = 0.0;
+        else if (u > 1.0) u = 1.0;
+        double t = std::trunc(u * sc + 0.5) + bi;
+        if (t < clamp_lo) t = clamp_lo;
+        else if (t > clamp_hi) t = clamp_hi;
+        return nan ? Int{} : static_cast<Int>(t);
+    };
     switch (x.type()) {
         case ValueType::DOUBLE:
         case ValueType::SINGLE:
-        case ValueType::LOGICAL:
-            for (size_t i = 0; i < n; ++i) {
-                double u = element_to_unit(x, i);  // already in [0,1]
-                if (std::isnan(u)) { od[i] = Int{}; continue; }
-                if (u < 0.0) u = 0.0;
-                if (u > 1.0) u = 1.0;
-                // Round before applying the integer-class shift.
-                const double rounded = std::lround(u * scale);
-                od[i] = satCast<Int>(rounded + bias_after);
+        case ValueType::LOGICAL: {
+            if (x.type() == ValueType::DOUBLE && !x.isComplex()) {
+                const double *s = x.doubleData();
+                for (size_t i = 0; i < n; ++i) od[i] = convert(s[i]);
+            } else if (x.type() == ValueType::SINGLE && !x.isComplex()) {
+                const float *s = x.singleData();
+                for (size_t i = 0; i < n; ++i)
+                    od[i] = convert(static_cast<double>(s[i]));
+            } else if (x.type() == ValueType::LOGICAL) {
+                const uint8_t *s = x.logicalData();
+                for (size_t i = 0; i < n; ++i) od[i] = convert(s[i] ? 1.0 : 0.0);
+            } else {  // complex DOUBLE/SINGLE — keep real-part dispatch
+                for (size_t i = 0; i < n; ++i)
+                    od[i] = convert(element_to_unit(x, i));
             }
             break;
+        }
         case ValueType::UINT8: {
             const uint8_t *src = x.uint8Data();
             if constexpr (std::is_same_v<Int, uint8_t>) {
