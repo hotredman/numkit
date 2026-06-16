@@ -46,33 +46,9 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
 Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim, bool with_replacement,
                  const Value &weights, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Bootstrap resampling (`B = bootstrp(nboot, fn, X)`).
-///
-/// Calls `fn(resample_of_X)` `nboot` times, each time with rows drawn
-/// with replacement. Returns `nboot × D` where `D` matches the output
-/// of `fn` applied to one bootstrap sample.
-///
-/// @param nboot  Number of bootstrap resamples.
-/// @param fn     Function handle (single-argument).
-/// @param X      Source data.
-/// @param mr     Memory resource (nullptr → process default).
-/// @return       `nboot × D` matrix of bootstrap statistics.
-/// @see jackknife
-Value bootstrp(int nboot, const Value &fn, const Value &X,
-               std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Leave-one-out jackknife (`J = jackknife(fn, X)`).
-///
-/// Calls `fn(X_without_row_i)` for `i = 1..N` and returns the stacked
-/// `N × D` statistic matrix.
-///
-/// @param fn  Function handle.
-/// @param X   Source data (rows-as-observations).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `N × D` jackknife replicates.
-/// @see bootstrp
-Value jackknife(const Value &fn, const Value &X,
-                std::pmr::memory_resource *mr = nullptr);
+// NOTE: bootstrp / jackknife are not exposed as Engine-free C++ cores — they
+// must invoke a user statistic via the engine, so the logic lives inline in
+// their register half (bundle/.../resample/resample_reg.cpp).
 
 /// @brief Enumerate `K`-combinations of `1..N`
 /// (`C = combnk(N, K)`).
