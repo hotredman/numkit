@@ -1,5 +1,6 @@
 // src/engine.cpp
 #include <numkit/core/engine.hpp>
+#include <numkit/core/caching_memory_resource.hpp>
 #include <numkit/core/value_stats.hpp>
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/lexer.hpp>
@@ -48,10 +49,13 @@ const std::unordered_set<std::string> kBuiltinNames = makeBuiltinNamesUnion();
 // ============================================================
 // Construction
 // ============================================================
-Engine::Engine() : Engine(std::pmr::get_default_resource()) {}
+// No explicit resource → recycle large transient buffers through a
+// process-wide cache (see caching_memory_resource.hpp). Embedders that supply
+// their own resource are used as-is and never wrapped.
+Engine::Engine() : Engine(numkit::defaultCachedResource()) {}
 
 Engine::Engine(std::pmr::memory_resource *mr)
-    : mr_(mr ? mr : std::pmr::get_default_resource())
+    : mr_(mr ? mr : numkit::defaultCachedResource())
 {
     globalsEnv_ = std::make_unique<Environment>();
     constantsEnv_ = std::make_unique<Environment>(nullptr, globalsEnv_.get());
