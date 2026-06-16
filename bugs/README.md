@@ -191,10 +191,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 11
+### 🔴 OPEN — bug (defect on an implemented function) — 12
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [image/adapthisteq-mapping](image/adapthisteq-mapping.md) | P2 | CLAHE output ~54% too bright vs MATLAB (per-tile CDF not anchored at display min; affects uniform+rayleigh, uint8+double) (2026-06-14) |
 | [builtin/interpn-nan](builtin/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |

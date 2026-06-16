@@ -2,16 +2,17 @@
   "name": "imadjust",
   "namespace": "image",
   "setup": "I = uint8([10 50 90; 130 170 210; 30 70 110]);",
-  "expr": "J = imadjust([0.0 0.5 1.0]); r1 = J(1); r2 = J(2); r3 = J(3); J1 = imadjust(I, [], []); e1 = double(isequal(J1, I)); J2 = imadjust(I, [], [0 1]); e2 = double(isequal(J2, I)); J3 = imadjust(I, [0 1], []); e3 = double(isequal(J3, I)); J4 = imadjust(I); ne4 = double(~isequal(J4, I)); j4 = double(J4(2,2)); J5 = imadjust(I, [0.2 0.8], [0 1], 2); j5 = double(J5(2,2));",
+  "expr": "J = imadjust([0.0 0.5 1.0]); r1 = J(1); r2 = J(2); r3 = J(3); J1 = imadjust(I, [], []); e1 = double(isequal(J1, I)); J2 = imadjust(I, [], [0 1]); e2 = double(isequal(J2, I)); J3 = imadjust(I, [0 1], []); e3 = double(isequal(J3, I)); J4 = imadjust(I); ne4 = double(~isequal(J4, I)); j4 = double(J4(2,2)); J5 = imadjust(I, [0.2 0.8], [0 1], 2); j5 = double(J5(2,2)); J6 = imadjust(I, [], [], 1.2); j6 = double(J6(2,2)); j6b = double(J6(3,3)); Jg = imadjust([0.0 0.25 0.5 0.75 1.0], [], [], 1.2); g2 = Jg(2); g3 = Jg(3);",
   "iters": 8,
   "tol": 1e-06,
   "fingerprint": [
     "r1",
     "r2",
     "r3",
-    "e1", "e2", "e3", "ne4", "j4", "j5"
+    "e1", "e2", "e3", "ne4", "j4", "j5",
+    "j6", "j6b", "g2", "g3"
   ],
-  "comment": "Sig: r = imadjust(...). DEEP-PROBE c169: an explicitly-passed empty [] for the in-range endpoints means MATLAB's default [0 1] (identity, NO stretch) — distinct from the ABSENT 1-arg form imadjust(I), which auto-stretches via stretchlim (1% saturation). numkit previously treated empty [] like the absent case (stretchlim), so imadjust(I,[],[]) wrongly contrast-stretched. Now e1=e2=e3=1 (empty in-range / empty out-range == identity), while ne4=1 and j4=204 confirm the 1-arg stretchlim form is preserved; j5 covers explicit-range + gamma=2 (j5=154). covers:[imadjust].",
+  "comment": "Sig: r = imadjust(...). DEEP-PROBE c169: an explicitly-passed empty [] for the in-range endpoints means MATLAB's default [0 1] (identity, NO stretch) — distinct from the ABSENT 1-arg form imadjust(I), which auto-stretches via stretchlim (1% saturation). e1=e2=e3=1 (empty in-range / empty out-range == identity), ne4=1 + j4=204 confirm the 1-arg stretchlim form; j5 covers explicit-range + gamma=2 (j5=154). j6/j6b cover the EMPTY-ranges + gamma form imadjust(I,[],[],1.2) (no stretch, pure gamma = input^1.2); g2/g3 pin the gamma curve on a double row (0.25^1.2, 0.5^1.2). covers:[imadjust].",
   "bench_setup": "A = reshape(mod((1:N*N)*7919,256)/255, N, N);",
   "bench_expr": "rb = imadjust(A);",
   "bench_sizes": [
