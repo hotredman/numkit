@@ -81,25 +81,9 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
     return out;
 }
 
-// Bootstrap is more involved because we need to apply a user-supplied
-// function `fn` to each bootstrap sample. For now we support the common
-// case where `fn` is a function handle in the engine. The first
-// bootstrap iteration determines output dimension D (must be a row).
-Value bootstrp(int nboot, const Value & /*fn*/, const Value & /*X*/, std::pmr::memory_resource *mr)
-{
-    // Function-handle invocation requires Engine::call which we don't
-    // have directly here. Defer until we expose a function-handle
-    // helper. Return empty for now and surface a runtime error.
-    (void)mr;
-    throw Error("bootstrp: function-handle invocation not yet supported",
-                0, 0, "bootstrp", "", "numkit:bootstrp:nyi");
-}
-
-Value jackknife(const Value & /*fn*/, const Value & /*X*/, std::pmr::memory_resource * /*mr*/)
-{
-    throw Error("jackknife: function-handle invocation not yet supported",
-                0, 0, "jackknife", "", "numkit:jackknife:nyi");
-}
+// NOTE: bootstrp / jackknife are implemented inline in their register half
+// (bundle/.../resample/resample_reg.cpp) via callFunctionHandle — they need the
+// engine to invoke the user statistic, so there is no Engine-free C++ core here.
 
 
 Value combnk(int N, int K, std::pmr::memory_resource *mr)
