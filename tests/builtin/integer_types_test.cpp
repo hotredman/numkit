@@ -352,4 +352,25 @@ TEST_P(IntegerTypesTest, RoundingFamilyPreservesIntegerClass)
     EXPECT_DOUBLE_EQ(evalScalar("fix(-2.7)"),   -2.0);
 }
 
+// Integer casts round half-AWAY-from-zero (MATLAB), not ties-to-even. The
+// large array forces the Highway SIMD cast path (the scalar tail was already
+// correct); the wide types int32/int64/uint32 previously used Highway Round
+// (RTNE) and gave 2.5 -> 2. See bugs/lang/int-cast-rtne.md.
+TEST_P(IntegerTypesTest, IntCastHalfAwayOnSimdPath)
+{
+    eval("x = repmat([0.5 1.5 2.5 3.5 4.5], 1, 64);");   // 320 elems -> SIMD path
+    EXPECT_DOUBLE_EQ(evalScalar("double(int32(2.5))"), 3.0);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(int32(x))")), 320);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(unique(double(int32(x))) - [1 2 3 4 5])"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(unique(double(int64(x))) - [1 2 3 4 5])"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(unique(double(uint32(x))) - [1 2 3 4 5])"), 0.0);
+    // negatives: half-away -> magnitude rounds up
+    EXPECT_DOUBLE_EQ(evalScalar("double(int32(-2.5))"), -3.0);
+    eval("xn = repmat([-0.5 -1.5 -2.5], 1, 64);");
+    EXPECT_DOUBLE_EQ(evalScalar("sum(unique(double(int32(xn))) - [-3 -2 -1])"), 0.0);
+    // non-tie values unaffected
+    EXPECT_DOUBLE_EQ(evalScalar("double(int32(2.4))"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(int32(2.6))"), 3.0);
+}
+
 INSTANTIATE_DUAL(IntegerTypesTest);

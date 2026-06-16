@@ -7,11 +7,8 @@
 //   schurrc rlevinson                     (autocorr -> reflection / poly)
 //   prony invfreqs invfreqz corrmtx       (model identification)
 // Conversion pairs are checked by their exact round-trip; absolute values use
-// closed forms (LAR = log((1+k)/(1-k)); prony of 0.5^n -> pole at 0.5).
-//
-// NOTE: numkit rc2is returns asin(k) (e.g. asin(0.5)=0.5236); MATLAB scales by
-// 2/pi. Round-trip is self-consistent either way, so we assert that, not the
-// absolute inverse-sine value (left for a dedicated parity check).
+// closed forms (LAR = log((1+k)/(1-k)); inverse sine isin = (2/pi)*asin(k);
+// prony of 0.5^n -> pole at 0.5).
 
 #include "dual_engine_fixture.hpp"
 
@@ -40,8 +37,10 @@ TEST_P(LpcParametricTest, LsfRoundTrip)
 TEST_P(LpcParametricTest, ReflectionParamRoundTrips)
 {
     eval("k = [0.5; -0.3; 0.2];");
-    // inverse-sine round-trip
-    EXPECT_LT(evalScalar("max(abs(k - is2rc(rc2is(k))))"), 1e-12);
+    // inverse-sine round-trip + closed form isin = (2/pi)*asin(k).
+    eval("isn = rc2is(k);");
+    EXPECT_NEAR(evalScalar("isn(1)"), 0.3333333333, 1e-9);   // (2/pi)*asin(0.5)
+    EXPECT_LT(evalScalar("max(abs(k - is2rc(isn)))"), 1e-12);
     // log-area-ratio round-trip + closed form g1 = log((1+k1)/(1-k1)).
     eval("g = rc2lar(k);");
     EXPECT_NEAR(evalScalar("g(1)"), 1.0986123, 1e-6);          // log(1.5/0.5)
