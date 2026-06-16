@@ -5,6 +5,7 @@
 #include <numkit/figure/figure_manager.hpp>
 #include <numkit/value/object.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/fusion_rule.hpp>
 #include <numkit/fs/vfs.hpp>
 #include <numkit/fs/fs_context.hpp>
 #include <numkit/ops/rng_context.hpp>
@@ -321,6 +322,14 @@ public:
     enum class Backend { VM, TreeWalker };
     void setBackend(Backend b) { backend_ = b; }
     Backend backend() const { return backend_; }
+
+    // Element-wise fusion (see fusion_rule.hpp). The standard library
+    // registers concrete rules; both backends consult them when enabled.
+    // Disabled instantly (no rebuild) via setFusion(false) / NUMKIT_FUSE=0.
+    void addFusionRule(FusionRule rule) { fusionRules_.push_back(std::move(rule)); }
+    const std::vector<FusionRule> &fusionRules() const { return fusionRules_; }
+    void setFusion(bool on) { fusionEnabled_ = on; }
+    bool fusionEnabled() const { return fusionEnabled_ && !fusionRules_.empty(); }
 
     using OutputFunc = std::function<void(const std::string &)>;
     void setOutputFunc(OutputFunc f);
@@ -739,6 +748,12 @@ public:
 private:
     std::unique_ptr<VM> vm_;
     Backend backend_ = Backend::VM;
+
+    // Element-wise fusion: registered idiom→kernel rules + on/off gate.
+    // Default reflects NUMKIT_FUSE (set in the ctor); the registry is empty
+    // until the standard library installs rules, so a bare Engine is unaffected.
+    std::vector<FusionRule> fusionRules_;
+    bool fusionEnabled_ = true;
 
     // Sync VM's exported variables to workspaceEnv (called after execute, even on error)
     void syncVMToWorkspace();
