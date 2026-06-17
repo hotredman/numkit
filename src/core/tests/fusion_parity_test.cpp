@@ -356,6 +356,30 @@ TEST_P(FusionParityTest, UnaryAffineNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "ceil(a .* x + b)"));
 }
 
+// fix (trunc toward zero) / round (half-away-from-zero) — same unary-affine
+// family as floor/ceil. round mirrors numkit's CopySign+Trunc, NOT round-even.
+TEST_P(FusionParityTest, FixRoundAffine) {
+    e.eval("x = reshape(linspace(-4.5, 4.5, 6000), 2000, 3); a = 1.5; b = 0.25;");
+    EXPECT_TRUE(sameOnOff(e, "fix(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "round(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "round(x - b)"));         // ShiftSub
+    EXPECT_TRUE(sameOnOff(e, "fix(x ./ 2)"));          // div-inner
+    EXPECT_TRUE(sameOnOff(e, "round(x ./ 2)"));
+    // ties go half-away: round(0.5)=1, round(2.5)=3 (not round-even's 0/2).
+    e.eval("t = [-2.5; -1.5; -0.5; 0.5; 1.5; 2.5]; tt = repmat(t, 1024, 1);");
+    EXPECT_TRUE(sameOnOff(e, "round(1 .* tt + 0)"));
+    e.eval("yr = round(1 .* tt + 0);");
+    EXPECT_EQ(e.eval("yr(4)").toScalar(), 1.0);        // round(0.5) = 1
+    EXPECT_EQ(e.eval("yr(6)").toScalar(), 3.0);        // round(2.5) = 3
+    EXPECT_EQ(e.eval("yr(1)").toScalar(), -3.0);       // round(-2.5) = -3
+}
+
+TEST_P(FusionParityTest, FixRoundNaNInf) {
+    e.eval("x = [linspace(-3,3,5998)'; NaN; Inf; -Inf]; a = 2; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "fix(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "round(a .* x + b)"));
+}
+
 // Broadened inner spellings: bare shift `f(x±c)` and bare product `f(a.*x)`.
 TEST_P(FusionParityTest, UnaryAffineBroadInner) {
     e.eval("x = reshape(linspace(1,5,6000),2000,3); c = 0.5; a = 2;");
@@ -1021,4 +1045,11 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerSqrtAffineSpeedup) {
 }
 TEST(FusionFiringProbe, DISABLED_VMSqrtAffineSpeedup) {
     probeSqrtAffine(numkit::Engine::Backend::VM, "VM");
+}
+
+// round-affine `round(a.*x+b)` — cheap op, memory-bound, so a clear speedup.
+TEST(FusionFiringProbe, DISABLED_VMRoundAffineSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM round-affine",
+               "x = rand(3048*3816,1)*100 - 50; a = 1.5; b = 0.25;",
+               "round(a .* x + b)");
 }

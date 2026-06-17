@@ -91,6 +91,12 @@ void fusedUnaryAffine(const double *x, double scale, double offset,
         case UnaryAffineFn::Ceil:
             for (std::size_t i = 0; i < n; ++i) out[i] = std::ceil(scale * x[i] + offset);
             break;
+        case UnaryAffineFn::Fix:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::trunc(scale * x[i] + offset);
+            break;
+        case UnaryAffineFn::Round:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::round(scale * x[i] + offset);
+            break;
     }
 }
 
@@ -105,6 +111,12 @@ void fusedUnaryShiftDiv(const double *x, double sub, double div,
             break;
         case UnaryAffineFn::Ceil:
             for (std::size_t i = 0; i < n; ++i) out[i] = std::ceil((x[i] - sub) / div);
+            break;
+        case UnaryAffineFn::Fix:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::trunc((x[i] - sub) / div);
+            break;
+        case UnaryAffineFn::Round:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::round((x[i] - sub) / div);
             break;
     }
 }

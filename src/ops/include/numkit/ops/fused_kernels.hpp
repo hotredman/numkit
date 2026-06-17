@@ -92,8 +92,11 @@ void fusedAbsShiftDiv(const double *x, double sub, double div,
 // (exp/log/sin… are NOT here: Highway's polynomial differs from libm by a few
 // ULP, so they'd only match if the per-op tail-vs-SIMD split were reproduced.)
 // Sqrt's negative-input domain (where MATLAB promotes to complex) is handled by
-// the caller, which declines before invoking this kernel.
-enum class UnaryAffineFn { Sqrt, Floor, Ceil };
+// the caller, which declines before invoking this kernel. Fix is hn::Trunc
+// (toward zero, exact); Round is round-half-away-from-zero computed as
+// Trunc(v + CopySign(0.5, v)) — NOT hn::Round (which is round-to-nearest-even,
+// the wrong tie rule for MATLAB) — mirroring numkit's RoundLoop bit-for-bit.
+enum class UnaryAffineFn { Sqrt, Floor, Ceil, Fix, Round };
 void fusedUnaryAffine(const double *x, double scale, double offset,
                       UnaryAffineFn fn, double *out, std::size_t n);
 
