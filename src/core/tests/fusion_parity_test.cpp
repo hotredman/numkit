@@ -760,6 +760,49 @@ TEST_P(FusionParityTest, ComplexCoeffRealArrayFallsBack) {
     EXPECT_TRUE(e.eval("~isreal(ca .* x + 1)").toBool());
 }
 
+// ---- complex inputs: unary (sqrt) + transcendentals -----------------------
+// sqrt(z) = std::sqrt(z); transcendentals mirror numkit's complex op per fn
+// (std::F(z); log2 = log(z)/log(2); log1p = log(1+z)). Complex is total — no
+// domain declines. Product-kind inner only (shift/neg kinds decline on complex).
+TEST_P(FusionParityTest, ComplexUnaryTrans) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + "
+           "1i*reshape(linspace(2,-5,6000),2000,3); "
+           "a = 1.5; b = 0.5; ca = 1+1i; d = 2.5;");
+    EXPECT_TRUE(sameOnOff(e, "sqrt(a .* z + b)"));   // Product-kind complex sqrt
+    EXPECT_TRUE(sameOnOff(e, "sqrt(ca .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "sqrt(z ./ d)"));        // div-inner
+    EXPECT_TRUE(sameOnOff(e, "exp(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "log(ca .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "log2(a .* z + b)"));    // log(z)/log(2)
+    EXPECT_TRUE(sameOnOff(e, "log10(a .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "log1p(a .* z + b)"));   // log(1+z)
+    EXPECT_TRUE(sameOnOff(e, "sin(a .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "cos(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "tan(a .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "tanh(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "sinh(a .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "cosh(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "atan(a .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "asinh(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "asin(a .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "acos(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "acosh(ca .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "atanh(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "exp(z ./ d)"));          // div-inner trans
+    EXPECT_TRUE(sameOnOff(e, "log((z - ca) ./ d)"));
+    EXPECT_TRUE(e.eval("~isreal(exp(a .* z + b))").toBool());
+}
+
+// NaN/Inf through the complex transcendentals (std::F(complex) handles them; the
+// fused kernel calls the same std::F, so identical).
+TEST_P(FusionParityTest, ComplexTransNaNInf) {
+    e.eval("z = [linspace(-2,2,5998)'; NaN; Inf] + "
+           "1i*[linspace(1,-1,5998)'; 1; 2]; a = 1; b = 0;");
+    EXPECT_TRUE(sameOnOff(e, "exp(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "sin(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "sqrt(a .* z + b)"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -1132,4 +1175,24 @@ TEST(FusionFiringProbe, DISABLED_VMComplexAffineSpeedup) {
     std::printf("[fusion] VM complex-affine 11.6M: fusion-off %.2f ms, fusion-on "
                 "%.2f ms (%.2fx)\n", off, on, off / on);
     EXPECT_LT(on, off * 0.95);  // temp-elim win (scalar std::complex, no SIMD)
+}
+
+// complex sqrt(ca.*z) — scalar std::complex unary; eliminates the ca.*z temp.
+TEST(FusionFiringProbe, DISABLED_VMComplexSqrtSpeedup) {
+    numkit::StandardEngine e;
+    e.setBackend(numkit::Engine::Backend::VM);
+    e.eval("z = rand(3048*3816,1) + 1i*rand(3048*3816,1); ca = 1+2i;");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = sqrt(ca .* z);");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = sqrt(ca .* z);");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] VM complex-sqrt 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", off, on, off / on);
+    EXPECT_LT(on, off * 0.99);  // temp-elim (compute-bound on std::sqrt(complex))
 }

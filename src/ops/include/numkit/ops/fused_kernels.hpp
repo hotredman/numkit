@@ -183,4 +183,20 @@ void fusedShiftScaleDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n);
 void fusedSqAffineCx(const Cx *x, Cx scale, Cx offset, Cx *out, std::size_t n);
 void fusedSqDiffCx(const Cx *x, const Cx *y, Cx *out, std::size_t n);
 
+// sqrt of a complex affine / divide-inner: std::sqrt(scale*x+offset) /
+// std::sqrt((x-sub)/div). Only sqrt is meaningful on complex in the unary
+// family — floor/ceil/fix/round on complex are declined upstream (numkit's
+// per-op rounding path is real-only).
+void fusedSqrtAffineCx(const Cx *x, Cx scale, Cx offset, Cx *out, std::size_t n);
+void fusedSqrtShiftDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n);
+
+// transcendental of a complex affine / divide-inner: f(scale*x+offset) /
+// f((x-sub)/div), mirroring numkit's complex op per fn — mostly std::F(z), with
+// log2 = log(z)/log(2), log1p = log(1+z). Expm1 is real-only in numkit, so it is
+// declined upstream (never reaches here).
+void fusedTransAffineCx(const Cx *x, Cx scale, Cx offset, TransAffineFn fn,
+                        Cx *out, std::size_t n);
+void fusedTransShiftDivCx(const Cx *x, Cx sub, Cx div, TransAffineFn fn,
+                          Cx *out, std::size_t n);
+
 } // namespace numkit::ops

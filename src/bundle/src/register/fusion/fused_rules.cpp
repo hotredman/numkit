@@ -765,6 +765,32 @@ bool bindDivInner(const Value *ops, std::size_t n, double &sub, double &div,
     return false;
 }
 
+// Complex counterpart of bindDivInner. Only the array-on-the-left forms (z./d,
+// (z-c)./d) are taken; the reversed (c-z)./d is declined for complex (it would
+// rely on complex-division negation symmetry — per-op handles it). The subtract
+// and divide are genuine (no spurious mul-by-1), so they mirror per-op exactly.
+bool bindDivInnerCx(const Value *ops, std::size_t n, Complex &sub, Complex &div,
+                    const Value *&x) {
+    if (n == 3) {
+        const Value &A = ops[0], &B = ops[1], &d = ops[2];
+        Complex cb, cd;
+        if (isFusibleComplexArray(A) && asComplexScalar(B, cb) &&
+            asComplexScalar(d, cd)) {
+            x = &A; sub = cb; div = cd; return true;
+        }
+        return false;
+    }
+    if (n == 2) {
+        const Value &X = ops[0], &d = ops[1];
+        Complex cd;
+        if (isFusibleComplexArray(X) && asComplexScalar(d, cd)) {
+            x = &X; sub = Complex(0.0, 0.0); div = cd; return true;
+        }
+        return false;
+    }
+    return false;
+}
+
 // Any (x[i]-sub)/div < 0 — the decline predicate for sqrt/log of a div-inner.
 bool shiftDivAnyNegative(const double *x, double sub, double div, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i)
@@ -830,16 +856,29 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
                      numkit::ops::UnaryAffineFn fn) {
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
-    const std::size_t N = x->numel();
-    if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
-        affineAnyNegative(x->doubleData(), scale, offset, N))
-        return false;  // → complex per-op path
-
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedUnaryAffine(x->doubleData(), scale, offset, fn,
-                          out.doubleDataMut(), N);
-    return true;
+    if (bindInner(ops, n, kind, scale, offset, x)) {
+        const std::size_t N = x->numel();
+        if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
+            affineAnyNegative(x->doubleData(), scale, offset, N))
+            return false;  // negative real → complex per-op path
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedUnaryAffine(x->doubleData(), scale, offset, fn,
+                              out.doubleDataMut(), N);
+        return true;
+    }
+    // complex array: only sqrt (std::sqrt(z), total — no domain decline);
+    // floor/ceil/fix/round on complex are declined → per-op.
+    if (fn == numkit::ops::UnaryAffineFn::Sqrt) {
+        Complex cscale, coffset;
+        const Value *cx = nullptr;
+        if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {
+            out = ops::createLike(*cx, ValueType::COMPLEX, mr);
+            ops::fusedSqrtAffineCx(cx->complexData(), cscale, coffset,
+                                   out.complexDataMut(), cx->numel());
+            return true;
+        }
+    }
+    return false;
 }
 
 // f((x-sub)/div) for f ∈ {sqrt, floor, ceil}. sqrt declines on a negative inner.
@@ -847,14 +886,27 @@ bool execUnaryDiv(const Value *ops, std::size_t n, Value &out,
                   std::pmr::memory_resource *mr, numkit::ops::UnaryAffineFn fn) {
     double sub = 0.0, div = 0.0;
     const Value *x = nullptr;
-    if (!bindDivInner(ops, n, sub, div, x)) return false;
-    const std::size_t N = x->numel();
-    if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
-        shiftDivAnyNegative(x->doubleData(), sub, div, N))
-        return false;
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedUnaryShiftDiv(x->doubleData(), sub, div, fn, out.doubleDataMut(), N);
-    return true;
+    if (bindDivInner(ops, n, sub, div, x)) {
+        const std::size_t N = x->numel();
+        if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
+            shiftDivAnyNegative(x->doubleData(), sub, div, N))
+            return false;
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedUnaryShiftDiv(x->doubleData(), sub, div, fn,
+                                out.doubleDataMut(), N);
+        return true;
+    }
+    if (fn == numkit::ops::UnaryAffineFn::Sqrt) {     // complex sqrt(z./d / (z-c)./d)
+        Complex csub, cdiv;
+        const Value *cx = nullptr;
+        if (bindDivInnerCx(ops, n, csub, cdiv, cx)) {
+            out = ops::createLike(*cx, ValueType::COMPLEX, mr);
+            ops::fusedSqrtShiftDivCx(cx->complexData(), csub, cdiv,
+                                     out.complexDataMut(), cx->numel());
+            return true;
+        }
+    }
+    return false;
 }
 
 // ---- square / magnitude:  (a.*x±b).^2,  (x-y).^2,  sqrt(x.^2+y.^2) ------
@@ -1111,15 +1163,28 @@ bool execTransAffine(const Value *ops, std::size_t n, Value &out,
                      numkit::ops::TransAffineFn fn) {
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
-    if (transDomainRestricted(fn) &&
-        affineAnyOutsideDomain(fn, scale, offset, x->doubleData(), x->numel()))
-        return false;  // outside real domain → MATLAB complex; per-op handles it
-
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedTransAffine(x->doubleData(), scale, offset, fn,
-                          out.doubleDataMut(), x->numel());
-    return true;
+    if (bindInner(ops, n, kind, scale, offset, x)) {
+        if (transDomainRestricted(fn) &&
+            affineAnyOutsideDomain(fn, scale, offset, x->doubleData(), x->numel()))
+            return false;  // outside real domain → MATLAB complex; per-op handles it
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedTransAffine(x->doubleData(), scale, offset, fn,
+                              out.doubleDataMut(), x->numel());
+        return true;
+    }
+    // complex array: f(a.*z ± b). Complex is total (no domain decline). expm1 is
+    // real-only in numkit → declined (per-op).
+    if (fn != numkit::ops::TransAffineFn::Expm1) {
+        Complex cscale, coffset;
+        const Value *cx = nullptr;
+        if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {
+            out = ops::createLike(*cx, ValueType::COMPLEX, mr);
+            ops::fusedTransAffineCx(cx->complexData(), cscale, coffset, fn,
+                                    out.complexDataMut(), cx->numel());
+            return true;
+        }
+    }
+    return false;
 }
 
 // f((x-sub)/div) for a transcendental f. log/log2/log10 decline on a negative
@@ -1128,14 +1193,26 @@ bool execTransDiv(const Value *ops, std::size_t n, Value &out,
                   std::pmr::memory_resource *mr, numkit::ops::TransAffineFn fn) {
     double sub = 0.0, div = 0.0;
     const Value *x = nullptr;
-    if (!bindDivInner(ops, n, sub, div, x)) return false;
-    if (transDomainRestricted(fn) &&
-        shiftDivAnyOutsideDomain(fn, sub, div, x->doubleData(), x->numel()))
-        return false;
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedTransShiftDiv(x->doubleData(), sub, div, fn, out.doubleDataMut(),
-                            x->numel());
-    return true;
+    if (bindDivInner(ops, n, sub, div, x)) {
+        if (transDomainRestricted(fn) &&
+            shiftDivAnyOutsideDomain(fn, sub, div, x->doubleData(), x->numel()))
+            return false;
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedTransShiftDiv(x->doubleData(), sub, div, fn, out.doubleDataMut(),
+                                x->numel());
+        return true;
+    }
+    if (fn != numkit::ops::TransAffineFn::Expm1) {     // complex f(z./d / (z-c)./d)
+        Complex csub, cdiv;
+        const Value *cx = nullptr;
+        if (bindDivInnerCx(ops, n, csub, cdiv, cx)) {
+            out = ops::createLike(*cx, ValueType::COMPLEX, mr);
+            ops::fusedTransShiftDivCx(cx->complexData(), csub, cdiv, fn,
+                                      out.complexDataMut(), cx->numel());
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
