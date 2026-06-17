@@ -94,10 +94,41 @@ void fusedSqrtShiftDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i) out[i] = std::sqrt((x[i] - sub) / div);
 }
 
+// floor/ceil/fix/round on a COMPLEX value apply the scalar rounder to the real
+// and imaginary parts INDEPENDENTLY (MATLAB R2025b; numkit's per-op
+// roundLikeDispatch does Complex(scalar(re), scalar(im)) with the SAME std::
+// functions). Mirrors that exactly → bit-identical to the unfused per-op result.
+// (Sqrt is whole-complex, not component-wise — it has its own kernel.)
+static inline double roundLikeCxScalar(UnaryAffineFn fn, double d) {
+    switch (fn) {
+        case UnaryAffineFn::Floor: return std::floor(d);
+        case UnaryAffineFn::Ceil:  return std::ceil(d);
+        case UnaryAffineFn::Fix:   return std::trunc(d);
+        case UnaryAffineFn::Round: return std::round(d);   // half-away (std::round)
+        case UnaryAffineFn::Sqrt:  break;                  // not a roundLike fn
+    }
+    return d;
+}
+
+void fusedRoundLikeAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
+                            UnaryAffineFn fn, Cx *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const Cx v = cxInner(x[i], scale, offset, affine);
+        out[i] = Cx(roundLikeCxScalar(fn, v.real()), roundLikeCxScalar(fn, v.imag()));
+    }
+}
+
+void fusedRoundLikeShiftDivCx(const Cx *x, Cx sub, Cx div, UnaryAffineFn fn,
+                              Cx *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const Cx v = (x[i] - sub) / div;
+        out[i] = Cx(roundLikeCxScalar(fn, v.real()), roundLikeCxScalar(fn, v.imag()));
+    }
+}
+
 // Per-element complex transcendental, mirroring numkit's complex op for each fn
 // (the complexOp lambdas in trig/exp_log): mostly std::F(z); log2 = log(z)/log2,
-// log1p = log(1+z). Expm1 is real-only in numkit (declined upstream) so it never
-// reaches here — mapped to identity defensively.
+// log1p = log(1+z), expm1 = exp(z)-1 (matches the per-op complex expm1).
 static inline Cx transCxApply(TransAffineFn fn, Cx v) {
     switch (fn) {
         case TransAffineFn::Exp:   return std::exp(v);
@@ -117,7 +148,7 @@ static inline Cx transCxApply(TransAffineFn fn, Cx v) {
         case TransAffineFn::Acos:  return std::acos(v);
         case TransAffineFn::Acosh: return std::acosh(v);
         case TransAffineFn::Atanh: return std::atanh(v);
-        case TransAffineFn::Expm1: return v;  // unreachable (declined upstream)
+        case TransAffineFn::Expm1: return std::exp(v) - 1.0;  // exp(z)-1 (per-op match)
     }
     return v;
 }

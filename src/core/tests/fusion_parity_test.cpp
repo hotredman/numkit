@@ -793,6 +793,28 @@ TEST_P(FusionParityTest, ComplexUnaryTrans) {
     EXPECT_TRUE(e.eval("~isreal(exp(a .* z + b))").toBool());
 }
 
+// Complex floor/ceil/fix/round (applied component-wise to re+im) and expm1
+// (= exp(z)-1) now fuse — per-op gained complex support (commit b2f30c53), so
+// the fused kernels mirror it bit-for-bit. Fractional re AND im so the rounding
+// is observable on both parts.
+TEST_P(FusionParityTest, ComplexRoundLikeExpm1) {
+    e.eval("z = reshape(linspace(-3.4, 4.6, 6000), 2000, 3) + "
+           "1i*reshape(linspace(2.5, -5.5, 6000), 2000, 3); "
+           "a = 1.5; b = 0.5; ca = 1+1i; d = 2.5;");
+    EXPECT_TRUE(sameOnOff(e, "floor(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "ceil(ca .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "fix(a .* z - b)"));
+    EXPECT_TRUE(sameOnOff(e, "round(a .* z + b)"));      // half-away, component-wise
+    EXPECT_TRUE(sameOnOff(e, "floor(z ./ d)"));          // div-inner
+    EXPECT_TRUE(sameOnOff(e, "round((z - ca) ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "expm1(a .* z + b)"));       // exp(z)-1
+    EXPECT_TRUE(sameOnOff(e, "expm1(ca .* z)"));
+    EXPECT_TRUE(sameOnOff(e, "expm1(z ./ d)"));           // div-inner
+    // component-wise rounding keeps the imaginary part → result stays complex
+    EXPECT_TRUE(e.eval("~isreal(floor(a .* z + b))").toBool());
+    EXPECT_TRUE(e.eval("~isreal(expm1(a .* z + b))").toBool());
+}
+
 // Complex shift/neg inner kinds: f(z±c), f(c-z), f(-z), (z+c).^2, abs(-z) — the
 // inner is a genuine add/negate (scale ±1), NOT a complex mul by (±1+0i). sqrt/
 // trans take all inner kinds; sq/abs take ShiftAdd/NegLeaf (ShiftSub → the _diff

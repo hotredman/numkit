@@ -921,16 +921,21 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
                               out.doubleDataMut(), N);
         return true;
     }
-    // complex array: only sqrt (std::sqrt(z), total — no domain decline);
-    // floor/ceil/fix/round on complex are declined → per-op.
-    if (fn == numkit::ops::UnaryAffineFn::Sqrt) {
+    // complex array: sqrt → whole-complex std::sqrt (total, no domain decline);
+    // floor/ceil/fix/round → component-wise (numkit's per-op complex rounding).
+    {
         Complex cscale, coffset;
         bool affine = false;
         const Value *cx = nullptr;
         if (bindInnerCx(ops, n, kind, cscale, coffset, affine, cx)) {
             out = ops::createLike(*cx, ValueType::COMPLEX, mr);
-            ops::fusedSqrtAffineCx(cx->complexData(), cscale, coffset, affine,
-                                   out.complexDataMut(), cx->numel());
+            if (fn == numkit::ops::UnaryAffineFn::Sqrt)
+                ops::fusedSqrtAffineCx(cx->complexData(), cscale, coffset, affine,
+                                       out.complexDataMut(), cx->numel());
+            else
+                ops::fusedRoundLikeAffineCx(cx->complexData(), cscale, coffset,
+                                            affine, fn, out.complexDataMut(),
+                                            cx->numel());
             return true;
         }
     }
@@ -952,13 +957,17 @@ bool execUnaryDiv(const Value *ops, std::size_t n, Value &out,
                                 out.doubleDataMut(), N);
         return true;
     }
-    if (fn == numkit::ops::UnaryAffineFn::Sqrt) {     // complex sqrt(z./d / (z-c)./d)
+    {     // complex sqrt(z./d) (whole-complex) / floor/ceil/fix/round (component-wise)
         Complex csub, cdiv;
         const Value *cx = nullptr;
         if (bindDivInnerCx(ops, n, csub, cdiv, cx)) {
             out = ops::createLike(*cx, ValueType::COMPLEX, mr);
-            ops::fusedSqrtShiftDivCx(cx->complexData(), csub, cdiv,
-                                     out.complexDataMut(), cx->numel());
+            if (fn == numkit::ops::UnaryAffineFn::Sqrt)
+                ops::fusedSqrtShiftDivCx(cx->complexData(), csub, cdiv,
+                                         out.complexDataMut(), cx->numel());
+            else
+                ops::fusedRoundLikeShiftDivCx(cx->complexData(), csub, cdiv, fn,
+                                              out.complexDataMut(), cx->numel());
             return true;
         }
     }
@@ -1279,9 +1288,9 @@ bool execTransAffine(const Value *ops, std::size_t n, Value &out,
                               out.doubleDataMut(), x->numel());
         return true;
     }
-    // complex array: f(a.*z ± b). Complex is total (no domain decline). expm1 is
-    // real-only in numkit → declined (per-op).
-    if (fn != numkit::ops::TransAffineFn::Expm1) {
+    // complex array: f(a.*z ± b). Complex is total (no domain decline); expm1
+    // (= exp(z)-1) is now supported per-op, so it fuses like the rest.
+    {
         Complex cscale, coffset;
         bool affine = false;
         const Value *cx = nullptr;
@@ -1310,7 +1319,7 @@ bool execTransDiv(const Value *ops, std::size_t n, Value &out,
                                 x->numel());
         return true;
     }
-    if (fn != numkit::ops::TransAffineFn::Expm1) {     // complex f(z./d / (z-c)./d)
+    {     // complex f(z./d) / f((z-c)./d) — total, incl. expm1 = exp(z)-1
         Complex csub, cdiv;
         const Value *cx = nullptr;
         if (bindDivInnerCx(ops, n, csub, cdiv, cx)) {
