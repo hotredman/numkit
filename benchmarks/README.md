@@ -58,11 +58,22 @@ Hand-run `.m` scripts that measure performance from the language side
 | `benchmark_simd.m` | vectorised library functions (abs/sin/cos/exp/log, `+ - .* ./`) |
 | `benchmark_simd_inplace.m` | same kernels writing a pre-allocated buffer via `z(:) = rhs` |
 | `benchmark_grow.m` | incremental array-grow patterns |
+| `iir_filter_ref.m` | **cross-engine** biquad loop + `filter()` — portable (no `import`), run the same file in MATLAB / Octave / numkit to compare the scalar-loop cost. Companion to `interpreter/iir_filter_bench.cpp`. |
 
 Run with the smoke runner (each starts with `clear`):
 
 ```sh
 build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/m/benchmark_interp.m
+```
+
+Most use `import compat.*` and so are numkit-only. The exception is
+`iir_filter_ref.m`, which is deliberately import-free and `try/catch`-guards
+`filter()`, so the identical file runs in MATLAB / Octave / numkit:
+
+```sh
+matlab -batch "run('benchmarks/m/iir_filter_ref.m')"   # ~3.9 ns/sample (JIT)
+octave-cli benchmarks/m/iir_filter_ref.m
+build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/m/iir_filter_ref.m  # ~150
 ```
 
 The interpreter-overhead theme of `benchmark_interp.m` is being migrated into
