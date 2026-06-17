@@ -701,6 +701,65 @@ TEST_P(FusionParityTest, DivInnerSqAbsClampNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "min(1, max(0, (x - c) ./ d))"));
 }
 
+// ---- complex inputs: arithmetic (affine / axpby / shift-scale / sq) -------
+// Fusion fires when the ARRAY is complex; scalar coefficients may be real or
+// complex. The complex kernels are scalar std::complex loops that mirror
+// numkit's per-op std::complex composition bit-for-bit (real coeff a → the FULL
+// complex mul Complex(a,0)*z, exactly as numkit's promoteToComplex path).
+TEST_P(FusionParityTest, ComplexAffine) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + "
+           "1i*reshape(linspace(2,-5,6000),2000,3); "
+           "a = 2.5; b = -0.75; ca = 1+2i; cb = 0.5-1i;");
+    EXPECT_TRUE(sameOnOff(e, "a .* z + b"));        // real coeffs, complex array
+    EXPECT_TRUE(sameOnOff(e, "z .* a + b"));
+    EXPECT_TRUE(sameOnOff(e, "ca .* z + cb"));      // complex coeffs
+    EXPECT_TRUE(sameOnOff(e, "a .* z - b"));
+    EXPECT_TRUE(sameOnOff(e, "cb + ca .* z"));      // commuted
+    EXPECT_TRUE(sameOnOff(e, "cb - ca .* z"));      // negprod: c - a.*z
+    EXPECT_TRUE(e.eval("~isreal(ca .* z + cb)").toBool());
+}
+
+TEST_P(FusionParityTest, ComplexAxpby) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + 1i*reshape(linspace(1,-2,6000),2000,3); "
+           "w = reshape(linspace(2,-5,6000),2000,3) + 1i*reshape(linspace(-1,3,6000),2000,3); "
+           "a = 0.25; b = 0.75; ca = 1+1i; cb = 2-1i;");
+    EXPECT_TRUE(sameOnOff(e, "a .* z + b .* w"));    // both products complex
+    EXPECT_TRUE(sameOnOff(e, "ca .* z - cb .* w"));
+    EXPECT_TRUE(sameOnOff(e, "z + b .* w"));         // implicit a=1
+    EXPECT_TRUE(sameOnOff(e, "z - cb .* w"));         // negprod, array leaf
+}
+
+TEST_P(FusionParityTest, ComplexShiftScaleSq) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + 1i*reshape(linspace(2,-5,6000),2000,3); "
+           "w = reshape(linspace(1,-1,6000),2000,3) + 1i*reshape(linspace(-2,2,6000),2000,3); "
+           "c = 0.5; s = 2.5; cc = 1+1i; cs = 0.5-0.5i; a = 1.5; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "(z - c) .* s"));
+    EXPECT_TRUE(sameOnOff(e, "(z - cc) ./ cs"));
+    EXPECT_TRUE(sameOnOff(e, "(z - c) ./ s"));
+    EXPECT_TRUE(sameOnOff(e, "(a .* z + b) .^ 2"));   // Product-kind complex sq
+    EXPECT_TRUE(sameOnOff(e, "(cc .* z) .^ 2"));       // bare product
+    EXPECT_TRUE(sameOnOff(e, "(z - w) .^ 2"));         // two-array complex sq-diff
+}
+
+// NaN/Inf: numkit promotes a real coeff to Complex(a,0) and does the FULL
+// complex multiply, so inf*0=NaN appears — both fused and per-op the same way.
+TEST_P(FusionParityTest, ComplexArithNaNInf) {
+    e.eval("z = [linspace(-2,2,5997)'; NaN; Inf; -Inf] + "
+           "1i*[linspace(1,-1,5997)'; 1; Inf; 2]; a = 1.5; b = 0.5; ca = 1+1i;");
+    EXPECT_TRUE(sameOnOff(e, "a .* z + b"));
+    EXPECT_TRUE(sameOnOff(e, "ca .* z + b"));
+    EXPECT_TRUE(sameOnOff(e, "(a .* z + b) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "(z - ca) .* a"));
+}
+
+// Real-array + complex coefficient is NOT fused (declines → per-op promotes the
+// array); still identical fused vs unfused.
+TEST_P(FusionParityTest, ComplexCoeffRealArrayFallsBack) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); ca = 1+2i;");
+    EXPECT_TRUE(sameOnOff(e, "ca .* x + 1"));
+    EXPECT_TRUE(e.eval("~isreal(ca .* x + 1)").toBool());
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -1052,4 +1111,25 @@ TEST(FusionFiringProbe, DISABLED_VMRoundAffineSpeedup) {
     probeFused(numkit::Engine::Backend::VM, "VM round-affine",
                "x = rand(3048*3816,1)*100 - 50; a = 1.5; b = 0.25;",
                "round(a .* x + b)");
+}
+
+// complex affine `ca.*z+cb` — scalar std::complex loop (no SIMD), so the win is
+// temp elimination over 16-byte complex elements (memory-bound).
+TEST(FusionFiringProbe, DISABLED_VMComplexAffineSpeedup) {
+    numkit::StandardEngine e;
+    e.setBackend(numkit::Engine::Backend::VM);
+    e.eval("z = rand(3048*3816,1) + 1i*rand(3048*3816,1); ca = 1+2i; cb = 0.5-1i;");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = ca .* z + cb;");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = ca .* z + cb;");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] VM complex-affine 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", off, on, off / on);
+    EXPECT_LT(on, off * 0.95);  // temp-elim win (scalar std::complex, no SIMD)
 }

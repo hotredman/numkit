@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <complex>
 #include <cstddef>
 
 namespace numkit::ops {
@@ -158,5 +159,28 @@ void fusedTransAffine(const double *x, double scale, double offset,
 // f((x-c)./d)) of fusedTransAffine. Same mirror-the-numkit-loop discipline.
 void fusedTransShiftDiv(const double *x, double sub, double div,
                         TransAffineFn fn, double *out, std::size_t n);
+
+// ---- complex-input kernels ---------------------------------------------
+// When the array operand is complex, fusion routes here. These are scalar
+// std::complex<double> loops (Highway has no complex transcendentals, and
+// numkit's per-op complex path is itself scalar std::complex), so each kernel
+// mirrors numkit's per-op composition with the SAME std::complex operators /
+// std:: functions on the SAME compiler — bit-identical by construction. They
+// still eliminate the intermediate temporaries (the DRAM-traffic win), just
+// without SIMD. `out` may alias `x`. Complex is "total" — no domain declines.
+using Cx = std::complex<double>;
+
+// out[i] = scale*x[i] + offset (mirrors `a.*z` then `+b`).
+void fusedAffineCx(const Cx *x, Cx scale, Cx offset, Cx *out, std::size_t n);
+// out[i] = a*x[i] + b*y[i].
+void fusedAxpbyCx(const Cx *x, Cx a, const Cx *y, Cx b, Cx *out, std::size_t n);
+// out[i] = (x[i] - sub) * mul  /  (x[i] - sub) / div.
+void fusedShiftScaleMulCx(const Cx *x, Cx sub, Cx mul, Cx *out, std::size_t n);
+void fusedShiftScaleDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n);
+// out[i] = std::pow(scale*x[i] + offset, 2). On a COMPLEX base, numkit's `.^2`
+// takes the std::pow branch (the .^2 == z.*z fast-path is real-only), so these
+// mirror std::pow(v, 2) — NOT v*v (they differ for complex).
+void fusedSqAffineCx(const Cx *x, Cx scale, Cx offset, Cx *out, std::size_t n);
+void fusedSqDiffCx(const Cx *x, const Cx *y, Cx *out, std::size_t n);
 
 } // namespace numkit::ops
