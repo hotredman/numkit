@@ -11,6 +11,8 @@
 //   affine_sub  (a.*x) - b            → fusedAffine(x, a, -b)
 //   axpby_add   (a.*x) + (b.*y)       → fusedAxpby(x, a, y, +b)
 //   axpby_sub   (a.*x) - (b.*y)       → fusedAxpby(x, a, y, -b)
+//   (affine_add/sub also fuse the implicit-1 forms a.*x±y / x±b.*y → fusedAxpby
+//    with coeff 1; negprod handles `leaf - prod`: x - b.*y and c - a.*x.)
 //   shift_scale_mul  (x-c).*s / s.*(x-c) → fusedShiftScaleMul(x, c, s)
 //   shift_scale_div  (x-c)./d           → fusedShiftScaleDiv(x, c, d)
 //   affine_clamp[_min_outer]  max/min(.. <inner> ..) → fusedAffineClamp[MinOuter]
@@ -203,25 +205,33 @@ std::optional<std::vector<const ASTNode *>> matchAffineSub(const ASTNode *node) 
                                         prod->children[1].get(), b};
 }
 
-// Shared executor. operands = [c0, c1, b]; the matched expression is
-// (c0 ⊗ c1) ⊕ b. `bSign` carries the additive operator (+1 add, -1 sub).
-// offset = bSign*b is exact (multiply by ±1.0 does not round), and
-// scale*x + offset matches per-op `a.*x ± b` bit-for-bit (negation and
-// add/sub are the same exact IEEE op, both round twice overall).
+// Shared executor. operands = [c0, c1, leaf]; the matched expression is
+// (c0 ⊗ c1) ⊕ leaf, ⊕ carrying `bSign` (+1 add, -1 sub). The trailing leaf is
+// either a real-double scalar (→ affine offset `a.*x ± b`) or a same-shape
+// real-double array (→ implicit-coefficient-1 axpby `a.*x ± y`). offset =
+// bSign*leaf and the y-coefficient bSign*1.0 are both exact (×±1 does not
+// round), so each path is bit-identical to its per-op spelling (negation and
+// add/sub are the same exact IEEE op, both rounding twice overall).
 bool execAffine(const Value *ops, std::size_t n, Value &out,
                 std::pmr::memory_resource *mr, double bSign) {
     if (n != 3) return false;
-    const Value &b = ops[2];
-    if (!isRealDoubleScalar(b)) return false;
     double scale = 0.0;
     const Value *x = nullptr;
     if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
-    const double offset = bSign * b.toScalar();
-
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedAffine(x->doubleData(), scale, offset, out.doubleDataMut(),
-                     x->numel());
-    return true;
+    const Value &leaf = ops[2];
+    if (isRealDoubleScalar(leaf)) {                  // a.*x ± b → affine
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedAffine(x->doubleData(), scale, bSign * leaf.toScalar(),
+                         out.doubleDataMut(), x->numel());
+        return true;
+    }
+    if (isFusibleArray(leaf) && leaf.dims() == x->dims()) {  // a.*x ± y → axpby
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedAxpby(x->doubleData(), scale, leaf.doubleData(), bSign * 1.0,
+                        out.doubleDataMut(), x->numel());
+        return true;
+    }
+    return false;
 }
 
 // ---- axpby:  (a.*x) ± (b.*y)  →  fusedAxpby(x, a, y, ±b) -----------------
@@ -257,6 +267,49 @@ bool execAxpby(const Value *ops, std::size_t n, Value &out,
     ops::fusedAxpby(x->doubleData(), a, y->doubleData(), bSign * b,
                     out.doubleDataMut(), x->numel());
     return true;
+}
+
+// ---- axpby implicit-1 (subtractive `leaf - prod`):  x - b.*y / c - a.*x --
+// `prod - leaf` is affine_sub's shape (left = product); the reverse `leaf -
+// prod` (left = a pure leaf) is unmatched by it, so this rule owns it. The
+// trailing product is a.*y; the leading leaf is either a same-shape array
+// (→ `x - b.*y` = axpby(x, 1, y, -b)) or a real scalar (→ `c - a.*x`, the
+// negated-scale affine fusedAffine(x, -a, c) — the recipe affine_sub defers).
+// `prod - prod` stays with axpby_sub (a product is not a pure leaf → declines).
+std::optional<std::vector<const ASTNode *>> matchNegProd(const ASTNode *node) {
+    const ASTNode *sub = asBinOp(node, "-");
+    if (!sub) return std::nullopt;
+    const ASTNode *leaf = sub->children[0].get();
+    const ASTNode *prod = asPureProduct(sub->children[1].get());
+    if (!isPureLeaf(leaf) || !prod) return std::nullopt;
+    return std::vector<const ASTNode *>{leaf, prod->children[0].get(),
+                                        prod->children[1].get()};
+}
+
+// operands = [leaf, pc0, pc1]; expr = leaf - (pc0 ⊗ pc1). Bind the product →
+// (coef, p). leaf scalar → `c - a.*x` = fusedAffine(p, -coef, c); leaf same-
+// shape array → `x - b.*y` = fusedAxpby(leaf, 1, p, -coef). Both exact: (-a)*x
+// == -(a*x), and c + (-(a*x)) == c - a*x (IEEE add commutes bit-for-bit).
+bool execNegProd(const Value *ops, std::size_t n, Value &out,
+                 std::pmr::memory_resource *mr) {
+    if (n != 3) return false;
+    double coef = 0.0;
+    const Value *p = nullptr;
+    if (!bindAffineProduct(ops[1], ops[2], coef, p)) return false;
+    const Value &leaf = ops[0];
+    if (isRealDoubleScalar(leaf)) {                  // c - a.*x
+        out = ops::createLike(*p, ValueType::DOUBLE, mr);
+        ops::fusedAffine(p->doubleData(), -coef, leaf.toScalar(),
+                         out.doubleDataMut(), p->numel());
+        return true;
+    }
+    if (isFusibleArray(leaf) && leaf.dims() == p->dims()) {  // x - b.*y
+        out = ops::createLike(leaf, ValueType::DOUBLE, mr);
+        ops::fusedAxpby(leaf.doubleData(), 1.0, p->doubleData(), -coef,
+                        out.doubleDataMut(), leaf.numel());
+        return true;
+    }
+    return false;
 }
 
 // ---- shift-scale:  (x - c) .* s  /  (x - c) ./ d ------------------------
@@ -889,6 +942,13 @@ void registerFusionRules(Engine &engine) {
         return execAxpby(ops, n, out, mr, -1.0);
     };
     engine.addFusionRule(std::move(axpbySub));
+
+    // `leaf - prod`: x - b.*y (implicit-1 axpby) / c - a.*x (negated-scale affine).
+    FusionRule negProd;
+    negProd.name  = "negprod";
+    negProd.match = matchNegProd;
+    negProd.execute = execNegProd;
+    engine.addFusionRule(std::move(negProd));
 
     FusionRule shiftScaleMul;
     shiftScaleMul.name  = "shift_scale_mul";
