@@ -58,6 +58,9 @@ bool isPureLeaf(const ASTNode *n) {
             return true;
         case NodeType::FIELD_ACCESS:  // s.f / a.b.c over a pure root
             return !n->children.empty() && isPureLeaf(n->children[0].get());
+        case NodeType::UNARY_OP:      // -leaf (negation is pure + exact)
+            return n->strValue == "-" && !n->children.empty() &&
+                   isPureLeaf(n->children[0].get());
         default:
             return false;
     }
@@ -436,7 +439,7 @@ bool execAbsDiff(const Value *ops, std::size_t n, Value &out,
 // `x±c` — through one matcher + one decoder, instead of a rule per spelling.
 // Each kind is structurally disjoint (the matcher distinguishes product vs leaf
 // children), so a given inner node matches at most one kind.
-enum class InnerKind { ProductAdd, ProductSub, Product, ShiftAdd, ShiftSub };
+enum class InnerKind { ProductAdd, ProductSub, Product, ShiftAdd, ShiftSub, NegLeaf };
 
 std::optional<std::vector<const ASTNode *>> matchInner(const ASTNode *node,
                                                        InnerKind kind) {
@@ -462,6 +465,13 @@ std::optional<std::vector<const ASTNode *>> matchInner(const ASTNode *node,
             if (!s) return std::nullopt;
             return std::vector<const ASTNode *>{s->children[0].get(),
                                                 s->children[1].get()};
+        }
+        case InnerKind::NegLeaf: {                                   // -x (unary minus)
+            if (node->type != NodeType::UNARY_OP || node->strValue != "-" ||
+                node->children.size() != 1 ||
+                !isPureLeaf(node->children[0].get()))
+                return std::nullopt;
+            return std::vector<const ASTNode *>{node->children[0].get()};
         }
     }
     return std::nullopt;
@@ -499,6 +509,11 @@ bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
             if (isFusibleArray(v) && isRealDoubleScalar(u)) { x = &v; scale = -1.0; offset = u.toScalar();  return true; }
             return false;
         }
+        case InnerKind::NegLeaf: {                  // -x → scale -1, offset 0
+            if (n != 1 || !isFusibleArray(ops[0])) return false;
+            x = &ops[0]; scale = -1.0; offset = 0.0;
+            return true;
+        }
     }
     return false;
 }
@@ -506,7 +521,7 @@ bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
 // All InnerKinds, for registering f(inner) rules across every affine spelling.
 constexpr InnerKind kAllInnerKinds[] = {
     InnerKind::ProductAdd, InnerKind::ProductSub, InnerKind::Product,
-    InnerKind::ShiftAdd, InnerKind::ShiftSub};
+    InnerKind::ShiftAdd, InnerKind::ShiftSub, InnerKind::NegLeaf};
 
 // ---- unary-affine:  f(<inner>),  f ∈ {sqrt, floor, ceil} ---------------
 // A unary whose SIMD form is bit-identical to libm (sqrt correctly-rounded,

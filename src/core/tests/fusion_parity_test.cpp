@@ -426,6 +426,19 @@ TEST_P(FusionParityTest, ExpAffineBroadInner) {
     EXPECT_TRUE(sameOnOff(e, "expm1(x - c)"));
 }
 
+// Unary minus: exp(-k*x) parses as exp((-k)*x) (negated coefficient, via the
+// isPureLeaf `-leaf` extension), exp(-x) is the NegLeaf inner, and `+(-b)` is a
+// negated offset. All bit-exact (negation is exact).
+TEST_P(FusionParityTest, UnaryMinusInner) {
+    e.eval("x = reshape(linspace(-3,3,6000),2000,3); k = 2.5; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "exp(-k * x)"));         // (-k)*x — negated coeff
+    EXPECT_TRUE(sameOnOff(e, "exp(-x)"));             // NegLeaf
+    EXPECT_TRUE(sameOnOff(e, "tanh(-k .* x)"));
+    EXPECT_TRUE(sameOnOff(e, "exp(k .* x + (-b))"));  // negated offset
+    EXPECT_TRUE(sameOnOff(e, "k .* x + (-b)"));       // plain affine, negated offset
+    EXPECT_TRUE(sameOnOff(e, "floor(-x)"));
+}
+
 // log / log2 / log10 of a (positive) affine. n=6001 forces the SIMD tail.
 TEST_P(FusionParityTest, LogAffine) {
     e.eval("x = linspace(0.1, 5, 6001)'; a = 1.5; b = 0.3;");  // affine > 0
