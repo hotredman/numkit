@@ -1,6 +1,5 @@
 # Auto-grouped from tests/builtin (layer split 2026-06-17). Attaches to numkit_gtest.
 target_sources(numkit_gtest PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/builtins_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cell_struct_numtheory_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/construct_search_batch_test.cpp

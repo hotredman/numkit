@@ -1,11 +1,16 @@
 # Auto-grouped from tests/builtin (layer split 2026-06-17). Attaches to numkit_gtest.
 target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cellstruct_public_api_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/complex_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concat_integer_types_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cummax_cummin_integer_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cumsum_cumprod_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cumulative_logical_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/datenum_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/datevec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/diff_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/diff_order_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/discrete_setops_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eomday_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/find_count_direction_test.cpp
@@ -24,7 +29,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ndmanip_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/now_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/numeric_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/permutations_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/regex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/setops_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/setops_typeclass_test.cpp

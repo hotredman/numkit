@@ -43,12 +43,12 @@ audit any internal `diff(x, 0)` callers first. Validate the error vs MATLAB.
 - Verified vs MATLAB R2025b: `diff(X,0)`, `diff(X,-1)`, `diff(X,1.5)`,
   `diff(X,[1 2])`, `diff(X,Inf)`, `diff(X,NaN)` all error; valid orders
   (`diff(X)`, `diff(X,2)`, `diff(X,n,dim)`, integer + complex) unchanged.
-- Live guard: `tests/math/diff_order_test.cpp` (3 TEST_F) + flipped
+- Live guard: `tests/lang/diff_order_test.cpp` (3 TEST_F) + flipped
   `BuiltinKnownBug.DiffZeroOrderErrors` live; stale
   `CumLogicalTest.DiffOrderZeroReturnsCopy` rewritten to
   `DiffOrderZeroErrors`. Parity: `tools/parity/specs/diff.json` (valid orders
   correctness=OK; error cases noted). Smoke:
-  `tests/math/smoke/diff_order_smoke.m`.
+  `tests/lang/smoke/diff_order_smoke.m`.
 
 ## References
 - `src/lang/src/arrays/matrix.cpp` (diff + diff_reg)
