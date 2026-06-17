@@ -64,4 +64,16 @@ void fusedAbsAffine(const double *x, double scale, double offset,
 // error). Sub then abs (exact) → bit-identical to `abs(x - y)`.
 void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n);
 
+// Unary function applied to an affine: out[i] = f(scale*x[i] + offset).
+// Restricted to the functions whose SIMD form is bit-identical to the scalar
+// libm one — sqrt is correctly-rounded; floor/ceil are exact — so the result
+// matches the per-op `f(a.*x ± b)` regardless of how the array is chunked.
+// (exp/log/sin… are NOT here: Highway's polynomial differs from libm by a few
+// ULP, so they'd only match if the per-op tail-vs-SIMD split were reproduced.)
+// Sqrt's negative-input domain (where MATLAB promotes to complex) is handled by
+// the caller, which declines before invoking this kernel.
+enum class UnaryAffineFn { Sqrt, Floor, Ceil };
+void fusedUnaryAffine(const double *x, double scale, double offset,
+                      UnaryAffineFn fn, double *out, std::size_t n);
+
 } // namespace numkit::ops

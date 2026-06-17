@@ -16,6 +16,7 @@
 //   affine_clamp_*  max(lo,min(hi,a.*x±b)) → fusedAffineClamp(x, a, ±b, lo, hi)
 //   abs_affine_*    abs(a.*x ± b)         → fusedAbsAffine(x, a, ±b)
 //   abs_diff        abs(x - y) / abs(x-c) → fusedAbsDiff / fusedAbsAffine
+//   {sqrt,floor,ceil}_affine_*  f(a.*x ± b) → fusedUnaryAffine(x, a, ±b, fn)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -406,6 +407,57 @@ bool execAbsDiff(const Value *ops, std::size_t n, Value &out,
     return false;
 }
 
+// ---- unary-affine:  f(a.*x ± b),  f ∈ {sqrt, floor, ceil} --------------
+// A unary whose SIMD form is bit-identical to libm (sqrt correctly-rounded,
+// floor/ceil exact) applied to an affine, in one pass. Reuses the affine inner-
+// detection. exp/log/sin… are excluded — Highway's polynomial differs from libm
+// by a few ULP, so they would not be bit-exact across the SIMD/scalar split.
+
+// fname(arg) single-arg call → arg node, else null.
+const ASTNode *unaryCallArg(const ASTNode *node, const char *fname) {
+    const ASTNode *fn = calleeName(node);
+    if (!fn || fn->strValue != fname || node->children.size() != 2) return nullptr;
+    return node->children[1].get();
+}
+
+std::optional<std::vector<const ASTNode *>>
+matchUnaryAffine(const ASTNode *node, const char *fname, bool sub) {
+    const ASTNode *arg = unaryCallArg(node, fname);
+    if (!arg) return std::nullopt;
+    return sub ? matchAffineSub(arg) : matchAffineAdd(arg);  // [c0, c1, b]
+}
+
+// True if any scale*x[i]+offset is < 0 (the affine the kernel will compute).
+// Used to decline sqrt of an affine that goes negative — MATLAB promotes the
+// whole array to complex there, which the per-op fallback reproduces.
+bool affineAnyNegative(const double *x, double scale, double offset,
+                       std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i)
+        if (scale * x[i] + offset < 0.0) return true;
+    return false;
+}
+
+bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
+                     std::pmr::memory_resource *mr, double bSign,
+                     numkit::ops::UnaryAffineFn fn) {
+    if (n != 3) return false;
+    const Value &b = ops[2];
+    if (!isRealDoubleScalar(b)) return false;
+    double scale = 0.0;
+    const Value *x = nullptr;
+    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    const double offset = bSign * b.toScalar();
+    const std::size_t N = x->numel();
+    if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
+        affineAnyNegative(x->doubleData(), scale, offset, N))
+        return false;  // → complex per-op path
+
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedUnaryAffine(x->doubleData(), scale, offset, fn,
+                          out.doubleDataMut(), N);
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -518,6 +570,30 @@ void registerFusionRules(Engine &engine) {
     absDiff.match = matchAbsDiff;
     absDiff.execute = execAbsDiff;
     engine.addFusionRule(std::move(absDiff));
+
+    // unary-affine f(a.*x ± b): one rule per (function, additive sign). The
+    // function-id and ±b sign are baked into the captured execute closure.
+    auto addUnaryAffine = [&engine](const char *name, const char *fname,
+                                    bool sub, double bSign,
+                                    numkit::ops::UnaryAffineFn fn) {
+        FusionRule r;
+        r.name  = name;
+        r.match = [fname, sub](const ASTNode *node) {
+            return matchUnaryAffine(node, fname, sub);
+        };
+        r.execute = [bSign, fn](const Value *ops, std::size_t n, Value &out,
+                                std::pmr::memory_resource *mr) {
+            return execUnaryAffine(ops, n, out, mr, bSign, fn);
+        };
+        engine.addFusionRule(std::move(r));
+    };
+    using UF = numkit::ops::UnaryAffineFn;
+    addUnaryAffine("sqrt_affine_add",  "sqrt",  false, +1.0, UF::Sqrt);
+    addUnaryAffine("sqrt_affine_sub",  "sqrt",  true,  -1.0, UF::Sqrt);
+    addUnaryAffine("floor_affine_add", "floor", false, +1.0, UF::Floor);
+    addUnaryAffine("floor_affine_sub", "floor", true,  -1.0, UF::Floor);
+    addUnaryAffine("ceil_affine_add",  "ceil",  false, +1.0, UF::Ceil);
+    addUnaryAffine("ceil_affine_sub",  "ceil",  true,  -1.0, UF::Ceil);
 }
 
 } // namespace numkit

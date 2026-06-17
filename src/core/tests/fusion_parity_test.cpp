@@ -251,6 +251,43 @@ TEST_P(FusionParityTest, AbsDiffShapeMismatchFallsBack) {
     EXPECT_TRUE(sameOnOff(e, "abs(x - y)"));
 }
 
+// ---- unary-affine: f(a.*x ± b), f ∈ {sqrt, floor, ceil} ----------------
+
+TEST_P(FusionParityTest, SqrtAffineNonNegative) {
+    e.eval("x = reshape(linspace(1,5,6000),2000,3); a = 2; b = 3;");  // affine in [5,13]
+    EXPECT_TRUE(sameOnOff(e, "sqrt(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "sqrt(x .* a + b)"));
+    e.eval("y = sqrt(a .* x + b);");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), std::sqrt(2.0 * 1.0 + 3.0), 1e-12);
+}
+
+// Negative affine → MATLAB promotes to complex; fusion must decline so the
+// per-op (complex) path runs. fused == unfused (both complex) either way.
+TEST_P(FusionParityTest, SqrtAffineNegativePromotesComplex) {
+    e.eval("x = reshape(linspace(-5,5,6000),2000,3); a = 1; b = 0;");
+    EXPECT_TRUE(sameOnOff(e, "sqrt(a .* x + b)"));
+    e.eval("y = sqrt(a .* x + b);");
+    EXPECT_TRUE(e.eval("~isreal(y)").toBool());  // complex result preserved
+}
+
+TEST_P(FusionParityTest, FloorCeilAffine) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); a = 1.5; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "floor(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "ceil(a .* x - b)"));
+    e.eval("yf = floor(a .* x + b); yc = ceil(a .* x + b);");
+    EXPECT_NEAR(e.eval("yf(1)").toScalar(), std::floor(1.5 * (-3.0) + 0.5), 1e-12);
+    EXPECT_NEAR(e.eval("yc(1)").toScalar(), std::ceil(1.5 * (-3.0) + 0.5), 1e-12);
+}
+
+// NaN/Inf flow through the real path (all affine values here are ≥ 0, so no
+// complex promotion): sqrt(NaN)=NaN, sqrt(Inf)=Inf, floor/ceil likewise.
+TEST_P(FusionParityTest, UnaryAffineNaNInf) {
+    e.eval("x = [linspace(1,5,5997)'; NaN; Inf; 2]; a = 2; b = 1;");
+    EXPECT_TRUE(sameOnOff(e, "sqrt(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "floor(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "ceil(a .* x + b)"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -427,4 +464,34 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerAbsDiffSpeedup) {
 }
 TEST(FusionFiringProbe, DISABLED_VMAbsDiffSpeedup) {
     probeAbsDiff(numkit::Engine::Backend::VM, "VM");
+}
+
+// unary-affine `sqrt(a.*x+b)` (affine all-positive): fusion collapses the affine
+// temporary + the sqrt pass into one. Confirms the unary-affine kernel fires.
+namespace {
+void probeSqrtAffine(numkit::Engine::Backend backend, const char *tag) {
+    numkit::StandardEngine e;
+    e.setBackend(backend);
+    e.eval("x = rand(3048*3816, 1) * 4 + 1; a = 2; b = 0.5;");  // affine in [2.5, 10.5]
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = sqrt(a .* x + b);");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = sqrt(a .* x + b);");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] %s sqrt-affine 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", tag, off, on, off / on);
+    EXPECT_LT(on, off * 0.90);  // fewer passes → faster → it fired
+}
+} // namespace
+
+TEST(FusionFiringProbe, DISABLED_TreeWalkerSqrtAffineSpeedup) {
+    probeSqrtAffine(numkit::Engine::Backend::TreeWalker, "TW");
+}
+TEST(FusionFiringProbe, DISABLED_VMSqrtAffineSpeedup) {
+    probeSqrtAffine(numkit::Engine::Backend::VM, "VM");
 }
