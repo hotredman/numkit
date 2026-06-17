@@ -202,6 +202,16 @@ enum class OpCode : uint8_t {
     POW_SS,  // dst, a, b   (includes integer-exponent fast paths)
     NEG_S,   // dst, src    R[dst] = -R[src].scalar
 
+    // ── Fused multiply-add/sub (loop opt #2): R[a] = R[b] ± R[c]*R[e] ──
+    // Collapses sum-of-products (MAC) chains — filters, polynomials, dot
+    // products — into one opcode. Fast path is all-scalar (two-step double:
+    // prod = c*e; a = b ± prod, so bit-identical to the unfused MUL+ADD/SUB).
+    // Non-scalar operands fall back to the matching product then sum/diff.
+    MULADD,  // a=dst, b=acc, c, e   R[a] = R[b] + R[c]*R[e]   (* matmul fallback)
+    MULSUB,  // a=dst, b=acc, c, e   R[a] = R[b] - R[c]*R[e]
+    EMULADD, // a=dst, b=acc, c, e   R[a] = R[b] + R[c].*R[e]
+    EMULSUB, // a=dst, b=acc, c, e   R[a] = R[b] - R[c].*R[e]
+
     // ── End marker ───────────────────────────────────────────
     HALT, //                        stop execution
 };

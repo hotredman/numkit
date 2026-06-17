@@ -702,6 +702,7 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
             canEliminate = (lastOp >= OpCode::ADD && lastOp <= OpCode::UPLUS)
                            || (lastOp >= OpCode::EMUL && lastOp <= OpCode::EPOW)
                            || (lastOp >= OpCode::ADD_SS && lastOp <= OpCode::NEG_S)
+                           || (lastOp >= OpCode::MULADD && lastOp <= OpCode::EMULSUB)
                            || lastOp == OpCode::CALL_BUILTIN;
         }
 
@@ -1078,6 +1079,30 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
             emitAD(OpCode::LOAD_CONST, dst, idx);
             constRegCache_[idx] = dst;
             scalarRegs_.set(dst);
+            return dst;
+        }
+    }
+
+    // Fused multiply-add/sub (loop opt #2): `acc ± a*b` (the rhs is a product)
+    // → one MULADD/MULSUB opcode instead of MUL into a temp + ADD/SUB. Collapses
+    // MAC chains (filters / polynomials / dot products). The VM keeps a two-step
+    // double evaluation, so the result is bit-identical to the unfused form;
+    // non-scalar operands fall back to the matching product + sum/diff. Runs
+    // after const-fold + vector fusion (tryCompileFused), so those win first.
+    if (op == "+" || op == "-") {
+        const ASTNode *rhs = node->children[1].get();
+        if (rhs->type == NodeType::BINARY_OP
+            && (rhs->strValue == "*" || rhs->strValue == ".*")) {
+            uint8_t acc  = compileNode(node->children[0].get());
+            uint8_t mulA = compileNode(rhs->children[0].get());
+            uint8_t mulB = compileNode(rhs->children[1].get());
+            uint8_t dst  = tempReg();
+            const bool ewise = (rhs->strValue == ".*");
+            OpCode fop = (op == "+") ? (ewise ? OpCode::EMULADD : OpCode::MULADD)
+                                     : (ewise ? OpCode::EMULSUB : OpCode::MULSUB);
+            emit(Instruction::make_abcde(fop, dst, acc, mulA, 0, mulB));
+            if (scalarRegs_.test(acc) && scalarRegs_.test(mulA) && scalarRegs_.test(mulB))
+                scalarRegs_.set(dst);
             return dst;
         }
     }
