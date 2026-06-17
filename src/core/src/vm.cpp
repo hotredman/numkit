@@ -618,6 +618,50 @@ enter_frame:
                 R[I.a].setScalarFast(-R[I.b].scalarVal());
                 break;
 
+            // ── Fused multiply-add/sub (loop opt #2) ──────────────
+            // Fast path: all-scalar, two-step double (prod = c*e; a = b ± prod)
+            // — bit-identical to the unfused MUL+ADD/SUB. Else fall back to the
+            // matching product (matmul / elementwise) then sum/diff via the slow
+            // path (handles arrays / complex / object operator overloads). The
+            // product double is read before the dst write, so dst==src aliasing
+            // is safe.
+            case OpCode::MULADD:
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c]) && isArithScalar(R[I.e])) {
+                    double prod = asScalar(R[I.c]) * asScalar(R[I.e]);
+                    R[I.a].setScalarFast(asScalar(R[I.b]) + prod);
+                } else {
+                    Value prod = binarySlowPath(OpCode::MUL, R[I.c], R[I.e]);
+                    R[I.a] = binarySlowPath(OpCode::ADD, R[I.b], prod);
+                }
+                break;
+            case OpCode::MULSUB:
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c]) && isArithScalar(R[I.e])) {
+                    double prod = asScalar(R[I.c]) * asScalar(R[I.e]);
+                    R[I.a].setScalarFast(asScalar(R[I.b]) - prod);
+                } else {
+                    Value prod = binarySlowPath(OpCode::MUL, R[I.c], R[I.e]);
+                    R[I.a] = binarySlowPath(OpCode::SUB, R[I.b], prod);
+                }
+                break;
+            case OpCode::EMULADD:
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c]) && isArithScalar(R[I.e])) {
+                    double prod = asScalar(R[I.c]) * asScalar(R[I.e]);
+                    R[I.a].setScalarFast(asScalar(R[I.b]) + prod);
+                } else {
+                    Value prod = binarySlowPath(OpCode::EMUL, R[I.c], R[I.e]);
+                    R[I.a] = binarySlowPath(OpCode::ADD, R[I.b], prod);
+                }
+                break;
+            case OpCode::EMULSUB:
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c]) && isArithScalar(R[I.e])) {
+                    double prod = asScalar(R[I.c]) * asScalar(R[I.e]);
+                    R[I.a].setScalarFast(asScalar(R[I.b]) - prod);
+                } else {
+                    Value prod = binarySlowPath(OpCode::EMUL, R[I.c], R[I.e]);
+                    R[I.a] = binarySlowPath(OpCode::SUB, R[I.b], prod);
+                }
+                break;
+
             // ── Comparison ───────────────────────────────────────
             case OpCode::EQ:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
