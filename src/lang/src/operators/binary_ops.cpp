@@ -362,6 +362,13 @@ Value elementPower(const Value &a, const Value &b, std::pmr::memory_resource *mr
             a, b, [](const Complex &x, const Complex &y) { return std::pow(x, y); }, p);
     }
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
+        // x.^2 is exactly x.*x — the correctly-rounded square, verified bit-
+        // identical to MATLAB across subnormals/Inf/NaN/±0. Route it to the
+        // multiply: faster than a libm pow, and element-wise fusion can then
+        // emit a single Mul. Scalar exponent only (an array of 2s is rare and
+        // stays on the general pow path).
+        if (b.isScalar() && b.toScalar() == 2.0)
+            return times(a, a, p);
         if (powNeedsComplex(a, b)) { // any negative base ^ non-integer exp -> complex
             // Both operands are real here, so promoteToComplex (which only
             // promotes when the OTHER is already complex) is a no-op; force
