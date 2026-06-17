@@ -487,6 +487,8 @@ std::optional<std::vector<const ASTNode *>> matchInner(const ASTNode *node,
                                                        InnerKind kind);
 bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
                double &offset, const Value *&x);
+bool bindInnerCx(const Value *ops, std::size_t n, InnerKind kind, Complex &scale,
+                 Complex &offset, const Value *&x);
 
 // ---- affine-clamp:  max(lo, min(hi, <inner>)) --------------------------
 // Normalize-then-saturate in one pass — reuses fusedAffineClamp with bound
@@ -556,11 +558,21 @@ bool execAbsAffine(const Value *ops, std::size_t n, Value &out,
                    std::pmr::memory_resource *mr, InnerKind kind) {
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedAbsAffine(x->doubleData(), scale, offset, out.doubleDataMut(),
-                        x->numel());
-    return true;
+    if (bindInner(ops, n, kind, scale, offset, x)) {
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedAbsAffine(x->doubleData(), scale, offset, out.doubleDataMut(),
+                            x->numel());
+        return true;
+    }
+    Complex cscale, coffset;
+    const Value *cx = nullptr;
+    if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {  // |a.*z+b| → real out
+        out = ops::createLike(*cx, ValueType::DOUBLE, mr);
+        ops::fusedAbsAffineCx(cx->complexData(), cscale, coffset,
+                              out.doubleDataMut(), cx->numel());
+        return true;
+    }
+    return false;
 }
 
 // operands = [A, B]; expr = abs(A - B). Two same-shape arrays → fusedAbsDiff;
@@ -592,6 +604,14 @@ bool execAbsDiff(const Value *ops, std::size_t n, Value &out,
         out = ops::createLike(B, ValueType::DOUBLE, mr);
         ops::fusedAbsAffine(B.doubleData(), 1.0, -A.toScalar(),
                             out.doubleDataMut(), B.numel());
+        return true;
+    }
+    // complex |z - w| for two complex arrays → real magnitude (array-scalar
+    // complex declines: |z-c| can't reuse a scale*x kernel w/o a spurious mul-by-1).
+    if (isFusibleComplexArray(A) && isFusibleComplexArray(B) && A.dims() == B.dims()) {
+        out = ops::createLike(A, ValueType::DOUBLE, mr);
+        ops::fusedAbsDiffCx(A.complexData(), B.complexData(), out.doubleDataMut(),
+                            A.numel());
         return true;
     }
     return false;
@@ -1037,11 +1057,21 @@ bool execAbsDivInner(const Value *ops, std::size_t n, Value &out,
                      std::pmr::memory_resource *mr) {
     double sub = 0.0, div = 0.0;
     const Value *x = nullptr;
-    if (!bindDivInner(ops, n, sub, div, x)) return false;
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedAbsShiftDiv(x->doubleData(), sub, div, out.doubleDataMut(),
-                          x->numel());
-    return true;
+    if (bindDivInner(ops, n, sub, div, x)) {
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedAbsShiftDiv(x->doubleData(), sub, div, out.doubleDataMut(),
+                              x->numel());
+        return true;
+    }
+    Complex csub, cdiv;
+    const Value *cx = nullptr;
+    if (bindDivInnerCx(ops, n, csub, cdiv, cx)) {   // |z./d| → real out
+        out = ops::createLike(*cx, ValueType::DOUBLE, mr);
+        ops::fusedAbsShiftDivCx(cx->complexData(), csub, cdiv, out.doubleDataMut(),
+                                cx->numel());
+        return true;
+    }
+    return false;
 }
 
 bool execSqrtSumSq(const Value *ops, std::size_t n, Value &out,
@@ -1100,13 +1130,21 @@ bool execSoftThreshold(const Value *ops, std::size_t n, Value &out,
                        std::pmr::memory_resource *mr) {
     if (n != 2) return false;
     const Value &x = ops[0], &t = ops[1];
-    if (x.type() != ValueType::DOUBLE || x.isComplex()) return false;
-    const std::size_t N = x.numel();
-    if (N < kFusionMinElems) return false;
-    if (!isRealDoubleScalar(t)) return false;
-    out = ops::createLike(x, ValueType::DOUBLE, mr);
-    ops::fusedSoftThreshold(x.doubleData(), t.toScalar(), out.doubleDataMut(), N);
-    return true;
+    if (!isRealDoubleScalar(t)) return false;        // threshold is real
+    if (x.type() == ValueType::DOUBLE && !x.isComplex() &&
+        x.numel() >= kFusionMinElems) {
+        out = ops::createLike(x, ValueType::DOUBLE, mr);
+        ops::fusedSoftThreshold(x.doubleData(), t.toScalar(), out.doubleDataMut(),
+                                x.numel());
+        return true;
+    }
+    if (isFusibleComplexArray(x)) {                  // sign(z).*max(0,|z|-t) → complex
+        out = ops::createLike(x, ValueType::COMPLEX, mr);
+        ops::fusedSoftThresholdCx(x.complexData(), t.toScalar(),
+                                  out.complexDataMut(), x.numel());
+        return true;
+    }
+    return false;
 }
 
 // ---- transcendental-affine:  f(<inner>) ---------------------------------

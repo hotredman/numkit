@@ -101,4 +101,30 @@ void fusedTransShiftDivCx(const Cx *x, Cx sub, Cx div, TransAffineFn fn,
         out[i] = transCxApply(fn, (x[i] - sub) / div);
 }
 
+// abs of complex → the REAL magnitude std::abs(z) (mirrors numkit's abs(complex),
+// which is per-element std::abs). out is double.
+void fusedAbsAffineCx(const Cx *x, Cx scale, Cx offset, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::abs(scale * x[i] + offset);
+}
+
+void fusedAbsShiftDivCx(const Cx *x, Cx sub, Cx div, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::abs((x[i] - sub) / div);
+}
+
+void fusedAbsDiffCx(const Cx *x, const Cx *y, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::abs(x[i] - y[i]);
+}
+
+// complex soft-threshold: sign(z) .* max(0, |z| - t). sign(z) = z/|z| (0 at
+// z==0, MATLAB R2025b); the .* by the real max promotes it to Complex(mx,0)
+// (full complex mul), exactly as numkit's per-op sign(z).*max(...).
+void fusedSoftThresholdCx(const Cx *x, double t, Cx *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const Cx z = x[i];
+        const double m = std::abs(z);
+        const Cx s = (m == 0.0) ? Cx(0.0, 0.0) : z / m;   // sign(z)
+        out[i] = s * Cx(std::fmax(0.0, m - t), 0.0);
+    }
+}
+
 } // namespace numkit::ops
