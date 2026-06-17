@@ -26,6 +26,24 @@ void rdivideLoop(const double *a, const double *b, double *out, std::size_t n);
 
 namespace numkit {
 
+// Scope guard for the indexed-assignment opcodes. After the write mutates the
+// target register in place, MATLAB narrows an all-zero-imaginary complex array
+// back to a real double (bugs/math/complex-zero-imag-narrowing.md). The
+// isComplex() gate keeps the hot real-assignment paths free; once an array
+// narrows to real, subsequent writes skip the scan. Fires on every exit
+// (break / goto enter_frame / throw); object / char / real slots are no-ops.
+namespace {
+struct NarrowSlotGuard {
+    Value *v;
+    std::pmr::memory_resource *mr;
+    ~NarrowSlotGuard()
+    {
+        if (v->isComplex())
+            *v = narrowComplex(std::move(*v), mr);
+    }
+};
+} // namespace
+
 // Output-reuse fast path for `dst = lhs op rhs` where both inputs and
 // the destination are real heap doubles of the same shape and dst has
 // unique ownership. Skips the N-element alloc + free that the public
@@ -994,6 +1012,7 @@ enter_frame:
                 break;
             }
             case OpCode::INDEX_SET: {
+                NarrowSlotGuard narrowGuard{&R[I.a], engine_.mr_};
                 const Value &ix = R[I.b];
                 // OBJECT: obj(i) = v dispatches to the class subsasgn
                 // overload (args = [index, value]); mutates R[I.a] in place.
@@ -1135,6 +1154,7 @@ enter_frame:
                 break;
             }
             case OpCode::INDEX_SET_2D: {
+                NarrowSlotGuard narrowGuard{&R[I.a], engine_.mr_};
                 const Value &ri = R[I.b];
                 const Value &ci = R[I.c];
                 const Value &val = R[I.e];
@@ -1248,6 +1268,7 @@ enter_frame:
                 break;
             }
             case OpCode::INDEX_SET_ND: {
+                NarrowSlotGuard narrowGuard{&R[I.a], engine_.mr_};
                 // a=arr/cell, b=base, c=ndims, e=val
                 uint8_t base = I.b, ndims = I.c;
                 // OBJECT: arr(i,j,k,…) = obj — builtin N-D element store + grow.
@@ -3465,7 +3486,7 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
                     size_t es = elementSize(t);
                     std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
                 }
-                R[I.a] = std::move(res);
+                R[I.a] = numkit::narrowComplex(std::move(res), engine_.mr_);  // z(:) all-real -> real
             }
         } else if (mv.isScalar() && ix.isDoubleScalar()) {
             checkedIndex(ix.scalarVal(), 1);

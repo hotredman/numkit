@@ -429,11 +429,13 @@ Value reduceComplexAllElementsScalar(const Value &x, std::pmr::memory_resource *
 template <typename Op>
 Value runComplexReduction(const Value &x, int dim, std::pmr::memory_resource *mr, bool isAll = false)
 {
-    if (isAll)
-        return reduceComplexAllElementsScalar(x, mr, Op::cInit(), Op::cAccum, Op::cFinalize);
-    return (dim > 0)
-        ? reduceComplexAlongDim(x, dim, mr, Op::cInit(), Op::cAccum, Op::cFinalize)
-        : reduceComplexAll(x, mr, Op::cInit(), Op::cAccum, Op::cFinalize);
+    Value r = isAll
+        ? reduceComplexAllElementsScalar(x, mr, Op::cInit(), Op::cAccum, Op::cFinalize)
+        : (dim > 0)
+              ? reduceComplexAlongDim(x, dim, mr, Op::cInit(), Op::cAccum, Op::cFinalize)
+              : reduceComplexAll(x, mr, Op::cInit(), Op::cAccum, Op::cFinalize);
+    // all-real reduction result narrows to real (MATLAB: isreal(sum(complex...))).
+    return numkit::narrowComplex(std::move(r), mr);
 }
 
 template <typename Op>

@@ -101,11 +101,44 @@ TEST_P(ComplexMathTest, NarrowsIndexingAllRealSlice) {
     EXPECT_FALSE(e.eval("isreal(zc)").toBool());       // source stays complex
     EXPECT_TRUE(e.eval("isreal(zc(2))").toBool());     // scalar index narrows
     EXPECT_TRUE(e.eval("isreal(zc(1:2))").toBool());   // range narrows
-    // NOTE: zc(:) is reshape-based (structural — preserves complex, like reshape),
-    // so it does NOT narrow here; MATLAB narrows z(:). Niche, documented residual.
+    EXPECT_TRUE(e.eval("isreal(zc(:))").toBool());     // colon-linearize narrows (MATLAB)
     e.eval("zg = [1+1i, 2, 3];");                      // genuinely complex
     EXPECT_FALSE(e.eval("isreal(zg(1))").toBool());    // 1+1i element stays complex
     EXPECT_TRUE(e.eval("isreal(zg(2))").toBool());     // real element narrows
+}
+
+// Residual structural / reduction ops also narrow an all-real complex result
+// (MATLAB R2025b). Forced-complex() sources (arithmetic already narrows at source).
+TEST_P(ComplexMathTest, NarrowsResidualOps) {
+    e.eval("import compat.*;");  // median resolves through the stats namespace
+    // reductions (sum/prod/mean route through the reduction adapter; cumsum /
+    // cumprod / diff / median have their own compute paths).
+    EXPECT_TRUE(e.eval("isreal(sum(complex([1 2 3])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(prod(complex([1 2 3])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(mean(complex([1 2 3])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(cumsum(complex([1 2 3])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(cumprod(complex([1 2 3])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(diff(complex([1 2 4])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(median(complex([1 2 3])))").toBool());
+    // linear algebra (dot / kron / cross / diag).
+    EXPECT_TRUE(e.eval("isreal(dot(complex([1 2 3]), [4 5 6]))").toBool());
+    EXPECT_TRUE(e.eval("isreal(kron(complex([1 2]), [3 4]))").toBool());
+    EXPECT_TRUE(e.eval("isreal(cross(complex([1 2 3]), [4 5 6]))").toBool());
+    EXPECT_TRUE(e.eval("isreal(diag(complex([1 2 3])))").toBool());
+    // structural reorder.
+    EXPECT_TRUE(e.eval("isreal(fliplr(complex([1 2 3])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(flipud(complex([1;2;3])))").toBool());
+    EXPECT_TRUE(e.eval("isreal(circshift(complex([1 2 3]), 1))").toBool());
+    EXPECT_TRUE(e.eval("isreal(repmat(complex([1 2]), 1, 2))").toBool());
+    e.eval("zc = complex([1 2 3]);");
+    EXPECT_TRUE(e.eval("isreal(zc(:))").toBool());                        // colon-linearize
+    e.eval("ca = complex([0 0 0]); ca(2) = 7;");
+    EXPECT_TRUE(e.eval("isreal(ca)").toBool());                           // indexed-assign
+    // Over-narrow guard: a genuinely complex result of the same ops must STAY
+    // complex (narrowing only fires when the imaginary part is entirely zero).
+    EXPECT_FALSE(e.eval("isreal(cumsum([1+1i, 2, 3]))").toBool());
+    EXPECT_FALSE(e.eval("isreal(diag([1i 2 3]))").toBool());
+    EXPECT_FALSE(e.eval("isreal(dot([1i 2], [3 4]))").toBool());
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, ComplexMathTest,

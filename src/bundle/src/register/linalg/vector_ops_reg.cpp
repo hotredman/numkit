@@ -24,7 +24,8 @@ void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     // dimension of length 3).
     const int dim = (args.size() >= 3 && !args[2].isEmpty())
                         ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = cross(args[0], args[1], dim, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(cross(args[0], args[1], dim, ctx.engine->resource()),
+                                    ctx.engine->resource());
 }
 
 void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -36,7 +37,8 @@ void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     // scalar, matrix -> per-column).
     const int dim = (args.size() >= 3 && !args[2].isEmpty())
                         ? static_cast<int>(args[2].toScalar()) : 0;
-    outs[0] = dot(args[0], args[1], dim, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(dot(args[0], args[1], dim, ctx.engine->resource()),
+                                    ctx.engine->resource());
 }
 
 void kron_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -44,7 +46,8 @@ void kron_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("kron: requires 2 arguments",
                      0, 0, "kron", "", "numkit:kron:nargin");
-    outs[0] = kron(args[0], args[1], ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(kron(args[0], args[1], ctx.engine->resource()),
+                                    ctx.engine->resource());
 }
 
 } // namespace detail

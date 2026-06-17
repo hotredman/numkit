@@ -273,6 +273,19 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("median: requires at least 1 argument",
                      0, 0, "median", "", "numkit:median:nargin");
+    // MATLAB narrows an all-zero-imaginary complex median back to a real double.
+    // The scalar / dim / 'all' / omitnan branches each assign outs[0] and return
+    // separately, so a scope guard narrows whichever one fires (no-op unless the
+    // result is left complex with all-zero imag).
+    struct NarrowGuard {
+        Value *v;
+        std::pmr::memory_resource *mr;
+        ~NarrowGuard()
+        {
+            if (v->isComplex())
+                *v = numkit::narrowComplex(std::move(*v), mr);
+        }
+    } narrowGuard{&outs[0], ctx.engine->resource()};
     bool omitNan = false;
     size_t n = stripNanFlag(args, omitNan, "median");
     int dim = 0;
