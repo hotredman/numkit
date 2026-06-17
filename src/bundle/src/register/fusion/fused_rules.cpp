@@ -18,7 +18,8 @@
 //   affine_clamp[_min_outer]  max/min(.. <inner> ..) → fusedAffineClamp[MinOuter]
 //   abs_affine  abs(<inner>)          → fusedAbsAffine
 //   abs_diff    abs(x - y) / abs(x-c) → fusedAbsDiff / fusedAbsAffine
-//   {sqrt,floor,ceil}_affine  f(<inner>)  → fusedUnaryAffine
+//   {sqrt,floor,ceil,fix,round}_affine  f(<inner>)  → fusedUnaryAffine
+//     (fix=trunc, round=half-away via CopySign+Trunc — NOT Highway's round-even)
 //   sq_affine   (<inner>).^2          → fusedSqAffine
 //   sq_diff     (x-y).^2 / (x-c).^2   → fusedSqDiff / fusedSqAffine
 // (<inner> = any affine spelling via matchInner: a.*x±b, a.*x, x±c, -x; sq/abs
@@ -1158,6 +1159,8 @@ void registerFusionRules(Engine &engine) {
     addUnaryAffine("sqrt_affine",  "sqrt",  UF::Sqrt);
     addUnaryAffine("floor_affine", "floor", UF::Floor);
     addUnaryAffine("ceil_affine",  "ceil",  UF::Ceil);
+    addUnaryAffine("fix_affine",   "fix",   UF::Fix);    // trunc toward zero (exact)
+    addUnaryAffine("round_affine", "round", UF::Round);  // half-away (CopySign+Trunc)
 
     // f(x./d) / f((x-c)./d) — the divide-inner variant (separate kernel).
     auto addUnaryDiv = [&engine](const char *name, const char *fname, UF fn) {
@@ -1178,6 +1181,8 @@ void registerFusionRules(Engine &engine) {
     addUnaryDiv("sqrt_div",  "sqrt",  UF::Sqrt);
     addUnaryDiv("floor_div", "floor", UF::Floor);
     addUnaryDiv("ceil_div",  "ceil",  UF::Ceil);
+    addUnaryDiv("fix_div",   "fix",   UF::Fix);
+    addUnaryDiv("round_div", "round", UF::Round);
 
     // (<inner>).^2: every inner spelling except ShiftSub (sq_diff owns it).
     for (InnerKind kind : kInnerKindsNoShiftSub) {

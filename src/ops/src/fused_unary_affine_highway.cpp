@@ -64,6 +64,21 @@ void UnaryAffineImpl(const double *x, double p0, double p1, bool divide,
                            [](auto v) { return hn::Ceil(v); },
                            [](double v) { return std::ceil(v); });
             break;
+        case UnaryAffineFn::Fix:
+            unaryInnerLoop(x, p0, p1, divide, out, n,
+                           [](auto v) { return hn::Trunc(v); },
+                           [](double v) { return std::trunc(v); });
+            break;
+        case UnaryAffineFn::Round:
+            // MATLAB round = half-away-from-zero: Trunc(v + CopySign(0.5, v)),
+            // mirroring numkit's RoundLoop (NOT hn::Round = round-to-even).
+            unaryInnerLoop(x, p0, p1, divide, out, n,
+                           [](auto v) {
+                               const hn::DFromV<decltype(v)> d;
+                               return hn::Trunc(hn::Add(v, hn::CopySign(hn::Set(d, 0.5), v)));
+                           },
+                           [](double v) { return std::round(v); });
+            break;
     }
 }
 
