@@ -21,6 +21,7 @@
 //   sq_diff      (x-y).^2 / (x-c).^2 → fusedSqDiff / fusedSqAffine
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
+//   {exp,expm1}_affine_*  f(a.*x ± b) → fusedTransAffine(x, a, ±b, fn)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -629,6 +630,25 @@ bool execSoftThreshold(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// ---- transcendental-affine:  f(a.*x ± b),  f ∈ {exp, expm1} ------------
+// Always-real (no complex-promotion domain), so no decline beyond the type/size
+// guard. Shares matchUnaryAffine; the kernel mirrors numkit's exp/expm1 loop
+// for bit-exactness (see fused_trans_affine_highway.cpp).
+bool execTransAffine(const Value *ops, std::size_t n, Value &out,
+                     std::pmr::memory_resource *mr, double bSign,
+                     numkit::ops::TransAffineFn fn) {
+    if (n != 3) return false;
+    const Value &b = ops[2];
+    if (!isRealDoubleScalar(b)) return false;
+    double scale = 0.0;
+    const Value *x = nullptr;
+    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedTransAffine(x->doubleData(), scale, bSign * b.toScalar(), fn,
+                          out.doubleDataMut(), x->numel());
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -806,6 +826,27 @@ void registerFusionRules(Engine &engine) {
     softThreshold.match = matchSoftThreshold;
     softThreshold.execute = execSoftThreshold;
     engine.addFusionRule(std::move(softThreshold));
+
+    // transcendental-affine f(a.*x ± b), f ∈ {exp, expm1} (always-real).
+    auto addTransAffine = [&engine](const char *name, const char *fname,
+                                    bool sub, double bSign,
+                                    numkit::ops::TransAffineFn fn) {
+        FusionRule r;
+        r.name  = name;
+        r.match = [fname, sub](const ASTNode *node) {
+            return matchUnaryAffine(node, fname, sub);
+        };
+        r.execute = [bSign, fn](const Value *ops, std::size_t n, Value &out,
+                                std::pmr::memory_resource *mr) {
+            return execTransAffine(ops, n, out, mr, bSign, fn);
+        };
+        engine.addFusionRule(std::move(r));
+    };
+    using TF = numkit::ops::TransAffineFn;
+    addTransAffine("exp_affine_add",   "exp",   false, +1.0, TF::Exp);
+    addTransAffine("exp_affine_sub",   "exp",   true,  -1.0, TF::Exp);
+    addTransAffine("expm1_affine_add", "expm1", false, +1.0, TF::Expm1);
+    addTransAffine("expm1_affine_sub", "expm1", true,  -1.0, TF::Expm1);
 }
 
 } // namespace numkit

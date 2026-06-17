@@ -99,4 +99,18 @@ void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n) {
     }
 }
 
+void fusedTransAffine(const double *x, double scale, double offset,
+                      TransAffineFn fn, double *out, std::size_t n) {
+    // Non-SIMD build: numkit's exp/expm1 are scalar std:: here too, so the
+    // affine + scalar transcendental matches the per-op path bit-for-bit.
+    switch (fn) {
+        case TransAffineFn::Exp:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::exp(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Expm1:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::expm1(scale * x[i] + offset);
+            break;
+    }
+}
+
 } // namespace numkit::ops
