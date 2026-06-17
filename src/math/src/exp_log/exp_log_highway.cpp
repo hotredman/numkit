@@ -297,6 +297,9 @@ Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 
 Value expm1(const Value &x, std::pmr::memory_resource *mr)
 {
+    // MATLAB: expm1(z) = exp(z) - 1 on complex (no std::complex expm1).
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::exp(c) - 1.0; }, mr);
     return unaryRealArray(x, [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(Expm1Loop)(in, out, n);
         }, [](double v) { return std::expm1(v); }, mr);

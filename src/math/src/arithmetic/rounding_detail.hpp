@@ -41,6 +41,17 @@ Value roundLikeDispatch(const Value &x, ScalarOp scalar, SimdOp simdLoop, std::p
     // storage / drop the class for a scalar.)
     if (isIntegerType(x.type()))
         return copyIntegerSameClass(x, mr);
+    if (x.isComplex()) {
+        // MATLAB applies floor/ceil/round/fix component-wise to re and im
+        // (e.g. floor(3+4.7i) = 3+4i). Checked before isScalar — toScalar()
+        // rejects a complex scalar.
+        auto cxOp = [&scalar](Complex z) {
+            return Complex(scalar(z.real()), scalar(z.imag()));
+        };
+        if (x.isScalar())
+            return Value::complexScalar(cxOp(x.toComplex()), mr);
+        return unaryComplex(x, cxOp, mr);
+    }
     if (x.isScalar())
         return Value::scalar(scalar(x.toScalar()), mr);
     if (x.type() == ValueType::DOUBLE) {

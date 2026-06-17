@@ -19,6 +19,8 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/fusion_registry_test.cpp
     # Fusion parity (fused == unfused, both engines) — Stage 2 of VM fusion
     ${CMAKE_CURRENT_SOURCE_DIR}/fusion_parity_test.cpp
+    # Complex floor/ceil/round/fix (component-wise) + expm1 (=exp(z)-1)
+    ${CMAKE_CURRENT_SOURCE_DIR}/complex_math_test.cpp
     # ScratchArena — inline-buffer / upstream-spill / value-init
     ${CMAKE_CURRENT_SOURCE_DIR}/scratch_arena_test.cpp
     # Namespace resolver (Phase 6) — `import` integration tests
