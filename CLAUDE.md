@@ -85,13 +85,13 @@ spec comment.
 Offline regression guard with hardcoded expected values. Pattern (used
 across src/toolboxes/stats, tests/builtin, src/toolboxes/signal):
 ```cpp
-#include <numkit/builtin/library.hpp>
+#include <numkit/bundle/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 
 class HaartTest : public ::testing::Test {
 public:
-    numkit::Engine engine;
+    numkit::StandardEngine engine;
     void SetUp() override { engine.eval("import compat.*;"); }
     numkit::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
@@ -125,8 +125,10 @@ Structured one-file-per-bug catalog.
 
 1. its own `bugs/<namespace>/<fn>.md` with a self-contained repro (numkit
    output vs MATLAB R2025b) so any session can act on it cold; and
-2. a matching **`DISABLED_` gtest** in `src/toolboxes/<ns>/tests/known_bugs_test.cpp`
-   asserting the MATLAB-correct behaviour — **found a bug → add a test.**
+2. a matching **`DISABLED_` gtest** in that namespace's `known_bugs_test.cpp`
+   (`src/toolboxes/<ns>/tests/` for a toolbox; `tests/builtin/` for the
+   math / lang / runtime base layers) asserting the MATLAB-correct behaviour —
+   **found a bug → add a test.**
    `DISABLED_` keeps the green baseline green (it doesn't run normally) but
    the test is real: it fails under `--gtest_also_run_disabled_tests` and
    becomes a live regression guard the instant you remove the prefix.
