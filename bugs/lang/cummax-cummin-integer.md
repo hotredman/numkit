@@ -27,10 +27,10 @@
   `cummax(uint16([30 10 50 20]))`=uint16; 2-D dim2 `cummax(int8([3 1;1 5]),2)`
   =`[3 3;1 5]`; `'reverse'` `[5 5 5 5 4]`; negatives `cummin(int8([0 -3 2 -5]))`
   =`[0 -3 -3 -5]`.
-- Live guard: `tests/lang/cummax_cummin_integer_test.cpp` (5 TEST_F) +
+- Live guard: `src/lang/tests/cummax_cummin_integer_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.CummaxCumminInteger` flipped live. Parity:
   `tools/parity/specs/cummax_cummin_integer.json` (correctness=OK). Smoke:
-  `tests/lang/smoke/cummax_cummin_integer_smoke.m`.
+  `src/lang/tests/smoke/cummax_cummin_integer_smoke.m`.
 
 ## Symptom
 `cummax` / `cummin` throw on an integer array; MATLAB returns the running

@@ -34,5 +34,5 @@ linear), so `'all'` and `'all','linear'` give the same result. Works for
 ## References
 - `src/math/src/arithmetic/reductions.cpp` (max_reg, min_reg)
 - `tools/parity/specs/max_min_all.json`
-- `tests/math/math_reductions_batch_test.cpp`
+- `src/math/tests/math_reductions_batch_test.cpp`
 - MATLAB `doc max` ('all', 'linear')

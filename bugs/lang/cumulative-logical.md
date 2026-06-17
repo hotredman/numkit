@@ -29,10 +29,10 @@
   `cummax(logical([0 1 0 1]))`=`[0 1 1 1]` logical;
   `cummin(logical([1 1 0 1]))`=`[1 1 0 0]` logical;
   2-D column/dim2, scalar `cumsum(true)`=`1` double.
-- Live guard: `tests/lang/cumulative_logical_test.cpp` (6 TEST_F) +
+- Live guard: `src/lang/tests/cumulative_logical_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.CumulativeLogical` flipped live. Parity:
   `tools/parity/specs/cumulative_logical.json` (correctness=OK). Smoke:
-  `tests/lang/smoke/cumulative_logical_smoke.m`.
+  `src/lang/tests/smoke/cumulative_logical_smoke.m`.
 
 ## Symptom
 `cumsum`/`cumprod`/`cummax`/`cummin` throw on a `logical` array; MATLAB accepts

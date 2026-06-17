@@ -40,9 +40,9 @@ array gap (bugs/math/complex-promotion-arrays.md).
   `std::log` for `log`, `std::log(c)/log(2)` for `log2`, `std::log10` for
   `log10` — these branches all match MATLAB. In-domain input and the scalar
   paths are unchanged. Highway + portable.
-- Live guard: `tests/math/log_complex_test.cpp`. Parity:
+- Live guard: `src/math/tests/log_complex_test.cpp`. Parity:
   `tools/parity/specs/{log,log10,log2}.json` extended (correctness=OK). Smoke:
-  `tests/math/smoke/log_complex_smoke.m`.
+  `src/math/tests/smoke/log_complex_smoke.m`.
 ## log1p follow-up (FIXED 2026-06-05, cycle 19)
 `log1p` had the same gap on a *different* domain: `log1p(x) = log(1+x)` is
 complex for `x < -1` (e.g. `log1p(-2) = log(-1) = i·π`), but log1p never
@@ -56,9 +56,9 @@ promoted — even a scalar `log1p(-2)` returned NaN.
   MATLAB R2025b: `log1p(-2)=i·π`, `log1p(-3)=log(2)+i·π`,
   `log1p([-2 -0.5 0 3])=[i·π, -0.69315, 0, 1.38629]`, `log1p(3+4i)=1.732868+
   0.785398i`, `log1p(-1)=-Inf`, in-domain stays real.
-- Guards: `tests/math/log1p_complex_test.cpp` (5 TEST_F), parity
+- Guards: `src/math/tests/log1p_complex_test.cpp` (5 TEST_F), parity
   `tools/parity/specs/log1p.json` (extended; correctness=OK), smoke
-  `tests/math/smoke/log1p_complex_smoke.m`. This closes the whole
+  `src/math/tests/smoke/log1p_complex_smoke.m`. This closes the whole
   promotion family (sqrt/acosh/atanh/acos/asin/log/log10/log2/log1p).
 
 ## References

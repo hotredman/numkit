@@ -47,6 +47,6 @@ the complex accumulation logic to copy.
   (flip-scan-flip at the reg level) work; real/integer paths unchanged.
   (Complex uses the portable scan, not the SIMD prefix kernel — correctness
   over speed; complex cumsum isn't perf-critical.)
-- Live guard: `tests/lang/cumsum_cumprod_complex_test.cpp` (5 cases).
+- Live guard: `src/lang/tests/cumsum_cumprod_complex_test.cpp` (5 cases).
   Parity: `tools/parity/specs/{cumsum,cumprod}.json` extended (correctness=OK).
-  Smoke: `tests/lang/smoke/cumsum_complex_smoke.m`.
+  Smoke: `src/lang/tests/smoke/cumsum_complex_smoke.m`.

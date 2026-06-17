@@ -126,7 +126,7 @@ Structured one-file-per-bug catalog.
 1. its own `bugs/<namespace>/<fn>.md` with a self-contained repro (numkit
    output vs MATLAB R2025b) so any session can act on it cold; and
 2. a matching **`DISABLED_` gtest** in that namespace's `known_bugs_test.cpp`
-   (`src/toolboxes/<ns>/tests/` for a toolbox; `tests/mixed/` for the
+   (`src/toolboxes/<ns>/tests/` for a toolbox; `src/bundle/tests/` for the
    math / lang / runtime base layers) asserting the MATLAB-correct behaviour —
    **found a bug → add a test.**
    `DISABLED_` keeps the green baseline green (it doesn't run normally) but

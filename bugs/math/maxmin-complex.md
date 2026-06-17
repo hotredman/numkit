@@ -51,7 +51,7 @@ compare by `|z|`, ties by `angle(z)`; **no all-real fallback** in the binary for
 parts). NaN: a value with EITHER component NaN is "missing" — omitnan (default)
 skips it (both missing → first operand); includenan propagates it. `clamp`
 (`max(lo,min(hi,z))`) works for free, which unblocks the complex clamp fusion
-rule. Guard: `tests/math/maxmin_complex_test.cpp` (7 TEST_P × both backends).
+rule. Guard: `src/math/tests/maxmin_complex_test.cpp` (7 TEST_P × both backends).
 
 ## Resolved boundary
 `max([1 -3 2], 2+0i)` now returns `[2 2 2]` (matches MATLAB): `2+0i` narrows to a
@@ -63,6 +63,6 @@ narrow) is tracked in [complex-zero-imag-narrowing](complex-zero-imag-narrowing.
 ## References
 - `src/math/src/arithmetic/reductions.cpp` (max/min + omitnan binary, `complexBinaryMinMax`)
 - `src/math/src/arithmetic/reductions_detail.hpp` (`complexMinMaxPick` / `complexBetter`)
-- `tests/math/maxmin_complex_test.cpp`, `tools/parity/specs/maxmin_complex.json`
+- `src/math/tests/maxmin_complex_test.cpp`, `tools/parity/specs/maxmin_complex.json`
 - Related (closed in the same effort): complex floor/ceil/round/fix + expm1
   (commit b2f30c53, `tests/builtin/.../complex_math_test.cpp`).

@@ -23,10 +23,10 @@
   `[int8,int16]`=int8 (first wins); `[int16,int8]`=int16; `[int8;2+3i]`=2
   (real part). double / logical / complex / char concat unchanged (zero
   regression; full suite 11575/11575).
-- Live guard: `tests/lang/concat_integer_types_test.cpp` (5 TEST_F) +
+- Live guard: `src/lang/tests/concat_integer_types_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.ConcatIntegerTypes` flipped live. Parity:
   `tools/parity/specs/concat_integer_types.json` (correctness=OK). Smoke:
-  `tests/lang/smoke/concat_integer_types_smoke.m`.
+  `src/lang/tests/smoke/concat_integer_types_smoke.m`.
 
 ## Symptom
 Concatenating integer-typed arrays throws "Concatenation not supported for
@@ -72,7 +72,7 @@ need integer storage handling.
    opcode route through the fixed primitive.
 
 ## Guard
-`tests/mixed/known_bugs_test.cpp` → `DISABLED_ConcatIntegerTypes`
+`src/bundle/tests/known_bugs_test.cpp` → `DISABLED_ConcatIntegerTypes`
 (asserts the MATLAB-correct int8 concatenation; flip the prefix when fixed).
 
 ## References

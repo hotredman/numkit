@@ -18,10 +18,10 @@
   `@prod` → double [300 20]; `@mean` → double [20 20]; 2-D subs [5 0 0 7];
   sz [3 1] → [40 20 0]; fillval -1 → [5 -1 7 -1]; logical default-sum → double
   [2 0]; double vals unchanged [40 20].
-- Live guard: `tests/runtime/accumarray_integer_vals_test.cpp` (6 TEST_F)
+- Live guard: `src/runtime/tests/accumarray_integer_vals_test.cpp` (6 TEST_F)
   + `BuiltinKnownBug.AccumarrayIntegerVals` (flipped live). Parity:
   `tools/parity/specs/accumarray_integer_vals.json` (correctness=OK). Smoke:
-  `tests/runtime/smoke/accumarray_integer_vals_smoke.m`.
+  `src/runtime/tests/smoke/accumarray_integer_vals_smoke.m`.
 
 ## Symptom
 `accumarray` threw "accumarray: vals must be DOUBLE" whenever `vals` was an
@@ -57,7 +57,7 @@ Both follow the directive's stance — don't add errors / extra class machinery
 for rare niches; cf. the `deconv` na>nb edge and `dot`.
 
 ## Guard
-`tests/mixed/known_bugs_test.cpp` → `BuiltinKnownBug.AccumarrayIntegerVals`
+`src/bundle/tests/known_bugs_test.cpp` → `BuiltinKnownBug.AccumarrayIntegerVals`
 (live) plus the dedicated `accumarray_integer_vals_test.cpp`.
 
 ## References

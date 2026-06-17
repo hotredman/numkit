@@ -29,11 +29,11 @@
   wrong char result — renamed to `MaxCharReturnsDouble` and flipped to assert
   double (same commit). No internal code relied on max/min(char)→char (grep
   clean). `ModeCharReturnsChar` is left as-is (mode keeps char, per MATLAB).
-- Live guard: `tests/math/maxmin_char_double_test.cpp` (5 TEST_F) +
+- Live guard: `src/math/tests/maxmin_char_double_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.MaxMinCharDouble` flipped live + the flipped
   `ReductionDimTest.MaxCharReturnsDouble`. Parity:
   `tools/parity/specs/maxmin_char_double.json` (correctness=OK). Smoke:
-  `tests/math/smoke/maxmin_char_double_smoke.m`.
+  `src/math/tests/smoke/maxmin_char_double_smoke.m`.
 
 ## Symptom
 `max`/`min` of a char array return a char; MATLAB returns a double (the code

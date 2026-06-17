@@ -38,6 +38,6 @@ SIMD sites, matching the scalar `std::round` path. Narrow types (int8/16) and
 uint64 already used the scalar path and were untouched.
 
 Live guard: `IntegerTypesTest.IntCastHalfAwayOnSimdPath` in
-`tests/lang/integer_types_test.cpp` (320-element array to force the SIMD
+`src/lang/tests/integer_types_test.cpp` (320-element array to force the SIMD
 path; int32/int64/uint32, positive + negative, plus non-tie regression).
 Verified on desktop-fast.

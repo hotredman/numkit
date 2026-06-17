@@ -35,10 +35,10 @@
   `union('bca','db','stable')`=`'bcad'`;
   `intersect(logical([1 0 1]),logical([0 0 1]))`=`[0 1]` logical;
   `intersect(int8([3 1 2]),int8([2 4 1]))`=`int8 [1 2]`.
-- Live guard: `tests/lang/setops_typeclass_test.cpp` (8 TEST_F) +
+- Live guard: `src/lang/tests/setops_typeclass_test.cpp` (8 TEST_F) +
   `BuiltinKnownBug.SetopsTypeClass` flipped live. Parity:
   `tools/parity/specs/setops_typeclass.json` (correctness=OK). Smoke:
-  `tests/lang/smoke/setops_typeclass_smoke.m`.
+  `src/lang/tests/smoke/setops_typeclass_smoke.m`.
 
 ## Symptom
 `ismember`/`intersect`/`setdiff`/`union` throw on char / logical / integer
