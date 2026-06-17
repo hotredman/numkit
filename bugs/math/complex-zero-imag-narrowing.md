@@ -58,10 +58,13 @@ genuinely complex result of the same ops stays complex.
 `unique`. A bare `0i` literal also stays complex. Verified `isreal == 0` against
 MATLAB R2025b.
 
-## Related, NOT part of this bug
-`trace`, `cummax`, `cummin` currently **throw** "Not a double array" on complex
-input (MATLAB accepts them and narrows an all-real result). That is a separate
-*complex-unsupported* defect, not a narrowing divergence — tracked separately.
+## Related (also fixed 2026-06-17)
+`trace`, `cummax`, `cummin` used to **throw** "Not a double array" on complex
+input. Now supported and narrowing-aware: `trace` sums the complex diagonal
+(properties.cpp); `cummax`/`cummin` run a complex magnitude-then-angle fold
+(matrix_detail.hpp `cumComplexMinMaxAlongDim`, dim/'reverse'/'omitnan'/
+'includenan' all handled). The deeper complex-matrix ops (eig/svd/qr/lu/chol/
+det/inv) remain in bugs/linalg/complex-matrix-unsupported.md.
 
 ## References
 - `src/value/include/numkit/value/value.hpp` + `value.cpp` (`narrowComplex`)

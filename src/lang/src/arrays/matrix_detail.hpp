@@ -794,6 +794,60 @@ Value cumComplexAlongDim(const Value &x, int d, bool isProd,
     return r;
 }
 
+// Running complex min/max along the 1-based dim d (MATLAB R2025b). Order rule:
+// compare by |z| (modulus), ties by angle(z) — the BINARY max/min comparator
+// with NO all-real fallback, so cummax(complex([-1 -3 -2])) is [-1 -3 -3] (it
+// differs from the real-input cummax). A NaN-component element is skipped
+// (omitnan, the cummax/cummin default); a leading run of NaNs is carried until
+// the first finite element. Mirrors complexMinMaxPick (omitNan=true) in
+// math/.../reductions_detail.hpp — keep the order rule in sync. (Complex isn't
+// perf-critical here — correctness over a SIMD scan.)
+Value cumComplexMinMaxAlongDim(const Value &x, int d, bool isMax,
+                               std::pmr::memory_resource *mr)
+{
+    const auto &dd = x.dims();
+    const int nd = dd.ndim();
+    constexpr int kMaxNd = Dims::kMaxRank;
+    if (nd > kMaxNd)
+        throw Error("cummax: rank exceeds 32",
+                     0, 0, "cummax", "", "numkit:cummax:tooManyDims");
+    size_t outDims[kMaxNd];
+    for (int i = 0; i < nd; ++i) outDims[i] = dd.dim(i);
+    auto r = Value::matrixND(outDims, nd, ValueType::COMPLEX, mr);
+    if (x.numel() == 0) return r;
+    const size_t sliceLen = (d >= 1 && d <= nd) ? dd.dim(d - 1) : 1;
+    if (sliceLen == 0) return r;
+    size_t B = 1; for (int i = 0; i < d - 1 && i < nd; ++i) B *= dd.dim(i);
+    size_t O = 1; for (int i = d; i < nd; ++i) O *= dd.dim(i);
+    const Complex *src = x.complexData();
+    Complex *dst = r.complexDataMut();
+    auto isMissing = [](Complex z) {
+        return std::isnan(z.real()) || std::isnan(z.imag());
+    };
+    auto vBetter = [&](Complex v, Complex best) {
+        const double av = std::abs(v), ab = std::abs(best);
+        if (av != ab) return isMax ? (av > ab) : (av < ab);
+        const double gv = std::arg(v), gb = std::arg(best);
+        return isMax ? (gv > gb) : (gv < gb);
+    };
+    for (size_t o = 0; o < O; ++o)
+        for (size_t b = 0; b < B; ++b) {
+            const size_t base = o * sliceLen * B + b;
+            Complex acc = src[base];
+            dst[base] = acc;
+            for (size_t k = 1; k < sliceLen; ++k) {
+                const Complex v = src[base + k * B];
+                if (isMissing(v)) {
+                    // omitnan: skip the missing operand, carry acc forward.
+                } else if (isMissing(acc) || vBetter(v, acc)) {
+                    acc = v;  // first finite replaces a carried NaN, or v wins
+                }
+                dst[base + k * B] = acc;
+            }
+        }
+    return r;
+}
+
 // First non-singleton dimension (1-based), default 1 — MATLAB's default op dim.
 int firstNonSingletonDim(const Value &x)
 {

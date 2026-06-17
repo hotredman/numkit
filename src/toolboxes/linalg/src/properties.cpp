@@ -137,6 +137,16 @@ Value trace(const Value &A, std::pmr::memory_resource *mr)
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t k = std::min(m, n);
+    // trace = sum of the diagonal; complex-aware (unlike eig/svd/…, this needs
+    // no complex factorization). An all-zero-imaginary result narrows to real
+    // (MATLAB R2025b: trace([1+1i 2;3 4]) = 5+1i; trace(complex([1 2;3 4])) = 5).
+    if (A.isComplex()) {
+        Complex s{0.0, 0.0};
+        const Complex *p = A.complexData();
+        for (std::size_t i = 0; i < k; ++i)
+            s += p[i + i * m];
+        return numkit::narrowComplex(Value::complexScalar(s, mr), mr);
+    }
     double s = 0.0;
     const double *p = A.doubleData();
     for (std::size_t i = 0; i < k; ++i)
