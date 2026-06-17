@@ -48,6 +48,7 @@ void doubleToJson(std::ostringstream &os, double val);
 // Per-family plot-table builders (carved out of plots.cpp). Each appends its
 // graphics.<sub>.<name> entries to `table`; buildPlotTable() calls them in turn.
 void buildContourPlots(std::vector<PlotEntry> &table);
+void buildPolarPlots(std::vector<PlotEntry> &table);
 // BUILDER-DECLS — the family split appends new declarations directly above here.
 
 }  // namespace numkit
