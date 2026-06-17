@@ -36,4 +36,10 @@ void fusedAffineClamp(const double *x, double scale, double offset,
 void fusedAffine(const double *x, double scale, double offset,
                  double *out, std::size_t n);
 
+// out[i] = a*x[i] + b*y[i]   — two-array linear combination (x, y same size).
+// Covers blend/lerp (b=1-a), weighted sum, scaled difference (b<0), a.*x+b.*y.
+// Mul, Mul, Add (no FMA) so it matches the per-op `a.*x + b.*y` bit-for-bit.
+void fusedAxpby(const double *x, double a, const double *y, double b,
+                double *out, std::size_t n);
+
 } // namespace numkit::ops
