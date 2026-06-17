@@ -20,6 +20,7 @@
 //   sq_affine_*  (a.*x ± b).^2  → fusedSqAffine(x, a, ±b)
 //   sq_diff      (x-y).^2 / (x-c).^2 → fusedSqDiff / fusedSqAffine
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
+//   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -578,6 +579,56 @@ bool execSqrtSumSq(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// ---- soft-threshold:  sign(x) .* max(0, abs(x) - t) --------------------
+// Wavelet/L1 shrinkage. A fixed multi-node shape; the sign(x) and abs(x) must
+// refer to the SAME variable so re-evaluating the (identifier) operand on a
+// declined fallback is safe and identical.
+
+bool isZeroLiteral(const ASTNode *n) {
+    return n->type == NodeType::NUMBER_LITERAL && n->numValue == 0.0;
+}
+bool sameIdentifier(const ASTNode *a, const ASTNode *b) {
+    return a->type == NodeType::IDENTIFIER && b->type == NodeType::IDENTIFIER &&
+           a->strValue == b->strValue;
+}
+
+std::optional<std::vector<const ASTNode *>> matchSoftThreshold(const ASTNode *node) {
+    const ASTNode *mul = asBinOp(node, ".*");
+    if (!mul) return std::nullopt;
+    // one factor is sign(x), the other max(0, abs(x)-t) (either order).
+    const ASTNode *c0 = mul->children[0].get(), *c1 = mul->children[1].get();
+    const ASTNode *signX = unaryCallArg(c0, "sign");
+    const ASTNode *maxNode = c1;
+    if (!signX) { signX = unaryCallArg(c1, "sign"); maxNode = c0; }
+    if (!signX) return std::nullopt;
+    // maxNode = max(0, abs(x)-t) / max(abs(x)-t, 0).
+    const ASTNode *mxName = calleeName(maxNode);
+    if (!mxName || mxName->strValue != "max" || maxNode->children.size() != 3)
+        return std::nullopt;
+    const ASTNode *ma = maxNode->children[1].get(), *mb = maxNode->children[2].get();
+    const ASTNode *sub = isZeroLiteral(ma) ? mb : (isZeroLiteral(mb) ? ma : nullptr);
+    if (!sub) return std::nullopt;
+    const ASTNode *subN = asBinOp(sub, "-");           // must be abs(x) - t
+    if (!subN) return std::nullopt;
+    const ASTNode *absX = unaryCallArg(subN->children[0].get(), "abs");
+    const ASTNode *t = subN->children[1].get();
+    if (!absX || !isPureLeaf(t) || !sameIdentifier(signX, absX)) return std::nullopt;
+    return std::vector<const ASTNode *>{signX, t};     // [x, t]
+}
+
+bool execSoftThreshold(const Value *ops, std::size_t n, Value &out,
+                       std::pmr::memory_resource *mr) {
+    if (n != 2) return false;
+    const Value &x = ops[0], &t = ops[1];
+    if (x.type() != ValueType::DOUBLE || x.isComplex()) return false;
+    const std::size_t N = x.numel();
+    if (N < kFusionMinElems) return false;
+    if (!isRealDoubleScalar(t)) return false;
+    out = ops::createLike(x, ValueType::DOUBLE, mr);
+    ops::fusedSoftThreshold(x.doubleData(), t.toScalar(), out.doubleDataMut(), N);
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -749,6 +800,12 @@ void registerFusionRules(Engine &engine) {
     sqrtSumSq.match = matchSqrtSumSq;
     sqrtSumSq.execute = execSqrtSumSq;
     engine.addFusionRule(std::move(sqrtSumSq));
+
+    FusionRule softThreshold;
+    softThreshold.name  = "soft_threshold";
+    softThreshold.match = matchSoftThreshold;
+    softThreshold.execute = execSoftThreshold;
+    engine.addFusionRule(std::move(softThreshold));
 }
 
 } // namespace numkit
