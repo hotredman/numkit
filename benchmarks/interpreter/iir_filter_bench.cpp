@@ -13,10 +13,13 @@
 //
 // All four produce identical output. ns/sample = 1e9 / items_per_second
 // (read the items_per_second column). Snapshot 2026-06-17, bench preset,
-// N = 131072:  native ~1.6 | filter() ~5.5 | VM-loop ~185 | TreeWalker ~330
-// ns/sample -- a ~120x interpreter tax (VM) on the hand loop. The M-loop body is
-// ~20 boxed-Value opcodes per sample, so arithmetic boxing dominates, not the
-// loop machinery (an empty for-loop is ~2 ns/iteration).
+// N = 131072, after loop opts #1 (indexed scalar fast-path) + #2 (MULADD
+// fusion):  native ~1.6 | filter() ~5.5 | VM-loop ~148 | TreeWalker ~321
+// ns/sample (VM-loop was ~185 before #1+#2). Reference: MATLAB R2025b JIT loop
+// ~4.0, MATLAB filter() ~7.8 -- numkit's filter() (5.5) beats MATLAB's; the VM
+// loop is ~37x its JIT, the residual interpreter-vs-JIT gap that only a loop JIT
+// would close. The M-loop body is dispatch-bound (~15 opcodes/sample); the
+// empty for-loop is ~2 ns/iteration, so the loop machinery is not the cost.
 
 #include <numkit/bundle/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
