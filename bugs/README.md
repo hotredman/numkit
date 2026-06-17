@@ -32,9 +32,9 @@ source layers it became:
 - **`runtime/`** — `src/runtime/` (language-runtime builtins): accumarray,
   cellfun, func2str.
 
-Those three layers share one test tree: their gtests all live together under
-`tests/builtin/` (`known_bugs_test.cpp` + per-fn `*_test.cpp`), not under a
-per-layer `tests/` dir.
+Each base layer keeps its gtests in its own module tree --
+`src/math/tests/`, `src/lang/tests/`, `src/runtime/tests/`. The cross-cutting
+batches and the base-layer `known_bugs_test.cpp` live in `src/bundle/tests/`.
 
 ## File template
 

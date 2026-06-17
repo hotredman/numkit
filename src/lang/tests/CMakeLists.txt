@@ -1,4 +1,7 @@
-# Auto-grouped from tests/builtin (layer split 2026-06-17). Attaches to numkit_gtest.
+# src/lang/tests/CMakeLists.txt
+#
+# lang-layer unit tests (arrays / strings / format / types / datetime). Each
+# adds a TU via target_sources(numkit_gtest PRIVATE ...). Smokes in smoke/.
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cellstruct_public_api_test.cpp
