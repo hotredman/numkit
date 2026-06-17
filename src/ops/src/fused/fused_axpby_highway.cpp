@@ -1,17 +1,17 @@
-// ops/src/fused_axpby_highway.cpp
+// ops/src/fused/fused_axpby_highway.cpp
 //
 // SIMD kernel for fusedAxpby: out[i] = a*x[i] + b*y[i] (two arrays, scalar
 // weights). One streaming pass reads x and y once and writes out once, instead
 // of the per-op path's two products + a temporary. Mul, Mul, Add (each rounds;
 // NOT FMA) so the result is bit-identical to the per-op `a.*x + b.*y`.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_axpby_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_axpby_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

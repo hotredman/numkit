@@ -44,7 +44,7 @@
 #include <numkit/core/fusion_rule.hpp>
 #include <numkit/core/ast.hpp>
 #include <numkit/value/value.hpp>
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/helpers.hpp>   // numkit::ops::createLike
 
 #include <optional>

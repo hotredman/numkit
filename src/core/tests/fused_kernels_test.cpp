@@ -4,7 +4,7 @@
 // correctness vs a scalar reference (incl. NaN/Inf, output aliasing, tail), and
 // a manual perf probe gating whether fusion is worth the VM integration.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 
 #include <gtest/gtest.h>
 

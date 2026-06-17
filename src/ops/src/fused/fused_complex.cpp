@@ -1,4 +1,4 @@
-// ops/src/fused_complex.cpp
+// ops/src/fused/fused_complex.cpp
 //
 // Complex-input fused kernels. Unlike the real kernels these are plain scalar
 // std::complex<double> loops — Highway has no complex transcendentals, and
@@ -14,7 +14,7 @@
 // per-TU inliner-budget cost. Lives in the always-on ops sources so it is in
 // both the SIMD and portable builds.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 
 #include <cmath>
 #include <complex>

@@ -1,4 +1,4 @@
-// toolboxes/signal/src/transforms/backends/fft_r4_soa_simd.cpp
+// ops/src/fft/fft_r4_soa_simd.cpp
 //
 // Radix-4 FFT for power-of-4 sizes with SoA (split real/imag) layout.
 // Same algorithm as fft_r4_simd.cpp; the difference is internal
@@ -13,14 +13,14 @@
 // Same per-TU isolation rationale as the other FFT kernels (MSVC
 // inliner-budget cliff documented in feedback_fft_msvc_limits memory).
 
-#include <numkit/ops/fft_kernels.hpp>
+#include <numkit/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft_r4_soa_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_r4_soa_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

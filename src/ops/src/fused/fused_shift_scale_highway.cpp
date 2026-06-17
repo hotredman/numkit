@@ -1,4 +1,4 @@
-// ops/src/fused_shift_scale_highway.cpp
+// ops/src/fused/fused_shift_scale_highway.cpp
 //
 // SIMD kernels for the center-then-combine idioms:
 //   fusedShiftScaleMul: out[i] = (x[i] - sub) * mul   — `(x - c).*s`
@@ -9,13 +9,13 @@
 // (x-c)*(1/d) would round 1/d first and diverge from (x-c)/d. NaN/Inf flow
 // through the plain IEEE ops exactly as per-op (no fmin/fmax involved).
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_shift_scale_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_shift_scale_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

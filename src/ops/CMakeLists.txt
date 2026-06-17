@@ -17,7 +17,7 @@ set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
     # Complex-input fused kernels — scalar std::complex (no SIMD), needed in
     # both the SIMD and portable builds.
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_complex.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_complex.cpp)
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
@@ -25,30 +25,30 @@ if(NUMKIT_WITH_SIMD)
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_affine_clamp_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_affine_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_axpby_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_shift_scale_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_abs_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_unary_affine_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_sq_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_soft_threshold_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_trans_affine_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_affine_clamp_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_affine_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_axpby_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_shift_scale_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_abs_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_unary_affine_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_sq_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_soft_threshold_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_trans_affine_highway.cpp
         # Backend-split FFT kernel — the SIMD path splits across several TUs
         # (one per radix family) so MSVC's per-TU inliner budget isn't shared
         # across butterflies; see feedback_fft_msvc_limits memory.
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r2_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r4_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_stockham_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r2_soa_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_r4_soa_simd.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_stockham_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_soa_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp)
 else()
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_kernels_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft_portable.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_kernels_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_portable.cpp)
 endif()
 
 add_library(numkit_ops STATIC ${NUMKIT_OPS_SOURCES})

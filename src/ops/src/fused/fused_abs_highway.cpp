@@ -1,4 +1,4 @@
-// ops/src/fused_abs_highway.cpp
+// ops/src/fused/fused_abs_highway.cpp
 //
 // SIMD kernels for the absolute-value idioms:
 //   fusedAbsAffine: out[i] = |scale*x[i] + offset|   — `abs(a.*x ± b)`, `abs(x-c)`
@@ -7,14 +7,14 @@
 // Mul+Add / Sub before it — making each kernel bit-identical to its per-op
 // spelling. NaN/Inf flow through naturally (|NaN| = NaN, |±Inf| = Inf).
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_abs_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_abs_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

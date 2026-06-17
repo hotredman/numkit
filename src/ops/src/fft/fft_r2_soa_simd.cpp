@@ -1,4 +1,4 @@
-// toolboxes/signal/src/transforms/backends/fft_r2_soa_simd.cpp
+// ops/src/fft/fft_r2_soa_simd.cpp
 //
 // Radix-2 FFT with Structure-of-Arrays (split real/imag) layout
 // internally. The public API still takes interleaved-complex (AoS)
@@ -25,14 +25,14 @@
 // Lives in its own TU for the same MSVC inliner-budget reason as the
 // r2 / r4 / Stockham split (see feedback_fft_msvc_limits memory).
 
-#include <numkit/ops/fft_kernels.hpp>
+#include <numkit/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft_r2_soa_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_r2_soa_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

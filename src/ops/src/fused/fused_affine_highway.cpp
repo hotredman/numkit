@@ -1,4 +1,4 @@
-// ops/src/fused_affine_highway.cpp
+// ops/src/fused/fused_affine_highway.cpp
 //
 // SIMD kernel for fusedAffine: out[i] = scale*x[i] + offset. NaN-preserving —
 // there is no clamp, so a NaN input flows straight through (scale*NaN+offset =
@@ -6,13 +6,13 @@
 // NaN into ±inf). Mul-then-Add (two roundings, NOT MulAdd/FMA) so the result
 // is bit-identical to the per-op `a.*x + b` fallback (which also rounds twice).
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_affine_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_affine_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

@@ -2,7 +2,7 @@
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/ops/fft_radix2.hpp>   // numkit::fftRadix2(buf,N,W) base butterfly (ops-layer)
+#include <numkit/ops/fft/fft_radix2.hpp>   // numkit::fftRadix2(buf,N,W) base butterfly (ops-layer)
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
@@ -42,7 +42,7 @@ inline void fillFftTwiddles(Complex *W, size_t N, int dir)
 }
 
 // The base radix-2 butterfly — fftRadix2(Complex*, size_t, const Complex*) — now
-// lives in <numkit/ops/fft_radix2.hpp> (included above): it is an ops-layer
+// lives in <numkit/ops/fft/fft_radix2.hpp> (included above): it is an ops-layer
 // numerical kernel shared with ops/src/fft_portable.cpp (previously this signal
 // header was its only home, which made ops reach up into the signal toolbox — a
 // layering inversion that broke SIMD-off builds). The convenience overloads below
