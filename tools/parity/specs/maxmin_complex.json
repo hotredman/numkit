@@ -1,0 +1,19 @@
+{
+  "name": "maxmin_complex",
+  "namespace": "math",
+  "setup": "z = [3+4i, 0.2-0.1i]; w = [1+1i, 2-2i]; u = [2+0i, 1+1i];",
+  "expr": "mx = max(z, 1); mn = min(z, 1); t = max(1+0i, 0+1i); aa = max(w, u); ab = min(w, u); na = max(complex(NaN,2), 3+4i); rf = max(complex(-3,0), 1); cl = max(0, min(1, 0.3+0.4i));",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "real(mx(1))", "imag(mx(1))", "real(mx(2))", "imag(mx(2))",
+    "real(mn(2))", "imag(mn(2))",
+    "real(t)", "imag(t)",
+    "real(aa(1))", "real(aa(2))", "imag(aa(2))",
+    "real(ab(1))", "imag(ab(1))",
+    "real(na)", "imag(na)",
+    "real(rf)", "imag(rf)",
+    "real(cl)", "imag(cl)"
+  ],
+  "comment": "Binary (elementwise) complex max/min: compare by |z| (modulus), ties broken by angle(z); a NaN-component operand is omitted (omitnan is the max/min default). NO all-real fallback in the binary form (unlike the reduction): max(complex(-3,0),1)=-3 because |-3|=3>1. max(z,1)=[3+4i,1]; min(z,1)=[1,0.2-0.1i]; max(1+0i,0+1i)=0+1i (angle tie); max([1+1i 2-2i],[2+0i 1+1i])=[2,2-2i]; max(complex(NaN,2),3+4i)=3+4i; clamp max(0,min(1,0.3+0.4i))=0.3+0.4i. bugs/math/maxmin-complex.md."
+}

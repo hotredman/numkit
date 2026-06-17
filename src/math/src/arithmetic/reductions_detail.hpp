@@ -319,6 +319,30 @@ inline bool complexBetter(Complex v, Complex best, bool allReal)
     else                 return angV < angB;
 }
 
+// Binary (elementwise) complex min/max picker — MATLAB R2025b semantics
+// (validated, bugs/math/maxmin-complex.md): compare by |z|, ties broken by
+// angle(z). NO all-real fallback here (unlike the reduction form): MATLAB's
+// binary max(complex(-3,0),1) is -3 (|−3|=3>1), so allReal is fixed false.
+// NaN: a complex value with EITHER component NaN is "missing". omitnan (the
+// max/min default) skips a missing operand (the other wins); both missing →
+// the FIRST operand (MATLAB: max(complex(NaN,2),complex(1,NaN)) = NaN+2i).
+// includenan: a missing operand propagates and wins, first operand first.
+template <bool IsMax>
+inline Complex complexMinMaxPick(Complex a, Complex b, bool omitNan)
+{
+    const bool aNan = std::isnan(a.real()) || std::isnan(a.imag());
+    const bool bNan = std::isnan(b.real()) || std::isnan(b.imag());
+    if (omitNan) {
+        if (aNan && bNan) return a;
+        if (aNan)         return b;
+        if (bNan)         return a;
+    } else {
+        if (aNan) return a;
+        if (bNan) return b;
+    }
+    return complexBetter<IsMax>(a, b, /*allReal=*/false) ? a : b;
+}
+
 inline std::pair<Value, Value>
 allocComplexMinMaxOutputs(const Value &x, int redDim, std::pmr::memory_resource *mr)
 {

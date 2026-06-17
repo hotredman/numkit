@@ -163,6 +163,10 @@ std::tuple<Value, Value> min(const Value &x, int dim, std::pmr::memory_resource 
 Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
+    // Complex: compare by |z| then angle (MATLAB), 'includenan' here.
+    if (a.isComplex() || b.isComplex())
+        return elementwiseComplex(a, b,
+            [](Complex x, Complex y) { return complexMinMaxPick<true>(x, y, false); }, p);
     // Integer / single binary form: result follows MATLAB type promotion
     // (integer wins over double; single wins over double; same-class
     // integers stay; mixed-class integers throw).
@@ -179,6 +183,9 @@ Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
+    if (a.isComplex() || b.isComplex())
+        return elementwiseComplex(a, b,
+            [](Complex x, Complex y) { return complexMinMaxPick<false>(x, y, false); }, p);
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) { return x < y ? x : y; }, p);
@@ -194,6 +201,9 @@ Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 Value maxOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
+    if (a.isComplex() || b.isComplex())
+        return elementwiseComplex(a, b,
+            [](Complex x, Complex y) { return complexMinMaxPick<true>(x, y, true); }, p);
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) {
@@ -216,6 +226,9 @@ Value maxOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource
 Value minOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
+    if (a.isComplex() || b.isComplex())
+        return elementwiseComplex(a, b,
+            [](Complex x, Complex y) { return complexMinMaxPick<false>(x, y, true); }, p);
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) {
