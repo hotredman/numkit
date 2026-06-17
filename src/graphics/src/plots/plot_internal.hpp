@@ -4,9 +4,9 @@
 // Private (src-only) header shared by the per-family plot-table builders carved
 // out of plots.cpp. NOT installed — only the graphics .cpp TUs include it.
 //
-// For now it declares the pure JSON/parse helpers (numkit::detail) that many
-// plot bodies share; the per-family build*Plots(table) entry points are added
-// here as each family is split out.
+// It declares (1) the pure JSON/parse helpers (numkit::detail) that many plot
+// bodies share, and (2) the per-family build*Plots(table) entry points that
+// buildPlotTable() dispatches to.
 
 #include <numkit/figure/figure_manager.hpp>  // DatasetInfo
 #include <numkit/value/span.hpp>              // Span
@@ -15,8 +15,13 @@
 #include <cstddef>
 #include <sstream>
 #include <string>
+#include <vector>
 
-namespace numkit::detail {
+namespace numkit {
+
+struct PlotEntry;  // defined in numkit/graphics/graphics_context.hpp
+
+namespace detail {
 
 // Render a numeric/complex Value as a JSON number array ("[1,2,3]"). Complex
 // uses magnitude; NaN -> null; +/-Inf -> +/-1e308.
@@ -38,4 +43,11 @@ std::size_t parsePlotXYStyle(Span<const Value> args, DatasetInfo &ds);
 // Append a double to os as JSON (NaN -> null; +/-Inf -> +/-1e308).
 void doubleToJson(std::ostringstream &os, double val);
 
-}  // namespace numkit::detail
+}  // namespace detail
+
+// Per-family plot-table builders (carved out of plots.cpp). Each appends its
+// graphics.<sub>.<name> entries to `table`; buildPlotTable() calls them in turn.
+void buildContourPlots(std::vector<PlotEntry> &table);
+// BUILDER-DECLS — the family split appends new declarations directly above here.
+
+}  // namespace numkit
