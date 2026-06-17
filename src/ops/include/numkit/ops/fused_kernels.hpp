@@ -105,15 +105,15 @@ void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n
 // per-op `sign(x) .* max(0, abs(x) - t)`.
 void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n);
 
-// out[i] = f(scale*x[i] + offset), f ∈ {exp, expm1} — an always-real
-// transcendental applied to an affine. Unlike sqrt/floor/ceil, exp's Highway
-// form (hwy/contrib/math) differs from libm by a few ULP, so to stay bit-
-// identical to the per-op f(a.*x ± b) this kernel mirrors numkit's exp/expm1
-// loop exactly: the same hn:: on the SIMD body, the same std:: on the per-chunk
-// scalar tail, chunked by the same kTranscendentalThreshold. exp/expm1 of any
-// real is real, so there is no complex-promotion domain to guard. The win is
-// modest (exp is compute-bound); the value is covering the idiom, not bandwidth.
-enum class TransAffineFn { Exp, Expm1 };
+// out[i] = f(scale*x[i] + offset) for a transcendental f. Unlike sqrt/floor/
+// ceil, these Highway forms (hwy/contrib/math) differ from libm by a few ULP,
+// so to stay bit-identical to the per-op f(a.*x ± b) this kernel mirrors
+// numkit's exp/log/sin/… loop exactly: the same hn:: on the SIMD body, the same
+// std:: on the per-chunk scalar tail, chunked by the same kTranscendentalThreshold.
+// {Exp,Expm1,Sin,Cos,Tanh} of any real are real (no domain guard); {Log,Log2,
+// Log10} of a negative promote to complex in MATLAB — the caller declines those
+// (a pre-scan) and lets the per-op path produce the complex result.
+enum class TransAffineFn { Exp, Expm1, Log, Log2, Log10, Sin, Cos, Tanh };
 void fusedTransAffine(const double *x, double scale, double offset,
                       TransAffineFn fn, double *out, std::size_t n);
 

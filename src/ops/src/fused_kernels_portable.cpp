@@ -110,6 +110,24 @@ void fusedTransAffine(const double *x, double scale, double offset,
         case TransAffineFn::Expm1:
             for (std::size_t i = 0; i < n; ++i) out[i] = std::expm1(scale * x[i] + offset);
             break;
+        case TransAffineFn::Log:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::log(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Log2:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::log2(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Log10:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::log10(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Sin:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::sin(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Cos:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::cos(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Tanh:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::tanh(scale * x[i] + offset);
+            break;
     }
 }
 

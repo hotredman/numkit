@@ -57,6 +57,36 @@ void TransAffineImpl(const double *x, double scale, double offset,
                       [](auto d, auto v) { return hn::Expm1(d, v); },
                       [](double v) { return std::expm1(v); });
             break;
+        case TransAffineFn::Log:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Log(d, v); },
+                      [](double v) { return std::log(v); });
+            break;
+        case TransAffineFn::Log2:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Log2(d, v); },
+                      [](double v) { return std::log2(v); });
+            break;
+        case TransAffineFn::Log10:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Log10(d, v); },
+                      [](double v) { return std::log10(v); });
+            break;
+        case TransAffineFn::Sin:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Sin(d, v); },
+                      [](double v) { return std::sin(v); });
+            break;
+        case TransAffineFn::Cos:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Cos(d, v); },
+                      [](double v) { return std::cos(v); });
+            break;
+        case TransAffineFn::Tanh:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Tanh(d, v); },
+                      [](double v) { return std::tanh(v); });
+            break;
     }
 }
 

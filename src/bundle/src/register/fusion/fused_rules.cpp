@@ -21,7 +21,8 @@
 //   sq_diff      (x-y).^2 / (x-c).^2 → fusedSqDiff / fusedSqAffine
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
-//   {exp,expm1}_affine  f(<inner>), inner ∈ {a.*x±b, a.*x, x±c} → fusedTransAffine
+//   {exp,expm1,log,log2,log10,sin,cos,tanh}_affine  f(<inner>) → fusedTransAffine
+//     (log/log2/log10 decline on a negative affine → MATLAB complex)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -702,16 +703,26 @@ bool execSoftThreshold(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
-// ---- transcendental-affine:  f(a.*x ± b),  f ∈ {exp, expm1} ------------
-// Always-real (no complex-promotion domain), so no decline beyond the type/size
-// guard. Shares matchUnaryAffine; the kernel mirrors numkit's exp/expm1 loop
-// for bit-exactness (see fused_trans_affine_highway.cpp).
+// ---- transcendental-affine:  f(<inner>) ---------------------------------
+// {exp,expm1,sin,cos,tanh} are always-real; {log,log2,log10} of a negative
+// promote to complex in MATLAB, so they decline on a negative affine (the
+// per-op fallback reproduces the complex result). The kernel mirrors numkit's
+// transcendental loop for bit-exactness (see fused_trans_affine_highway.cpp).
+bool transNeedsNonNeg(numkit::ops::TransAffineFn fn) {
+    using TF = numkit::ops::TransAffineFn;
+    return fn == TF::Log || fn == TF::Log2 || fn == TF::Log10;
+}
+
 bool execTransAffine(const Value *ops, std::size_t n, Value &out,
                      std::pmr::memory_resource *mr, InnerKind kind,
                      numkit::ops::TransAffineFn fn) {
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
     if (!bindInner(ops, n, kind, scale, offset, x)) return false;
+    if (transNeedsNonNeg(fn) &&
+        affineAnyNegative(x->doubleData(), scale, offset, x->numel()))
+        return false;  // negative → MATLAB complex; per-op fallback handles it
+
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
     ops::fusedTransAffine(x->doubleData(), scale, offset, fn,
                           out.doubleDataMut(), x->numel());
@@ -918,6 +929,12 @@ void registerFusionRules(Engine &engine) {
     };
     addTransAffine("exp_affine",   "exp",   TF::Exp);
     addTransAffine("expm1_affine", "expm1", TF::Expm1);
+    addTransAffine("log_affine",   "log",   TF::Log);
+    addTransAffine("log2_affine",  "log2",  TF::Log2);
+    addTransAffine("log10_affine", "log10", TF::Log10);
+    addTransAffine("sin_affine",   "sin",   TF::Sin);
+    addTransAffine("cos_affine",   "cos",   TF::Cos);
+    addTransAffine("tanh_affine",  "tanh",  TF::Tanh);
 }
 
 } // namespace numkit
