@@ -163,6 +163,48 @@ TEST_P(FusionParityTest, AxpbyShapeMismatchFallsBack) {
     EXPECT_TRUE(sameOnOff(e, "a .* x + b .* y"));
 }
 
+// ---- axpby implicit a=1: a.*x ± y, x ± b.*y (the leaf side is an array) ---
+// The trailing/leading "offset" leaf is a same-shape array, so affine_add/sub
+// (and negprod for leaf - prod) route to fusedAxpby with the leaf coefficient 1.
+TEST_P(FusionParityTest, AxpbyImplicitOne) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); "
+           "y = reshape(linspace(5,-2,6000),2000,3); a = 0.4; b = 1.25;");
+    EXPECT_TRUE(sameOnOff(e, "a .* x + y"));     // affine_add, array leaf
+    EXPECT_TRUE(sameOnOff(e, "y + a .* x"));     // commuted
+    EXPECT_TRUE(sameOnOff(e, "x + b .* y"));     // leaf + product
+    EXPECT_TRUE(sameOnOff(e, "b .* y + x"));
+    EXPECT_TRUE(sameOnOff(e, "a .* x - y"));     // affine_sub, array leaf
+    EXPECT_TRUE(sameOnOff(e, "x - b .* y"));     // negprod: leaf - product
+    e.eval("z = a .* x + y;");
+    EXPECT_NEAR(e.eval("z(1)").toScalar(), 0.4 * (-3.0) + 5.0, 1e-12);
+    e.eval("w = x - b .* y;");
+    EXPECT_NEAR(e.eval("w(1)").toScalar(), -3.0 - 1.25 * 5.0, 1e-12);
+}
+
+// c - a.*x → the negated-scale affine fusedAffine(x, -a, c) (negprod, scalar leaf).
+TEST_P(FusionParityTest, NegScaleAffine) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); a = 2.5; c = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "c - a .* x"));
+    e.eval("y = c - a .* x;");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), 0.5 - 2.5 * (-3.0), 1e-12);
+}
+
+// NaN / Inf flow through the implicit-1 axpby exactly as per-op.
+TEST_P(FusionParityTest, AxpbyImplicitOneNaNInf) {
+    e.eval("x = [linspace(-1,2,5997)'; NaN; Inf; -Inf]; "
+           "y = [linspace(2,-1,5997)'; 1; 1; 1]; b = 2;");
+    EXPECT_TRUE(sameOnOff(e, "x + b .* y"));
+    EXPECT_TRUE(sameOnOff(e, "x - b .* y"));
+    EXPECT_TRUE(sameOnOff(e, "b .* y - x"));     // axpby_sub (prod - leaf-array)
+}
+
+// Shape mismatch (row vs col) declines on the dims guard → per-op fallback.
+TEST_P(FusionParityTest, AxpbyImplicitOneShapeMismatchFallsBack) {
+    e.eval("x = linspace(-1,2,1100); y = linspace(2,-1,1100)'; b = 2;");
+    EXPECT_TRUE(sameOnOff(e, "x + b .* y"));
+    EXPECT_TRUE(sameOnOff(e, "x - b .* y"));
+}
+
 // ---- shift-scale: (x-c).*s and (x-c)./d (center then scale/divide) ------
 
 TEST_P(FusionParityTest, ShiftScaleMul) {
@@ -718,6 +760,13 @@ void probeFused(numkit::Engine::Backend backend, const char *tag,
 }
 } // namespace
 
+// implicit-1 axpby `x + b.*y` (one product + a same-shape array leaf). Routes
+// through affine_add to fusedAxpby; this confirms that routing actually fires.
+TEST(FusionFiringProbe, DISABLED_VMAxpbyImplicitOneSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM axpby-a1",
+               "x = rand(3048*3816,1); y = rand(3048*3816,1); b = 0.7;",
+               "x + b .* y");
+}
 TEST(FusionFiringProbe, DISABLED_VMSqAffineSpeedup) {
     probeFused(numkit::Engine::Backend::VM, "VM sq-affine",
                "x = rand(3048*3816,1); a = 1.5; b = 0.5;", "(a .* x + b) .^ 2");
