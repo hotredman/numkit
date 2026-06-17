@@ -42,4 +42,16 @@ void fusedAffine(const double *x, double scale, double offset,
 void fusedAxpby(const double *x, double a, const double *y, double b,
                 double *out, std::size_t n);
 
+// out[i] = (x[i] - sub) * mul   — center then scale (rescale, normalize,
+// z-score by a precomputed reciprocal). Sub then Mul (two roundings) so it is
+// bit-identical to the per-op `(x - c).*s`. NaN/Inf propagate naturally.
+void fusedShiftScaleMul(const double *x, double sub, double mul,
+                        double *out, std::size_t n);
+
+// out[i] = (x[i] - sub) / div   — center then divide ((x-mu)./sigma,
+// (x-lo)./range). Sub then Div (two roundings) so it is bit-identical to the
+// per-op `(x - c)./d` (which can't be folded into a *mul: 1/d would round).
+void fusedShiftScaleDiv(const double *x, double sub, double div,
+                        double *out, std::size_t n);
+
 } // namespace numkit::ops
