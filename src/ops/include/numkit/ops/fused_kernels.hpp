@@ -54,4 +54,14 @@ void fusedShiftScaleMul(const double *x, double sub, double mul,
 void fusedShiftScaleDiv(const double *x, double sub, double div,
                         double *out, std::size_t n);
 
+// out[i] = |scale*x[i] + offset|   — magnitude of an affine. Mul, Add, then
+// abs (abs is exact — a sign-bit clear), so bit-identical to `abs(a.*x ± b)`.
+// Also serves `abs(x - c)` (scale 1) since |1*x + (-c)| == |x - c|.
+void fusedAbsAffine(const double *x, double scale, double offset,
+                    double *out, std::size_t n);
+
+// out[i] = |x[i] - y[i]|   — absolute difference of two arrays (L1 residual /
+// error). Sub then abs (exact) → bit-identical to `abs(x - y)`.
+void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n);
+
 } // namespace numkit::ops

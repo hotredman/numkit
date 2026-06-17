@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <string>
 
@@ -215,6 +216,41 @@ TEST_P(FusionParityTest, AffineClampNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "max(0, min(1, a .* x + b))"));
 }
 
+// ---- abs: abs(a.*x±b), abs(x-y), abs(x-c) -------------------------------
+
+TEST_P(FusionParityTest, AbsAffine) {
+    e.eval("x = reshape(linspace(-4,4,6000),2000,3); a = 1.5; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "abs(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "abs(a .* x - b)"));
+    e.eval("y = abs(a .* x - b);");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), std::abs(1.5 * (-4.0) - 0.5), 1e-12);
+}
+
+TEST_P(FusionParityTest, AbsDiffTwoArrays) {     // L1 residual
+    e.eval("x = reshape(linspace(-4,4,6000),2000,3); "
+           "y = reshape(linspace(3,-5,6000),2000,3);");
+    EXPECT_TRUE(sameOnOff(e, "abs(x - y)"));
+}
+
+TEST_P(FusionParityTest, AbsDiffArrayScalar) {   // |x-c| and |c-x|
+    e.eval("x = reshape(linspace(-4,4,6000),2000,3); c = 1.25;");
+    EXPECT_TRUE(sameOnOff(e, "abs(x - c)"));
+    EXPECT_TRUE(sameOnOff(e, "abs(c - x)"));
+}
+
+TEST_P(FusionParityTest, AbsNaNInf) {
+    e.eval("x = [linspace(-2,2,5997)'; NaN; Inf; -Inf]; "
+           "y = [linspace(2,-2,5997)'; 1; 1; 1]; a = 2; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "abs(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "abs(x - y)"));
+}
+
+// Broadcast (row - col) declines on the dims guard → per-op fallback.
+TEST_P(FusionParityTest, AbsDiffShapeMismatchFallsBack) {
+    e.eval("x = linspace(-2, 2, 1100); y = linspace(2, -2, 1100)';");
+    EXPECT_TRUE(sameOnOff(e, "abs(x - y)"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -361,4 +397,34 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerAffineClampSpeedup) {
 }
 TEST(FusionFiringProbe, DISABLED_VMAffineClampSpeedup) {
     probeAffineClamp(numkit::Engine::Backend::VM, "VM");
+}
+
+// abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one
+// streaming pass over two arrays. Confirms the abs kernels fire.
+namespace {
+void probeAbsDiff(numkit::Engine::Backend backend, const char *tag) {
+    numkit::StandardEngine e;
+    e.setBackend(backend);
+    e.eval("x = rand(3048*3816, 1); y = rand(3048*3816, 1);");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("z = abs(x - y);");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("z = abs(x - y);");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] %s abs-diff 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", tag, off, on, off / on);
+    EXPECT_LT(on, off * 0.90);  // fewer passes → faster → it fired
+}
+} // namespace
+
+TEST(FusionFiringProbe, DISABLED_TreeWalkerAbsDiffSpeedup) {
+    probeAbsDiff(numkit::Engine::Backend::TreeWalker, "TW");
+}
+TEST(FusionFiringProbe, DISABLED_VMAbsDiffSpeedup) {
+    probeAbsDiff(numkit::Engine::Backend::VM, "VM");
 }
