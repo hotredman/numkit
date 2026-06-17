@@ -13,12 +13,14 @@
 //   axpby_sub   (a.*x) - (b.*y)       → fusedAxpby(x, a, y, -b)
 //   shift_scale_mul  (x-c).*s / s.*(x-c) → fusedShiftScaleMul(x, c, s)
 //   shift_scale_div  (x-c)./d           → fusedShiftScaleDiv(x, c, d)
-//   affine_clamp_*  max(lo,min(hi,a.*x±b)) → fusedAffineClamp(x, a, ±b, lo, hi)
-//   abs_affine_*    abs(a.*x ± b)         → fusedAbsAffine(x, a, ±b)
-//   abs_diff        abs(x - y) / abs(x-c) → fusedAbsDiff / fusedAbsAffine
-//   {sqrt,floor,ceil}_affine  f(<inner>), inner ∈ {a.*x±b, a.*x, x±c} → fusedUnaryAffine
-//   sq_affine_*  (a.*x ± b).^2  → fusedSqAffine(x, a, ±b)
-//   sq_diff      (x-y).^2 / (x-c).^2 → fusedSqDiff / fusedSqAffine
+//   affine_clamp[_min_outer]  max/min(.. <inner> ..) → fusedAffineClamp[MinOuter]
+//   abs_affine  abs(<inner>)          → fusedAbsAffine
+//   abs_diff    abs(x - y) / abs(x-c) → fusedAbsDiff / fusedAbsAffine
+//   {sqrt,floor,ceil}_affine  f(<inner>)  → fusedUnaryAffine
+//   sq_affine   (<inner>).^2          → fusedSqAffine
+//   sq_diff     (x-y).^2 / (x-c).^2   → fusedSqDiff / fusedSqAffine
+// (<inner> = any affine spelling via matchInner: a.*x±b, a.*x, x±c, -x; sq/abs
+//  skip ShiftSub since their _diff rule owns leaf-leaf subtract.)
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
 //   {exp,expm1,log,log2,log10,sin,cos,tanh,sinh,atan,asinh}_affine  f(<inner>)
@@ -319,36 +321,45 @@ bool execShiftScale(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
-// ---- affine-clamp:  max(lo, min(hi, (a.*x) ± b)) ------------------------
+// Forward declarations of the shared inner-affine facility (defined below, after
+// the matchers it reuses). `enum class InnerKind;` is a complete type (fixed
+// underlying int), so these by-value-param signatures are valid here; the
+// enumerators are only needed in registerFusionRules. Used by the f(inner)
+// families that follow (affine-clamp, abs, sq, unary, transcendental).
+enum class InnerKind;
+std::optional<std::vector<const ASTNode *>> matchInner(const ASTNode *node,
+                                                       InnerKind kind);
+bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
+               double &offset, const Value *&x);
+
+// ---- affine-clamp:  max(lo, min(hi, <inner>)) --------------------------
 // Normalize-then-saturate in one pass — reuses fusedAffineClamp with bound
 // scale/offset (plain clamp = the a=1,b=0 special case). The inner affine is
 // detected by reusing matchAffineAdd/matchAffineSub.
 
+// operands = [lo, hi, <inner-ops>] — lo/hi FIRST (fixed positions) so the
+// variable-arity inner (matchInner) follows. expr = clamp(<inner>) to [lo,hi].
 std::optional<std::vector<const ASTNode *>>
-matchAffineClamp(const ASTNode *node, bool sub, bool minOuter) {
+matchAffineClamp(const ASTNode *node, InnerKind kind, bool minOuter) {
     auto cs = peelClamp(node, minOuter);
     if (!cs || !isPureLeaf(cs->lo) || !isPureLeaf(cs->hi)) return std::nullopt;
-    auto aff = sub ? matchAffineSub(cs->inner) : matchAffineAdd(cs->inner);
-    if (!aff) return std::nullopt;            // [c0, c1, b]
-    aff->push_back(cs->lo);
-    aff->push_back(cs->hi);
-    return aff;                               // [c0, c1, b, lo, hi]
+    auto inner = matchInner(cs->inner, kind);
+    if (!inner) return std::nullopt;
+    std::vector<const ASTNode *> ops{cs->lo, cs->hi};
+    ops.insert(ops.end(), inner->begin(), inner->end());
+    return ops;                               // [lo, hi, <inner-ops>]
 }
 
-// operands = [c0, c1, b, lo, hi]; expr = clamp((c0⊗c1) ⊕ b) to [lo,hi]. Same
-// bit-exactness as affine (mul-then-add, ±b exact) composed with the clamp
-// kernel's fmin/fmax (validated against per-op min/max by the plain-clamp rule).
+// Same bit-exactness as affine (the inner) composed with the clamp kernel's
+// fmin/fmax (validated against per-op min/max by the plain-clamp rule).
 bool execAffineClamp(const Value *ops, std::size_t n, Value &out,
-                     std::pmr::memory_resource *mr, double bSign, bool minOuter) {
-    if (n != 5) return false;
-    const Value &b = ops[2], &lo = ops[3], &hi = ops[4];
-    if (!isRealDoubleScalar(b) || !isRealDoubleScalar(lo) ||
-        !isRealDoubleScalar(hi))
-        return false;
-    double scale = 0.0;
+                     std::pmr::memory_resource *mr, InnerKind kind, bool minOuter) {
+    if (n < 3) return false;                  // lo, hi, + >=1 inner operand
+    const Value &lo = ops[0], &hi = ops[1];
+    if (!isRealDoubleScalar(lo) || !isRealDoubleScalar(hi)) return false;
+    double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
-    const double offset = bSign * b.toScalar();
+    if (!bindInner(&ops[2], n - 2, kind, scale, offset, x)) return false;
 
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
     auto kernel = minOuter ? ops::fusedAffineClampMinOuter : ops::fusedAffineClamp;
@@ -366,12 +377,12 @@ const ASTNode *absArg(const ASTNode *node) {
     return node->children[1].get();
 }
 
-// abs of an affine product: reuse the affine inner-detection on abs's argument.
+// abs of any affine inner (product/shift/neg), via matchInner on abs's argument.
 std::optional<std::vector<const ASTNode *>> matchAbsAffine(const ASTNode *node,
-                                                           bool sub) {
+                                                           InnerKind kind) {
     const ASTNode *arg = absArg(node);
     if (!arg) return std::nullopt;
-    return sub ? matchAffineSub(arg) : matchAffineAdd(arg);  // [c0,c1,b]
+    return matchInner(arg, kind);
 }
 
 // abs of a pure subtract `A - B` (covers abs(x-y), abs(x-c), abs(c-x)).
@@ -384,18 +395,15 @@ std::optional<std::vector<const ASTNode *>> matchAbsDiff(const ASTNode *node) {
                                         s->children[1].get()};
 }
 
-// operands = [c0, c1, b]; expr = abs((c0⊗c1) ⊕ b) → |scale*x ± b|.
+// abs(<inner>) → |scale*x + offset|, inner decoded by bindInner.
 bool execAbsAffine(const Value *ops, std::size_t n, Value &out,
-                   std::pmr::memory_resource *mr, double bSign) {
-    if (n != 3) return false;
-    const Value &b = ops[2];
-    if (!isRealDoubleScalar(b)) return false;
-    double scale = 0.0;
+                   std::pmr::memory_resource *mr, InnerKind kind) {
+    double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedAbsAffine(x->doubleData(), scale, bSign * b.toScalar(),
-                        out.doubleDataMut(), x->numel());
+    ops::fusedAbsAffine(x->doubleData(), scale, offset, out.doubleDataMut(),
+                        x->numel());
     return true;
 }
 
@@ -523,6 +531,15 @@ constexpr InnerKind kAllInnerKinds[] = {
     InnerKind::ProductAdd, InnerKind::ProductSub, InnerKind::Product,
     InnerKind::ShiftAdd, InnerKind::ShiftSub, InnerKind::NegLeaf};
 
+// Same minus ShiftSub — for the sq/abs families, whose `_diff` rule already owns
+// the leaf-leaf subtract `(A-B)` (covering BOTH two arrays and array-scalar). If
+// sq/abs also took ShiftSub it would structurally match `(x-y).^2`/`abs(x-y)`
+// then decline at runtime (two arrays, no scalar), and first-match-declines
+// would block the `_diff` rule. So they skip it and stay disjoint.
+constexpr InnerKind kInnerKindsNoShiftSub[] = {
+    InnerKind::ProductAdd, InnerKind::ProductSub, InnerKind::Product,
+    InnerKind::ShiftAdd, InnerKind::NegLeaf};
+
 // ---- unary-affine:  f(<inner>),  f ∈ {sqrt, floor, ceil} ---------------
 // A unary whose SIMD form is bit-identical to libm (sqrt correctly-rounded,
 // floor/ceil exact). exp/log/sin… are NOT here — Highway's polynomial differs
@@ -576,12 +593,12 @@ const ASTNode *asSquare(const ASTNode *node) {
     return node->children[0].get();
 }
 
-// (a.*x ± b).^2 — square of an affine product, reusing the affine detection.
+// (<inner>).^2 — square of any affine inner (product/shift/neg), via matchInner.
 std::optional<std::vector<const ASTNode *>> matchSqAffine(const ASTNode *node,
-                                                          bool sub) {
+                                                          InnerKind kind) {
     const ASTNode *base = asSquare(node);
     if (!base) return std::nullopt;
-    return sub ? matchAffineSub(base) : matchAffineAdd(base);  // [c0, c1, b]
+    return matchInner(base, kind);
 }
 
 // (A - B).^2 — square of a pure subtract (SSE term, squared deviation).
@@ -607,16 +624,13 @@ std::optional<std::vector<const ASTNode *>> matchSqrtSumSq(const ASTNode *node) 
 }
 
 bool execSqAffine(const Value *ops, std::size_t n, Value &out,
-                  std::pmr::memory_resource *mr, double bSign) {
-    if (n != 3) return false;
-    const Value &b = ops[2];
-    if (!isRealDoubleScalar(b)) return false;
-    double scale = 0.0;
+                  std::pmr::memory_resource *mr, InnerKind kind) {
+    double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedSqAffine(x->doubleData(), scale, bSign * b.toScalar(),
-                       out.doubleDataMut(), x->numel());
+    ops::fusedSqAffine(x->doubleData(), scale, offset, out.doubleDataMut(),
+                       x->numel());
     return true;
 }
 
@@ -815,46 +829,34 @@ void registerFusionRules(Engine &engine) {
     };
     engine.addFusionRule(std::move(shiftScaleDiv));
 
-    // affine-clamp, both add/sub and both clamp spellings (4 rules).
-    auto addAffineClamp = [&engine](const char *name, bool sub, bool minOuter) {
-        const double bSign = sub ? -1.0 : +1.0;
+    // affine-clamp max(lo,min(hi,<inner>)) / min(hi,max(lo,<inner>)): every
+    // inner spelling × both clamp orders.
+    for (bool minOuter : {false, true}) {
+        for (InnerKind kind : kAllInnerKinds) {
+            FusionRule r;
+            r.name  = minOuter ? "affine_clamp_min_outer" : "affine_clamp";
+            r.match = [kind, minOuter](const ASTNode *node) {
+                return matchAffineClamp(node, kind, minOuter);
+            };
+            r.execute = [kind, minOuter](const Value *ops, std::size_t n, Value &out,
+                                         std::pmr::memory_resource *mr) {
+                return execAffineClamp(ops, n, out, mr, kind, minOuter);
+            };
+            engine.addFusionRule(std::move(r));
+        }
+    }
+
+    // abs(<inner>): every inner spelling except ShiftSub (abs_diff owns it).
+    for (InnerKind kind : kInnerKindsNoShiftSub) {
         FusionRule r;
-        r.name  = name;
-        r.match = [sub, minOuter](const ASTNode *node) {
-            return matchAffineClamp(node, sub, minOuter);
-        };
-        r.execute = [bSign, minOuter](const Value *ops, std::size_t n, Value &out,
-                                      std::pmr::memory_resource *mr) {
-            return execAffineClamp(ops, n, out, mr, bSign, minOuter);
+        r.name  = "abs_affine";
+        r.match = [kind](const ASTNode *node) { return matchAbsAffine(node, kind); };
+        r.execute = [kind](const Value *ops, std::size_t n, Value &out,
+                           std::pmr::memory_resource *mr) {
+            return execAbsAffine(ops, n, out, mr, kind);
         };
         engine.addFusionRule(std::move(r));
-    };
-    addAffineClamp("affine_clamp_add",           /*sub=*/false, /*minOuter=*/false);
-    addAffineClamp("affine_clamp_sub",           /*sub=*/true,  /*minOuter=*/false);
-    addAffineClamp("affine_clamp_min_outer_add", /*sub=*/false, /*minOuter=*/true);
-    addAffineClamp("affine_clamp_min_outer_sub", /*sub=*/true,  /*minOuter=*/true);
-
-    FusionRule absAffineAdd;
-    absAffineAdd.name  = "abs_affine_add";
-    absAffineAdd.match = [](const ASTNode *node) {
-        return matchAbsAffine(node, /*sub=*/false);
-    };
-    absAffineAdd.execute = [](const Value *ops, std::size_t n, Value &out,
-                              std::pmr::memory_resource *mr) {
-        return execAbsAffine(ops, n, out, mr, +1.0);
-    };
-    engine.addFusionRule(std::move(absAffineAdd));
-
-    FusionRule absAffineSub;
-    absAffineSub.name  = "abs_affine_sub";
-    absAffineSub.match = [](const ASTNode *node) {
-        return matchAbsAffine(node, /*sub=*/true);
-    };
-    absAffineSub.execute = [](const Value *ops, std::size_t n, Value &out,
-                              std::pmr::memory_resource *mr) {
-        return execAbsAffine(ops, n, out, mr, -1.0);
-    };
-    engine.addFusionRule(std::move(absAffineSub));
+    }
 
     FusionRule absDiff;
     absDiff.name  = "abs_diff";
@@ -887,23 +889,17 @@ void registerFusionRules(Engine &engine) {
     addUnaryAffine("floor_affine", "floor", UF::Floor);
     addUnaryAffine("ceil_affine",  "ceil",  UF::Ceil);
 
-    FusionRule sqAffineAdd;
-    sqAffineAdd.name  = "sq_affine_add";
-    sqAffineAdd.match = [](const ASTNode *node) { return matchSqAffine(node, false); };
-    sqAffineAdd.execute = [](const Value *ops, std::size_t n, Value &out,
-                             std::pmr::memory_resource *mr) {
-        return execSqAffine(ops, n, out, mr, +1.0);
-    };
-    engine.addFusionRule(std::move(sqAffineAdd));
-
-    FusionRule sqAffineSub;
-    sqAffineSub.name  = "sq_affine_sub";
-    sqAffineSub.match = [](const ASTNode *node) { return matchSqAffine(node, true); };
-    sqAffineSub.execute = [](const Value *ops, std::size_t n, Value &out,
-                             std::pmr::memory_resource *mr) {
-        return execSqAffine(ops, n, out, mr, -1.0);
-    };
-    engine.addFusionRule(std::move(sqAffineSub));
+    // (<inner>).^2: every inner spelling except ShiftSub (sq_diff owns it).
+    for (InnerKind kind : kInnerKindsNoShiftSub) {
+        FusionRule r;
+        r.name  = "sq_affine";
+        r.match = [kind](const ASTNode *node) { return matchSqAffine(node, kind); };
+        r.execute = [kind](const Value *ops, std::size_t n, Value &out,
+                           std::pmr::memory_resource *mr) {
+            return execSqAffine(ops, n, out, mr, kind);
+        };
+        engine.addFusionRule(std::move(r));
+    }
 
     FusionRule sqDiff;
     sqDiff.name  = "sq_diff";

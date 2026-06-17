@@ -367,6 +367,32 @@ TEST_P(FusionParityTest, SquareNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "sqrt(x .^ 2 + y .^ 2)"));
 }
 
+// sq/abs/clamp migrated to matchInner: now fuse bare-product / shift / neg
+// inner (not just product±leaf).
+TEST_P(FusionParityTest, SqAbsClampBroadInner) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); a = 1.5; c = 0.5; s = 2;");
+    EXPECT_TRUE(sameOnOff(e, "(a .* x) .^ 2"));          // bare product
+    EXPECT_TRUE(sameOnOff(e, "(x + c) .^ 2"));           // shift-add
+    EXPECT_TRUE(sameOnOff(e, "(-x) .^ 2"));              // neg
+    EXPECT_TRUE(sameOnOff(e, "abs(a .* x)"));
+    EXPECT_TRUE(sameOnOff(e, "abs(x + c)"));
+    EXPECT_TRUE(sameOnOff(e, "abs(-x)"));
+    EXPECT_TRUE(sameOnOff(e, "max(0, min(1, x .* s))"));
+    EXPECT_TRUE(sameOnOff(e, "max(0, min(1, x + c))"));
+    EXPECT_TRUE(sameOnOff(e, "min(1, max(0, x .* s))")); // min-outer, bare product
+}
+
+// Regression guard: the 2-array diffs must STILL fuse after the migration
+// (sq/abs skip ShiftSub so they don't shadow the _diff rules).
+TEST_P(FusionParityTest, SqAbsDiffStillFuse) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); "
+           "y = reshape(linspace(2,-5,6000),2000,3);");
+    EXPECT_TRUE(sameOnOff(e, "(x - y) .^ 2"));            // sq_diff (2-array)
+    EXPECT_TRUE(sameOnOff(e, "abs(x - y)"));               // abs_diff (2-array)
+    EXPECT_TRUE(sameOnOff(e, "(x - 0.5) .^ 2"));           // sq_diff (array-scalar)
+    EXPECT_TRUE(sameOnOff(e, "abs(x - 0.5)"));             // abs_diff (array-scalar)
+}
+
 // ---- soft-threshold: sign(x) .* max(0, abs(x) - t) ---------------------
 
 TEST_P(FusionParityTest, SoftThreshold) {
