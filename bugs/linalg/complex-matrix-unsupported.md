@@ -28,7 +28,7 @@ matrices everywhere. Even `trace` (a trivial diagonal sum) fails.
 The linalg kernels read `x.doubleData()` (real storage) with no
 `ValueType::COMPLEX` path; `mldivide` bails out explicitly. This is the
 matrix-level counterpart of the element-wise complex gap
-(bugs/builtin/complex-input-unsupported.md) and the vector-norm gap
+(bugs/math/complex-input-unsupported.md) and the vector-norm gap
 (bugs/linalg/norm-complex.md).
 
 ## Suggested fix
