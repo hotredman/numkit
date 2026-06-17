@@ -191,6 +191,14 @@ void fusedShiftScaleDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n);
 void fusedSqAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
                      Cx *out, std::size_t n);
 void fusedSqDiffCx(const Cx *x, const Cx *y, Cx *out, std::size_t n);
+// (z-c).^2 / (c-z).^2 — array-scalar squared diff. `rev` picks the subtract
+// order: complex pow(-w,2) != pow(w,2), so the order is NOT foldable (unlike a
+// real square). The subtract is genuine (no mul-by-1).
+void fusedSqDiffScalarCx(const Cx *z, Cx c, bool rev, Cx *out, std::size_t n);
+// sqrt(x.^2 + y.^2) on complex arrays → std::sqrt(pow(x,2)+pow(y,2)) (complex).
+void fusedSqrtSumSqCx(const Cx *x, const Cx *y, Cx *out, std::size_t n);
+// ((x-sub)/div).^2 — divide-inner square on complex → std::pow((x-sub)/div, 2).
+void fusedSqShiftDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n);
 
 // sqrt of a complex affine / divide-inner: std::sqrt(scale*x+offset) /
 // std::sqrt((x-sub)/div). Only sqrt is meaningful on complex in the unary
@@ -215,6 +223,8 @@ void fusedAbsAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
                       double *out, std::size_t n);
 void fusedAbsShiftDivCx(const Cx *x, Cx sub, Cx div, double *out, std::size_t n);
 void fusedAbsDiffCx(const Cx *x, const Cx *y, double *out, std::size_t n);
+// |z - c| array-scalar (= |c - z|, order-agnostic) → real magnitude.
+void fusedAbsDiffScalarCx(const Cx *z, Cx c, double *out, std::size_t n);
 
 // complex soft-threshold: out[i] = sign(z) .* max(0, |z| - t), sign(z) = z/|z|
 // (0 at z==0) — MATLAB's complex shrinkage. t real; out complex.
