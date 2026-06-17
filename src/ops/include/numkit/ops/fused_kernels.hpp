@@ -28,4 +28,12 @@ namespace numkit::ops {
 void fusedAffineClamp(const double *x, double scale, double offset,
                       double lo, double hi, double *out, std::size_t n);
 
+// out[i] = scale*x[i] + offset   — plain affine, NO clamp, NaN-preserving.
+// Covers two-op scale-and-shift chains: a.*x+b, x.*a-b, b+a.*x (rescale,
+// negate, unit conversion). A separate kernel from fusedAffineClamp because a
+// ±inf "clamp" can NOT stand in for "no clamp": fmin(+inf, NaN) = +inf would
+// erase a NaN, whereas scale*NaN+offset = NaN flows through here untouched.
+void fusedAffine(const double *x, double scale, double offset,
+                 double *out, std::size_t n);
+
 } // namespace numkit::ops
