@@ -163,7 +163,7 @@ Value mtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr)
                     s += ca.complexElem(i, k) * cb.complexElem(k, j);
                 r.complexDataMut()[j * M + i] = s;
             }
-        return r;
+        return narrowComplex(r, p);   // all-real product -> real (MATLAB)
     }
 
     {

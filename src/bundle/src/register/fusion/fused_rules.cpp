@@ -1332,6 +1332,22 @@ bool execTransDiv(const Value *ops, std::size_t n, Value &out,
     return false;
 }
 
+// Wrap a rule's execute so an all-real complex fused result narrows to real,
+// matching the per-op path (elementwiseComplex / unaryComplex narrow). Keeps
+// fused==unfused parity AND MATLAB-correctness; no-op for real (DOUBLE) results.
+// bugs/math/complex-zero-imag-narrowing.md.
+void addNarrowing(Engine &engine, FusionRule rule)
+{
+    auto inner = std::move(rule.execute);
+    rule.execute = [inner](const Value *ops, std::size_t n, Value &out,
+                           std::pmr::memory_resource *mr) -> bool {
+        if (!inner(ops, n, out, mr)) return false;
+        out = numkit::narrowComplex(std::move(out), mr);
+        return true;
+    };
+    engine.addFusionRule(std::move(rule));
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -1346,7 +1362,7 @@ void registerFusionRules(Engine &engine) {
                                    std::pmr::memory_resource *mr) {
             return execClamp(ops, n, out, mr, minOuter);
         };
-        engine.addFusionRule(std::move(clamp));
+        addNarrowing(engine, std::move(clamp));
     }
 
     FusionRule affineAdd;
@@ -1356,7 +1372,7 @@ void registerFusionRules(Engine &engine) {
                            std::pmr::memory_resource *mr) {
         return execAffine(ops, n, out, mr, +1.0);
     };
-    engine.addFusionRule(std::move(affineAdd));
+    addNarrowing(engine, std::move(affineAdd));
 
     FusionRule affineSub;
     affineSub.name  = "affine_sub";
@@ -1365,7 +1381,7 @@ void registerFusionRules(Engine &engine) {
                            std::pmr::memory_resource *mr) {
         return execAffine(ops, n, out, mr, -1.0);
     };
-    engine.addFusionRule(std::move(affineSub));
+    addNarrowing(engine, std::move(affineSub));
 
     FusionRule axpbyAdd;
     axpbyAdd.name  = "axpby_add";
@@ -1374,7 +1390,7 @@ void registerFusionRules(Engine &engine) {
                           std::pmr::memory_resource *mr) {
         return execAxpby(ops, n, out, mr, +1.0);
     };
-    engine.addFusionRule(std::move(axpbyAdd));
+    addNarrowing(engine, std::move(axpbyAdd));
 
     FusionRule axpbySub;
     axpbySub.name  = "axpby_sub";
@@ -1383,14 +1399,14 @@ void registerFusionRules(Engine &engine) {
                           std::pmr::memory_resource *mr) {
         return execAxpby(ops, n, out, mr, -1.0);
     };
-    engine.addFusionRule(std::move(axpbySub));
+    addNarrowing(engine, std::move(axpbySub));
 
     // `leaf - prod`: x - b.*y (implicit-1 axpby) / c - a.*x (negated-scale affine).
     FusionRule negProd;
     negProd.name  = "negprod";
     negProd.match = matchNegProd;
     negProd.execute = execNegProd;
-    engine.addFusionRule(std::move(negProd));
+    addNarrowing(engine, std::move(negProd));
 
     FusionRule shiftScaleMul;
     shiftScaleMul.name  = "shift_scale_mul";
@@ -1399,7 +1415,7 @@ void registerFusionRules(Engine &engine) {
                                std::pmr::memory_resource *mr) {
         return execShiftScale(ops, n, out, mr, /*isDiv=*/false);
     };
-    engine.addFusionRule(std::move(shiftScaleMul));
+    addNarrowing(engine, std::move(shiftScaleMul));
 
     FusionRule shiftScaleDiv;
     shiftScaleDiv.name  = "shift_scale_div";
@@ -1408,7 +1424,7 @@ void registerFusionRules(Engine &engine) {
                                std::pmr::memory_resource *mr) {
         return execShiftScale(ops, n, out, mr, /*isDiv=*/true);
     };
-    engine.addFusionRule(std::move(shiftScaleDiv));
+    addNarrowing(engine, std::move(shiftScaleDiv));
 
     // affine-clamp max(lo,min(hi,<inner>)) / min(hi,max(lo,<inner>)): every
     // inner spelling × both clamp orders.
@@ -1423,7 +1439,7 @@ void registerFusionRules(Engine &engine) {
                                          std::pmr::memory_resource *mr) {
                 return execAffineClamp(ops, n, out, mr, kind, minOuter);
             };
-            engine.addFusionRule(std::move(r));
+            addNarrowing(engine, std::move(r));
         }
     }
 
@@ -1439,7 +1455,7 @@ void registerFusionRules(Engine &engine) {
                                std::pmr::memory_resource *mr) {
             return execAffineClampDiv(ops, n, out, mr, minOuter);
         };
-        engine.addFusionRule(std::move(r));
+        addNarrowing(engine, std::move(r));
     }
 
     // abs(<inner>): every inner spelling except ShiftSub (abs_diff owns it).
@@ -1451,14 +1467,14 @@ void registerFusionRules(Engine &engine) {
                            std::pmr::memory_resource *mr) {
             return execAbsAffine(ops, n, out, mr, kind);
         };
-        engine.addFusionRule(std::move(r));
+        addNarrowing(engine, std::move(r));
     }
 
     FusionRule absDiff;
     absDiff.name  = "abs_diff";
     absDiff.match = matchAbsDiff;
     absDiff.execute = execAbsDiff;
-    engine.addFusionRule(std::move(absDiff));
+    addNarrowing(engine, std::move(absDiff));
 
     // abs(x./d) / abs((x-c)./d) — divide-inner abs (dedicated shift-div kernel).
     FusionRule absDiv;
@@ -1470,7 +1486,7 @@ void registerFusionRules(Engine &engine) {
         return matchDivArg(arg);
     };
     absDiv.execute = execAbsDivInner;
-    engine.addFusionRule(std::move(absDiv));
+    addNarrowing(engine, std::move(absDiv));
 
     // unary-affine f(<inner>): one rule per (function, inner spelling). The
     // function-id and inner kind are baked into the captured closures, so every
@@ -1490,7 +1506,7 @@ void registerFusionRules(Engine &engine) {
                                    std::pmr::memory_resource *mr) {
                 return execUnaryAffine(ops, n, out, mr, kind, fn);
             };
-            engine.addFusionRule(std::move(r));
+            addNarrowing(engine, std::move(r));
         }
     };
     addUnaryAffine("sqrt_affine",  "sqrt",  UF::Sqrt);
@@ -1513,7 +1529,7 @@ void registerFusionRules(Engine &engine) {
                          std::pmr::memory_resource *mr) {
             return execUnaryDiv(ops, n, out, mr, fn);
         };
-        engine.addFusionRule(std::move(r));
+        addNarrowing(engine, std::move(r));
     };
     addUnaryDiv("sqrt_div",  "sqrt",  UF::Sqrt);
     addUnaryDiv("floor_div", "floor", UF::Floor);
@@ -1530,14 +1546,14 @@ void registerFusionRules(Engine &engine) {
                            std::pmr::memory_resource *mr) {
             return execSqAffine(ops, n, out, mr, kind);
         };
-        engine.addFusionRule(std::move(r));
+        addNarrowing(engine, std::move(r));
     }
 
     FusionRule sqDiff;
     sqDiff.name  = "sq_diff";
     sqDiff.match = matchSqDiff;
     sqDiff.execute = execSqDiff;
-    engine.addFusionRule(std::move(sqDiff));
+    addNarrowing(engine, std::move(sqDiff));
 
     // (x./d).^2 / ((x-c)./d).^2 — divide-inner square (dedicated shift-div kernel).
     FusionRule sqDiv;
@@ -1549,19 +1565,19 @@ void registerFusionRules(Engine &engine) {
         return matchDivArg(base);
     };
     sqDiv.execute = execSqDivInner;
-    engine.addFusionRule(std::move(sqDiv));
+    addNarrowing(engine, std::move(sqDiv));
 
     FusionRule sqrtSumSq;
     sqrtSumSq.name  = "sqrt_sumsq";
     sqrtSumSq.match = matchSqrtSumSq;
     sqrtSumSq.execute = execSqrtSumSq;
-    engine.addFusionRule(std::move(sqrtSumSq));
+    addNarrowing(engine, std::move(sqrtSumSq));
 
     FusionRule softThreshold;
     softThreshold.name  = "soft_threshold";
     softThreshold.match = matchSoftThreshold;
     softThreshold.execute = execSoftThreshold;
-    engine.addFusionRule(std::move(softThreshold));
+    addNarrowing(engine, std::move(softThreshold));
 
     // transcendental-affine f(<inner>), f ∈ {exp, expm1} (always-real).
     using TF = numkit::ops::TransAffineFn;
@@ -1579,7 +1595,7 @@ void registerFusionRules(Engine &engine) {
                                    std::pmr::memory_resource *mr) {
                 return execTransAffine(ops, n, out, mr, kind, fn);
             };
-            engine.addFusionRule(std::move(r));
+            addNarrowing(engine, std::move(r));
         }
     };
     addTransAffine("exp_affine",   "exp",   TF::Exp);
@@ -1615,7 +1631,7 @@ void registerFusionRules(Engine &engine) {
                          std::pmr::memory_resource *mr) {
             return execTransDiv(ops, n, out, mr, fn);
         };
-        engine.addFusionRule(std::move(r));
+        addNarrowing(engine, std::move(r));
     };
     addTransDiv("exp_div",   "exp",   TF::Exp);
     addTransDiv("expm1_div", "expm1", TF::Expm1);

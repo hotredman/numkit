@@ -514,10 +514,11 @@ Value unaryDouble(const Value &a, Op op, std::pmr::memory_resource *mr)
 }
 
 // ============================================================
-// Elementwise unary on complex
+// Elementwise unary on complex. Public name narrows an all-real result to real
+// (MATLAB: uminus/uplus/conj and unary math of an all-real complex give real).
 // ============================================================
 template<typename Op>
-Value unaryComplex(const Value &a, Op op, std::pmr::memory_resource *mr)
+Value unaryComplexImpl(const Value &a, Op op, std::pmr::memory_resource *mr)
 {
     if (a.isScalar())
         return Value::complexScalar(op(a.toComplex()), mr);
@@ -525,6 +526,11 @@ Value unaryComplex(const Value &a, Op op, std::pmr::memory_resource *mr)
     for (size_t i = 0; i < a.numel(); ++i)
         r.complexDataMut()[i] = op(a.complexData()[i]);
     return r;
+}
+template<typename Op>
+Value unaryComplex(const Value &a, Op op, std::pmr::memory_resource *mr)
+{
+    return narrowComplex(unaryComplexImpl(a, std::move(op), mr), mr);
 }
 
 // ============================================================
