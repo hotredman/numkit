@@ -606,6 +606,27 @@ TEST_P(FusionParityTest, RareTransDivInner) {
     EXPECT_TRUE(e.eval("~isreal(asin(xbad ./ d))").toBool());
 }
 
+// tan — no Highway primitive; the fused kernel mirrors numkit's TanLoop (TanVec
+// on |inner|<1e6, per-block std::tan otherwise). Always-real. n=6001 SIMD tail.
+TEST_P(FusionParityTest, TanAffine) {
+    e.eval("x = linspace(-3, 3, 6001)'; a = 1.5; b = 0.2;");
+    EXPECT_TRUE(sameOnOff(e, "tan(a .* x + b)"));     // ProductAdd
+    EXPECT_TRUE(sameOnOff(e, "tan(x - b)"));          // ShiftSub
+    EXPECT_TRUE(sameOnOff(e, "tan(a .* x)"));         // Product
+    EXPECT_TRUE(sameOnOff(e, "tan(x ./ 2)"));         // div-inner
+    EXPECT_TRUE(sameOnOff(e, "tan(-x)"));             // NegLeaf
+}
+
+// Force the per-block |inner|>=1e6 scalar fallback (numkit's TanLoop drops to
+// std::tan for the whole block there) AND a non-multiple length so the scalar
+// tail runs too. Large args + NaN/Inf are interleaved so blocks mix both paths.
+TEST_P(FusionParityTest, TanAffineLargeArgFallback) {
+    e.eval("x = [linspace(-3,3,5990)'; 2e6; -2e6; 1e7; 5e5; NaN; Inf; -Inf; "
+           "3e6; 7e6; 1.5e6; 4e5];");                 // 5990 + 11 = 6001
+    EXPECT_TRUE(sameOnOff(e, "tan(1 .* x + 0)"));     // affine inner = x, spans 1e6
+    EXPECT_TRUE(sameOnOff(e, "tan(x ./ 3)"));         // div-inner, large args
+}
+
 // div-inner: f(x./d) and f((x-c)./d) via the dedicated shift-div kernels.
 TEST_P(FusionParityTest, DivInner) {
     e.eval("x = reshape(linspace(1,9,6000),2000,3); d = 2.5; c = 0.5;");  // x>0
@@ -936,6 +957,10 @@ TEST(FusionFiringProbe, DISABLED_VMAsinAffineSpeedup) {
     // affine kept in (-1,1) so it stays real and the kernel runs.
     probeTransModest("VM asin-affine", "x = rand(3048*3816,1)*1.6 - 0.8; a = 0.5; b = 0;",
                      "asin(a .* x + b)");
+}
+TEST(FusionFiringProbe, DISABLED_VMTanAffineSpeedup) {
+    probeTransModest("VM tan-affine", "x = rand(3048*3816,1); a = 1.5; b = 0.2;",
+                     "tan(a .* x + b)");
 }
 
 // abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one

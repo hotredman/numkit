@@ -25,10 +25,11 @@
 //  skip ShiftSub since their _diff rule owns leaf-leaf subtract.)
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
-//   {exp,expm1,log,log2,log10,sin,cos,tanh,sinh,atan,asinh,asin,acos,acosh,
-//    atanh,log1p,cosh}_affine  f(<inner>) → fusedTransAffine. Complex-promoting f
+//   {exp,expm1,log,log2,log10,sin,cos,tan,tanh,sinh,cosh,atan,asinh,asin,acos,
+//    acosh,atanh,log1p}_affine  f(<inner>) → fusedTransAffine. Complex-promoting f
 //    decline on the offending range: log* on inner<0, log1p on <-1, acosh on <1,
-//    {asin,acos,atanh} on |inner|>1 (per-op produces the complex result).
+//    {asin,acos,atanh} on |inner|>1 (per-op produces the complex result). tan
+//    mirrors numkit's TanVec + per-block 1e6 fallback (always-real).
 //   {sqrt,floor,ceil,exp,…}_div  f(x./d) / f((x-c)./d) → fused{Unary,Trans}ShiftDiv
 //     (div is a distinct rounding from scale*x+offset → dedicated kernels)
 //   sq_div / abs_div / affine_clamp_div[_min_outer]  (<div-arg>).^2 / abs(...) /
@@ -1256,6 +1257,7 @@ void registerFusionRules(Engine &engine) {
     addTransAffine("atanh_affine", "atanh", TF::Atanh);  // decline |inner|>1
     addTransAffine("log1p_affine", "log1p", TF::Log1p);  // decline inner<-1
     addTransAffine("cosh_affine",  "cosh",  TF::Cosh);   // always-real (composed)
+    addTransAffine("tan_affine",   "tan",   TF::Tan);    // always-real (TanVec mirror)
 
     // f(x./d) / f((x-c)./d) — divide-inner transcendentals (same f-set).
     auto addTransDiv = [&engine](const char *name, const char *fname, TF fn) {
@@ -1290,6 +1292,7 @@ void registerFusionRules(Engine &engine) {
     addTransDiv("atanh_div", "atanh", TF::Atanh);
     addTransDiv("log1p_div", "log1p", TF::Log1p);
     addTransDiv("cosh_div",  "cosh",  TF::Cosh);
+    addTransDiv("tan_div",   "tan",   TF::Tan);
 }
 
 } // namespace numkit
