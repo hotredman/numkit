@@ -25,8 +25,10 @@
 //  skip ShiftSub since their _diff rule owns leaf-leaf subtract.)
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
-//   {exp,expm1,log,log2,log10,sin,cos,tanh,sinh,atan,asinh}_affine  f(<inner>)
-//     → fusedTransAffine (log/log2/log10 decline on a negative affine → complex)
+//   {exp,expm1,log,log2,log10,sin,cos,tanh,sinh,atan,asinh,asin,acos,acosh,
+//    atanh,log1p,cosh}_affine  f(<inner>) → fusedTransAffine. Complex-promoting f
+//    decline on the offending range: log* on inner<0, log1p on <-1, acosh on <1,
+//    {asin,acos,atanh} on |inner|>1 (per-op produces the complex result).
 //   {sqrt,floor,ceil,exp,…}_div  f(x./d) / f((x-c)./d) → fused{Unary,Trans}ShiftDiv
 //     (div is a distinct rounding from scale*x+offset → dedicated kernels)
 //   sq_div / abs_div / affine_clamp_div[_min_outer]  (<div-arg>).^2 / abs(...) /
@@ -911,13 +913,52 @@ bool execSoftThreshold(const Value *ops, std::size_t n, Value &out,
 }
 
 // ---- transcendental-affine:  f(<inner>) ---------------------------------
-// {exp,expm1,sin,cos,tanh} are always-real; {log,log2,log10} of a negative
-// promote to complex in MATLAB, so they decline on a negative affine (the
-// per-op fallback reproduces the complex result). The kernel mirrors numkit's
-// transcendental loop for bit-exactness (see fused_trans_affine_highway.cpp).
-bool transNeedsNonNeg(numkit::ops::TransAffineFn fn) {
+// Always-real f (exp/expm1/sin/cos/tan/tanh/sinh/cosh/atan/asinh) fuse
+// unconditionally; the complex-promoting f decline on the offending range so the
+// per-op (complex) path runs. The kernel mirrors numkit's transcendental loop
+// for bit-exactness (see fused_trans_affine_highway.cpp).
+
+// True if scalar v is OUTSIDE f's real domain (→ MATLAB complex). Mirrors
+// numkit's promotion predicates exactly (same comparisons on the same value, so
+// the decline boundary aligns with where the per-op path goes complex). NaN
+// fails every comparison → stays "in domain" → f(NaN)=NaN, matching per-op.
+bool transOutsideRealDomain(numkit::ops::TransAffineFn fn, double v) {
     using TF = numkit::ops::TransAffineFn;
-    return fn == TF::Log || fn == TF::Log2 || fn == TF::Log10;
+    switch (fn) {
+        case TF::Log: case TF::Log2: case TF::Log10: return v < 0.0;
+        case TF::Log1p:  return v < -1.0;
+        case TF::Acosh:  return v < 1.0;
+        case TF::Asin: case TF::Acos: case TF::Atanh: return v < -1.0 || v > 1.0;
+        default: return false;  // exp/expm1/sin/cos/tan/tanh/sinh/cosh/atan/asinh
+    }
+}
+
+// Whether f promotes to complex anywhere — a fast skip so the common always-real
+// transcendentals never scan the array.
+bool transDomainRestricted(numkit::ops::TransAffineFn fn) {
+    using TF = numkit::ops::TransAffineFn;
+    switch (fn) {
+        case TF::Log: case TF::Log2: case TF::Log10:
+        case TF::Log1p: case TF::Acosh:
+        case TF::Asin: case TF::Acos: case TF::Atanh: return true;
+        default: return false;
+    }
+}
+
+// Any scale*x[i]+offset outside f's real domain (the affine the kernel computes).
+bool affineAnyOutsideDomain(numkit::ops::TransAffineFn fn, double scale,
+                            double offset, const double *x, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i)
+        if (transOutsideRealDomain(fn, scale * x[i] + offset)) return true;
+    return false;
+}
+
+// Any (x[i]-sub)/div outside f's real domain.
+bool shiftDivAnyOutsideDomain(numkit::ops::TransAffineFn fn, double sub,
+                              double div, const double *x, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i)
+        if (transOutsideRealDomain(fn, (x[i] - sub) / div)) return true;
+    return false;
 }
 
 bool execTransAffine(const Value *ops, std::size_t n, Value &out,
@@ -926,9 +967,9 @@ bool execTransAffine(const Value *ops, std::size_t n, Value &out,
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
     if (!bindInner(ops, n, kind, scale, offset, x)) return false;
-    if (transNeedsNonNeg(fn) &&
-        affineAnyNegative(x->doubleData(), scale, offset, x->numel()))
-        return false;  // negative → MATLAB complex; per-op fallback handles it
+    if (transDomainRestricted(fn) &&
+        affineAnyOutsideDomain(fn, scale, offset, x->doubleData(), x->numel()))
+        return false;  // outside real domain → MATLAB complex; per-op handles it
 
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
     ops::fusedTransAffine(x->doubleData(), scale, offset, fn,
@@ -943,8 +984,8 @@ bool execTransDiv(const Value *ops, std::size_t n, Value &out,
     double sub = 0.0, div = 0.0;
     const Value *x = nullptr;
     if (!bindDivInner(ops, n, sub, div, x)) return false;
-    if (transNeedsNonNeg(fn) &&
-        shiftDivAnyNegative(x->doubleData(), sub, div, x->numel()))
+    if (transDomainRestricted(fn) &&
+        shiftDivAnyOutsideDomain(fn, sub, div, x->doubleData(), x->numel()))
         return false;
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
     ops::fusedTransShiftDiv(x->doubleData(), sub, div, fn, out.doubleDataMut(),
@@ -1209,6 +1250,12 @@ void registerFusionRules(Engine &engine) {
     addTransAffine("sinh_affine",  "sinh",  TF::Sinh);
     addTransAffine("atan_affine",  "atan",  TF::Atan);
     addTransAffine("asinh_affine", "asinh", TF::Asinh);
+    addTransAffine("asin_affine",  "asin",  TF::Asin);   // decline |inner|>1
+    addTransAffine("acos_affine",  "acos",  TF::Acos);   // decline |inner|>1
+    addTransAffine("acosh_affine", "acosh", TF::Acosh);  // decline inner<1
+    addTransAffine("atanh_affine", "atanh", TF::Atanh);  // decline |inner|>1
+    addTransAffine("log1p_affine", "log1p", TF::Log1p);  // decline inner<-1
+    addTransAffine("cosh_affine",  "cosh",  TF::Cosh);   // always-real (composed)
 
     // f(x./d) / f((x-c)./d) — divide-inner transcendentals (same f-set).
     auto addTransDiv = [&engine](const char *name, const char *fname, TF fn) {
@@ -1237,6 +1284,12 @@ void registerFusionRules(Engine &engine) {
     addTransDiv("sinh_div",  "sinh",  TF::Sinh);
     addTransDiv("atan_div",  "atan",  TF::Atan);
     addTransDiv("asinh_div", "asinh", TF::Asinh);
+    addTransDiv("asin_div",  "asin",  TF::Asin);
+    addTransDiv("acos_div",  "acos",  TF::Acos);
+    addTransDiv("acosh_div", "acosh", TF::Acosh);
+    addTransDiv("atanh_div", "atanh", TF::Atanh);
+    addTransDiv("log1p_div", "log1p", TF::Log1p);
+    addTransDiv("cosh_div",  "cosh",  TF::Cosh);
 }
 
 } // namespace numkit

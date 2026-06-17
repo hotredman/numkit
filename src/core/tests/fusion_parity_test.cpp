@@ -545,6 +545,67 @@ TEST_P(FusionParityTest, MoreTransAffine) {
     EXPECT_TRUE(sameOnOff(e, "asinh(x - b)"));        // ShiftSub inner
 }
 
+// Rare transcendentals — asin/acos/atanh (|inner|>1 → complex), acosh (inner<1),
+// log1p (inner<-1), cosh (always-real, composed 0.5(e^v+e^-v)). In-domain inputs
+// fuse via fusible inners (bare args don't match an InnerKind); n=6001 = SIMD tail.
+TEST_P(FusionParityTest, RareTransAffineInDomain) {
+    e.eval("x = linspace(-0.8, 0.8, 6001)'; a = 0.5; b = 0.1;");  // affine ⊂ (-1,1)
+    EXPECT_TRUE(sameOnOff(e, "asin(a .* x + b)"));    // ProductAdd
+    EXPECT_TRUE(sameOnOff(e, "acos(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "atanh(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "asin(x - b)"));         // ShiftSub
+    EXPECT_TRUE(sameOnOff(e, "atanh(a .* x)"));       // Product
+    e.eval("xc = linspace(1.1, 5, 6001)';");
+    EXPECT_TRUE(sameOnOff(e, "acosh(0.5 .* xc + 1)"));   // affine ≥1, ProductAdd
+    EXPECT_TRUE(sameOnOff(e, "acosh(xc + 0.5)"));        // ShiftAdd ≥1
+    e.eval("xp = linspace(-0.5, 5, 6001)';");
+    EXPECT_TRUE(sameOnOff(e, "log1p(xp + 0.5)"));        // ShiftAdd > -1
+    EXPECT_TRUE(sameOnOff(e, "log1p(2 .* xp)"));         // Product (2*-0.5=-1 → -Inf, real)
+    e.eval("xa = linspace(-3, 3, 6001)';");
+    EXPECT_TRUE(sameOnOff(e, "cosh(a .* xa + b)"));      // always-real
+    EXPECT_TRUE(sameOnOff(e, "cosh(-xa)"));              // NegLeaf
+    e.eval("y = cosh(a .* xa + b);");
+    EXPECT_GE(e.eval("min(y(:))").toScalar(), 1.0);      // cosh ≥ 1
+}
+
+// Out-of-domain → MATLAB complex; the rule declines so the per-op (complex) path
+// runs. fused == unfused (both complex) either way.
+TEST_P(FusionParityTest, RareTransAffineDomainDeclines) {
+    e.eval("x = linspace(-3, 3, 6001)'; a = 1; b = 0;");  // affine spans outside [-1,1]
+    EXPECT_TRUE(sameOnOff(e, "asin(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "acos(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "atanh(a .* x + b)"));
+    EXPECT_TRUE(e.eval("~isreal(asin(a .* x + b))").toBool());
+    e.eval("xl = linspace(-5, 5, 6001)';");
+    EXPECT_TRUE(sameOnOff(e, "acosh(1 .* xl + 0)"));      // <1 somewhere → complex
+    EXPECT_TRUE(sameOnOff(e, "log1p(1 .* xl + 0)"));      // <-1 somewhere → complex
+    EXPECT_TRUE(e.eval("~isreal(acosh(1 .* xl + 0))").toBool());
+    EXPECT_TRUE(e.eval("~isreal(log1p(1 .* xl + 0))").toBool());
+}
+
+// NaN/Inf through always-real cosh; NaN stays real for the in-(-1,1) inverse fns
+// (NaN fails the |·|>1 decline check, so asin(NaN)=NaN like per-op).
+TEST_P(FusionParityTest, RareTransAffineNaNInf) {
+    e.eval("xa = [linspace(-2,2,5999)'; NaN; Inf]; a = 1; b = 0;");
+    EXPECT_TRUE(sameOnOff(e, "cosh(a .* xa + b)"));       // cosh(Inf)=Inf, cosh(NaN)=NaN
+    e.eval("xu = [linspace(-0.8,0.8,5999)'; NaN; -0.5];");
+    EXPECT_TRUE(sameOnOff(e, "asin(1 .* xu + 0)"));       // NaN stays real, no promotion
+    EXPECT_TRUE(sameOnOff(e, "atanh(1 .* xu + 0)"));
+}
+
+// div-inner for the rare transcendentals (the shift-div kernel + domain decline).
+TEST_P(FusionParityTest, RareTransDivInner) {
+    e.eval("x = linspace(-2, 2, 6001)'; d = 4; c = 0.5;");   // x/d, (x-c)/d ⊂ (-1,1)
+    EXPECT_TRUE(sameOnOff(e, "asin(x ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "cosh(x ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "atanh((x - c) ./ d)"));
+    e.eval("xc = linspace(5, 9, 6001)';");
+    EXPECT_TRUE(sameOnOff(e, "acosh(xc ./ d)"));          // xc/4 ⊂ [1.25,2.25] ≥1
+    e.eval("xbad = linspace(-9, 9, 6001)';");
+    EXPECT_TRUE(sameOnOff(e, "asin(xbad ./ d)"));         // some |x/4|>1 → complex
+    EXPECT_TRUE(e.eval("~isreal(asin(xbad ./ d))").toBool());
+}
+
 // div-inner: f(x./d) and f((x-c)./d) via the dedicated shift-div kernels.
 TEST_P(FusionParityTest, DivInner) {
     e.eval("x = reshape(linspace(1,9,6000),2000,3); d = 2.5; c = 0.5;");  // x>0
@@ -842,6 +903,39 @@ TEST(FusionFiringProbe, DISABLED_VMExpAffineSpeedup) {
     std::printf("[fusion] VM exp-affine 11.6M: fusion-off %.2f ms, fusion-on "
                 "%.2f ms (%.2fx)\n", off, on, off / on);
     EXPECT_LT(on, off * 0.98);  // modest (compute-bound) but it fired
+}
+
+// Rare transcendentals are compute-bound (the affine temp is a small share), so
+// the win is modest — 0.99 threshold, just enough to prove the kernel fired.
+namespace {
+void probeTransModest(const char *tag, const char *setup, const char *expr) {
+    numkit::StandardEngine e;
+    e.setBackend(numkit::Engine::Backend::VM);
+    e.eval(setup);
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval(std::string("y = ") + expr + ";");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval(std::string("y = ") + expr + ";");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] %s 11.6M: fusion-off %.2f ms, fusion-on %.2f ms "
+                "(%.2fx)\n", tag, off, on, off / on);
+    EXPECT_LT(on, off * 0.99);  // compute-bound; fired
+}
+} // namespace
+
+TEST(FusionFiringProbe, DISABLED_VMCoshAffineSpeedup) {
+    probeTransModest("VM cosh-affine", "x = rand(3048*3816,1); a = 0.5; b = 0.1;",
+                     "cosh(a .* x + b)");
+}
+TEST(FusionFiringProbe, DISABLED_VMAsinAffineSpeedup) {
+    // affine kept in (-1,1) so it stays real and the kernel runs.
+    probeTransModest("VM asin-affine", "x = rand(3048*3816,1)*1.6 - 0.8; a = 0.5; b = 0;",
+                     "asin(a .* x + b)");
 }
 
 // abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one
