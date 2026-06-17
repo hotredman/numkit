@@ -1,4 +1,4 @@
-// benchmarks/reductions_bench.cpp
+// benchmarks/math/reductions_bench.cpp
 //
 // Phase-10 sweep covering Phase 1-3 reductions:
 //   * Existing-but-previously-unbenched: sum/mean/min/max/prod/cumsum
