@@ -28,77 +28,82 @@ namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
 
-// Vec maps (tag, affine-vector) → result vector (the Highway transcendental);
-// Scalar maps the tail double → double (the matching libm call).
+// Vec maps (tag, inner-vector) → result vector (the Highway transcendental);
+// Scalar maps the tail double → double (the matching libm call). The inner is
+// affine (p0*x + p1) or shift-divide ((x - p0)/p1) per `divide` (loop-invariant
+// → the affine path is unchanged).
 template <class Vec, class Scalar>
-void transLoop(const double *x, double scale, double offset, double *out,
+void transLoop(const double *x, double p0, double p1, bool divide, double *out,
                std::size_t n, Vec vop, Scalar sop) {
     const hn::ScalableTag<double> d;
     const std::size_t L = hn::Lanes(d);
-    const auto vs = hn::Set(d, scale), vt = hn::Set(d, offset);
+    const auto vp0 = hn::Set(d, p0), vp1 = hn::Set(d, p1);
     std::size_t i = 0;
     for (; i + L <= n; i += L) {
-        const auto v = hn::Add(hn::Mul(hn::LoadU(d, x + i), vs), vt);
+        const auto x_ = hn::LoadU(d, x + i);
+        const auto v = divide ? hn::Div(hn::Sub(x_, vp0), vp1)
+                              : hn::Add(hn::Mul(x_, vp0), vp1);
         hn::StoreU(vop(d, v), d, out + i);
     }
-    for (; i < n; ++i) out[i] = sop(scale * x[i] + offset);
+    for (; i < n; ++i)
+        out[i] = sop(divide ? (x[i] - p0) / p1 : p0 * x[i] + p1);
 }
 
-void TransAffineImpl(const double *x, double scale, double offset,
+void TransAffineImpl(const double *x, double p0, double p1, bool divide,
                      TransAffineFn fn, double *out, std::size_t n) {
     switch (fn) {
         case TransAffineFn::Exp:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Exp(d, v); },
                       [](double v) { return std::exp(v); });
             break;
         case TransAffineFn::Expm1:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Expm1(d, v); },
                       [](double v) { return std::expm1(v); });
             break;
         case TransAffineFn::Log:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Log(d, v); },
                       [](double v) { return std::log(v); });
             break;
         case TransAffineFn::Log2:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Log2(d, v); },
                       [](double v) { return std::log2(v); });
             break;
         case TransAffineFn::Log10:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Log10(d, v); },
                       [](double v) { return std::log10(v); });
             break;
         case TransAffineFn::Sin:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Sin(d, v); },
                       [](double v) { return std::sin(v); });
             break;
         case TransAffineFn::Cos:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Cos(d, v); },
                       [](double v) { return std::cos(v); });
             break;
         case TransAffineFn::Tanh:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Tanh(d, v); },
                       [](double v) { return std::tanh(v); });
             break;
         case TransAffineFn::Sinh:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Sinh(d, v); },
                       [](double v) { return std::sinh(v); });
             break;
         case TransAffineFn::Atan:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Atan(d, v); },
                       [](double v) { return std::atan(v); });
             break;
         case TransAffineFn::Asinh:
-            transLoop(x, scale, offset, out, n,
+            transLoop(x, p0, p1, divide, out, n,
                       [](auto d, auto v) { return hn::Asinh(d, v); },
                       [](double v) { return std::asinh(v); });
             break;
@@ -122,8 +127,18 @@ void fusedTransAffine(const double *x, double scale, double offset,
     // hn::/std:: split must land on the same elements for bit-exactness.
     detail::parallel_for(n, detail::kTranscendentalThreshold,
                          [&](std::size_t s, std::size_t e) {
-        HWY_DYNAMIC_DISPATCH(TransAffineImpl)(x + s, scale, offset, fn, out + s,
-                                              e - s);
+        HWY_DYNAMIC_DISPATCH(TransAffineImpl)(x + s, scale, offset, /*divide=*/false,
+                                              fn, out + s, e - s);
+    });
+}
+
+void fusedTransShiftDiv(const double *x, double sub, double div,
+                        TransAffineFn fn, double *out, std::size_t n) {
+    if (n == 0) return;
+    detail::parallel_for(n, detail::kTranscendentalThreshold,
+                         [&](std::size_t s, std::size_t e) {
+        HWY_DYNAMIC_DISPATCH(TransAffineImpl)(x + s, sub, div, /*divide=*/true,
+                                              fn, out + s, e - s);
     });
 }
 

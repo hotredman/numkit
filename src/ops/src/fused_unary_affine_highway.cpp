@@ -25,37 +25,44 @@ namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
 
-// One affine+unary pass. VecOp maps a vector → vector (the Highway unary);
-// ScalarOp maps the tail double → double (the matching libm unary).
+// One inner+unary pass. The inner is either affine (p0*x + p1) or shift-divide
+// ((x - p0)/p1) per `divide` — a loop-invariant branch, so the affine path is
+// unchanged. VecOp maps a vector → vector (the Highway unary); ScalarOp maps the
+// tail double → double (the matching libm unary).
 template <class VecOp, class ScalarOp>
-void unaryAffineLoop(const double *x, double scale, double offset, double *out,
-                     std::size_t n, VecOp vop, ScalarOp sop) {
+void unaryInnerLoop(const double *x, double p0, double p1, bool divide,
+                    double *out, std::size_t n, VecOp vop, ScalarOp sop) {
     const hn::ScalableTag<double> d;
     const std::size_t L = hn::Lanes(d);
-    const auto vs = hn::Set(d, scale), vt = hn::Set(d, offset);
+    const auto vp0 = hn::Set(d, p0), vp1 = hn::Set(d, p1);
     std::size_t i = 0;
-    for (; i + L <= n; i += L)
-        hn::StoreU(vop(hn::Add(hn::Mul(hn::LoadU(d, x + i), vs), vt)), d, out + i);
-    for (; i < n; ++i) out[i] = sop(scale * x[i] + offset);
+    for (; i + L <= n; i += L) {
+        const auto v = hn::LoadU(d, x + i);
+        const auto inner = divide ? hn::Div(hn::Sub(v, vp0), vp1)
+                                  : hn::Add(hn::Mul(v, vp0), vp1);
+        hn::StoreU(vop(inner), d, out + i);
+    }
+    for (; i < n; ++i)
+        out[i] = sop(divide ? (x[i] - p0) / p1 : p0 * x[i] + p1);
 }
 
-void UnaryAffineImpl(const double *x, double scale, double offset,
+void UnaryAffineImpl(const double *x, double p0, double p1, bool divide,
                      UnaryAffineFn fn, double *out, std::size_t n) {
     switch (fn) {
         case UnaryAffineFn::Sqrt:
-            unaryAffineLoop(x, scale, offset, out, n,
-                            [](auto v) { return hn::Sqrt(v); },
-                            [](double v) { return std::sqrt(v); });
+            unaryInnerLoop(x, p0, p1, divide, out, n,
+                           [](auto v) { return hn::Sqrt(v); },
+                           [](double v) { return std::sqrt(v); });
             break;
         case UnaryAffineFn::Floor:
-            unaryAffineLoop(x, scale, offset, out, n,
-                            [](auto v) { return hn::Floor(v); },
-                            [](double v) { return std::floor(v); });
+            unaryInnerLoop(x, p0, p1, divide, out, n,
+                           [](auto v) { return hn::Floor(v); },
+                           [](double v) { return std::floor(v); });
             break;
         case UnaryAffineFn::Ceil:
-            unaryAffineLoop(x, scale, offset, out, n,
-                            [](auto v) { return hn::Ceil(v); },
-                            [](double v) { return std::ceil(v); });
+            unaryInnerLoop(x, p0, p1, divide, out, n,
+                           [](auto v) { return hn::Ceil(v); },
+                           [](double v) { return std::ceil(v); });
             break;
     }
 }
@@ -73,8 +80,17 @@ void fusedUnaryAffine(const double *x, double scale, double offset,
                       UnaryAffineFn fn, double *out, std::size_t n) {
     if (n == 0) return;
     detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
-        HWY_DYNAMIC_DISPATCH(UnaryAffineImpl)(x + s, scale, offset, fn, out + s,
-                                              e - s);
+        HWY_DYNAMIC_DISPATCH(UnaryAffineImpl)(x + s, scale, offset, /*divide=*/false,
+                                              fn, out + s, e - s);
+    });
+}
+
+void fusedUnaryShiftDiv(const double *x, double sub, double div,
+                        UnaryAffineFn fn, double *out, std::size_t n) {
+    if (n == 0) return;
+    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+        HWY_DYNAMIC_DISPATCH(UnaryAffineImpl)(x + s, sub, div, /*divide=*/true,
+                                              fn, out + s, e - s);
     });
 }
 
