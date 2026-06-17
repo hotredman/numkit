@@ -73,6 +73,22 @@ TEST_P(ComplexMathTest, RoundFamilyRealVsComplexComponentAgree) {
     EXPECT_TRUE(e.eval("isequaln(fix(xs),   real(fix(xs + 0i)))").toBool());
 }
 
+// MATLAB narrows a complex ARITHMETIC result whose imaginary part is all-zero
+// back to a real double (bugs/math/complex-zero-imag-narrowing.md); complex() is
+// the exception (forced complex). This is what makes max([1 -3 2], 2+0i) compare
+// by value, not |z|.
+TEST_P(ComplexMathTest, NarrowsArithmeticAllReal) {
+    EXPECT_TRUE(e.eval("isreal(2 + 0i)").toBool());                       // + narrows
+    EXPECT_TRUE(e.eval("isreal((1+1i) + (1-1i))").toBool());              // -> 2
+    EXPECT_TRUE(e.eval("isreal(complex(1,1) .* complex(1,-1))").toBool());// forced in, real out
+    EXPECT_FALSE(e.eval("isreal(complex(2,0))").toBool());               // complex() forced
+    EXPECT_FALSE(e.eval("isreal(1 + 2i)").toBool());                     // genuine complex stays
+    // headline: 2+0i narrows -> real, so max uses value comparison (= MATLAB [2 2 2]).
+    e.eval("m = max([1 -3 2], 2+0i);");
+    EXPECT_TRUE(e.eval("isreal(m)").toBool());
+    EXPECT_EQ(re("m(1)"), 2.0); EXPECT_EQ(re("m(2)"), 2.0); EXPECT_EQ(re("m(3)"), 2.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ComplexMathTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));

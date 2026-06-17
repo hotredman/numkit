@@ -356,10 +356,31 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, std::pmr::memory_
 }
 
 // ============================================================
-// Elementwise binary op on complex arrays
+// MATLAB narrows a complex result whose imaginary part is all-zero back to a
+// real double — for the RESULTS of operations (arithmetic, max/min, …), NOT the
+// complex() constructor or pure structural ops (reshape). A NaN imaginary part
+// keeps it complex. No-op unless COMPLEX with every imag component exactly zero.
+// ============================================================
+inline Value narrowComplex(Value v, std::pmr::memory_resource *mr)
+{
+    if (v.type() != ValueType::COMPLEX) return v;
+    const Complex *d = v.complexData();
+    const std::size_t n = v.numel();
+    for (std::size_t i = 0; i < n; ++i)
+        if (d[i].imag() != 0.0) return v;   // genuinely complex (NaN imag too)
+    Value r = createLike(v, ValueType::DOUBLE, mr);
+    double *o = r.doubleDataMut();
+    for (std::size_t i = 0; i < n; ++i) o[i] = d[i].real();
+    return r;
+}
+
+// ============================================================
+// Elementwise binary op on complex arrays. The public `elementwiseComplex`
+// narrows an all-real result to real (MATLAB complex-arithmetic semantics); the
+// *Impl below does the raw complex computation.
 // ============================================================
 template<typename Op>
-Value elementwiseComplex(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
+Value elementwiseComplexImpl(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
 {
     if (a.isEmpty() || b.isEmpty())
         return emptyResultForBinary(a, b, ValueType::COMPLEX, mr);
@@ -468,6 +489,14 @@ Value elementwiseComplex(const Value &a, const Value &b, Op op, std::pmr::memory
         }
     }
     return r;
+}
+
+// Public entry: raw complex elementwise op, then narrow an all-real result to
+// real (MATLAB). All callers (binary +,-,.*,./,.^, max/min) want this.
+template<typename Op>
+Value elementwiseComplex(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
+{
+    return narrowComplex(elementwiseComplexImpl(a, b, std::move(op), mr), mr);
 }
 
 // ============================================================

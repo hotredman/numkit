@@ -103,8 +103,8 @@ TEST_P(CellFunTest, CellfunIsreal)
     auto *n = getVarPtr("n");
     EXPECT_NE(n->logicalData()[0], 0);
     EXPECT_EQ(n->logicalData()[1], 0);
-    // 0+0i is still typed COMPLEX → isreal = false.
-    EXPECT_EQ(n->logicalData()[2], 0);
+    // 0+0i narrows to a real double (MATLAB: isreal(0+0i)==1) → isreal = true.
+    EXPECT_NE(n->logicalData()[2], 0);
 }
 
 // ── cellfun: numeric reductions ────────────────────────────────

@@ -53,13 +53,12 @@ skips it (both missing → first operand); includenan propagates it. `clamp`
 (`max(lo,min(hi,z))`) works for free, which unblocks the complex clamp fusion
 rule. Guard: `tests/builtin/maxmin_complex_test.cpp` (7 TEST_P × both backends).
 
-## Known boundary (NOT a max/min defect)
-`max([1 -3 2], 2+0i)` is `[2 -3 2]` in numkit but `[2 2 2]` in MATLAB. Reason:
-MATLAB narrows the `2+0i` literal to a real double (`isreal(2+0i)` is `1`), so it
-uses real comparison; numkit keeps it complex (`isreal(2+0i)` is `0`) and uses
-`|z|`. `complex(x,0)` (forced complex) and genuine-complex operands match MATLAB
-exactly. This is an upstream complex-narrowing gap, not a comparator bug — see
-[complex-zero-imag-narrowing](complex-zero-imag-narrowing.md).
+## Resolved boundary
+`max([1 -3 2], 2+0i)` now returns `[2 2 2]` (matches MATLAB): `2+0i` narrows to a
+real double at the arithmetic source (2026-06-17), so max compares by value, not
+`|z|`. `complex(x,0)` (forced complex) still compares by `|z|` in both engines.
+A niche residual (forced-complex fed through pure structural ops, which don't yet
+narrow) is tracked in [complex-zero-imag-narrowing](complex-zero-imag-narrowing.md).
 
 ## References
 - `src/math/src/arithmetic/reductions.cpp` (max/min + omitnan binary, `complexBinaryMinMax`)

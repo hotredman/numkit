@@ -216,7 +216,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [math/complex-zero-imag-narrowing](math/complex-zero-imag-narrowing.md) | P2 | numkit keeps complex-with-zero-imag (isreal(2+0i)=0); MATLAB narrows to real (=1), so max([1 -3 2],2+0i) differs ([2 -3 2] vs [2 2 2]). complex(x,0)/genuine-complex match; upstream narrowing gap, deep core fix deferred |
+| [math/complex-zero-imag-narrowing](math/complex-zero-imag-narrowing.md) | P2 | ARITHMETIC narrowing FIXED 2026-06-17 (narrowComplex in elementwiseComplex): isreal(2+0i)=1, max([1 -3 2],2+0i)=[2 2 2] now match MATLAB. Residual (OPEN, niche): forced-complex() through pure structural/index/indexed-assign ops still doesnt narrow |
 | [math/interpn-nan](math/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
