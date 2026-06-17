@@ -925,6 +925,16 @@ enter_frame:
             case OpCode::INDEX_GET: {
                 const Value &mv = R[I.b];
                 const Value &ix = R[I.c];
+                // Hot path: heap double indexed by a scalar double -- the
+                // dominant `x(n)` read in scalar loops. Skips the object/cell/
+                // scalar branch chain and elemAt's internal type-switch; reads
+                // straight into an inline scalar register. (Argument is read
+                // before the write, so a dst==src register alias is safe.)
+                if (mv.isHeapDouble() && ix.isDoubleScalar()) {
+                    size_t i = checkedIndex(ix.scalarVal(), mv.numel());
+                    R[I.a].setScalarFast(mv.doubleData()[i]);
+                    break;
+                }
                 // OBJECT: obj(i) dispatches to the class subsref overload.
                 if (mv.isObject()) {
                     Value idxArgs[1] = {ix};
@@ -995,6 +1005,19 @@ enter_frame:
             }
             case OpCode::INDEX_SET: {
                 const Value &ix = R[I.b];
+                // Hot path: A(i) = scalar into a uniquely-owned heap double,
+                // scalar index in bounds -- the dominant `y(n) = …` write in
+                // scalar loops. Skips the object / append / ensureSize / elemSet
+                // chain and writeScalar's type-switch, writing the element
+                // directly. Out-of-bounds / shared / non-scalar fall through.
+                if (R[I.a].isHeapDouble() && R[I.a].heapRefCount() == 1
+                    && ix.isDoubleScalar() && R[I.c].isDoubleScalar()) {
+                    size_t i = Value::checkedScalarIndex(ix.scalarVal());
+                    if (i < R[I.a].numel()) {
+                        R[I.a].doubleDataMut()[i] = R[I.c].scalarVal();
+                        break;
+                    }
+                }
                 // OBJECT: obj(i) = v dispatches to the class subsasgn
                 // overload (args = [index, value]); mutates R[I.a] in place.
                 if (R[I.a].isObject()) {
