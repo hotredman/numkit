@@ -199,4 +199,14 @@ void fusedTransAffineCx(const Cx *x, Cx scale, Cx offset, TransAffineFn fn,
 void fusedTransShiftDivCx(const Cx *x, Cx sub, Cx div, TransAffineFn fn,
                           Cx *out, std::size_t n);
 
+// abs of a complex affine / div-inner / two-array diff → the REAL magnitude
+// std::abs(z) (= hypot), so `out` is double. |a.*z+b|, |z./d|, |z-w|.
+void fusedAbsAffineCx(const Cx *x, Cx scale, Cx offset, double *out, std::size_t n);
+void fusedAbsShiftDivCx(const Cx *x, Cx sub, Cx div, double *out, std::size_t n);
+void fusedAbsDiffCx(const Cx *x, const Cx *y, double *out, std::size_t n);
+
+// complex soft-threshold: out[i] = sign(z) .* max(0, |z| - t), sign(z) = z/|z|
+// (0 at z==0) — MATLAB's complex shrinkage. t real; out complex.
+void fusedSoftThresholdCx(const Cx *x, double t, Cx *out, std::size_t n);
+
 } // namespace numkit::ops

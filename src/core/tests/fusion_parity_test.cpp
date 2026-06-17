@@ -803,6 +803,33 @@ TEST_P(FusionParityTest, ComplexTransNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "sqrt(a .* z + b)"));
 }
 
+// ---- complex inputs: abs (→ real magnitude) + soft-threshold --------------
+// abs(z) = std::abs(z) is REAL; complex soft-threshold sign(z).*max(0,|z|-t) is
+// complex (sign(z)=z/|z|). clamp/min-max and sqrt-sumsq on complex are left to
+// per-op (exotic / niche), and array-scalar complex abs-diff declines.
+TEST_P(FusionParityTest, ComplexAbsSoft) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + "
+           "1i*reshape(linspace(2,-5,6000),2000,3); "
+           "w = reshape(linspace(1,-1,6000),2000,3) + "
+           "1i*reshape(linspace(-2,2,6000),2000,3); "
+           "a = 1.5; b = 0.5; ca = 1+1i; d = 2.5; t = 1.5;");
+    EXPECT_TRUE(sameOnOff(e, "abs(a .* z + b)"));      // |a.*z+b| → real
+    EXPECT_TRUE(sameOnOff(e, "abs(ca .* z)"));         // bare product
+    EXPECT_TRUE(sameOnOff(e, "abs(z ./ d)"));          // div-inner abs
+    EXPECT_TRUE(sameOnOff(e, "abs(z - w)"));            // two-array |z-w|
+    EXPECT_TRUE(sameOnOff(e, "sign(z) .* max(0, abs(z) - t)"));  // complex soft-threshold
+    EXPECT_TRUE(e.eval("isreal(abs(a .* z + b))").toBool());     // abs(complex) is real
+    EXPECT_TRUE(e.eval("~isreal(sign(z) .* max(0, abs(z) - t))").toBool());
+}
+
+TEST_P(FusionParityTest, ComplexAbsSoftNaNInf) {
+    e.eval("z = [linspace(-2,2,5998)'; NaN; Inf] + "
+           "1i*[linspace(1,-1,5998)'; 1; 2]; a = 1.5; b = 0.5; t = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "abs(a .* z + b)"));
+    EXPECT_TRUE(sameOnOff(e, "abs(z - (1+1i))"));       // |z-c| array-scalar declines → per-op
+    EXPECT_TRUE(sameOnOff(e, "sign(z) .* max(0, abs(z) - t)"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -1195,4 +1222,24 @@ TEST(FusionFiringProbe, DISABLED_VMComplexSqrtSpeedup) {
     std::printf("[fusion] VM complex-sqrt 11.6M: fusion-off %.2f ms, fusion-on "
                 "%.2f ms (%.2fx)\n", off, on, off / on);
     EXPECT_LT(on, off * 0.99);  // temp-elim (compute-bound on std::sqrt(complex))
+}
+
+// complex abs `abs(ca.*z)` → real magnitude; eliminates the ca.*z complex temp.
+TEST(FusionFiringProbe, DISABLED_VMComplexAbsSpeedup) {
+    numkit::StandardEngine e;
+    e.setBackend(numkit::Engine::Backend::VM);
+    e.eval("z = rand(3048*3816,1) + 1i*rand(3048*3816,1); ca = 1+2i;");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = abs(ca .* z);");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = abs(ca .* z);");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] VM complex-abs 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", off, on, off / on);
+    EXPECT_LT(on, off * 0.97);  // temp-elim win
 }
