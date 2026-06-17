@@ -793,6 +793,39 @@ TEST_P(FusionParityTest, ComplexUnaryTrans) {
     EXPECT_TRUE(e.eval("~isreal(exp(a .* z + b))").toBool());
 }
 
+// Complex shift/neg inner kinds: f(z±c), f(c-z), f(-z), (z+c).^2, abs(-z) — the
+// inner is a genuine add/negate (scale ±1), NOT a complex mul by (±1+0i). sqrt/
+// trans take all inner kinds; sq/abs take ShiftAdd/NegLeaf (ShiftSub → the _diff
+// rules).
+TEST_P(FusionParityTest, ComplexShiftNegInner) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + "
+           "1i*reshape(linspace(2,-5,6000),2000,3); c = 0.5; cc = 1+1i;");
+    EXPECT_TRUE(sameOnOff(e, "exp(z + c)"));        // ShiftAdd (real c)
+    EXPECT_TRUE(sameOnOff(e, "exp(z + cc)"));        // ShiftAdd (complex c)
+    EXPECT_TRUE(sameOnOff(e, "exp(z - cc)"));        // ShiftSub z-c
+    EXPECT_TRUE(sameOnOff(e, "exp(cc - z)"));        // ShiftSub c-z (scale -1)
+    EXPECT_TRUE(sameOnOff(e, "exp(-z)"));             // NegLeaf
+    EXPECT_TRUE(sameOnOff(e, "sqrt(z + cc)"));
+    EXPECT_TRUE(sameOnOff(e, "cos(cc - z)"));
+    EXPECT_TRUE(sameOnOff(e, "(z + cc) .^ 2"));       // sq ShiftAdd
+    EXPECT_TRUE(sameOnOff(e, "(-z) .^ 2"));            // sq NegLeaf
+    EXPECT_TRUE(sameOnOff(e, "abs(z + cc)"));          // abs ShiftAdd → real
+    EXPECT_TRUE(sameOnOff(e, "abs(-z)"));              // abs NegLeaf → real
+}
+
+// The mul-by-1 hazard, exercised: shift/neg inner on a complex array with Inf
+// components. Per-op does a bare add/negate (no NaN); a complex mul by (±1+0i)
+// would make 0*Inf=NaN and diverge — this confirms the kernel does add/negate.
+TEST_P(FusionParityTest, ComplexShiftNegInnerNonFinite) {
+    e.eval("re = [linspace(-2,2,5998)'; Inf; -3]; im = [linspace(1,-1,5998)'; 2; Inf]; "
+           "z = complex(re, im); cc = 1+1i;");
+    EXPECT_TRUE(sameOnOff(e, "exp(z + cc)"));
+    EXPECT_TRUE(sameOnOff(e, "exp(-z)"));
+    EXPECT_TRUE(sameOnOff(e, "(z + cc) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "abs(z + cc)"));
+    EXPECT_TRUE(sameOnOff(e, "cos(cc - z)"));
+}
+
 // NaN/Inf through the complex transcendentals (std::F(complex) handles them; the
 // fused kernel calls the same std::F, so identical).
 TEST_P(FusionParityTest, ComplexTransNaNInf) {

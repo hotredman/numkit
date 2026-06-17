@@ -177,31 +177,42 @@ void fusedAxpbyCx(const Cx *x, Cx a, const Cx *y, Cx b, Cx *out, std::size_t n);
 // out[i] = (x[i] - sub) * mul  /  (x[i] - sub) / div.
 void fusedShiftScaleMulCx(const Cx *x, Cx sub, Cx mul, Cx *out, std::size_t n);
 void fusedShiftScaleDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n);
-// out[i] = std::pow(scale*x[i] + offset, 2). On a COMPLEX base, numkit's `.^2`
-// takes the std::pow branch (the .^2 == z.*z fast-path is real-only), so these
-// mirror std::pow(v, 2) — NOT v*v (they differ for complex).
-void fusedSqAffineCx(const Cx *x, Cx scale, Cx offset, Cx *out, std::size_t n);
+// The complex f(inner) kernels share an inner shape selected by `affine`:
+//   affine=true  → scale*x[i] + offset  (genuine complex multiply: the
+//                  product-coefficient inner kinds a.*z[±b]).
+//   affine=false → (scale==+1 ? x[i] : -x[i]) + offset  (a pure shift/neg, where
+//                  scale is exactly ±1: add/negate, NOT a complex mul by (±1+0i),
+//                  whose 0*Inf=NaN would diverge from the per-op bare add/sub).
+// This lets every affine spelling (product, shift x±c, c-x, -x) fuse on complex.
+
+// out[i] = std::pow(<inner>, 2). On a COMPLEX base, numkit's `.^2` takes the
+// std::pow branch (the .^2 == z.*z fast-path is real-only), so these mirror
+// std::pow(v, 2) — NOT v*v (they differ for complex).
+void fusedSqAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
+                     Cx *out, std::size_t n);
 void fusedSqDiffCx(const Cx *x, const Cx *y, Cx *out, std::size_t n);
 
 // sqrt of a complex affine / divide-inner: std::sqrt(scale*x+offset) /
 // std::sqrt((x-sub)/div). Only sqrt is meaningful on complex in the unary
 // family — floor/ceil/fix/round on complex are declined upstream (numkit's
 // per-op rounding path is real-only).
-void fusedSqrtAffineCx(const Cx *x, Cx scale, Cx offset, Cx *out, std::size_t n);
+void fusedSqrtAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
+                       Cx *out, std::size_t n);
 void fusedSqrtShiftDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n);
 
 // transcendental of a complex affine / divide-inner: f(scale*x+offset) /
 // f((x-sub)/div), mirroring numkit's complex op per fn — mostly std::F(z), with
 // log2 = log(z)/log(2), log1p = log(1+z). Expm1 is real-only in numkit, so it is
 // declined upstream (never reaches here).
-void fusedTransAffineCx(const Cx *x, Cx scale, Cx offset, TransAffineFn fn,
-                        Cx *out, std::size_t n);
+void fusedTransAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
+                        TransAffineFn fn, Cx *out, std::size_t n);
 void fusedTransShiftDivCx(const Cx *x, Cx sub, Cx div, TransAffineFn fn,
                           Cx *out, std::size_t n);
 
 // abs of a complex affine / div-inner / two-array diff → the REAL magnitude
-// std::abs(z) (= hypot), so `out` is double. |a.*z+b|, |z./d|, |z-w|.
-void fusedAbsAffineCx(const Cx *x, Cx scale, Cx offset, double *out, std::size_t n);
+// std::abs(z) (= hypot), so `out` is double. |a.*z+b|, |z±c|, |-z|, |z./d|, |z-w|.
+void fusedAbsAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
+                      double *out, std::size_t n);
 void fusedAbsShiftDivCx(const Cx *x, Cx sub, Cx div, double *out, std::size_t n);
 void fusedAbsDiffCx(const Cx *x, const Cx *y, double *out, std::size_t n);
 
