@@ -200,6 +200,9 @@ void fusedTransAffine(const double *x, double scale, double offset,
         case TransAffineFn::Cosh:
             for (std::size_t i = 0; i < n; ++i) out[i] = std::cosh(scale * x[i] + offset);
             break;
+        case TransAffineFn::Tan:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::tan(scale * x[i] + offset);
+            break;
     }
 }
 
@@ -225,6 +228,7 @@ void fusedTransShiftDiv(const double *x, double sub, double div,
             case TransAffineFn::Atanh: out[i] = std::atanh(v); break;
             case TransAffineFn::Log1p: out[i] = std::log1p(v); break;
             case TransAffineFn::Cosh:  out[i] = std::cosh(v);  break;
+            case TransAffineFn::Tan:   out[i] = std::tan(v);   break;
         }
     }
 }
