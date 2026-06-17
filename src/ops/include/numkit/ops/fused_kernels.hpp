@@ -113,7 +113,8 @@ void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n);
 // {Exp,Expm1,Sin,Cos,Tanh} of any real are real (no domain guard); {Log,Log2,
 // Log10} of a negative promote to complex in MATLAB — the caller declines those
 // (a pre-scan) and lets the per-op path produce the complex result.
-enum class TransAffineFn { Exp, Expm1, Log, Log2, Log10, Sin, Cos, Tanh };
+enum class TransAffineFn { Exp, Expm1, Log, Log2, Log10, Sin, Cos, Tanh,
+                           Sinh, Atan, Asinh };
 void fusedTransAffine(const double *x, double scale, double offset,
                       TransAffineFn fn, double *out, std::size_t n);
 

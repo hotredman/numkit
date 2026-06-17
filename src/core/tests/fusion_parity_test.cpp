@@ -469,6 +469,14 @@ TEST_P(FusionParityTest, TrigAffineNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "tanh(a .* x + b)"));    // tanh(Inf)=1, tanh(NaN)=NaN
 }
 
+// sinh / atan / asinh (always-real, single-hn:: mirror).
+TEST_P(FusionParityTest, MoreTransAffine) {
+    e.eval("x = linspace(-3, 3, 6001)'; a = 1.5; b = 0.2;");
+    EXPECT_TRUE(sameOnOff(e, "sinh(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "atan(a .* x)"));        // Product inner
+    EXPECT_TRUE(sameOnOff(e, "asinh(x - b)"));        // ShiftSub inner
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
