@@ -8,9 +8,10 @@
 // bodies share, and (2) the per-family build*Plots(table) entry points that
 // buildPlotTable() dispatches to.
 
-#include <numkit/figure/figure_manager.hpp>  // DatasetInfo
-#include <numkit/value/span.hpp>              // Span
-#include <numkit/value/value.hpp>             // Value
+#include <numkit/graphics/graphics_context.hpp>  // GraphicsContext, PlotEntry, GraphicsFn
+#include <numkit/figure/figure_manager.hpp>      // DatasetInfo
+#include <numkit/value/span.hpp>                 // Span
+#include <numkit/value/value.hpp>                // Value
 
 #include <cstddef>
 #include <sstream>
@@ -42,6 +43,15 @@ std::size_t parsePlotXYStyle(Span<const Value> args, DatasetInfo &ds);
 
 // Append a double to os as JSON (NaN -> null; +/-Inf -> +/-1e308).
 void doubleToJson(std::ostringstream &os, double val);
+
+
+// Plot bodies shared by >1 family (defined in plots/shared.cpp).
+void heatmapImpl(const char *typeName, bool axisIj, Span<const Value> args,
+                 std::size_t nargout, Span<Value> outs, GraphicsContext &gc);
+void geoForward(const char *target, Span<const Value> args, Span<Value> outs,
+                GraphicsContext &gc);
+void delegateTo(const char *target, Span<const Value> args, Span<Value> outs,
+                GraphicsContext &gc);
 
 }  // namespace detail
 
