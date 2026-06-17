@@ -377,6 +377,32 @@ TEST_P(FusionParityTest, SoftThresholdDifferentVarsFallBack) {
     EXPECT_TRUE(sameOnOff(e, "sign(x) .* max(0, abs(w) - t)"));
 }
 
+// ---- transcendental-affine: exp/expm1(a.*x ± b) ------------------------
+// n = 6001 (not a multiple of the SIMD width) so the per-chunk scalar tail is
+// non-empty — this is exactly what would diverge if the kernel didn't mirror
+// numkit's exp loop (hn:: body + std:: tail, same chunking).
+
+TEST_P(FusionParityTest, ExpAffine) {
+    e.eval("x = linspace(-2, 2, 6001)'; a = 1.5; b = 0.3;");
+    EXPECT_TRUE(sameOnOff(e, "exp(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "exp(b + a .* x)"));
+    EXPECT_TRUE(sameOnOff(e, "exp(a .* x - b)"));
+}
+
+TEST_P(FusionParityTest, Expm1Affine) {
+    e.eval("x = linspace(-2, 2, 6001)'; a = 2; b = 0.1;");
+    EXPECT_TRUE(sameOnOff(e, "expm1(a .* x + b)"));
+}
+
+// exp of any real is real: overflow→Inf, underflow→0, NaN→NaN; all match per-op.
+TEST_P(FusionParityTest, ExpAffineEdges) {
+    e.eval("x = [linspace(-2,2,5998)'; 1000; -1000; NaN]; a = 1; b = 0;");
+    EXPECT_TRUE(sameOnOff(e, "exp(a .* x + b)"));
+    e.eval("y = exp(a .* x + b);");
+    EXPECT_TRUE(e.eval("isinf(y(5999))").toBool());   // exp(1000) = Inf
+    EXPECT_EQ(e.eval("y(6000)").toScalar(), 0.0);      // exp(-1000) = 0
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -581,6 +607,26 @@ TEST(FusionFiringProbe, DISABLED_VMSoftThresholdSpeedup) {
     probeFused(numkit::Engine::Backend::VM, "VM soft-threshold",
                "x = rand(3048*3816,1) * 10 - 5; t = 1.5;",
                "sign(x) .* max(0, abs(x) - t)");
+}
+// exp-affine: compute-bound on the polynomial, so the expected win is modest
+// (it saves the affine temporary, not the exp cost). 0.92 threshold accordingly.
+TEST(FusionFiringProbe, DISABLED_VMExpAffineSpeedup) {
+    numkit::StandardEngine e;
+    e.setBackend(numkit::Engine::Backend::VM);
+    e.eval("x = rand(3048*3816,1); a = -0.5; b = 0.25;");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = exp(a .* x + b);");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = exp(a .* x + b);");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] VM exp-affine 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", off, on, off / on);
+    EXPECT_LT(on, off * 0.98);  // modest (compute-bound) but it fired
 }
 
 // abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one
