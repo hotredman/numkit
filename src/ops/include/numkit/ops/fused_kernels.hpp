@@ -83,6 +83,13 @@ enum class UnaryAffineFn { Sqrt, Floor, Ceil };
 void fusedUnaryAffine(const double *x, double scale, double offset,
                       UnaryAffineFn fn, double *out, std::size_t n);
 
+// out[i] = f((x[i] - sub) / div) — the divide-inner variant (f(x./d),
+// f((x-c)./d)). Sub-then-Div is a distinct rounding from scale*x+offset, so it
+// can't reuse fusedUnaryAffine; same f-set (sqrt correctly-rounded, floor/ceil
+// exact) → bit-identical to the per-op f((x-c)./d).
+void fusedUnaryShiftDiv(const double *x, double sub, double div,
+                        UnaryAffineFn fn, double *out, std::size_t n);
+
 // out[i] = (scale*x[i] + offset)^2   — squared affine (energy, squared error,
 // squared deviation `(x-c).^2`). Mul, Add, then a final Mul (the square); three
 // roundings, matching the per-op `(a.*x ± b).^2` now that x.^2 is x.*x.
@@ -117,5 +124,10 @@ enum class TransAffineFn { Exp, Expm1, Log, Log2, Log10, Sin, Cos, Tanh,
                            Sinh, Atan, Asinh };
 void fusedTransAffine(const double *x, double scale, double offset,
                       TransAffineFn fn, double *out, std::size_t n);
+
+// out[i] = f((x[i] - sub) / div) — the divide-inner variant (f(x./d),
+// f((x-c)./d)) of fusedTransAffine. Same mirror-the-numkit-loop discipline.
+void fusedTransShiftDiv(const double *x, double sub, double div,
+                        TransAffineFn fn, double *out, std::size_t n);
 
 } // namespace numkit::ops

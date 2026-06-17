@@ -72,6 +72,21 @@ void fusedUnaryAffine(const double *x, double scale, double offset,
     }
 }
 
+void fusedUnaryShiftDiv(const double *x, double sub, double div,
+                        UnaryAffineFn fn, double *out, std::size_t n) {
+    switch (fn) {
+        case UnaryAffineFn::Sqrt:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::sqrt((x[i] - sub) / div);
+            break;
+        case UnaryAffineFn::Floor:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::floor((x[i] - sub) / div);
+            break;
+        case UnaryAffineFn::Ceil:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::ceil((x[i] - sub) / div);
+            break;
+    }
+}
+
 void fusedSqAffine(const double *x, double scale, double offset,
                    double *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i) {
@@ -137,6 +152,26 @@ void fusedTransAffine(const double *x, double scale, double offset,
         case TransAffineFn::Asinh:
             for (std::size_t i = 0; i < n; ++i) out[i] = std::asinh(scale * x[i] + offset);
             break;
+    }
+}
+
+void fusedTransShiftDiv(const double *x, double sub, double div,
+                        TransAffineFn fn, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = (x[i] - sub) / div;
+        switch (fn) {
+            case TransAffineFn::Exp:   out[i] = std::exp(v);   break;
+            case TransAffineFn::Expm1: out[i] = std::expm1(v); break;
+            case TransAffineFn::Log:   out[i] = std::log(v);   break;
+            case TransAffineFn::Log2:  out[i] = std::log2(v);  break;
+            case TransAffineFn::Log10: out[i] = std::log10(v); break;
+            case TransAffineFn::Sin:   out[i] = std::sin(v);   break;
+            case TransAffineFn::Cos:   out[i] = std::cos(v);   break;
+            case TransAffineFn::Tanh:  out[i] = std::tanh(v);  break;
+            case TransAffineFn::Sinh:  out[i] = std::sinh(v);  break;
+            case TransAffineFn::Atan:  out[i] = std::atan(v);  break;
+            case TransAffineFn::Asinh: out[i] = std::asinh(v); break;
+        }
     }
 }
 

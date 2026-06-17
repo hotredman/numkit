@@ -25,6 +25,8 @@
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
 //   {exp,expm1,log,log2,log10,sin,cos,tanh,sinh,atan,asinh}_affine  f(<inner>)
 //     → fusedTransAffine (log/log2/log10 decline on a negative affine → complex)
+//   {sqrt,floor,ceil,exp,…}_div  f(x./d) / f((x-c)./d) → fused{Unary,Trans}ShiftDiv
+//     (div is a distinct rounding from scale*x+offset → dedicated kernels)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -540,6 +542,52 @@ constexpr InnerKind kInnerKindsNoShiftSub[] = {
     InnerKind::ProductAdd, InnerKind::ProductSub, InnerKind::Product,
     InnerKind::ShiftAdd, InnerKind::NegLeaf};
 
+// ---- div-inner: f(x./d) / f((x-c)./d). A separate facility from the affine
+// InnerKinds — x./d is NOT scale*x+offset bit-exactly (1/d would round), so it
+// routes to the dedicated fusedUnaryShiftDiv / fusedTransShiftDiv kernels.
+
+// `(A-B)./d` → [A,B,d]; `x./d` → [x,d]. `/` accepted (scalar d ≡ `./`).
+std::optional<std::vector<const ASTNode *>> matchDivArg(const ASTNode *node) {
+    const ASTNode *div = asBinOp(node, "./");
+    if (!div) div = asBinOp(node, "/");
+    if (!div) return std::nullopt;
+    const ASTNode *dd = div->children[1].get();
+    if (!isPureLeaf(dd)) return std::nullopt;
+    const ASTNode *left = div->children[0].get();
+    if (const ASTNode *s = asPureSub(left))
+        return std::vector<const ASTNode *>{s->children[0].get(),
+                                            s->children[1].get(), dd};
+    if (isPureLeaf(left))
+        return std::vector<const ASTNode *>{left, dd};
+    return std::nullopt;
+}
+
+// Decode → (sub, div, x) for the (x-sub)/div kernel. `(c-x)/d` → (x-c)/(-d)
+// (exact: sign moves through the division).
+bool bindDivInner(const Value *ops, std::size_t n, double &sub, double &div,
+                  const Value *&x) {
+    if (n == 3) {
+        const Value &A = ops[0], &B = ops[1], &d = ops[2];
+        if (!isRealDoubleScalar(d)) return false;
+        if (isFusibleArray(A) && isRealDoubleScalar(B)) { x = &A; sub = B.toScalar(); div = d.toScalar();  return true; }
+        if (isFusibleArray(B) && isRealDoubleScalar(A)) { x = &B; sub = A.toScalar(); div = -d.toScalar(); return true; }
+        return false;
+    }
+    if (n == 2) {
+        const Value &X = ops[0], &d = ops[1];
+        if (isFusibleArray(X) && isRealDoubleScalar(d)) { x = &X; sub = 0.0; div = d.toScalar(); return true; }
+        return false;
+    }
+    return false;
+}
+
+// Any (x[i]-sub)/div < 0 — the decline predicate for sqrt/log of a div-inner.
+bool shiftDivAnyNegative(const double *x, double sub, double div, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i)
+        if ((x[i] - sub) / div < 0.0) return true;
+    return false;
+}
+
 // ---- unary-affine:  f(<inner>),  f ∈ {sqrt, floor, ceil} ---------------
 // A unary whose SIMD form is bit-identical to libm (sqrt correctly-rounded,
 // floor/ceil exact). exp/log/sin… are NOT here — Highway's polynomial differs
@@ -576,6 +624,21 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
     ops::fusedUnaryAffine(x->doubleData(), scale, offset, fn,
                           out.doubleDataMut(), N);
+    return true;
+}
+
+// f((x-sub)/div) for f ∈ {sqrt, floor, ceil}. sqrt declines on a negative inner.
+bool execUnaryDiv(const Value *ops, std::size_t n, Value &out,
+                  std::pmr::memory_resource *mr, numkit::ops::UnaryAffineFn fn) {
+    double sub = 0.0, div = 0.0;
+    const Value *x = nullptr;
+    if (!bindDivInner(ops, n, sub, div, x)) return false;
+    const std::size_t N = x->numel();
+    if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
+        shiftDivAnyNegative(x->doubleData(), sub, div, N))
+        return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedUnaryShiftDiv(x->doubleData(), sub, div, fn, out.doubleDataMut(), N);
     return true;
 }
 
@@ -758,6 +821,22 @@ bool execTransAffine(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// f((x-sub)/div) for a transcendental f. log/log2/log10 decline on a negative
+// inner (MATLAB complex). Mirrors fusedTransAffine's bit-exactness.
+bool execTransDiv(const Value *ops, std::size_t n, Value &out,
+                  std::pmr::memory_resource *mr, numkit::ops::TransAffineFn fn) {
+    double sub = 0.0, div = 0.0;
+    const Value *x = nullptr;
+    if (!bindDivInner(ops, n, sub, div, x)) return false;
+    if (transNeedsNonNeg(fn) &&
+        shiftDivAnyNegative(x->doubleData(), sub, div, x->numel()))
+        return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedTransShiftDiv(x->doubleData(), sub, div, fn, out.doubleDataMut(),
+                            x->numel());
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -889,6 +968,26 @@ void registerFusionRules(Engine &engine) {
     addUnaryAffine("floor_affine", "floor", UF::Floor);
     addUnaryAffine("ceil_affine",  "ceil",  UF::Ceil);
 
+    // f(x./d) / f((x-c)./d) — the divide-inner variant (separate kernel).
+    auto addUnaryDiv = [&engine](const char *name, const char *fname, UF fn) {
+        FusionRule r;
+        r.name  = name;
+        r.match = [fname](const ASTNode *node)
+                  -> std::optional<std::vector<const ASTNode *>> {
+            const ASTNode *arg = unaryCallArg(node, fname);
+            if (!arg) return std::nullopt;
+            return matchDivArg(arg);
+        };
+        r.execute = [fn](const Value *ops, std::size_t n, Value &out,
+                         std::pmr::memory_resource *mr) {
+            return execUnaryDiv(ops, n, out, mr, fn);
+        };
+        engine.addFusionRule(std::move(r));
+    };
+    addUnaryDiv("sqrt_div",  "sqrt",  UF::Sqrt);
+    addUnaryDiv("floor_div", "floor", UF::Floor);
+    addUnaryDiv("ceil_div",  "ceil",  UF::Ceil);
+
     // (<inner>).^2: every inner spelling except ShiftSub (sq_diff owns it).
     for (InnerKind kind : kInnerKindsNoShiftSub) {
         FusionRule r;
@@ -949,6 +1048,34 @@ void registerFusionRules(Engine &engine) {
     addTransAffine("sinh_affine",  "sinh",  TF::Sinh);
     addTransAffine("atan_affine",  "atan",  TF::Atan);
     addTransAffine("asinh_affine", "asinh", TF::Asinh);
+
+    // f(x./d) / f((x-c)./d) — divide-inner transcendentals (same f-set).
+    auto addTransDiv = [&engine](const char *name, const char *fname, TF fn) {
+        FusionRule r;
+        r.name  = name;
+        r.match = [fname](const ASTNode *node)
+                  -> std::optional<std::vector<const ASTNode *>> {
+            const ASTNode *arg = unaryCallArg(node, fname);
+            if (!arg) return std::nullopt;
+            return matchDivArg(arg);
+        };
+        r.execute = [fn](const Value *ops, std::size_t n, Value &out,
+                         std::pmr::memory_resource *mr) {
+            return execTransDiv(ops, n, out, mr, fn);
+        };
+        engine.addFusionRule(std::move(r));
+    };
+    addTransDiv("exp_div",   "exp",   TF::Exp);
+    addTransDiv("expm1_div", "expm1", TF::Expm1);
+    addTransDiv("log_div",   "log",   TF::Log);
+    addTransDiv("log2_div",  "log2",  TF::Log2);
+    addTransDiv("log10_div", "log10", TF::Log10);
+    addTransDiv("sin_div",   "sin",   TF::Sin);
+    addTransDiv("cos_div",   "cos",   TF::Cos);
+    addTransDiv("tanh_div",  "tanh",  TF::Tanh);
+    addTransDiv("sinh_div",  "sinh",  TF::Sinh);
+    addTransDiv("atan_div",  "atan",  TF::Atan);
+    addTransDiv("asinh_div", "asinh", TF::Asinh);
 }
 
 } // namespace numkit

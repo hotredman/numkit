@@ -503,6 +503,29 @@ TEST_P(FusionParityTest, MoreTransAffine) {
     EXPECT_TRUE(sameOnOff(e, "asinh(x - b)"));        // ShiftSub inner
 }
 
+// div-inner: f(x./d) and f((x-c)./d) via the dedicated shift-div kernels.
+TEST_P(FusionParityTest, DivInner) {
+    e.eval("x = reshape(linspace(1,9,6000),2000,3); d = 2.5; c = 0.5;");  // x>0
+    EXPECT_TRUE(sameOnOff(e, "sqrt(x ./ d)"));            // x/d
+    EXPECT_TRUE(sameOnOff(e, "sqrt((x - c) ./ d)"));      // (x-c)/d
+    EXPECT_TRUE(sameOnOff(e, "floor(x ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "exp(x ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "log((x - c) ./ d)"));       // log domain ok (x≥1>c)
+    EXPECT_TRUE(sameOnOff(e, "exp((c - x) ./ d)"));        // (c-x)/d → (x-c)/(-d)
+    e.eval("y = sqrt(x ./ d);");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), std::sqrt(1.0 / 2.5), 1e-12);
+}
+
+// div-inner trans on n=6001 (SIMD tail) + log negative→complex decline.
+TEST_P(FusionParityTest, DivInnerTransTailAndDomain) {
+    e.eval("x = linspace(0.1, 5, 6001)'; d = 3; c = 0.2;");
+    EXPECT_TRUE(sameOnOff(e, "exp(x ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "log(x ./ d)"));
+    e.eval("xn = linspace(-4, 4, 6001)'; ");
+    EXPECT_TRUE(sameOnOff(e, "log(xn ./ d)"));            // negatives → complex, declines
+    EXPECT_TRUE(e.eval("~isreal(log(xn ./ d))").toBool());
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
