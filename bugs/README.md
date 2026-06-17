@@ -17,6 +17,25 @@ bugs/
 Use `<fn>.md` when a function has one open bug; `<fn>-<aspect>.md` when it
 has several distinct ones (e.g. `cceps-nd-phase.md`).
 
+`<namespace>` is the toolbox or **source layer** the function lives in — i.e.
+where its code (and its `known_bugs_test.cpp`) is found. Domain toolboxes keep
+their own name (`signal/`, `image/`, `stats/`, `linalg/`, `control/`, `comm/`,
+`optim/`, `wavelet/`, `ode/`, `io/`). The former `builtin` mega-library was
+dissolved by the layering refactor and its defects are split across the three
+source layers it became:
+
+- **`math/`** — `src/math/` (trig, exp/log, special, poly, interp, integration,
+  discrete/setops, reductions, complex): acos/asin, gamma, psi, log, sqrt,
+  trapz, gradient, interp1/interpn, unique, histcounts, ismember/union, max/min…
+- **`lang/`** — `src/lang/` (arrays, strings, format, types): cat, sort, find,
+  diff, cumsum/cumprod/cummax/cummin, sprintf, str2double, integer casts…
+- **`runtime/`** — `src/runtime/` (language-runtime builtins): accumarray,
+  cellfun, func2str.
+
+Those three layers share one test tree: their gtests all live together under
+`tests/builtin/` (`known_bugs_test.cpp` + per-fn `*_test.cpp`), not under a
+per-layer `tests/` dir.
+
 ## File template
 
 ```markdown
@@ -138,26 +157,26 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | bug | [lang/int-cast-rtne](lang/int-cast-rtne.md) | P2 | int32/int64/uint32 SIMD cast rounded ties-to-even; now half-away-from-zero (MATLAB) via trunc(v+copysign(0.5,v)) (2026-06-14) |
 | stub | [stats/jackknife](stats/jackknife.md) | P2 | jackknife(fn,X) now loops leave-one-out inline via callFunctionHandle (like bootstrp_reg) instead of a dead stub; vector reshaped to column observations (2026-06-14) |
 | bug | [linalg/cross-integer-class](linalg/cross-integer-class.md) | P2 | cross preserves the integer class of integer operands with per-operation saturation (cross(int8([100 100 0]),int8([0 100 100]))=[127 -127 127], not -128); int+double→int; different-int/int+logical lenient→double (2026-06-05) |
-| bug | [builtin/accumarray-integer-vals](builtin/accumarray-integer-vals.md) | P2 | accumarray accepts integer/logical vals (was: throw "vals must be DOUBLE") — sum/prod/mean→double, max/min preserve int class; logical+max/min & custom-handle class are lenient niches (2026-06-05) |
+| bug | [runtime/accumarray-integer-vals](runtime/accumarray-integer-vals.md) | P2 | accumarray accepts integer/logical vals (was: throw "vals must be DOUBLE") — sum/prod/mean→double, max/min preserve int class; logical+max/min & custom-handle class are lenient niches (2026-06-05) |
 | bug | [signal/deconv-integer-input](signal/deconv-integer-input.md) | P2 | deconv accepts integer/logical input (was: throw "Not a double array") — promotes to double (reuses convPromoteToDouble); q+r always double. na>nb int is numkit-lenient (MATLAB errors there) (2026-06-05) |
 | bug | [signal/conv-integer-input](signal/conv-integer-input.md) | P2 | conv accepts integer/logical input (was: throw "Not a double array") — promotes to double; result always double (every shape), never the int class (2026-06-05) |
 | bug | [linalg/kron-integer-class](linalg/kron-integer-class.md) | P2 | kron preserves the integer class of integer operands (saturating) — same-int→that class, int+scalar-double→int (round+saturate), double*double unchanged (2026-06-05) |
-| bug | [builtin/concat-integer-types](builtin/concat-integer-types.md) | P2 | CORE (user-approved): cat/[;]/[,]/vertcat/horzcat preserve integer class — first-int wins, others cast (round+saturate); concat in double then narrow (2026-06-05) |
-| bug | [builtin/str2double-complex](builtin/str2double-complex.md) | P3 | str2double parses complex strings ('1+2i'/'2i'/'i'/'1+2j'/'1e-3+2i'); COMPLEX output when any element complex, real path unchanged (2026-06-05) |
-| bug | [builtin/psi-zero-pole](builtin/psi-zero-pole.md) | P3 | psi(0) returns -Inf (digamma pole), was NaN; finite values + negative-domain unchanged, matches MATLAB (2026-06-05) |
-| bug | [builtin/polyder-product](builtin/polyder-product.md) | P2 | polyder(a,b) single-output = derivative of the PRODUCT a*b (was the quotient numerator); 2-output quotient form unchanged (2026-06-05) |
-| bug | [builtin/gamma-negative-integer-poles](builtin/gamma-negative-integer-poles.md) | P3 | gamma returns +Inf at non-positive integer poles (was NaN via std::tgamma); gamma(-Inf)=Inf, matches MATLAB (2026-06-05) |
-| bug | [builtin/maxmin-char-double](builtin/maxmin-char-double.md) | P2 | max/min of a char array return double (the code point), not char — MATLAB does not preserve char for max/min (mode does); flipped the stale char-return test (2026-06-05) |
-| bug | [builtin/sprintf-complex](builtin/sprintf-complex.md) | P2 | sprintf/fprintf use the real part of a complex argument for numeric conversions (was: throw); imaginary discarded, as MATLAB (2026-06-05) |
+| bug | [lang/concat-integer-types](lang/concat-integer-types.md) | P2 | CORE (user-approved): cat/[;]/[,]/vertcat/horzcat preserve integer class — first-int wins, others cast (round+saturate); concat in double then narrow (2026-06-05) |
+| bug | [lang/str2double-complex](lang/str2double-complex.md) | P3 | str2double parses complex strings ('1+2i'/'2i'/'i'/'1+2j'/'1e-3+2i'); COMPLEX output when any element complex, real path unchanged (2026-06-05) |
+| bug | [math/psi-zero-pole](math/psi-zero-pole.md) | P3 | psi(0) returns -Inf (digamma pole), was NaN; finite values + negative-domain unchanged, matches MATLAB (2026-06-05) |
+| bug | [math/polyder-product](math/polyder-product.md) | P2 | polyder(a,b) single-output = derivative of the PRODUCT a*b (was the quotient numerator); 2-output quotient form unchanged (2026-06-05) |
+| bug | [math/gamma-negative-integer-poles](math/gamma-negative-integer-poles.md) | P3 | gamma returns +Inf at non-positive integer poles (was NaN via std::tgamma); gamma(-Inf)=Inf, matches MATLAB (2026-06-05) |
+| bug | [math/maxmin-char-double](math/maxmin-char-double.md) | P2 | max/min of a char array return double (the code point), not char — MATLAB does not preserve char for max/min (mode does); flipped the stale char-return test (2026-06-05) |
+| bug | [lang/sprintf-complex](lang/sprintf-complex.md) | P2 | sprintf/fprintf use the real part of a complex argument for numeric conversions (was: throw); imaginary discarded, as MATLAB (2026-06-05) |
 | bug | [stats/movfun-order-stats](stats/movfun-order-stats.md) | P3 | movmax/movmin/movmedian accept integer/logical — movmax/movmin preserve class, movmedian rounds int half-away & logical→double (completes mov* sweep) (2026-06-05) |
 | bug | [stats/movfun-typeclass](stats/movfun-typeclass.md) | P3 | movsum/movprod/movmean accept integer/logical — promote to double (char still errors, as MATLAB) (2026-06-05) |
-| bug | [builtin/cummax-cummin-integer](builtin/cummax-cummin-integer.md) | P3 | cummax/cummin accept integer — preserve int class (promote→cummax/cummin→doubleToIntegerExact; exact, order stats) (2026-06-05) |
-| bug | [builtin/setops-typeclass](builtin/setops-typeclass.md) | P2 | ismember/intersect/setdiff/union accept char/logical/integer — values preserve class, ia/ib & ismember loc stay double (2026-06-05) |
-| bug | [builtin/unique-typeclass](builtin/unique-typeclass.md) | P2 | unique accepts char/logical/integer — preserves class on values, ia/ic stay double (promote→unique→narrowUniqueClass) (2026-06-05) |
-| bug | [builtin/sort-char](builtin/sort-char.md) | P2 | sort accepts char — sorts by code point, preserves char class, index double (charizeSortResult narrow; shape-preserving, unlike toChar) (2026-06-05) |
-| bug | [builtin/sort-logical](builtin/sort-logical.md) | P2 | sort accepts logical — values preserve logical class, index stays double (mirrors integer path) (2026-06-05) |
-| bug | [builtin/trapz-logical](builtin/trapz-logical.md) | P2 | trapz accepts logical X/Y — promote→double at trapz_reg entry (class not preserved; matches cumtrapz) (2026-06-05) |
-| bug | [builtin/cumulative-logical](builtin/cumulative-logical.md) | P2 | cumsum/cumprod/cummax/cummin accept logical — cumsum/cumprod→double, cummax/cummin→logical (class preserved) (2026-06-05) |
+| bug | [lang/cummax-cummin-integer](lang/cummax-cummin-integer.md) | P3 | cummax/cummin accept integer — preserve int class (promote→cummax/cummin→doubleToIntegerExact; exact, order stats) (2026-06-05) |
+| bug | [math/setops-typeclass](math/setops-typeclass.md) | P2 | ismember/intersect/setdiff/union accept char/logical/integer — values preserve class, ia/ib & ismember loc stay double (2026-06-05) |
+| bug | [math/unique-typeclass](math/unique-typeclass.md) | P2 | unique accepts char/logical/integer — preserves class on values, ia/ic stay double (promote→unique→narrowUniqueClass) (2026-06-05) |
+| bug | [lang/sort-char](lang/sort-char.md) | P2 | sort accepts char — sorts by code point, preserves char class, index double (charizeSortResult narrow; shape-preserving, unlike toChar) (2026-06-05) |
+| bug | [lang/sort-logical](lang/sort-logical.md) | P2 | sort accepts logical — values preserve logical class, index stays double (mirrors integer path) (2026-06-05) |
+| bug | [math/trapz-logical](math/trapz-logical.md) | P2 | trapz accepts logical X/Y — promote→double at trapz_reg entry (class not preserved; matches cumtrapz) (2026-06-05) |
+| bug | [lang/cumulative-logical](lang/cumulative-logical.md) | P2 | cumsum/cumprod/cummax/cummin accept logical — cumsum/cumprod→double, cummax/cummin→logical (class preserved) (2026-06-05) |
 | bug | [signal/impinvar-repeated-poles](signal/impinvar-repeated-poles.md) | P1 | repeated-pole impinvar numerator — multiplicity partial fractions + Eulerian impulse-invariant z-kernel + centroid/Newton pole refine (clean-room) (2026-06-05) |
 | stub | [signal/ellipord-bandstop](signal/ellipord-bandstop.md) | P2 | ellipord bandstop order/Wn — reciprocal bandpass→LP map WA=(WS·(WP1-WP2))/(WS²-WP1·WP2) (clean-room) (2026-06-05) |
 | bug | [stats/distribution-array-params](stats/distribution-array-params.md) | P2 | *pdf/*cdf/*inv broadcast ARRAY params across all 16 distribution families — continuous + discrete (c29-38) |
@@ -168,25 +187,25 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | stub | [stats/isoutlier-gesd](stats/isoutlier-gesd.md) | P2 | isoutlier 'gesd' (Rosner generalized ESD) + MaxNumOutliers/ThresholdFactor (2026-06-05) |
 | bug | [stats/kstest-pvalue](stats/kstest-pvalue.md) | P1 | kstest/kstest2 exact KS p-value (Marsaglia + Birnbaum-Tingey) + cv (2026-06-05) |
 | bug | [stats/dwtest-pvalue](stats/dwtest-pvalue.md) | P2 | exact Durbin-Watson p-value via Imhof CF inversion + Tail option (2026-06-05) |
-| bug | [builtin/cellfun-inputforms](builtin/cellfun-inputforms.md) | P2 | cellfun multi-cell zip + legacy string-name forms ('isempty'/'size'/'isclass'/…) (2026-06-05) |
-| bug | [builtin/diff-zero-order](builtin/diff-zero-order.md) | P3 | diff order N must be a positive integer scalar — 0/neg/frac/non-scalar now error (was identity at 0) (2026-06-05) |
-| bug | [builtin/gradient-3d](builtin/gradient-3d.md) | P2 | gradient supports N-D (3-D+) arrays — one gradient per dim up to nargout (2026-06-05) |
+| bug | [runtime/cellfun-inputforms](runtime/cellfun-inputforms.md) | P2 | cellfun multi-cell zip + legacy string-name forms ('isempty'/'size'/'isclass'/…) (2026-06-05) |
+| bug | [lang/diff-zero-order](lang/diff-zero-order.md) | P3 | diff order N must be a positive integer scalar — 0/neg/frac/non-scalar now error (was identity at 0) (2026-06-05) |
+| bug | [math/gradient-3d](math/gradient-3d.md) | P2 | gradient supports N-D (3-D+) arrays — one gradient per dim up to nargout (2026-06-05) |
 | bug | [stats/pdist-metrics](stats/pdist-metrics.md) | P2 | pdist/pdist2 gain 'seuclidean' + 'spearman'; cosine/correlation → NaN (not 1) on zero-norm/const row (2026-06-05) |
-| bug | [builtin/find-count-direction](builtin/find-count-direction.md) | P1 | find(X,k[,'first'/'last']) now honours count + direction (single + multi-output) (2026-06-05) |
-| bug | [builtin/complex-input-unsupported](builtin/complex-input-unsupported.md) | P2 | complex now accepted by trapz/cumtrapz/median/interp1/gradient/movmean/detrend/conv/filter (umbrella closed) (2026-06-05) |
-| bug | [builtin/log-complex-promotion-arrays](builtin/log-complex-promotion-arrays.md) | P2 | log/log10/log2/log1p promote whole real arrays to complex out of domain (log1p: x<-1) (2026-06-05) |
+| bug | [lang/find-count-direction](lang/find-count-direction.md) | P1 | find(X,k[,'first'/'last']) now honours count + direction (single + multi-output) (2026-06-05) |
+| bug | [math/complex-input-unsupported](math/complex-input-unsupported.md) | P2 | complex now accepted by trapz/cumtrapz/median/interp1/gradient/movmean/detrend/conv/filter (umbrella closed) (2026-06-05) |
+| bug | [math/log-complex-promotion-arrays](math/log-complex-promotion-arrays.md) | P2 | log/log10/log2/log1p promote whole real arrays to complex out of domain (log1p: x<-1) (2026-06-05) |
 | bug | [linalg/norm-complex](linalg/norm-complex.md) | P2 | norm() of a complex array by \|z\| (vector 1/2/Inf/p + matrix 1/Inf/'fro'; spectral deferred) (2026-06-05) |
-| bug | [builtin/diff-complex](builtin/diff-complex.md) | P1 | diff() now differences real + imaginary parts (n-th order + dim) (2026-06-05) |
-| bug | [builtin/cumsum-complex](builtin/cumsum-complex.md) | P2 | cumsum/cumprod accumulate complex element-wise (dim + reverse) (2026-06-05) |
-| bug | [builtin/acos-asin-complex](builtin/acos-asin-complex.md) | P2 | acos/asin go complex for \|x\|>1 (via acosh for the correct branch; array promotes) (2026-06-05) |
-| bug | [builtin/complex-promotion-arrays](builtin/complex-promotion-arrays.md) | P2 | sqrt/acosh/atanh promote whole real arrays to complex (+ atanh x<-1 branch sign) (2026-06-05) |
-| bug | [builtin/sort-missingplacement](builtin/sort-missingplacement.md) | P1 | 'MissingPlacement' option was ignored |
+| bug | [lang/diff-complex](lang/diff-complex.md) | P1 | diff() now differences real + imaginary parts (n-th order + dim) (2026-06-05) |
+| bug | [lang/cumsum-complex](lang/cumsum-complex.md) | P2 | cumsum/cumprod accumulate complex element-wise (dim + reverse) (2026-06-05) |
+| bug | [math/acos-asin-complex](math/acos-asin-complex.md) | P2 | acos/asin go complex for \|x\|>1 (via acosh for the correct branch; array promotes) (2026-06-05) |
+| bug | [math/complex-promotion-arrays](math/complex-promotion-arrays.md) | P2 | sqrt/acosh/atanh promote whole real arrays to complex (+ atanh x<-1 branch sign) (2026-06-05) |
+| bug | [lang/sort-missingplacement](lang/sort-missingplacement.md) | P1 | 'MissingPlacement' option was ignored |
 | bug | [signal/rceps-cceps-padding](signal/rceps-cceps-padding.md) | P1 | cepstrum garbage on non-2ⁿ + rceps 2nd output (9fcf6872) |
 | bug | [signal/besself-digital](signal/besself-digital.md) | P1 | ran digital path → binomial garbage |
-| bug | [builtin/max-all-linear](builtin/max-all-linear.md) | P1 | max/min(A,[],'all') was entirely broken |
+| bug | [math/max-all-linear](math/max-all-linear.md) | P1 | max/min(A,[],'all') was entirely broken |
 | bug | [stats/combnk-scalar](stats/combnk-scalar.md) | P3 | scalar v is the 1-element set {v}; K>N → empty 0×K (c179) |
 | bug | [stats/anova1-matrix-input](stats/anova1-matrix-input.md) | P2 | matrix columns-as-groups input form (c179) |
-| bug | [builtin/unique-last](builtin/unique-last.md) | P1 | 'last' selects last occurrence (sorted; stable+last sub-gap deferred) (c180) |
+| bug | [math/unique-last](math/unique-last.md) | P1 | 'last' selects last occurrence (sorted; stable+last sub-gap deferred) (c180) |
 | stub | [signal/dct-types](signal/dct-types.md) | P2 | dct/idct Type 1/3/4 implemented (c181) |
 | missing-output (+bug) | [signal/risetime-falltime-outputs](signal/risetime-falltime-outputs.md) | P1 | [R,LT,UT,LL,UL] outputs + sharp-edge value fix 0.224→0.198 (c182) |
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
@@ -196,11 +215,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [builtin/interpn-nan](builtin/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
+| [math/interpn-nan](math/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
-| [builtin/func2str-anonymous](builtin/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |
+| [runtime/func2str-anonymous](runtime/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | non-2ⁿ phase wrong (rcunwrap) + missing `nd` |
@@ -215,7 +234,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | schur(A) throws on non-symmetric A (real Schur form deferred; eig values work) |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
-| [builtin/histcounts-autobinning](builtin/histcounts-autobinning.md) | P2 | automatic binning throws |
+| [math/histcounts-autobinning](math/histcounts-autobinning.md) | P2 | automatic binning throws |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
 ### 🔴 OPEN — missing-output (Nth output not emitted) — 2
@@ -255,8 +274,8 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [control/covar](control/covar.md) | P2 | output covariance from white noise |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
 | [comm/syndtable](comm/syndtable.md) | P2 | syndrome decoding table (coset leaders) |
-| [builtin/numerical-integration-nd](builtin/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |
-| [builtin/ode-stiff](builtin/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
+| [math/numerical-integration-nd](math/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |
+| [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/funm](linalg/funm.md) | P2 | general matrix function funm(A,fun) |
 | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | qz (generalized Schur) / gsvd (generalized SVD) |
 | [optim/fsolve](optim/fsolve.md) | P2 | nonlinear system solver fsolve |
