@@ -68,9 +68,12 @@ Value log(const Value &x, Value *hint, std::pmr::memory_resource *mr)
 }
 
 // expm1 / log1p / log2 — reference scalar path (the SIMD variants live in
-// exp_log_highway.cpp). Real-only, so no complex branch.
+// exp_log_highway.cpp).
 Value expm1(const Value &x, std::pmr::memory_resource *mr)
 {
+    // MATLAB: expm1(z) = exp(z) - 1 on complex.
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::exp(c) - 1.0; }, mr);
     return unaryDouble(x, [](double v) { return std::expm1(v); }, mr);
 }
 
