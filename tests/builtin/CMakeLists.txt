@@ -124,6 +124,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/diff_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/diff_order_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cumsum_cumprod_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/maxmin_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/acos_asin_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/complex_promotion_arrays_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/log_complex_test.cpp
