@@ -28,7 +28,7 @@
 - Live guard: `PolyTest.PolyderProductForm` (new) +
   `BuiltinKnownBug.PolyderProduct`. Parity:
   `tools/parity/specs/polyder_product.json` (correctness=OK). Smoke:
-  `tests/math/smoke/polyder_product_smoke.m`.
+  `src/math/tests/smoke/polyder_product_smoke.m`.
 
 ## Symptom
 `polyder(a,b)` (single output) returns the wrong polynomial — it computes the

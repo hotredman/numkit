@@ -58,8 +58,8 @@ a mixed in/out-of-domain vector.
     imaginary sign for `x<-1`. **This also fixed the scalar `atanh(-2)`**, which
     was previously `-0.5493+1.5708i` (should be `-0.5493-1.5708i`).
   In-domain input and NaN stay real.
-- Live guard: `tests/math/complex_promotion_arrays_test.cpp` (5 cases).
+- Live guard: `src/math/tests/complex_promotion_arrays_test.cpp` (5 cases).
   Parity: `tools/parity/specs/{sqrt,acosh,atanh}.json` extended (correctness=OK).
-  Smoke: `tests/math/smoke/complex_promotion_arrays_smoke.m`.
+  Smoke: `src/math/tests/smoke/complex_promotion_arrays_smoke.m`.
 - Note: `log`/`log10`/`log2` likely share the same real-array gap (negatives →
   NaN instead of complex) — not addressed here; a candidate for a follow-up.

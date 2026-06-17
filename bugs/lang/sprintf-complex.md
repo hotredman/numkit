@@ -22,10 +22,10 @@
   `sprintf('%g',1+2i)`=`"1"`; `sprintf('%d ',[1+2i 3+4i])`=`"1 3 "`;
   `sprintf('%.2f',3.5-1.5i)`=`"3.50"`; `sprintf('%g ',[1.5+0i 2.5])`=`"1.5 2.5 "`;
   `sprintf('%d',complex(7,0))`=`"7"`.
-- Live guard: `tests/lang/sprintf_complex_test.cpp` (5 TEST_F) +
+- Live guard: `src/lang/tests/sprintf_complex_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.SprintfComplex` flipped live. Parity:
   `tools/parity/specs/sprintf_complex.json` (correctness=OK). Smoke:
-  `tests/lang/smoke/sprintf_complex_smoke.m`.
+  `src/lang/tests/smoke/sprintf_complex_smoke.m`.
 
 ## Symptom
 `sprintf` / `fprintf` throw when a numeric conversion is fed a complex value;

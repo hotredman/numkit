@@ -50,8 +50,8 @@ semantics). Small — mirror how `sqrt`/`log` already branch.
   `acos(x>1)=i·acosh(x)`, `acos(x<-1)=π−i·acosh(|x|)`,
   `asin(x>1)=π/2−i·acosh(x)`, `asin(x<-1)=−π/2+i·acosh(|x|)`. In-domain input
   and NaN stay real.
-- Live guard: `tests/math/acos_asin_complex_test.cpp` (4 cases).
+- Live guard: `src/math/tests/acos_asin_complex_test.cpp` (4 cases).
   Parity: `tools/parity/specs/{acos,asin}.json` extended (correctness=OK).
-  Smoke: `tests/math/smoke/acos_asin_complex_smoke.m`.
+  Smoke: `src/math/tests/smoke/acos_asin_complex_smoke.m`.
 - Spin-off finding: `sqrt`/`acosh`/`atanh` have the same *array* gap (promote
   only scalars) — catalogued as bugs/math/complex-promotion-arrays.md.

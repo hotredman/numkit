@@ -432,6 +432,10 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(src/core/tests)
+    add_subdirectory(src/math/tests)
+    add_subdirectory(src/lang/tests)
+    add_subdirectory(src/runtime/tests)
+    add_subdirectory(src/bundle/tests)
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/graphics/tests/CMakeLists.txt)
         add_subdirectory(src/graphics/tests)   # graphics is a top-level service lib now
     endif()

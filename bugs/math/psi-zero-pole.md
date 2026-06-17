@@ -20,7 +20,7 @@
   `psi([0 1 2])=[-Inf -0.577216 0.422784]`.
 - Live guard: `SpecialFuncsTest.PsiZeroPole` (new) + `BuiltinKnownBug.PsiZeroPole`.
   Parity: `tools/parity/specs/psi_zero.json` (correctness=OK). Smoke:
-  `tests/math/smoke/psi_zero_smoke.m`.
+  `src/math/tests/smoke/psi_zero_smoke.m`.
 
 ## Symptom
 `psi(0)` returns NaN; MATLAB returns -Inf (digamma has a pole at 0).
