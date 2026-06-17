@@ -107,6 +107,40 @@ void TransAffineImpl(const double *x, double p0, double p1, bool divide,
                       [](auto d, auto v) { return hn::Asinh(d, v); },
                       [](double v) { return std::asinh(v); });
             break;
+        case TransAffineFn::Asin:
+            transLoop(x, p0, p1, divide, out, n,
+                      [](auto d, auto v) { return hn::Asin(d, v); },
+                      [](double v) { return std::asin(v); });
+            break;
+        case TransAffineFn::Acos:
+            transLoop(x, p0, p1, divide, out, n,
+                      [](auto d, auto v) { return hn::Acos(d, v); },
+                      [](double v) { return std::acos(v); });
+            break;
+        case TransAffineFn::Acosh:
+            transLoop(x, p0, p1, divide, out, n,
+                      [](auto d, auto v) { return hn::Acosh(d, v); },
+                      [](double v) { return std::acosh(v); });
+            break;
+        case TransAffineFn::Atanh:
+            transLoop(x, p0, p1, divide, out, n,
+                      [](auto d, auto v) { return hn::Atanh(d, v); },
+                      [](double v) { return std::atanh(v); });
+            break;
+        case TransAffineFn::Log1p:
+            transLoop(x, p0, p1, divide, out, n,
+                      [](auto d, auto v) { return hn::Log1p(d, v); },
+                      [](double v) { return std::log1p(v); });
+            break;
+        case TransAffineFn::Cosh:
+            // No Highway Cosh — compose 0.5*(e^v + e^-v) exactly as CoshLoop.
+            transLoop(x, p0, p1, divide, out, n,
+                      [](auto d, auto v) {
+                          return hn::Mul(hn::Set(d, 0.5),
+                                         hn::Add(hn::Exp(d, v), hn::Exp(d, hn::Neg(v))));
+                      },
+                      [](double v) { return std::cosh(v); });
+            break;
     }
 }
 

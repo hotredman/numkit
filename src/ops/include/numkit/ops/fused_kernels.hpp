@@ -136,11 +136,15 @@ void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n);
 // so to stay bit-identical to the per-op f(a.*x ± b) this kernel mirrors
 // numkit's exp/log/sin/… loop exactly: the same hn:: on the SIMD body, the same
 // std:: on the per-chunk scalar tail, chunked by the same kTranscendentalThreshold.
-// {Exp,Expm1,Sin,Cos,Tanh} of any real are real (no domain guard); {Log,Log2,
-// Log10} of a negative promote to complex in MATLAB — the caller declines those
-// (a pre-scan) and lets the per-op path produce the complex result.
+// Cosh has no Highway primitive — it is composed 0.5*(Exp(v)+Exp(-v)) exactly as
+// numkit's CoshLoop. Always-real (no domain guard): Exp, Expm1, Sin, Cos, Tanh,
+// Sinh, Atan, Asinh, Cosh. Complex-promoting in MATLAB — the caller declines on
+// the offending range (a pre-scan) and lets the per-op path produce the complex
+// result: {Log,Log2,Log10} on a negative; Log1p on < -1; Acosh on < 1; {Asin,
+// Acos,Atanh} on |·| > 1.
 enum class TransAffineFn { Exp, Expm1, Log, Log2, Log10, Sin, Cos, Tanh,
-                           Sinh, Atan, Asinh };
+                           Sinh, Atan, Asinh, Asin, Acos, Acosh, Atanh,
+                           Log1p, Cosh };
 void fusedTransAffine(const double *x, double scale, double offset,
                       TransAffineFn fn, double *out, std::size_t n);
 
