@@ -14,6 +14,8 @@
 
 #include <numkit/graphics/graphics_context.hpp>
 
+#include "plots/plot_internal.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -40,6 +42,8 @@ namespace numkit {
 // bundle-side installer (library.cpp) wraps each entry and registers it.
 void buildPlotTable(std::vector<PlotEntry> &table)
 {
+    using namespace detail;
+
     // ── Collect a graphics.<sub>.<name> (+ compat.<name>) entry ──
     auto reg = [&](const char *sub, const char *name, GraphicsFn fn) {
         table.push_back(PlotEntry{sub, name, /*core=*/false, std::move(fn)});
@@ -56,91 +60,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // Helper lambdas
     // ================================================================
 
-    auto vecToJson = [](const Value &v) -> std::string {
-        std::ostringstream os;
-        os << "[";
-        if (v.isComplex()) {
-            for (size_t i = 0; i < v.numel(); ++i) {
-                if (i)
-                    os << ",";
-                os << std::abs(v.complexData()[i]);
-            }
-        } else {
-            for (size_t i = 0; i < v.numel(); ++i) {
-                if (i)
-                    os << ",";
-                double val = v.doubleData()[i];
-                if (std::isnan(val))
-                    os << "null";
-                else if (std::isinf(val))
-                    os << (val > 0 ? "1e308" : "-1e308");
-                else
-                    os << val;
-            }
-        }
-        os << "]";
-        return os.str();
-    };
-
-    auto makeIndexJson = [](size_t n) -> std::string {
-        std::ostringstream xs;
-        xs << "[";
-        for (size_t i = 0; i < n; ++i) {
-            if (i)
-                xs << ",";
-            xs << (i + 1);
-        }
-        xs << "]";
-        return xs.str();
-    };
-
-    auto argStr = [](const Value &v) -> std::string { return v.toString(); };
-
-    auto parsePlotArgs = [](Span<const Value> args, size_t startIdx, DatasetInfo &ds) {
-        for (size_t i = startIdx; i + 1 < args.size(); i += 2) {
-            if (!args[i].isChar())
-                continue;
-            std::string key = args[i].toString();
-            for (auto &c : key)
-                c = std::tolower(c);
-            if (key == "linewidth")
-                ds.lineWidth = args[i + 1].toScalar();
-            else if (key == "markersize")
-                ds.markerSize = args[i + 1].toScalar();
-        }
-    };
-
-    auto parsePlotXYStyle = [&vecToJson, &makeIndexJson](Span<const Value> args,
-                                                         DatasetInfo &ds) -> size_t {
-        size_t nvStart = 2;
-        if (args.size() >= 2 && !args[1].isChar()) {
-            ds.xJson = vecToJson(args[0]);
-            ds.yJson = vecToJson(args[1]);
-            if (args.size() >= 3 && args[2].isChar()) {
-                ds.style = args[2].toString();
-                nvStart = 3;
-            }
-        } else {
-            ds.xJson = makeIndexJson(args[0].numel());
-            ds.yJson = vecToJson(args[0]);
-            if (args.size() >= 2 && args[1].isChar()) {
-                ds.style = args[1].toString();
-                nvStart = 2;
-            } else {
-                nvStart = 1;
-            }
-        }
-        return nvStart;
-    };
-
-    auto doubleToJson = [](std::ostringstream &os, double val) {
-        if (std::isnan(val))
-            os << "null";
-        else if (std::isinf(val))
-            os << (val > 0 ? "1e308" : "-1e308");
-        else
-            os << val;
-    };
+    // (pure JSON/parse helpers moved to plots/plot_internal.hpp — numkit::detail)
 
     // ================================================================
     // Figure management — graphics.layout
@@ -266,7 +186,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // ================================================================
 
     reg("line", "plot",
-        [parsePlotXYStyle, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                           Span<Value> outs, GraphicsContext &gc) {
             if (args.empty()) {
                 outs[0] = Value();
@@ -284,7 +204,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("bar", "bar",
-        [vecToJson, makeIndexJson](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, GraphicsContext &gc) {
             if (args.empty()) {
                 outs[0] = Value();
@@ -427,7 +347,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // the data on screen so users can write the script and inspect
     // values today. Both reuse the line / scatter render modes after
     // adapter projection.
-    auto plot3Impl = [vecToJson, parsePlotArgs](
+    auto plot3Impl = [](
                          const char *typeName,
                          Span<const Value> args, size_t nargout,
                          Span<Value> outs, GraphicsContext &gc) {
@@ -527,7 +447,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // matching length. quiver(x, y, u, v, scale) optionally scales
     // arrow lengths (default 1, packed into ds.style as "scale=N").
     reg("line", "quiver",
-        [vecToJson](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                     Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 4) {
                 outs[0] = Value();
@@ -1013,7 +933,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // `markerSize` is also wrong. We pack base into ds.style as
     // "base=<value>" so we don't grow the schema for one optional.
     reg("line", "area",
-        [vecToJson, makeIndexJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, GraphicsContext &gc) {
             if (args.empty()) {
                 outs[0] = Value();
@@ -1149,7 +1069,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // yJson = lengths (along X axis); the 'barh' mode in the renderer
     // swaps the axis roles compared to 'bar'.
     reg("bar", "barh",
-        [vecToJson, makeIndexJson](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, GraphicsContext &gc) {
             if (args.empty()) {
                 outs[0] = Value();
@@ -1172,7 +1092,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("bar", "scatter",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 2) {
                 outs[0] = Value();
                 return;
@@ -1198,7 +1118,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("bar", "hist",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             auto *mr = gc.mr;
             if (args.empty()) {
                 outs[0] = Value();
@@ -1242,7 +1162,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // differs (renderer uses it to pick cell-centre vs cell-vertex
     // alignment). Body kept as a captured lambda + std::bind to avoid
     // duplicating ~200 lines of quantization logic.
-    auto heatmapImpl = [vecToJson, doubleToJson](
+    auto heatmapImpl = [](
                            const char *typeName,
                            bool axisIj,
                            Span<const Value> args, size_t nargout,
@@ -3575,7 +3495,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // y, z, u, v, w) row becomes one arrow from (x, y, z) to
     // (x + s·u, y + s·v, z + s·w). Default scale = 1.
     reg("line", "quiver3",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             (void)nargout;
             if (args.size() < 6) { outs[0] = Value(); return; }
             auto &fm = gc.fm;
@@ -4681,7 +4601,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
 
     // ── Polar — graphics.polar ───────────────────────────────────────
     reg("polar", "polarplot",
-        [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 2) {
                 outs[0] = Value();
@@ -4709,7 +4629,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // axes. Same wire format as polarplot but type='scatter' so the
     // PolarPlot renderer draws circles instead of polylines.
     reg("polar", "polarscatter",
-        [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 2) { outs[0] = Value(); return; }
             auto &fm = gc.fm;
@@ -4803,7 +4723,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // (if any) in colorJson. NEITHER lands in zJson — that's
     // reserved for actual z-coordinates / matrices (imagesc etc.).
     reg("polar", "polarbubblechart",
-        [vecToJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                    Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 2) { outs[0] = Value(); return; }
             auto &fm = gc.fm;
@@ -4879,7 +4799,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("line", "stem",
-        [parsePlotXYStyle, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                           Span<Value> outs, GraphicsContext &gc) {
             if (args.empty()) {
                 outs[0] = Value();
@@ -4897,7 +4817,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("line", "stairs",
-        [parsePlotXYStyle, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                           Span<Value> outs, GraphicsContext &gc) {
             if (args.empty()) {
                 outs[0] = Value();
@@ -4923,7 +4843,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // eNegJson + ePosJson (asym) hold the magnitudes. The renderer
     // draws vertical bars from y-eNeg to y+ePos with caps at each end.
     reg("line", "errorbar",
-        [vecToJson, makeIndexJson, parsePlotArgs](Span<const Value> args, size_t nargout,
+        [](Span<const Value> args, size_t nargout,
                                                   Span<Value> outs, GraphicsContext &gc) {
             if (args.empty()) {
                 outs[0] = Value();
@@ -4978,11 +4898,11 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     // ── Log-scale plot types — graphics.line ────────────────────────
-    auto registerLogPlot = [&reg, parsePlotXYStyle, parsePlotArgs](
+    auto registerLogPlot = [&reg](
                                 const char *name, const std::string &xscale,
                                 const std::string &yscale) {
         reg("line", name,
-            [parsePlotXYStyle, parsePlotArgs, xscale, yscale](
+            [xscale, yscale](
                 Span<const Value> args, size_t nargout, Span<Value> outs,
                 GraphicsContext &gc) {
                 if (args.empty()) {
@@ -5011,7 +4931,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // ================================================================
 
     reg("layout", "title",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty()) {
                 auto &fm = gc.fm;
                 fm.currentAxes().title = argStr(args[0]);
@@ -5021,7 +4941,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
             outs[0] = Value();
         });
     reg("layout", "subtitle",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty()) {
                 auto &fm = gc.fm;
                 fm.currentAxes().subtitle = argStr(args[0]);
@@ -5036,7 +4956,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // as the panel's top header; for subplots it spans the whole grid
     // above the cell row — matching MATLAB R2025b's sgtitle behaviour.
     reg("layout", "sgtitle",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty()) {
                 auto &fm = gc.fm;
                 fm.current().superTitle = argStr(args[0]);
@@ -5047,7 +4967,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("layout", "xlabel",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty()) {
                 auto &fm = gc.fm;
                 fm.currentAxes().xlabel = argStr(args[0]);
@@ -5064,7 +4984,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // The IDE renders text overlays after the image / line layers so
     // labels stay on top of imagesc / scatter.
     reg("layout", "text",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 3) { outs[0] = Value(); return; }
             const Value &xv = args[0];
             const Value &yv = args[1];
@@ -5106,7 +5026,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("layout", "ylabel",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty()) {
                 auto &fm = gc.fm;
                 auto &ax = fm.currentAxes();
@@ -5122,7 +5042,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("layout", "xlim",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = gc.fm;
                 fm.currentAxes().xlimJson = vecToJson(args[0]);
@@ -5133,7 +5053,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("layout", "ylim",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = gc.fm;
                 auto &ax = fm.currentAxes();
@@ -5198,7 +5118,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     };
 
     reg("layout", "legend",
-        [argStr, normLocation](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [normLocation](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             auto &fm = gc.fm;
             auto &ax = fm.currentAxes();
             // Walk args. Plain strings become legend labels; a `'Location'`
@@ -5359,7 +5279,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
 
     // ── Polar-specific settings — graphics.polar ─────────────────────
     reg("polar", "rlim",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = gc.fm;
                 fm.currentAxes().rlimJson = vecToJson(args[0]);
@@ -5370,7 +5290,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("polar", "thetalim",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = gc.fm;
                 fm.currentAxes().thetalimJson = vecToJson(args[0]);
@@ -5421,7 +5341,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // Without args (or empty arg) the user clears custom ticks and
     // the renderer falls back to its default 30°-spaced grid.
     reg("polar", "thetaticks",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             auto &fm = gc.fm;
             fm.currentAxes().thetaticksJson =
                 (args.empty() || args[0].numel() == 0) ? "" : vecToJson(args[0]);
@@ -5434,7 +5354,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // Empty arg = clear (auto). Default rticks are picked by
     // niceStep in the renderer.
     reg("polar", "rticks",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             auto &fm = gc.fm;
             fm.currentAxes().rticksJson =
                 (args.empty() || args[0].numel() == 0) ? "" : vecToJson(args[0]);
@@ -5499,7 +5419,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
 
     // ── Color limits & colormap — graphics.layout ─────────────────────
     reg("layout", "caxis",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = gc.fm;
                 fm.currentAxes().climJson = vecToJson(args[0]);
@@ -5510,7 +5430,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
         });
 
     reg("layout", "clim",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = gc.fm;
                 fm.currentAxes().climJson = vecToJson(args[0]);
@@ -6270,7 +6190,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
     // through parsePlotArgs.
     // ────────────────────────────────────────────────────────────────
     reg("line", "triplot",
-        [parsePlotArgs](Span<const Value> args, size_t /*nargout*/,
+        [](Span<const Value> args, size_t /*nargout*/,
                         Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 3) { outs[0] = Value(); return; }
             const auto &TRI = args[0];
@@ -6703,7 +6623,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
 
     // zlabel(text) — 3-D Z-axis label.
     reg("layout", "zlabel",
-        [argStr](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             (void)nargout;
             if (args.empty()) { outs[0] = Value(); return; }
             auto &fm = gc.fm;
@@ -6715,7 +6635,7 @@ void buildPlotTable(std::vector<PlotEntry> &table)
 
     // zlim([z0, z1]) — 3-D Z-axis limits.
     reg("layout", "zlim",
-        [vecToJson](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             (void)nargout;
             if (args.empty() || args[0].numel() < 2) { outs[0] = Value(); return; }
             auto &fm = gc.fm;
