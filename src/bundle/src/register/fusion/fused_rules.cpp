@@ -16,12 +16,12 @@
 //   affine_clamp_*  max(lo,min(hi,a.*x±b)) → fusedAffineClamp(x, a, ±b, lo, hi)
 //   abs_affine_*    abs(a.*x ± b)         → fusedAbsAffine(x, a, ±b)
 //   abs_diff        abs(x - y) / abs(x-c) → fusedAbsDiff / fusedAbsAffine
-//   {sqrt,floor,ceil}_affine_*  f(a.*x ± b) → fusedUnaryAffine(x, a, ±b, fn)
+//   {sqrt,floor,ceil}_affine  f(<inner>), inner ∈ {a.*x±b, a.*x, x±c} → fusedUnaryAffine
 //   sq_affine_*  (a.*x ± b).^2  → fusedSqAffine(x, a, ±b)
 //   sq_diff      (x-y).^2 / (x-c).^2 → fusedSqDiff / fusedSqAffine
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
-//   {exp,expm1}_affine_*  f(a.*x ± b) → fusedTransAffine(x, a, ±b, fn)
+//   {exp,expm1}_affine  f(<inner>), inner ∈ {a.*x±b, a.*x, x±c} → fusedTransAffine
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -92,6 +92,12 @@ const ASTNode *asPureProduct(const ASTNode *node) {
 
 bool isRealDoubleScalar(const Value &v) {
     return v.isScalar() && v.type() == ValueType::DOUBLE && !v.isComplex();
+}
+
+// A real-double array big enough to be worth fusing (the "x" of an idiom).
+bool isFusibleArray(const Value &v) {
+    return v.type() == ValueType::DOUBLE && !v.isComplex() &&
+           v.numel() >= kFusionMinElems;
 }
 
 // A product's two evaluated operands must be exactly one real-double scalar
@@ -423,24 +429,94 @@ bool execAbsDiff(const Value *ops, std::size_t n, Value &out,
     return false;
 }
 
-// ---- unary-affine:  f(a.*x ± b),  f ∈ {sqrt, floor, ceil} --------------
+// ---- shared inner-affine: the argument of f(<inner>) reduced to scale*x+offset
+// Lets every f(inner) idiom (unary, transcendental, …) cover the full spread of
+// affine spellings — product `a.*x`, product±leaf `a.*x±b`, and bare shift
+// `x±c` — through one matcher + one decoder, instead of a rule per spelling.
+// Each kind is structurally disjoint (the matcher distinguishes product vs leaf
+// children), so a given inner node matches at most one kind.
+enum class InnerKind { ProductAdd, ProductSub, Product, ShiftAdd, ShiftSub };
+
+std::optional<std::vector<const ASTNode *>> matchInner(const ASTNode *node,
+                                                       InnerKind kind) {
+    switch (kind) {
+        case InnerKind::ProductAdd: return matchAffineAdd(node);     // a.*x+b / b+a.*x
+        case InnerKind::ProductSub: return matchAffineSub(node);     // a.*x-b
+        case InnerKind::Product: {                                   // a.*x (no offset)
+            const ASTNode *p = asPureProduct(node);
+            if (!p) return std::nullopt;
+            return std::vector<const ASTNode *>{p->children[0].get(),
+                                                p->children[1].get()};
+        }
+        case InnerKind::ShiftAdd: {                                  // x+c / c+x
+            const ASTNode *a = asBinOp(node, "+");
+            if (!a || !isPureLeaf(a->children[0].get()) ||
+                !isPureLeaf(a->children[1].get()))
+                return std::nullopt;
+            return std::vector<const ASTNode *>{a->children[0].get(),
+                                                a->children[1].get()};
+        }
+        case InnerKind::ShiftSub: {                                  // x-c / c-x
+            const ASTNode *s = asPureSub(node);
+            if (!s) return std::nullopt;
+            return std::vector<const ASTNode *>{s->children[0].get(),
+                                                s->children[1].get()};
+        }
+    }
+    return std::nullopt;
+}
+
+// Decode evaluated operands for `kind` into (scale, offset, x). Every mapping is
+// bit-exact with the per-op spelling: ×1/+0 are exact, ±c is exact negation,
+// and `c-x` → scale -1 reproduces `c - x` exactly (negation + commute).
+bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
+               double &offset, const Value *&x) {
+    switch (kind) {
+        case InnerKind::ProductAdd:
+        case InnerKind::ProductSub: {
+            if (n != 3 || !isRealDoubleScalar(ops[2])) return false;
+            if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+            offset = (kind == InnerKind::ProductSub ? -1.0 : 1.0) * ops[2].toScalar();
+            return true;
+        }
+        case InnerKind::Product: {
+            if (n != 2 || !bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+            offset = 0.0;
+            return true;
+        }
+        case InnerKind::ShiftAdd: {
+            if (n != 2) return false;
+            const Value &u = ops[0], &v = ops[1];
+            if (isFusibleArray(u) && isRealDoubleScalar(v)) { x = &u; scale = 1.0; offset = v.toScalar(); return true; }
+            if (isFusibleArray(v) && isRealDoubleScalar(u)) { x = &v; scale = 1.0; offset = u.toScalar(); return true; }
+            return false;
+        }
+        case InnerKind::ShiftSub: {
+            if (n != 2) return false;
+            const Value &u = ops[0], &v = ops[1];  // expr = u - v
+            if (isFusibleArray(u) && isRealDoubleScalar(v)) { x = &u; scale = 1.0;  offset = -v.toScalar(); return true; }
+            if (isFusibleArray(v) && isRealDoubleScalar(u)) { x = &v; scale = -1.0; offset = u.toScalar();  return true; }
+            return false;
+        }
+    }
+    return false;
+}
+
+// All InnerKinds, for registering f(inner) rules across every affine spelling.
+constexpr InnerKind kAllInnerKinds[] = {
+    InnerKind::ProductAdd, InnerKind::ProductSub, InnerKind::Product,
+    InnerKind::ShiftAdd, InnerKind::ShiftSub};
+
+// ---- unary-affine:  f(<inner>),  f ∈ {sqrt, floor, ceil} ---------------
 // A unary whose SIMD form is bit-identical to libm (sqrt correctly-rounded,
-// floor/ceil exact) applied to an affine, in one pass. Reuses the affine inner-
-// detection. exp/log/sin… are excluded — Highway's polynomial differs from libm
-// by a few ULP, so they would not be bit-exact across the SIMD/scalar split.
+// floor/ceil exact). exp/log/sin… are NOT here — Highway's polynomial differs
+// from libm by a few ULP (the transcendental kernel handles those separately).
 
 // fname(arg) single-arg call → arg node, else null.
 const ASTNode *unaryCallArg(const ASTNode *node, const char *fname) {
     const ASTNode *fn = calleeName(node);
     if (!fn || fn->strValue != fname || node->children.size() != 2) return nullptr;
     return node->children[1].get();
-}
-
-std::optional<std::vector<const ASTNode *>>
-matchUnaryAffine(const ASTNode *node, const char *fname, bool sub) {
-    const ASTNode *arg = unaryCallArg(node, fname);
-    if (!arg) return std::nullopt;
-    return sub ? matchAffineSub(arg) : matchAffineAdd(arg);  // [c0, c1, b]
 }
 
 // True if any scale*x[i]+offset is < 0 (the affine the kernel will compute).
@@ -454,15 +530,11 @@ bool affineAnyNegative(const double *x, double scale, double offset,
 }
 
 bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
-                     std::pmr::memory_resource *mr, double bSign,
+                     std::pmr::memory_resource *mr, InnerKind kind,
                      numkit::ops::UnaryAffineFn fn) {
-    if (n != 3) return false;
-    const Value &b = ops[2];
-    if (!isRealDoubleScalar(b)) return false;
-    double scale = 0.0;
+    double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
-    const double offset = bSign * b.toScalar();
+    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
     const std::size_t N = x->numel();
     if (fn == numkit::ops::UnaryAffineFn::Sqrt &&
         affineAnyNegative(x->doubleData(), scale, offset, N))
@@ -635,16 +707,13 @@ bool execSoftThreshold(const Value *ops, std::size_t n, Value &out,
 // guard. Shares matchUnaryAffine; the kernel mirrors numkit's exp/expm1 loop
 // for bit-exactness (see fused_trans_affine_highway.cpp).
 bool execTransAffine(const Value *ops, std::size_t n, Value &out,
-                     std::pmr::memory_resource *mr, double bSign,
+                     std::pmr::memory_resource *mr, InnerKind kind,
                      numkit::ops::TransAffineFn fn) {
-    if (n != 3) return false;
-    const Value &b = ops[2];
-    if (!isRealDoubleScalar(b)) return false;
-    double scale = 0.0;
+    double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedTransAffine(x->doubleData(), scale, bSign * b.toScalar(), fn,
+    ops::fusedTransAffine(x->doubleData(), scale, offset, fn,
                           out.doubleDataMut(), x->numel());
     return true;
 }
@@ -767,29 +836,30 @@ void registerFusionRules(Engine &engine) {
     absDiff.execute = execAbsDiff;
     engine.addFusionRule(std::move(absDiff));
 
-    // unary-affine f(a.*x ± b): one rule per (function, additive sign). The
-    // function-id and ±b sign are baked into the captured execute closure.
-    auto addUnaryAffine = [&engine](const char *name, const char *fname,
-                                    bool sub, double bSign,
-                                    numkit::ops::UnaryAffineFn fn) {
-        FusionRule r;
-        r.name  = name;
-        r.match = [fname, sub](const ASTNode *node) {
-            return matchUnaryAffine(node, fname, sub);
-        };
-        r.execute = [bSign, fn](const Value *ops, std::size_t n, Value &out,
-                                std::pmr::memory_resource *mr) {
-            return execUnaryAffine(ops, n, out, mr, bSign, fn);
-        };
-        engine.addFusionRule(std::move(r));
-    };
+    // unary-affine f(<inner>): one rule per (function, inner spelling). The
+    // function-id and inner kind are baked into the captured closures, so every
+    // affine spelling (a.*x±b, a.*x, x±c) of the argument fuses.
     using UF = numkit::ops::UnaryAffineFn;
-    addUnaryAffine("sqrt_affine_add",  "sqrt",  false, +1.0, UF::Sqrt);
-    addUnaryAffine("sqrt_affine_sub",  "sqrt",  true,  -1.0, UF::Sqrt);
-    addUnaryAffine("floor_affine_add", "floor", false, +1.0, UF::Floor);
-    addUnaryAffine("floor_affine_sub", "floor", true,  -1.0, UF::Floor);
-    addUnaryAffine("ceil_affine_add",  "ceil",  false, +1.0, UF::Ceil);
-    addUnaryAffine("ceil_affine_sub",  "ceil",  true,  -1.0, UF::Ceil);
+    auto addUnaryAffine = [&engine](const char *name, const char *fname, UF fn) {
+        for (InnerKind kind : kAllInnerKinds) {
+            FusionRule r;
+            r.name  = name;
+            r.match = [fname, kind](const ASTNode *node)
+                      -> std::optional<std::vector<const ASTNode *>> {
+                const ASTNode *arg = unaryCallArg(node, fname);
+                if (!arg) return std::nullopt;
+                return matchInner(arg, kind);
+            };
+            r.execute = [kind, fn](const Value *ops, std::size_t n, Value &out,
+                                   std::pmr::memory_resource *mr) {
+                return execUnaryAffine(ops, n, out, mr, kind, fn);
+            };
+            engine.addFusionRule(std::move(r));
+        }
+    };
+    addUnaryAffine("sqrt_affine",  "sqrt",  UF::Sqrt);
+    addUnaryAffine("floor_affine", "floor", UF::Floor);
+    addUnaryAffine("ceil_affine",  "ceil",  UF::Ceil);
 
     FusionRule sqAffineAdd;
     sqAffineAdd.name  = "sq_affine_add";
@@ -827,26 +897,27 @@ void registerFusionRules(Engine &engine) {
     softThreshold.execute = execSoftThreshold;
     engine.addFusionRule(std::move(softThreshold));
 
-    // transcendental-affine f(a.*x ± b), f ∈ {exp, expm1} (always-real).
-    auto addTransAffine = [&engine](const char *name, const char *fname,
-                                    bool sub, double bSign,
-                                    numkit::ops::TransAffineFn fn) {
-        FusionRule r;
-        r.name  = name;
-        r.match = [fname, sub](const ASTNode *node) {
-            return matchUnaryAffine(node, fname, sub);
-        };
-        r.execute = [bSign, fn](const Value *ops, std::size_t n, Value &out,
-                                std::pmr::memory_resource *mr) {
-            return execTransAffine(ops, n, out, mr, bSign, fn);
-        };
-        engine.addFusionRule(std::move(r));
-    };
+    // transcendental-affine f(<inner>), f ∈ {exp, expm1} (always-real).
     using TF = numkit::ops::TransAffineFn;
-    addTransAffine("exp_affine_add",   "exp",   false, +1.0, TF::Exp);
-    addTransAffine("exp_affine_sub",   "exp",   true,  -1.0, TF::Exp);
-    addTransAffine("expm1_affine_add", "expm1", false, +1.0, TF::Expm1);
-    addTransAffine("expm1_affine_sub", "expm1", true,  -1.0, TF::Expm1);
+    auto addTransAffine = [&engine](const char *name, const char *fname, TF fn) {
+        for (InnerKind kind : kAllInnerKinds) {
+            FusionRule r;
+            r.name  = name;
+            r.match = [fname, kind](const ASTNode *node)
+                      -> std::optional<std::vector<const ASTNode *>> {
+                const ASTNode *arg = unaryCallArg(node, fname);
+                if (!arg) return std::nullopt;
+                return matchInner(arg, kind);
+            };
+            r.execute = [kind, fn](const Value *ops, std::size_t n, Value &out,
+                                   std::pmr::memory_resource *mr) {
+                return execTransAffine(ops, n, out, mr, kind, fn);
+            };
+            engine.addFusionRule(std::move(r));
+        }
+    };
+    addTransAffine("exp_affine",   "exp",   TF::Exp);
+    addTransAffine("expm1_affine", "expm1", TF::Expm1);
 }
 
 } // namespace numkit

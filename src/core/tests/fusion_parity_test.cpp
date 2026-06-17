@@ -314,6 +314,19 @@ TEST_P(FusionParityTest, UnaryAffineNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "ceil(a .* x + b)"));
 }
 
+// Broadened inner spellings: bare shift `f(x±c)` and bare product `f(a.*x)`.
+TEST_P(FusionParityTest, UnaryAffineBroadInner) {
+    e.eval("x = reshape(linspace(1,5,6000),2000,3); c = 0.5; a = 2;");
+    EXPECT_TRUE(sameOnOff(e, "sqrt(x + c)"));     // ShiftAdd
+    EXPECT_TRUE(sameOnOff(e, "sqrt(x - c)"));     // ShiftSub (x≥1>c → stays ≥0)
+    EXPECT_TRUE(sameOnOff(e, "sqrt(a .* x)"));    // Product (no offset)
+    EXPECT_TRUE(sameOnOff(e, "floor(x + c)"));
+    EXPECT_TRUE(sameOnOff(e, "ceil(c - x)"));     // ShiftSub c-x → scale -1
+    EXPECT_TRUE(sameOnOff(e, "floor(x .* a)"));
+    e.eval("y = sqrt(x + c);");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), std::sqrt(1.0 + 0.5), 1e-12);
+}
+
 // ---- square / magnitude: (a.*x±b).^2, (x-y).^2, (x-c).^2, sqrt(x.^2+y.^2) --
 
 TEST_P(FusionParityTest, SqAffine) {
@@ -401,6 +414,16 @@ TEST_P(FusionParityTest, ExpAffineEdges) {
     e.eval("y = exp(a .* x + b);");
     EXPECT_TRUE(e.eval("isinf(y(5999))").toBool());   // exp(1000) = Inf
     EXPECT_EQ(e.eval("y(6000)").toScalar(), 0.0);      // exp(-1000) = 0
+}
+
+// Broadened inner spellings for exp/expm1 (incl. the n=6001 SIMD-tail check).
+TEST_P(FusionParityTest, ExpAffineBroadInner) {
+    e.eval("x = linspace(-2, 2, 6001)'; c = 0.5; a = 2;");
+    EXPECT_TRUE(sameOnOff(e, "exp(x + c)"));     // ShiftAdd
+    EXPECT_TRUE(sameOnOff(e, "exp(x - c)"));     // ShiftSub
+    EXPECT_TRUE(sameOnOff(e, "exp(c - x)"));     // ShiftSub c-x → scale -1
+    EXPECT_TRUE(sameOnOff(e, "exp(a .* x)"));    // Product
+    EXPECT_TRUE(sameOnOff(e, "expm1(x - c)"));
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
