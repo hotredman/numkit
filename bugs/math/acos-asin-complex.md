@@ -37,7 +37,7 @@ Promote the whole array to complex if any element is out of range (MATLAB
 semantics). Small — mirror how `sqrt`/`log` already branch.
 
 ## References
-- `toolboxes/builtin/src/math/trig/trig_{highway,portable}.cpp` (acos/asin)
+- `src/math/src/trig/trig_{highway,portable}.cpp` (acos/asin)
 - MATLAB `doc acos`, `doc asin`
 
 ## Fixed
@@ -50,8 +50,8 @@ semantics). Small — mirror how `sqrt`/`log` already branch.
   `acos(x>1)=i·acosh(x)`, `acos(x<-1)=π−i·acosh(|x|)`,
   `asin(x>1)=π/2−i·acosh(x)`, `asin(x<-1)=−π/2+i·acosh(|x|)`. In-domain input
   and NaN stay real.
-- Live guard: `toolboxes/builtin/tests/acos_asin_complex_test.cpp` (4 cases).
+- Live guard: `tests/builtin/acos_asin_complex_test.cpp` (4 cases).
   Parity: `tools/parity/specs/{acos,asin}.json` extended (correctness=OK).
-  Smoke: `toolboxes/builtin/tests/smoke/acos_asin_complex_smoke.m`.
+  Smoke: `tests/builtin/smoke/acos_asin_complex_smoke.m`.
 - Spin-off finding: `sqrt`/`acosh`/`atanh` have the same *array* gap (promote
   only scalars) — catalogued as bugs/math/complex-promotion-arrays.md.

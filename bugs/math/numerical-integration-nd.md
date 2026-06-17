@@ -35,5 +35,5 @@ All take a `FnHandle` callback (vectorised `f`). Verify the integral value
 vs MATLAB on a polynomial + a Gaussian (closed-form references).
 
 ## References
-- new file(s) under `toolboxes/builtin/src/math/...` (cf. existing `integral`)
+- new file(s) under `src/math/src/...` (cf. existing `integral`)
 - MATLAB `doc quadgk`, `doc integral2`, `doc integral3`, `doc quad2d`

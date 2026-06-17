@@ -21,7 +21,7 @@ cumprod([1+1i 1-1i])
 ```
 
 ## Root cause
-`cumsum`/`cumprod` (`toolboxes/builtin/src/language/arrays/matrix.cpp:2026`, regs
+`cumsum`/`cumprod` (`src/lang/src/arrays/matrix.cpp:2026`, regs
 ~3716/3724; SIMD kernels in `math/arithmetic/cumsum_*.cpp`) read
 `x.doubleData()` directly — there is no `ValueType::COMPLEX` branch, so a
 complex Value trips the "Not a double array" guard.
@@ -34,8 +34,8 @@ Small–moderate (one complex branch per function). `sum`/`prod` already have
 the complex accumulation logic to copy.
 
 ## References
-- `toolboxes/builtin/src/language/arrays/matrix.cpp` (cumsum/cumprod + regs)
-- `toolboxes/builtin/src/math/arithmetic/cumsum_{highway,portable}.cpp`
+- `src/lang/src/arrays/matrix.cpp` (cumsum/cumprod + regs)
+- `src/math/src/arithmetic/cumsum_{highway,portable}.cpp`
 - MATLAB `doc cumsum`, `doc cumprod`
 
 ## Fixed
@@ -47,6 +47,6 @@ the complex accumulation logic to copy.
   (flip-scan-flip at the reg level) work; real/integer paths unchanged.
   (Complex uses the portable scan, not the SIMD prefix kernel — correctness
   over speed; complex cumsum isn't perf-critical.)
-- Live guard: `toolboxes/builtin/tests/cumsum_cumprod_complex_test.cpp` (5 cases).
+- Live guard: `tests/builtin/cumsum_cumprod_complex_test.cpp` (5 cases).
   Parity: `tools/parity/specs/{cumsum,cumprod}.json` extended (correctness=OK).
-  Smoke: `toolboxes/builtin/tests/smoke/cumsum_complex_smoke.m`.
+  Smoke: `tests/builtin/smoke/cumsum_complex_smoke.m`.

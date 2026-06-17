@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 55),
-  `toolboxes/builtin/src/math/poly/polynomials.cpp` (`polyder_reg`). MATLAB
+  `src/math/src/poly/polynomials.cpp` (`polyder_reg`). MATLAB
   `polyder(a,b)` has two distinct meanings by `nargout`:
   - **1 output** → derivative of the PRODUCT `a*b`, i.e. `polyder(conv(a,b))`
     = `conv(a',b) + conv(a,b')`;
@@ -28,7 +28,7 @@
 - Live guard: `PolyTest.PolyderProductForm` (new) +
   `BuiltinKnownBug.PolyderProduct`. Parity:
   `tools/parity/specs/polyder_product.json` (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/polyder_product_smoke.m`.
+  `tests/builtin/smoke/polyder_product_smoke.m`.
 
 ## Symptom
 `polyder(a,b)` (single output) returns the wrong polynomial — it computes the
@@ -48,6 +48,6 @@ two arguments were given, regardless of `nargout`; the single-output case
 should instead return the product-rule derivative.
 
 ## References
-- `toolboxes/builtin/src/math/poly/polynomials.cpp` (`polyder_reg`)
+- `src/math/src/poly/polynomials.cpp` (`polyder_reg`)
 - MATLAB `doc polyder` (k = polyder(a,b) differentiates a*b; [q,d] = polyder(a,b)
   differentiates a/b)

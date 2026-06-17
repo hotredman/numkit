@@ -26,7 +26,7 @@ find([0 1 0 1 1], 2, 'last')
 `find(X)` (no count) and `[r,c]=find(X)` subscripts are correct.
 
 ## Root cause
-`find_reg` (`toolboxes/builtin/src/language/arrays/matrix.cpp:3405`): the
+`find_reg` (`src/lang/src/arrays/matrix.cpp:3405`): the
 single-output path calls `find(x, mr)` and never inspects `args[1]` (count)
 or `args[2]` (`'first'`/`'last'`). The multi-output branch even carries a
 comment that "the find(X, n) row-count limit is not applied here".
@@ -39,7 +39,7 @@ exceeding the count returns all. Apply to BOTH the single-output and the
 `[r,c]`/`[r,c,v]` multi-output forms. Small and mechanical.
 
 ## References
-- `toolboxes/builtin/src/language/arrays/matrix.cpp` (find_reg, ~line 3415)
+- `src/lang/src/arrays/matrix.cpp` (find_reg, ~line 3415)
 - MATLAB `doc find` (k, direction)
 
 ## Fixed
@@ -52,6 +52,6 @@ exceeding the count returns all. Apply to BOTH the single-output and the
   `K` must be a positive scalar integer (matches MATLAB `find(X,0)` error).
   Single-output path also switched to the type-complete `forEachNonzero`
   (so complex single-output `find` no longer reads real storage).
-- Live regression guard: `toolboxes/builtin/tests/find_count_direction_test.cpp`
+- Live regression guard: `tests/builtin/find_count_direction_test.cpp`
   (10 cases). Parity: `tools/parity/specs/find.json` (correctness=OK).
-  Smoke: `toolboxes/builtin/tests/smoke/find_count_direction_smoke.m`.
+  Smoke: `tests/builtin/smoke/find_count_direction_smoke.m`.

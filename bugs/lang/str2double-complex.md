@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 58),
-  `toolboxes/builtin/src/language/strings/strings.cpp`. Replaced the real-only
+  `src/lang/src/strings/strings.cpp`. Replaced the real-only
   `str2doubleOne` with `str2doubleParse` (returns `{re, im, isComplex}`):
   strips commas + ALL whitespace, treats a trailing lowercase `i`/`j` as the
   imaginary mark, splits real/imag at the LAST `+`/`-` that is not an exponent
@@ -21,7 +21,7 @@
   `{'1+2i','3','4-1i'}`→COMPLEX `[1+2i 3 4-1i]`.
 - Live guard: `Str2doubleComplexTest` (dedicated) + `BuiltinKnownBug.Str2doubleComplex`
   flipped live. Parity: `tools/parity/specs/str2double_complex.json`
-  (correctness=OK). Smoke: `toolboxes/builtin/tests/smoke/str2double_complex_smoke.m`.
+  (correctness=OK). Smoke: `tests/builtin/smoke/str2double_complex_smoke.m`.
 
 ## Symptom
 `str2double` of a complex-number string returns NaN; MATLAB parses it to the
@@ -41,7 +41,7 @@ str2double('1.5')      % 1.5 on both (real path unaffected)
 ```
 
 ## Root cause
-`str2doubleOne` (toolboxes/builtin/src/language/strings/strings.cpp ≈ line 423)
+`str2doubleOne` (src/lang/src/strings/strings.cpp ≈ line 423)
 parses each token with `strtod` and requires the ENTIRE token to be a single
 real number, so any imaginary suffix fails → NaN. Its own comment notes this:
 "Complex literals like '2i'/'3+4i' remain a separate unimplemented gap -> NaN."
@@ -64,9 +64,9 @@ requires producing a COMPLEX Value when any element parses as complex.
    (`'1.5'`, `'Inf'`, `'NaN'`) still returns a real double.
 
 ## Guard
-`toolboxes/builtin/tests/known_bugs_test.cpp` → `DISABLED_Str2doubleComplex`
+`tests/builtin/known_bugs_test.cpp` → `DISABLED_Str2doubleComplex`
 (asserts the MATLAB-correct complex parse; flip the prefix when implemented).
 
 ## References
-- `toolboxes/builtin/src/language/strings/strings.cpp` (`str2doubleOne`, `str2double`)
+- `src/lang/src/strings/strings.cpp` (`str2doubleOne`, `str2double`)
 - MATLAB `doc str2double` (parses real and complex numeric text)

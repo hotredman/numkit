@@ -8,7 +8,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 44),
-  `toolboxes/builtin/src/language/arrays/matrix.cpp` (`sort_reg`). sort routed
+  `src/lang/src/arrays/matrix.cpp` (`sort_reg`). sort routed
   logical through its DOUBLE path, whose `doubleData()` throws "Not a double
   array". Added a logical branch that exactly mirrors the existing INTEGER
   branch: `copyToDouble` → `sort` (order + indices identical) → narrow the 0/1
@@ -29,10 +29,10 @@
   2-D column-wise `sort(logical([1 0;0 1]))`=`[0 0;1 1]`;
   dim2 `sort(logical([1 0;0 1]),2)`=`[0 1;0 1]`;
   scalar `sort(true)`=`1` logical; `sort(logical([]))`=`[]`.
-- Live guard: `toolboxes/builtin/tests/sort_logical_test.cpp` (6 TEST_F) +
+- Live guard: `tests/builtin/sort_logical_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.SortLogical` flipped live. Parity:
   `tools/parity/specs/sort_logical.json` (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/sort_logical_smoke.m`.
+  `tests/builtin/smoke/sort_logical_smoke.m`.
 
 ## Symptom
 `sort` throws on a `logical` array; MATLAB sorts it (as 0/1) preserving the
@@ -60,7 +60,7 @@ branch but no logical branch, so logical reached the DOUBLE `sort` overload's
   index double). Together these close the `sort` type-class sweep.
 
 ## References
-- `toolboxes/builtin/src/language/arrays/matrix.cpp` (`sort_reg`)
+- `src/lang/src/arrays/matrix.cpp` (`sort_reg`)
 - This closes the documented `sort(logical)` entry of the logical-input sweep
   (bugs/lang/cumulative-logical.md "Related").
 - MATLAB `doc sort`

@@ -8,7 +8,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 46),
-  `toolboxes/builtin/src/math/discrete/discrete.cpp` (`unique_reg`). The unique
+  `src/math/src/discrete/discrete.cpp` (`unique_reg`). The unique
   machinery (`unique` / `uniqueWithIndices` / `uniqueRows*`) is DOUBLE-only and
   reads `doubleData()`, so any non-double/non-complex input threw "Not a double
   array". Unlike `sort` (which already had an integer path), `unique` had NO
@@ -29,10 +29,10 @@
   (double); `unique('cbabc','stable')`=`'cba'`;
   `unique(logical([1 0 1 1]))`=`[0 1]` logical;
   `unique(int8([3 1 3 2]))`=`int8 [1 2 3]`; column-vector + 'rows' preserved.
-- Live guard: `toolboxes/builtin/tests/unique_typeclass_test.cpp` (6 TEST_F) +
+- Live guard: `tests/builtin/unique_typeclass_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.UniqueTypeClass` flipped live. Parity:
   `tools/parity/specs/unique_typeclass.json` (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/unique_typeclass_smoke.m`.
+  `tests/builtin/smoke/unique_typeclass_smoke.m`.
 
 ## Symptom
 `unique` throws on a char / logical / integer array; MATLAB returns the unique
@@ -59,5 +59,5 @@ with no per-class handling, so `doubleData()` threw for any non-double type.
   'rows', 'stable') — separate future cycle.
 
 ## References
-- `toolboxes/builtin/src/math/discrete/discrete.cpp` (`unique_reg`, `narrowUniqueClass`)
+- `src/math/src/discrete/discrete.cpp` (`unique_reg`, `narrowUniqueClass`)
 - MATLAB `doc unique`

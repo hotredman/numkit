@@ -20,7 +20,7 @@ diff([2+3i 7+1i], 0)
 ```
 
 ## Root cause
-`diff` (`toolboxes/builtin/src/language/arrays/matrix.cpp`) only guards `n < 0`
+`diff` (`src/lang/src/arrays/matrix.cpp`) only guards `n < 0`
 (throws "order n must be non-negative") and treats `n == 0` as an identity
 copy. MATLAB requires `N` to be a *positive* integer scalar, so `0` should
 error too.
@@ -34,7 +34,7 @@ audit any internal `diff(x, 0)` callers first. Validate the error vs MATLAB.
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 20),
-  `toolboxes/builtin/src/language/arrays/matrix.cpp`.
+  `src/lang/src/arrays/matrix.cpp`.
 - `diff_reg` now rejects a non-scalar / non-finite / fractional / `< 1` order
   with "diff: Difference order N must be a positive integer scalar" (the old
   guard allowed `0` and only checked `nv < 0`). The C++ primitive `diff()` was
@@ -43,15 +43,15 @@ audit any internal `diff(x, 0)` callers first. Validate the error vs MATLAB.
 - Verified vs MATLAB R2025b: `diff(X,0)`, `diff(X,-1)`, `diff(X,1.5)`,
   `diff(X,[1 2])`, `diff(X,Inf)`, `diff(X,NaN)` all error; valid orders
   (`diff(X)`, `diff(X,2)`, `diff(X,n,dim)`, integer + complex) unchanged.
-- Live guard: `toolboxes/builtin/tests/diff_order_test.cpp` (3 TEST_F) + flipped
+- Live guard: `tests/builtin/diff_order_test.cpp` (3 TEST_F) + flipped
   `BuiltinKnownBug.DiffZeroOrderErrors` live; stale
   `CumLogicalTest.DiffOrderZeroReturnsCopy` rewritten to
   `DiffOrderZeroErrors`. Parity: `tools/parity/specs/diff.json` (valid orders
   correctness=OK; error cases noted). Smoke:
-  `toolboxes/builtin/tests/smoke/diff_order_smoke.m`.
+  `tests/builtin/smoke/diff_order_smoke.m`.
 
 ## References
-- `toolboxes/builtin/src/language/arrays/matrix.cpp` (diff + diff_reg)
+- `src/lang/src/arrays/matrix.cpp` (diff + diff_reg)
 - MATLAB `doc diff`
 - Found alongside bugs/lang/diff-complex.md (FIXED); the n=0 path there
   was only updated to preserve complex parts, not to reject n=0.
