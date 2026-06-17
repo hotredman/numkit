@@ -33,5 +33,5 @@ works once the edges exist. Validate edges + counts vs MATLAB across
 integer and continuous inputs.
 
 ## References
-- `toolboxes/builtin/src/.../histcounts*`
+- `src/math/src/discrete/discrete.cpp`
 - MATLAB `doc histcounts` (automatic binning algorithm)

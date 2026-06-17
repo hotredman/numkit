@@ -21,7 +21,7 @@
   kernel under MATLAB broadcasting; `dist_param` resolves zero-copy defaults;
   `dist_match_numel` enforces the size rule. Closed-form pdf/cdf/inv use a
   scalar kernel; cdf/inv that compose incomplete beta/gamma reuse the
-  already-broadcasting `builtin::betainc` / `gammainc` / `*incinv` on a
+  already-broadcasting `math::betainc` / `gammainc` / `*incinv` on a
   broadcast-built argument plus a per-element fixup loop (x-sign for t,
   degenerate quantile for gamma/chi2, nu→∞ Gaussian limit for t, discrete
   quantile walks for the discrete families). Each adapter BRANCHES: scalar
@@ -33,7 +33,7 @@
   R2025b), `toolboxes/stats/tests/smoke/dist_broadcast_smoke.m`, and the now-live
   umbrella `StatsKnownBug.DistributionArrayParams`. Also retrofitted the
   `dist_match_numel` guard onto `betacdf`/`betainv` (the underlying
-  `builtin::betainc`/`betaincinv` don't validate sizes and would OOB-read).
+  `math::betainc`/`betaincinv` don't validate sizes and would OOB-read).
 
 ## Symptom
 The `*pdf` / `*cdf` / `*inv` distribution functions vectorise the FIRST
@@ -106,15 +106,15 @@ DISCRETE families below (integer-ish params, different domains).
 - [x] **lognormal** — lognpdf / logncdf / logninv (cycle 32, 2026-06-05)
 
 Implementation note: closed-form PDFs broadcast via a scalar kernel +
-`broadcast_dist2/3`; CDFs reuse the already-broadcasting `builtin::gammainc`
+`broadcast_dist2/3`; CDFs reuse the already-broadcasting `math::gammainc`
 / `betainc` on a broadcast-transformed `x` (and `a`/`b`/`k`); INVs reuse the
-broadcasting `builtin::gammaincinv` / `betaincinv` plus a per-element fixup
+broadcasting `math::gammaincinv` / `betaincinv` plus a per-element fixup
 loop for the degenerate quantile (gamma `a==0`→0, chi2 `k==0`→0;
 `a<0`/`b<=0`/`k<0`→NaN). Each adapter BRANCHES: scalar parameters keep the
 untouched (hoisted-`lgamma`) public-fn fast path; only non-scalar parameters
 take the broadcast path. `dist_match_numel` enforces MATLAB's "Non-scalar
 arguments must match in size." (cycle 31 also retrofitted that guard onto
-`betacdf`/`betainv`, since `builtin::betainc`/`betaincinv` don't validate
+`betacdf`/`betainv`, since `math::betainc`/`betaincinv` don't validate
 sizes and would otherwise read out of bounds).
 
 Discrete families (pmf closed-form kernel; cdf via per-element

@@ -10,7 +10,7 @@
   `toolboxes/signal/src/filter_design/analog_filters.cpp` (`impinvar`). Rewrote the
   whole partial-fraction → z-domain path to handle ANY pole multiplicity
   (distinct case reduces to the old formula and is unchanged). NO change to
-  `builtin::residue` (kept residues inline — partial-fraction ORDER is
+  `math::residue` (kept residues inline — partial-fraction ORDER is
   irrelevant for the final bz/az sum, avoiding the fragile residue-ordering
   match).
 - Algorithm (per the Investigation notes below, all verified bit-exact):
@@ -65,7 +65,7 @@ already correct, so this is isolated to the multiplicity≥2 branch. Validate
 vs MATLAB for double/triple poles.
 
 ## Investigation (2026-06-05, c40) — coupled to a residue gap
-- **`builtin::residue` is ALSO gapped for repeated poles** — it throws
+- **`math::residue` is ALSO gapped for repeated poles** — it throws
   "repeated-pole case not yet supported (v1 distinct-poles only)". So this fix
   is COUPLED: impinvar needs repeated-pole residues, which residue can't yet
   provide. Either fix `residue` first (well-specified clean-room: Taylor-series
@@ -86,5 +86,5 @@ vs MATLAB for double/triple poles.
 
 ## References
 - `toolboxes/signal/src/filter_design/analog_filters.cpp` (`impinvar`)
-- BLOCKER: `builtin::residue` repeated-pole gap (toolboxes/builtin/.../polynomials)
+- BLOCKER: `math::residue` repeated-pole gap (src/math/src/poly)
 - MATLAB `doc impinvar`, `doc residue`

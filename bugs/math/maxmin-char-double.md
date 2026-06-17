@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 52),
-  `toolboxes/builtin/src/math/arithmetic/reductions.cpp` (`max_reg` / `min_reg`).
+  `src/math/src/arithmetic/reductions.cpp` (`max_reg` / `min_reg`).
   The min/max reducers preserved the CHAR class (returning a char), but MATLAB
   returns **double** — the code point — for `max`/`min` of a char array (the
   char class is NOT preserved). Note `mode` DOES keep the char class — that is
@@ -29,11 +29,11 @@
   wrong char result — renamed to `MaxCharReturnsDouble` and flipped to assert
   double (same commit). No internal code relied on max/min(char)→char (grep
   clean). `ModeCharReturnsChar` is left as-is (mode keeps char, per MATLAB).
-- Live guard: `toolboxes/builtin/tests/maxmin_char_double_test.cpp` (5 TEST_F) +
+- Live guard: `tests/builtin/maxmin_char_double_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.MaxMinCharDouble` flipped live + the flipped
   `ReductionDimTest.MaxCharReturnsDouble`. Parity:
   `tools/parity/specs/maxmin_char_double.json` (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/maxmin_char_double_smoke.m`.
+  `tests/builtin/smoke/maxmin_char_double_smoke.m`.
 
 ## Symptom
 `max`/`min` of a char array return a char; MATLAB returns a double (the code
@@ -53,5 +53,5 @@ mode('abc')         % 'a' (char) on BOTH — mode preserves char (correct)
 double for max/min (only mode keeps char).
 
 ## References
-- `toolboxes/builtin/src/math/arithmetic/reductions.cpp` (`max_reg`, `min_reg`)
+- `src/math/src/arithmetic/reductions.cpp` (`max_reg`, `min_reg`)
 - MATLAB `doc max` / `doc min` (char inputs are converted to double)

@@ -19,7 +19,7 @@ max(reshape(1:24,2,3,4), [], 'all')        % MATLAB: 24
 ```
 
 ## Root cause
-`max_reg`/`min_reg` (`toolboxes/builtin/src/math/arithmetic/reductions.cpp`)
+`max_reg`/`min_reg` (`src/math/src/arithmetic/reductions.cpp`)
 parsed the reduction dim with `args[2].toScalar()`, which throws on the
 `'all'` char vector. There was no 'all' (reduce-all-elements) path.
 
@@ -32,7 +32,7 @@ linear), so `'all'` and `'all','linear'` give the same result. Works for
 (max_min_all.json) + gtest (MathReductionsBatchTest.MaxMinAll) + smoke.
 
 ## References
-- `toolboxes/builtin/src/math/arithmetic/reductions.cpp` (max_reg, min_reg)
+- `src/math/src/arithmetic/reductions.cpp` (max_reg, min_reg)
 - `tools/parity/specs/max_min_all.json`
-- `toolboxes/builtin/tests/math_reductions_batch_test.cpp`
+- `tests/builtin/math_reductions_batch_test.cpp`
 - MATLAB `doc max` ('all', 'linear')

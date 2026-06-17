@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 54),
-  `toolboxes/builtin/src/math/special/special.cpp` (`gammaFn`). The kernel was
+  `src/math/src/special/special.cpp` (`gammaFn`). The kernel was
   `std::tgamma(v)`, which returns NaN at NEGATIVE integers (it returns +Inf
   only at 0). MATLAB returns **+Inf** at every non-positive integer pole
   (0, -1, -2, …) and also `gamma(-Inf)=Inf`.
@@ -21,7 +21,7 @@
   loose `!isfinite`; now asserts +Inf at -1 and -2) +
   `BuiltinKnownBug.GammaNegativeIntegerPoles`. Parity:
   `tools/parity/specs/gamma_poles.json` (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/gamma_poles_smoke.m`.
+  `tests/builtin/smoke/gamma_poles_smoke.m`.
 
 ## Symptom
 `gamma` of a negative integer returns NaN; MATLAB returns +Inf (pole).
@@ -47,5 +47,5 @@ negative integers is NaN (not the +Inf MATLAB reports for the poles).
   Inf (lenient). Separate.
 
 ## References
-- `toolboxes/builtin/src/math/special/special.cpp` (`gammaFn`)
+- `src/math/src/special/special.cpp` (`gammaFn`)
 - MATLAB `doc gamma` (poles at non-positive integers → Inf)

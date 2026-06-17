@@ -8,7 +8,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 51),
-  `toolboxes/builtin/src/language/strings/format.cpp` (`formatCyclic`). The format
+  `src/lang/src/strings/format.cpp` (`formatCyclic`). The format
   engine consumed each numeric argument via `toScalar()` / `operator()(j)`,
   which throw on a COMPLEX value ("Cannot convert complex with nonzero
   imaginary part to double scalar" for a scalar; "Not a double array" for a
@@ -22,10 +22,10 @@
   `sprintf('%g',1+2i)`=`"1"`; `sprintf('%d ',[1+2i 3+4i])`=`"1 3 "`;
   `sprintf('%.2f',3.5-1.5i)`=`"3.50"`; `sprintf('%g ',[1.5+0i 2.5])`=`"1.5 2.5 "`;
   `sprintf('%d',complex(7,0))`=`"7"`.
-- Live guard: `toolboxes/builtin/tests/sprintf_complex_test.cpp` (5 TEST_F) +
+- Live guard: `tests/builtin/sprintf_complex_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.SprintfComplex` flipped live. Parity:
   `tools/parity/specs/sprintf_complex.json` (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/sprintf_complex_smoke.m`.
+  `tests/builtin/smoke/sprintf_complex_smoke.m`.
 
 ## Symptom
 `sprintf` / `fprintf` throw when a numeric conversion is fed a complex value;
@@ -44,5 +44,5 @@ sprintf('%.2f', 3.5-1.5i)      % MATLAB: '3.50'
 of contributing its real part.
 
 ## References
-- `toolboxes/builtin/src/language/strings/format.cpp` (`formatCyclic`)
+- `src/lang/src/strings/format.cpp` (`formatCyclic`)
 - MATLAB `doc sprintf` (numeric conversions use the real part of complex values)

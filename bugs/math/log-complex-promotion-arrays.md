@@ -27,7 +27,7 @@ log(-1)   % scalar already worked: 0+pi*i
 ```
 
 ## Root cause
-The kernels (`toolboxes/builtin/src/math/exp_log/exp_log_{highway,portable}.cpp`)
+The kernels (`src/math/src/exp_log/exp_log_{highway,portable}.cpp`)
 guarded the complex branch with `if (x.isScalar() && x.toScalar() < 0)`; a
 vector with a negative element skipped it. Identical to the sqrt/acosh/atanh
 array gap (bugs/math/complex-promotion-arrays.md).
@@ -40,9 +40,9 @@ array gap (bugs/math/complex-promotion-arrays.md).
   `std::log` for `log`, `std::log(c)/log(2)` for `log2`, `std::log10` for
   `log10` — these branches all match MATLAB. In-domain input and the scalar
   paths are unchanged. Highway + portable.
-- Live guard: `toolboxes/builtin/tests/log_complex_test.cpp`. Parity:
+- Live guard: `tests/builtin/log_complex_test.cpp`. Parity:
   `tools/parity/specs/{log,log10,log2}.json` extended (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/log_complex_smoke.m`.
+  `tests/builtin/smoke/log_complex_smoke.m`.
 ## log1p follow-up (FIXED 2026-06-05, cycle 19)
 `log1p` had the same gap on a *different* domain: `log1p(x) = log(1+x)` is
 complex for `x < -1` (e.g. `log1p(-2) = log(-1) = i·π`), but log1p never
@@ -56,12 +56,12 @@ promoted — even a scalar `log1p(-2)` returned NaN.
   MATLAB R2025b: `log1p(-2)=i·π`, `log1p(-3)=log(2)+i·π`,
   `log1p([-2 -0.5 0 3])=[i·π, -0.69315, 0, 1.38629]`, `log1p(3+4i)=1.732868+
   0.785398i`, `log1p(-1)=-Inf`, in-domain stays real.
-- Guards: `toolboxes/builtin/tests/log1p_complex_test.cpp` (5 TEST_F), parity
+- Guards: `tests/builtin/log1p_complex_test.cpp` (5 TEST_F), parity
   `tools/parity/specs/log1p.json` (extended; correctness=OK), smoke
-  `toolboxes/builtin/tests/smoke/log1p_complex_smoke.m`. This closes the whole
+  `tests/builtin/smoke/log1p_complex_smoke.m`. This closes the whole
   promotion family (sqrt/acosh/atanh/acos/asin/log/log10/log2/log1p).
 
 ## References
-- `toolboxes/builtin/src/math/exp_log/exp_log_{highway,portable}.cpp`
+- `src/math/src/exp_log/exp_log_{highway,portable}.cpp`
 - MATLAB `doc log`, `doc log10`, `doc log2`, `doc log1p`
 - Sibling: bugs/math/complex-promotion-arrays.md (sqrt/acosh/atanh, FIXED)

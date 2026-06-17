@@ -27,8 +27,8 @@ interpn([1 2 3], [1 4 9], 2.5)
   **not implemented** (backlog; a parity gap, see PARITY_GAPS.md).
 
 ## Where
-`toolboxes/builtin/src/math/interp/interp.cpp` `interpn_reg` (registered in
-`toolboxes/builtin/src/library.cpp`). The ndim-dispatch likely falls through to a
+`src/math/src/interp/interp.cpp` `interpn_reg` (registered in
+`src/bundle/src/register/math/interp_reg.cpp`). The ndim-dispatch likely falls through to a
 NaN-filled result for ndim == 1 (no interp1 delegation) and for ndim >= 4.
 
 ## Suggested fix
@@ -37,5 +37,5 @@ generic N-D tensor-product linear interpolation for ndim >= 4 (2^N corner
 weights per query point). Validate against MATLAB `interpn`.
 
 ## Guard
-`toolboxes/builtin/tests/known_bugs_test.cpp` → `BuiltinKnownBug.DISABLED_InterpnOneDimNaN`
+`tests/builtin/known_bugs_test.cpp` → `BuiltinKnownBug.DISABLED_InterpnOneDimNaN`
 (asserts the MATLAB-correct 6.5; flip the prefix when fixed).

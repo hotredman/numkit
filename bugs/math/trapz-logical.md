@@ -8,7 +8,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 43),
-  `toolboxes/builtin/src/math/integration/integration.cpp` (`trapz_reg`). The
+  `src/math/src/integration/integration.cpp` (`trapz_reg`). The
   trapz dispatch read `doubleData()` on both the X and Y arguments, which
   throws "Not a double array" for LOGICAL storage. Added a logical→double
   promotion (`toDoubleValue`) for `args[0]` (X or Y) and `args[1]` (X) at the
@@ -28,10 +28,10 @@
   `trapz(logical([1 0; 1 1]))`=`[1 0.5]` (column-wise);
   `trapz(logical([1 0; 1 1]), 2)`=`[0.5; 1]`;
   `trapz(true)`=`0`; `trapz(logical([]))`=`0`.
-- Live guard: `toolboxes/builtin/tests/trapz_logical_test.cpp` (5 TEST_F) +
+- Live guard: `tests/builtin/trapz_logical_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.TrapzLogical` flipped live. Parity:
   `tools/parity/specs/trapz_logical.json` (correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/trapz_logical_smoke.m`.
+  `tests/builtin/smoke/trapz_logical_smoke.m`.
 
 ## Symptom
 `trapz` throws on a `logical` X and/or Y; MATLAB accepts logical (as 0/1),
@@ -53,7 +53,7 @@ no buffer for logical storage and throws. (`cumtrapz` reads via the generic
 `toDoubleCopy`, which is why it already accepted logical.)
 
 ## References
-- `toolboxes/builtin/src/math/integration/integration.cpp` (`trapz_reg`)
+- `src/math/src/integration/integration.cpp` (`trapz_reg`)
 - Related still-open: `sort(logical(...))` throws — MATLAB preserves the
   logical class (separate ticket). See bugs/lang/cumulative-logical.md.
 - MATLAB `doc trapz`

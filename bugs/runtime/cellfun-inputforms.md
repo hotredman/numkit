@@ -30,7 +30,7 @@ cellfun('length', {[1 2],[1 2 3]})
 ```
 
 ## Root cause
-`cellfun_reg` (`toolboxes/builtin/src/language/cells/cell.cpp`) accepts exactly
+`cellfun_reg` (`src/runtime/src/language/cells/cell.cpp`) accepts exactly
 one cell array followed by name/value options, and `cellfun()` takes a single
 `FnHandle` + one cell. There is no path to (a) collect several leading cell
 arrays and zip them into the callback, nor (b) accept a string builtin-name
@@ -47,7 +47,7 @@ as the first argument.
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 21),
-  `toolboxes/builtin/src/language/cells/cell.cpp`.
+  `src/runtime/src/language/cells/cell.cpp`.
 - **Multi-cell:** `cellfun_reg` now collects all leading cell-array positional
   args (until the first option), requires equal sizes, and zips them through a
   new `cellfunN` helper that calls `fn(C1{i}, C2{i}, …)` per element via the
@@ -64,11 +64,11 @@ as the first argument.
   3-cell `[111 222]`, multi-cell `UniformOutput=false` → cell, all eight string
   names (incl. `size` dim and `isclass`). Single-cell + builtin-handle
   fast-paths unchanged.
-- Live guard: `toolboxes/builtin/tests/cellfun_inputforms_test.cpp` (8 TEST_F) +
+- Live guard: `tests/builtin/cellfun_inputforms_test.cpp` (8 TEST_F) +
   flipped `BuiltinKnownBug.CellfunMultiCell` / `CellfunStringName` live. Parity:
   `tools/parity/specs/cellfun.json` (extended; correctness=OK). Smoke:
-  `toolboxes/builtin/tests/smoke/cellfun_inputforms_smoke.m`.
+  `tests/builtin/smoke/cellfun_inputforms_smoke.m`.
 
 ## References
-- `toolboxes/builtin/src/language/cells/cell.cpp` (cellfun, cellfun_reg)
+- `src/runtime/src/language/cells/cell.cpp` (cellfun, cellfun_reg)
 - MATLAB `doc cellfun`
