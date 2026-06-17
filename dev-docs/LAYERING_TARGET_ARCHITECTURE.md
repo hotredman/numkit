@@ -374,7 +374,7 @@ re-layering); G is the risky enforcement step.
   I/O (`disp`/`fprintf`/`fscanf`/`textscan`) + `_handlefn_helpers` +
   `programming/errors/diagnostics` → `runtime`; `io_helpers` → `ops`
   (`numkit::ops`); `version_string` → bundle; tests/benchmarks re-homed under
-  `tests/builtin` + `benchmarks/builtin`; the `builtin/src` shared-helper `-I`
+  `tests/builtin` + `benchmarks/builtin` (both later split per-module into `src/<module>/tests` and `benchmarks/{math,lang,...}`); the `builtin/src` shared-helper `-I`
   bridge removed. `numkit::builtin` now survives ONLY as the namespace on the
   bundle `*_reg` adapters + the runtime-relocated cell/struct/diagnostics/
   handlefn TUs (the cell/struct precedent). **The Phase-3-A layering refactor

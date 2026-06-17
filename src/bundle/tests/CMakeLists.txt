@@ -1,4 +1,8 @@
-# Auto-grouped from tests/builtin (layer split 2026-06-17). Attaches to numkit_gtest.
+# src/bundle/tests/CMakeLists.txt
+#
+# Cross-cutting tests that exercise the assembled standard library (functions
+# spanning many layers) + the base-layer known_bugs regression catalog. Each
+# adds a TU via target_sources(numkit_gtest PRIVATE ...). Smokes in smoke/.
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/builtins_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cell_struct_numtheory_batch_test.cpp

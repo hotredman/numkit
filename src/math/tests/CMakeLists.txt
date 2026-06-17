@@ -1,4 +1,7 @@
-# Auto-grouped from tests/builtin (layer split 2026-06-17). Attaches to numkit_gtest.
+# src/math/tests/CMakeLists.txt
+#
+# math-layer unit tests. Each adds a TU via target_sources(numkit_gtest
+# PRIVATE ...). Hand-runnable .m smokes live in smoke/ and are not compiled.
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/acos_asin_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/arith_batch_test.cpp

@@ -1,4 +1,7 @@
-# Auto-grouped from tests/builtin (layer split 2026-06-17). Attaches to numkit_gtest.
+# src/runtime/tests/CMakeLists.txt
+#
+# runtime-layer unit tests (cellfun / accumarray / splitapply / group*). Each
+# adds a TU via target_sources(numkit_gtest PRIVATE ...). Smokes in smoke/.
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/accum_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/accumarray_integer_vals_test.cpp

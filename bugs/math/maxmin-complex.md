@@ -65,4 +65,4 @@ narrow) is tracked in [complex-zero-imag-narrowing](complex-zero-imag-narrowing.
 - `src/math/src/arithmetic/reductions_detail.hpp` (`complexMinMaxPick` / `complexBetter`)
 - `src/math/tests/maxmin_complex_test.cpp`, `tools/parity/specs/maxmin_complex.json`
 - Related (closed in the same effort): complex floor/ceil/round/fix + expm1
-  (commit b2f30c53, `tests/builtin/.../complex_math_test.cpp`).
+  (commit b2f30c53, `src/core/tests/complex_math_test.cpp`).
