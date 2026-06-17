@@ -13,6 +13,7 @@
 //   axpby_sub   (a.*x) - (b.*y)       → fusedAxpby(x, a, y, -b)
 //   shift_scale_mul  (x-c).*s / s.*(x-c) → fusedShiftScaleMul(x, c, s)
 //   shift_scale_div  (x-c)./d           → fusedShiftScaleDiv(x, c, d)
+//   affine_clamp_*  max(lo,min(hi,a.*x±b)) → fusedAffineClamp(x, a, ±b, lo, hi)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -102,20 +103,28 @@ bool bindAffineProduct(const Value &c0, const Value &c1, double &scale,
 
 // ---- clamp:  max(lo, min(hi, x))  →  fusedAffineClamp(x, 1, 0, lo, hi) ----
 
-std::optional<std::vector<const ASTNode *>> matchClamp(const ASTNode *node) {
+// Peel the `max(lo, min(hi, inner))` shape → (lo, hi, inner), or nullptr's. The
+// inner expression is left for the caller to classify (a leaf for plain clamp,
+// an affine product for the affine-clamp rules).
+struct ClampShape { const ASTNode *lo, *hi, *inner; };
+std::optional<ClampShape> peelClamp(const ASTNode *node) {
     const ASTNode *mx = calleeName(node);
     if (!mx || mx->strValue != "max" || node->children.size() != 3)
         return std::nullopt;
-    const ASTNode *lo    = node->children[1].get();
     const ASTNode *inner = node->children[2].get();
     const ASTNode *mn = calleeName(inner);
     if (!mn || mn->strValue != "min" || inner->children.size() != 3)
         return std::nullopt;
-    const ASTNode *hi = inner->children[1].get();
-    const ASTNode *x  = inner->children[2].get();
-    if (!isPureLeaf(lo) || !isPureLeaf(hi) || !isPureLeaf(x))
+    return ClampShape{node->children[1].get(), inner->children[1].get(),
+                      inner->children[2].get()};
+}
+
+std::optional<std::vector<const ASTNode *>> matchClamp(const ASTNode *node) {
+    auto cs = peelClamp(node);
+    if (!cs) return std::nullopt;
+    if (!isPureLeaf(cs->lo) || !isPureLeaf(cs->hi) || !isPureLeaf(cs->inner))
         return std::nullopt;
-    return std::vector<const ASTNode *>{x, lo, hi};
+    return std::vector<const ASTNode *>{cs->inner, cs->lo, cs->hi};
 }
 
 // Fast path for a real-double array x and real-double scalar lo/hi.
@@ -282,6 +291,43 @@ bool execShiftScale(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// ---- affine-clamp:  max(lo, min(hi, (a.*x) ± b)) ------------------------
+// Normalize-then-saturate in one pass — reuses fusedAffineClamp with bound
+// scale/offset (plain clamp = the a=1,b=0 special case). The inner affine is
+// detected by reusing matchAffineAdd/matchAffineSub.
+
+std::optional<std::vector<const ASTNode *>>
+matchAffineClamp(const ASTNode *node, bool sub) {
+    auto cs = peelClamp(node);
+    if (!cs || !isPureLeaf(cs->lo) || !isPureLeaf(cs->hi)) return std::nullopt;
+    auto aff = sub ? matchAffineSub(cs->inner) : matchAffineAdd(cs->inner);
+    if (!aff) return std::nullopt;            // [c0, c1, b]
+    aff->push_back(cs->lo);
+    aff->push_back(cs->hi);
+    return aff;                               // [c0, c1, b, lo, hi]
+}
+
+// operands = [c0, c1, b, lo, hi]; expr = max(lo, min(hi, (c0⊗c1) ⊕ b)). Same
+// bit-exactness as affine (mul-then-add, ±b exact) composed with the clamp
+// kernel's fmin/fmax (validated against per-op min/max by the plain-clamp rule).
+bool execAffineClamp(const Value *ops, std::size_t n, Value &out,
+                     std::pmr::memory_resource *mr, double bSign) {
+    if (n != 5) return false;
+    const Value &b = ops[2], &lo = ops[3], &hi = ops[4];
+    if (!isRealDoubleScalar(b) || !isRealDoubleScalar(lo) ||
+        !isRealDoubleScalar(hi))
+        return false;
+    double scale = 0.0;
+    const Value *x = nullptr;
+    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    const double offset = bSign * b.toScalar();
+
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedAffineClamp(x->doubleData(), scale, offset, lo.toScalar(),
+                          hi.toScalar(), out.doubleDataMut(), x->numel());
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -344,6 +390,28 @@ void registerFusionRules(Engine &engine) {
         return execShiftScale(ops, n, out, mr, /*isDiv=*/true);
     };
     engine.addFusionRule(std::move(shiftScaleDiv));
+
+    FusionRule affineClampAdd;
+    affineClampAdd.name  = "affine_clamp_add";
+    affineClampAdd.match = [](const ASTNode *node) {
+        return matchAffineClamp(node, /*sub=*/false);
+    };
+    affineClampAdd.execute = [](const Value *ops, std::size_t n, Value &out,
+                                std::pmr::memory_resource *mr) {
+        return execAffineClamp(ops, n, out, mr, +1.0);
+    };
+    engine.addFusionRule(std::move(affineClampAdd));
+
+    FusionRule affineClampSub;
+    affineClampSub.name  = "affine_clamp_sub";
+    affineClampSub.match = [](const ASTNode *node) {
+        return matchAffineClamp(node, /*sub=*/true);
+    };
+    affineClampSub.execute = [](const Value *ops, std::size_t n, Value &out,
+                                std::pmr::memory_resource *mr) {
+        return execAffineClamp(ops, n, out, mr, -1.0);
+    };
+    engine.addFusionRule(std::move(affineClampSub));
 }
 
 } // namespace numkit
