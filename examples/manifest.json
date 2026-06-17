@@ -45,15 +45,6 @@
       ]
     },
     {
-      "name": "Benchmark",
-      "files": [
-        "benchmark_grow.m",
-        "benchmark_interp.m",
-        "benchmark_simd.m",
-        "benchmark_simd_inplace.m"
-      ]
-    },
-    {
       "name": "Big_Data",
       "files": [
         "line_10m.m",

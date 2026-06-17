@@ -1,4 +1,4 @@
-// benchmarks/matmul_bench.cpp
+// benchmarks/lang/matmul_bench.cpp
 //
 // Square-matrix multiply via mtimes. Only the mtimes call is timed;
 // input matrices are built once per benchmark-size and re-used across

@@ -28,9 +28,11 @@ foreach(_bench_lib signal stats image comm control wavelet graphics io optim)
                          ${CMAKE_BINARY_DIR}/toolboxes/${_bench_lib}/benchmarks)
     endif()
 endforeach()
-if(EXISTS ${CMAKE_SOURCE_DIR}/benchmarks/builtin/CMakeLists.txt)
-    add_subdirectory(builtin)
-endif()
+# Base-layer (math / lang) + interpreter/VM benches, mirroring the src/ split
+# (the old benchmarks/builtin/ umbrella was split on 2026-06-17).
+add_subdirectory(math)
+add_subdirectory(lang)
+add_subdirectory(interpreter)
 
 if(EMSCRIPTEN)
     # Emscripten ships a Node-runnable .js loader + .wasm sidecar when the

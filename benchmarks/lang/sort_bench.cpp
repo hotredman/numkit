@@ -1,4 +1,4 @@
-// benchmarks/sort_bench.cpp
+// benchmarks/lang/sort_bench.cpp
 //
 // sort(x) is a small but common hot path. Three data patterns —
 // random, already sorted, reverse sorted — since real sort

@@ -1,4 +1,4 @@
-// benchmarks/setops_bench.cpp
+// benchmarks/math/setops_bench.cpp
 //
 // Phase-10 sweep covering Phase 8 set / search ops:
 //   unique / ismember / union / intersect / setdiff / histcounts / discretize.

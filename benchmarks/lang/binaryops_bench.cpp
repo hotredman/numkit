@@ -1,4 +1,4 @@
-// benchmarks/binaryops_bench.cpp
+// benchmarks/lang/binaryops_bench.cpp
 //
 // Binary elementwise operators (plus, times). These are almost
 // purely memory-bound at large N — every element requires 2 reads +

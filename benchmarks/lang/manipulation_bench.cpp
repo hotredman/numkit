@@ -1,4 +1,4 @@
-// benchmarks/manipulation_bench.cpp
+// benchmarks/lang/manipulation_bench.cpp
 //
 // Phase-10 sweep covering Phase 5-6 manipulation:
 //   * Phase 5 lite:   repmat / fliplr / flipud / rot90 / circshift / tril / triu

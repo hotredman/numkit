@@ -1,4 +1,4 @@
-// benchmarks/interp_bench.cpp
+// benchmarks/math/interp_bench.cpp
 //
 // Phase-10 sweep covering toolboxes/fit (interp1, polyval, trapz). These
 // existed before the parity expansion but have never been benched.

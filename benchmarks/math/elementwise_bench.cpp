@@ -1,4 +1,4 @@
-// benchmarks/elementwise_bench.cpp
+// benchmarks/math/elementwise_bench.cpp
 //
 // Unary elementwise math on large arrays — the primary SIMD target.
 // The whole sin/cos/exp/log/abs family shares the same shape: one
