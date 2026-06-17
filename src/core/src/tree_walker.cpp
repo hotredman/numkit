@@ -1661,6 +1661,14 @@ Value TreeWalker::execBinaryOp(const ASTNode *node, Environment *env)
                                      engine_.mr_);
     }
 
+    // Element-wise fusion fast path: a binary-rooted idiom (affine `a.*x+b`, …)
+    // runs as one fused SIMD kernel. Operands are gated side-effect-free, so a
+    // declined kernel falls back to the normal per-op path below.
+    if (engine_.fusionEnabled()) {
+        Value fused;
+        if (tryFusion(node, env, fused)) return fused;
+    }
+
     auto left = execNode(node->children[0].get(), env);
     auto right = execNode(node->children[1].get(), env);
 

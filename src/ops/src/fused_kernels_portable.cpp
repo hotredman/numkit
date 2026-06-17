@@ -20,4 +20,9 @@ void fusedAffineClamp(const double *x, double scale, double offset,
     }
 }
 
+void fusedAffine(const double *x, double scale, double offset,
+                 double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = scale * x[i] + offset;
+}
+
 } // namespace numkit::ops

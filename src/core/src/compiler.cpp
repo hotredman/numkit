@@ -1043,6 +1043,12 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         return dst;
     }
 
+    // Element-wise fusion fast path: a binary-rooted idiom (affine `a.*x+b`, …)
+    // emits FUSE_EWISE + the normally compiled op as fallback. After the
+    // short-circuit ops (never fusable); a matched node has an array operand so
+    // it can't constant-fold, so checking here vs. below is equivalent.
+    if (int r = tryCompileFused(node); r >= 0) return static_cast<uint8_t>(r);
+
     // Constant folding: both operands are number literals → compute at compile time
     if (node->children[0]->type == NodeType::NUMBER_LITERAL
         && node->children[1]->type == NodeType::NUMBER_LITERAL) {
@@ -2711,7 +2717,14 @@ uint8_t Compiler::compileFused(const ASTNode *node, size_t ruleIdx,
             explicit Guard(bool &x) : f(x) { f = true; }
             ~Guard() { f = false; }
         } guard(inFusionFallback_);
-        fbDst = compileCall(node);
+        // Fall back to the node's OWN normal compile (the guard stops it from
+        // re-attempting fusion). A clamp idiom roots at a CALL, an affine idiom
+        // at a BINARY_OP — dispatch by type so each gets exact per-op semantics.
+        switch (node->type) {
+            case NodeType::BINARY_OP: fbDst = compileBinaryOp(node); break;
+            case NodeType::UNARY_OP:  fbDst = compileUnaryOp(node);  break;
+            default:                  fbDst = compileCall(node);     break;
+        }
     }
     // 4. Both paths write fbDst; on success FUSE_EWISE skips the fallback span.
     const size_t span = chunk_.code.size() - spanStart;
@@ -2735,19 +2748,25 @@ uint8_t Compiler::compileFused(const ASTNode *node, size_t ruleIdx,
     return res;
 }
 
+int Compiler::tryCompileFused(const ASTNode *node)
+{
+    // Skipped while compiling a fallback (no recursion) and under register
+    // pressure (keep headroom below the 255-register limit).
+    if (inFusionFallback_ || !engine_.fusionEnabled() || nextReg_ >= 200)
+        return -1;
+    const auto &rules = engine_.fusionRules();
+    for (size_t ri = 0; ri < rules.size(); ++ri) {
+        auto operands = rules[ri].match(node);
+        if (operands) return compileFused(node, ri, *operands);
+    }
+    return -1;
+}
+
 uint8_t Compiler::compileCall(const ASTNode *node)
 {
     // Element-wise fusion fast path: if `node` matches a registered idiom, emit
-    // FUSE_EWISE + the normally compiled idiom as fallback. Skipped while
-    // compiling a fallback (no recursion) and under register pressure (keep
-    // headroom below the 255-register limit).
-    if (!inFusionFallback_ && engine_.fusionEnabled() && nextReg_ < 200) {
-        const auto &rules = engine_.fusionRules();
-        for (size_t ri = 0; ri < rules.size(); ++ri) {
-            auto operands = rules[ri].match(node);
-            if (operands) return compileFused(node, ri, *operands);
-        }
-    }
+    // FUSE_EWISE + the normally compiled idiom as fallback.
+    if (int r = tryCompileFused(node); r >= 0) return static_cast<uint8_t>(r);
 
     auto *funcNode = node->children[0].get();
 

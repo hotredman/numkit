@@ -311,9 +311,16 @@ private:
 
     // Phase 4+5: function calls
     uint8_t compileCall(const ASTNode *node);
-    // Element-wise fusion: emit FUSE_EWISE for the matched idiom + the normally
-    // compiled idiom as the runtime fallback (patched dst + skip). `ruleIdx`
-    // indexes engine.fusionRules(); `operands` are the rule's operand sub-exprs.
+    // Element-wise fusion: if `node` matches a registered idiom (and we're not
+    // already compiling a fallback, and there's register headroom), emit
+    // FUSE_EWISE + fallback and return the result register; else return -1 so
+    // the caller proceeds with the normal compile. Shared by every node type
+    // that can root a fused idiom (CALL for max/min clamp, BINARY_OP for affine
+    // & friends), so adding a binary-rooted idiom needs no new core hook.
+    int tryCompileFused(const ASTNode *node);
+    // Emit FUSE_EWISE for the matched idiom + the normally compiled idiom as the
+    // runtime fallback (patched dst + skip). `ruleIdx` indexes
+    // engine.fusionRules(); `operands` are the rule's operand sub-exprs.
     uint8_t compileFused(const ASTNode *node, size_t ruleIdx,
                          const std::vector<const ASTNode *> &operands);
     uint8_t compileCommandCall(const ASTNode *node);
