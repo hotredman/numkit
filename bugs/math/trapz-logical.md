@@ -28,10 +28,10 @@
   `trapz(logical([1 0; 1 1]))`=`[1 0.5]` (column-wise);
   `trapz(logical([1 0; 1 1]), 2)`=`[0.5; 1]`;
   `trapz(true)`=`0`; `trapz(logical([]))`=`0`.
-- Live guard: `tests/builtin/trapz_logical_test.cpp` (5 TEST_F) +
+- Live guard: `tests/math/trapz_logical_test.cpp` (5 TEST_F) +
   `BuiltinKnownBug.TrapzLogical` flipped live. Parity:
   `tools/parity/specs/trapz_logical.json` (correctness=OK). Smoke:
-  `tests/builtin/smoke/trapz_logical_smoke.m`.
+  `tests/math/smoke/trapz_logical_smoke.m`.
 
 ## Symptom
 `trapz` throws on a `logical` X and/or Y; MATLAB accepts logical (as 0/1),

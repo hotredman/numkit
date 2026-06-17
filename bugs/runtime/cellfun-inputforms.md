@@ -64,10 +64,10 @@ as the first argument.
   3-cell `[111 222]`, multi-cell `UniformOutput=false` → cell, all eight string
   names (incl. `size` dim and `isclass`). Single-cell + builtin-handle
   fast-paths unchanged.
-- Live guard: `tests/builtin/cellfun_inputforms_test.cpp` (8 TEST_F) +
+- Live guard: `tests/runtime/cellfun_inputforms_test.cpp` (8 TEST_F) +
   flipped `BuiltinKnownBug.CellfunMultiCell` / `CellfunStringName` live. Parity:
   `tools/parity/specs/cellfun.json` (extended; correctness=OK). Smoke:
-  `tests/builtin/smoke/cellfun_inputforms_smoke.m`.
+  `tests/runtime/smoke/cellfun_inputforms_smoke.m`.
 
 ## References
 - `src/runtime/src/language/cells/cell.cpp` (cellfun, cellfun_reg)

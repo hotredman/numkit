@@ -11,14 +11,14 @@
   sorted paths record the LAST occurrence (`map[key]=i`) instead of
   `try_emplace`. Verified `ia`/`ic` vs MATLAB for vector, complex, `'rows'`
   and NaN inputs. Default ('first') byte-identical. Guard:
-  `tests/builtin/unique_last_test.cpp`.
+  `tests/lang/unique_last_test.cpp`.
 
 ## Remaining (deferred sub-gap)
 `unique(A,'stable','last')`: MATLAB R2025b does NOT error (the original note
 below was wrong) — it orders the unique values by their LAST occurrence, e.g.
 `unique([3 1 2 1 3],'stable','last')` → `C=[2 1 3]`, `ia=[3 4 5]`. numkit
 currently returns the `'stable'` (first-occurrence) order here. Rare combo;
-tracked by `DISABLED_UniqueStableLast` in `tests/builtin/known_bugs_test.cpp`.
+tracked by `DISABLED_UniqueStableLast` in `tests/mixed/known_bugs_test.cpp`.
 
 ## Symptom
 `[C, ia] = unique(A, 'last')` returns the index of the FIRST occurrence of

@@ -29,10 +29,10 @@
   (double); `unique('cbabc','stable')`=`'cba'`;
   `unique(logical([1 0 1 1]))`=`[0 1]` logical;
   `unique(int8([3 1 3 2]))`=`int8 [1 2 3]`; column-vector + 'rows' preserved.
-- Live guard: `tests/builtin/unique_typeclass_test.cpp` (6 TEST_F) +
+- Live guard: `tests/lang/unique_typeclass_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.UniqueTypeClass` flipped live. Parity:
   `tools/parity/specs/unique_typeclass.json` (correctness=OK). Smoke:
-  `tests/builtin/smoke/unique_typeclass_smoke.m`.
+  `tests/lang/smoke/unique_typeclass_smoke.m`.
 
 ## Symptom
 `unique` throws on a char / logical / integer array; MATLAB returns the unique

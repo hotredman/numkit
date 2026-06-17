@@ -49,16 +49,16 @@ be closed incrementally; this entry is the tracking umbrella.
   branch in `trapzImpl` (`src/math/src/integration/integration.cpp`):
   trapezoidal sum over `Complex` storage; the integration variable x stays real.
   All trapz paths (Y / X,Y / dim / matrix) route through `trapzImpl`, so one
-  branch covers them. Live guard `tests/builtin/trapz_complex_test.cpp`,
+  branch covers them. Live guard `tests/math/trapz_complex_test.cpp`,
   parity `tools/parity/specs/trapz.json` (OK), smoke
-  `tests/builtin/smoke/trapz_complex_smoke.m`.
+  `tests/math/smoke/trapz_complex_smoke.m`.
 - ✅ **cumtrapz** — 2026-06-05 (bug-fix loop, cycle 8). Added Complex
   counterparts `cumtrapzVectorC`/`cumtrapzMatrixColsC`/`cumtrapzMatrixRowsC`
   and routed `cumtrapz`/`cumtrapzDim`/the 3-arg reg path to them when y is
   complex (x coordinate stays real). Removed the four "complex not supported"
-  throws. Live guard `tests/builtin/cumtrapz_complex_test.cpp`, parity
+  throws. Live guard `tests/math/cumtrapz_complex_test.cpp`, parity
   `tools/parity/specs/cumtrapz.json` (OK), smoke
-  `tests/builtin/smoke/cumtrapz_complex_smoke.m`. (Also updated the stale
+  `tests/math/smoke/cumtrapz_complex_smoke.m`. (Also updated the stale
   CalculusTest.CumtrapzComplexThrows → CumtrapzComplexOk.)
 - ✅ **median** — 2026-06-05 (bug-fix loop, cycle 9). Orders a complex slice by
   abs (ties by angle — the same comparator sort/max use); odd n → middle, even
@@ -75,16 +75,16 @@ be closed incrementally; this entry is the tracking umbrella.
   path (so EVERY method — linear/nearest/previous/next/spline/pchip/makima/
   cubic — and the matrix-column path are covered), then recombined; the
   extrapolation policy carries through (out-of-range → NaN+NaNi). Live guard
-  `tests/builtin/interp1_complex_test.cpp`, parity
+  `tests/math/interp1_complex_test.cpp`, parity
   `tools/parity/specs/interp1.json` (OK), smoke
-  `tests/builtin/smoke/interp1_complex_smoke.m`.
+  `tests/math/smoke/interp1_complex_smoke.m`.
 - ✅ **gradient** (complex) — 2026-06-05 (bug-fix loop, cycle 11). gradient real
   + imaginary parts separately and recombine, for the vector + matrix
   single-output and 2-output forms (`gradient`/`gradient2` in
   `src/math/src/integration/integration.cpp`). Live guard
-  `tests/builtin/gradient_complex_test.cpp`, parity
+  `tests/math/gradient_complex_test.cpp`, parity
   `tools/parity/specs/gradient.json` (OK), smoke
-  `tests/builtin/smoke/gradient_complex_smoke.m`. (N-D `gradient` is still
+  `tests/math/smoke/gradient_complex_smoke.m`. (N-D `gradient` is still
   rank-limited — that's a separate bug, bugs/math/gradient-3d.md, still OPEN;
   a complex N-D input routes into the real path and errors the same way.)
 - ✅ **movmean** — 2026-06-05 (bug-fix loop, cycle 12). Split-real/imag at the

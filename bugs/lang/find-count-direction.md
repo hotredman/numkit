@@ -52,6 +52,6 @@ exceeding the count returns all. Apply to BOTH the single-output and the
   `K` must be a positive scalar integer (matches MATLAB `find(X,0)` error).
   Single-output path also switched to the type-complete `forEachNonzero`
   (so complex single-output `find` no longer reads real storage).
-- Live regression guard: `tests/builtin/find_count_direction_test.cpp`
+- Live regression guard: `tests/lang/find_count_direction_test.cpp`
   (10 cases). Parity: `tools/parity/specs/find.json` (correctness=OK).
-  Smoke: `tests/builtin/smoke/find_count_direction_smoke.m`.
+  Smoke: `tests/lang/smoke/find_count_direction_smoke.m`.

@@ -22,3 +22,26 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/page_lsq_mrdiv_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
+
+# Relocated from tests/builtin (layer split 2026-06-17).
+target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/balance_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/colperm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eig_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hess_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inv_linsolve_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ldl_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lsq_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/luqr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matchpairs_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matfunc_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mldivide_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/norm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/predicates_linalg_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rref_rcond_planerot_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/subspace_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_deps_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sylvester_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/symrcm_test.cpp
+)
