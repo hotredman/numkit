@@ -8,5 +8,6 @@ set(GRAPHICSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/plots/shared.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plots/image.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plots/line.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plots/bar.cpp
     PARENT_SCOPE
 )
