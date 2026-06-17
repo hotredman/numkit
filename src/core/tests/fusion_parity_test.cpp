@@ -192,6 +192,29 @@ TEST_P(FusionParityTest, ShiftScaleReversedFallsBack) {
     EXPECT_TRUE(sameOnOff(e, "(c - x) .* s"));
 }
 
+// ---- affine-clamp: max(lo, min(hi, a.*x ± b)) (normalize then saturate) -
+
+TEST_P(FusionParityTest, AffineClampAdd) {
+    e.eval("x = reshape(linspace(-5,5,6000),2000,3); a = 0.2; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "max(0, min(1, a .* x + b))"));
+    EXPECT_TRUE(sameOnOff(e, "max(0, min(1, b + a .* x))"));  // commuted product
+    e.eval("y = max(0, min(1, a .* x + b));");
+    EXPECT_GE(e.eval("min(y(:))").toScalar(), 0.0);
+    EXPECT_LE(e.eval("max(y(:))").toScalar(), 1.0);
+}
+
+TEST_P(FusionParityTest, AffineClampSub) {
+    e.eval("x = reshape(linspace(-5,5,6000),2000,3); "
+           "a = 0.2; b = 0.5; lo = -0.3; hi = 0.7;");
+    EXPECT_TRUE(sameOnOff(e, "max(lo, min(hi, a .* x - b))"));
+}
+
+// NaN clamps exactly as per-op (min/max omit NaN → saturates to a bound).
+TEST_P(FusionParityTest, AffineClampNaNInf) {
+    e.eval("x = [linspace(-2,2,5997)'; NaN; Inf; -Inf]; a = 0.5; b = 0.1;");
+    EXPECT_TRUE(sameOnOff(e, "max(0, min(1, a .* x + b))"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -308,4 +331,34 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerShiftScaleSpeedup) {
 }
 TEST(FusionFiringProbe, DISABLED_VMShiftScaleSpeedup) {
     probeShiftScale(numkit::Engine::Backend::VM, "VM");
+}
+
+// affine-clamp `max(0,min(1, a.*x+b))`: fusion collapses the whole 4-op
+// normalize-then-saturate chain into one streaming pass. Confirms it fires.
+namespace {
+void probeAffineClamp(numkit::Engine::Backend backend, const char *tag) {
+    numkit::StandardEngine e;
+    e.setBackend(backend);
+    e.eval("x = rand(3048*3816, 1); a = 0.5; b = 0.25;");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = max(0, min(1, a .* x + b));");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = max(0, min(1, a .* x + b));");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] %s affine-clamp 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", tag, off, on, off / on);
+    EXPECT_LT(on, off * 0.85);  // must be meaningfully faster → it fired
+}
+} // namespace
+
+TEST(FusionFiringProbe, DISABLED_TreeWalkerAffineClampSpeedup) {
+    probeAffineClamp(numkit::Engine::Backend::TreeWalker, "TW");
+}
+TEST(FusionFiringProbe, DISABLED_VMAffineClampSpeedup) {
+    probeAffineClamp(numkit::Engine::Backend::VM, "VM");
 }
