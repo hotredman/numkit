@@ -488,7 +488,7 @@ std::optional<std::vector<const ASTNode *>> matchInner(const ASTNode *node,
 bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
                double &offset, const Value *&x);
 bool bindInnerCx(const Value *ops, std::size_t n, InnerKind kind, Complex &scale,
-                 Complex &offset, const Value *&x);
+                 Complex &offset, bool &affine, const Value *&x);
 
 // ---- affine-clamp:  max(lo, min(hi, <inner>)) --------------------------
 // Normalize-then-saturate in one pass — reuses fusedAffineClamp with bound
@@ -565,10 +565,11 @@ bool execAbsAffine(const Value *ops, std::size_t n, Value &out,
         return true;
     }
     Complex cscale, coffset;
+    bool affine = false;
     const Value *cx = nullptr;
-    if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {  // |a.*z+b| → real out
+    if (bindInnerCx(ops, n, kind, cscale, coffset, affine, cx)) {  // |<inner>| → real
         out = ops::createLike(*cx, ValueType::DOUBLE, mr);
-        ops::fusedAbsAffineCx(cx->complexData(), cscale, coffset,
+        ops::fusedAbsAffineCx(cx->complexData(), cscale, coffset, affine,
                               out.doubleDataMut(), cx->numel());
         return true;
     }
@@ -702,16 +703,15 @@ bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
     return false;
 }
 
-// Complex counterpart of bindInner, used by the f(inner) families when the array
-// operand is complex. ONLY the product-coefficient kinds (ProductAdd/Sub/Product)
-// are supported: there the per-op genuinely multiplies x by the complex
-// coefficient, so the kernel's scale*x+offset matches bit-for-bit. The shift/neg
-// kinds (scale ±1) are declined — multiplying a complex x by (±1+0i) is a complex
-// MULTIPLY, and 0*Inf=NaN would diverge from the per-op bare add/sub/negate on a
-// non-finite x. The offset add is bit-exact (t-b == t+(-b)); the Product +0 only
-// flips a -0 component, which isequaln treats as equal.
+// Complex counterpart of bindInner: decode operands for `kind` into (Complex
+// scale, Complex offset, x) plus `affine`, which tells the kernel HOW to form the
+// inner. Product-coefficient kinds set affine=true (genuine complex multiply,
+// matching per-op a.*z). Shift/neg kinds set affine=false with scale = ±1, and
+// the kernel does an add/negate — NOT a complex mul by (±1+0i), whose 0*Inf=NaN
+// would diverge from the per-op bare add/sub. offset add/sub is bit-exact
+// (t-b == t+(-b)); ±1 negate is exact; a Product +0 only flips a -0 (isequaln-eq).
 bool bindInnerCx(const Value *ops, std::size_t n, InnerKind kind, Complex &scale,
-                 Complex &offset, const Value *&x) {
+                 Complex &offset, bool &affine, const Value *&x) {
     switch (kind) {
         case InnerKind::ProductAdd:
         case InnerKind::ProductSub: {
@@ -720,16 +720,38 @@ bool bindInnerCx(const Value *ops, std::size_t n, InnerKind kind, Complex &scale
             if (!asComplexScalar(ops[2], off)) return false;
             if (!bindAffineProductCx(ops[0], ops[1], scale, x)) return false;
             offset = (kind == InnerKind::ProductSub) ? -off : off;
+            affine = true;
             return true;
         }
         case InnerKind::Product: {
             if (n != 2 || !bindAffineProductCx(ops[0], ops[1], scale, x)) return false;
             offset = Complex(0.0, 0.0);
+            affine = true;
             return true;
         }
-        default:
-            return false;  // shift/neg: decline → per-op (see note above)
+        case InnerKind::ShiftAdd: {                                  // z+c / c+z
+            if (n != 2) return false;
+            const Value &u = ops[0], &v = ops[1];
+            Complex c;
+            if (isFusibleComplexArray(u) && asComplexScalar(v, c)) { x = &u; scale = Complex(1.0, 0.0); offset = c; affine = false; return true; }
+            if (isFusibleComplexArray(v) && asComplexScalar(u, c)) { x = &v; scale = Complex(1.0, 0.0); offset = c; affine = false; return true; }
+            return false;
+        }
+        case InnerKind::ShiftSub: {                                  // z-c / c-z
+            if (n != 2) return false;
+            const Value &u = ops[0], &v = ops[1];  // expr = u - v
+            Complex c;
+            if (isFusibleComplexArray(u) && asComplexScalar(v, c)) { x = &u; scale = Complex(1.0, 0.0);  offset = -c; affine = false; return true; }
+            if (isFusibleComplexArray(v) && asComplexScalar(u, c)) { x = &v; scale = Complex(-1.0, 0.0); offset = c;  affine = false; return true; }
+            return false;
+        }
+        case InnerKind::NegLeaf: {                                   // -z
+            if (n != 1 || !isFusibleComplexArray(ops[0])) return false;
+            x = &ops[0]; scale = Complex(-1.0, 0.0); offset = Complex(0.0, 0.0); affine = false;
+            return true;
+        }
     }
+    return false;
 }
 
 // All InnerKinds, for registering f(inner) rules across every affine spelling.
@@ -890,10 +912,11 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
     // floor/ceil/fix/round on complex are declined → per-op.
     if (fn == numkit::ops::UnaryAffineFn::Sqrt) {
         Complex cscale, coffset;
+        bool affine = false;
         const Value *cx = nullptr;
-        if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {
+        if (bindInnerCx(ops, n, kind, cscale, coffset, affine, cx)) {
             out = ops::createLike(*cx, ValueType::COMPLEX, mr);
-            ops::fusedSqrtAffineCx(cx->complexData(), cscale, coffset,
+            ops::fusedSqrtAffineCx(cx->complexData(), cscale, coffset, affine,
                                    out.complexDataMut(), cx->numel());
             return true;
         }
@@ -984,10 +1007,11 @@ bool execSqAffine(const Value *ops, std::size_t n, Value &out,
         return true;
     }
     Complex cscale, coffset;
+    bool affine = false;
     const Value *cx = nullptr;
-    if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {     // (a.*z ± b).^2
+    if (bindInnerCx(ops, n, kind, cscale, coffset, affine, cx)) {  // (<inner>).^2
         out = ops::createLike(*cx, ValueType::COMPLEX, mr);
-        ops::fusedSqAffineCx(cx->complexData(), cscale, coffset,
+        ops::fusedSqAffineCx(cx->complexData(), cscale, coffset, affine,
                              out.complexDataMut(), cx->numel());
         return true;
     }
@@ -1214,10 +1238,11 @@ bool execTransAffine(const Value *ops, std::size_t n, Value &out,
     // real-only in numkit → declined (per-op).
     if (fn != numkit::ops::TransAffineFn::Expm1) {
         Complex cscale, coffset;
+        bool affine = false;
         const Value *cx = nullptr;
-        if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {
+        if (bindInnerCx(ops, n, kind, cscale, coffset, affine, cx)) {
             out = ops::createLike(*cx, ValueType::COMPLEX, mr);
-            ops::fusedTransAffineCx(cx->complexData(), cscale, coffset, fn,
+            ops::fusedTransAffineCx(cx->complexData(), cscale, coffset, affine, fn,
                                     out.complexDataMut(), cx->numel());
             return true;
         }
