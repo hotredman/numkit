@@ -4,5 +4,6 @@ set(GRAPHICSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/plots/contour.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plots/polar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plots/surface.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plots/layout.cpp
     PARENT_SCOPE
 )
