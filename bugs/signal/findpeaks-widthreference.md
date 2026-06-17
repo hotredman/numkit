@@ -18,7 +18,7 @@ findpeaks([1 3 2 5 1 6 1], 'WidthReference', 'halfheight')
 ```
 
 ## Root cause
-`toolboxes/signal/src/measurements/findpeaks.cpp` `peakWidth()` hard-codes the
+`src/toolboxes/signal/src/measurements/findpeaks.cpp` `peakWidth()` hard-codes the
 reference `ref = h - prom/2` (halfprom) and the option parser rejects
 `WidthReference` (around line 303).
 
@@ -76,5 +76,5 @@ crossing case alone is matchable but a partial (crossing-only) implementation
 would diverge on any high-pedestal peak, so not shipped.
 
 ## References
-- `toolboxes/signal/src/measurements/findpeaks.cpp`
+- `src/toolboxes/signal/src/measurements/findpeaks.cpp`
 - MATLAB `doc findpeaks` (WidthReference)

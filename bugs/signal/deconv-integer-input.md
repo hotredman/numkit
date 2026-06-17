@@ -7,7 +7,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 62),
-  `toolboxes/signal/src/convolution/convolution.cpp`. `deconv` now promotes
+  `src/toolboxes/signal/src/convolution/convolution.cpp`. `deconv` now promotes
   integer/logical operands to double up front (reusing the
   `convPromoteToDouble` helper added for conv in cycle 61) before the
   `doubleData()` accessors. Both the quotient and the remainder are always
@@ -31,10 +31,10 @@
   → q,r both double, r all-zero on exact division;
   `deconv(int8([1 1]),int8([1 2 3]))` (na>nb) → q scalar 0, r=[1 1] double;
   `deconv([2 7 7 2],[1 2])`=q=[2 3 1] (unchanged).
-- Live guard: `toolboxes/signal/tests/deconv_integer_input_test.cpp` (6 TEST_F) +
+- Live guard: `src/toolboxes/signal/tests/deconv_integer_input_test.cpp` (6 TEST_F) +
   `SignalKnownBug.DeconvIntegerInput` (flipped live). Parity:
   `tools/parity/specs/deconv_integer_input.json` (correctness=OK). Smoke:
-  `toolboxes/signal/tests/smoke/deconv_integer_input_smoke.m`.
+  `src/toolboxes/signal/tests/smoke/deconv_integer_input_smoke.m`.
 
 ## Symptom
 `deconv` threw "Not a double array" whenever either operand was an integer
@@ -50,7 +50,7 @@ deconv([1 3 5 3], int8([1 1]))         % numkit: ERROR; MATLAB: double [1 2 3]
 ```
 
 ## Root cause
-`toolboxes/signal/src/convolution/convolution.cpp` `deconv` read its operands via
+`src/toolboxes/signal/src/convolution/convolution.cpp` `deconv` read its operands via
 `b.doubleData()` / `a.doubleData()`, which throw on any non-`DOUBLE` storage.
 No integer/logical promotion existed.
 
@@ -64,9 +64,9 @@ intermediate per-product saturation — harder). `dot` is the reverse —
 numkit lenient where MATLAB errors.
 
 ## Guard
-`toolboxes/signal/tests/known_bugs_test.cpp` → `SignalKnownBug.DeconvIntegerInput`
+`src/toolboxes/signal/tests/known_bugs_test.cpp` → `SignalKnownBug.DeconvIntegerInput`
 (live) plus the dedicated `deconv_integer_input_test.cpp`.
 
 ## References
-- `toolboxes/signal/src/convolution/convolution.cpp` (`deconv`, `convPromoteToDouble`)
+- `src/toolboxes/signal/src/convolution/convolution.cpp` (`deconv`, `convPromoteToDouble`)
 - MATLAB `doc deconv` (integer inputs promoted to double)

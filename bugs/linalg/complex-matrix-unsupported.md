@@ -42,5 +42,5 @@ cheapest first:
 Each can land independently; this entry is the umbrella.
 
 ## References
-- `toolboxes/linalg/src/...` (decomposition + solve kernels)
+- `src/toolboxes/linalg/src/...` (decomposition + solve kernels)
 - MATLAB: complex inputs accepted by eig/svd/qr/lu/chol/det/inv/etc.

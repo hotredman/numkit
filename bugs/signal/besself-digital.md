@@ -18,7 +18,7 @@ besself(2, 1)        % numkit (pre-fix): a = [1 2 1]     MATLAB: [1 1.732051 1]
 ```
 
 ## Root cause
-`besself_reg` (`toolboxes/signal/src/filter_design/iir_designs.cpp`) passed the
+`besself_reg` (`src/toolboxes/signal/src/filter_design/iir_designs.cpp`) passed the
 parsed `analog` flag (false unless `'s'`) into `besself()`, which then ran
 the DIGITAL bilinear path. But MATLAB `besself` is **always analog** — there
 is no digital Bessel filter (the bilinear transform destroys the
@@ -33,6 +33,6 @@ parity correctness=OK (besself.json strengthened from a numel-only check to
 real coefficient fingerprints) + gtest (besself_test.cpp) + smoke.
 
 ## References
-- `toolboxes/signal/src/filter_design/iir_designs.cpp` (besself_reg)
-- `tools/parity/specs/besself.json`, `toolboxes/signal/tests/besself_test.cpp`
+- `src/toolboxes/signal/src/filter_design/iir_designs.cpp` (besself_reg)
+- `tools/parity/specs/besself.json`, `src/toolboxes/signal/tests/besself_test.cpp`
 - MATLAB `doc besself` ("does not support digital filters")

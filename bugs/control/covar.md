@@ -30,5 +30,5 @@ Small — mostly gramian wiring. Verify `P` vs MATLAB on a 1st-order plant
 (closed form `P = B²W/(2|a|)·C²`).
 
 ## References
-- new file under `toolboxes/control/src/...`; reuse `lyap`/`dlyap`/`gram`
+- new file under `src/toolboxes/control/src/...`; reuse `lyap`/`dlyap`/`gram`
 - MATLAB `doc covar`

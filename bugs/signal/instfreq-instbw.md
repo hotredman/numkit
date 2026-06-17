@@ -28,7 +28,7 @@ values differ at float level, which is expected.)
 
 ## Root cause
 Unknown — the analytic-signal phase-derivative path appears wrong (sign /
-scaling / unwrap). `toolboxes/signal/src/.../instfreq*` (time_frequency or
+scaling / unwrap). `src/toolboxes/signal/src/.../instfreq*` (time_frequency or
 measurements). The default `instfreq` method is the spectrogram-based
 first conditional spectral moment; numkit may be using the Hilbert
 phase-derivative incorrectly, or with the wrong fs scaling.
@@ -41,5 +41,5 @@ fix the sign/scaling, validate against a linear chirp (should rise linearly
 from f0 to f1). Same TFD underlies `instbw` (2nd central moment). Medium.
 
 ## References
-- `toolboxes/signal/src/.../instfreq*`, `instbw*`
+- `src/toolboxes/signal/src/.../instfreq*`, `instbw*`
 - MATLAB `doc instfreq` (note: default is the spectral-moment method)

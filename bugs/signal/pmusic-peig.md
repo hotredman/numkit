@@ -29,6 +29,6 @@ variant (peig). Needs a symmetric eigensolver (available in core linalg).
 Moderate; share one core with `pmusic`/`peig`/`rootmusic`/`espd`.
 
 ## References
-- new file under `toolboxes/signal/src/spectral_analysis/`
+- new file under `src/toolboxes/signal/src/spectral_analysis/`
 - MATLAB `doc pmusic`, `doc peig`
 - related shipped: `pwelch`, `periodogram`, `corrmtx`

@@ -39,5 +39,5 @@ Not implemented. numkit ships `wavedec`/`waverec`/`appcoef`/`detcoef`/
   kernel. Small. Verify `Ea+ΣEd==100` and `upcoef` length/values vs MATLAB.
 
 ## References
-- new file(s) under `toolboxes/wavelet/src/...`; reuse `wavedec`/`appcoef`/`idwt`
+- new file(s) under `src/toolboxes/wavelet/src/...`; reuse `wavedec`/`appcoef`/`idwt`
 - MATLAB `doc wenergy`, `doc upcoef`

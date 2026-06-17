@@ -17,7 +17,7 @@ isoutlier([1 2 3 4 5 6 7 8 9 50], 'gesd')
 ```
 
 ## Root cause
-`toolboxes/stats/src/descriptive/descriptive_extras.cpp` `isoutlier_reg` throws
+`src/toolboxes/stats/src/descriptive/descriptive_extras.cpp` `isoutlier_reg` throws
 for `'gesd'` (only that method remains stubbed after movmedian/movmean were
 added).
 
@@ -33,7 +33,7 @@ Reuse the `grubbs` scaffolding already present. Moderate; verify the
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 24),
-  `toolboxes/stats/src/descriptive/descriptive_extras.cpp` (`gesdColumnMask`).
+  `src/toolboxes/stats/src/descriptive/descriptive_extras.cpp` (`gesdColumnMask`).
 - Rosner's GESD: peel the most-extreme studentized deviate
   `R_i = max|x−mean|/std` for `i = 1…MaxNumOutliers`, comparing each to the
   critical value `λ_i` which equals the **Grubbs** form at the current sample
@@ -50,14 +50,14 @@ Reuse the `grubbs` scaffolding already present. Moderate; verify the
   `[1 2 3 100 4 5]` → the 100; clean → none; spread `[0…20 30 40]` (n=25) peels
   3; masking `[0…100 101 102 103 104]` (n=15) → 0 by default but
   `MaxNumOutliers=5` → 5; `ThresholdFactor=0.01`; small n=5.
-- Live guard: `toolboxes/stats/tests/isoutlier_gesd_test.cpp` (7 TEST_F) + flipped
+- Live guard: `src/toolboxes/stats/tests/isoutlier_gesd_test.cpp` (7 TEST_F) + flipped
   `StatsKnownBug.IsoutlierGesd` live; stale throw-test in
   `missing_data_test.cpp` rewritten. Parity:
   `tools/parity/specs/isoutlier_gesd.json` (correctness=OK). Smoke:
-  `toolboxes/stats/tests/smoke/isoutlier_gesd_smoke.m`.
+  `src/toolboxes/stats/tests/smoke/isoutlier_gesd_smoke.m`.
 - Note: `rmoutliers(x,'gesd')` and `filloutliers(...,'gesd')` remain script-only
   / deferred (separate adapters; out of scope here).
 
 ## References
-- `toolboxes/stats/src/descriptive/descriptive_extras.cpp` (isoutlier_reg, grubbs, gesdColumnMask)
+- `src/toolboxes/stats/src/descriptive/descriptive_extras.cpp` (isoutlier_reg, grubbs, gesdColumnMask)
 - MATLAB `doc isoutlier` ('gesd')

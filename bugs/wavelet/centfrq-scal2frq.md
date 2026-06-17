@@ -31,5 +31,5 @@ just `centfrq(wname) / (a·Δ)`.
   MATLAB.
 
 ## References
-- new file under `toolboxes/wavelet/src/...`; reuse the wavelet shape functions
+- new file under `src/toolboxes/wavelet/src/...`; reuse the wavelet shape functions
 - MATLAB `doc centfrq`, `doc scal2frq`

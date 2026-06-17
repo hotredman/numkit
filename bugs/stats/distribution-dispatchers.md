@@ -32,6 +32,6 @@ exists. Cover the families numkit already ships. Verify the alias table +
 parameter order against MATLAB.
 
 ## References
-- new file under `toolboxes/stats/src/...`
+- new file under `src/toolboxes/stats/src/...`
 - shipped families: `normcdf/normpdf/norminv/normrnd`, `poisspdf`, etc.
 - MATLAB `doc cdf`, `doc pdf`, `doc icdf`, `doc random`

@@ -33,17 +33,17 @@ surface to the user**. Do not silently work on top of someone else's work.
 
 ## Public API conventions
 
-Every public function in `toolboxes/<ns>/include/numkit/<ns>/**` follows
+Every public function in `src/toolboxes/<ns>/include/numkit/<ns>/**` follows
 [dev-docs/LIBRARY_API.md](dev-docs/LIBRARY_API.md) — the authoritative API
 ruleset (argument order, native scalar types vs `const Value &` vs
 `Span<const double>`, `FnHandle` callbacks, no `Engine *` in public
 signatures, magic-polymorphism → typed overloads, multi-output return
-shape). Read it before adding or refactoring any public `toolboxes/`
+shape). Read it before adding or refactoring any public `src/toolboxes/`
 function.
 
 ## Smoke tests
 
-- Hand-runnable `.m` smokes live in `toolboxes/<name>/tests/smoke/*_smoke.m`
+- Hand-runnable `.m` smokes live in `src/toolboxes/<name>/tests/smoke/*_smoke.m`
   (one per public function or related cluster). Run via
   `build/desktop-fast/tests/smoke/Release/numkit_smoke.exe <path>`.
 - **Every smoke MUST start with `clear` on the very first line**, then
@@ -56,7 +56,7 @@ Every function added in a /loop cycle produces all four of these. Three
 artefacts is incomplete and must be flagged before the cycle is closed.
 
 ### 1. C++ implementation
-In `toolboxes/<lib>/src/...` and `toolboxes/<lib>/include/...`. Probe MATLAB
+In `src/toolboxes/<lib>/src/...` and `src/toolboxes/<lib>/include/...`. Probe MATLAB
 (`help fnname` + `doc fnname`) before writing code; implement every
 documented branch or document the gap explicitly in PROGRESS.md.
 
@@ -81,9 +81,9 @@ report `correctness=OK` before commit. If MATLAB / Octave doesn't ship
 the function the run reports `correctness=N/A` — document that in the
 spec comment.
 
-### 3. gtest unit test — `toolboxes/<lib>/tests/<name>_test.cpp`
+### 3. gtest unit test — `src/toolboxes/<lib>/tests/<name>_test.cpp`
 Offline regression guard with hardcoded expected values. Pattern (used
-across toolboxes/stats, toolboxes/builtin, toolboxes/signal):
+across src/toolboxes/stats, tests/builtin, src/toolboxes/signal):
 ```cpp
 #include <numkit/builtin/library.hpp>
 #include <numkit/core/engine.hpp>
@@ -103,16 +103,16 @@ TEST_F(HaartTest, Level1Vector) {
     // ...one TEST_F per documented branch.
 }
 ```
-Wire via `toolboxes/<lib>/tests/CMakeLists.txt` (create if missing — pattern
+Wire via `src/toolboxes/<lib>/tests/CMakeLists.txt` (create if missing — pattern
 `target_sources(numkit_gtest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/...)`).
 Tests must pass under `numkit_gtest.exe`. At least one TEST_F per
 documented branch.
 
-### 4. Smoke `.m` — `toolboxes/<lib>/tests/smoke/<name>_smoke.m`
+### 4. Smoke `.m` — `src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`
 Hand-runnable demo. **Every smoke MUST start with `clear` on the first
 line**, then `import compat.*`, then the body. Use `fprintf` to print
 expected values inline ("expect ~..."). Run via
-`build/desktop-fast/tests/smoke/Release/numkit_smoke.exe toolboxes/<lib>/tests/smoke/<name>_smoke.m`.
+`build/desktop-fast/tests/smoke/Release/numkit_smoke.exe src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`.
 
 Three real bugs in cycles 65-75 were caught only by parity cross-check —
 hand-written smokes had passed all three. Don't trust your own
@@ -125,7 +125,7 @@ Structured one-file-per-bug catalog.
 
 1. its own `bugs/<namespace>/<fn>.md` with a self-contained repro (numkit
    output vs MATLAB R2025b) so any session can act on it cold; and
-2. a matching **`DISABLED_` gtest** in `toolboxes/<ns>/tests/known_bugs_test.cpp`
+2. a matching **`DISABLED_` gtest** in `src/toolboxes/<ns>/tests/known_bugs_test.cpp`
    asserting the MATLAB-correct behaviour — **found a bug → add a test.**
    `DISABLED_` keeps the green baseline green (it doesn't run normally) but
    the test is real: it fails under `--gtest_also_run_disabled_tests` and

@@ -21,7 +21,7 @@ Confirmed empirically via `numkit_smoke.exe` against the pre-fix binary:
 `numel=1`, `[1]=a` (b and c lost).
 
 ## Root cause
-`writelines` (`toolboxes/io/src/text/extras.cpp`) dispatched as:
+`writelines` (`src/toolboxes/io/src/text/extras.cpp`) dispatched as:
 ```cpp
 if (lines.isChar() || lines.isString()) {   // catches ANY string array
     append(lines.toString());
@@ -39,16 +39,16 @@ so only the first line was written. The dedicated string-array per-element loop
   by `lines.isString() && lines.numel() != 1`, so a multi-element string array
   writes one line per element while a scalar string / char row still takes the
   single-line `toString()` path. The previously-unreachable third branch was
-  removed (folded into the new first branch). `toolboxes/io/src/text/extras.cpp`.
+  removed (folded into the new first branch). `src/toolboxes/io/src/text/extras.cpp`.
 - Behaviour now matches MATLAB R2025b: `writelines(["a";"b";"c"])` → 3 lines.
   Cell-array and scalar-string forms unchanged.
 
 ## Test
-- Live regression guard: `toolboxes/io/tests/io_extras_test.cpp` →
+- Live regression guard: `src/toolboxes/io/tests/io_extras_test.cpp` →
   `IoExtrasTest.WritelinesStringArrayOneLinePerElement` (writes a 3-element
   string array, asserts `readlines` round-trips to 3 elements a/b/c).
 
 ## References
-- `toolboxes/io/src/text/extras.cpp` (writelines)
+- `src/toolboxes/io/src/text/extras.cpp` (writelines)
 - `value/src/value.cpp` (`Value::toString` STRING → element[0])
 - MATLAB `doc writelines`

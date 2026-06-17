@@ -25,7 +25,7 @@ A padded symmetric input also hit `log(0)` at the Nyquist bin (MATLAB
 rejects such inputs; numkit produced NaN-scale garbage).
 
 ## Root cause
-`fftReal()` in `toolboxes/signal/src/transforms/extras.cpp` used `fftRadix2`
+`fftReal()` in `src/toolboxes/signal/src/transforms/extras.cpp` used `fftRadix2`
 with `nextPow2(n)` padding. `log|X|` of the padded near-zero bins ≈ -690,
 smeared across every output sample by the inverse transform.
 
@@ -40,6 +40,6 @@ adapter). Power-of-two parity (the `(1:8)'` specs) preserved bit-for-bit.
 its `nd` output is still missing — see `bugs/signal/cceps-nd-phase.md`.
 
 ## References
-- `toolboxes/signal/src/transforms/extras.cpp`
+- `src/toolboxes/signal/src/transforms/extras.cpp`
 - `tools/parity/specs/rceps.json`, `cceps.json`
-- `toolboxes/signal/tests/rceps_test.cpp`
+- `src/toolboxes/signal/tests/rceps_test.cpp`

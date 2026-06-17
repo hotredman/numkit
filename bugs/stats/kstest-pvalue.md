@@ -43,7 +43,7 @@ inside the usable range but their tail p-values are not clamped to MATLAB's
 documented table bounds ([0.001, 0.5] for jbtest) — cosmetic, lower priority.
 
 ## Fixed
-- Fixed: 2026-06-05 (bug-fix loop, cycle 23), `toolboxes/stats/src/test/hypothesis.cpp`.
+- Fixed: 2026-06-05 (bug-fix loop, cycle 23), `src/toolboxes/stats/src/test/hypothesis.cpp`.
 - **kstest two-sided p** — exact `1 − K(n, D)` via the **Marsaglia-Tsang-Wang
   (2003)** matrix method, with MATLAB's corrected asymptotic
   `2·exp(−(2.000071 + .331/√n + 1.409/n)·n·D²)` when `s = n·D² > 7.24` or
@@ -60,13 +60,13 @@ documented table bounds ([0.001, 0.5] for jbtest) — cosmetic, lower priority.
 - Verified vs MATLAB R2025b (~1e-9 on the p-values): n=6 two-sided
   p=0.94998410 cv=0.51926; one-sided 0.97197377/0.57170523; n=12 p=0.98282723;
   kstest2 two-sided 0.84705434, one-sided 0.47200535.
-- Live guard: `toolboxes/stats/tests/kstest_exact_test.cpp` (6 TEST_F) + flipped
+- Live guard: `src/toolboxes/stats/tests/kstest_exact_test.cpp` (6 TEST_F) + flipped
   `StatsKnownBug.KstestPValue` / `Kstest2PValue` live. Parity:
   `tools/parity/specs/kstest_exact.json` (correctness=OK). Smoke:
-  `toolboxes/stats/tests/smoke/kstest_exact_smoke.m`.
+  `src/toolboxes/stats/tests/smoke/kstest_exact_smoke.m`.
 - Still OPEN (separate, minor, noted above): jbtest/adtest tail-p clamping to
   MATLAB's documented table bounds — cosmetic, not tracked here.
 
 ## References
-- `toolboxes/stats/src/test/hypothesis.cpp` (kstest, kstest2, marsagliaK, birnbaumTingey)
+- `src/toolboxes/stats/src/test/hypothesis.cpp` (kstest, kstest2, marsagliaK, birnbaumTingey)
 - MATLAB `toolbox/stats/stats/kstest.m`

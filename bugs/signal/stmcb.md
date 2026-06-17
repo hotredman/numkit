@@ -27,6 +27,6 @@ solves. Medium. Outputs `[b, a]`. Validate vs MATLAB on a known IIR
 impulse response.
 
 ## References
-- new file under `toolboxes/signal/src/...`
+- new file under `src/toolboxes/signal/src/...`
 - shipped: `prony`, `levinson`, `lpc`, `filter`
 - MATLAB `doc stmcb`

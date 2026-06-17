@@ -82,7 +82,7 @@ cdf(max)→full-range → bilinear interpolation between the 4 neighbouring tile
 - Parity spec `tools/parity/specs/adapthisteq.json` — committed, currently
   reports MISMATCH vs MATLAB R2025b (tracks the regression in PROGRESS.md).
 - `ImageKnownBug.DISABLED_AdapthisteqMapping` in
-  `toolboxes/image/tests/known_bugs_test.cpp` — asserts the MATLAB values
+  `src/toolboxes/image/tests/known_bugs_test.cpp` — asserts the MATLAB values
   (`J(32,32)≈128`, `min(J)≈20`, `max(J)≈235`).
 
 When fixed: drop `DISABLED_`, flip this md to ✅, and the parity spec should

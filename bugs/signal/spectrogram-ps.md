@@ -25,6 +25,6 @@ core default `hamming(floor(nx/4.5))` when none is given; `fs` defaults to
 default-window cases.
 
 ## References
-- `toolboxes/signal/src/time_frequency/spectrogram.cpp` (spectrogram_reg)
+- `src/toolboxes/signal/src/time_frequency/spectrogram.cpp` (spectrogram_reg)
 - `tools/parity/specs/spectrogram_ps.json`
-- `toolboxes/signal/tests/spectral_test.cpp` (SpectrogramPsd* tests)
+- `src/toolboxes/signal/tests/spectral_test.cpp` (SpectrogramPsd* tests)

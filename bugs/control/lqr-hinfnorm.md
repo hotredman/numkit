@@ -40,6 +40,6 @@ Not implemented.
 All are Control-Toolbox staples. Verify K / norm / gramian vs MATLAB.
 
 ## References
-- new file(s) under `toolboxes/control/src/...`
+- new file(s) under `src/toolboxes/control/src/...`
 - shipped: `lyap`, `dlyap`, `place`, `care`? (check), `ss`, `tf`, `sigma`
 - MATLAB `doc lqr`, `doc hinfnorm`

@@ -42,5 +42,5 @@ only `outs[0]` — the band edges and in-band power are not threaded to
   multi-tone signal. Moderate — get the value right first, then wire outputs.
 
 ## References
-- `toolboxes/signal/src/.../obw*` (+ the PSD helper it uses)
+- `src/toolboxes/signal/src/.../obw*` (+ the PSD helper it uses)
 - MATLAB `doc obw`

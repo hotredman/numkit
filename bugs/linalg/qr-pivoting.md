@@ -19,7 +19,7 @@ numkit's `qr` returns only `[Q,R]` (plain Householder, no pivoting).
 ```
 
 ## Root cause
-`toolboxes/linalg/src/decompositions.cpp` implements unpivoted Householder QR;
+`src/toolboxes/linalg/src/decompositions.cpp` implements unpivoted Householder QR;
 no column-pivoting path and the adapter emits only `outs[0..1]`.
 
 ## Suggested fix
@@ -31,7 +31,7 @@ the column order vs MATLAB.
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 25),
-  `toolboxes/linalg/src/decompositions.cpp` (`qrPivotedHouseholder`, `qr_pivoted`).
+  `src/toolboxes/linalg/src/decompositions.cpp` (`qrPivotedHouseholder`, `qr_pivoted`).
 - New column-pivoted Householder path: at each step pivots to the remaining
   column of largest sub-column 2-norm (recomputed exactly per step → matches
   MATLAB's xGEQP3 order in non-degenerate cases), then applies the **same**
@@ -48,11 +48,11 @@ the column order vs MATLAB.
   unpivoted path too and is independent of pivoting. The QR is valid either way
   (`A*P=Q*R` holds); validation uses `abs(diag(R))` + reconstruction, as the
   existing qr parity spec already does.
-- Live guard: `toolboxes/linalg/tests/qr_pivoting_test.cpp` (6 TEST_F) + flipped
+- Live guard: `src/toolboxes/linalg/tests/qr_pivoting_test.cpp` (6 TEST_F) + flipped
   `LinalgKnownBug.QrColumnPivoting` live. Parity:
   `tools/parity/specs/qr.json` extended (correctness=OK). Smoke:
-  `toolboxes/linalg/tests/smoke/qr_pivoting_smoke.m`.
+  `src/toolboxes/linalg/tests/smoke/qr_pivoting_smoke.m`.
 
 ## References
-- `toolboxes/linalg/src/decompositions.cpp` (qr, qr_pivoted, qrPivotedHouseholder)
+- `src/toolboxes/linalg/src/decompositions.cpp` (qr, qr_pivoted, qrPivotedHouseholder)
 - MATLAB `doc qr`

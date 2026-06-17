@@ -16,7 +16,7 @@ the stopband). low/high/bandpass work.
 ```
 
 ## Root cause
-`toolboxes/signal/src/filter_design/iir_designs.cpp:596` (`case 3:`) throws;
+`src/toolboxes/signal/src/filter_design/iir_designs.cpp:596` (`case 3:`) throws;
 comment at `:508` notes it needs the digital→analog bandstop transform
 branch that the other three response types use.
 
@@ -27,7 +27,7 @@ reciprocal mapping. Validate `n` and `Wn` against MATLAB. Moderate.
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 39),
-  `toolboxes/signal/src/filter_design/iir_designs.cpp` (`ellipord` `case 3`).
+  `src/toolboxes/signal/src/filter_design/iir_designs.cpp` (`ellipord` `case 3`).
 - The bandstop branch now computes the analog passband-edge ratio as the
   **reciprocal of the bandpass→lowpass map**: `WA[i] = WS[i]·(WP1-WP2) /
   (WS[i]² - WP1·WP2)` for each prewarped stopband edge, then the worst-case
@@ -41,13 +41,13 @@ reciprocal mapping. Validate `n` and `Wn` against MATLAB. Moderate.
   Wn=[0.1 0.6]; `([0.15 0.55],[0.25 0.45],1,60)` → n=5;
   `([0.2 0.7],[0.3 0.6],2,50)` → n=4; analog `([100 600],[200 500],3,40,'s')`
   → n=5, Wn=[100 600]. low/high/bandpass unchanged.
-- Live guard: `toolboxes/signal/tests/ellipord_test.cpp`
+- Live guard: `src/toolboxes/signal/tests/ellipord_test.cpp`
   (`BandstopDigital`, `BandstopAnalog`) + flipped
   `SignalKnownBug.EllipordBandstop` live. Parity:
   `tools/parity/specs/signal_ellipord.json` extended (correctness=OK). Smoke:
-  `toolboxes/signal/tests/smoke/ellipord_smoke.m`.
+  `src/toolboxes/signal/tests/smoke/ellipord_smoke.m`.
 
 ## References
-- `toolboxes/signal/src/filter_design/iir_designs.cpp` (`ellipord` case 3)
+- `src/toolboxes/signal/src/filter_design/iir_designs.cpp` (`ellipord` case 3)
 - MATLAB `doc ellipord`
 - sibling `buttord`/`cheb1ord`/`cheb2ord` already handle bandstop (`normaliseOrd`)

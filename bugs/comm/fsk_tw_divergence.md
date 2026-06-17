@@ -72,7 +72,7 @@ unchanged.
 ## References
 
 - Live (disabled) guard: `CommModulationTest.DISABLED_FskRoundTrip` in
-  `toolboxes/comm/tests/comm_modulation_test.cpp` — runs under
+  `src/toolboxes/comm/tests/comm_modulation_test.cpp` — runs under
   `--gtest_also_run_disabled_tests` and fails on the `/TW` param.
 - Add a direct regression for the minimal repro (`size(rowvec(:))`) under
   DualEngineTest when fixing.
