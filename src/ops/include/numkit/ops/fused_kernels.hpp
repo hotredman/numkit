@@ -35,6 +35,15 @@ void fusedAffineClamp(const double *x, double scale, double offset,
 void fusedAffineClampMinOuter(const double *x, double scale, double offset,
                               double lo, double hi, double *out, std::size_t n);
 
+// Divide-inner clamps: out[i] = clamp((x[i] - sub)/div, lo, hi). (x-c)./d is a
+// distinct rounding from scale*x+offset (1/d would round), so these are their
+// own kernels — the canonical rescale-then-saturate `max(0,min(1,(x-lo)./rng))`.
+void fusedAffineClampShiftDiv(const double *x, double sub, double div,
+                              double lo, double hi, double *out, std::size_t n);
+void fusedAffineClampMinOuterShiftDiv(const double *x, double sub, double div,
+                                      double lo, double hi, double *out,
+                                      std::size_t n);
+
 // out[i] = scale*x[i] + offset   — plain affine, NO clamp, NaN-preserving.
 // Covers two-op scale-and-shift chains: a.*x+b, x.*a-b, b+a.*x (rescale,
 // negate, unit conversion). A separate kernel from fusedAffineClamp because a
@@ -71,6 +80,11 @@ void fusedAbsAffine(const double *x, double scale, double offset,
 // error). Sub then abs (exact) → bit-identical to `abs(x - y)`.
 void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n);
 
+// out[i] = |(x[i] - sub)/div|   — abs of a divide-inner (abs(x./d),
+// abs((x-c)./d)); the divide rounding differs from scale*x+offset, abs exact.
+void fusedAbsShiftDiv(const double *x, double sub, double div,
+                      double *out, std::size_t n);
+
 // Unary function applied to an affine: out[i] = f(scale*x[i] + offset).
 // Restricted to the functions whose SIMD form is bit-identical to the scalar
 // libm one — sqrt is correctly-rounded; floor/ceil are exact — so the result
@@ -99,6 +113,11 @@ void fusedSqAffine(const double *x, double scale, double offset,
 // out[i] = (x[i] - y[i])^2   — squared difference of two arrays (SSE term).
 // Sub then Mul → matches `(x - y).^2`.
 void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n);
+
+// out[i] = ((x[i] - sub)/div)^2   — square of a divide-inner ((x./d).^2,
+// ((x-c)./d).^2 = squared z-score); divide rounding then a plain-Mul square.
+void fusedSqShiftDiv(const double *x, double sub, double div,
+                     double *out, std::size_t n);
 
 // out[i] = sqrt(x[i]*x[i] + y[i]*y[i])   — magnitude / 2-D length / gradient
 // magnitude, the literal `sqrt(x.^2 + y.^2)`. x*x, y*y, Add, Sqrt (no FMA); a

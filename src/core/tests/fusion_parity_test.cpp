@@ -568,6 +568,33 @@ TEST_P(FusionParityTest, DivInnerTransTailAndDomain) {
     EXPECT_TRUE(e.eval("~isreal(log(xn ./ d))").toBool());
 }
 
+// div-inner for sq / abs / clamp: (x./d).^2, abs((x-c)./d), rescale-then-
+// saturate max(0,min(1,(x-c)./d)). matchDivArg routes these to the dedicated
+// shift-div kernels (matchInner rejects `./`, so the affine families decline).
+TEST_P(FusionParityTest, DivInnerSqAbsClamp) {
+    e.eval("x = reshape(linspace(1,9,6000),2000,3); d = 2.5; c = 0.5; lo = 0; hi = 1;");
+    EXPECT_TRUE(sameOnOff(e, "(x ./ d) .^ 2"));                // sq_div, x/d
+    EXPECT_TRUE(sameOnOff(e, "((x - c) ./ d) .^ 2"));          // sq_div, (x-c)/d
+    EXPECT_TRUE(sameOnOff(e, "abs(x ./ d)"));                  // abs_div
+    EXPECT_TRUE(sameOnOff(e, "abs((c - x) ./ d)"));            // (c-x)/d → (x-c)/(-d)
+    EXPECT_TRUE(sameOnOff(e, "max(0, min(1, (x - c) ./ d))")); // clamp_div max-outer
+    EXPECT_TRUE(sameOnOff(e, "min(hi, max(lo, x ./ d))"));     // clamp_div min-outer
+    e.eval("y = (x ./ d) .^ 2;");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), (1.0 / 2.5) * (1.0 / 2.5), 1e-12);
+    e.eval("z = max(0, min(1, (x - c) ./ d));");
+    EXPECT_GE(e.eval("min(z(:))").toScalar(), 0.0);
+    EXPECT_LE(e.eval("max(z(:))").toScalar(), 1.0);
+}
+
+// NaN / Inf through the divide-inner sq/abs/clamp kernels.
+TEST_P(FusionParityTest, DivInnerSqAbsClampNaNInf) {
+    e.eval("x = [linspace(-2,2,5997)'; NaN; Inf; -Inf]; d = 2; c = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "(x ./ d) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "abs((x - c) ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "max(0, min(1, x ./ d))"));
+    EXPECT_TRUE(sameOnOff(e, "min(1, max(0, (x - c) ./ d))"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -774,6 +801,22 @@ TEST(FusionFiringProbe, DISABLED_VMSqAffineSpeedup) {
 TEST(FusionFiringProbe, DISABLED_VMSqrtSumSqSpeedup) {
     probeFused(numkit::Engine::Backend::VM, "VM sqrt-sumsq",
                "x = rand(3048*3816,1); y = rand(3048*3816,1);", "sqrt(x .^ 2 + y .^ 2)");
+}
+// clamp of a divide-inner — the rescale-then-saturate `max(0,min(1,(x-lo)./rng))`
+// collapses subtract + divide + temporary + clamp into one streaming pass.
+TEST(FusionFiringProbe, DISABLED_VMAffineClampDivSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM clamp-div",
+               "x = rand(3048*3816,1); lo = 0.2; rng = 0.5;",
+               "max(0, min(1, (x - lo) ./ rng))");
+}
+// sq / abs of a divide-inner (squared z-score / normalized abs deviation).
+TEST(FusionFiringProbe, DISABLED_VMSqDivSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM sq-div",
+               "x = rand(3048*3816,1); mu = 0.5; sg = 0.2;", "((x - mu) ./ sg) .^ 2");
+}
+TEST(FusionFiringProbe, DISABLED_VMAbsDivSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM abs-div",
+               "x = rand(3048*3816,1); mu = 0.5; sg = 0.2;", "abs((x - mu) ./ sg)");
 }
 TEST(FusionFiringProbe, DISABLED_VMSoftThresholdSpeedup) {
     probeFused(numkit::Engine::Backend::VM, "VM soft-threshold",
