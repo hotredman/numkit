@@ -49,6 +49,7 @@ void doubleToJson(std::ostringstream &os, double val);
 // graphics.<sub>.<name> entries to `table`; buildPlotTable() calls them in turn.
 void buildContourPlots(std::vector<PlotEntry> &table);
 void buildPolarPlots(std::vector<PlotEntry> &table);
+void buildSurfacePlots(std::vector<PlotEntry> &table);
 // BUILDER-DECLS — the family split appends new declarations directly above here.
 
 }  // namespace numkit
