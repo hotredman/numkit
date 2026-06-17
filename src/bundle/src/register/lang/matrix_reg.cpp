@@ -701,7 +701,8 @@ void diag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     long k = 0;
     if (args.size() >= 2)
         k = static_cast<long>(std::llround(args[1].toScalar()));
-    outs[0] = diag(args[0], k, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(diag(args[0], k, ctx.engine->resource()),
+                                    ctx.engine->resource());
 }
 
 void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1239,7 +1240,9 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("cumsum: requires at least 1 argument",
                      0, 0, "cumsum", "", "numkit:cumsum:nargin");
-    outs[0] = cumScanFlags(args[0], args, /*isProd=*/false, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(
+        cumScanFlags(args[0], args, /*isProd=*/false, ctx.engine->resource()),
+        ctx.engine->resource());
 }
 
 void cumprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1247,7 +1250,9 @@ void cumprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("cumprod: requires at least 1 argument",
                      0, 0, "cumprod", "", "numkit:cumprod:nargin");
-    outs[0] = cumScanFlags(args[0], args, /*isProd=*/true, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(
+        cumScanFlags(args[0], args, /*isProd=*/true, ctx.engine->resource()),
+        ctx.engine->resource());
 }
 
 void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1271,7 +1276,8 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = diff(args[0], n, dim, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(diff(args[0], n, dim, ctx.engine->resource()),
+                                    ctx.engine->resource());
 }
 
 #undef NK_CUM_REG
