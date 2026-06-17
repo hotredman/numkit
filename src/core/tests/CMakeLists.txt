@@ -40,3 +40,17 @@ target_sources(numkit_gtest PRIVATE
     # Line-series decimation (M4 / LTTB) — twin of decimate.js
     ${CMAKE_CURRENT_SOURCE_DIR}/decimate_test.cpp
 )
+
+# Relocated from tests/builtin (layer split 2026-06-17).
+target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/advanced_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/commands_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/comments_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynvars_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/frame_introspection_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/programs_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scope_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
+)

@@ -21,7 +21,7 @@
   loose `!isfinite`; now asserts +Inf at -1 and -2) +
   `BuiltinKnownBug.GammaNegativeIntegerPoles`. Parity:
   `tools/parity/specs/gamma_poles.json` (correctness=OK). Smoke:
-  `tests/builtin/smoke/gamma_poles_smoke.m`.
+  `tests/math/smoke/gamma_poles_smoke.m`.
 
 ## Symptom
 `gamma` of a negative integer returns NaN; MATLAB returns +Inf (pole).

@@ -29,10 +29,10 @@
   2-D column-wise `sort(logical([1 0;0 1]))`=`[0 0;1 1]`;
   dim2 `sort(logical([1 0;0 1]),2)`=`[0 1;0 1]`;
   scalar `sort(true)`=`1` logical; `sort(logical([]))`=`[]`.
-- Live guard: `tests/builtin/sort_logical_test.cpp` (6 TEST_F) +
+- Live guard: `tests/lang/sort_logical_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.SortLogical` flipped live. Parity:
   `tools/parity/specs/sort_logical.json` (correctness=OK). Smoke:
-  `tests/builtin/smoke/sort_logical_smoke.m`.
+  `tests/lang/smoke/sort_logical_smoke.m`.
 
 ## Symptom
 `sort` throws on a `logical` array; MATLAB sorts it (as 0/1) preserving the

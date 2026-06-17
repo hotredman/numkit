@@ -177,3 +177,8 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/movfun_order_stats_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
+
+# Relocated from tests/builtin (layer split 2026-06-17).
+target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/stats_test.cpp
+)

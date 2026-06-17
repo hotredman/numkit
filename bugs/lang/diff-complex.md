@@ -44,8 +44,8 @@ Add a `ValueType::COMPLEX` branch: difference `complexData()` element-wise
   `ValueType::COMPLEX` branch in `diff()` (n-th order + dim, via
   `copyComplexSameShape` + the complex pass loop). The `n==0` identity path
   now also preserves both parts.
-- Live guard: `tests/builtin/diff_complex_test.cpp` (4 cases). Parity:
+- Live guard: `tests/math/diff_complex_test.cpp` (4 cases). Parity:
   `tools/parity/specs/diff.json` extended (correctness=OK). Smoke:
-  `tests/builtin/smoke/diff_complex_smoke.m`.
+  `tests/math/smoke/diff_complex_smoke.m`.
 - Spin-off finding: numkit accepts `diff(X,0)` (returns identity) where MATLAB
   errors — catalogued separately as bugs/lang/diff-zero-order.md.

@@ -53,11 +53,11 @@ interior, one-sided at the ends), honouring optional per-dim spacing args
   `[gx,gy,gz]` (1,1,1)=(2,1,4); 3×3×3 central bx(1,2,1)=3, bz(1,1,2)=9;
   spacing (2,3,4)→(1, 1/3, 1); single-spacing broadcast; non-cube 2×3×2; 4-D
   d4=8; complex 3-D zx(1,1,1)=2−2i.
-- Live guard: `tests/builtin/gradient_nd_test.cpp` (11 TEST_F) + flipped
+- Live guard: `tests/math/gradient_nd_test.cpp` (11 TEST_F) + flipped
   `BuiltinKnownBug.Gradient3D` live; two stale throw-tests rewritten
   (`CalculusTest.Gradient3DInput`, `GradientComplexTest.NDComplexOk`). Parity:
   `tools/parity/specs/gradient_nd.json` (correctness=OK). Smoke:
-  `tests/builtin/smoke/gradient_nd_smoke.m`.
+  `tests/math/smoke/gradient_nd_smoke.m`.
 - Deferred sub-gap: coordinate-vector spacing per dim (`gradient(A, xvec, ...)`)
   is still scalar-spacing only — the pre-existing 2-D path didn't support it
   either, so no regression. `del2` remains 1-D/2-D (separate).

@@ -30,10 +30,10 @@
   `sort('dcba','descend')`=`'dcba'`;
   2-D `sort(['bd';'ca'])`=`['ba';'cd']`, dim2 `sort(['bd';'ca'],2)`=`['bd';'ac']`;
   scalar `sort('x')`=`'x'`; empty `sort('')`=`''` (char, numel 0).
-- Live guard: `tests/builtin/sort_char_test.cpp` (6 TEST_F) +
+- Live guard: `tests/lang/sort_char_test.cpp` (6 TEST_F) +
   `BuiltinKnownBug.SortChar` flipped live. Parity:
   `tools/parity/specs/sort_char.json` (correctness=OK). Smoke:
-  `tests/builtin/smoke/sort_char_smoke.m`.
+  `tests/lang/smoke/sort_char_smoke.m`.
 
 ## Symptom
 `sort` throws on a `char` array; MATLAB sorts it by code point preserving the

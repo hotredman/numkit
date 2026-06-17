@@ -37,5 +37,5 @@ generic N-D tensor-product linear interpolation for ndim >= 4 (2^N corner
 weights per query point). Validate against MATLAB `interpn`.
 
 ## Guard
-`tests/builtin/known_bugs_test.cpp` → `BuiltinKnownBug.DISABLED_InterpnOneDimNaN`
+`tests/mixed/known_bugs_test.cpp` → `BuiltinKnownBug.DISABLED_InterpnOneDimNaN`
 (asserts the MATLAB-correct 6.5; flip the prefix when fixed).

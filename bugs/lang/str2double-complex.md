@@ -21,7 +21,7 @@
   `{'1+2i','3','4-1i'}`→COMPLEX `[1+2i 3 4-1i]`.
 - Live guard: `Str2doubleComplexTest` (dedicated) + `BuiltinKnownBug.Str2doubleComplex`
   flipped live. Parity: `tools/parity/specs/str2double_complex.json`
-  (correctness=OK). Smoke: `tests/builtin/smoke/str2double_complex_smoke.m`.
+  (correctness=OK). Smoke: `tests/lang/smoke/str2double_complex_smoke.m`.
 
 ## Symptom
 `str2double` of a complex-number string returns NaN; MATLAB parses it to the
@@ -64,7 +64,7 @@ requires producing a COMPLEX Value when any element parses as complex.
    (`'1.5'`, `'Inf'`, `'NaN'`) still returns a real double.
 
 ## Guard
-`tests/builtin/known_bugs_test.cpp` → `DISABLED_Str2doubleComplex`
+`tests/mixed/known_bugs_test.cpp` → `DISABLED_Str2doubleComplex`
 (asserts the MATLAB-correct complex parse; flip the prefix when implemented).
 
 ## References
