@@ -72,4 +72,23 @@ void fusedUnaryAffine(const double *x, double scale, double offset,
     }
 }
 
+void fusedSqAffine(const double *x, double scale, double offset,
+                   double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = scale * x[i] + offset;
+        out[i] = v * v;
+    }
+}
+
+void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = x[i] - y[i];
+        out[i] = v * v;
+    }
+}
+
+void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::sqrt(x[i] * x[i] + y[i] * y[i]);
+}
+
 } // namespace numkit::ops

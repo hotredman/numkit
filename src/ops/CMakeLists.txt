@@ -28,6 +28,7 @@ if(NUMKIT_WITH_SIMD)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_shift_scale_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_abs_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_unary_affine_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_sq_highway.cpp
         # Backend-split FFT kernel — the SIMD path splits across several TUs
         # (one per radix family) so MSVC's per-TU inliner budget isn't shared
         # across butterflies; see feedback_fft_msvc_limits memory.

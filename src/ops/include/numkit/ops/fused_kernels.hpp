@@ -83,4 +83,20 @@ enum class UnaryAffineFn { Sqrt, Floor, Ceil };
 void fusedUnaryAffine(const double *x, double scale, double offset,
                       UnaryAffineFn fn, double *out, std::size_t n);
 
+// out[i] = (scale*x[i] + offset)^2   — squared affine (energy, squared error,
+// squared deviation `(x-c).^2`). Mul, Add, then a final Mul (the square); three
+// roundings, matching the per-op `(a.*x ± b).^2` now that x.^2 is x.*x.
+void fusedSqAffine(const double *x, double scale, double offset,
+                   double *out, std::size_t n);
+
+// out[i] = (x[i] - y[i])^2   — squared difference of two arrays (SSE term).
+// Sub then Mul → matches `(x - y).^2`.
+void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n);
+
+// out[i] = sqrt(x[i]*x[i] + y[i]*y[i])   — magnitude / 2-D length / gradient
+// magnitude, the literal `sqrt(x.^2 + y.^2)`. x*x, y*y, Add, Sqrt (no FMA); a
+// sum of real squares is never negative, so the result stays real (no complex
+// promotion) and sqrt is correctly-rounded → bit-identical to per-op.
+void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n);
+
 } // namespace numkit::ops

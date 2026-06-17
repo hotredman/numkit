@@ -314,6 +314,46 @@ TEST_P(FusionParityTest, UnaryAffineNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "ceil(a .* x + b)"));
 }
 
+// ---- square / magnitude: (a.*x±b).^2, (x-y).^2, (x-c).^2, sqrt(x.^2+y.^2) --
+
+TEST_P(FusionParityTest, SqAffine) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); a = 1.5; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "(a .* x + b) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "(a .* x - b) .^ 2"));
+    e.eval("y = (a .* x + b) .^ 2;");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), 16.0, 1e-12);  // (1.5*-3+0.5)^2 = (-4)^2
+}
+
+TEST_P(FusionParityTest, SqDiffTwoArrays) {     // SSE term
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); "
+           "y = reshape(linspace(2,-5,6000),2000,3);");
+    EXPECT_TRUE(sameOnOff(e, "(x - y) .^ 2"));
+}
+
+TEST_P(FusionParityTest, SqDiffArrayScalar) {   // squared deviation (x-mu).^2
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); mu = 0.7;");
+    EXPECT_TRUE(sameOnOff(e, "(x - mu) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "(mu - x) .^ 2"));   // == (x-mu).^2
+}
+
+TEST_P(FusionParityTest, SqrtSumSq) {            // magnitude / gradient mag
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); "
+           "y = reshape(linspace(5,-2,6000),2000,3);");
+    EXPECT_TRUE(sameOnOff(e, "sqrt(x .^ 2 + y .^ 2)"));
+    e.eval("z = sqrt(x .^ 2 + y .^ 2);");
+    EXPECT_GE(e.eval("min(z(:))").toScalar(), 0.0);
+}
+
+// NaN/Inf: squares stay real (sum of squares ≥ 0 → no complex promotion for
+// the sqrt-sum form), and propagate as per-op.
+TEST_P(FusionParityTest, SquareNaNInf) {
+    e.eval("x = [linspace(-2,2,5997)'; NaN; Inf; -Inf]; "
+           "y = [linspace(2,-2,5997)'; 1; 1; 1]; a = 2; b = 1;");
+    EXPECT_TRUE(sameOnOff(e, "(a .* x + b) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "(x - y) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "sqrt(x .^ 2 + y .^ 2)"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -481,6 +521,38 @@ TEST(FusionFiringProbe, DISABLED_VMClampMinOuterSpeedup) {
     std::printf("[fusion] VM clamp-min-outer 11.6M: fusion-off %.2f ms, "
                 "fusion-on %.2f ms (%.2fx)\n", off, on, off / on);
     EXPECT_LT(on, off * 0.85);  // fired
+}
+
+// sq-affine `(a.*x+b).^2` and magnitude `sqrt(x.^2+y.^2)` firing probes.
+namespace {
+void probeFused(numkit::Engine::Backend backend, const char *tag,
+                const char *setup, const char *expr) {
+    numkit::StandardEngine e;
+    e.setBackend(backend);
+    e.eval(setup);
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval(std::string("z = ") + expr + ";");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval(std::string("z = ") + expr + ";");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] %s 11.6M: fusion-off %.2f ms, fusion-on %.2f ms "
+                "(%.2fx)\n", tag, off, on, off / on);
+    EXPECT_LT(on, off * 0.90);  // fired
+}
+} // namespace
+
+TEST(FusionFiringProbe, DISABLED_VMSqAffineSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM sq-affine",
+               "x = rand(3048*3816,1); a = 1.5; b = 0.5;", "(a .* x + b) .^ 2");
+}
+TEST(FusionFiringProbe, DISABLED_VMSqrtSumSqSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM sqrt-sumsq",
+               "x = rand(3048*3816,1); y = rand(3048*3816,1);", "sqrt(x .^ 2 + y .^ 2)");
 }
 
 // abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one

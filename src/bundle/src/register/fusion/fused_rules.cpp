@@ -17,6 +17,9 @@
 //   abs_affine_*    abs(a.*x ± b)         → fusedAbsAffine(x, a, ±b)
 //   abs_diff        abs(x - y) / abs(x-c) → fusedAbsDiff / fusedAbsAffine
 //   {sqrt,floor,ceil}_affine_*  f(a.*x ± b) → fusedUnaryAffine(x, a, ±b, fn)
+//   sq_affine_*  (a.*x ± b).^2  → fusedSqAffine(x, a, ±b)
+//   sq_diff      (x-y).^2 / (x-c).^2 → fusedSqDiff / fusedSqAffine
+//   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -469,6 +472,112 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// ---- square / magnitude:  (a.*x±b).^2,  (x-y).^2,  sqrt(x.^2+y.^2) ------
+// All keyed on `.^ 2` literal nodes (the AST is unchanged by the x.^2==x.*x
+// runtime fast-path), and bit-exact because each square is a plain Mul.
+
+// node iff it is `base .^ 2` (literal exponent 2) → base, else null.
+const ASTNode *asSquare(const ASTNode *node) {
+    if (node->type != NodeType::BINARY_OP || node->strValue != ".^" ||
+        node->children.size() != 2)
+        return nullptr;
+    const ASTNode *e = node->children[1].get();
+    if (e->type != NodeType::NUMBER_LITERAL || e->numValue != 2.0) return nullptr;
+    return node->children[0].get();
+}
+
+// (a.*x ± b).^2 — square of an affine product, reusing the affine detection.
+std::optional<std::vector<const ASTNode *>> matchSqAffine(const ASTNode *node,
+                                                          bool sub) {
+    const ASTNode *base = asSquare(node);
+    if (!base) return std::nullopt;
+    return sub ? matchAffineSub(base) : matchAffineAdd(base);  // [c0, c1, b]
+}
+
+// (A - B).^2 — square of a pure subtract (SSE term, squared deviation).
+std::optional<std::vector<const ASTNode *>> matchSqDiff(const ASTNode *node) {
+    const ASTNode *base = asSquare(node);
+    if (!base) return std::nullopt;
+    const ASTNode *s = asPureSub(base);
+    if (!s) return std::nullopt;
+    return std::vector<const ASTNode *>{s->children[0].get(),
+                                        s->children[1].get()};
+}
+
+// sqrt(x.^2 + y.^2) — magnitude of two pure-leaf arrays.
+std::optional<std::vector<const ASTNode *>> matchSqrtSumSq(const ASTNode *node) {
+    const ASTNode *arg = unaryCallArg(node, "sqrt");
+    if (!arg) return std::nullopt;
+    const ASTNode *add = asBinOp(arg, "+");
+    if (!add) return std::nullopt;
+    const ASTNode *bx = asSquare(add->children[0].get());
+    const ASTNode *by = asSquare(add->children[1].get());
+    if (!bx || !by || !isPureLeaf(bx) || !isPureLeaf(by)) return std::nullopt;
+    return std::vector<const ASTNode *>{bx, by};
+}
+
+bool execSqAffine(const Value *ops, std::size_t n, Value &out,
+                  std::pmr::memory_resource *mr, double bSign) {
+    if (n != 3) return false;
+    const Value &b = ops[2];
+    if (!isRealDoubleScalar(b)) return false;
+    double scale = 0.0;
+    const Value *x = nullptr;
+    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedSqAffine(x->doubleData(), scale, bSign * b.toScalar(),
+                       out.doubleDataMut(), x->numel());
+    return true;
+}
+
+// (A - B).^2: two same-shape arrays → fusedSqDiff; array-minus-scalar either
+// way → fusedSqAffine(arr, 1, -c) (squaring makes (x-c)^2 == (c-x)^2).
+bool execSqDiff(const Value *ops, std::size_t n, Value &out,
+                std::pmr::memory_resource *mr) {
+    if (n != 2) return false;
+    const Value &A = ops[0], &B = ops[1];
+    auto isArr = [](const Value &v) {
+        return v.type() == ValueType::DOUBLE && !v.isComplex() &&
+               v.numel() >= kFusionMinElems;
+    };
+    const bool aArr = isArr(A), bArr = isArr(B);
+    if (aArr && bArr) {
+        if (A.dims() != B.dims()) return false;
+        out = ops::createLike(A, ValueType::DOUBLE, mr);
+        ops::fusedSqDiff(A.doubleData(), B.doubleData(), out.doubleDataMut(),
+                         A.numel());
+        return true;
+    }
+    if (aArr && isRealDoubleScalar(B)) {
+        out = ops::createLike(A, ValueType::DOUBLE, mr);
+        ops::fusedSqAffine(A.doubleData(), 1.0, -B.toScalar(),
+                           out.doubleDataMut(), A.numel());
+        return true;
+    }
+    if (bArr && isRealDoubleScalar(A)) {
+        out = ops::createLike(B, ValueType::DOUBLE, mr);
+        ops::fusedSqAffine(B.doubleData(), 1.0, -A.toScalar(),
+                           out.doubleDataMut(), B.numel());
+        return true;
+    }
+    return false;
+}
+
+bool execSqrtSumSq(const Value *ops, std::size_t n, Value &out,
+                   std::pmr::memory_resource *mr) {
+    if (n != 2) return false;
+    const Value &x = ops[0], &y = ops[1];
+    auto isArr = [](const Value &v) {
+        return v.type() == ValueType::DOUBLE && !v.isComplex() &&
+               v.numel() >= kFusionMinElems;
+    };
+    if (!isArr(x) || !isArr(y) || x.dims() != y.dims()) return false;
+    out = ops::createLike(x, ValueType::DOUBLE, mr);
+    ops::fusedSqrtSumSq(x.doubleData(), y.doubleData(), out.doubleDataMut(),
+                        x.numel());
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -610,6 +719,36 @@ void registerFusionRules(Engine &engine) {
     addUnaryAffine("floor_affine_sub", "floor", true,  -1.0, UF::Floor);
     addUnaryAffine("ceil_affine_add",  "ceil",  false, +1.0, UF::Ceil);
     addUnaryAffine("ceil_affine_sub",  "ceil",  true,  -1.0, UF::Ceil);
+
+    FusionRule sqAffineAdd;
+    sqAffineAdd.name  = "sq_affine_add";
+    sqAffineAdd.match = [](const ASTNode *node) { return matchSqAffine(node, false); };
+    sqAffineAdd.execute = [](const Value *ops, std::size_t n, Value &out,
+                             std::pmr::memory_resource *mr) {
+        return execSqAffine(ops, n, out, mr, +1.0);
+    };
+    engine.addFusionRule(std::move(sqAffineAdd));
+
+    FusionRule sqAffineSub;
+    sqAffineSub.name  = "sq_affine_sub";
+    sqAffineSub.match = [](const ASTNode *node) { return matchSqAffine(node, true); };
+    sqAffineSub.execute = [](const Value *ops, std::size_t n, Value &out,
+                             std::pmr::memory_resource *mr) {
+        return execSqAffine(ops, n, out, mr, -1.0);
+    };
+    engine.addFusionRule(std::move(sqAffineSub));
+
+    FusionRule sqDiff;
+    sqDiff.name  = "sq_diff";
+    sqDiff.match = matchSqDiff;
+    sqDiff.execute = execSqDiff;
+    engine.addFusionRule(std::move(sqDiff));
+
+    FusionRule sqrtSumSq;
+    sqrtSumSq.name  = "sqrt_sumsq";
+    sqrtSumSq.match = matchSqrtSumSq;
+    sqrtSumSq.execute = execSqrtSumSq;
+    engine.addFusionRule(std::move(sqrtSumSq));
 }
 
 } // namespace numkit
