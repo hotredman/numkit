@@ -216,6 +216,32 @@ TEST_P(FusionParityTest, AffineClampNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "max(0, min(1, a .* x + b))"));
 }
 
+// ---- min-outer clamp: min(hi, max(lo, x)) / min(hi, max(lo, a.*x±b)) ----
+
+TEST_P(FusionParityTest, ClampMinOuter) {
+    e.eval("x = reshape(linspace(-2, 3, 6000), 2000, 3); lo = 0.2; hi = 0.8;");
+    EXPECT_TRUE(sameOnOff(e, "min(hi, max(lo, x))"));
+    e.eval("y = min(hi, max(lo, x));");
+    EXPECT_GE(e.eval("min(y(:))").toScalar(), 0.2);
+    EXPECT_LE(e.eval("max(y(:))").toScalar(), 0.8);
+}
+
+TEST_P(FusionParityTest, AffineClampMinOuter) {
+    e.eval("x = reshape(linspace(-5,5,6000),2000,3); a = 0.2; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "min(1, max(0, a .* x + b))"));
+    EXPECT_TRUE(sameOnOff(e, "min(1, max(0, a .* x - b))"));
+}
+
+// NaN: min-outer saturates a NaN to lo (max(lo,NaN)=lo, min(hi,lo)=lo), the
+// OPPOSITE of max-outer (→ hi). Both fused and unfused must agree per spelling.
+TEST_P(FusionParityTest, ClampMinOuterNaNGoesToLo) {
+    e.eval("x = [linspace(-2,2,5997)'; NaN; Inf; -Inf]; lo = 0.2; hi = 0.8;");
+    EXPECT_TRUE(sameOnOff(e, "min(hi, max(lo, x))"));
+    e.eval("ymin = min(hi, max(lo, x)); ymax = max(lo, min(hi, x));");
+    EXPECT_EQ(e.eval("ymin(5998)").toScalar(), 0.2);   // min-outer NaN → lo
+    EXPECT_EQ(e.eval("ymax(5998)").toScalar(), 0.8);   // max-outer NaN → hi
+}
+
 // ---- abs: abs(a.*x±b), abs(x-y), abs(x-c) -------------------------------
 
 TEST_P(FusionParityTest, AbsAffine) {
@@ -434,6 +460,27 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerAffineClampSpeedup) {
 }
 TEST(FusionFiringProbe, DISABLED_VMAffineClampSpeedup) {
     probeAffineClamp(numkit::Engine::Backend::VM, "VM");
+}
+
+// min-outer clamp `min(hi, max(lo, x))` — same kernel as max-outer, so this
+// only confirms the min-outer matcher fires (parity passes even if it doesn't).
+TEST(FusionFiringProbe, DISABLED_VMClampMinOuterSpeedup) {
+    numkit::StandardEngine e;
+    e.setBackend(numkit::Engine::Backend::VM);
+    e.eval("x = rand(3048*3816, 1);");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = min(1, max(0, x));");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = min(1, max(0, x));");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] VM clamp-min-outer 11.6M: fusion-off %.2f ms, "
+                "fusion-on %.2f ms (%.2fx)\n", off, on, off / on);
+    EXPECT_LT(on, off * 0.85);  // fired
 }
 
 // abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one

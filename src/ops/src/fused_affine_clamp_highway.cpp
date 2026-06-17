@@ -50,6 +50,27 @@ void AffineClampImpl(const double *x, double scale, double offset,
     }
 }
 
+// min-outer spelling: min(hi, max(lo, v)). Same as above for finite v; on NaN
+// it yields lo (FMax(lo,NaN)=lo then FMin(hi,lo)=lo), matching the per-op
+// `min(hi, max(lo, v))` nesting.
+void AffineClampMinOuterImpl(const double *x, double scale, double offset,
+                             double lo, double hi, double *out, std::size_t n) {
+    const hn::ScalableTag<double> d;
+    const std::size_t L = hn::Lanes(d);
+    const auto vs = hn::Set(d, scale), vt = hn::Set(d, offset);
+    const auto vlo = hn::Set(d, lo), vhi = hn::Set(d, hi);
+    std::size_t i = 0;
+    for (; i + L <= n; i += L) {
+        auto v = hn::Add(hn::Mul(hn::LoadU(d, x + i), vs), vt);
+        v = FMin(vhi, FMax(vlo, v));
+        hn::StoreU(v, d, out + i);
+    }
+    for (; i < n; ++i) {
+        const double v = scale * x[i] + offset;
+        out[i] = std::fmin(hi, std::fmax(lo, v));
+    }
+}
+
 } // namespace HWY_NAMESPACE
 } // namespace numkit::ops
 HWY_AFTER_NAMESPACE();
@@ -58,6 +79,7 @@ HWY_AFTER_NAMESPACE();
 namespace numkit::ops {
 
 HWY_EXPORT(AffineClampImpl);
+HWY_EXPORT(AffineClampMinOuterImpl);
 
 void fusedAffineClamp(const double *x, double scale, double offset,
                       double lo, double hi, double *out, std::size_t n) {
@@ -67,6 +89,15 @@ void fusedAffineClamp(const double *x, double scale, double offset,
     detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(AffineClampImpl)(x + s, scale, offset, lo, hi,
                                               out + s, e - s);
+    });
+}
+
+void fusedAffineClampMinOuter(const double *x, double scale, double offset,
+                              double lo, double hi, double *out, std::size_t n) {
+    if (n == 0) return;
+    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+        HWY_DYNAMIC_DISPATCH(AffineClampMinOuterImpl)(x + s, scale, offset, lo, hi,
+                                                      out + s, e - s);
     });
 }
 
