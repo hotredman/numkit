@@ -162,6 +162,36 @@ TEST_P(FusionParityTest, AxpbyShapeMismatchFallsBack) {
     EXPECT_TRUE(sameOnOff(e, "a .* x + b .* y"));
 }
 
+// ---- shift-scale: (x-c).*s and (x-c)./d (center then scale/divide) ------
+
+TEST_P(FusionParityTest, ShiftScaleMul) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); c = 0.5; s = 2.5;");
+    EXPECT_TRUE(sameOnOff(e, "(x - c) .* s"));
+    EXPECT_TRUE(sameOnOff(e, "s .* (x - c)"));   // scale on the left
+    e.eval("y = (x - c) .* s;");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), (-3.0 - 0.5) * 2.5, 1e-12);
+}
+
+TEST_P(FusionParityTest, ShiftScaleDiv) {        // z-score / normalize
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); mu = 0.5; sg = 1.7;");
+    EXPECT_TRUE(sameOnOff(e, "(x - mu) ./ sg"));
+    e.eval("y = (x - mu) ./ sg;");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), (-3.0 - 0.5) / 1.7, 1e-12);
+}
+
+TEST_P(FusionParityTest, ShiftScaleNaNInf) {
+    e.eval("x = [linspace(-1,2,5997)'; NaN; Inf; -Inf]; c = 0.5; s = 2;");
+    EXPECT_TRUE(sameOnOff(e, "(x - c) .* s"));
+    EXPECT_TRUE(sameOnOff(e, "(x - c) ./ s"));
+}
+
+// `c - x` (scalar minus array) is not the (x-c) shape — the array lands in the
+// shift slot, so the guard declines on size → per-op fallback, still identical.
+TEST_P(FusionParityTest, ShiftScaleReversedFallsBack) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); c = 0.5; s = 2.5;");
+    EXPECT_TRUE(sameOnOff(e, "(c - x) .* s"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -248,4 +278,34 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerAxpbySpeedup) {
 }
 TEST(FusionFiringProbe, DISABLED_VMAxpbySpeedup) {
     probeAxpby(numkit::Engine::Backend::VM, "VM");
+}
+
+// shift-scale `(x - c).*s`: fusion collapses subtract + temporary + scale into
+// one streaming pass. Confirms the center-then-scale kernel fires.
+namespace {
+void probeShiftScale(numkit::Engine::Backend backend, const char *tag) {
+    numkit::StandardEngine e;
+    e.setBackend(backend);
+    e.eval("x = rand(3048*3816, 1); c = 0.3; s = 2.0;");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("y = (x - c) .* s;");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("y = (x - c) .* s;");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] %s shift-scale 11.6M: fusion-off %.2f ms, fusion-on "
+                "%.2f ms (%.2fx)\n", tag, off, on, off / on);
+    EXPECT_LT(on, off * 0.85);  // must be meaningfully faster → it fired
+}
+} // namespace
+
+TEST(FusionFiringProbe, DISABLED_TreeWalkerShiftScaleSpeedup) {
+    probeShiftScale(numkit::Engine::Backend::TreeWalker, "TW");
+}
+TEST(FusionFiringProbe, DISABLED_VMShiftScaleSpeedup) {
+    probeShiftScale(numkit::Engine::Backend::VM, "VM");
 }

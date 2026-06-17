@@ -11,6 +11,8 @@
 //   affine_sub  (a.*x) - b            → fusedAffine(x, a, -b)
 //   axpby_add   (a.*x) + (b.*y)       → fusedAxpby(x, a, y, +b)
 //   axpby_sub   (a.*x) - (b.*y)       → fusedAxpby(x, a, y, -b)
+//   shift_scale_mul  (x-c).*s / s.*(x-c) → fusedShiftScaleMul(x, c, s)
+//   shift_scale_div  (x-c)./d           → fusedShiftScaleDiv(x, c, d)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -216,6 +218,70 @@ bool execAxpby(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// ---- shift-scale:  (x - c) .* s  /  (x - c) ./ d ------------------------
+
+// node iff it is `leaf - leaf` (a pure subtract), else null.
+const ASTNode *asPureSub(const ASTNode *node) {
+    if (node->type != NodeType::BINARY_OP || node->children.size() != 2)
+        return nullptr;
+    if (node->strValue != "-") return nullptr;
+    if (!isPureLeaf(node->children[0].get()) ||
+        !isPureLeaf(node->children[1].get()))
+        return nullptr;
+    return node;
+}
+
+// match `(A - B) .* s` / `s .* (A - B)` (`*` accepted: scalar s ≡ `.*`).
+std::optional<std::vector<const ASTNode *>>
+matchShiftScaleMul(const ASTNode *node) {
+    const ASTNode *mul = asBinOp(node, ".*");
+    if (!mul) mul = asBinOp(node, "*");
+    if (!mul) return std::nullopt;
+    const ASTNode *sub = asPureSub(mul->children[0].get());
+    const ASTNode *s = mul->children[1].get();
+    if (!sub) { sub = asPureSub(mul->children[1].get()); s = mul->children[0].get(); }
+    if (!sub || !isPureLeaf(s)) return std::nullopt;
+    return std::vector<const ASTNode *>{sub->children[0].get(),
+                                        sub->children[1].get(), s};
+}
+
+// match `(A - B) ./ d` / `(A - B) / d` (division does NOT commute → d is the
+// right operand only). A non-scalar d makes `/` an mrdivide; the execute guard
+// declines it, so accepting `/` here is safe.
+std::optional<std::vector<const ASTNode *>>
+matchShiftScaleDiv(const ASTNode *node) {
+    const ASTNode *div = asBinOp(node, "./");
+    if (!div) div = asBinOp(node, "/");
+    if (!div) return std::nullopt;
+    const ASTNode *sub = asPureSub(div->children[0].get());
+    const ASTNode *d = div->children[1].get();
+    if (!sub || !isPureLeaf(d)) return std::nullopt;
+    return std::vector<const ASTNode *>{sub->children[0].get(),
+                                        sub->children[1].get(), d};
+}
+
+// operands = [A, B, s]; expr = (A - B) ⊗ s, ⊗ = `*` (isDiv=false) or `/`. The
+// subtract must be array-minus-scalar — A the real-double array, B a real
+// scalar; `c - x` (A scalar) declines on size and falls back. s/d real scalar.
+bool execShiftScale(const Value *ops, std::size_t n, Value &out,
+                    std::pmr::memory_resource *mr, bool isDiv) {
+    if (n != 3) return false;
+    const Value &A = ops[0], &B = ops[1], &s = ops[2];
+    if (A.type() != ValueType::DOUBLE || A.isComplex()) return false;
+    const std::size_t N = A.numel();
+    if (N < kFusionMinElems) return false;
+    if (!isRealDoubleScalar(B) || !isRealDoubleScalar(s)) return false;
+
+    out = ops::createLike(A, ValueType::DOUBLE, mr);
+    if (isDiv)
+        ops::fusedShiftScaleDiv(A.doubleData(), B.toScalar(), s.toScalar(),
+                                out.doubleDataMut(), N);
+    else
+        ops::fusedShiftScaleMul(A.doubleData(), B.toScalar(), s.toScalar(),
+                                out.doubleDataMut(), N);
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -260,6 +326,24 @@ void registerFusionRules(Engine &engine) {
         return execAxpby(ops, n, out, mr, -1.0);
     };
     engine.addFusionRule(std::move(axpbySub));
+
+    FusionRule shiftScaleMul;
+    shiftScaleMul.name  = "shift_scale_mul";
+    shiftScaleMul.match = matchShiftScaleMul;
+    shiftScaleMul.execute = [](const Value *ops, std::size_t n, Value &out,
+                               std::pmr::memory_resource *mr) {
+        return execShiftScale(ops, n, out, mr, /*isDiv=*/false);
+    };
+    engine.addFusionRule(std::move(shiftScaleMul));
+
+    FusionRule shiftScaleDiv;
+    shiftScaleDiv.name  = "shift_scale_div";
+    shiftScaleDiv.match = matchShiftScaleDiv;
+    shiftScaleDiv.execute = [](const Value *ops, std::size_t n, Value &out,
+                               std::pmr::memory_resource *mr) {
+        return execShiftScale(ops, n, out, mr, /*isDiv=*/true);
+    };
+    engine.addFusionRule(std::move(shiftScaleDiv));
 }
 
 } // namespace numkit
