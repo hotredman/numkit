@@ -32,5 +32,5 @@ indexed by `bi2de(syndrome)+1`. Small-medium (the search is exponential in
 vs MATLAB.
 
 ## References
-- new file under `toolboxes/comm/src/...`; reuse `gen2par`/`bi2de`
+- new file under `src/toolboxes/comm/src/...`; reuse `gen2par`/`bi2de`
 - MATLAB `doc syndtable`

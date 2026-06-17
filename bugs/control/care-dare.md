@@ -38,6 +38,6 @@ Medium. These let `lqr`/`dlqr` become thin wrappers. Verify `X` (symmetric,
 stabilising) vs MATLAB.
 
 ## References
-- new file under `toolboxes/control/src/...`; cf. control/lqr-hinfnorm.md
+- new file under `src/toolboxes/control/src/...`; cf. control/lqr-hinfnorm.md
 - shipped: `lyap`/`dlyap`/`place`/`ss`; eigen/Schur in core linalg
 - MATLAB `doc care`, `doc dare`

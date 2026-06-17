@@ -34,7 +34,7 @@ The `r` values are all correct (1-output form works).
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 28),
-  `toolboxes/stats/src/descriptive/descriptive_extras.cpp` (`corr_reg`).
+  `src/toolboxes/stats/src/descriptive/descriptive_extras.cpp` (`corr_reg`).
 - `corr_reg` is now `nargout`-aware. For `nargout >= 2` it builds a p-value
   matrix the same shape as `r` (element-wise from `(r_ij, n, type)`), and for
   the auto-correlation form `corr(X)` the diagonal is forced to 1 (matching
@@ -57,12 +57,12 @@ The `r` values are all correct (1-output form works).
   AS 89 algorithm; numkit uses the Student-t approximation. The two agree to
   ~3 digits but are not identical, so only the small-n EXACT Spearman case is
   validated in parity. Ties in Kendall fall back to the normal approximation.
-- Live guard: `toolboxes/stats/tests/corr_pvalue_test.cpp` (5 TEST_F) + flipped
+- Live guard: `src/toolboxes/stats/tests/corr_pvalue_test.cpp` (5 TEST_F) + flipped
   `StatsKnownBug.CorrPValue` live. Parity: `tools/parity/specs/corr.json`
   extended with 7 p-value fingerprints (correctness=OK). Smoke:
-  `toolboxes/stats/tests/smoke/corr_pvalue_smoke.m`.
+  `src/toolboxes/stats/tests/smoke/corr_pvalue_smoke.m`.
 
 ## References
-- `toolboxes/stats/src/descriptive/descriptive_extras.cpp` (`corr_reg`)
+- `src/toolboxes/stats/src/descriptive/descriptive_extras.cpp` (`corr_reg`)
 - shipped: `tcdf`, `tiedrank`
 - MATLAB `doc corr`

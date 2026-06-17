@@ -8,7 +8,7 @@
 
 ## Fixed
 - Fixed: 2026-06-05 (bug-fix loop, cycle 61),
-  `toolboxes/signal/src/convolution/convolution.cpp`. `conv` now promotes
+  `src/toolboxes/signal/src/convolution/convolution.cpp`. `conv` now promotes
   integer/logical operands to double up front (`convPromoteToDouble` via
   `elemAsDouble`) before the real fast-path's `doubleData()` accessors. The
   complex path already used `elemAsDouble`, so it was unaffected. The result
@@ -20,10 +20,10 @@
   `conv(int16([100 200]),int16([2 2]))`=[200 600 400];
   `conv(logical([1 0 1]),[1 1])`=double [1 1 1 1]; `conv([1 2 3],[4 5 6])`=
   double [4 13 28 27 18] (unchanged).
-- Live guard: `toolboxes/signal/tests/conv_integer_input_test.cpp` (6 TEST_F) +
+- Live guard: `src/toolboxes/signal/tests/conv_integer_input_test.cpp` (6 TEST_F) +
   `SignalKnownBug.ConvIntegerInput` (flipped live). Parity:
   `tools/parity/specs/conv_integer_input.json` (correctness=OK). Smoke:
-  `toolboxes/signal/tests/smoke/conv_integer_input_smoke.m`.
+  `src/toolboxes/signal/tests/smoke/conv_integer_input_smoke.m`.
 
 ## Symptom
 `conv` threw "Not a double array" whenever either operand was an integer or
@@ -42,7 +42,7 @@ conv(logical([1 0 1]), [1 1])      % numkit: ERROR
 ```
 
 ## Root cause
-`toolboxes/signal/src/convolution/convolution.cpp` `conv` (real path) read its
+`src/toolboxes/signal/src/convolution/convolution.cpp` `conv` (real path) read its
 operands via `a.doubleData()` / `b.doubleData()`, which throw on any
 non-`DOUBLE` storage. No integer/logical promotion existed (only the complex
 path used the class-agnostic `elemAsDouble`).
@@ -57,9 +57,9 @@ numkit is lenient (returns double) where MATLAB errors ("A and B must be
 single or double").
 
 ## Guard
-`toolboxes/signal/tests/known_bugs_test.cpp` → `SignalKnownBug.ConvIntegerInput`
+`src/toolboxes/signal/tests/known_bugs_test.cpp` → `SignalKnownBug.ConvIntegerInput`
 (live) plus the dedicated `conv_integer_input_test.cpp`.
 
 ## References
-- `toolboxes/signal/src/convolution/convolution.cpp` (`conv`, `convPromoteToDouble`)
+- `src/toolboxes/signal/src/convolution/convolution.cpp` (`conv`, `convPromoteToDouble`)
 - MATLAB `doc conv` (integer inputs promoted to double)

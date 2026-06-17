@@ -29,5 +29,5 @@ window). Thread `pxxc` as the 3rd output. Same machinery would close the
 pwelch/cpsd CI gap (deferred-gap R). Moderate.
 
 ## References
-- `toolboxes/signal/src/.../periodogram*`
+- `src/toolboxes/signal/src/.../periodogram*`
 - MATLAB `doc periodogram` (ConfidenceLevel / pxxc)

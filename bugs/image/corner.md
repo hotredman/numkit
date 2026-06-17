@@ -31,5 +31,5 @@ keep peaks above `QualityLevel·max`, sort by strength, return up to `N`
 the corner count + coordinates on a synthetic square vs MATLAB.
 
 ## References
-- new file under `toolboxes/image/src/...`; reuse the shipped `cornermetric`
+- new file under `src/toolboxes/image/src/...`; reuse the shipped `cornermetric`
 - MATLAB `doc corner`

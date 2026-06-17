@@ -31,6 +31,6 @@ cancellation pass.
   num/den (or state count) vs MATLAB.
 
 ## References
-- new file under `toolboxes/control/src/...`
+- new file under `src/toolboxes/control/src/...`
 - shipped: `tf`/`ss`/`tfdata`/`ctrb`/`obsv`/`roots`/`poly`
 - MATLAB `doc minreal`

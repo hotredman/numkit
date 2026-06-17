@@ -38,5 +38,5 @@ layout (the 2-D analogue of the shipped 1-D `detcoef`/`appcoef`).
 Verify `c(1)`, sub-band sizes, and a couple of detail values vs MATLAB.
 
 ## References
-- new file(s) under `toolboxes/wavelet/src/...`; reuse `dwt2`/`idwt2` + 1-D layout
+- new file(s) under `src/toolboxes/wavelet/src/...`; reuse `dwt2`/`idwt2` + 1-D layout
 - MATLAB `doc wavedec2`, `doc detcoef2`, `doc appcoef2`

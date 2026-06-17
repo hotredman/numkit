@@ -34,6 +34,6 @@ known multirate gap (shared with `decimate` / `interp`). Validate the full
 output vector + length vs MATLAB.
 
 ## References
-- `toolboxes/signal/src/.../resample*`, `upfirdn`
+- `src/toolboxes/signal/src/.../resample*`, `upfirdn`
 - shipped: `upfirdn`, `fir1`, `kaiser`, `upsample`, `downsample`
 - MATLAB `doc resample`

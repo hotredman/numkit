@@ -74,6 +74,6 @@ project's "behaviour fixes are collaborative" rule.
 ## Live guard
 
 `StatsKnownBug.DISABLED_JackknifeMean` in
-`toolboxes/stats/tests/known_bugs_test.cpp` asserts the leave-one-out means
+`src/toolboxes/stats/tests/known_bugs_test.cpp` asserts the leave-one-out means
 `[3.5; 3.25; 3; 2.75; 2.5]` (mathematically exact for `@mean`). Remove the
 `DISABLED_` prefix when the fix lands.

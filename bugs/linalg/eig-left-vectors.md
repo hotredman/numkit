@@ -20,7 +20,7 @@
 ```
 
 ## Root cause
-The `eig` adapter (`toolboxes/linalg/src/eig.cpp`) emits only `outs[0..1]`.
+The `eig` adapter (`src/toolboxes/linalg/src/eig.cpp`) emits only `outs[0..1]`.
 
 ## Suggested fix
 Left eigenvectors are the right eigenvectors of `A'` (conjugated). Compute
@@ -31,7 +31,7 @@ moderate, not trivial. For symmetric A, `W == V`. Validate `W'*A = D*W'`
 and the per-column normalization vs MATLAB.
 
 ## Fixed
-- Fixed: 2026-06-05 (bug-fix loop, cycle 26), `toolboxes/linalg/src/eig.cpp`
+- Fixed: 2026-06-05 (bug-fix loop, cycle 26), `src/toolboxes/linalg/src/eig.cpp`
   (`leftEigenvectors`).
 - New helper: `eig(Mᵀ)` → reorder its columns so each matches D's k-th
   eigenvalue (nearest-value greedy match) → normalize each to unit 2-norm. The
@@ -48,11 +48,11 @@ and the per-column normalization vs MATLAB.
   numkit's own convention. Both are *pre-existing* (`[V,D]` already differs).
   `W` is consistent with numkit's own `D` (the relation holds), so validation
   is sign/order-agnostic — same playbook as bugs/linalg/qr-pivoting.md.
-- Live guard: `toolboxes/linalg/tests/eig_left_vectors_test.cpp` (6 TEST_F) + flipped
+- Live guard: `src/toolboxes/linalg/tests/eig_left_vectors_test.cpp` (6 TEST_F) + flipped
   `LinalgKnownBug.EigLeftVectors` live. Parity: `tools/parity/specs/eig.json`
   extended (correctness=OK). Smoke:
-  `toolboxes/linalg/tests/smoke/eig_left_vectors_smoke.m`.
+  `src/toolboxes/linalg/tests/smoke/eig_left_vectors_smoke.m`.
 
 ## References
-- `toolboxes/linalg/src/eig.cpp` (eig_reg, leftEigenvectors)
+- `src/toolboxes/linalg/src/eig.cpp` (eig_reg, leftEigenvectors)
 - MATLAB `doc eig`

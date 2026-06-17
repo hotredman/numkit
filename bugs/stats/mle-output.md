@@ -29,7 +29,7 @@ keep it script-only — at minimum make `mle_reg` nargout-aware and emit pci
 for the built-in distributions. Verify per-distribution CIs vs MATLAB.
 
 ## Fixed
-- Fixed: 2026-06-05 (bug-fix loop, cycle 27), `toolboxes/stats/src/fit/fit.cpp`
+- Fixed: 2026-06-05 (bug-fix loop, cycle 27), `src/toolboxes/stats/src/fit/fit.cpp`
   (`mle_reg`).
 - `mle_reg` is now nargout-aware and parses an `'Alpha'` option (default 0.05).
   For `nargout >= 2` it emits `pci` — a 2×k matrix (row 1 = lower bounds, row 2
@@ -43,12 +43,12 @@ for the built-in distributions. Verify per-distribution CIs vs MATLAB.
   `'Alpha', 0.01` widening (`pci(1,1)=1.972167`). `phat` and the 1-output form
   are unchanged.
 - Custom `'pdf'/'logpdf'/'nloglf'` fitting (and its CI) stays deferred.
-- Live guard: `toolboxes/stats/tests/mle_pci_test.cpp` (6 TEST_F) + flipped
+- Live guard: `src/toolboxes/stats/tests/mle_pci_test.cpp` (6 TEST_F) + flipped
   `StatsKnownBug.MleConfidenceIntervals` live. Parity:
   `tools/parity/specs/mle.json` extended (correctness=OK). Smoke:
-  `toolboxes/stats/tests/smoke/mle_pci_smoke.m`.
+  `src/toolboxes/stats/tests/smoke/mle_pci_smoke.m`.
 
 ## References
-- `toolboxes/stats/src/fit/fit.cpp` (mle_reg)
+- `src/toolboxes/stats/src/fit/fit.cpp` (mle_reg)
 - MATLAB `doc mle`
 - related: `normfit`/`expfit`/`poissfit` already return CIs
