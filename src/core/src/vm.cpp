@@ -717,6 +717,7 @@ enter_frame:
                         engine_.fusionRules()[static_cast<size_t>(I.d)];
                     Value fout;
                     if (rule.execute(&R[I.b], I.c, fout, engine_.mr_)) {
+                        engine_.noteFusionHit();
                         R[I.a] = std::move(fout);
                         ip += static_cast<int>(I.e) + 1;
                         continue;

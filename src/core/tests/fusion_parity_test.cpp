@@ -805,7 +805,9 @@ TEST_P(FusionParityTest, ComplexRoundLikeExpm1) {
     EXPECT_TRUE(sameOnOff(e, "ceil(ca .* z)"));
     EXPECT_TRUE(sameOnOff(e, "fix(a .* z - b)"));
     EXPECT_TRUE(sameOnOff(e, "round(a .* z + b)"));      // half-away, component-wise
-    EXPECT_TRUE(sameOnOff(e, "floor(z ./ d)"));          // div-inner
+    EXPECT_TRUE(sameOnOff(e, "floor(z ./ d)"));          // div-inner (all 4 fns)
+    EXPECT_TRUE(sameOnOff(e, "fix(z ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "ceil((z - ca) ./ d)"));
     EXPECT_TRUE(sameOnOff(e, "round((z - ca) ./ d)"));
     EXPECT_TRUE(sameOnOff(e, "expm1(a .* z + b)"));       // exp(z)-1
     EXPECT_TRUE(sameOnOff(e, "expm1(ca .* z)"));
@@ -813,6 +815,30 @@ TEST_P(FusionParityTest, ComplexRoundLikeExpm1) {
     // component-wise rounding keeps the imaginary part → result stays complex
     EXPECT_TRUE(e.eval("~isreal(floor(a .* z + b))").toBool());
     EXPECT_TRUE(e.eval("~isreal(expm1(a .* z + b))").toBool());
+}
+
+// Firing guard. sameOnOff() above proves correctness but NOT that the fused
+// kernel actually ran — a silent decline gives the same fused==unfused result.
+// The Engine fusion-hit counter (noteFusionHit, both backends) proves these
+// complex idioms genuinely fuse rather than fall through to per-op.
+TEST_P(FusionParityTest, ComplexFusionFires) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + "
+           "1i*reshape(linspace(2,-5,6000),2000,3); a = 1.5; b = 0.5; ca = 1+1i; d = 2.5;");
+    auto fires = [&](const char *expr) {
+        e.resetFusionHits();
+        e.eval(std::string("nkfire = ") + expr + ";");
+        return e.fusionHits() > 0;
+    };
+    EXPECT_TRUE(fires("floor(a .* z + b)"));   // fusedRoundLikeAffineCx
+    EXPECT_TRUE(fires("round(a .* z + b)"));
+    EXPECT_TRUE(fires("fix(z ./ d)"));          // fusedRoundLikeShiftDivCx
+    EXPECT_TRUE(fires("expm1(a .* z + b)"));    // transCxApply Expm1 (affine)
+    EXPECT_TRUE(fires("expm1(z ./ d)"));        // ... and div-inner
+    EXPECT_TRUE(fires("sqrt(ca .* z)"));        // pre-existing complex sqrt (regression)
+    // Sanity: binary max(z,1) is per-op (not a fusion idiom) → no fusion hit.
+    e.resetFusionHits();
+    e.eval("nkmm = max(z, 1);");
+    EXPECT_EQ(e.fusionHits(), 0u);
 }
 
 // Complex shift/neg inner kinds: f(z±c), f(c-z), f(-z), (z+c).^2, abs(-z) — the

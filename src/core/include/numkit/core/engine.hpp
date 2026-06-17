@@ -330,6 +330,12 @@ public:
     const std::vector<FusionRule> &fusionRules() const { return fusionRules_; }
     void setFusion(bool on) { fusionEnabled_ = on; }
     bool fusionEnabled() const { return fusionEnabled_ && !fusionRules_.empty(); }
+    // Fusion-fire telemetry: both backends call noteFusionHit() each time a rule's
+    // execute() returns true. Lets tests PROVE a kernel actually fires (a parity
+    // test alone can't — a silent decline gives the same fused==unfused result).
+    void noteFusionHit() { ++fusionHits_; }
+    size_t fusionHits() const { return fusionHits_; }
+    void resetFusionHits() { fusionHits_ = 0; }
 
     using OutputFunc = std::function<void(const std::string &)>;
     void setOutputFunc(OutputFunc f);
@@ -754,6 +760,7 @@ private:
     // until the standard library installs rules, so a bare Engine is unaffected.
     std::vector<FusionRule> fusionRules_;
     bool fusionEnabled_ = true;
+    size_t fusionHits_ = 0;  // count of rule.execute()==true (fire telemetry)
 
     // Sync VM's exported variables to workspaceEnv (called after execute, even on error)
     void syncVMToWorkspace();
