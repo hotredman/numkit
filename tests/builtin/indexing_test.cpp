@@ -1207,7 +1207,7 @@ TEST_P(IndexingOpsTest, CharAssignFromInt)
 
 TEST_P(IndexingOpsTest, ComplexAssignFromIntPromotesImagZero)
 {
-    eval("c = [0 0 0] + 0i;");
+    eval("c = [1+1i 2+2i 3+3i];");   // genuinely complex (a +0i array narrows to real)
     eval("c(2) = int32(7);");
     auto *c = getVarPtr("c");
     ASSERT_NE(c, nullptr);

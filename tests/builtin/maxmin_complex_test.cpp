@@ -96,10 +96,10 @@ TEST_P(MaxMinComplexTest, ClampComposition) {
 // ("integers combine only with same-class integers or scalar doubles"); numkit
 // can't promote an integer to complex. (b) a real array vs a GENUINELY complex
 // scalar compares by |z| (MATLAB R2025b). (c) complex(x,0) (FORCED complex) vs a
-// real scalar also uses |z| (max(complex(-3),2) = -3). NOTE the `2+0i` literal
-// spelling diverges (numkit keeps it complex; MATLAB narrows it to real) — that
-// is an upstream complex-narrowing gap (bugs/math/complex-zero-imag-narrowing.md),
-// NOT a max/min defect: the comparator is correct for numkit's complex model.
+// real scalar also uses |z| (max(complex(-3),2) = -3; the all-real result then
+// narrows back to real, so re() of each element is what matters). The `2+0i`
+// literal case is no longer divergent — arithmetic now narrows it to real (see
+// ComplexMathTest.NarrowsArithmeticAllReal), so max([1 -3 2],2+0i) == [2 2 2].
 TEST_P(MaxMinComplexTest, MixedTypeEdges) {
     EXPECT_ANY_THROW(e.eval("q = max(complex(0.5,0), int8(1));"));        // (a)
     e.eval("g = max([1 -3 2], 2+1i);");                                   // (b) genuine

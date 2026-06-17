@@ -1063,7 +1063,7 @@ TEST_P(HeapSafety3DExtendedTest, Ifftshift3DDoubleShapePreserved)
 
 TEST_P(HeapSafety3DExtendedTest, Ifftshift3DComplexShapePreserved)
 {
-    eval("X = ones(2, 2, 2) + 0i; Y = ifftshift(X);");
+    eval("X = ones(2, 2, 2) + 1i; Y = ifftshift(X);");  // genuinely complex (+0i now narrows to real)
     auto *Y = getVarPtr("Y");
     ASSERT_NE(Y, nullptr);
     EXPECT_TRUE(Y->isComplex());
