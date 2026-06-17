@@ -856,13 +856,13 @@ TEST_P(MatmulEmptyTest, ComplexInnerZeroProducesZeros)
     eval("A = complex(zeros(2, 0)); B = complex(zeros(0, 3)); C = A * B;");
     auto *C = getVarPtr("C");
     ASSERT_NE(C, nullptr);
-    EXPECT_TRUE(C->isComplex());
+    // The all-zero product narrows to real (MATLAB: isreal(complex*complex)==1
+    // when the result has no nonzero imaginary part — verified R2025b).
+    EXPECT_FALSE(C->isComplex());
     EXPECT_EQ(C->dims().rows(), 2u);
     EXPECT_EQ(C->dims().cols(), 3u);
-    for (size_t i = 0; i < 6; ++i) {
-        EXPECT_DOUBLE_EQ(C->complexData()[i].real(), 0.0);
-        EXPECT_DOUBLE_EQ(C->complexData()[i].imag(), 0.0);
-    }
+    for (size_t i = 0; i < 6; ++i)
+        EXPECT_DOUBLE_EQ(C->doubleData()[i], 0.0);
 }
 
 TEST_P(MatmulEmptyTest, ScalarTimesEmptyStillElementwise)

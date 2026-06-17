@@ -30,20 +30,27 @@ So `2+0i`, `(1+1i)+(1-1i)`, `complex(1,1).*complex(1,-1)`, and the headline
 arithmetic narrows at the source and propagates as real, so downstream structural
 ops then see real input. Guard: `ComplexMathTest.NarrowsArithmeticAllReal`.
 
+Also narrowed (2026-06-17, same effort): unary `-`/`+`/`conj` (`unaryComplex`),
+matrix multiply (`*`), and EVERY fused-expression result (the FusionRule execute
+is wrapped via `addNarrowing`, keeping fused==per-op). So all "computed-value"
+ops narrow.
+
 ## Remaining (residual, niche, deferred)
-A value forced complex via `complex()` and then passed through a PURE structural
-or in-place op whose result is all-real still stays complex in numkit (MATLAB
-narrows). These are separate chokepoints and rare in practice (they need a
-forced-`complex()` source, since any arithmetic source already narrowed):
+Only a value FORCED complex via `complex()` and then passed through a *pure
+structural* op that yields an all-real result still stays complex. MATLAB's own
+behaviour here is inconsistent (probed R2025b) — some narrow, some preserve:
 
-- `ifftshift`/`fftshift`/`circshift`/transpose and other element-reordering ops
-- indexing (`w(2)`), indexed assignment (`c(2)=7`), concatenation `[z, z]`
-- matrix multiply (`*`) building the result manually (not via elementwiseComplex)
-- unary `-`/`conj` on a forced-complex value
-- the bare `0i` literal (`isreal(0i)`: MATLAB 1, numkit 0)
+- **NARROW (TODO):** indexing (`w(2)`/`w(:)`), indexed assignment (`c(2)=7`),
+  `fliplr`/`flip`/`circshift`/`repmat`, `sum`/`prod`.
+- **PRESERVE — already correct (numkit matches MATLAB):** `reshape`,
+  `transpose`/`ctranspose` (`.'`/`'`), concatenation `[z z]`/`cat`, `sort`.
 
-To finish: apply `narrowComplex` at each of those op outputs. Each is additive
-and low-risk (the helper already exists); deferred as low value.
+Indexing + indexed-assign live in the **value layer**, which cannot depend on
+`ops::narrowComplex` (value < ops) — finishing them cleanly means moving
+`narrowComplex` into the value layer first; `fliplr`/etc. (lang) and `sum`/`prod`
+(math) could call it as-is. All niche: they need a forced-`complex()` source,
+since any arithmetic source already narrowed. The bare `0i` literal also stays
+complex (`isreal(0i)`: MATLAB 1, numkit 0).
 
 ## References
 - `src/ops/include/numkit/ops/helpers.hpp` (`narrowComplex`, `elementwiseComplex`)

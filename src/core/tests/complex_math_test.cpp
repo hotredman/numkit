@@ -87,6 +87,10 @@ TEST_P(ComplexMathTest, NarrowsArithmeticAllReal) {
     e.eval("m = max([1 -3 2], 2+0i);");
     EXPECT_TRUE(e.eval("isreal(m)").toBool());
     EXPECT_EQ(re("m(1)"), 2.0); EXPECT_EQ(re("m(2)"), 2.0); EXPECT_EQ(re("m(3)"), 2.0);
+    // unary (uminus/conj) and matmul of a FORCED-complex all-real value also narrow
+    EXPECT_TRUE(e.eval("isreal(-(complex(2,0)))").toBool());            // uminus
+    EXPECT_TRUE(e.eval("isreal(conj(complex(2,0)))").toBool());         // conj
+    EXPECT_TRUE(e.eval("isreal(complex([1 2;3 4]) * complex([1 0;0 1]))").toBool()); // matmul
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, ComplexMathTest,
