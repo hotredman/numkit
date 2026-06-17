@@ -863,6 +863,37 @@ TEST_P(FusionParityTest, ComplexAbsSoftNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "sign(z) .* max(0, abs(z) - t)"));
 }
 
+// ---- complex: array-scalar diff, sqrt-sumsq, sq-div, reversed div ----------
+TEST_P(FusionParityTest, ComplexDiffSumSqDiv) {
+    e.eval("z = reshape(linspace(-3,4,6000),2000,3) + "
+           "1i*reshape(linspace(2,-5,6000),2000,3); "
+           "w = reshape(linspace(1,-1,6000),2000,3) + "
+           "1i*reshape(linspace(-2,2,6000),2000,3); cc = 1+1i; d = 2.5;");
+    EXPECT_TRUE(sameOnOff(e, "(z - cc) .^ 2"));         // array-scalar sq-diff
+    EXPECT_TRUE(sameOnOff(e, "(cc - z) .^ 2"));          // reversed (pow order matters)
+    EXPECT_TRUE(sameOnOff(e, "abs(z - cc)"));             // array-scalar abs-diff
+    EXPECT_TRUE(sameOnOff(e, "abs(cc - z)"));             // == |z-cc|
+    EXPECT_TRUE(sameOnOff(e, "sqrt(z .^ 2 + w .^ 2)"));   // complex sqrt-sumsq
+    EXPECT_TRUE(sameOnOff(e, "((z - cc) ./ d) .^ 2"));    // complex sq-div
+    EXPECT_TRUE(sameOnOff(e, "exp((cc - z) ./ d)"));      // reversed div (c-z)/d
+    EXPECT_TRUE(sameOnOff(e, "sqrt((cc - z) ./ d)"));
+    EXPECT_TRUE(sameOnOff(e, "abs((cc - z) ./ d)"));
+}
+
+// NaN/Inf for the diff/sumsq/div completion (incl. the reversed-div fold under
+// a non-finite z — confirms (c-z)/d == (z-c)/(-d) bit-exact through std::complex
+// division, and the diff/pow on Inf components).
+TEST_P(FusionParityTest, ComplexDiffSumSqNaNInf) {
+    e.eval("re = [linspace(-2,2,5998)'; Inf; -3]; im = [linspace(1,-1,5998)'; 2; Inf]; "
+           "z = complex(re, im); "
+           "re2 = [linspace(1,-1,5998)'; 1; 2]; im2 = [linspace(-1,1,5998)'; 3; -1]; "
+           "w = complex(re2, im2); cc = 1+1i; d = 2;");
+    EXPECT_TRUE(sameOnOff(e, "(z - cc) .^ 2"));
+    EXPECT_TRUE(sameOnOff(e, "abs(z - cc)"));
+    EXPECT_TRUE(sameOnOff(e, "sqrt(z .^ 2 + w .^ 2)"));
+    EXPECT_TRUE(sameOnOff(e, "exp((cc - z) ./ d)"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));

@@ -64,6 +64,26 @@ void fusedSqDiffCx(const Cx *x, const Cx *y, Cx *out, std::size_t n) {
         out[i] = std::pow(x[i] - y[i], two);
 }
 
+// (z-c).^2 / (c-z).^2 — `rev` picks the subtract order. pow(-w,2) != pow(w,2)
+// for complex (branch), so order is preserved (not folded like a real square).
+void fusedSqDiffScalarCx(const Cx *z, Cx c, bool rev, Cx *out, std::size_t n) {
+    const Cx two(2.0, 0.0);
+    for (std::size_t i = 0; i < n; ++i)
+        out[i] = std::pow(rev ? c - z[i] : z[i] - c, two);
+}
+
+void fusedSqrtSumSqCx(const Cx *x, const Cx *y, Cx *out, std::size_t n) {
+    const Cx two(2.0, 0.0);
+    for (std::size_t i = 0; i < n; ++i)
+        out[i] = std::sqrt(std::pow(x[i], two) + std::pow(y[i], two));
+}
+
+void fusedSqShiftDivCx(const Cx *x, Cx sub, Cx div, Cx *out, std::size_t n) {
+    const Cx two(2.0, 0.0);
+    for (std::size_t i = 0; i < n; ++i)
+        out[i] = std::pow((x[i] - sub) / div, two);
+}
+
 void fusedSqrtAffineCx(const Cx *x, Cx scale, Cx offset, bool affine,
                        Cx *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i)
@@ -128,6 +148,11 @@ void fusedAbsShiftDivCx(const Cx *x, Cx sub, Cx div, double *out, std::size_t n)
 
 void fusedAbsDiffCx(const Cx *x, const Cx *y, double *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i) out[i] = std::abs(x[i] - y[i]);
+}
+
+// |z - c| (= |c - z|, since |w| == |-w|) → real magnitude.
+void fusedAbsDiffScalarCx(const Cx *z, Cx c, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::abs(z[i] - c);
 }
 
 // complex soft-threshold: sign(z) .* max(0, |z| - t). sign(z) = z/|z| (0 at

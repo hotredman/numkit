@@ -607,12 +607,23 @@ bool execAbsDiff(const Value *ops, std::size_t n, Value &out,
                             out.doubleDataMut(), B.numel());
         return true;
     }
-    // complex |z - w| for two complex arrays → real magnitude (array-scalar
-    // complex declines: |z-c| can't reuse a scale*x kernel w/o a spurious mul-by-1).
+    // complex |z - w| (two arrays) and array-scalar |z - c| == |c - z| → real
+    // magnitude (genuine subtract then std::abs).
     if (isFusibleComplexArray(A) && isFusibleComplexArray(B) && A.dims() == B.dims()) {
         out = ops::createLike(A, ValueType::DOUBLE, mr);
         ops::fusedAbsDiffCx(A.complexData(), B.complexData(), out.doubleDataMut(),
                             A.numel());
+        return true;
+    }
+    Complex csc;
+    if (isFusibleComplexArray(A) && asComplexScalar(B, csc)) {   // |z - c|
+        out = ops::createLike(A, ValueType::DOUBLE, mr);
+        ops::fusedAbsDiffScalarCx(A.complexData(), csc, out.doubleDataMut(), A.numel());
+        return true;
+    }
+    if (isFusibleComplexArray(B) && asComplexScalar(A, csc)) {   // |c - z| == |z - c|
+        out = ops::createLike(B, ValueType::DOUBLE, mr);
+        ops::fusedAbsDiffScalarCx(B.complexData(), csc, out.doubleDataMut(), B.numel());
         return true;
     }
     return false;
@@ -807,18 +818,20 @@ bool bindDivInner(const Value *ops, std::size_t n, double &sub, double &div,
     return false;
 }
 
-// Complex counterpart of bindDivInner. Only the array-on-the-left forms (z./d,
-// (z-c)./d) are taken; the reversed (c-z)./d is declined for complex (it would
-// rely on complex-division negation symmetry — per-op handles it). The subtract
-// and divide are genuine (no spurious mul-by-1), so they mirror per-op exactly.
+// Complex counterpart of bindDivInner. (z-c)./d → (sub=c, div=d); the reversed
+// (c-z)./d → (z-c)./(-d) (sub=c, div=-d), mirroring the real bindDivInner fold.
+// The subtract and divide are genuine (no spurious mul-by-1).
 bool bindDivInnerCx(const Value *ops, std::size_t n, Complex &sub, Complex &div,
                     const Value *&x) {
     if (n == 3) {
         const Value &A = ops[0], &B = ops[1], &d = ops[2];
-        Complex cb, cd;
-        if (isFusibleComplexArray(A) && asComplexScalar(B, cb) &&
-            asComplexScalar(d, cd)) {
-            x = &A; sub = cb; div = cd; return true;
+        Complex cs, cd;
+        if (!asComplexScalar(d, cd)) return false;
+        if (isFusibleComplexArray(A) && asComplexScalar(B, cs)) {  // (z-c)/d
+            x = &A; sub = cs; div = cd; return true;
+        }
+        if (isFusibleComplexArray(B) && asComplexScalar(A, cs)) {  // (c-z)/d → (z-c)/(-d)
+            x = &B; sub = cs; div = -cd; return true;
         }
         return false;
     }
@@ -1048,12 +1061,25 @@ bool execSqDiff(const Value *ops, std::size_t n, Value &out,
                            out.doubleDataMut(), B.numel());
         return true;
     }
-    // complex (z - w).^2 for two complex arrays (array-scalar declines → per-op:
-    // (z-c).^2 can't reuse a scale*x kernel without a spurious mul-by-1).
+    // complex (z - w).^2 (two arrays) and array-scalar (z-c).^2 / (c-z).^2 — the
+    // dedicated complex diff kernels do a genuine subtract then std::pow(·,2).
     if (isFusibleComplexArray(A) && isFusibleComplexArray(B) && A.dims() == B.dims()) {
         out = ops::createLike(A, ValueType::COMPLEX, mr);
         ops::fusedSqDiffCx(A.complexData(), B.complexData(), out.complexDataMut(),
                            A.numel());
+        return true;
+    }
+    Complex csc;
+    if (isFusibleComplexArray(A) && asComplexScalar(B, csc)) {   // (z - c).^2
+        out = ops::createLike(A, ValueType::COMPLEX, mr);
+        ops::fusedSqDiffScalarCx(A.complexData(), csc, /*rev=*/false,
+                                 out.complexDataMut(), A.numel());
+        return true;
+    }
+    if (isFusibleComplexArray(B) && asComplexScalar(A, csc)) {   // (c - z).^2
+        out = ops::createLike(B, ValueType::COMPLEX, mr);
+        ops::fusedSqDiffScalarCx(B.complexData(), csc, /*rev=*/true,
+                                 out.complexDataMut(), B.numel());
         return true;
     }
     return false;
@@ -1066,11 +1092,21 @@ bool execSqDivInner(const Value *ops, std::size_t n, Value &out,
                     std::pmr::memory_resource *mr) {
     double sub = 0.0, div = 0.0;
     const Value *x = nullptr;
-    if (!bindDivInner(ops, n, sub, div, x)) return false;
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedSqShiftDiv(x->doubleData(), sub, div, out.doubleDataMut(),
-                         x->numel());
-    return true;
+    if (bindDivInner(ops, n, sub, div, x)) {
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedSqShiftDiv(x->doubleData(), sub, div, out.doubleDataMut(),
+                             x->numel());
+        return true;
+    }
+    Complex csub, cdiv;
+    const Value *cx = nullptr;
+    if (bindDivInnerCx(ops, n, csub, cdiv, cx)) {   // ((z-c)./d).^2 complex
+        out = ops::createLike(*cx, ValueType::COMPLEX, mr);
+        ops::fusedSqShiftDivCx(cx->complexData(), csub, cdiv, out.complexDataMut(),
+                               cx->numel());
+        return true;
+    }
+    return false;
 }
 
 // abs(x./d) / abs((x-c)./d) — abs of a divide-inner (the abs counterpart of
@@ -1106,11 +1142,20 @@ bool execSqrtSumSq(const Value *ops, std::size_t n, Value &out,
         return v.type() == ValueType::DOUBLE && !v.isComplex() &&
                v.numel() >= kFusionMinElems;
     };
-    if (!isArr(x) || !isArr(y) || x.dims() != y.dims()) return false;
-    out = ops::createLike(x, ValueType::DOUBLE, mr);
-    ops::fusedSqrtSumSq(x.doubleData(), y.doubleData(), out.doubleDataMut(),
-                        x.numel());
-    return true;
+    if (isArr(x) && isArr(y) && x.dims() == y.dims()) {
+        out = ops::createLike(x, ValueType::DOUBLE, mr);
+        ops::fusedSqrtSumSq(x.doubleData(), y.doubleData(), out.doubleDataMut(),
+                            x.numel());
+        return true;
+    }
+    // complex sqrt(z.^2 + w.^2) → std::sqrt(pow(z,2)+pow(w,2)) (complex out).
+    if (isFusibleComplexArray(x) && isFusibleComplexArray(y) && x.dims() == y.dims()) {
+        out = ops::createLike(x, ValueType::COMPLEX, mr);
+        ops::fusedSqrtSumSqCx(x.complexData(), y.complexData(),
+                              out.complexDataMut(), x.numel());
+        return true;
+    }
+    return false;
 }
 
 // ---- soft-threshold:  sign(x) .* max(0, abs(x) - t) --------------------
