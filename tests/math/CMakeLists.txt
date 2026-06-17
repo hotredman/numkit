@@ -7,12 +7,8 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/combinatorics_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/complex_promotion_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/complex_promotion_arrays_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/cummax_cummin_integer_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/cumsum_cumprod_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/complex_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cumtrapz_complex_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/cumulative_logical_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/diff_complex_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/diff_order_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fwd_trig_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/geom_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gradient_complex_test.cpp
@@ -32,6 +28,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/minmax_nan_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mod_simd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/permutations_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/poly_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/power_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rat_test.cpp
