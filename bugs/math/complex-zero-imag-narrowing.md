@@ -19,7 +19,7 @@ isreal(complex(2,0))    % MATLAB 0 ; numkit 0 (complex() forced -- agrees)
 zc = complex([1 -3 2]); isreal(zc(2))  % MATLAB 1 ; numkit NOW 1 (indexing)
 isreal(sum(complex([1 2 3])))          % MATLAB 1 ; numkit NOW 1 (reduction)
 isreal(fliplr(complex([1 2 3])))       % MATLAB 1 ; numkit NOW 1 (reorder)
-c = complex([0 0 0]); c(2)=7; isreal(c)% MATLAB 1 ; numkit NOW 1 (indexed-assign)
+c = complex([0 0 0]); c(2)=7; isreal(c)% MATLAB 1 ; numkit 0 (indexed-assign: see note)
 ```
 
 ## Fix (2026-06-17)
@@ -43,15 +43,21 @@ use it. Applied at the points where a complex result is produced:
 - **linear algebra** — `dot`/`kron`/`cross`/`diag` (reg-layer wrap).
 - **element-reorder** — `fliplr`/`flipud`/`flip`/`rot90`/`circshift`/`repmat`/
   `tril`/`triu`/`repelem`/`paddata`/`trimdata`/`resize` (`manip_reg`).
-- **indexed assignment** — `c(i)=…`, `M(i,j)=…`, N-D, and `c(:)=…`: a scope
-  guard narrows the mutated target on every write path (VM `INDEX_SET` /
-  `INDEX_SET_2D` / `INDEX_SET_ND`, TW `execIndexedAssign`). The `isComplex()`
-  gate keeps the hot real-assignment paths free; once an array narrows to real,
-  later writes skip the scan.
 
 Guards: `ComplexMathTest.NarrowsArithmeticAllReal`, `.NarrowsIndexingAllRealSlice`,
 `.NarrowsResidualOps` (all on both backends), incl. over-narrow checks that a
 genuinely complex result of the same ops stays complex.
+
+## Deliberately NOT narrowed — in-place indexed assignment (perf)
+`c(i)=v`, `M(i,j)=v`, N-D and `c(:)=v` do NOT narrow, even though MATLAB returns
+`isreal=1` for e.g. `c=complex([0 0 0]); c(2)=7`. Narrowing an in-place write
+means scanning the imaginary part on every assignment — O(n) per write, hence
+O(n²) in an element-fill loop (measured ~250× slower on a 20k array; there is no
+O(1) exact test without per-array nonzero-imag bookkeeping). An array that
+becomes all-real this way narrows the instant any *operation* consumes it (every
+case above), so the divergence is transient. This is the one MATLAB narrowing
+case intentionally left unmatched. (An eager scope-guard was prototyped, measured
+at ~250×, and reverted.)
 
 ## PRESERVE — already correct (match MATLAB, unchanged)
 `reshape`, `transpose`/`ctranspose`, concatenation `[z z]` / `cat`, `sort`,

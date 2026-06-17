@@ -1088,22 +1088,6 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
 
     size_t nargs = lhs->children.size() - 1;
 
-    // MATLAB narrows an all-zero-imaginary complex array back to real after an
-    // indexed assignment (bugs/math/complex-zero-imag-narrowing.md). The write
-    // mutates *var in place through several exit paths, so a scope guard narrows
-    // on whichever return fires. No-op unless *var is left complex with all-zero
-    // imag — real/char/object slots short-circuit on the isComplex() check, and
-    // once an array narrows to real, later writes skip the scan entirely.
-    struct NarrowGuard {
-        Value *v;
-        std::pmr::memory_resource *mr;
-        ~NarrowGuard()
-        {
-            if (v->isComplex())
-                *v = narrowComplex(std::move(*v), mr);
-        }
-    } narrowGuard{var, engine_.mr_};
-
     // OBJECT: obj(i…) = v dispatches to the class subsasgn overload,
     // which mutates `var` in place (value/handle rule via objectStateMut).
     // args = [subscripts…, value].

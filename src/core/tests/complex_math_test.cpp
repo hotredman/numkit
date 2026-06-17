@@ -132,8 +132,14 @@ TEST_P(ComplexMathTest, NarrowsResidualOps) {
     EXPECT_TRUE(e.eval("isreal(repmat(complex([1 2]), 1, 2))").toBool());
     e.eval("zc = complex([1 2 3]);");
     EXPECT_TRUE(e.eval("isreal(zc(:))").toBool());                        // colon-linearize
+    // In-place indexed assignment c(i)=v deliberately does NOT narrow (MATLAB
+    // returns isreal=1 here). Scanning the imaginary part on every complex
+    // indexed-assign is O(n) per write -> O(n^2) in an element-fill loop
+    // (~250x measured on a 20k array), so the array instead narrows as soon as
+    // any operation consumes it.
     e.eval("ca = complex([0 0 0]); ca(2) = 7;");
-    EXPECT_TRUE(e.eval("isreal(ca)").toBool());                           // indexed-assign
+    EXPECT_FALSE(e.eval("isreal(ca)").toBool());                          // stays complex (perf)
+    EXPECT_TRUE(e.eval("isreal(ca + 0)").toBool());                       // narrows on next op
     // Over-narrow guard: a genuinely complex result of the same ops must STAY
     // complex (narrowing only fires when the imaginary part is entirely zero).
     EXPECT_FALSE(e.eval("isreal(cumsum([1+1i, 2, 3]))").toBool());
