@@ -63,6 +63,7 @@ void buildSurfacePlots(std::vector<PlotEntry> &table);
 void buildLayoutPlots(std::vector<PlotEntry> &table);
 void buildImagePlots(std::vector<PlotEntry> &table);
 void buildLinePlots(std::vector<PlotEntry> &table);
+void buildBarPlots(std::vector<PlotEntry> &table);
 // BUILDER-DECLS — the family split appends new declarations directly above here.
 
 }  // namespace numkit
