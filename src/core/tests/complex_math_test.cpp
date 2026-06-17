@@ -141,6 +141,44 @@ TEST_P(ComplexMathTest, NarrowsResidualOps) {
     EXPECT_FALSE(e.eval("isreal(dot([1i 2], [3 4]))").toBool());
 }
 
+// trace / cummax / cummin gained complex support (previously threw "Not a
+// double array"). Values + ordering verified against MATLAB R2025b.
+TEST_P(ComplexMathTest, TraceCummaxCumminComplex) {
+    e.eval("import compat.*;");
+    // trace = sum of the diagonal; narrows when the imaginary part is all-zero.
+    EXPECT_EQ(re("trace(complex([1 2;3 4]))"), 5.0);
+    EXPECT_TRUE(e.eval("isreal(trace(complex([1 2;3 4])))").toBool());
+    EXPECT_EQ(re("trace([1+1i 2;3 4])"), 5.0);
+    EXPECT_EQ(im("trace([1+1i 2;3 4])"), 1.0);
+    EXPECT_FALSE(e.eval("isreal(trace([1+1i 2;3 4]))").toBool());
+    // cummax/cummin compare by |z| (NO real-part fallback): so
+    // cummax(complex([-1 -3 -2])) is [-1 -3 -3] (differs from the real-input
+    // cummax = [-1 -1 -1]) and the all-real result narrows back to real.
+    e.eval("cm = cummax(complex([-1 -3 -2]));");
+    EXPECT_TRUE(e.eval("isreal(cm)").toBool());
+    EXPECT_EQ(re("cm(1)"), -1.0); EXPECT_EQ(re("cm(2)"), -3.0); EXPECT_EQ(re("cm(3)"), -3.0);
+    e.eval("cn = cummin(complex([-1 -3 -2]));");
+    EXPECT_EQ(re("cn(1)"), -1.0); EXPECT_EQ(re("cn(2)"), -1.0); EXPECT_EQ(re("cn(3)"), -1.0);
+    // genuinely complex running max: [3, 1+4i, 2, 5i] -> [3, 1+4i, 1+4i, 5i].
+    e.eval("g = cummax([3, 1+4i, 2, 5i]);");
+    EXPECT_EQ(re("g(2)"), 1.0); EXPECT_EQ(im("g(2)"), 4.0);
+    EXPECT_EQ(re("g(3)"), 1.0); EXPECT_EQ(im("g(3)"), 4.0);   // |1+4i| > |2|
+    EXPECT_EQ(re("g(4)"), 0.0); EXPECT_EQ(im("g(4)"), 5.0);   // |5i| > |1+4i|
+    // equal-magnitude tie broken by angle(z): cummax([1,1i]) -> [1, 1i].
+    e.eval("t = cummax([1, 1i]);");
+    EXPECT_EQ(re("t(2)"), 0.0); EXPECT_EQ(im("t(2)"), 1.0);
+    EXPECT_TRUE(e.eval("isreal(cummin([1, 1i]))").toBool());  // [1, 1] -> real
+    // NaN component skipped (omitnan default): cummax([2, NaN+1i, 3]) -> [2,2,3].
+    e.eval("h = cummax([2, complex(NaN,1), 3]);");
+    EXPECT_EQ(re("h(2)"), 2.0); EXPECT_EQ(re("h(3)"), 3.0);
+    // 'includenan': the first NaN element wins the running max and propagates
+    // UNCHANGED (MATLAB keeps its imaginary part): -> [2, NaN+1i, NaN+1i].
+    e.eval("hi = cummax([2, complex(NaN,1), 3], 'includenan');");
+    EXPECT_EQ(re("hi(1)"), 2.0);
+    EXPECT_TRUE(e.eval("isnan(real(hi(2)))").toBool());  EXPECT_EQ(im("hi(2)"), 1.0);
+    EXPECT_TRUE(e.eval("isnan(real(hi(3)))").toBool());  EXPECT_EQ(im("hi(3)"), 1.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ComplexMathTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));

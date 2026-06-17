@@ -8,11 +8,12 @@
 ## Symptom
 Essentially the entire linear-algebra suite rejects a complex matrix with
 "Not a double array" (or "not yet supported"). MATLAB supports complex
-matrices everywhere. Even `trace` (a trivial diagonal sum) fails.
+matrices everywhere. (`trace` — a trivial diagonal sum — was fixed
+2026-06-17; the decomposition / solve ops below remain.)
 
 | Op | numkit | MATLAB (B = [1+1i 2; 3 4-1i]) |
 |---|---|---|
-| `trace(B)` | Not a double array | `5+0i` |
+| `trace(B)` ✅ FIXED 2026-06-17 | `5` (diagonal sum + narrow) | `5+0i` → real `5` |
 | `det(B)` | Not a double array | `-1+3i` |
 | `inv(B)` | Not a double array | (complex inverse) |
 | `eig(B)` | Not a double array | `[-0.2474+0.5460i, 5.2474-0.5460i]` |
@@ -35,7 +36,8 @@ matrix-level counterpart of the element-wise complex gap
 Large — needs complex versions of the kernels (Hermitian transpose where a
 real algorithm uses transpose; complex pivoting). Best done incrementally,
 cheapest first:
-1. `trace` (diagonal sum — trivial), `det`/`inv` (via a complex LU).
+1. ~~`trace`~~ ✅ DONE 2026-06-17 (diagonal sum + narrow, properties.cpp).
+   `det`/`inv` next (via a complex LU).
 2. `qr`/`lu`/`chol` (complex Householder / pivoting / Hermitian Cholesky).
 3. `eig`/`svd`/`rank`/`pinv`/`mldivide` (complex eigen/SVD — the big ones;
    route through LAPACK z* if available, else complex Jacobi/QR iteration).

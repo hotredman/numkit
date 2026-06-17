@@ -1117,6 +1117,33 @@ void propagateNanFromSrc(Value &out, const Value &src, int dim1Based)
     size_t outer = 1;
     for (int i = d; i < nd; ++i) outer *= dd.dim(i);
     const size_t L = dd.dim(d - 1);
+    const double qnan = std::numeric_limits<double>::quiet_NaN();
+    // Complex cummax/cummin (out + src both COMPLEX): an element is "missing"
+    // when EITHER component is NaN, and the propagated fill is NaN+NaNi.
+    if (out.isComplex() && src.isComplex()) {
+        Complex *o = out.complexDataMut();
+        const Complex *s = src.complexData();
+        for (size_t oc = 0; oc < outer; ++oc)
+            for (size_t b = 0; b < inner; ++b) {
+                const size_t base = oc * inner * L + b;
+                bool seenNaN = false;
+                Complex fill{qnan, qnan};
+                for (size_t k = 0; k < L; ++k) {
+                    const Complex z = s[base + k * inner];
+                    if (!seenNaN && (std::isnan(z.real()) || std::isnan(z.imag()))) {
+                        // includenan: the first NaN operand wins the running
+                        // max/min and propagates UNCHANGED (MATLAB keeps its
+                        // imaginary part: cummax([2 NaN+1i 3],'includenan') is
+                        // [2 NaN+1i NaN+1i]) — not a canonical NaN+NaNi.
+                        seenNaN = true;
+                        fill = z;
+                    }
+                    if (seenNaN)
+                        o[base + k * inner] = fill;
+                }
+            }
+        return;
+    }
     double *o = out.doubleDataMut();
     const double *s = src.doubleData();
     for (size_t oc = 0; oc < outer; ++oc)
@@ -1127,7 +1154,7 @@ void propagateNanFromSrc(Value &out, const Value &src, int dim1Based)
                 if (!seenNaN && std::isnan(s[base + k * inner]))
                     seenNaN = true;
                 if (seenNaN)
-                    o[base + k * inner] = std::numeric_limits<double>::quiet_NaN();
+                    o[base + k * inner] = qnan;
             }
         }
 }
@@ -1171,9 +1198,11 @@ void cummax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("cummax: requires at least 1 argument",
                      0, 0, "cummax", "", "numkit:cummax:nargin");
-    outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
-                                  return cummax(v, d, mr);
-                              }, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(
+        runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
+            return cummax(v, d, mr);
+        }, ctx.engine->resource()),
+        ctx.engine->resource());
 }
 
 void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1181,9 +1210,11 @@ void cummin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("cummin: requires at least 1 argument",
                      0, 0, "cummin", "", "numkit:cummin:nargin");
-    outs[0] = runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
-                                  return cummin(v, d, mr);
-                              }, ctx.engine->resource());
+    outs[0] = numkit::narrowComplex(
+        runCumWithFlags(args[0], args, [](const Value &v, int d, std::pmr::memory_resource *mr) {
+            return cummin(v, d, mr);
+        }, ctx.engine->resource()),
+        ctx.engine->resource());
 }
 
 namespace {

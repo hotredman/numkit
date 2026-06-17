@@ -1470,6 +1470,9 @@ Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr)
     // the result is a subset of the input — the double round-trip is exact).
     if (isIntegerType(x.type()))
         return doubleToIntegerExact(cummax(toDoubleValue(x, mr), dim, mr), x.type(), mr);
+    if (x.type() == ValueType::COMPLEX)
+        return cumComplexMinMaxAlongDim(x, dim <= 0 ? firstNonSingletonDim(x) : dim,
+                                        /*isMax=*/true, mr);
     // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
     // and propagates otherwise. Default = 'omitnan' since R2018a; we
     // skip NaN here, treating them as identity.
@@ -1486,6 +1489,9 @@ Value cummin(const Value &x, int dim, std::pmr::memory_resource *mr)
         return logicalizeCumResult(cummin(toDoubleValue(x, mr), dim, mr), mr);
     if (isIntegerType(x.type()))
         return doubleToIntegerExact(cummin(toDoubleValue(x, mr), dim, mr), x.type(), mr);
+    if (x.type() == ValueType::COMPLEX)
+        return cumComplexMinMaxAlongDim(x, dim <= 0 ? firstNonSingletonDim(x) : dim,
+                                        /*isMax=*/false, mr);
     return cumScanDispatch(x, dim, numkit::math::cumminScan, [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
