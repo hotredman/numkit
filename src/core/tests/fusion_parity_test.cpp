@@ -426,6 +426,36 @@ TEST_P(FusionParityTest, ExpAffineBroadInner) {
     EXPECT_TRUE(sameOnOff(e, "expm1(x - c)"));
 }
 
+// log / log2 / log10 of a (positive) affine. n=6001 forces the SIMD tail.
+TEST_P(FusionParityTest, LogAffine) {
+    e.eval("x = linspace(0.1, 5, 6001)'; a = 1.5; b = 0.3;");  // affine > 0
+    EXPECT_TRUE(sameOnOff(e, "log(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "log2(x + 1)"));       // ShiftAdd inner
+    EXPECT_TRUE(sameOnOff(e, "log10(a .* x)"));      // Product inner (dB-ish)
+}
+
+// log of a negative affine → MATLAB complex; the rule declines, per-op runs.
+TEST_P(FusionParityTest, LogAffineNegativePromotesComplex) {
+    e.eval("x = linspace(-2, 2, 6001)'; a = 1; b = 0;");
+    EXPECT_TRUE(sameOnOff(e, "log(a .* x + b)"));
+    e.eval("y = log(a .* x + b);");
+    EXPECT_TRUE(e.eval("~isreal(y)").toBool());      // complex preserved
+}
+
+// sin / cos / tanh (always-real) of an affine, across inner spellings.
+TEST_P(FusionParityTest, TrigAffine) {
+    e.eval("x = linspace(-3, 3, 6001)'; a = 2; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "sin(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "cos(x - b)"));         // ShiftSub inner
+    EXPECT_TRUE(sameOnOff(e, "tanh(a .* x)"));       // Product inner
+}
+
+TEST_P(FusionParityTest, TrigAffineNaNInf) {
+    e.eval("x = [linspace(-3,3,5999)'; NaN; Inf]; a = 1; b = 0;");
+    EXPECT_TRUE(sameOnOff(e, "sin(a .* x + b)"));
+    EXPECT_TRUE(sameOnOff(e, "tanh(a .* x + b)"));    // tanh(Inf)=1, tanh(NaN)=NaN
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
