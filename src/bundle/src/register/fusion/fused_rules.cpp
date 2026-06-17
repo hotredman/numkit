@@ -6,7 +6,7 @@
 // here — core/VM/compiler are never touched.
 //
 // Rules:
-//   clamp       max(lo, min(hi, x))   → fusedAffineClamp(x, 1, 0, lo, hi)
+//   clamp[_min_outer]  max(lo,min(hi,x)) / min(hi,max(lo,x)) → fusedAffineClamp[MinOuter]
 //   affine_add  (a.*x) + b / b + (a.*x) → fusedAffine(x, a, +b)
 //   affine_sub  (a.*x) - b            → fusedAffine(x, a, -b)
 //   axpby_add   (a.*x) + (b.*y)       → fusedAxpby(x, a, y, +b)
@@ -104,36 +104,45 @@ bool bindAffineProduct(const Value &c0, const Value &c1, double &scale,
     return false;
 }
 
-// ---- clamp:  max(lo, min(hi, x))  →  fusedAffineClamp(x, 1, 0, lo, hi) ----
+// ---- clamp:  max(lo,min(hi,x)) / min(hi,max(lo,x)) → fusedAffineClamp[MinOuter]
 
-// Peel the `max(lo, min(hi, inner))` shape → (lo, hi, inner), or nullptr's. The
-// inner expression is left for the caller to classify (a leaf for plain clamp,
-// an affine product for the affine-clamp rules).
+// Peel a clamp shape → (lo, hi, inner). minOuter=false is the max-outer spelling
+// `max(lo, min(hi, inner))`; minOuter=true is `min(hi, max(lo, inner))`. The two
+// agree for finite values but differ on NaN, so each routes to its own kernel.
+// The inner expression is left for the caller to classify (a leaf for plain
+// clamp, an affine product for the affine-clamp rules).
 struct ClampShape { const ASTNode *lo, *hi, *inner; };
-std::optional<ClampShape> peelClamp(const ASTNode *node) {
-    const ASTNode *mx = calleeName(node);
-    if (!mx || mx->strValue != "max" || node->children.size() != 3)
+std::optional<ClampShape> peelClamp(const ASTNode *node, bool minOuter) {
+    const char *outerFn = minOuter ? "min" : "max";
+    const char *innerFn = minOuter ? "max" : "min";
+    const ASTNode *o = calleeName(node);
+    if (!o || o->strValue != outerFn || node->children.size() != 3)
         return std::nullopt;
-    const ASTNode *inner = node->children[2].get();
-    const ASTNode *mn = calleeName(inner);
-    if (!mn || mn->strValue != "min" || inner->children.size() != 3)
+    const ASTNode *innerCall = node->children[2].get();
+    const ASTNode *ic = calleeName(innerCall);
+    if (!ic || ic->strValue != innerFn || innerCall->children.size() != 3)
         return std::nullopt;
-    return ClampShape{node->children[1].get(), inner->children[1].get(),
-                      inner->children[2].get()};
+    // outer = OUTER(boundO, INNER(boundI, x)); max-outer → boundO=lo, boundI=hi;
+    // min-outer → boundO=hi, boundI=lo.
+    const ASTNode *boundO = node->children[1].get();
+    const ASTNode *boundI = innerCall->children[1].get();
+    const ASTNode *x = innerCall->children[2].get();
+    return ClampShape{minOuter ? boundI : boundO, minOuter ? boundO : boundI, x};
 }
 
-std::optional<std::vector<const ASTNode *>> matchClamp(const ASTNode *node) {
-    auto cs = peelClamp(node);
+std::optional<std::vector<const ASTNode *>> matchClamp(const ASTNode *node,
+                                                       bool minOuter) {
+    auto cs = peelClamp(node, minOuter);
     if (!cs) return std::nullopt;
     if (!isPureLeaf(cs->lo) || !isPureLeaf(cs->hi) || !isPureLeaf(cs->inner))
         return std::nullopt;
     return std::vector<const ASTNode *>{cs->inner, cs->lo, cs->hi};
 }
 
-// Fast path for a real-double array x and real-double scalar lo/hi.
-// Bit-identical to max(lo, min(hi, x)); declines (false → fall back) otherwise.
+// Fast path for a real-double array x and real-double scalar lo/hi. Bit-
+// identical to the matched clamp spelling; declines (false → fall back) else.
 bool execClamp(const Value *ops, std::size_t n, Value &out,
-               std::pmr::memory_resource *mr) {
+               std::pmr::memory_resource *mr, bool minOuter) {
     if (n != 3) return false;
     const Value &x = ops[0], &lo = ops[1], &hi = ops[2];
     if (x.type() != ValueType::DOUBLE || x.isComplex()) return false;
@@ -142,8 +151,9 @@ bool execClamp(const Value *ops, std::size_t n, Value &out,
     if (!isRealDoubleScalar(lo) || !isRealDoubleScalar(hi)) return false;
 
     out = ops::createLike(x, ValueType::DOUBLE, mr);
-    ops::fusedAffineClamp(x.doubleData(), 1.0, 0.0, lo.toScalar(), hi.toScalar(),
-                          out.doubleDataMut(), N);
+    auto kernel = minOuter ? ops::fusedAffineClampMinOuter : ops::fusedAffineClamp;
+    kernel(x.doubleData(), 1.0, 0.0, lo.toScalar(), hi.toScalar(),
+           out.doubleDataMut(), N);
     return true;
 }
 
@@ -300,8 +310,8 @@ bool execShiftScale(const Value *ops, std::size_t n, Value &out,
 // detected by reusing matchAffineAdd/matchAffineSub.
 
 std::optional<std::vector<const ASTNode *>>
-matchAffineClamp(const ASTNode *node, bool sub) {
-    auto cs = peelClamp(node);
+matchAffineClamp(const ASTNode *node, bool sub, bool minOuter) {
+    auto cs = peelClamp(node, minOuter);
     if (!cs || !isPureLeaf(cs->lo) || !isPureLeaf(cs->hi)) return std::nullopt;
     auto aff = sub ? matchAffineSub(cs->inner) : matchAffineAdd(cs->inner);
     if (!aff) return std::nullopt;            // [c0, c1, b]
@@ -310,11 +320,11 @@ matchAffineClamp(const ASTNode *node, bool sub) {
     return aff;                               // [c0, c1, b, lo, hi]
 }
 
-// operands = [c0, c1, b, lo, hi]; expr = max(lo, min(hi, (c0⊗c1) ⊕ b)). Same
+// operands = [c0, c1, b, lo, hi]; expr = clamp((c0⊗c1) ⊕ b) to [lo,hi]. Same
 // bit-exactness as affine (mul-then-add, ±b exact) composed with the clamp
 // kernel's fmin/fmax (validated against per-op min/max by the plain-clamp rule).
 bool execAffineClamp(const Value *ops, std::size_t n, Value &out,
-                     std::pmr::memory_resource *mr, double bSign) {
+                     std::pmr::memory_resource *mr, double bSign, bool minOuter) {
     if (n != 5) return false;
     const Value &b = ops[2], &lo = ops[3], &hi = ops[4];
     if (!isRealDoubleScalar(b) || !isRealDoubleScalar(lo) ||
@@ -326,8 +336,9 @@ bool execAffineClamp(const Value *ops, std::size_t n, Value &out,
     const double offset = bSign * b.toScalar();
 
     out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedAffineClamp(x->doubleData(), scale, offset, lo.toScalar(),
-                          hi.toScalar(), out.doubleDataMut(), x->numel());
+    auto kernel = minOuter ? ops::fusedAffineClampMinOuter : ops::fusedAffineClamp;
+    kernel(x->doubleData(), scale, offset, lo.toScalar(), hi.toScalar(),
+           out.doubleDataMut(), x->numel());
     return true;
 }
 
@@ -461,11 +472,19 @@ bool execUnaryAffine(const Value *ops, std::size_t n, Value &out,
 } // namespace
 
 void registerFusionRules(Engine &engine) {
-    FusionRule clamp;
-    clamp.name    = "clamp";
-    clamp.match   = matchClamp;
-    clamp.execute = execClamp;
-    engine.addFusionRule(std::move(clamp));
+    // Plain clamp, both spellings: max(lo,min(hi,x)) and min(hi,max(lo,x)).
+    for (bool minOuter : {false, true}) {
+        FusionRule clamp;
+        clamp.name    = minOuter ? "clamp_min_outer" : "clamp";
+        clamp.match   = [minOuter](const ASTNode *node) {
+            return matchClamp(node, minOuter);
+        };
+        clamp.execute = [minOuter](const Value *ops, std::size_t n, Value &out,
+                                   std::pmr::memory_resource *mr) {
+            return execClamp(ops, n, out, mr, minOuter);
+        };
+        engine.addFusionRule(std::move(clamp));
+    }
 
     FusionRule affineAdd;
     affineAdd.name  = "affine_add";
@@ -521,27 +540,24 @@ void registerFusionRules(Engine &engine) {
     };
     engine.addFusionRule(std::move(shiftScaleDiv));
 
-    FusionRule affineClampAdd;
-    affineClampAdd.name  = "affine_clamp_add";
-    affineClampAdd.match = [](const ASTNode *node) {
-        return matchAffineClamp(node, /*sub=*/false);
+    // affine-clamp, both add/sub and both clamp spellings (4 rules).
+    auto addAffineClamp = [&engine](const char *name, bool sub, bool minOuter) {
+        const double bSign = sub ? -1.0 : +1.0;
+        FusionRule r;
+        r.name  = name;
+        r.match = [sub, minOuter](const ASTNode *node) {
+            return matchAffineClamp(node, sub, minOuter);
+        };
+        r.execute = [bSign, minOuter](const Value *ops, std::size_t n, Value &out,
+                                      std::pmr::memory_resource *mr) {
+            return execAffineClamp(ops, n, out, mr, bSign, minOuter);
+        };
+        engine.addFusionRule(std::move(r));
     };
-    affineClampAdd.execute = [](const Value *ops, std::size_t n, Value &out,
-                                std::pmr::memory_resource *mr) {
-        return execAffineClamp(ops, n, out, mr, +1.0);
-    };
-    engine.addFusionRule(std::move(affineClampAdd));
-
-    FusionRule affineClampSub;
-    affineClampSub.name  = "affine_clamp_sub";
-    affineClampSub.match = [](const ASTNode *node) {
-        return matchAffineClamp(node, /*sub=*/true);
-    };
-    affineClampSub.execute = [](const Value *ops, std::size_t n, Value &out,
-                                std::pmr::memory_resource *mr) {
-        return execAffineClamp(ops, n, out, mr, -1.0);
-    };
-    engine.addFusionRule(std::move(affineClampSub));
+    addAffineClamp("affine_clamp_add",           /*sub=*/false, /*minOuter=*/false);
+    addAffineClamp("affine_clamp_sub",           /*sub=*/true,  /*minOuter=*/false);
+    addAffineClamp("affine_clamp_min_outer_add", /*sub=*/false, /*minOuter=*/true);
+    addAffineClamp("affine_clamp_min_outer_sub", /*sub=*/true,  /*minOuter=*/true);
 
     FusionRule absAffineAdd;
     absAffineAdd.name  = "abs_affine_add";

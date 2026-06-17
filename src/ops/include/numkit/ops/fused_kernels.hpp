@@ -28,6 +28,13 @@ namespace numkit::ops {
 void fusedAffineClamp(const double *x, double scale, double offset,
                       double lo, double hi, double *out, std::size_t n);
 
+// out[i] = min(hi, max(lo, scale*x[i] + offset))   — the min-outer spelling of
+// the same clamp. Identical to fusedAffineClamp for finite inputs, but differs
+// on NaN (min-outer saturates a NaN to lo, max-outer to hi — matching the
+// respective per-op min/max nesting), so it is a separate kernel, not a flag.
+void fusedAffineClampMinOuter(const double *x, double scale, double offset,
+                              double lo, double hi, double *out, std::size_t n);
+
 // out[i] = scale*x[i] + offset   — plain affine, NO clamp, NaN-preserving.
 // Covers two-op scale-and-shift chains: a.*x+b, x.*a-b, b+a.*x (rescale,
 // negate, unit conversion). A separate kernel from fusedAffineClamp because a

@@ -20,6 +20,14 @@ void fusedAffineClamp(const double *x, double scale, double offset,
     }
 }
 
+void fusedAffineClampMinOuter(const double *x, double scale, double offset,
+                              double lo, double hi, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = scale * x[i] + offset;
+        out[i] = std::fmin(hi, std::fmax(lo, v));
+    }
+}
+
 void fusedAffine(const double *x, double scale, double offset,
                  double *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i) out[i] = scale * x[i] + offset;
