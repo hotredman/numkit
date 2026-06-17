@@ -99,4 +99,10 @@ void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n);
 // promotion) and sqrt is correctly-rounded → bit-identical to per-op.
 void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n);
 
+// out[i] = sign(x[i]) * max(0, |x[i]| - t)   — soft-threshold / wavelet
+// shrinkage / L1 proximal. sign matches MATLAB (NaN→NaN, ±0→0, ±Inf→±1) and
+// max(0,·) omits NaN; every step is exact/IEEE, so it is bit-identical to the
+// per-op `sign(x) .* max(0, abs(x) - t)`.
+void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n);
+
 } // namespace numkit::ops

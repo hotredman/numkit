@@ -91,4 +91,12 @@ void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n
     for (std::size_t i = 0; i < n; ++i) out[i] = std::sqrt(x[i] * x[i] + y[i] * y[i]);
 }
 
+void fusedSoftThreshold(const double *x, double t, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = x[i];
+        const double s = std::isnan(v) ? v : (v > 0 ? 1.0 : (v < 0 ? -1.0 : 0.0));
+        out[i] = s * std::fmax(0.0, std::fabs(v) - t);
+    }
+}
+
 } // namespace numkit::ops

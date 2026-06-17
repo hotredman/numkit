@@ -354,6 +354,29 @@ TEST_P(FusionParityTest, SquareNaNInf) {
     EXPECT_TRUE(sameOnOff(e, "sqrt(x .^ 2 + y .^ 2)"));
 }
 
+// ---- soft-threshold: sign(x) .* max(0, abs(x) - t) ---------------------
+
+TEST_P(FusionParityTest, SoftThreshold) {
+    e.eval("x = reshape(linspace(-5,5,6000),2000,3); t = 1.5;");
+    EXPECT_TRUE(sameOnOff(e, "sign(x) .* max(0, abs(x) - t)"));
+    EXPECT_TRUE(sameOnOff(e, "sign(x) .* max(abs(x) - t, 0)"));  // 0 as 2nd arg
+    e.eval("y = sign(x) .* max(0, abs(x) - t);");
+    EXPECT_NEAR(e.eval("y(1)").toScalar(), -3.5, 1e-12);  // x(1)=-5 → -(5-1.5)
+}
+
+TEST_P(FusionParityTest, SoftThresholdNaNInf) {
+    e.eval("x = [linspace(-3,3,5997)'; NaN; Inf; -Inf]; t = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "sign(x) .* max(0, abs(x) - t)"));
+}
+
+// Different variables in sign()/abs() → not the shape; declines at match,
+// per-op result still identical.
+TEST_P(FusionParityTest, SoftThresholdDifferentVarsFallBack) {
+    e.eval("x = reshape(linspace(-5,5,6000),2000,3); "
+           "w = reshape(linspace(5,-5,6000),2000,3); t = 1.5;");
+    EXPECT_TRUE(sameOnOff(e, "sign(x) .* max(0, abs(w) - t)"));
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
@@ -553,6 +576,11 @@ TEST(FusionFiringProbe, DISABLED_VMSqAffineSpeedup) {
 TEST(FusionFiringProbe, DISABLED_VMSqrtSumSqSpeedup) {
     probeFused(numkit::Engine::Backend::VM, "VM sqrt-sumsq",
                "x = rand(3048*3816,1); y = rand(3048*3816,1);", "sqrt(x .^ 2 + y .^ 2)");
+}
+TEST(FusionFiringProbe, DISABLED_VMSoftThresholdSpeedup) {
+    probeFused(numkit::Engine::Backend::VM, "VM soft-threshold",
+               "x = rand(3048*3816,1) * 10 - 5; t = 1.5;",
+               "sign(x) .* max(0, abs(x) - t)");
 }
 
 // abs-diff `abs(x - y)`: fusion collapses subtract + temporary + abs into one
