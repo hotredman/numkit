@@ -20,8 +20,6 @@
 
 namespace numkit {
 
-struct PlotEntry;  // defined in numkit/graphics/graphics_context.hpp
-
 namespace detail {
 
 // Render a numeric/complex Value as a JSON number array ("[1,2,3]"). Complex
