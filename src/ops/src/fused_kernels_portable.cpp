@@ -49,4 +49,19 @@ void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n) 
     for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(x[i] - y[i]);
 }
 
+void fusedUnaryAffine(const double *x, double scale, double offset,
+                      UnaryAffineFn fn, double *out, std::size_t n) {
+    switch (fn) {
+        case UnaryAffineFn::Sqrt:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::sqrt(scale * x[i] + offset);
+            break;
+        case UnaryAffineFn::Floor:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::floor(scale * x[i] + offset);
+            break;
+        case UnaryAffineFn::Ceil:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::ceil(scale * x[i] + offset);
+            break;
+    }
+}
+
 } // namespace numkit::ops
