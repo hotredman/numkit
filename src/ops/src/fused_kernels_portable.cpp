@@ -25,4 +25,9 @@ void fusedAffine(const double *x, double scale, double offset,
     for (std::size_t i = 0; i < n; ++i) out[i] = scale * x[i] + offset;
 }
 
+void fusedAxpby(const double *x, double a, const double *y, double b,
+                double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = a * x[i] + b * y[i];
+}
+
 } // namespace numkit::ops

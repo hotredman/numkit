@@ -121,11 +121,45 @@ TEST_P(FusionParityTest, AffineSmallFallsBack) {
     EXPECT_TRUE(sameOnOff(e, "a .* x + b"));
 }
 
-// Two products (the axpby shape) must NOT mis-fire as affine — the affine
-// matcher declines (b is not a pure leaf) → normal path, result still exact.
-TEST_P(FusionParityTest, AffineTwoProductsFallBack) {
+// Two products (`a.*x + c.*y`): affine_add declines (its offset `c.*y` is not a
+// pure leaf) and axpby_add picks it up — disjoint matchers, so exactly one rule
+// fires and either way the result is bit-exact.
+TEST_P(FusionParityTest, TwoProductsRouteToAxpby) {
     e.eval("x = linspace(-1, 2, 6000); y = linspace(2, -1, 6000); a = 2; c = 3;");
     EXPECT_TRUE(sameOnOff(e, "a .* x + c .* y"));
+}
+
+// ---- axpby: a.*x ± b.*y (the fusedAxpby kernel) ------------------------
+
+// Weighted sum / blend, and its coefficient commutations.
+TEST_P(FusionParityTest, AxpbyAdd) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); "
+           "y = reshape(linspace(5,-2,6000),2000,3); a = 0.25; b = 0.75;");
+    EXPECT_TRUE(sameOnOff(e, "a .* x + b .* y"));
+    EXPECT_TRUE(sameOnOff(e, "x .* a + y .* b"));
+    e.eval("z = a .* x + b .* y;");
+    EXPECT_NEAR(e.eval("z(1)").toScalar(), 0.25 * (-3.0) + 0.75 * 5.0, 1e-12);
+}
+
+// Scaled difference (b < 0 path via the `-` rule).
+TEST_P(FusionParityTest, AxpbySub) {
+    e.eval("x = reshape(linspace(-3,4,6000),2000,3); "
+           "y = reshape(linspace(5,-2,6000),2000,3); a = 2; b = 0.5;");
+    EXPECT_TRUE(sameOnOff(e, "a .* x - b .* y"));
+}
+
+// NaN / Inf flow through both arrays exactly as per-op.
+TEST_P(FusionParityTest, AxpbyNaNInf) {
+    e.eval("x = [linspace(-1,2,5997)'; NaN; Inf; -Inf]; "
+           "y = [linspace(2,-1,5997)'; 1; 1; 1]; a = 3; b = -2;");
+    EXPECT_TRUE(sameOnOff(e, "a .* x + b .* y"));
+}
+
+// Mismatched shapes (row + col → implicit expansion) must decline on the dims
+// guard → per-op fallback; result still identical fused vs unfused.
+TEST_P(FusionParityTest, AxpbyShapeMismatchFallsBack) {
+    e.eval("x = linspace(-1, 2, 1100); y = linspace(2, -1, 1100)'; a = 2; b = 3;");
+    EXPECT_TRUE(sameOnOff(e, "a .* x + b .* y"));
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, FusionParityTest,
@@ -184,4 +218,34 @@ TEST(FusionFiringProbe, DISABLED_TreeWalkerAffineSpeedup) {
 }
 TEST(FusionFiringProbe, DISABLED_VMAffineSpeedup) {
     probeAffine(numkit::Engine::Backend::VM, "VM");
+}
+
+// axpby `a.*x + b.*y`: fusion collapses two products + a temporary into one
+// streaming pass over three arrays. Confirms the two-array kernel fires.
+namespace {
+void probeAxpby(numkit::Engine::Backend backend, const char *tag) {
+    numkit::StandardEngine e;
+    e.setBackend(backend);
+    e.eval("x = rand(3048*3816, 1); y = rand(3048*3816, 1); a = 0.3; b = 0.7;");
+    auto run = [&](bool on) {
+        e.setFusion(on);
+        e.eval("z = a .* x + b .* y;");  // warm
+        const int iters = 20;
+        auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < iters; ++i) e.eval("z = a .* x + b .* y;");
+        auto t1 = std::chrono::steady_clock::now();
+        return std::chrono::duration<double, std::milli>(t1 - t0).count() / iters;
+    };
+    const double off = run(false), on = run(true);
+    std::printf("[fusion] %s axpby 11.6M: fusion-off %.2f ms, fusion-on %.2f ms "
+                "(%.2fx)\n", tag, off, on, off / on);
+    EXPECT_LT(on, off * 0.90);  // fewer passes → faster → it fired
+}
+} // namespace
+
+TEST(FusionFiringProbe, DISABLED_TreeWalkerAxpbySpeedup) {
+    probeAxpby(numkit::Engine::Backend::TreeWalker, "TW");
+}
+TEST(FusionFiringProbe, DISABLED_VMAxpbySpeedup) {
+    probeAxpby(numkit::Engine::Backend::VM, "VM");
 }

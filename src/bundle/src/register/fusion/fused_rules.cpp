@@ -9,6 +9,8 @@
 //   clamp       max(lo, min(hi, x))   → fusedAffineClamp(x, 1, 0, lo, hi)
 //   affine_add  (a.*x) + b / b + (a.*x) → fusedAffine(x, a, +b)
 //   affine_sub  (a.*x) - b            → fusedAffine(x, a, -b)
+//   axpby_add   (a.*x) + (b.*y)       → fusedAxpby(x, a, y, +b)
+//   axpby_sub   (a.*x) - (b.*y)       → fusedAxpby(x, a, y, -b)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -179,6 +181,41 @@ bool execAffine(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// ---- axpby:  (a.*x) ± (b.*y)  →  fusedAxpby(x, a, y, ±b) -----------------
+
+// match `prod ± prod`, both products of pure leaves. Requiring BOTH sides to be
+// products keeps this structurally disjoint from affine_add/sub (whose offset
+// is a leaf, not a product), so each binary node matches at most one rule —
+// important because the VM compiler commits to one rule at compile time.
+std::optional<std::vector<const ASTNode *>> matchAxpby(const ASTNode *node,
+                                                       const char *op) {
+    const ASTNode *bin = asBinOp(node, op);
+    if (!bin) return std::nullopt;
+    const ASTNode *p = asPureProduct(bin->children[0].get());
+    const ASTNode *q = asPureProduct(bin->children[1].get());
+    if (!p || !q) return std::nullopt;
+    return std::vector<const ASTNode *>{p->children[0].get(), p->children[1].get(),
+                                        q->children[0].get(), q->children[1].get()};
+}
+
+// operands = [pc0, pc1, qc0, qc1]; expr = (pc0⊗pc1) ⊕ (qc0⊗qc1). `bSign` carries
+// the additive operator: out = a*x + (bSign*b)*y, bit-identical to a.*x ± b.*y
+// ((-b)*y = -(b*y) exactly, so the sign fold does not change any rounding).
+bool execAxpby(const Value *ops, std::size_t n, Value &out,
+               std::pmr::memory_resource *mr, double bSign) {
+    if (n != 4) return false;
+    double a = 0.0, b = 0.0;
+    const Value *x = nullptr, *y = nullptr;
+    if (!bindAffineProduct(ops[0], ops[1], a, x)) return false;
+    if (!bindAffineProduct(ops[2], ops[3], b, y)) return false;
+    if (x->dims() != y->dims()) return false;  // element-wise: identical shape
+
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedAxpby(x->doubleData(), a, y->doubleData(), bSign * b,
+                    out.doubleDataMut(), x->numel());
+    return true;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -205,6 +242,24 @@ void registerFusionRules(Engine &engine) {
         return execAffine(ops, n, out, mr, -1.0);
     };
     engine.addFusionRule(std::move(affineSub));
+
+    FusionRule axpbyAdd;
+    axpbyAdd.name  = "axpby_add";
+    axpbyAdd.match = [](const ASTNode *node) { return matchAxpby(node, "+"); };
+    axpbyAdd.execute = [](const Value *ops, std::size_t n, Value &out,
+                          std::pmr::memory_resource *mr) {
+        return execAxpby(ops, n, out, mr, +1.0);
+    };
+    engine.addFusionRule(std::move(axpbyAdd));
+
+    FusionRule axpbySub;
+    axpbySub.name  = "axpby_sub";
+    axpbySub.match = [](const ASTNode *node) { return matchAxpby(node, "-"); };
+    axpbySub.execute = [](const Value *ops, std::size_t n, Value &out,
+                          std::pmr::memory_resource *mr) {
+        return execAxpby(ops, n, out, mr, -1.0);
+    };
+    engine.addFusionRule(std::move(axpbySub));
 }
 
 } // namespace numkit
