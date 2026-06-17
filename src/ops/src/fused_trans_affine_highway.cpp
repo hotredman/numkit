@@ -87,6 +87,21 @@ void TransAffineImpl(const double *x, double scale, double offset,
                       [](auto d, auto v) { return hn::Tanh(d, v); },
                       [](double v) { return std::tanh(v); });
             break;
+        case TransAffineFn::Sinh:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Sinh(d, v); },
+                      [](double v) { return std::sinh(v); });
+            break;
+        case TransAffineFn::Atan:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Atan(d, v); },
+                      [](double v) { return std::atan(v); });
+            break;
+        case TransAffineFn::Asinh:
+            transLoop(x, scale, offset, out, n,
+                      [](auto d, auto v) { return hn::Asinh(d, v); },
+                      [](double v) { return std::asinh(v); });
+            break;
     }
 }
 

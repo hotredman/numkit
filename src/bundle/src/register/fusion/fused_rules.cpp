@@ -21,8 +21,8 @@
 //   sq_diff      (x-y).^2 / (x-c).^2 → fusedSqDiff / fusedSqAffine
 //   sqrt_sumsq   sqrt(x.^2 + y.^2)   → fusedSqrtSumSq(x, y)
 //   soft_threshold  sign(x).*max(0,abs(x)-t) → fusedSoftThreshold(x, t)
-//   {exp,expm1,log,log2,log10,sin,cos,tanh}_affine  f(<inner>) → fusedTransAffine
-//     (log/log2/log10 decline on a negative affine → MATLAB complex)
+//   {exp,expm1,log,log2,log10,sin,cos,tanh,sinh,atan,asinh}_affine  f(<inner>)
+//     → fusedTransAffine (log/log2/log10 decline on a negative affine → complex)
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -950,6 +950,9 @@ void registerFusionRules(Engine &engine) {
     addTransAffine("sin_affine",   "sin",   TF::Sin);
     addTransAffine("cos_affine",   "cos",   TF::Cos);
     addTransAffine("tanh_affine",  "tanh",  TF::Tanh);
+    addTransAffine("sinh_affine",  "sinh",  TF::Sinh);
+    addTransAffine("atan_affine",  "atan",  TF::Atan);
+    addTransAffine("asinh_affine", "asinh", TF::Asinh);
 }
 
 } // namespace numkit

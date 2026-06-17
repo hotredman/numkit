@@ -128,6 +128,15 @@ void fusedTransAffine(const double *x, double scale, double offset,
         case TransAffineFn::Tanh:
             for (std::size_t i = 0; i < n; ++i) out[i] = std::tanh(scale * x[i] + offset);
             break;
+        case TransAffineFn::Sinh:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::sinh(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Atan:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::atan(scale * x[i] + offset);
+            break;
+        case TransAffineFn::Asinh:
+            for (std::size_t i = 0; i < n; ++i) out[i] = std::asinh(scale * x[i] + offset);
+            break;
     }
 }
 
