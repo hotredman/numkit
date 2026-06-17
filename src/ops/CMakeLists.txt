@@ -14,7 +14,10 @@
 set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
+    # Complex-input fused kernels — scalar std::complex (no SIMD), needed in
+    # both the SIMD and portable builds.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused_complex.cpp)
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()

@@ -131,6 +131,35 @@ bool bindAffineProduct(const Value &c0, const Value &c1, double &scale,
     return false;
 }
 
+// ---- complex binding -----------------------------------------------------
+// Complex fusion is triggered by a COMPLEX array operand; scalar coefficients
+// may be real or complex (real → Complex(v,0)). A real array with a complex
+// coefficient is NOT fused here (declines → per-op promotes it); the high-value
+// case (transform a complex array) is covered. The complex kernels are scalar
+// std::complex, so binding only needs to gather Complex scale/offset + the array.
+
+bool isFusibleComplexArray(const Value &v) {
+    return v.isComplex() && v.numel() >= kFusionMinElems;
+}
+
+// A scalar coefficient → Complex (real-double scalar → (v,0); complex scalar →
+// its value). false if not a scalar real-double/complex value.
+bool asComplexScalar(const Value &v, Complex &out) {
+    if (!v.isScalar()) return false;
+    if (v.isComplex()) { out = v.toComplex(); return true; }
+    if (v.type() == ValueType::DOUBLE) { out = Complex(v.toScalar(), 0.0); return true; }
+    return false;
+}
+
+// product's two operands → (Complex coeff, complex array x): exactly one scalar
+// coefficient (real/complex) and one complex array. Resolves `a.*z` vs `z.*a`.
+bool bindAffineProductCx(const Value &c0, const Value &c1, Complex &scale,
+                         const Value *&x) {
+    if (isFusibleComplexArray(c1) && asComplexScalar(c0, scale)) { x = &c1; return true; }
+    if (isFusibleComplexArray(c0) && asComplexScalar(c1, scale)) { x = &c0; return true; }
+    return false;
+}
+
 // ---- clamp:  max(lo,min(hi,x)) / min(hi,max(lo,x)) → fusedAffineClamp[MinOuter]
 
 // Peel a clamp shape → (lo, hi, inner). minOuter=false is the max-outer spelling
@@ -223,19 +252,39 @@ bool execAffine(const Value *ops, std::size_t n, Value &out,
     if (n != 3) return false;
     double scale = 0.0;
     const Value *x = nullptr;
-    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
-    const Value &leaf = ops[2];
-    if (isRealDoubleScalar(leaf)) {                  // a.*x ± b → affine
-        out = ops::createLike(*x, ValueType::DOUBLE, mr);
-        ops::fusedAffine(x->doubleData(), scale, bSign * leaf.toScalar(),
-                         out.doubleDataMut(), x->numel());
-        return true;
+    if (bindAffineProduct(ops[0], ops[1], scale, x)) {
+        const Value &leaf = ops[2];
+        if (isRealDoubleScalar(leaf)) {                  // a.*x ± b → affine
+            out = ops::createLike(*x, ValueType::DOUBLE, mr);
+            ops::fusedAffine(x->doubleData(), scale, bSign * leaf.toScalar(),
+                             out.doubleDataMut(), x->numel());
+            return true;
+        }
+        if (isFusibleArray(leaf) && leaf.dims() == x->dims()) {  // a.*x ± y → axpby
+            out = ops::createLike(*x, ValueType::DOUBLE, mr);
+            ops::fusedAxpby(x->doubleData(), scale, leaf.doubleData(), bSign * 1.0,
+                            out.doubleDataMut(), x->numel());
+            return true;
+        }
     }
-    if (isFusibleArray(leaf) && leaf.dims() == x->dims()) {  // a.*x ± y → axpby
-        out = ops::createLike(*x, ValueType::DOUBLE, mr);
-        ops::fusedAxpby(x->doubleData(), scale, leaf.doubleData(), bSign * 1.0,
-                        out.doubleDataMut(), x->numel());
-        return true;
+    // complex array → complex affine (a.*z ± b) / axpby (a.*z ± w).
+    Complex cscale;
+    const Value *cz = nullptr;
+    if (bindAffineProductCx(ops[0], ops[1], cscale, cz)) {
+        const Value &leaf = ops[2];
+        Complex coff;
+        if (asComplexScalar(leaf, coff)) {
+            out = ops::createLike(*cz, ValueType::COMPLEX, mr);
+            ops::fusedAffineCx(cz->complexData(), cscale, bSign < 0 ? -coff : coff,
+                               out.complexDataMut(), cz->numel());
+            return true;
+        }
+        if (isFusibleComplexArray(leaf) && leaf.dims() == cz->dims()) {
+            out = ops::createLike(*cz, ValueType::COMPLEX, mr);
+            ops::fusedAxpbyCx(cz->complexData(), cscale, leaf.complexData(),
+                              Complex(bSign, 0.0), out.complexDataMut(), cz->numel());
+            return true;
+        }
     }
     return false;
 }
@@ -265,14 +314,26 @@ bool execAxpby(const Value *ops, std::size_t n, Value &out,
     if (n != 4) return false;
     double a = 0.0, b = 0.0;
     const Value *x = nullptr, *y = nullptr;
-    if (!bindAffineProduct(ops[0], ops[1], a, x)) return false;
-    if (!bindAffineProduct(ops[2], ops[3], b, y)) return false;
-    if (x->dims() != y->dims()) return false;  // element-wise: identical shape
-
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedAxpby(x->doubleData(), a, y->doubleData(), bSign * b,
-                    out.doubleDataMut(), x->numel());
-    return true;
+    if (bindAffineProduct(ops[0], ops[1], a, x) &&
+        bindAffineProduct(ops[2], ops[3], b, y) &&
+        x->dims() == y->dims()) {                   // element-wise: identical shape
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedAxpby(x->doubleData(), a, y->doubleData(), bSign * b,
+                        out.doubleDataMut(), x->numel());
+        return true;
+    }
+    // complex: a.*z ± b.*w (both products bind to complex arrays).
+    Complex ca, cb;
+    const Value *cz = nullptr, *cw = nullptr;
+    if (bindAffineProductCx(ops[0], ops[1], ca, cz) &&
+        bindAffineProductCx(ops[2], ops[3], cb, cw) &&
+        cz->dims() == cw->dims()) {
+        out = ops::createLike(*cz, ValueType::COMPLEX, mr);
+        ops::fusedAxpbyCx(cz->complexData(), ca, cw->complexData(),
+                          bSign < 0 ? -cb : cb, out.complexDataMut(), cz->numel());
+        return true;
+    }
+    return false;
 }
 
 // ---- axpby implicit-1 (subtractive `leaf - prod`):  x - b.*y / c - a.*x --
@@ -301,19 +362,40 @@ bool execNegProd(const Value *ops, std::size_t n, Value &out,
     if (n != 3) return false;
     double coef = 0.0;
     const Value *p = nullptr;
-    if (!bindAffineProduct(ops[1], ops[2], coef, p)) return false;
-    const Value &leaf = ops[0];
-    if (isRealDoubleScalar(leaf)) {                  // c - a.*x
-        out = ops::createLike(*p, ValueType::DOUBLE, mr);
-        ops::fusedAffine(p->doubleData(), -coef, leaf.toScalar(),
-                         out.doubleDataMut(), p->numel());
-        return true;
+    if (bindAffineProduct(ops[1], ops[2], coef, p)) {
+        const Value &leaf = ops[0];
+        if (isRealDoubleScalar(leaf)) {                  // c - a.*x
+            out = ops::createLike(*p, ValueType::DOUBLE, mr);
+            ops::fusedAffine(p->doubleData(), -coef, leaf.toScalar(),
+                             out.doubleDataMut(), p->numel());
+            return true;
+        }
+        if (isFusibleArray(leaf) && leaf.dims() == p->dims()) {  // x - b.*y
+            out = ops::createLike(leaf, ValueType::DOUBLE, mr);
+            ops::fusedAxpby(leaf.doubleData(), 1.0, p->doubleData(), -coef,
+                            out.doubleDataMut(), leaf.numel());
+            return true;
+        }
     }
-    if (isFusibleArray(leaf) && leaf.dims() == p->dims()) {  // x - b.*y
-        out = ops::createLike(leaf, ValueType::DOUBLE, mr);
-        ops::fusedAxpby(leaf.doubleData(), 1.0, p->doubleData(), -coef,
-                        out.doubleDataMut(), leaf.numel());
-        return true;
+    // complex: c - a.*z (scalar leaf) / w - b.*z (array leaf).
+    Complex ccoef;
+    const Value *cp = nullptr;
+    if (bindAffineProductCx(ops[1], ops[2], ccoef, cp)) {
+        const Value &leaf = ops[0];
+        Complex cleaf;
+        if (asComplexScalar(leaf, cleaf)) {              // c - a.*z = -a.*z + c
+            out = ops::createLike(*cp, ValueType::COMPLEX, mr);
+            ops::fusedAffineCx(cp->complexData(), -ccoef, cleaf,
+                               out.complexDataMut(), cp->numel());
+            return true;
+        }
+        if (isFusibleComplexArray(leaf) && leaf.dims() == cp->dims()) {  // w - b.*z
+            out = ops::createLike(leaf, ValueType::COMPLEX, mr);
+            ops::fusedAxpbyCx(leaf.complexData(), Complex(1.0, 0.0),
+                              cp->complexData(), -ccoef, out.complexDataMut(),
+                              leaf.numel());
+            return true;
+        }
     }
     return false;
 }
@@ -367,19 +449,32 @@ bool execShiftScale(const Value *ops, std::size_t n, Value &out,
                     std::pmr::memory_resource *mr, bool isDiv) {
     if (n != 3) return false;
     const Value &A = ops[0], &B = ops[1], &s = ops[2];
-    if (A.type() != ValueType::DOUBLE || A.isComplex()) return false;
-    const std::size_t N = A.numel();
-    if (N < kFusionMinElems) return false;
-    if (!isRealDoubleScalar(B) || !isRealDoubleScalar(s)) return false;
-
-    out = ops::createLike(A, ValueType::DOUBLE, mr);
-    if (isDiv)
-        ops::fusedShiftScaleDiv(A.doubleData(), B.toScalar(), s.toScalar(),
-                                out.doubleDataMut(), N);
-    else
-        ops::fusedShiftScaleMul(A.doubleData(), B.toScalar(), s.toScalar(),
-                                out.doubleDataMut(), N);
-    return true;
+    // real path: A a real-double array, B/s real scalars.
+    if (A.type() == ValueType::DOUBLE && !A.isComplex() &&
+        A.numel() >= kFusionMinElems &&
+        isRealDoubleScalar(B) && isRealDoubleScalar(s)) {
+        out = ops::createLike(A, ValueType::DOUBLE, mr);
+        if (isDiv)
+            ops::fusedShiftScaleDiv(A.doubleData(), B.toScalar(), s.toScalar(),
+                                    out.doubleDataMut(), A.numel());
+        else
+            ops::fusedShiftScaleMul(A.doubleData(), B.toScalar(), s.toScalar(),
+                                    out.doubleDataMut(), A.numel());
+        return true;
+    }
+    // complex: (z - c) .* s / (z - c) ./ d, z complex array, c/s/d real or complex.
+    Complex cB, cs;
+    if (isFusibleComplexArray(A) && asComplexScalar(B, cB) && asComplexScalar(s, cs)) {
+        out = ops::createLike(A, ValueType::COMPLEX, mr);
+        if (isDiv)
+            ops::fusedShiftScaleDivCx(A.complexData(), cB, cs, out.complexDataMut(),
+                                      A.numel());
+        else
+            ops::fusedShiftScaleMulCx(A.complexData(), cB, cs, out.complexDataMut(),
+                                      A.numel());
+        return true;
+    }
+    return false;
 }
 
 // Forward declarations of the shared inner-affine facility (defined below, after
@@ -587,6 +682,36 @@ bool bindInner(const Value *ops, std::size_t n, InnerKind kind, double &scale,
     return false;
 }
 
+// Complex counterpart of bindInner, used by the f(inner) families when the array
+// operand is complex. ONLY the product-coefficient kinds (ProductAdd/Sub/Product)
+// are supported: there the per-op genuinely multiplies x by the complex
+// coefficient, so the kernel's scale*x+offset matches bit-for-bit. The shift/neg
+// kinds (scale ±1) are declined — multiplying a complex x by (±1+0i) is a complex
+// MULTIPLY, and 0*Inf=NaN would diverge from the per-op bare add/sub/negate on a
+// non-finite x. The offset add is bit-exact (t-b == t+(-b)); the Product +0 only
+// flips a -0 component, which isequaln treats as equal.
+bool bindInnerCx(const Value *ops, std::size_t n, InnerKind kind, Complex &scale,
+                 Complex &offset, const Value *&x) {
+    switch (kind) {
+        case InnerKind::ProductAdd:
+        case InnerKind::ProductSub: {
+            if (n != 3) return false;
+            Complex off;
+            if (!asComplexScalar(ops[2], off)) return false;
+            if (!bindAffineProductCx(ops[0], ops[1], scale, x)) return false;
+            offset = (kind == InnerKind::ProductSub) ? -off : off;
+            return true;
+        }
+        case InnerKind::Product: {
+            if (n != 2 || !bindAffineProductCx(ops[0], ops[1], scale, x)) return false;
+            offset = Complex(0.0, 0.0);
+            return true;
+        }
+        default:
+            return false;  // shift/neg: decline → per-op (see note above)
+    }
+}
+
 // All InnerKinds, for registering f(inner) rules across every affine spelling.
 constexpr InnerKind kAllInnerKinds[] = {
     InnerKind::ProductAdd, InnerKind::ProductSub, InnerKind::Product,
@@ -780,11 +905,21 @@ bool execSqAffine(const Value *ops, std::size_t n, Value &out,
                   std::pmr::memory_resource *mr, InnerKind kind) {
     double scale = 0.0, offset = 0.0;
     const Value *x = nullptr;
-    if (!bindInner(ops, n, kind, scale, offset, x)) return false;
-    out = ops::createLike(*x, ValueType::DOUBLE, mr);
-    ops::fusedSqAffine(x->doubleData(), scale, offset, out.doubleDataMut(),
-                       x->numel());
-    return true;
+    if (bindInner(ops, n, kind, scale, offset, x)) {
+        out = ops::createLike(*x, ValueType::DOUBLE, mr);
+        ops::fusedSqAffine(x->doubleData(), scale, offset, out.doubleDataMut(),
+                           x->numel());
+        return true;
+    }
+    Complex cscale, coffset;
+    const Value *cx = nullptr;
+    if (bindInnerCx(ops, n, kind, cscale, coffset, cx)) {     // (a.*z ± b).^2
+        out = ops::createLike(*cx, ValueType::COMPLEX, mr);
+        ops::fusedSqAffineCx(cx->complexData(), cscale, coffset,
+                             out.complexDataMut(), cx->numel());
+        return true;
+    }
+    return false;
 }
 
 // (A - B).^2: two same-shape arrays → fusedSqDiff; array-minus-scalar either
@@ -815,6 +950,14 @@ bool execSqDiff(const Value *ops, std::size_t n, Value &out,
         out = ops::createLike(B, ValueType::DOUBLE, mr);
         ops::fusedSqAffine(B.doubleData(), 1.0, -A.toScalar(),
                            out.doubleDataMut(), B.numel());
+        return true;
+    }
+    // complex (z - w).^2 for two complex arrays (array-scalar declines → per-op:
+    // (z-c).^2 can't reuse a scale*x kernel without a spurious mul-by-1).
+    if (isFusibleComplexArray(A) && isFusibleComplexArray(B) && A.dims() == B.dims()) {
+        out = ops::createLike(A, ValueType::COMPLEX, mr);
+        ops::fusedSqDiffCx(A.complexData(), B.complexData(), out.complexDataMut(),
+                           A.numel());
         return true;
     }
     return false;
