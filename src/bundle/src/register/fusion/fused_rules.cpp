@@ -14,6 +14,8 @@
 //   shift_scale_mul  (x-c).*s / s.*(x-c) → fusedShiftScaleMul(x, c, s)
 //   shift_scale_div  (x-c)./d           → fusedShiftScaleDiv(x, c, d)
 //   affine_clamp_*  max(lo,min(hi,a.*x±b)) → fusedAffineClamp(x, a, ±b, lo, hi)
+//   abs_affine_*    abs(a.*x ± b)         → fusedAbsAffine(x, a, ±b)
+//   abs_diff        abs(x - y) / abs(x-c) → fusedAbsDiff / fusedAbsAffine
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -328,6 +330,82 @@ bool execAffineClamp(const Value *ops, std::size_t n, Value &out,
     return true;
 }
 
+// ---- abs:  abs(a.*x ± b)  and  abs(x - y) / abs(x - c) ------------------
+
+// single-argument abs(arg) → arg node, else null.
+const ASTNode *absArg(const ASTNode *node) {
+    const ASTNode *fn = calleeName(node);
+    if (!fn || fn->strValue != "abs" || node->children.size() != 2) return nullptr;
+    return node->children[1].get();
+}
+
+// abs of an affine product: reuse the affine inner-detection on abs's argument.
+std::optional<std::vector<const ASTNode *>> matchAbsAffine(const ASTNode *node,
+                                                           bool sub) {
+    const ASTNode *arg = absArg(node);
+    if (!arg) return std::nullopt;
+    return sub ? matchAffineSub(arg) : matchAffineAdd(arg);  // [c0,c1,b]
+}
+
+// abs of a pure subtract `A - B` (covers abs(x-y), abs(x-c), abs(c-x)).
+std::optional<std::vector<const ASTNode *>> matchAbsDiff(const ASTNode *node) {
+    const ASTNode *arg = absArg(node);
+    if (!arg) return std::nullopt;
+    const ASTNode *s = asPureSub(arg);
+    if (!s) return std::nullopt;
+    return std::vector<const ASTNode *>{s->children[0].get(),
+                                        s->children[1].get()};
+}
+
+// operands = [c0, c1, b]; expr = abs((c0⊗c1) ⊕ b) → |scale*x ± b|.
+bool execAbsAffine(const Value *ops, std::size_t n, Value &out,
+                   std::pmr::memory_resource *mr, double bSign) {
+    if (n != 3) return false;
+    const Value &b = ops[2];
+    if (!isRealDoubleScalar(b)) return false;
+    double scale = 0.0;
+    const Value *x = nullptr;
+    if (!bindAffineProduct(ops[0], ops[1], scale, x)) return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedAbsAffine(x->doubleData(), scale, bSign * b.toScalar(),
+                        out.doubleDataMut(), x->numel());
+    return true;
+}
+
+// operands = [A, B]; expr = abs(A - B). Two same-shape arrays → fusedAbsDiff;
+// array-minus-scalar (either side) → fusedAbsAffine (|x-c| == |1*x + (-c)|,
+// and |c-x| == |x-c|). Anything else (broadcast, both scalar) declines.
+bool execAbsDiff(const Value *ops, std::size_t n, Value &out,
+                 std::pmr::memory_resource *mr) {
+    if (n != 2) return false;
+    const Value &A = ops[0], &B = ops[1];
+    auto isArr = [](const Value &v) {
+        return v.type() == ValueType::DOUBLE && !v.isComplex() &&
+               v.numel() >= kFusionMinElems;
+    };
+    const bool aArr = isArr(A), bArr = isArr(B);
+    if (aArr && bArr) {
+        if (A.dims() != B.dims()) return false;
+        out = ops::createLike(A, ValueType::DOUBLE, mr);
+        ops::fusedAbsDiff(A.doubleData(), B.doubleData(), out.doubleDataMut(),
+                          A.numel());
+        return true;
+    }
+    if (aArr && isRealDoubleScalar(B)) {  // |A - c|
+        out = ops::createLike(A, ValueType::DOUBLE, mr);
+        ops::fusedAbsAffine(A.doubleData(), 1.0, -B.toScalar(),
+                            out.doubleDataMut(), A.numel());
+        return true;
+    }
+    if (bArr && isRealDoubleScalar(A)) {  // |c - B| == |B - c|
+        out = ops::createLike(B, ValueType::DOUBLE, mr);
+        ops::fusedAbsAffine(B.doubleData(), 1.0, -A.toScalar(),
+                            out.doubleDataMut(), B.numel());
+        return true;
+    }
+    return false;
+}
+
 } // namespace
 
 void registerFusionRules(Engine &engine) {
@@ -412,6 +490,34 @@ void registerFusionRules(Engine &engine) {
         return execAffineClamp(ops, n, out, mr, -1.0);
     };
     engine.addFusionRule(std::move(affineClampSub));
+
+    FusionRule absAffineAdd;
+    absAffineAdd.name  = "abs_affine_add";
+    absAffineAdd.match = [](const ASTNode *node) {
+        return matchAbsAffine(node, /*sub=*/false);
+    };
+    absAffineAdd.execute = [](const Value *ops, std::size_t n, Value &out,
+                              std::pmr::memory_resource *mr) {
+        return execAbsAffine(ops, n, out, mr, +1.0);
+    };
+    engine.addFusionRule(std::move(absAffineAdd));
+
+    FusionRule absAffineSub;
+    absAffineSub.name  = "abs_affine_sub";
+    absAffineSub.match = [](const ASTNode *node) {
+        return matchAbsAffine(node, /*sub=*/true);
+    };
+    absAffineSub.execute = [](const Value *ops, std::size_t n, Value &out,
+                              std::pmr::memory_resource *mr) {
+        return execAbsAffine(ops, n, out, mr, -1.0);
+    };
+    engine.addFusionRule(std::move(absAffineSub));
+
+    FusionRule absDiff;
+    absDiff.name  = "abs_diff";
+    absDiff.match = matchAbsDiff;
+    absDiff.execute = execAbsDiff;
+    engine.addFusionRule(std::move(absDiff));
 }
 
 } // namespace numkit

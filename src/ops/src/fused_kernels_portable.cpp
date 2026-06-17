@@ -40,4 +40,13 @@ void fusedShiftScaleDiv(const double *x, double sub, double div,
     for (std::size_t i = 0; i < n; ++i) out[i] = (x[i] - sub) / div;
 }
 
+void fusedAbsAffine(const double *x, double scale, double offset,
+                    double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(scale * x[i] + offset);
+}
+
+void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(x[i] - y[i]);
+}
+
 } // namespace numkit::ops
