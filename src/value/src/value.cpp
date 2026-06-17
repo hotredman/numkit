@@ -1048,7 +1048,9 @@ Value Value::elemAt(size_t idx, std::pmr::memory_resource *mr) const
     case ValueType::DOUBLE:
         return Value::scalar(doubleData()[idx], mr);
     case ValueType::COMPLEX:
-        return Value::complexScalar(complexData()[idx], mr);
+        // A complex element whose imaginary part is zero narrows to real (MATLAB
+        // isreal(z(k)) per element). Covers VM/TW scalar-index fast paths too.
+        return narrowComplex(Value::complexScalar(complexData()[idx], mr), mr);
     case ValueType::LOGICAL:
         return Value::logicalScalar(logicalData()[idx] != 0, mr);
     case ValueType::CHAR: {
@@ -1120,13 +1122,34 @@ Value Value::reshape(size_t rows, size_t cols, std::pmr::memory_resource *mr) co
     return r;
 }
 
+// MATLAB narrows a complex result with an all-zero imaginary part back to a real
+// double (declared in value.hpp). No-op unless COMPLEX with every imaginary
+// component exactly zero (a NaN imaginary part keeps it complex).
+Value narrowComplex(Value v, std::pmr::memory_resource *mr)
+{
+    if (v.type() != ValueType::COMPLEX) return v;
+    const Complex *d = v.complexData();
+    const size_t n = v.numel();
+    for (size_t i = 0; i < n; ++i)
+        if (d[i].imag() != 0.0) return v;          // genuinely complex (NaN imag too)
+    const Dims &dm = v.dims();
+    const int nd = dm.ndim();
+    size_t dimsBuf[Dims::kMaxRank];
+    for (int i = 0; i < nd; ++i) dimsBuf[i] = dm.dim(i);
+    Value r = Value::matrixND(dimsBuf, nd, ValueType::DOUBLE, mr);
+    double *o = r.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) o[i] = d[i].real();
+    return r;
+}
+
 // Shape rule: column vector source → column result; otherwise → row result.
 // CELL: always returns sub-cell (even for count==1), matching MATLAB c(i) semantics.
 Value Value::indexGet(const size_t *indices, size_t count, std::pmr::memory_resource *mr) const
 {
-    // For non-CELL scalar result, return a scalar value
+    // For non-CELL scalar result, return a scalar value (narrow a complex
+    // element whose imaginary part is zero — MATLAB: isreal(z(k)) per element).
     if (count == 1 && type() != ValueType::CELL)
-        return elemAt(indices[0], mr);
+        return narrowComplex(elemAt(indices[0], mr), mr);
 
     // Shape: column vector source → column result
     bool colResult = (dims().cols() == 1 && dims().rows() > 1);
@@ -1149,7 +1172,7 @@ Value Value::indexGet(const size_t *indices, size_t count, std::pmr::memory_reso
         const Complex *src = complexData();
         for (size_t i = 0; i < count; ++i)
             dst[i] = src[indices[i]];
-        return result;
+        return narrowComplex(std::move(result), mr);   // all-real slice -> real
     }
     case ValueType::LOGICAL: {
         auto result = Value::matrix(rr, cc, ValueType::LOGICAL, mr);
@@ -1210,7 +1233,7 @@ Value Value::indexGet2D(const size_t *rowIdx, size_t nrows,
     // Scalar shortcut for non-CELL types
     if (nrows == 1 && ncols == 1 && type() != ValueType::CELL) {
         size_t idx = dims().sub2ind(rowIdx[0], colIdx[0]);
-        return elemAt(idx, mr);
+        return narrowComplex(elemAt(idx, mr), mr);
     }
 
     ValueType t = type();
@@ -1258,7 +1281,7 @@ Value Value::indexGet2D(const size_t *rowIdx, size_t nrows,
         for (size_t r = 0; r < nrows; ++r)
             std::memcpy(dst + (c * nrows + r) * es,
                         src + d.sub2ind(rowIdx[r], colIdx[c]) * es, es);
-    return result;
+    return narrowComplex(std::move(result), mr);   // all-real complex slice -> real
 }
 
 // 3D slice: extract sub-array at given row/col/page indices.
@@ -1270,7 +1293,7 @@ Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
     // Scalar shortcut for non-CELL types
     if (nrows == 1 && ncols == 1 && npages == 1 && type() != ValueType::CELL) {
         size_t idx = dims().sub2ind(rowIdx[0], colIdx[0], pageIdx[0]);
-        return elemAt(idx, mr);
+        return narrowComplex(elemAt(idx, mr), mr);
     }
 
     ValueType t = type();
@@ -1322,7 +1345,7 @@ Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
             for (size_t r = 0; r < nrows; ++r)
                 std::memcpy(dst + rd.sub2ind(r, c, p) * es,
                             src + d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]) * es, es);
-    return result;
+    return narrowComplex(std::move(result), mr);   // all-real complex slice -> real
 }
 
 // ND slice: extract sub-tensor at given per-dim indices.
@@ -1430,7 +1453,7 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
         } while (incrementCoords(coords, outIter));
     }
 
-    return result;
+    return narrowComplex(std::move(result), mr);   // all-real complex slice -> real
 }
 
 // Logical indexing: extract elements where mask is true → row vector of same type.

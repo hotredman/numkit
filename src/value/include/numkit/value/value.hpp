@@ -674,6 +674,13 @@ private:
                                 std::pmr::memory_resource *mr);
 };
 
+// MATLAB narrows a complex result whose imaginary part is all-zero back to a real
+// double — for the RESULTS of operations (arithmetic, indexing, reductions, …),
+// NOT the complex() constructor or a pure structural reshape/transpose/concat. A
+// NaN imaginary part keeps it complex. No-op unless COMPLEX with every imaginary
+// component exactly zero. bugs/math/complex-zero-imag-narrowing.md.
+Value narrowComplex(Value v, std::pmr::memory_resource *mr);
+
 // ── Inline template bodies ──────────────────────────────────────
 // Kept in the header because they're tiny — each one is a single
 // thunk into Value::makeContiguous. The compile-time cost per TU is

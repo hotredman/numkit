@@ -355,24 +355,8 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, std::pmr::memory_
     return r;
 }
 
-// ============================================================
-// MATLAB narrows a complex result whose imaginary part is all-zero back to a
-// real double — for the RESULTS of operations (arithmetic, max/min, …), NOT the
-// complex() constructor or pure structural ops (reshape). A NaN imaginary part
-// keeps it complex. No-op unless COMPLEX with every imag component exactly zero.
-// ============================================================
-inline Value narrowComplex(Value v, std::pmr::memory_resource *mr)
-{
-    if (v.type() != ValueType::COMPLEX) return v;
-    const Complex *d = v.complexData();
-    const std::size_t n = v.numel();
-    for (std::size_t i = 0; i < n; ++i)
-        if (d[i].imag() != 0.0) return v;   // genuinely complex (NaN imag too)
-    Value r = createLike(v, ValueType::DOUBLE, mr);
-    double *o = r.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) o[i] = d[i].real();
-    return r;
-}
+// narrowComplex (all-real complex -> real, MATLAB) now lives in the value layer
+// (numkit/value/value.hpp) so value-layer indexing/assignment can use it too.
 
 // ============================================================
 // Elementwise binary op on complex arrays. The public `elementwiseComplex`

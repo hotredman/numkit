@@ -93,6 +93,21 @@ TEST_P(ComplexMathTest, NarrowsArithmeticAllReal) {
     EXPECT_TRUE(e.eval("isreal(complex([1 2;3 4]) * complex([1 0;0 1]))").toBool()); // matmul
 }
 
+// Indexing a complex array narrows an all-real slice/element to real (MATLAB
+// R2025b: isreal(z(k))==1 when the picked elements have no imaginary part) —
+// while the FORCED-complex source itself stays complex.
+TEST_P(ComplexMathTest, NarrowsIndexingAllRealSlice) {
+    e.eval("zc = complex([1 -3 2]);");                 // forced complex, all imag 0
+    EXPECT_FALSE(e.eval("isreal(zc)").toBool());       // source stays complex
+    EXPECT_TRUE(e.eval("isreal(zc(2))").toBool());     // scalar index narrows
+    EXPECT_TRUE(e.eval("isreal(zc(1:2))").toBool());   // range narrows
+    // NOTE: zc(:) is reshape-based (structural — preserves complex, like reshape),
+    // so it does NOT narrow here; MATLAB narrows z(:). Niche, documented residual.
+    e.eval("zg = [1+1i, 2, 3];");                      // genuinely complex
+    EXPECT_FALSE(e.eval("isreal(zg(1))").toBool());    // 1+1i element stays complex
+    EXPECT_TRUE(e.eval("isreal(zg(2))").toBool());     // real element narrows
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ComplexMathTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));
