@@ -160,13 +160,23 @@ std::tuple<Value, Value> min(const Value &x, int dim, std::pmr::memory_resource 
     return dispatchMinMaxAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
+// Elementwise complex binary min/max, shared by max/min and their omitnan
+// variants: compare by |z|, ties by angle(z); a NaN-component operand is omitted
+// (omitNan) or propagates (see complexMinMaxPick). Diverted FIRST in each binary
+// fn — a complex operand must be intercepted before elementwiseDouble (which
+// reads doubleData() and throws on complex). bugs/math/maxmin-complex.md.
+template <bool IsMax>
+static Value complexBinaryMinMax(const Value &a, const Value &b, bool omitNan,
+                                 std::pmr::memory_resource *p)
+{
+    return elementwiseComplex(a, b,
+        [omitNan](Complex x, Complex y) { return complexMinMaxPick<IsMax>(x, y, omitNan); }, p);
+}
+
 Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
-    // Complex: compare by |z| then angle (MATLAB), 'includenan' here.
-    if (a.isComplex() || b.isComplex())
-        return elementwiseComplex(a, b,
-            [](Complex x, Complex y) { return complexMinMaxPick<true>(x, y, false); }, p);
+    if (a.isComplex() || b.isComplex()) return complexBinaryMinMax<true>(a, b, /*omitNan=*/false, p);
     // Integer / single binary form: result follows MATLAB type promotion
     // (integer wins over double; single wins over double; same-class
     // integers stay; mixed-class integers throw).
@@ -183,9 +193,7 @@ Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
-    if (a.isComplex() || b.isComplex())
-        return elementwiseComplex(a, b,
-            [](Complex x, Complex y) { return complexMinMaxPick<false>(x, y, false); }, p);
+    if (a.isComplex() || b.isComplex()) return complexBinaryMinMax<false>(a, b, /*omitNan=*/false, p);
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) { return x < y ? x : y; }, p);
@@ -201,9 +209,7 @@ Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 Value maxOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
-    if (a.isComplex() || b.isComplex())
-        return elementwiseComplex(a, b,
-            [](Complex x, Complex y) { return complexMinMaxPick<true>(x, y, true); }, p);
+    if (a.isComplex() || b.isComplex()) return complexBinaryMinMax<true>(a, b, /*omitNan=*/true, p);
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) {
@@ -226,9 +232,7 @@ Value maxOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource
 Value minOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
-    if (a.isComplex() || b.isComplex())
-        return elementwiseComplex(a, b,
-            [](Complex x, Complex y) { return complexMinMaxPick<false>(x, y, true); }, p);
+    if (a.isComplex() || b.isComplex()) return complexBinaryMinMax<false>(a, b, /*omitNan=*/true, p);
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) {

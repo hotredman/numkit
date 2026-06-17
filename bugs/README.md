@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (102 entries):** ✅ 53 fixed · 🔴 49 open = **11 bug** + 5 stub +
+**Tally (108 entries):** ✅ 58 fixed · 🔴 50 open = **12 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,7 +149,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (57)
+### ✅ FIXED (58)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
@@ -212,10 +212,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 11
+### 🔴 OPEN — bug (defect on an implemented function) — 12
 
 | Bug | Sev | Notes |
 |---|---|---|
+| [math/complex-zero-imag-narrowing](math/complex-zero-imag-narrowing.md) | P2 | numkit keeps complex-with-zero-imag (isreal(2+0i)=0); MATLAB narrows to real (=1), so max([1 -3 2],2+0i) differs ([2 -3 2] vs [2 2 2]). complex(x,0)/genuine-complex match; upstream narrowing gap, deep core fix deferred |
 | [math/interpn-nan](math/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |

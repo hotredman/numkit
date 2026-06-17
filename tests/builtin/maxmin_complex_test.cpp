@@ -92,6 +92,24 @@ TEST_P(MaxMinComplexTest, ClampComposition) {
     EXPECT_NEAR(im("c"), 0.4, 1e-12);
 }
 
+// Mixed-type edges. (a) integer + complex errors — MATLAB errors here too
+// ("integers combine only with same-class integers or scalar doubles"); numkit
+// can't promote an integer to complex. (b) a real array vs a GENUINELY complex
+// scalar compares by |z| (MATLAB R2025b). (c) complex(x,0) (FORCED complex) vs a
+// real scalar also uses |z| (max(complex(-3),2) = -3). NOTE the `2+0i` literal
+// spelling diverges (numkit keeps it complex; MATLAB narrows it to real) — that
+// is an upstream complex-narrowing gap (bugs/math/complex-zero-imag-narrowing.md),
+// NOT a max/min defect: the comparator is correct for numkit's complex model.
+TEST_P(MaxMinComplexTest, MixedTypeEdges) {
+    EXPECT_ANY_THROW(e.eval("q = max(complex(0.5,0), int8(1));"));        // (a)
+    e.eval("g = max([1 -3 2], 2+1i);");                                   // (b) genuine
+    EXPECT_EQ(re("g(1)"), 2.0);  EXPECT_EQ(im("g(1)"), 1.0);   // |2+1i|>|1|
+    EXPECT_EQ(re("g(2)"), -3.0); EXPECT_EQ(im("g(2)"), 0.0);   // |-3|>|2+1i|
+    EXPECT_EQ(re("g(3)"), 2.0);  EXPECT_EQ(im("g(3)"), 1.0);
+    e.eval("h = max(complex([1 -3 2]), 2);");                             // (c) forced
+    EXPECT_EQ(re("h(1)"), 2.0);  EXPECT_EQ(re("h(2)"), -3.0);  EXPECT_EQ(re("h(3)"), 2.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, MaxMinComplexTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));

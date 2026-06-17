@@ -60,6 +60,19 @@ TEST_P(ComplexMathTest, Expm1Complex) {
     EXPECT_NEAR(e.eval("max(abs(y - w))").toScalar(), 0.0, 1e-15);
 }
 
+// numkit has TWO round implementations: the real/SIMD path uses
+// Trunc(v+CopySign(0.5,v)); the complex path applies std::round to each
+// component. They must agree on tie-prone magnitudes so real-round and
+// complex-component-round never silently diverge (the fused kernels mirror
+// each path, so this also guards fused real-vs-complex round).
+TEST_P(ComplexMathTest, RoundFamilyRealVsComplexComponentAgree) {
+    e.eval("xs = [0.5 1.5 2.5 3.5 -0.5 -1.5 -2.5 -3.5 100.5 -100.5 0];");
+    EXPECT_TRUE(e.eval("isequaln(round(xs), real(round(xs + 0i)))").toBool());
+    EXPECT_TRUE(e.eval("isequaln(floor(xs), real(floor(xs + 0i)))").toBool());
+    EXPECT_TRUE(e.eval("isequaln(ceil(xs),  real(ceil(xs + 0i)))").toBool());
+    EXPECT_TRUE(e.eval("isequaln(fix(xs),   real(fix(xs + 0i)))").toBool());
+}
+
 INSTANTIATE_TEST_SUITE_P(Backends, ComplexMathTest,
                          ::testing::Values(numkit::Engine::Backend::TreeWalker,
                                            numkit::Engine::Backend::VM));

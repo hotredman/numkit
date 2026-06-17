@@ -1808,7 +1808,11 @@ bool TreeWalker::tryFusion(const ASTNode *node, Environment *env, Value &out)
         vals.reserve(operands->size());
         for (const ASTNode *opNode : *operands)
             vals.push_back(execNode(opNode, env));
-        return rule.execute(vals.data(), vals.size(), out, engine_.resource());
+        if (rule.execute(vals.data(), vals.size(), out, engine_.resource())) {
+            engine_.noteFusionHit();
+            return true;
+        }
+        return false;
     }
     return false;
 }
