@@ -26,18 +26,23 @@ namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
 
-void SqAffineImpl(const double *x, double scale, double offset,
+// inner is affine (p0*x + p1) or shift-divide ((x - p0)/p1) per `divide` (a
+// loop-invariant branch → the affine path is unchanged). The square is a plain
+// Mul (no FMA) either way, so each form is bit-identical to its per-op spelling.
+void SqAffineImpl(const double *x, double p0, double p1, bool divide,
                   double *out, std::size_t n) {
     const hn::ScalableTag<double> d;
     const std::size_t L = hn::Lanes(d);
-    const auto vs = hn::Set(d, scale), vt = hn::Set(d, offset);
+    const auto vp0 = hn::Set(d, p0), vp1 = hn::Set(d, p1);
     std::size_t i = 0;
     for (; i + L <= n; i += L) {
-        const auto v = hn::Add(hn::Mul(hn::LoadU(d, x + i), vs), vt);
+        const auto xv = hn::LoadU(d, x + i);
+        const auto v = divide ? hn::Div(hn::Sub(xv, vp0), vp1)
+                              : hn::Add(hn::Mul(xv, vp0), vp1);
         hn::StoreU(hn::Mul(v, v), d, out + i);
     }
     for (; i < n; ++i) {
-        const double v = scale * x[i] + offset;
+        const double v = divide ? (x[i] - p0) / p1 : p0 * x[i] + p1;
         out[i] = v * v;
     }
 }
@@ -82,7 +87,17 @@ void fusedSqAffine(const double *x, double scale, double offset,
                    double *out, std::size_t n) {
     if (n == 0) return;
     detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
-        HWY_DYNAMIC_DISPATCH(SqAffineImpl)(x + s, scale, offset, out + s, e - s);
+        HWY_DYNAMIC_DISPATCH(SqAffineImpl)(x + s, scale, offset, /*divide=*/false,
+                                           out + s, e - s);
+    });
+}
+
+void fusedSqShiftDiv(const double *x, double sub, double div,
+                     double *out, std::size_t n) {
+    if (n == 0) return;
+    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+        HWY_DYNAMIC_DISPATCH(SqAffineImpl)(x + s, sub, div, /*divide=*/true,
+                                           out + s, e - s);
     });
 }
 

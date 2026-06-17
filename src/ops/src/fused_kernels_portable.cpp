@@ -28,6 +28,23 @@ void fusedAffineClampMinOuter(const double *x, double scale, double offset,
     }
 }
 
+void fusedAffineClampShiftDiv(const double *x, double sub, double div,
+                              double lo, double hi, double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = (x[i] - sub) / div;
+        out[i] = std::fmax(lo, std::fmin(hi, v));
+    }
+}
+
+void fusedAffineClampMinOuterShiftDiv(const double *x, double sub, double div,
+                                      double lo, double hi, double *out,
+                                      std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = (x[i] - sub) / div;
+        out[i] = std::fmin(hi, std::fmax(lo, v));
+    }
+}
+
 void fusedAffine(const double *x, double scale, double offset,
                  double *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i) out[i] = scale * x[i] + offset;
@@ -55,6 +72,11 @@ void fusedAbsAffine(const double *x, double scale, double offset,
 
 void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(x[i] - y[i]);
+}
+
+void fusedAbsShiftDiv(const double *x, double sub, double div,
+                      double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs((x[i] - sub) / div);
 }
 
 void fusedUnaryAffine(const double *x, double scale, double offset,
@@ -98,6 +120,14 @@ void fusedSqAffine(const double *x, double scale, double offset,
 void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n) {
     for (std::size_t i = 0; i < n; ++i) {
         const double v = x[i] - y[i];
+        out[i] = v * v;
+    }
+}
+
+void fusedSqShiftDiv(const double *x, double sub, double div,
+                     double *out, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        const double v = (x[i] - sub) / div;
         out[i] = v * v;
     }
 }

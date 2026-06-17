@@ -29,6 +29,8 @@
 //     → fusedTransAffine (log/log2/log10 decline on a negative affine → complex)
 //   {sqrt,floor,ceil,exp,…}_div  f(x./d) / f((x-c)./d) → fused{Unary,Trans}ShiftDiv
 //     (div is a distinct rounding from scale*x+offset → dedicated kernels)
+//   sq_div / abs_div / affine_clamp_div[_min_outer]  (<div-arg>).^2 / abs(...) /
+//     max(lo,min(hi,(x-c)./d)) → fused{Sq,Abs,AffineClamp}ShiftDiv
 //
 // A small shared matcher layer (the `is*` helpers) does the AST inspection so
 // each rule's match closure stays a few lines; the execute closures share the
@@ -641,6 +643,37 @@ bool shiftDivAnyNegative(const double *x, double sub, double div, std::size_t n)
     return false;
 }
 
+// max(lo,min(hi,(x-c)./d)) / min(hi,max(lo,x./d)) — clamp of a divide-inner,
+// the canonical rescale-then-saturate `max(0,min(1,(x-lo)./range))`. Peel the
+// clamp, match the inner as a div-arg → ops = [lo, hi, <div-arg-ops>]. matchInner
+// rejects `./`, so the affine-clamp rules decline it and these own it.
+std::optional<std::vector<const ASTNode *>>
+matchAffineClampDiv(const ASTNode *node, bool minOuter) {
+    auto cs = peelClamp(node, minOuter);
+    if (!cs || !isPureLeaf(cs->lo) || !isPureLeaf(cs->hi)) return std::nullopt;
+    auto inner = matchDivArg(cs->inner);
+    if (!inner) return std::nullopt;
+    std::vector<const ASTNode *> ops{cs->lo, cs->hi};
+    ops.insert(ops.end(), inner->begin(), inner->end());
+    return ops;                                // [lo, hi, <div-arg-ops>]
+}
+
+bool execAffineClampDiv(const Value *ops, std::size_t n, Value &out,
+                        std::pmr::memory_resource *mr, bool minOuter) {
+    if (n < 3) return false;                   // lo, hi, + >=1 div-arg operand
+    const Value &lo = ops[0], &hi = ops[1];
+    if (!isRealDoubleScalar(lo) || !isRealDoubleScalar(hi)) return false;
+    double sub = 0.0, div = 0.0;
+    const Value *x = nullptr;
+    if (!bindDivInner(&ops[2], n - 2, sub, div, x)) return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    auto kernel = minOuter ? ops::fusedAffineClampMinOuterShiftDiv
+                           : ops::fusedAffineClampShiftDiv;
+    kernel(x->doubleData(), sub, div, lo.toScalar(), hi.toScalar(),
+           out.doubleDataMut(), x->numel());
+    return true;
+}
+
 // ---- unary-affine:  f(<inner>),  f ∈ {sqrt, floor, ceil} ---------------
 // A unary whose SIMD form is bit-identical to libm (sqrt correctly-rounded,
 // floor/ceil exact). exp/log/sin… are NOT here — Highway's polynomial differs
@@ -781,6 +814,35 @@ bool execSqDiff(const Value *ops, std::size_t n, Value &out,
         return true;
     }
     return false;
+}
+
+// (x./d).^2 / ((x-c)./d).^2 — square of a divide-inner (squared z-score). The
+// div-arg (matchDivArg) is structurally disjoint from matchInner (asPureProduct
+// rejects `./`), so sq_div never collides with sq_affine/sq_diff.
+bool execSqDivInner(const Value *ops, std::size_t n, Value &out,
+                    std::pmr::memory_resource *mr) {
+    double sub = 0.0, div = 0.0;
+    const Value *x = nullptr;
+    if (!bindDivInner(ops, n, sub, div, x)) return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedSqShiftDiv(x->doubleData(), sub, div, out.doubleDataMut(),
+                         x->numel());
+    return true;
+}
+
+// abs(x./d) / abs((x-c)./d) — abs of a divide-inner (the abs counterpart of
+// execSqDivInner; defined here, next to it, because both need bindDivInner from
+// the div-inner facility above). matchDivArg is disjoint from matchInner /
+// asPureSub, so abs_div never collides with abs_affine / abs_diff.
+bool execAbsDivInner(const Value *ops, std::size_t n, Value &out,
+                     std::pmr::memory_resource *mr) {
+    double sub = 0.0, div = 0.0;
+    const Value *x = nullptr;
+    if (!bindDivInner(ops, n, sub, div, x)) return false;
+    out = ops::createLike(*x, ValueType::DOUBLE, mr);
+    ops::fusedAbsShiftDiv(x->doubleData(), sub, div, out.doubleDataMut(),
+                          x->numel());
+    return true;
 }
 
 bool execSqrtSumSq(const Value *ops, std::size_t n, Value &out,
@@ -985,6 +1047,21 @@ void registerFusionRules(Engine &engine) {
         }
     }
 
+    // affine-clamp of a divide-inner: max(lo,min(hi,(x-c)./d)) / min-outer
+    // (rescale-then-saturate). Both clamp orders; the dedicated shift-div kernel.
+    for (bool minOuter : {false, true}) {
+        FusionRule r;
+        r.name  = minOuter ? "affine_clamp_div_min_outer" : "affine_clamp_div";
+        r.match = [minOuter](const ASTNode *node) {
+            return matchAffineClampDiv(node, minOuter);
+        };
+        r.execute = [minOuter](const Value *ops, std::size_t n, Value &out,
+                               std::pmr::memory_resource *mr) {
+            return execAffineClampDiv(ops, n, out, mr, minOuter);
+        };
+        engine.addFusionRule(std::move(r));
+    }
+
     // abs(<inner>): every inner spelling except ShiftSub (abs_diff owns it).
     for (InnerKind kind : kInnerKindsNoShiftSub) {
         FusionRule r;
@@ -1002,6 +1079,18 @@ void registerFusionRules(Engine &engine) {
     absDiff.match = matchAbsDiff;
     absDiff.execute = execAbsDiff;
     engine.addFusionRule(std::move(absDiff));
+
+    // abs(x./d) / abs((x-c)./d) — divide-inner abs (dedicated shift-div kernel).
+    FusionRule absDiv;
+    absDiv.name  = "abs_div";
+    absDiv.match = [](const ASTNode *node)
+                   -> std::optional<std::vector<const ASTNode *>> {
+        const ASTNode *arg = absArg(node);
+        if (!arg) return std::nullopt;
+        return matchDivArg(arg);
+    };
+    absDiv.execute = execAbsDivInner;
+    engine.addFusionRule(std::move(absDiv));
 
     // unary-affine f(<inner>): one rule per (function, inner spelling). The
     // function-id and inner kind are baked into the captured closures, so every
@@ -1065,6 +1154,18 @@ void registerFusionRules(Engine &engine) {
     sqDiff.match = matchSqDiff;
     sqDiff.execute = execSqDiff;
     engine.addFusionRule(std::move(sqDiff));
+
+    // (x./d).^2 / ((x-c)./d).^2 — divide-inner square (dedicated shift-div kernel).
+    FusionRule sqDiv;
+    sqDiv.name  = "sq_div";
+    sqDiv.match = [](const ASTNode *node)
+                  -> std::optional<std::vector<const ASTNode *>> {
+        const ASTNode *base = asSquare(node);
+        if (!base) return std::nullopt;
+        return matchDivArg(base);
+    };
+    sqDiv.execute = execSqDivInner;
+    engine.addFusionRule(std::move(sqDiv));
 
     FusionRule sqrtSumSq;
     sqrtSumSq.name  = "sqrt_sumsq";

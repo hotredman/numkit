@@ -24,15 +24,23 @@ namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
 
-void AbsAffineImpl(const double *x, double scale, double offset,
+// inner is affine (p0*x + p1) or shift-divide ((x - p0)/p1) per `divide` (a
+// loop-invariant branch). abs is exact (a sign-bit clear), so each form is
+// bit-identical to its per-op spelling.
+void AbsAffineImpl(const double *x, double p0, double p1, bool divide,
                    double *out, std::size_t n) {
     const hn::ScalableTag<double> d;
     const std::size_t L = hn::Lanes(d);
-    const auto vs = hn::Set(d, scale), vt = hn::Set(d, offset);
+    const auto vp0 = hn::Set(d, p0), vp1 = hn::Set(d, p1);
     std::size_t i = 0;
-    for (; i + L <= n; i += L)
-        hn::StoreU(hn::Abs(hn::Add(hn::Mul(hn::LoadU(d, x + i), vs), vt)), d, out + i);
-    for (; i < n; ++i) out[i] = std::fabs(scale * x[i] + offset);
+    for (; i + L <= n; i += L) {
+        const auto xv = hn::LoadU(d, x + i);
+        const auto v = divide ? hn::Div(hn::Sub(xv, vp0), vp1)
+                              : hn::Add(hn::Mul(xv, vp0), vp1);
+        hn::StoreU(hn::Abs(v), d, out + i);
+    }
+    for (; i < n; ++i)
+        out[i] = std::fabs(divide ? (x[i] - p0) / p1 : p0 * x[i] + p1);
 }
 
 void AbsDiffImpl(const double *x, const double *y, double *out, std::size_t n) {
@@ -58,7 +66,17 @@ void fusedAbsAffine(const double *x, double scale, double offset,
                     double *out, std::size_t n) {
     if (n == 0) return;
     detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
-        HWY_DYNAMIC_DISPATCH(AbsAffineImpl)(x + s, scale, offset, out + s, e - s);
+        HWY_DYNAMIC_DISPATCH(AbsAffineImpl)(x + s, scale, offset, /*divide=*/false,
+                                            out + s, e - s);
+    });
+}
+
+void fusedAbsShiftDiv(const double *x, double sub, double div,
+                      double *out, std::size_t n) {
+    if (n == 0) return;
+    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+        HWY_DYNAMIC_DISPATCH(AbsAffineImpl)(x + s, sub, div, /*divide=*/true,
+                                            out + s, e - s);
     });
 }
 
