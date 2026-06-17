@@ -1,4 +1,4 @@
-// ops/src/fused_soft_threshold_highway.cpp
+// ops/src/fused/fused_soft_threshold_highway.cpp
 //
 // SIMD kernel for fusedSoftThreshold: out[i] = sign(x) * max(0, |x| - t), the
 // wavelet/L1 shrinkage operator. One pass instead of sign + abs + sub + max +
@@ -7,14 +7,14 @@
 // and max(0, d) omits NaN (std::fmax semantics, matching numkit's max(0,·)) —
 // so the result is bit-identical to `sign(x) .* max(0, abs(x) - t)`.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_soft_threshold_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_soft_threshold_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

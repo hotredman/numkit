@@ -1,18 +1,18 @@
-// toolboxes/signal/src/transforms/backends/fft_r4_simd.cpp
+// ops/src/fft/fft_r4_simd.cpp
 //
 // Radix-4 FFT kernel for sizes that are clean powers of 4. Same
 // per-TU isolation rationale as fft_r2_simd.cpp — keeping the
 // r4 butterfly and its base-4 digit-reversal away from the r2 / r8
 // kernels lets MSVC inline within each file's budget.
 
-#include <numkit/ops/fft_kernels.hpp>
+#include <numkit/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft_r4_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_r4_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

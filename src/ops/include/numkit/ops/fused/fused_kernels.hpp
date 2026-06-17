@@ -1,4 +1,4 @@
-// ops/include/numkit/ops/fused_kernels.hpp
+// ops/include/numkit/ops/fused/fused_kernels.hpp
 //
 // Fused element-wise kernels: each is a hand-written, fixed-structure SIMD
 // loop that computes a whole common idiom (an element-wise chain) in ONE pass

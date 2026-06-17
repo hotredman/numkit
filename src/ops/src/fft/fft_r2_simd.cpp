@@ -1,4 +1,4 @@
-// toolboxes/signal/src/transforms/backends/fft_r2_simd.cpp
+// ops/src/fft/fft_r2_simd.cpp
 //
 // Radix-2 FFT kernel as a standalone Highway translation unit.
 // Lives in its own .cpp so MSVC's per-TU inliner budget isn't shared
@@ -7,14 +7,14 @@
 // touch (see feedback_fft_msvc_limits memory). With the split each
 // kernel inlines cleanly inside its own file.
 
-#include <numkit/ops/fft_kernels.hpp>
+#include <numkit/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 #include <utility>
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fft_r2_simd.cpp"
+#define HWY_TARGET_INCLUDE "fft/fft_r2_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

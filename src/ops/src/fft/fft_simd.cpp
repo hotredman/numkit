@@ -1,4 +1,4 @@
-// toolboxes/signal/src/transforms/backends/fft_simd.cpp
+// ops/src/fft/fft_simd.cpp
 //
 // Thin FFT dispatcher. The actual radix kernels live in their own
 // translation units (fft_r2_simd.cpp / fft_r4_simd.cpp /
@@ -11,7 +11,7 @@
 // kernel based on the size predicate (pow-of-4, pow-of-8, …) and
 // hands off through the per-kernel dispatcher exported from each TU.
 
-#include <numkit/ops/fft_kernels.hpp>
+#include <numkit/ops/fft/fft_kernels.hpp>
 
 #include <cstddef>
 

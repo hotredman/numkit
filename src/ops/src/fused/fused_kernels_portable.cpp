@@ -1,11 +1,11 @@
-// ops/src/fused_kernels_portable.cpp
+// ops/src/fused/fused_kernels_portable.cpp
 //
 // Scalar fallbacks for the fused element-wise kernels (non-SIMD builds). One
 // file for all kernels — scalar loops are tiny and carry no Highway
 // multi-target / inliner-budget cost, so there is no reason to split them.
 // Semantics match the SIMD versions bit-for-bit (std::fmin/fmax NaN rules).
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 
 #include <cmath>
 #include <cstddef>

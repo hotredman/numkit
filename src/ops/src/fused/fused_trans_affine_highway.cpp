@@ -1,4 +1,4 @@
-// ops/src/fused_trans_affine_highway.cpp
+// ops/src/fused/fused_trans_affine_highway.cpp
 //
 // SIMD kernel for fusedTransAffine: out[i] = f(scale*x[i] + offset), f ∈
 // {exp, expm1}. These transcendentals' Highway form (hwy/contrib/math, SLEEF-
@@ -10,7 +10,7 @@
 // The affine is Mul-then-Add (two roundings, NOT FMA) to match the affine
 // fallback. exp/expm1 of any real is real → no complex-promotion domain.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cmath>
@@ -18,7 +18,7 @@
 #include <cstdint>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_trans_affine_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_trans_affine_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 #include <hwy/contrib/math/math-inl.h>

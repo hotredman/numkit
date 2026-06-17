@@ -1,4 +1,4 @@
-// ops/src/fused_unary_affine_highway.cpp
+// ops/src/fused/fused_unary_affine_highway.cpp
 //
 // SIMD kernel for fusedUnaryAffine: out[i] = f(scale*x[i] + offset), one
 // streaming pass instead of the per-op affine temporary + the unary's own pass.
@@ -8,14 +8,14 @@
 // bit-for-bit no matter where the array is split. The affine is Mul-then-Add
 // (two roundings, NOT FMA) to match the affine fallback.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_unary_affine_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_unary_affine_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

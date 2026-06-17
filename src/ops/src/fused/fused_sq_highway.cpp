@@ -1,4 +1,4 @@
-// ops/src/fused_sq_highway.cpp
+// ops/src/fused/fused_sq_highway.cpp
 //
 // SIMD kernels for the square / magnitude idioms (all enabled by x.^2 == x.*x):
 //   fusedSqAffine:  out[i] = (scale*x[i] + offset)^2   — `(a.*x ± b).^2`
@@ -9,14 +9,14 @@
 // real squares is never negative, so fusedSqrtSumSq needs no complex/domain
 // handling. NaN/Inf propagate through the plain IEEE ops as per-op.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_sq_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_sq_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

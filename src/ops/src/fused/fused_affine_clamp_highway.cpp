@@ -1,18 +1,18 @@
-// ops/src/fused_affine_clamp_highway.cpp
+// ops/src/fused/fused_affine_clamp_highway.cpp
 //
 // SIMD kernel for fusedAffineClamp: out[i] = max(lo, min(hi, scale*x[i]+offset)).
 // Fixed structure → intermediates stay in registers (no micro-VM spill), one
 // FMA + a clamp per element, single streaming pass. min/max replicate
 // std::fmin/fmax NaN semantics so the result matches the per-op fallback.
 
-#include <numkit/ops/fused_kernels.hpp>
+#include <numkit/ops/fused/fused_kernels.hpp>
 #include <numkit/ops/parallel_for.hpp>
 
 #include <cmath>
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "fused_affine_clamp_highway.cpp"
+#define HWY_TARGET_INCLUDE "fused/fused_affine_clamp_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
