@@ -112,3 +112,50 @@ TEST(TypeLattice, JoinCommutative)
     const auto c = InferredType::scalar(ValueType::CHAR);
     EXPECT_EQ(join(a, c), join(c, a));
 }
+
+// ── ConstVal (the SCCP facet that drives shape-from-value) ────────────
+
+// A known non-negative integer constant reads out as an array dimension;
+// Unknown, non-integral, and negative values do not.
+TEST(ConstLattice, AsDim)
+{
+    std::size_t d = 999;
+    EXPECT_TRUE(ConstVal::known(64.0).asDim(d));
+    EXPECT_EQ(d, 64u);
+
+    EXPECT_TRUE(ConstVal::known(0.0).asDim(d));  // 0 is a valid dim
+    EXPECT_EQ(d, 0u);
+
+    EXPECT_FALSE(ConstVal::unknown().asDim(d));     // not a constant
+    EXPECT_FALSE(ConstVal::known(3.5).asDim(d));    // non-integral
+    EXPECT_FALSE(ConstVal::known(-4.0).asDim(d));   // negative
+}
+
+// Constant join: equal Known values survive; disagreement → Unknown.
+TEST(ConstLattice, Join)
+{
+    EXPECT_EQ(join(ConstVal::known(7.0), ConstVal::known(7.0)), ConstVal::known(7.0));
+
+    EXPECT_FALSE(join(ConstVal::known(7.0), ConstVal::known(8.0)).isKnown());
+    EXPECT_FALSE(join(ConstVal::known(7.0), ConstVal::unknown()).isKnown());
+    EXPECT_FALSE(join(ConstVal::unknown(), ConstVal::unknown()).isKnown());
+}
+
+// linspace(0, 1, 64): the 3rd argument carries a Known constant, which a
+// size-constructor transfer function turns into a concrete column count.
+// This is the end-to-end reason ConstVal exists.
+TEST(ConstLattice, DrivesShapeFromValue)
+{
+    const ConstVal n = ConstVal::known(64.0);    // the literal `64`
+    std::size_t cols = 0;
+    ASSERT_TRUE(n.asDim(cols));
+    // What linspace's transfer function would build from it:
+    const auto y = InferredType::concrete(ValueType::DOUBLE, Shape::dims(1, cols));
+    EXPECT_EQ(y.dtype, ValueType::DOUBLE);
+    EXPECT_EQ(y.shape.kind, ShapeKind::KnownDims);
+    EXPECT_EQ(y.shape.cols, 64u);
+
+    // A runtime (Unknown) n cannot fix the column count.
+    std::size_t dummy = 0;
+    EXPECT_FALSE(ConstVal::unknown().asDim(dummy));
+}
