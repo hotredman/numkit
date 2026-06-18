@@ -257,7 +257,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [stats/friedman](stats/friedman.md) | P2 | Friedman ANOVA |
 | [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | cdf/pdf/icdf/random |
-| [stats/autocorr](stats/autocorr.md) | P2 | autocorr/parcorr/crosscorr (Econometrics ACF/PACF/CCF) |
+| [stats/autocorr](stats/autocorr.md) | P2 | **parcorr** remaining (autocorr + crosscorr ✅ done 2026-06-18; parcorr default=OLS regression, deferred) |
 | [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | pmusic/peig |
 | [signal/fillgaps](signal/fillgaps.md) | P2 | fillgaps |
 | [signal/stmcb](signal/stmcb.md) | P2 | stmcb |

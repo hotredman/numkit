@@ -3,6 +3,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_extras.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/normalize.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tiedrank.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/sample_corr.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/corrcov.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/tabulate.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/grp2idx.cpp # compute (engine-free)

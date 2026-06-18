@@ -613,6 +613,41 @@ Value zscore(const Value &A, std::pmr::memory_resource *mr = nullptr);
 std::pair<Value, Value>
 tiedrank(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Sample autocorrelation function (`[acf, lags, bounds] = autocorr(y)`).
+///
+/// `acf(k) = c(k)/c(0)` with the BIASED autocovariance
+/// `c(k) = (1/N) Σ_t (y_t-ȳ)(y_{t+k}-ȳ)` — matches MATLAB's Econometrics
+/// `autocorr` (lag-0 == 1). Confidence bounds are `±numSTD/√N`.
+///
+/// @param y        Real 1-D series.
+/// @param numLags  Number of lags; `< 0` → MATLAB default `min(20, N-1)`.
+/// @param numSTD   Bound width in standard errors (MATLAB default `2`).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(acf, lags, bounds)` column vectors; `acf`/`lags` have
+///                 `numLags+1` entries (lags `0..numLags`), `bounds` is `[+b; -b]`.
+/// @see crosscorr, xcorr
+std::tuple<Value, Value, Value>
+autocorr(const Value &y, int numLags = -1, double numSTD = 2.0,
+         std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Sample cross-correlation function (`[xcf, lags, bounds] = crosscorr(y1, y2)`).
+///
+/// `xcf(k) = [(1/N) Σ_t (y1_t-ȳ1)(y2_{t+k}-ȳ2)] / √(c1(0)·c2(0))` for
+/// `k = -numLags..numLags` — matches MATLAB's Econometrics `crosscorr`
+/// (zero-lag = sample correlation). Confidence bounds are `±numSTD/√N`.
+///
+/// @param y1       First real 1-D series.
+/// @param y2       Second real 1-D series (same length as `y1`).
+/// @param numLags  Number of lags each side; `< 0` → default `min(20, N-1)`.
+/// @param numSTD   Bound width in standard errors (default `2`).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(xcf, lags, bounds)` column vectors; `xcf`/`lags` have
+///                 `2·numLags+1` entries (lags `-numLags..numLags`).
+/// @see autocorr, xcorr
+std::tuple<Value, Value, Value>
+crosscorr(const Value &y1, const Value &y2, int numLags = -1, double numSTD = 2.0,
+          std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Correlation matrix from covariance (`[R, sigma] = corrcov(C)`).
 ///
 /// `R(i, j) = C(i, j) / sqrt(C(i, i) · C(j, j))`;

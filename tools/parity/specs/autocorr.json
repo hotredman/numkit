@@ -1,0 +1,10 @@
+{
+  "name": "autocorr",
+  "namespace": "stats",
+  "setup": "y = [1 2 3 2 1 2 3 2 1];",
+  "expr": "[acf, lags, bounds] = autocorr(y);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["numel(acf)", "acf(1)", "acf(2)", "acf(3)", "acf(5)", "acf(9)", "lags(9)", "bounds(1)"],
+  "comment": "Sig: [acf, lags, bounds] = autocorr(y, NumLags, NumSTD). Sample autocorrelation (Econometrics TB): biased estimator acf(k) = c(k)/c(0), c(k) = (1/N) sum (y_t-ybar)(y_{t+k}-ybar); lag-0 == 1. Default NumLags = min(20, N-1); bounds = +-NumSTD/sqrt(N), default NumSTD = 2 (MATLAB R2025b uses 2, not 1.96). Fixes bugs/stats/autocorr (was undefined). Verified vs MATLAB R2025b: acf(2)=0.020202, acf(3)=-0.800505, bounds=+-0.666667. Octave's signal/statistics pkgs may lack autocorr with this convention; harness prefers MATLAB."
+}
