@@ -1,0 +1,10 @@
+{
+  "name": "periodogram_nonpow2",
+  "namespace": "signal",
+  "setup": "fs=1000; t=(0:fs-1)/fs; x=sin(2*pi*100*t)+0.5*sin(2*pi*200*t);",
+  "expr": "[P,F]=periodogram(x,[],1000,fs);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["numel(P)", "F(end)", "P(101)", "P(201)", "sum(P)*(F(2)-F(1))"],
+  "comment": "Sig: [P,F] = periodogram(x, win, nfft, fs) with a NON-power-of-two nfft (=N=1000). numkit's periodogram transforms via fftRadix2 (pow2-only); a non-pow2 nfft now routes through the general fft (Bluestein) instead of producing a garbage spectrum. Rectangular window (win=[]). Verified vs MATLAB R2025b: 501 one-sided bins on [0,500], P(f=100)=0.5, P(f=200)=0.125, sum(P)*df=0.625=mean(x^2) (Parseval). Fixes bugs/signal/periodogram-nonpow2-nfft (was peak at ~256 Hz, sum~21.5)."
+}

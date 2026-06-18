@@ -173,16 +173,18 @@ TEST_F(SignalKnownBug, PeriodogramPxxc)
     EXPECT_NEAR(evalScalar("pxxc(end,1)/pxx(end)"), 0.1990490952, 1e-9);
 }
 
-// bugs/signal/periodogram-nonpow2-nfft.md — radix-2 garbage for non-pow2 nfft.
-TEST_F(SignalKnownBug, DISABLED_PeriodogramNonPow2Nfft)
+// bugs/signal/periodogram-nonpow2-nfft.md — non-pow2 nfft via Bluestein (FIXED).
+TEST_F(SignalKnownBug, PeriodogramNonPow2Nfft)
 {
     eval("fs=1000; t=(0:fs-1)/fs; x=sin(2*pi*100*t)+0.5*sin(2*pi*200*t);");
     eval("[P,F]=periodogram(x,[],1000,fs);");   // nfft=1000 (non-power-of-two)
+    EXPECT_EQ(eval("P").numel(), 501u);
     eval("[~,ix]=max(P);");
-    // dominant tone at 100 Hz -> peak bin ~100; numkit (radix-2) lands at ~256.
-    EXPECT_NEAR(evalScalar("F(ix)"), 100.0, 1.0);
-    // Parseval: sum(P)*df = mean(x^2) = 0.625; numkit yields ~21.5.
-    EXPECT_NEAR(evalScalar("sum(P)*(F(2)-F(1))"), 0.625, 1e-3);
+    EXPECT_NEAR(evalScalar("F(ix)"), 100.0,  1e-9);   // peak at the 100 Hz tone (was ~256)
+    EXPECT_NEAR(evalScalar("P(101)"), 0.5,   1e-9);   // f=100
+    EXPECT_NEAR(evalScalar("P(201)"), 0.125, 1e-9);   // f=200
+    // Parseval: sum(P)*df = mean(x^2) = 0.625 (was ~21.5).
+    EXPECT_NEAR(evalScalar("sum(P)*(F(2)-F(1))"), 0.625, 1e-9);
 }
 
 // bugs/builtin/complex-input-unsupported.md — conv/filter on complex input.

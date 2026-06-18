@@ -1,6 +1,6 @@
 # signal.periodogram — garbage spectrum for non-power-of-two nfft
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-18) — non-pow2 nfft routes through the Bluestein fft
 - **Severity:** P2 (wrong result for an explicit non-pow2 nfft)
 - **Kind:** bug
 - **Found:** 2026-06-18 (while fixing bugs/signal/obw-value-outputs)
@@ -27,18 +27,25 @@ non-pow2 `nfft` it produces garbage — there is no Bluestein/mixed-radix fallba
 on this path. The general `fft` (`transforms/fft.cpp`) already has a Bluestein
 path for arbitrary `N`; `periodogram` should route non-pow2 `nfft` through it.
 
-## Suggested fix
-When `nfft` is not a power of two, compute the length-`nfft` DFT via the general
-`fft` (Bluestein) instead of `fftRadix2`, then apply the existing one-sided
-scaling. (This is exactly what `obw` now does inline to dodge the bug — see
-bugs/signal/obw-value-outputs.) `pwelch`/`cpsd`/`mscohere`/`tfestimate` and
-`computePsd` share the helper, so fixing it in one place closes the gap for all.
-Validate vs MATLAB on a non-pow2 nfft (e.g. 1000): dominant-tone bin + Parseval
-`sum(P)·df == mean(x²)`.
+## Fix (2026-06-18)
+`periodogram` now gates on the transform length: a power-of-two `nfft` keeps the
+fast `fftRadix2` path (unchanged — zero risk for the default and all existing
+callers), while a non-pow2 `nfft` routes the windowed, zero-padded signal through
+the general `fft` (Bluestein, `O(N log N)`) before the existing one-sided scaling.
+`pwelch`/`cpsd`/`mscohere`/`tfestimate`/`computePsd` share the helper and inherit
+the fix. (`obw` keeps its own inline general-fft PSD; not refactored to avoid
+churn.)
+
+Verified vs MATLAB R2025b (parity `periodogram_nonpow2.json` → OK):
+`periodogram(sin(2π·100t)+0.5·sin(2π·200t), [], 1000, 1000)` → 501 one-sided bins
+on `[0,500]`, `P(f=100)=0.5`, `P(f=200)=0.125`, `Σ P·df = 0.625 = mean(x²)`
+(Parseval). Previously the peak landed at ~256 Hz with `Σ P·df ≈ 21.5`. Guard:
+`known_bugs_test.cpp` (`PeriodogramNonPow2Nfft`, promoted live); smoke
+`periodogram_nonpow2_smoke.m`.
 
 ## References
 - `src/toolboxes/signal/src/spectral_analysis/periodogram_pwelch.cpp`
-  (`periodogram`, uses `fftRadix2`).
+  (`periodogram` — pow2 gate + Bluestein route).
 - `src/toolboxes/signal/src/transforms/fft.cpp` (general `fft` with Bluestein).
-- related: `bugs/signal/obw-value-outputs.md` (worked around this by calling the
-  general `fft` directly).
+- `tools/parity/specs/periodogram_nonpow2.json`.
+- related: `bugs/signal/obw-value-outputs.md` (worked around this inline).
