@@ -99,13 +99,50 @@ TEST(Inference, ControlFlowIsConservativelyDynamic)
     EXPECT_TRUE(env.get("w").type.isDynamic());
 }
 
-// Binary operators are not yet registered (the elementwise transfer
-// family is the next width step), so they currently infer to Dynamic.
-// Pinning this documents the current boundary honestly — it should flip
-// to a concrete double once `plus` is registered.
-TEST(Inference, BinaryOpNotYetTypedIsDynamic)
+// Scalar arithmetic now types through the elementwise family: a + 1 is
+// an unboxed scalar double.
+TEST(Inference, ScalarArithmeticIsTypedDouble)
 {
     const auto env = inferSrc("a = 3; b = a + 1;");
-    EXPECT_TRUE(env.get("a").type.isUnboxableScalar());  // a is precise
-    EXPECT_TRUE(env.get("b").type.isDynamic());          // a+1 not yet
+    EXPECT_TRUE(env.get("a").type.isUnboxableScalar());
+    const auto b = env.get("b");
+    EXPECT_TRUE(b.type.isUnboxableScalar());
+    EXPECT_EQ(b.type.dtype, ValueType::DOUBLE);
+}
+
+// The biquad inner expression: every operand is a scalar double, so the
+// whole Direct-Form-I update types to an unboxed scalar double — the
+// case M0 measured at ~97x the VM.
+TEST(Inference, BiquadBodyIsUnboxableScalar)
+{
+    const auto env = inferSrc(
+        "b0=0.0675; b1=0.1349; b2=0.0675; a1=-1.1430; a2=0.4128;"
+        "xn=0.5; x1=0; x2=0; y1=0; y2=0;"
+        "yn = b0*xn + b1*x1 + b2*x2 - a1*y1 - a2*y2;");
+    const auto yn = env.get("yn");
+    EXPECT_TRUE(yn.type.isUnboxableScalar());
+    EXPECT_EQ(yn.type.dtype, ValueType::DOUBLE);
+}
+
+// A comparison yields a logical scalar.
+TEST(Inference, ComparisonIsLogical)
+{
+    const auto env = inferSrc("t = 2 < 3;");
+    const auto t = env.get("t");
+    ASSERT_TRUE(t.type.isConcrete());
+    EXPECT_EQ(t.type.dtype, ValueType::LOGICAL);
+    EXPECT_TRUE(t.type.shape.isScalar());
+}
+
+// Elementwise math on a typed array preserves dtype and shape:
+// sin(zeros(1,8)) is a double 1x8.
+TEST(Inference, ElementwiseMathPreservesArrayShape)
+{
+    const auto env = inferSrc("x = zeros(1, 8); s = sin(x);");
+    const auto s = env.get("s");
+    ASSERT_TRUE(s.type.isConcrete());
+    EXPECT_EQ(s.type.dtype, ValueType::DOUBLE);
+    EXPECT_EQ(s.type.shape.kind, ShapeKind::KnownDims);
+    EXPECT_EQ(s.type.shape.rows, 1u);
+    EXPECT_EQ(s.type.shape.cols, 8u);
 }

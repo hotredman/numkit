@@ -109,3 +109,65 @@ TEST(Transfer, OnesShape)
     EXPECT_EQ(t.shape.rows, 2u);
     EXPECT_EQ(t.shape.cols, 7u);
 }
+
+// ── elementwise rules in isolation ───────────────────────────────────
+
+// Arithmetic promotion: complex dominates, then integer, then single.
+TEST(Transfer, ArithmeticPromotion)
+{
+    const auto reg = makeRegistry();
+    auto plus = [&](ValueType a, ValueType b) {
+        return reg.apply("plus", {ArgInfo::of(InferredType::scalar(a)),
+                                  ArgInfo::of(InferredType::scalar(b))});
+    };
+    EXPECT_EQ(plus(ValueType::DOUBLE, ValueType::DOUBLE).dtype, ValueType::DOUBLE);
+    EXPECT_EQ(plus(ValueType::DOUBLE, ValueType::COMPLEX).dtype, ValueType::COMPLEX);
+    EXPECT_EQ(plus(ValueType::DOUBLE, ValueType::INT8).dtype, ValueType::INT8);
+    EXPECT_EQ(plus(ValueType::DOUBLE, ValueType::SINGLE).dtype, ValueType::SINGLE);
+    EXPECT_EQ(plus(ValueType::LOGICAL, ValueType::LOGICAL).dtype, ValueType::DOUBLE);
+    // mixed distinct integers -> can't type (MATLAB errors)
+    EXPECT_TRUE(plus(ValueType::INT8, ValueType::INT16).isDynamic());
+}
+
+// Broadcast: scalar + array -> array shape; array + same-array -> same.
+TEST(Transfer, ArithmeticBroadcast)
+{
+    const auto reg = makeRegistry();
+    const auto arr = InferredType::concrete(ValueType::DOUBLE, Shape::dims(1, 3));
+    const auto sc  = InferredType::scalar(ValueType::DOUBLE);
+
+    const auto t1 = reg.apply("plus", {ArgInfo::of(sc), ArgInfo::of(arr)});
+    EXPECT_EQ(t1.shape.kind, ShapeKind::KnownDims);
+    EXPECT_EQ(t1.shape.cols, 3u);
+
+    const auto t2 = reg.apply("plus", {ArgInfo::of(arr), ArgInfo::of(arr)});
+    EXPECT_EQ(t2.shape.cols, 3u);
+
+    // differing known dims -> shape not provable -> Unknown (dtype kept)
+    const auto other = InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 2));
+    const auto t3 = reg.apply("plus", {ArgInfo::of(arr), ArgInfo::of(other)});
+    EXPECT_EQ(t3.dtype, ValueType::DOUBLE);
+    EXPECT_EQ(t3.shape.kind, ShapeKind::Unknown);
+}
+
+// Comparison is logical regardless of numeric input dtype.
+TEST(Transfer, ComparisonIsLogical)
+{
+    const auto reg = makeRegistry();
+    const auto t = reg.apply("lt", {ArgInfo::of(InferredType::scalar(ValueType::SINGLE)),
+                                    ArgInfo::of(InferredType::scalar(ValueType::DOUBLE))});
+    EXPECT_EQ(t.dtype, ValueType::LOGICAL);
+    EXPECT_TRUE(t.shape.isScalar());
+}
+
+// abs narrows complex to real double; sin keeps real real.
+TEST(Transfer, UnaryMath)
+{
+    const auto reg = makeRegistry();
+    EXPECT_EQ(reg.apply("abs", {ArgInfo::of(InferredType::scalar(ValueType::COMPLEX))}).dtype,
+              ValueType::DOUBLE);
+    EXPECT_EQ(reg.apply("sin", {ArgInfo::of(InferredType::scalar(ValueType::DOUBLE))}).dtype,
+              ValueType::DOUBLE);
+    // sin on an integer errors in MATLAB -> not safely typeable
+    EXPECT_TRUE(reg.apply("sin", {ArgInfo::of(InferredType::scalar(ValueType::INT8))}).isDynamic());
+}

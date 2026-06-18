@@ -200,6 +200,10 @@ almost nothing for the real use case.
   soundly = Dynamic) ✅ → **next:** CFG + dataflow with join/fixpoint
   for precise control flow; elementwise transfer family; entry-point
   type annotations.
+  - elementwise transfer family ✅ — arithmetic (dtype promotion +
+    broadcast), comparison/logical (-> logical), unary, real-preserving
+    math (sin/cos/exp/…), abs (|complex| -> real). The biquad inner
+    expression now types end-to-end to an unboxed scalar double.
 - **M2** — emitter + interop: emit C++ for one fully-typed function
   end-to-end (biquad), call the runtime for the rest, compile, measure.
 - **M3** — broaden: transfer-function DB for the hot ~50-100, shape

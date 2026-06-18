@@ -77,6 +77,7 @@ void registerStandardTransfers(TransferRegistry &reg);
 
 // ── Per-family registrars (one .cpp each under src/transfer/) ─────────
 void registerConstructorTransfers(TransferRegistry &reg);
-// future: registerElementwiseTransfers / registerReductionTransfers / ...
+void registerElementwiseTransfers(TransferRegistry &reg);
+// future: registerReductionTransfers / registerShapeTransfers / ...
 
 } // namespace numkit::codegen
