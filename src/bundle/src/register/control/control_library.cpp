@@ -68,6 +68,9 @@ void place_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // lyapunov/lyapunov.cpp
 void lyap_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dlyap_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+// riccati/riccati.cpp
+void care_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dare_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in toolboxes/builtin and toolboxes/signal — we don't shadow them here.)
 } // namespace numkit::control::detail
@@ -139,6 +142,9 @@ void ControlLibrary::install(Engine &engine)
 
     reg("lyap", "lyap",  &control::detail::lyap_reg);
     reg("lyap", "dlyap", &control::detail::dlyap_reg);
+
+    reg("riccati", "care", &control::detail::care_reg);
+    reg("riccati", "dare", &control::detail::dare_reg);
 }
 
 } // namespace numkit

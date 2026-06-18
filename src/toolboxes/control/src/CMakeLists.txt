@@ -11,6 +11,7 @@ set(CONTROLLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/state/state.cpp             # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/state/place.cpp             # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/lyapunov/lyapunov.cpp       # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/riccati/riccati.cpp         # compute (engine-free)
 )
 
 set(CONTROLLIB_SOURCES ${CONTROLLIB_SOURCES} PARENT_SCOPE)

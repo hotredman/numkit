@@ -1,0 +1,10 @@
+{
+  "name": "dare",
+  "namespace": "control",
+  "setup": "A = [1 1; 0 1]; B = [0; 1]; Q = eye(2); R = 1;",
+  "expr": "[X,L,G] = dare(A,B,Q,R); t = trace(X); x11 = X(1,1); g1 = G(1); mp = max(abs(L)); res = max(abs(reshape(A'*X*A - X - (A'*X*B)*((R + B'*X*B)\\(B'*X*A)) + Q,[],1)));",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": ["t", "x11", "g1", "mp", "res"],
+  "comment": "Sig: [X,L,G] = dare(A,B,Q[,R]). Discrete-time algebraic Riccati equation A'XA-X-A'XB(R+B'XB)^-1B'XA+Q=0. No Hamiltonian exists, so we build the symplectic matrix and apply a Cayley transform C=(S-I)(S+I)^-1 (maps the unit disk to the left half-plane) and reuse the same matrix sign-function machinery as care. Requires A nonsingular (explicit symplectic form needs A^-1; singular-A pencil path would need QZ). Outputs match MATLAB order [X, L=eig(A-BG) (|lambda|<1), G=(R+B'XB)^-1B'XA gain]. Fingerprint = trace(X), X(1,1), gain G(1), max|pole| (0.4221, inside unit circle), ARE residual (~0). Verified vs MATLAB R2025b: trace=7.56025722770319, X(1,1)=2.94712296779058. Fixes bugs/control/care-dare."
+}
