@@ -9,6 +9,7 @@
 #include <numkit/math/exp_log/exponents.hpp>
 #include <numkit/math/arithmetic/rounding.hpp>
 #include <numkit/math/trig/trigonometry.hpp>
+#include <numkit/lang/types/types.hpp>        // isfinite (lang API, math SIMD kernel)
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
@@ -69,3 +70,21 @@ BENCHMARK(BM_Cos)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(bench
 BENCHMARK(BM_Exp)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Log)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Abs)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+
+// Remaining SIMD-backed unary math: tan (trig_highway), sqrt (exp_log_highway),
+// round/floor/ceil/fix (rounding_highway), isfinite (isfinite_highway).
+static void BM_Tan(benchmark::State &s)      { runElementwiseBench(s, numkit::math::tan,      -10.0, 10.0);  }
+static void BM_Sqrt(benchmark::State &s)     { runElementwiseBench(s, numkit::math::sqrt,       0.0, 100.0); }
+static void BM_Round(benchmark::State &s)    { runElementwiseBench(s, numkit::math::round,    -1e6,  1e6);   }
+static void BM_Floor(benchmark::State &s)    { runElementwiseBench(s, numkit::math::floor,    -1e6,  1e6);   }
+static void BM_Ceil(benchmark::State &s)     { runElementwiseBench(s, numkit::math::ceil,     -1e6,  1e6);   }
+static void BM_Fix(benchmark::State &s)      { runElementwiseBench(s, numkit::math::fix,      -1e6,  1e6);   }
+static void BM_Isfinite(benchmark::State &s) { runElementwiseBench(s, numkit::lang::isfinite, -1e6,  1e6);   }
+
+BENCHMARK(BM_Tan)     ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Sqrt)    ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Round)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Floor)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Ceil)    ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Fix)     ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Isfinite)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
