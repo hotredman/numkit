@@ -45,9 +45,14 @@ void fusedAffineClampMinOuterShiftDiv(const double *x, double sub, double div,
     }
 }
 
+// The kernels that carry a small-N inline gate in their Highway TU (fusedAffine,
+// fusedAbs*, fusedSq*) forward to the shared scalar bodies in fused_scalar.cpp
+// so the gate and this fallback are one definition (can't drift) — see that
+// file + bugs/ops/cheap-elementwise-simd-small-n. The rest keep their body
+// inline (no gate shares them).
 void fusedAffine(const double *x, double scale, double offset,
                  double *out, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) out[i] = scale * x[i] + offset;
+    fusedAffineScalar(x, scale, offset, out, n);
 }
 
 void fusedAxpby(const double *x, double a, const double *y, double b,
@@ -67,16 +72,16 @@ void fusedShiftScaleDiv(const double *x, double sub, double div,
 
 void fusedAbsAffine(const double *x, double scale, double offset,
                     double *out, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(scale * x[i] + offset);
+    fusedAbsAffineScalar(x, scale, offset, out, n);
 }
 
 void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(x[i] - y[i]);
+    fusedAbsDiffScalar(x, y, out, n);
 }
 
 void fusedAbsShiftDiv(const double *x, double sub, double div,
                       double *out, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs((x[i] - sub) / div);
+    fusedAbsShiftDivScalar(x, sub, div, out, n);
 }
 
 void fusedUnaryAffine(const double *x, double scale, double offset,
@@ -123,25 +128,16 @@ void fusedUnaryShiftDiv(const double *x, double sub, double div,
 
 void fusedSqAffine(const double *x, double scale, double offset,
                    double *out, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) {
-        const double v = scale * x[i] + offset;
-        out[i] = v * v;
-    }
+    fusedSqAffineScalar(x, scale, offset, out, n);
 }
 
 void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) {
-        const double v = x[i] - y[i];
-        out[i] = v * v;
-    }
+    fusedSqDiffScalar(x, y, out, n);
 }
 
 void fusedSqShiftDiv(const double *x, double sub, double div,
                      double *out, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) {
-        const double v = (x[i] - sub) / div;
-        out[i] = v * v;
-    }
+    fusedSqShiftDivScalar(x, sub, div, out, n);
 }
 
 void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n) {

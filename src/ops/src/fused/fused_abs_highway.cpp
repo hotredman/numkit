@@ -65,8 +65,13 @@ HWY_EXPORT(AbsDiffImpl);
 void fusedAbsAffine(const double *x, double scale, double offset,
                     double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec; lambda below MUST be [=]
-        for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(scale * x[i] + offset);
+    // Small native arrays delegate to the shared scalar kernel (fused_scalar.cpp)
+    // rather than an inline loop: one body shared with the portable fallback
+    // (can't drift), and living in a lambda-free TU it vectorizes regardless of
+    // the worker capture below — the [&]-escape alias trap can't recur (see
+    // bugs/ops/cheap-elementwise-simd-small-n).
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        fusedAbsAffineScalar(x, scale, offset, out, n);
         return;
     }
     detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
@@ -78,8 +83,8 @@ void fusedAbsAffine(const double *x, double scale, double offset,
 void fusedAbsShiftDiv(const double *x, double sub, double div,
                       double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {
-        for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs((x[i] - sub) / div);
+    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see fusedAbsAffine)
+        fusedAbsShiftDivScalar(x, sub, div, out, n);
         return;
     }
     detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
@@ -90,8 +95,8 @@ void fusedAbsShiftDiv(const double *x, double sub, double div,
 
 void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {
-        for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(x[i] - y[i]);
+    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see fusedAbsAffine)
+        fusedAbsDiffScalar(x, y, out, n);
         return;
     }
     detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {

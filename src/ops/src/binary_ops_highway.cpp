@@ -408,8 +408,13 @@ HWY_EXPORT(MatmulLoop);
 
 void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
-        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] + b[i];
+    // Small native arrays delegate to the shared scalar kernel (binary_scalar.cpp)
+    // rather than an inline loop: one body shared with the portable fallback
+    // (can't drift), and living in a lambda-free TU it auto-vectorizes regardless
+    // of the worker capture below — beating the HWY_DYNAMIC_DISPATCH indirect call
+    // at cache-resident N (see bugs/ops/cheap-elementwise-simd-small-n).
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        plusScalar(a, b, out, n);
         return;
     }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
@@ -421,8 +426,8 @@ void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
-        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] - b[i];
+    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
+        minusScalar(a, b, out, n);
         return;
     }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
@@ -434,8 +439,8 @@ void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
-        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] * b[i];
+    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
+        timesScalar(a, b, out, n);
         return;
     }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
@@ -447,8 +452,8 @@ void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
-        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] / b[i];
+    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see plusLoop)
+        rdivideScalar(a, b, out, n);
         return;
     }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,

@@ -111,7 +111,47 @@ The branchy/transcendental fused (clamp, soft-threshold, sqrt-sum-sq, trans) win
 `parallel_for` must capture `[=]`, or any inline fast-path loop sharing its
 pointers won't vectorize on MSVC.
 
+## Structural hardening — gate delegates to a shared scalar kernel (2026-06-18)
+
+The `[=]`-vs-`[&]` capture rule above is a *discipline*: a future inline gate
+that reverts to `[&]` would silently re-crater. Made it structural instead — the
+small-N gate no longer inlines a loop; it **calls a shared scalar kernel** that
+lives in its own always-compiled, lambda-free TU:
+
+- `src/ops/src/fused/fused_scalar.cpp` → `numkit::ops::fused*Scalar` (7 kernels:
+  Affine, AbsAffine, AbsShiftDiv, AbsDiff, SqAffine, SqShiftDiv, SqDiff)
+- `src/ops/src/binary_scalar.cpp` → `numkit::ops::detail::{plus,minus,times,rdivide}Scalar`
+
+Both the portable fallback (`fused_kernels_portable.cpp` / `binary_ops_portable.cpp`)
+and the Highway small-N gate now forward to these. Two wins at once:
+
+1. **Footgun #1 gone structurally** — the auto-vectorizable loop lives in a TU
+   with no `parallel_for` lambda, so it vectorizes regardless of how *any*
+   dispatcher captures its worker. The `[=]` capture is no longer load-bearing
+   (kept for consistency). A future gate that delegates can't re-crater.
+2. **Footgun #2 gone** — the gate body and the portable fallback are one
+   definition, so they can't drift (previously 3 hand-copies that had to stay
+   bit-identical: gate, Highway tail, portable).
+
+`NUMKIT_NOINLINE` (`numkit/ops/compiler.hpp`) keeps the body from being merged
+back into an escaping-lambda context under IPO/LTCG (off today → the separate TU
+already suffices). A/B re-verified after the move — all gated families ≥0.96× at
+every N (no crater), big-N SIMD wins intact (Plus/16384 2.26×, Times/16384
+2.19×); suite 12178/12177 bit-identical. **The durable invariant: a small-N gate
+delegates to the shared scalar kernel — it never inlines its own loop.**
+
 ## References
+
+- Shared scalar kernels: `src/ops/src/fused/fused_scalar.cpp`,
+  `src/ops/src/binary_scalar.cpp`; `NUMKIT_NOINLINE` in
+  `src/ops/include/numkit/ops/compiler.hpp`.
+- Gate + dispatch: `src/ops/src/fused/fused_{affine,abs,sq}_highway.cpp`,
+  `src/ops/src/binary_ops_highway.cpp`;
+  `src/ops/include/numkit/ops/parallel_for.hpp` (`kSimdInlineThreshold`,
+  `kCheapElementwiseThreshold`).
+- Bench: `src/lang/benchmarks/binaryops_bench.cpp` + `src/ops/benchmarks/fused_bench.cpp`,
+  runner `benchmarks/simd/`.
+- Memory: `feedback_simd_dynamic_dispatch_small_n`, `feedback_threading_dispatch_too_costly`.
 
 - `src/ops/src/binary_ops_highway.cpp` (the `plus/minus/times/rdivide` Loop wrappers),
   `src/ops/include/numkit/ops/parallel_for.hpp` (`kCheapElementwiseThreshold`).

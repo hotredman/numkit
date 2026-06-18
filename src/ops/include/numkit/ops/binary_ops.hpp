@@ -18,6 +18,16 @@ void minusLoop  (const double *a, const double *b, double *out, std::size_t n);
 void timesLoop  (const double *a, const double *b, double *out, std::size_t n);
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n);
 
+// Shared scalar bodies for the small-N gate ↔ portable fallback. The *Loop
+// entry points above forward here (portable) or call it from their small-N gate
+// (Highway), so the gate and the fallback are one definition and the loop lives
+// in a lambda-free TU (binary_scalar.cpp) that auto-vectorizes regardless of the
+// dispatcher's parallel_for capture. See bugs/ops/cheap-elementwise-simd-small-n.
+void plusScalar   (const double *a, const double *b, double *out, std::size_t n);
+void minusScalar  (const double *a, const double *b, double *out, std::size_t n);
+void timesScalar  (const double *a, const double *b, double *out, std::size_t n);
+void rdivideScalar(const double *a, const double *b, double *out, std::size_t n);
+
 // Matrix multiply over column-major real doubles.
 //  A: M×K at memory layout a[k*M + i]
 //  B: K×N at memory layout b[j*K + k]
