@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (108 entries):** ✅ 59 fixed · 🔴 49 open = **11 bug** + 5 stub +
+**Tally (108 entries):** ✅ 60 fixed · 🔴 48 open = **10 bug** + 5 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -154,6 +154,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
 | perf | [ops/cheap-elementwise-simd-small-n](ops/cheap-elementwise-simd-small-n.md) | P3 | ✅ FIXED: Highway SIMD cheap element-wise (+ - .* ./) ran 0.1-0.3x of scalar at cache-resident N on native MSVC = HWY_DYNAMIC_DISPATCH indirect-call overhead vs MSVC autovec (WASM static dispatch had no crater -> MSVC-specific). Size-gated before dispatch (kSimdInlineThreshold, native 256K / WASM 0): plus 0.10→0.97x, times 0.12→1.54x. Fused affine/abs/sq same gate — but their parallel_for lambda captured [&], escaping out/x and defeating MSVC alias analysis so the gate loop wouldn't vectorize (vec-report 1104); switching to [=] fixed it (0.68→1.0x). big-N + WASM unchanged, suite bit-identical (2026-06-18) |
+| bug | [math/interpn-nan](math/interpn-nan.md) | P2 | ✅ FIXED: interpn 1-D grid-vector query interpn(X,V,Xq) returned NaN — the dispatch keyed off args[0], which in Form B is the grid vector X, so it misrouted to interp2. Now the 1-D case (no 2-D+ data arg) with >=3 leading data args delegates to interp1 → 6.5. Parity caught an overreach: interpn(V,scalar) is MATLAB's grid-REFINEMENT form (returns a refined grid, not a query), so only the grid-vector spelling is delegated; refinement + 4+-D stay parity gaps (2026-06-18) |
 | stub | [math/maxmin-complex](math/maxmin-complex.md) | P2 | binary max(A,B)/min(A,B) + clamp accept complex - by modulus then angle(z), NaN-component omitted (omitnan default); no all-real fallback (max(complex(-3,0),1)=-3). Prior VM-dispatch-blocker note was a misdiagnosis: default omitnan routes to maxOmitNanBinary, not max (2026-06-17) |
 | bug | [math/complex-zero-imag-narrowing](math/complex-zero-imag-narrowing.md) | P2 | MATLAB narrows an all-zero-imaginary complex RESULT back to real (isreal(2+0i)=1); complex() stays forced. narrowComplex (value layer) applied across arithmetic/unary/matmul/fused/indexing/reductions(sum,prod,mean,var,std,cumsum,cumprod,diff,median)/linalg(dot,kron,cross,diag)/reorder; reshape/transpose/sort/cat/unique correctly preserve. In-place indexed-assign deliberately NOT narrowed (eager scan is O(n^2) in fill loops, ~250x; narrows on next op). Both backends (2026-06-17) |
 | bug | [image/adapthisteq-mapping](image/adapthisteq-mapping.md) | P2 | CLAHE was ~54% too bright; ported MATLAB clip (ceil/round + step-redistribute) + map (rayleigh vmax) + integer-weight region interpolation over even-tile padding → matches MATLAB to ±1 level (was a regression; tonemap re-matches too) (2026-06-14) |
@@ -214,11 +215,10 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 11
+### 🔴 OPEN — bug (defect on an implemented function) — 10
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [math/interpn-nan](math/interpn-nan.md) | P2 | interpn 1-D grid-vector query returns NaN (2-D/3-D dispatch OK; 4+-D unimplemented) — migrated from old BUGS.md #31 |
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |

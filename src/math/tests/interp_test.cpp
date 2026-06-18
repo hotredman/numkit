@@ -760,3 +760,18 @@ TEST_F(InterpTest, InterpnDispatchesToInterp3For3D)
          "y = interpn(V, 2, 2, 2);");
     EXPECT_DOUBLE_EQ(evalScalar("y;"), 80.0);
 }
+
+// bugs/math/interpn-nan.md — 1-D forms delegate to interp1 (were NaN).
+TEST_F(InterpTest, Interpn1DGridVectorFormB)
+{
+    // interpn(X, V, Xq) linear: V=[1 4 9] sampled at x=[1 2 3], query 2.5 -> 6.5
+    EXPECT_NEAR(evalScalar("interpn([1 2 3], [1 4 9], 2.5)"), 6.5, 1e-12);
+}
+
+TEST_F(InterpTest, Interpn1DVectorQueryWithMethod)
+{
+    // vector query + explicit method (Form B): linear midpoints
+    eval("y = interpn([1 2 3 4], [10 20 30 40], [1.5 3.5], 'linear');");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 15.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 35.0);
+}
