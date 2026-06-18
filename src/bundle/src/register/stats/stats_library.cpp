@@ -60,6 +60,7 @@ void tiedrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/sample_corr.cpp
 void autocorr_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void crosscorr_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void parcorr_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/corrcov.cpp
 void corrcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/tabulate.cpp
@@ -498,6 +499,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "tiedrank",  &stats::detail::tiedrank_reg);
     reg("descriptive", "autocorr",  &stats::detail::autocorr_reg);
     reg("descriptive", "crosscorr", &stats::detail::crosscorr_reg);
+    reg("descriptive", "parcorr",   &stats::detail::parcorr_reg);
     reg("descriptive", "corrcov",   &stats::detail::corrcov_reg);
     reg("descriptive", "tabulate",  &stats::detail::tabulate_reg);
     reg("descriptive", "grp2idx",   &stats::detail::grp2idx_reg);

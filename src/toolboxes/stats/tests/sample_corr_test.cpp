@@ -57,3 +57,18 @@ TEST_F(SampleCorrTest, CrosscorrNumLags)
     EXPECT_NEAR(evalScalar("xcf(5)"),  0.3,  1e-12);
     EXPECT_NEAR(evalScalar("bounds(1)"), 1.0, 1e-12);  // ±2/√4
 }
+
+TEST_F(SampleCorrTest, ParcorrOLS)
+{
+    // MATLAB R2025b parcorr (default OLS Method) on a well-conditioned series:
+    //   parcorr([4 3 5 6 4 5 7 6 5 8 7 6 9 8 7 10]', 'NumLags', 5)
+    eval("[pacf, lags, bounds] = parcorr([4 3 5 6 4 5 7 6 5 8 7 6 9 8 7 10]', 'NumLags', 5);");
+    EXPECT_EQ(eval("pacf").numel(), 6u);
+    EXPECT_NEAR(evalScalar("pacf(1)"), 1.0,            1e-12);  // lag 0
+    EXPECT_NEAR(evalScalar("pacf(2)"), 0.55,           1e-9);   // lag 1 == acf(1)
+    EXPECT_NEAR(evalScalar("pacf(3)"), 0.241249326871, 1e-9);
+    EXPECT_NEAR(evalScalar("pacf(4)"), 1.00077622792,  1e-9);   // OLS can exceed 1
+    EXPECT_NEAR(evalScalar("pacf(5)"), 0.442450657562, 1e-9);
+    EXPECT_NEAR(evalScalar("pacf(6)"), 0.67759834251,  1e-9);
+    EXPECT_NEAR(evalScalar("bounds(1)"), 0.5, 1e-12);           // ±2/√16
+}

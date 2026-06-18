@@ -77,6 +77,22 @@ void crosscorr_reg(Span<const Value> args, size_t nargout,
     if (nargout > 2) outs[2] = std::move(bounds);
 }
 
+void parcorr_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("parcorr: requires at least one argument",
+                    0, 0, "parcorr", "", "numkit:parcorr:nargin");
+    int    numLags = -1;
+    double numSTD  = 2.0;
+    parseCorrOpts(args, 1, numLags, numSTD);
+
+    auto [pacf, lags, bounds] = parcorr(args[0], numLags, numSTD, ctx.engine->resource());
+    outs[0] = std::move(pacf);
+    if (nargout > 1) outs[1] = std::move(lags);
+    if (nargout > 2) outs[2] = std::move(bounds);
+}
+
 } // namespace detail
 
 } // namespace numkit::stats
