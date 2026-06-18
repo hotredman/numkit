@@ -4,6 +4,7 @@
 
 #include <numkit/codegen/type_lattice.hpp>
 
+#include <cmath>
 #include <sstream>
 
 namespace numkit::codegen {
@@ -92,6 +93,43 @@ std::string InferredType::str() const
         }
     }
     return "?";
+}
+
+// ── ConstVal ──────────────────────────────────────────────────────────
+
+bool ConstVal::asDim(std::size_t &out) const
+{
+    if (kind != ConstKind::KnownReal) return false;
+    // A valid dimension is a non-negative integer (finite) value.
+    if (!std::isfinite(value) || value < 0.0) return false;
+    const double r = std::floor(value);
+    if (r != value) return false;  // non-integral
+    out = static_cast<std::size_t>(r);
+    return true;
+}
+
+bool ConstVal::operator==(const ConstVal &o) const
+{
+    if (kind != o.kind) return false;
+    if (kind != ConstKind::KnownReal) return true;  // both Unknown
+    // Bit-exact compare so NaN-vs-NaN and +0/-0 are handled consistently
+    // with the rest of the lattice (Known(NaN) only equals Known(NaN)).
+    if (std::isnan(value) && std::isnan(o.value)) return true;
+    return value == o.value;
+}
+
+ConstVal join(const ConstVal &a, const ConstVal &b)
+{
+    if (a.isKnown() && b.isKnown() && a == b) return a;  // same constant
+    return ConstVal::unknown();                          // disagree → top
+}
+
+std::string ConstVal::str() const
+{
+    if (kind != ConstKind::KnownReal) return "?";
+    std::ostringstream os;
+    os << value;
+    return os.str();
 }
 
 } // namespace numkit::codegen

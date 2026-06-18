@@ -111,4 +111,49 @@ struct InferredType {
 // type-unstable here and the result is Dynamic (must be boxed).
 InferredType join(const InferredType &a, const InferredType &b);
 
+// ── Constant lattice ──────────────────────────────────────────────────
+// Sparse-conditional-constant-propagation facet, tracked alongside the
+// type for every value. It exists because MATLAB *shapes* depend on
+// argument *values*, not just types: `linspace(0,1,n)` / `zeros(n)` /
+// `reshape(x,a,b)` need the compile-time value of `n`/`a`/`b` to infer a
+// concrete shape. A value whose constant is Known lets a size-constructor
+// transfer function produce KnownDims instead of an Unknown shape.
+//
+// Lattice: Unknown (top — could be anything) over Known(real scalar).
+// (Bottom/undefined is not modelled separately in the MVP — an
+//  unreachable value's type is already Bottom.) Only real scalar
+// constants are tracked for now; that covers the size arguments that
+// drive shape inference.
+enum class ConstKind : std::uint8_t {
+    Unknown,    // top — not a known compile-time constant
+    KnownReal,  // a known real scalar value
+};
+
+struct ConstVal {
+    ConstKind kind  = ConstKind::Unknown;
+    double    value = 0.0;  // meaningful only when kind == KnownReal
+
+    static ConstVal unknown()       { return {ConstKind::Unknown, 0.0}; }
+    static ConstVal known(double v) { return {ConstKind::KnownReal, v}; }
+
+    bool isKnown() const { return kind == ConstKind::KnownReal; }
+
+    // Read the constant as an array dimension: a known non-negative
+    // integer value, else nullopt. This is the form size-constructor
+    // transfer functions consume (the `n` in zeros(n) / linspace(_,_,n)).
+    // Returns nullopt for Unknown, non-integral, or negative values.
+    // (Out param keeps the header free of <optional> in hot include
+    //  paths; returns true on success.)
+    bool asDim(std::size_t &out) const;
+
+    bool operator==(const ConstVal &o) const;
+    bool operator!=(const ConstVal &o) const { return !(*this == o); }
+
+    std::string str() const;
+};
+
+// Lattice join for constants: equal Known values stay Known; anything
+// else (Unknown present, or two different Known values) is Unknown.
+ConstVal join(const ConstVal &a, const ConstVal &b);
+
 } // namespace numkit::codegen
