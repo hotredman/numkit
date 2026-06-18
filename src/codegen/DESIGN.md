@@ -273,9 +273,15 @@ debug assert is never the release-correctness mechanism.
    validator strengthened to over-approximation + adversarial domain
    (`expectSound`); transfer audit fixed `power`/`mpower` (real^real →
    real only for integer exponent, else Dynamic).
-2. **Index module** — `IndexPlan` (LinearScalar / Subscript2D /
-   Runtime) + `nk_rt::index`/`indexSet` wrappers; bounds checked by
-   default; differential value tests.
+2. **Index module** — decision ✅ (`IndexPlan` = LinearScalar /
+   Subscript2D / Runtime; `planIndexRead`/`planIndexWrite` choose a fast
+   form only for a typed buffer indexed by 1–2 scalar non-logical
+   positions, with a matching unboxed scalar rhs for writes; everything
+   else — N-D 3+ subscripts, logical/range/`end`, deletion, non-typed
+   array, dtype-changing write — routes to Runtime). **Remaining:** the
+   `nk_rt::index`/`indexSet` wrappers + C++ emission of each form (with
+   the emitter) + differential VALUE tests (with the AOT harness). bounds
+   checked by default (elision is brick 6).
 3. **Emitter core** — typed AST → compilable `.cpp` (scalars / arrays /
    calls / control flow via the index module).
 4. **AOT harness** — compile the emitted `.cpp` with the external
