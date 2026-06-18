@@ -9,6 +9,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/math/special/special.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 
 #include "../dsp_helpers.hpp"
 
@@ -64,7 +65,23 @@ periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pm
         winPower += win[i] * win[i];
     }
 
-    fftRadix2(&scratch, buf, 1);
+    // fftRadix2 is power-of-two only. For a non-pow2 nfft, route the windowed,
+    // zero-padded signal through the general fft (Bluestein) — MATLAB uses a
+    // mixed-radix transform, so nfft = N (no padding) is a common, valid call.
+    // bugs/signal/periodogram-nonpow2-nfft. The pow2 path is unchanged.
+    const Complex *spec;
+    Value          Xv;  // owns the non-pow2 spectrum; must outlive the loop below
+    if ((nfft & (nfft - 1)) == 0) {              // power of two
+        fftRadix2(&scratch, buf, 1);
+        spec = buf.data();
+    } else {
+        Value   xwin = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        double *xw   = xwin.doubleDataMut();
+        for (size_t i = 0; i < N; ++i)
+            xw[i] = xd[i] * win[i];
+        Xv   = fft(xwin, static_cast<int>(nfft), /*dim=*/0, mr);
+        spec = Xv.complexData();
+    }
 
     const size_t nOut = nfft / 2 + 1;
     auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
@@ -75,7 +92,7 @@ periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pm
     const double scale = 1.0 / (winPower * fs);
 
     for (size_t i = 0; i < nOut; ++i) {
-        double mag2 = std::norm(buf[i]);
+        double mag2 = std::norm(spec[i]);
         if (i > 0 && i < nfft / 2)
             mag2 *= 2.0;
         Pxx.doubleDataMut()[i] = mag2 * scale;
