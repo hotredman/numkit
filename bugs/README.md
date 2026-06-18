@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (109 entries):** ✅ 67 fixed · 🔴 42 open = **6 bug** + 4 stub +
-1 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
+**Tally (109 entries):** ✅ 68 fixed · 🔴 41 open = **6 bug** + 4 stub +
+1 missing-output + **29 missing-fn** + 1 perf (the 29 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (62)
+### ✅ FIXED (63)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | ✅ FIXED: generic cdf/pdf/icdf/random(distName, params...) were undefined. Added register-level dispatchers — a name→family-prefix table (case-insensitive + aliases) forwarding to the existing per-family builtins (cdf→<fam>cdf, pdf→<fam>pdf, icdf→<fam>inv, random→<fam>rnd) via findExternal. Covers all 23 shipped families; unknown names throw. Parity OK vs MATLAB R2025b: cdf('Normal',1,0,1)=0.84134, icdf('Chisquare',0.95,3)=7.81473, pdf('Binomial',2,5,0.3)=0.3087. The per-family math was already parity-validated; this is name-dispatch glue (2026-06-18) |
 | bug | [signal/periodogram-nonpow2-nfft](signal/periodogram-nonpow2-nfft.md) | P2 | ✅ FIXED: periodogram(x,win,nfft,fs) with an explicit non-power-of-two nfft returned a garbage spectrum (transform was fftRadix2, pow2-only — peak in the wrong bin, Parseval broken). Now a non-pow2 nfft routes the windowed/zero-padded signal through the general fft (Bluestein); the pow2 path is unchanged (zero risk for the default + existing callers). pwelch/cpsd/mscohere/tfestimate/computePsd inherit the fix. Parity OK vs MATLAB R2025b: periodogram(2-tone,[],1000,1000) → P(100)=0.5, P(200)=0.125, sum(P)*df=0.625=mean(x^2) (was peak ~256, sum ~21.5). Found while fixing obw (2026-06-18) |
 | bug | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | ✅ FIXED: obw 99% bandwidth was ~8% wrong (108.77 vs MATLAB 100.97) + [bw,flo,fhi,power] outputs missing. Three compounded bugs: PSD used the default nfft=1024 (zero-pad) not nfft=N; trapezoid not the rectangle-rule cumulative; band edge at bin centre not the upper edge F+df/2. Window is rectangular (not Kaiser). numkit periodogram is radix-2 only (can't do nfft=N for non-pow2 N → garbage), so obw now computes the length-N DFT via the general fft (Bluestein) and forms the one-sided PSD inline. Returns (bw,flo,fhi,power) by nargout. Parity OK vs MATLAB R2025b: bw=100.96875, flo=99.50625, fhi=200.475, power=0.61875 (2026-06-18) |
 | missing-output | [signal/periodogram-pxxc](signal/periodogram-pxxc.md) | P2 | ✅ FIXED: [pxx,f,pxxc]=periodogram(...,'ConfidenceLevel',p) threw ('ConfidenceLevel' unparsed + pxxc not computed). Now emits the chi-square CI as the 3rd output: pxxc = pxx.*v./chi2inv([1-a/2,a/2],v) with INTEGER v (=2 for interior bins, =1 for the real DC & even-nfft Nyquist bins; black-box-pinned from MATLAB outputs, no source read — it's a standard textbook method), closed forms chi2inv(q,2)=-2ln(1-q) & chi2inv(q,1)=(sqrt2*erfinv(q))^2 (erfinv from the math layer, no stats dep). Default level 0.95. New compute fn periodogramConf. Parity OK vs MATLAB R2025b: lower [32.25 7.40 2.17 1.27 0.40], DC/Nyquist ratio 0.19905, interior 0.27108. pwelch/cpsd CI still open (averaged EDOF) (2026-06-18) |
@@ -248,7 +249,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 30
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 29
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -256,7 +257,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | Bug | Sev | Notes |
 |---|---|---|
 | [stats/friedman](stats/friedman.md) | P2 | Friedman ANOVA |
-| [stats/distribution-dispatchers](stats/distribution-dispatchers.md) | P2 | cdf/pdf/icdf/random |
 | [stats/autocorr](stats/autocorr.md) | P2 | **parcorr** remaining (autocorr + crosscorr ✅ done 2026-06-18; parcorr default=OLS regression, deferred) |
 | [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | pmusic/peig |
 | [signal/fillgaps](signal/fillgaps.md) | P2 | fillgaps |

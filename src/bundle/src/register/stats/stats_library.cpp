@@ -86,6 +86,11 @@ void nanmin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanvar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanstd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nancov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// distributions/dist_dispatch.cpp — generic name-dispatching wrappers
+void cdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void icdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void random_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // distributions/normal.cpp
 void normpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -500,6 +505,10 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "grpstats",  &stats::detail::grpstats_reg);
     reg("descriptive", "nearcorr",  &stats::detail::nearcorr_reg);
 
+    reg("dist", "cdf",      &stats::detail::cdf_reg);
+    reg("dist", "pdf",      &stats::detail::pdf_reg);
+    reg("dist", "icdf",     &stats::detail::icdf_reg);
+    reg("dist", "random",   &stats::detail::random_reg);
     reg("dist", "normpdf",  &stats::detail::normpdf_reg);
     reg("dist", "normcdf",  &stats::detail::normcdf_reg);
     reg("dist", "norminv",  &stats::detail::norminv_reg);

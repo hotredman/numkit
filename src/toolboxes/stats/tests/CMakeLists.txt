@@ -1,5 +1,6 @@
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/sample_corr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dist_dispatch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster_dim_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mvdist_qmc_spline_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dist_ncx2_rice_naka_test.cpp
