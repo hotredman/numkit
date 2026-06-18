@@ -379,6 +379,34 @@ void anova2_reg(Span<const Value> args, size_t nargout,
     }
 }
 
+void friedman_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("friedman: requires (x[, reps][, 'off'])",
+                    0, 0, "friedman", "", "numkit:friedman:nargin");
+    auto *mr = ctx.engine->resource();
+
+    // reps: numeric 2nd arg (default 1). A char 2nd/3rd arg is the
+    // 'off'/'on' display flag — accepted and ignored.
+    int reps = 1;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
+        && !args[1].isEmpty())
+        reps = static_cast<int>(args[1].toScalar());
+
+    // reps>1 (replicates per cell) uses a two-way layout whose ranking does
+    // NOT reduce to averaging-then-rank — numkit doesn't match MATLAB there
+    // yet, so reject rather than return a wrong p. bugs/stats/friedman.
+    if (reps != 1)
+        throw Error("friedman: reps > 1 is not yet supported (use reps = 1)",
+                    0, 0, "friedman", "", "numkit:friedman:reps");
+
+    auto [p, Q, df] = friedman(args[0], reps, mr);
+    outs[0] = std::move(p);
+    if (nargout > 1) outs[1] = std::move(Q);    // chi-square statistic (not MATLAB's tbl)
+    if (nargout > 2) outs[2] = std::move(df);   // degrees of freedom (k-1)
+}
+
 } // namespace detail
 
 } // namespace numkit::stats

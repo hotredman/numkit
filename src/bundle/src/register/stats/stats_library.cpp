@@ -382,6 +382,7 @@ void anova1_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void multcompare_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void anova2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kruskalwallis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void friedman_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // regress/regress.cpp
@@ -769,6 +770,7 @@ void StatsLibrary::install(Engine &engine)
     reg("anova", "multcompare",   &stats::detail::multcompare_reg);
     reg("anova", "anova2",        &stats::detail::anova2_reg);
     reg("anova", "kruskalwallis", &stats::detail::kruskalwallis_reg);
+    reg("anova", "friedman",      &stats::detail::friedman_reg);
     reg("anova", "dummyvar",      &stats::detail::dummyvar_reg);
 
     reg("regress", "regress",  &stats::detail::regress_reg);

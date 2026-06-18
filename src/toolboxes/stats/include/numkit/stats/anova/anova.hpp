@@ -44,6 +44,28 @@ std::tuple<Value, Value, Value, Value>
 kruskalwallis(const Value &y, const Value &group,
               std::pmr::memory_resource *mr = nullptr);
 
+/// Friedman non-parametric two-way ANOVA by ranks
+/// (`[p, Q, df] = friedman(x, reps)`).
+///
+/// Ranks the `k` treatments (columns) within each of the `n` blocks (rows),
+/// then forms the tie-corrected chi-square statistic
+/// `Q = [12/(n·k·(k+1)) · Σ Rⱼ² − 3·n·(k+1)] / C`,
+/// `C = 1 − Σ(t³−t)/(n·(k³−k))`, with `p = 1 − chi2cdf(Q, k−1)`.
+///
+/// NB: like @ref kruskalwallis, this returns the statistic + df rather than
+/// MATLAB's display `(tbl, stats)`; the primary `p` matches MATLAB exactly.
+/// Only `reps == 1` is supported — `reps > 1` (a replicated two-way layout) is
+/// rejected at the register, since its ranking does not match MATLAB here yet.
+///
+/// @param x     `n × k` data matrix (blocks × treatments).
+/// @param reps  Replicates per cell (only `1` is currently supported).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `(p, Q, df)`.
+///
+/// @see kruskalwallis, anova1
+std::tuple<Value, Value, Value>
+friedman(const Value &x, int reps = 1, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Convert categorical labels to indicator columns
 /// (`X = dummyvar(group)`).
 ///
