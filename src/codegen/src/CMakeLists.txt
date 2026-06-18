@@ -1,4 +1,6 @@
 set(CODEGENLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/type_lattice.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transfer/registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transfer/constructors.cpp
 )
 set(CODEGENLIB_SOURCES ${CODEGENLIB_SOURCES} PARENT_SCOPE)
