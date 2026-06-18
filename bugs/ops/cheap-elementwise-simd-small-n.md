@@ -81,8 +81,20 @@ Times    0.12x → 1.54x    Rdivide 0.30x → 2.26x    PlusKernel 0.25x → 1.29
 Crater gone (the inline loop in the AVX2-compiled SIMD build even out-widths the
 SSE2 portable baseline). Big-N path unchanged (still Highway). Full suite
 12178/12177 bit-identical (the inline `+ - .* ./` is one IEEE op, == the Highway
-lane op). WASM untouched (gate compile-disabled). Follow-up: the simpler
-`fused*Affine` shapes show a milder version of the same — not yet gated.
+lane op). WASM untouched (gate compile-disabled).
+
+**Fused affine/abs/sq follow-up — attempted, did NOT work, reverted.** Gating the
+simpler `fused{Affine,AbsAffine,AbsDiff,AbsShiftDiv,SqAffine,SqDiff,SqShiftDiv}`
+the same way (inline scalar below the threshold) did not help: in the gated zone
+the SIMD build stayed ~0.5–0.8× of the scalar build (consistent across N=1k–64k,
+not noise). The inline scalar loop apparently does NOT auto-vectorize inside the
+fused Highway TUs on MSVC — unlike the binary `*_highway.cpp` TUs where the same
+pattern recovered to ~1×. Reverted (no point shipping a no-op branch). A real fix
+would need a different vehicle (a dedicated auto-vectorized scalar TU, or a
+`#pragma`/attribute forcing vectorization of the gate loop) — deferred: the fused
+crater is milder and only on the VM-expression-fusion path. Why MSVC vectorizes
+the gate in `binary_ops_highway.cpp` but not the `fused_*_highway.cpp` TUs is the
+open question for that follow-up.
 
 ## References
 
