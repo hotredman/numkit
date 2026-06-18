@@ -18,8 +18,8 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/image/regionprops-perimeter.md — Perimeter currently silently dropped.
-TEST_F(ImageKnownBug, DISABLED_RegionpropsPerimeter)
+// bugs/image/regionprops-perimeter.md — Perimeter implemented (FIXED; live guard).
+TEST_F(ImageKnownBug, RegionpropsPerimeter)
 {
     eval("s = regionprops(logical(ones(3,3)), 'Perimeter'); pm = s.Perimeter;");
     EXPECT_NEAR(evalScalar("pm"), 7.476000, 1e-4);
