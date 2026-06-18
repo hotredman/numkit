@@ -75,7 +75,8 @@ TEST_F(ControlKnownBug, DISABLED_Minreal)
 }
 
 // bugs/control/initial.md — initial-condition response (zero input).
-TEST_F(ControlKnownBug, DISABLED_Initial)
+// FIXED 2026-06-19 (zero-input simulate + x0) — promoted live.
+TEST_F(ControlKnownBug, Initial)
 {
     eval("[y, t] = initial(ss(-2, 0, 1, 0), 1);");   // y = e^{-2t}
     EXPECT_NEAR(evalScalar("y(1)"),   1.0, 1e-9);

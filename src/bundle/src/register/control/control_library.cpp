@@ -45,6 +45,7 @@ void feedback_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // response/response.cpp
 void step_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void impulse_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void initial_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lsim_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // freq/freq.cpp
 void evalfr_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -125,6 +126,7 @@ void ControlLibrary::install(Engine &engine)
 
     reg("response", "step",     &control::detail::step_reg);
     reg("response", "impulse",  &control::detail::impulse_reg);
+    reg("response", "initial",  &control::detail::initial_reg);
     reg("response", "lsim",     &control::detail::lsim_reg);
     reg("response", "evalfr",   &control::detail::evalfr_reg);
     reg("response", "freqresp", &control::detail::freqresp_reg);

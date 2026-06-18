@@ -353,4 +353,23 @@ Value lsim(const Value &sys, const Value &uIn, const Value &tIn,
     return rowFromVec(y, mr);
 }
 
+std::pair<Value, Value>
+initial_response(const Value &sys, const Value &x0In, const Value &tArg,
+                 std::pmr::memory_resource *mr, Value *xOut)
+{
+    SS s = toSSiso(sys, mr);
+    Vec t = readTimeArg(sys, tArg, mr);
+    Vec u(t.size(), 0.0);            // zero input
+    Vec x0(s.n, 0.0);
+    if (x0In.numel() == s.n)
+        for (size_t i = 0; i < s.n; ++i) x0[i] = x0In.elemAsDouble(i);
+    else if (x0In.numel() != 0)
+        throw Error("initial: x0 length must equal the number of states",
+                    0, 0, "initial", "", "numkit:initial:x0");
+    Vec xTraj;
+    Vec y = simulate(s, t, u, x0, xOut ? &xTraj : nullptr);
+    if (xOut) *xOut = matFromTraj(xTraj, t.size(), s.n, mr);
+    return {rowFromVec(y, mr), rowFromVec(t, mr)};
+}
+
 } // namespace numkit::control

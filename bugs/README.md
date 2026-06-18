@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (110 entries):** ✅ 78 fixed · 🔴 32 open = **5 bug** + 2 stub +
-1 missing-output + **23 missing-fn** + 1 perf (the 23 missing-fns are parity
+**Tally (110 entries):** ✅ 79 fixed · 🔴 31 open = **5 bug** + 2 stub +
+1 missing-output + **22 missing-fn** + 1 perf (the 22 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (73)
+### ✅ FIXED (74)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [control/initial](control/initial.md) | P2 | ✅ FIXED: initial (initial-condition response) was undefined. Reuses the existing ZOH state propagator (simulate) with u≡0 and x(0)=x0, output y=C·x — initial(sys,x0[,tArg]), tArg semantics match step/impulse (Empty→auto grid, scalar→tFinal, vector→explicit), returns [y,t,x] by nargout. Parity OK vs MATLAB R2025b on the explicit grid (machine precision): 1st-order A=−2,x0=1→y=e^{−2t}, e^{−6}=0.002478752177; 2-state→y(t=1)=0.6004235991. Auto-grid horizon matches to ~1e-7 (heuristic, same caveat as step/impulse auto-time; explicit-t exact) (2026-06-19) |
 | missing-fn | [control/hinfnorm](control/hinfnorm.md) | P2 | ✅ FIXED: hinfnorm (H∞ norm ‖G‖∞=sup_ω σmax(G(jω))) was undefined. Bruinsma–Steinbuch Hamiltonian test + bisection on γ: γ is an upper bound iff R=γ²I−DᵀD≻0 and M(γ)=[Ā, BR⁻¹Bᵀ; −Cᵀ(I+DR⁻¹Dᵀ)C, −Āᵀ] (Ā=A+BR⁻¹DᵀC) has no purely imaginary eigenvalue. No frequency sweep (exact test catches resonances a grid misses); M's spectrum via charPoly→roots (all real, no complex SVD); lower bracket = DC/∞ gains via lower-bound-safe Rayleigh power iteration. Returns Inf for jω-axis/unstable poles. Parity OK vs MATLAB R2025b: 1/(s+1)→1, ±i→Inf, resonance 1/(s²+0.1s+1)→10.012523, static→0.8333, D=0.5→1.5. Closes the original lqr/hinfnorm/dlqr/gram cluster. Discrete deferred (2026-06-19) |
 | missing-fn | [control/lqr-dlqr-gram](control/lqr-dlqr-gram.md) | P2 | ✅ FIXED: lqr/dlqr (optimal LQR gain) + gram (controllability/observability gramian) were undefined. Thin wrappers — no new numerics: lqr [K,S,P]=lqr(A,B,Q[,R]) calls care and re-orders {X,L,G}→[gain, Riccati solution, closed-loop poles]; dlqr the same on dare; gram(sys,'c'\|'o') solves the gramian Lyapunov eqn ('c': A·Wc+Wc·Aᵀ+B·Bᵀ=0→lyap(A,B·Bᵀ); 'o': lyap(Aᵀ,Cᵀ·C); discrete→dlyap, reusing pullABC). R defaults to I. Parity OK vs MATLAB R2025b: lqr K=[1,√3] poles -0.866±0.5i; dlqr sum(K)=0.71004388; gram Wc=[0.5 0.3333;0.3333 0.25] sum=1.41667 residual 0. Split off hinfnorm (own algorithm) → control/hinfnorm.md. Deferred: lqr cross-term N + lqr(sys,…) form (2026-06-19) |
 | missing-fn | [control/care-dare](control/care-dare.md) | P2 | ✅ FIXED: continuous/discrete algebraic Riccati solvers care/dare were undefined. Implemented by the matrix sign-function method (no Schur ordering — only inv + a small LS solve on toolboxes/control's own LU kernel). care: Hamiltonian H=[A -BR⁻¹Bᵀ; -Q -Aᵀ] → scaled Newton Z←½(cZ+(cZ)⁻¹) to sign(H) → stable subspace W1=[Z12;Z22+I], W2=-[Z11+I;Z21], X=W1\W2, symmetrize. dare: no Hamiltonian → build symplectic matrix + Cayley transform C=(S-I)(S+I)⁻¹ (unit disk→LHP), reuse the same sign machinery; needs A nonsingular (singular-A QZ path deferred, throws). Outputs match MATLAB [X, L=eig(A-BG) poles, G gain]; R defaults to I. Parity OK vs MATLAB R2025b: care X(1,1)=√3, trace=3.46410161513776, poles -0.866±0.5i, residual ~4e-16; dare X(1,1)=2.94712296779058, trace=7.56025722770319, \|poles\|=0.4221. Lets lqr/dlqr become thin wrappers (still open) (2026-06-19) |
@@ -274,7 +275,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [control/minreal](control/minreal.md) | P2 | minimal realization (pole/zero cancellation) |
-| [control/initial](control/initial.md) | P2 | initial-condition response |
 | [control/allmargin](control/allmargin.md) | P2 | all gain/phase/delay margins struct |
 | [control/covar](control/covar.md) | P2 | output covariance from white noise |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |

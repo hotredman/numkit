@@ -1,0 +1,10 @@
+{
+  "name": "initial",
+  "namespace": "control",
+  "setup": "",
+  "expr": "[y1, t1] = initial(ss(-2, 0, 1, 0), 1, 0:0.1:3); ye = y1(end); y2 = initial(ss([0 1; -2 -3], [0; 0], [1 0], 0), [1; 0], 0:0.05:5); ya = y2(21); yb = y2(end);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["ye", "ya", "yb"],
+  "comment": "Sig: [y,t,x] = initial(sys, x0[, t]). Initial-condition response — zero-input simulation from x0, y = C*x; the same ZOH integrator as step/impulse run with u==0 and x(0)=x0. Fingerprint uses the EXPLICIT time grid (deterministic, machine-precision match): 1st-order A=-2,x0=1 -> y=e^{-2t}, ye=e^{-6}=0.002478752177; 2-state A=[0 1;-2 -3],x0=[1;0] -> ya=y(t=1)=0.6004235991, yb=y(t=5)=0.013430494068. The auto-grid horizon (no t arg) matches MATLAB to ~1e-7 (heuristic, same caveat as step/impulse auto-time) so it is not fingerprinted here. Verified vs MATLAB R2025b. Fixes bugs/control/initial."
+}
