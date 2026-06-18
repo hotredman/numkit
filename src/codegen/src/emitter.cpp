@@ -8,6 +8,7 @@
 #include <charconv>
 #include <cmath>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -179,11 +180,169 @@ bool isBufferArrayType(const InferredType &t)
     return isBufferArray(AbstractValue{t, ConstVal::unknown()});
 }
 
+// ── brick 6: optimisation facts (gated, deletable) ────────────────────
+// A fact only ENABLES an optimisation; its absence is the safe default
+// (every index bounds-checked, the loop variable a double). Deleting
+// analyzeOptimizations() — returning empty facts — leaves correct, slower
+// code (the no-kludge litmus, DESIGN.md §10). The one optimisation here is
+// clean-index loop promotion: a `for k = 1:H` whose body uses `k` ONLY as
+// the sole 1-based index of buffer arrays whose element count is provably
+// H becomes a 0-based `std::size_t` counter with unchecked `A[k]` access —
+// no double loop var, no `(size_t)k - 1`, no bounds check.
+struct OptFacts {
+    std::set<const ASTNode *>              promotedLoops;  // FOR nodes -> 0-based counter
+    std::map<const ASTNode *, std::string> loopBound;      // FOR node -> C++ size_t bound
+};
+
+// numel(A) / length(A) of a tracked array variable A?
+bool isNumelOfArray(const ASTNode &e,
+                    const std::unordered_map<std::string, ArrayInfo> &arrays,
+                    std::string &arrayOut)
+{
+    if (e.type != NodeType::CALL || e.children.size() != 2) return false;
+    if (e.children[0]->type != NodeType::IDENTIFIER) return false;
+    const std::string &fn = e.children[0]->strValue;
+    if (fn != "numel" && fn != "length") return false;
+    if (e.children[1]->type != NodeType::IDENTIFIER) return false;
+    if (!arrays.count(e.children[1]->strValue)) return false;
+    arrayOut = e.children[1]->strValue;
+    return true;
+}
+
+// Record numel-equality facts (forward walk): arrayLenVar[A] = v means
+// numel(A) == value of scalar variable v. Sources: `v = numel(A)` and a
+// vector size-constructor `B = zeros(1,v)` / `zeros(v,1)`.
+void recordLengthFacts(const ASTNode &node,
+                       const std::unordered_map<std::string, ArrayInfo> &arrays,
+                       std::unordered_map<std::string, std::string> &arrayLenVar)
+{
+    if (node.type == NodeType::ASSIGN && node.children.size() == 2
+        && node.children[0]->type == NodeType::IDENTIFIER) {
+        const std::string &lhs = node.children[0]->strValue;
+        const ASTNode     &rhs = *node.children[1];
+        std::string        arr;
+        if (isNumelOfArray(rhs, arrays, arr))
+            arrayLenVar[arr] = lhs;  // numel(arr) == lhs
+        else if (rhs.type == NodeType::CALL && rhs.children.size() == 3
+                 && rhs.children[0]->type == NodeType::IDENTIFIER
+                 && (rhs.children[0]->strValue == "zeros"
+                     || rhs.children[0]->strValue == "ones")
+                 && arrays.count(lhs)) {
+            const ASTNode &d1 = *rhs.children[1], &d2 = *rhs.children[2];
+            if (d1.type == NodeType::NUMBER_LITERAL && d1.numValue == 1.0
+                && d2.type == NodeType::IDENTIFIER)
+                arrayLenVar[lhs] = d2.strValue;  // zeros(1, v) -> numel == v
+            else if (d2.type == NodeType::NUMBER_LITERAL && d2.numValue == 1.0
+                     && d1.type == NodeType::IDENTIFIER)
+                arrayLenVar[lhs] = d1.strValue;  // zeros(v, 1) -> numel == v
+        }
+    }
+    for (const auto &c : node.children)
+        if (c) recordLengthFacts(*c, arrays, arrayLenVar);
+    for (const auto &br : node.branches) {
+        if (br.first)  recordLengthFacts(*br.first, arrays, arrayLenVar);
+        if (br.second) recordLengthFacts(*br.second, arrays, arrayLenVar);
+    }
+    if (node.elseBranch) recordLengthFacts(*node.elseBranch, arrays, arrayLenVar);
+}
+
+// Every use of `k` in `node` is the sole index of a buffer-array access
+// `A(k)` (collected into idxArrays). Any other occurrence of `k`
+// (arithmetic, A(k,j), non-array call) returns false (not clean).
+bool collectCleanIndexUses(const ASTNode &node, const std::string &k,
+                           const std::unordered_map<std::string, ArrayInfo> &arrays,
+                           std::set<std::string> &idxArrays)
+{
+    if (node.type == NodeType::CALL && node.children.size() == 2
+        && node.children[0]->type == NodeType::IDENTIFIER
+        && arrays.count(node.children[0]->strValue)
+        && node.children[1]->type == NodeType::IDENTIFIER
+        && node.children[1]->strValue == k) {
+        idxArrays.insert(node.children[0]->strValue);
+        return true;  // clean index — do not descend into the index arg
+    }
+    if (node.type == NodeType::IDENTIFIER && node.strValue == k)
+        return false;  // a bare / non-index use of k
+    for (const auto &c : node.children)
+        if (c && !collectCleanIndexUses(*c, k, arrays, idxArrays)) return false;
+    for (const auto &br : node.branches) {
+        if (br.first && !collectCleanIndexUses(*br.first, k, arrays, idxArrays)) return false;
+        if (br.second && !collectCleanIndexUses(*br.second, k, arrays, idxArrays)) return false;
+    }
+    if (node.elseBranch && !collectCleanIndexUses(*node.elseBranch, k, arrays, idxArrays))
+        return false;
+    return true;
+}
+
+int countIdentUses(const ASTNode &node, const std::string &name)
+{
+    int n = (node.type == NodeType::IDENTIFIER && node.strValue == name) ? 1 : 0;
+    for (const auto &c : node.children) if (c) n += countIdentUses(*c, name);
+    for (const auto &br : node.branches) {
+        if (br.first)  n += countIdentUses(*br.first, name);
+        if (br.second) n += countIdentUses(*br.second, name);
+    }
+    if (node.elseBranch) n += countIdentUses(*node.elseBranch, name);
+    return n;
+}
+
+void analyzeLoops(const ASTNode &node, const ASTNode &funcBody,
+                  const std::unordered_map<std::string, ArrayInfo> &arrays,
+                  const std::unordered_map<std::string, std::string> &arrayLenVar,
+                  OptFacts &facts)
+{
+    if (node.type == NodeType::FOR_STMT && node.children.size() == 2) {
+        const ASTNode     &range = *node.children[0];
+        const std::string &k     = node.strValue;
+        if (range.type == NodeType::COLON_EXPR && range.children.size() == 2
+            && range.children[0]->type == NodeType::NUMBER_LITERAL
+            && range.children[0]->numValue == 1.0
+            && range.children[1]->type == NodeType::IDENTIFIER) {
+            const std::string     boundVar = range.children[1]->strValue;
+            const ASTNode        &lbody    = *node.children[1];
+            std::set<std::string> idxArrays;
+            bool safe = collectCleanIndexUses(lbody, k, arrays, idxArrays)
+                        && !idxArrays.empty();
+            for (const auto &A : idxArrays) {
+                auto it = arrayLenVar.find(A);
+                if (it == arrayLenVar.end() || it->second != boundVar) { safe = false; break; }
+            }
+            // k must appear ONLY inside this loop body (no post-loop use).
+            if (safe && countIdentUses(funcBody, k) == countIdentUses(lbody, k)) {
+                std::string bound;  // prefer a param array's companion (== numel exactly)
+                for (const auto &A : idxArrays)
+                    if (!arrays.at(A).isOutput) { bound = arrays.at(A).lenVar; break; }
+                if (bound.empty()) bound = arrays.at(*idxArrays.begin()).lenVar;
+                facts.promotedLoops.insert(&node);
+                facts.loopBound[&node] = bound;
+            }
+        }
+    }
+    for (const auto &c : node.children)
+        if (c) analyzeLoops(*c, funcBody, arrays, arrayLenVar, facts);
+    for (const auto &br : node.branches) {
+        if (br.first)  analyzeLoops(*br.first, funcBody, arrays, arrayLenVar, facts);
+        if (br.second) analyzeLoops(*br.second, funcBody, arrays, arrayLenVar, facts);
+    }
+    if (node.elseBranch) analyzeLoops(*node.elseBranch, funcBody, arrays, arrayLenVar, facts);
+}
+
+OptFacts analyzeOptimizations(const ASTNode &body,
+                              const std::unordered_map<std::string, ArrayInfo> &arrays)
+{
+    std::unordered_map<std::string, std::string> arrayLenVar;
+    recordLengthFacts(body, arrays, arrayLenVar);
+    OptFacts facts;
+    analyzeLoops(body, body, arrays, arrayLenVar, facts);
+    return facts;
+}
+
 class Emitter {
 public:
     Emitter(TypeEnv types, const TransferRegistry &reg,
-            std::unordered_map<std::string, ArrayInfo> arrays)
-        : types_(std::move(types)), reg_(reg), arrays_(std::move(arrays))
+            std::unordered_map<std::string, ArrayInfo> arrays, OptFacts opt)
+        : types_(std::move(types)), reg_(reg), arrays_(std::move(arrays)),
+          opt_(std::move(opt))
     {}
 
     // Hoist a local scalar declaration at function entry.
@@ -225,6 +384,10 @@ private:
     TypeEnv                                     types_;
     const TransferRegistry                     &reg_;
     std::unordered_map<std::string, ArrayInfo>  arrays_;
+    OptFacts                                    opt_;
+    // Non-null inside a promoted clean-index loop: the 0-based size_t
+    // counter that replaced the 1-based double loop variable.
+    const std::string                          *promotedCounter_ = nullptr;
 };
 
 // std::<name> for a 1-arg real math builtin with an exact std equivalent.
@@ -312,6 +475,13 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
 
 std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
 {
+    // brick 6: inside a promoted clean-index loop, A(counter) is provably
+    // in-bounds -> direct 0-based access, no check, no -1.
+    if (promotedCounter_ && call.children.size() == 2
+        && call.children[1]->type == NodeType::IDENTIFIER
+        && call.children[1]->strValue == *promotedCounter_)
+        return base + "[" + *promotedCounter_ + "]";
+
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < call.children.size(); ++i)
         idx.push_back(inferExpr(*call.children[i], types_, reg_));
@@ -332,6 +502,15 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
 {
     const std::string &base = lhsCall.children[0]->strValue;
     if (!isArrayVar(base)) unsupported("indexed write to non-array '" + base + "'");
+
+    // brick 6: inside a promoted clean-index loop, A(counter) is provably
+    // in-bounds -> direct 0-based store, no check.
+    if (promotedCounter_ && lhsCall.children.size() == 2
+        && lhsCall.children[1]->type == NodeType::IDENTIFIER
+        && lhsCall.children[1]->strValue == *promotedCounter_) {
+        line(base + "[" + *promotedCounter_ + "] = " + emitExpr(rhs) + ";");
+        return;
+    }
 
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < lhsCall.children.size(); ++i)
@@ -408,10 +587,46 @@ void Emitter::emitFor(const ASTNode &s)
     if (range.type != NodeType::COLON_EXPR)
         unsupported("for range must be a colon expression a:b / a:s:b");
 
-    const std::string &loopVar = s.strValue;  // hoisted as a double local
-    std::string startE = emitExpr(*range.children[0]);
-    std::string stopE, stepE, cond;
+    const std::string &loopVar = s.strValue;
+    const ASTNode     &body    = *s.children[1];
 
+    // Settle body types (fixpoint) so indexing / disambiguation inside the
+    // loop sees loop-carried types. The loop var takes the range element
+    // type (a colon range is always double scalar). The env only widens
+    // between iterations, so this terminates.
+    const AbstractValue iterVal{InferredType::scalar(ValueType::DOUBLE),
+                                ConstVal::unknown()};
+    TypeEnv cur = types_;
+    for (int i = 0; i < kMaxFixpoint; ++i) {
+        TypeEnv bodyEnv = cur;
+        bodyEnv.set(loopVar, iterVal);
+        inferStmt(body, bodyEnv, reg_);
+        TypeEnv next = joinEnv(cur, bodyEnv);
+        if (next == cur) break;
+        cur = next;
+    }
+    cur.set(loopVar, iterVal);
+    types_ = cur;
+
+    // brick 6: clean-index promotion -> 0-based size_t counter (no double
+    // loop var, no bounds check). Gated on analyzeOptimizations(); absent
+    // the fact this falls through to the always-correct checked form.
+    if (opt_.promotedLoops.count(&s)) {
+        const std::string         *saved = promotedCounter_;
+        promotedCounter_                 = &loopVar;
+        open("for (std::size_t " + loopVar + " = 0; " + loopVar + " < "
+             + opt_.loopBound.at(&s) + "; ++" + loopVar + ")");
+        emitStmt(body);
+        close();
+        promotedCounter_ = saved;
+        types_           = cur;
+        return;
+    }
+
+    // Default (always correct): a double loop variable counting the colon
+    // range; index sites stay bounds-checked.
+    const std::string startE = emitExpr(*range.children[0]);
+    std::string       stopE, stepE, cond;
     if (range.children.size() == 2) {
         stopE = emitExpr(*range.children[1]);
         stepE = "1.0";
@@ -427,29 +642,11 @@ void Emitter::emitFor(const ASTNode &s)
         unsupported("malformed colon range");
     }
 
-    // Settle body types (fixpoint) so indexing / disambiguation inside the
-    // loop sees loop-carried types. The loop var takes the range element
-    // type (a colon range is always double scalar).
-    const AbstractValue iterVal{InferredType::scalar(ValueType::DOUBLE),
-                                ConstVal::unknown()};
-    const ASTNode &body = *s.children[1];
-    TypeEnv cur = types_;
-    for (int i = 0; i < kMaxFixpoint; ++i) {
-        TypeEnv bodyEnv = cur;
-        bodyEnv.set(loopVar, iterVal);
-        inferStmt(body, bodyEnv, reg_);
-        TypeEnv next = joinEnv(cur, bodyEnv);
-        if (next == cur) break;
-        cur = next;
-    }
-    cur.set(loopVar, iterVal);
-    types_ = cur;
-
     open("for (" + loopVar + " = " + startE + "; " + loopVar + " " + cond + " " + stopE
          + "; " + loopVar + " += " + stepE + ")");
     emitStmt(body);
     close();
-    types_ = cur;  // post-loop env (loop var keeps its iteration type)
+    types_ = cur;
 }
 
 void Emitter::emitWhile(const ASTNode &s)
@@ -611,11 +808,18 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
         sig += (i ? ", " : "") + sigParams[i];
     sig += ")";
 
+    // Optimisation facts (brick 6). Empty facts => the always-correct
+    // checked form; the analysis only enables faster lowering.
+    const OptFacts opt = analyzeOptimizations(body, arrays);
+    std::set<std::string> promotedVars;  // their counter is declared in the for, not hoisted
+    for (const ASTNode *f : opt.promotedLoops) promotedVars.insert(f->strValue);
+
     // Emit hoisted local declarations (deterministic order) + the body.
-    Emitter em(entry, reg, arrays);
+    Emitter em(entry, reg, arrays, opt);
     std::map<std::string, InferredType> ordered(decls.begin(), decls.end());
     for (const auto &[name, t] : ordered) {
-        if (entry.has(name) || arrays.count(name)) continue;  // params / arrays
+        if (entry.has(name) || arrays.count(name) || promotedVars.count(name))
+            continue;  // params / arrays / promoted loop counters
         if (!isUnboxableScalarType(t))
             unsupported("local '" + name + "' is not an unboxable scalar (type "
                         + t.str() + ") — unsupported in RawBuffer ABI");
