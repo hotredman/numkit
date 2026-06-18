@@ -1277,7 +1277,7 @@ output args).
 | `lsim` | ✅ | Sig: r = lsim(...). Spec-extension batch 2026-05-09. |
 | `lsiminfo` | ❌ |  |
 | `gensig` | ❌ | input signal generator |
-| `covar` | ❌ | output covariance under stochastic input |
+| `covar` | ✅ | Sig: [P,Q] = covar(sys, W). Steady-state output (P) + state (Q) covariance under white noise of intensity W. Q solves the gramian Lyapunov eqn (continuous A·Q+Q·Aᵀ+B·W·Bᵀ=0 via lyap; discrete A·Q·Aᵀ−Q+B·W·Bᵀ=0 via dlyap); P=C·Q·Cᵀ (+D·W·Dᵀ discrete; ∞ if continuous & D≠0). Fingerprint: 1/(s+1) W=1 -> P1=0.5 (closed form B²W/(2|a|)C²), 2-state -> P2=1.41667, Q(1,1)=0.5, Q(1,2)=0.3333; linear scaling P4=2 at W=4; discrete Pd=9.570351. Verified vs MATLAB R2025b. Fixes bugs/control/covar. |
 | `bode` | ✅ | Sig: r = bode(...). Spec-extension batch 2026-05-09. |
 | `bodemag` | ❌ | magnitude only |
 | `nyquist` | ✅ | Sig: r = nyquist(...). Spec-extension batch 2026-05-09. |

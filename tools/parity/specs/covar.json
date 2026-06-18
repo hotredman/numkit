@@ -1,0 +1,10 @@
+{
+  "name": "covar",
+  "namespace": "control",
+  "setup": "",
+  "expr": "P1=covar(ss(-1,1,1,0),1); [P2,Q2]=covar(ss([-1 0;0 -2],[1;1],[1 1],0),1); q11=Q2(1,1); q12=Q2(1,2); P4=covar(ss(-1,1,1,0),4); Pd=covar(ss([0.5 0;0 0.3],[1;1],[1 1],0,0.1),2);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["P1", "P2", "q11", "q12", "P4", "Pd"],
+  "comment": "Sig: [P,Q] = covar(sys, W). Steady-state output (P) + state (Q) covariance under white noise of intensity W. Q solves the gramian Lyapunov eqn (continuous A·Q+Q·Aᵀ+B·W·Bᵀ=0 via lyap; discrete A·Q·Aᵀ−Q+B·W·Bᵀ=0 via dlyap); P=C·Q·Cᵀ (+D·W·Dᵀ discrete; ∞ if continuous & D≠0). Fingerprint: 1/(s+1) W=1 -> P1=0.5 (closed form B²W/(2|a|)C²), 2-state -> P2=1.41667, Q(1,1)=0.5, Q(1,2)=0.3333; linear scaling P4=2 at W=4; discrete Pd=9.570351. Verified vs MATLAB R2025b. Fixes bugs/control/covar."
+}

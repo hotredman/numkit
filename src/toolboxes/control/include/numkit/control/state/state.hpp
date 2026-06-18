@@ -87,4 +87,29 @@ Value obsv_sys(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 Value gram(const Value &sys, const std::string &type,
            std::pmr::memory_resource *mr = nullptr);
 
+/// Output and state covariance of an LTI system driven by white noise.
+struct CovarResult {
+    Value P;   ///< Steady-state output covariance.
+    Value Q;   ///< Steady-state state covariance.
+};
+
+/// Steady-state covariance under white-noise excitation (`[P, Q] = covar(sys, W)`).
+///
+/// For an LTI system driven by white noise of intensity `W`, solves the
+/// gramian Lyapunov equation for the state covariance `Q` and projects it
+/// to the output covariance `P`:
+/// - **continuous**: `A Q + Q Aᵀ + B W Bᵀ = 0` (via @ref lyap), `P = C Q Cᵀ`
+///   (infinite if `D ≠ 0` — white noise through a direct feedthrough).
+/// - **discrete**: `A Q Aᵀ − Q + B W Bᵀ = 0` (via @ref dlyap),
+///   `P = C Q Cᵀ + D W Dᵀ`.
+///
+/// @param sys  LTI struct (ss / tf / zpk — converted to state space).
+/// @param W    Noise intensity (scalar → `W·I`, or an m×m matrix).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `{P, Q}` (see @ref CovarResult).
+/// @throws     Error on a non-LTI input or a shape mismatch.
+/// @see gram, lyap, dlyap
+CovarResult covar(const Value &sys, const Value &W,
+                  std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::control

@@ -67,6 +67,7 @@ void d2c_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ctrb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void obsv_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gram_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void covar_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // state/place.cpp
 void acker_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void place_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -149,6 +150,7 @@ void ControlLibrary::install(Engine &engine)
     reg("state", "ctrb",  &control::detail::ctrb_reg);
     reg("state", "obsv",  &control::detail::obsv_reg);
     reg("state", "gram",  &control::detail::gram_reg);
+    reg("state", "covar", &control::detail::covar_reg);
     reg("state", "acker", &control::detail::acker_reg);
     reg("state", "place", &control::detail::place_reg);
 

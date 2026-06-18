@@ -16,6 +16,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <limits>
 #include <vector>
 
 namespace numkit::control {
@@ -208,6 +210,72 @@ Value gram(const Value &sys, const std::string &type, std::pmr::memory_resource 
     }
     Value Qv = matFromVec(n, n, Q, mr);
     return discrete ? dlyap(Ause, Qv, mr) : lyap(Ause, Qv, mr);
+}
+
+CovarResult covar(const Value &sys, const Value &Wv, std::pmr::memory_resource *mr)
+{
+    auto abc = pullABC(sys, mr);
+    const size_t n = abc.A.dims().rows();
+    const size_t m = abc.B.dims().cols();
+    const size_t p = abc.C.dims().rows();
+    const bool discrete =
+        (sys.isStruct() && sys.hasField("Ts") && sys.field("Ts").toScalar() != 0.0);
+
+    auto B = readMat(abc.B, n, m);
+    auto C = readMat(abc.C, p, n);
+    auto D = readMat(abc.D, p, m);
+
+    // Noise intensity: scalar W → W·I_m, or a full m×m matrix.
+    const bool wScalar = (Wv.numel() == 1);
+    const std::vector<double> W = wScalar ? std::vector<double>{} : readMat(Wv, m, m);
+    const double wval = wScalar ? Wv.toScalar() : 0.0;
+    auto Wij = [&](size_t i, size_t j) -> double {
+        return wScalar ? (i == j ? wval : 0.0) : W[j * m + i];
+    };
+
+    // State covariance Q solves the gramian Lyapunov equation with B·W·Bᵀ.
+    std::vector<double> BWBt(n * n, 0.0);
+    for (size_t a = 0; a < n; ++a)
+        for (size_t b = 0; b < n; ++b) {
+            double s = 0.0;
+            for (size_t i = 0; i < m; ++i)
+                for (size_t j = 0; j < m; ++j)
+                    s += B[i * n + a] * Wij(i, j) * B[j * n + b];   // B[a,i]·W[i,j]·B[b,j]
+            BWBt[b * n + a] = s;
+        }
+    Value BWBtV = matFromVec(n, n, BWBt, mr);
+    Value Q = discrete ? dlyap(abc.A, BWBtV, mr) : lyap(abc.A, BWBtV, mr);
+
+    // Output covariance P = C·Q·Cᵀ (+ D·W·Dᵀ discrete; ∞ if continuous & D≠0).
+    auto Qm = readMat(Q, n, n);
+    std::vector<double> P(p * p, 0.0);
+    for (size_t a = 0; a < p; ++a)
+        for (size_t b = 0; b < p; ++b) {
+            double s = 0.0;
+            for (size_t i = 0; i < n; ++i)
+                for (size_t j = 0; j < n; ++j)
+                    s += C[i * p + a] * Qm[j * n + i] * C[j * p + b];   // C[a,i]·Q[i,j]·C[b,j]
+            P[b * p + a] = s;
+        }
+    bool dNonzero = false;
+    for (double d : D) if (d != 0.0) { dNonzero = true; break; }
+    if (discrete) {
+        for (size_t a = 0; a < p; ++a)
+            for (size_t b = 0; b < p; ++b) {
+                double s = 0.0;
+                for (size_t i = 0; i < m; ++i)
+                    for (size_t j = 0; j < m; ++j)
+                        s += D[i * p + a] * Wij(i, j) * D[j * p + b];   // D·W·Dᵀ
+                P[b * p + a] += s;
+            }
+    } else if (dNonzero) {
+        std::fill(P.begin(), P.end(), std::numeric_limits<double>::infinity());
+    }
+
+    CovarResult out;
+    out.P = matFromVec(p, p, P, mr);
+    out.Q = std::move(Q);
+    return out;
 }
 
 } // namespace numkit::control
