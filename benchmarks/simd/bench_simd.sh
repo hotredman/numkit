@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# benchmarks/bench_simd.sh — SIMD speedup runner (POSIX / git-bash)
+# benchmarks/simd/bench_simd.sh — SIMD speedup runner (POSIX / git-bash)
 #
 # Same as bench_simd.bat. Runs the SIMD-optimised kernels on the
 # scalar-baseline build (preset=bench) and the Highway-SIMD build
 # (preset=bench-simd), then side-by-sides the numbers via Google
 # Benchmark's compare.py.
 #
-# Kernels covered (Phase 8a-e):
-#   BM_Abs                    abs                 (8a)
-#   BM_Sin / Cos / Exp / Log  sin cos exp log     (8b)
-#   BM_Plus / Times           plus times          (8c)
-#   BM_Mtimes_Square          mtimes / matmul     (8d)
-#   BM_Fft_PowerOfTwo         fft                 (8e)
+# Kernels covered — every numkit SIMD family with a portable-vs-Highway split:
+#   unary math   abs sin cos tan exp log sqrt round floor ceil fix isfinite
+#   binary       plus minus times rdivide mod ; compares eq ne lt gt le ge
+#   matmul / fft mtimes ; fft
+#   reductions   any all var std cumsum
+#   fused        the ops/fused one-pass kernels (BM_Fused*)
 #
 # Prereq:
 #   cmake --preset=bench      && cmake --build --preset=bench
@@ -21,7 +21,7 @@ set -eu
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 PROJECT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"   # benchmarks/simd/ -> repo root
-FILTER='BM_Abs|BM_Sin|BM_Cos|BM_Exp|BM_Log|BM_Plus|BM_Times|BM_Mtimes_Square|BM_Fft_PowerOfTwo'
+FILTER='BM_Abs|BM_Sin|BM_Cos|BM_Tan|BM_Exp|BM_Log|BM_Sqrt|BM_Round|BM_Floor|BM_Ceil|BM_Fix|BM_Isfinite|BM_Plus|BM_Minus|BM_Times|BM_Rdivide|BM_Mod/|BM_Lt|BM_Gt|BM_Le|BM_Ge|BM_Eq|BM_Ne|BM_Mtimes|BM_Fft_PowerOfTwo|BM_Cumsum|BM_Any|BM_All|BM_Var|BM_Std|BM_Fused'
 MIN_TIME='0.2s'
 
 # On Windows the VS generator nests exes under Release/. On Ninja/Linux
