@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (109 entries):** ✅ 72 fixed · 🔴 37 open = **6 bug** + 4 stub +
+**Tally (109 entries):** ✅ 73 fixed · 🔴 36 open = **6 bug** + 3 stub +
 1 missing-output + **25 missing-fn** + 1 perf (the 25 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (67)
+### ✅ FIXED (68)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| stub | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | ✅ FIXED: smoothdata sgolay/lowess/loess methods threw. Implemented inline in stats (no cross-dep on signal): sgolay = degree-2 Savitzky-Golay (B=A(A'A)^-1A'); lowess/loess = tricube-weighted local linear/quadratic regression (F-nearest window, fit at query point). Explicit-window matches MATLAB R2025b exactly (sgolay w5/w7, lowess/loess w5/w7); loess interior-identity explained (3-pt quad interpolates). Auto default window approximate (MATLAB's is data-dependent — same caveat as the existing movmean default) (2026-06-18) |
 | missing-fn | [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | ✅ FIXED (peak-freq parity): pmusic (MUSIC) + peig pseudospectra were undefined. R=X'X (order 2p via corrmtx) -> Jacobi eig -> noise subspace (smallest p) -> P(w)=1/sum\|e'vk\|^2 (pmusic) / weighted 1/lambda_k (peig). Validated by PEAK FREQUENCIES (the estimator's purpose); absolute pseudospectrum NOT bit-matched (peaks are 1/near-zero, eigendecomposition-sensitive, scale-arbitrary). Parity OK vs MATLAB R2025b: 2-tone -> peaks at 0.6381, 1.5708 rad for both (2026-06-18) |
 | missing-fn | [signal/stmcb](signal/stmcb.md) | P2 | ✅ FIXED: Steiglitz-McBride IIR identification stmcb(h,nb,na,niter) was undefined. Init A via prony, then niter (default 5) iterations: prefilter unit impulse + h by 1/A, solve the Toeplitz LS [E\|-G][b;a]~g (normal equations). Parity OK vs MATLAB R2025b: stmcb([1 .5 .25 .125 .0625],1,1)=a[1 -0.5]; 2nd-order B/A recovered exactly. Two-signal form stmcb(y,x,...) + explicit ai init rejected (deferred) (2026-06-18) |
 | missing-fn | [stats/autocorr](stats/autocorr.md) | P2 | ✅ FIXED: autocorr + crosscorr + parcorr (Econometrics ACF/CCF/PACF) were undefined. autocorr/crosscorr = biased estimator normalised to a correlation (lag-0 ACF=1), default NumLags=min(20,N-1), ±2/√N bounds; crosscorr normalised by √(c1(0)c2(0)). parcorr matches MATLAB's DEFAULT OLS Method (AR(k) lag regression, PACF(k)=deepest coeff; can exceed 1), via normal equations — full precision on well-conditioned lags. Parity OK vs MATLAB R2025b. parcorr 'yule-walker' (Durbin-Levinson) spelling not wired (2026-06-18) |
@@ -238,13 +239,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 4
+### 🔴 OPEN — stub (option/branch throws "not supported") — 3
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | schur(A) throws on non-symmetric A (real Schur form deferred; eig values work) |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
-| [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | **lowess/loess** still throw (sgolay ✅ done 2026-06-18, explicit-window exact; default window approximate) |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
 ### 🔴 OPEN — missing-output (Nth output not emitted) — 1

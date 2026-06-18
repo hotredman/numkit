@@ -91,6 +91,20 @@ TEST_F(StatsKnownBug, SmoothdataSgolay)
     EXPECT_NEAR(evalScalar("z(12)"), 7.142857, 1e-5);   // trailing edge
 }
 
+// bugs/stats/smoothdata-methods.md — lowess / loess local regression (FIXED).
+TEST_F(StatsKnownBug, SmoothdataLowessLoess)
+{
+    eval("x = [1 5 2 8 3 9 4 7 2 6 1 8];");
+    eval("yl = smoothdata(x, 'lowess', 5);");           // local linear
+    EXPECT_NEAR(evalScalar("yl(1)"),  1.711260, 1e-5);
+    EXPECT_NEAR(evalScalar("yl(3)"),  4.576790, 1e-5);
+    EXPECT_NEAR(evalScalar("yl(12)"), 6.194210, 1e-5);
+    eval("yo = smoothdata(x, 'loess', 5);");            // local quadratic
+    EXPECT_NEAR(evalScalar("yo(1)"),  1.550870, 1e-5);
+    EXPECT_NEAR(evalScalar("yo(3)"),  2.0,      1e-5);   // interior identity (3-pt quad fit)
+    EXPECT_NEAR(evalScalar("yo(11)"), 3.731,    1e-3);
+}
+
 // bugs/stats/kstest-pvalue.md — exact small-n Kolmogorov distribution. FIXED
 // 2026-06-05 (deep coverage in toolboxes/stats/tests/kstest_exact_test.cpp).
 TEST_F(StatsKnownBug, KstestPValue)
