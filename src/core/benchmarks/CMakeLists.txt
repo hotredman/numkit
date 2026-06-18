@@ -1,4 +1,4 @@
-# benchmarks/interpreter/CMakeLists.txt — VM / interpreter execution benches.
+# src/core/benchmarks/CMakeLists.txt — VM / interpreter execution benches.
 #
 # These measure the cost of running M-code through the engine itself
 # (native C++ vs bytecode VM vs TreeWalker), as opposed to the math/ and lang/
