@@ -14,5 +14,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/lti_introspection_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/care_dare_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/hinfnorm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/initial_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
