@@ -48,6 +48,12 @@ Presets: `bench` (scalar), `bench-simd` (Highway SIMD), `bench-clang`,
 run both, and `simd/compare_simd.py` diffs the two JSON outputs into a speedup
 table.
 
+The `FILTER` in those runners covers every numkit family with a portable-vs-
+Highway split: unary math (abs/sin/cos/tan/exp/log/sqrt/round/floor/ceil/fix/
+isfinite), binary ops (plus/minus/times/rdivide/mod + the six comparisons),
+matmul, fft, the SIMD reductions (any/all/var/std/cumsum) and the ops/fused
+one-pass kernels (`BM_Fused*`). Keep it in sync when a new SIMD kernel lands.
+
 ## 2. M-script benches — `benchmarks/mscripts/`
 
 Hand-run `.m` scripts that measure performance from the language side
