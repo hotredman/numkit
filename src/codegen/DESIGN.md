@@ -194,8 +194,12 @@ almost nothing for the real use case.
   src/codegen/benchmarks/biquad_codegen_bench.cpp.
 - **M1** — inference skeleton: type lattice ✅ → const facet ✅ →
   transfer-function interface + registry + first family (constructors:
-  linspace/zeros/ones) + differential validator ✅ → AST→CFG → dataflow
-  driver (fixpoint) → entry-point type annotations.
+  linspace/zeros/ones) + differential validator ✅ → straight-line
+  inference driver (TypeEnv + inferExpr/inferStmt over the real AST,
+  const propagation, scalar element access; control flow handled
+  soundly = Dynamic) ✅ → **next:** CFG + dataflow with join/fixpoint
+  for precise control flow; elementwise transfer family; entry-point
+  type annotations.
 - **M2** — emitter + interop: emit C++ for one fully-typed function
   end-to-end (biquad), call the runtime for the rest, compile, measure.
 - **M3** — broaden: transfer-function DB for the hot ~50-100, shape
