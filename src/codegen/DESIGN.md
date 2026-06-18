@@ -180,9 +180,18 @@ almost nothing for the real use case.
 
 ## 8. Milestones
 
-- **M0** — measure the prize: hand-emit a biquad kernel boxed vs
-  unboxed, compare against the VM and MATLAB. De-risks the whole effort
-  before investing in the engine.
+- **M0** — measure the prize. **DONE.** biquad scalar recurrence,
+  Arrow Lake / desktop-fast Release / N=131072, ns/sample:
+  transpiler-faithful unboxed-with-Value-I/O **1.56** | raw-array native
+  1.59 | MATLAB JIT loop 2.70 | numkit filter() 5.85 | MATLAB filter()
+  7.22 | **numkit VM loop 151.4** | TreeWalker 336.6. Verdict: the
+  transpiled output is **~97× the VM** and **~1.7× faster than MATLAB's
+  JIT** — transpile-to-C++ overshoots the JIT target, not just closes
+  the gap. The Value-container array tier is **free** (1.56 vs 1.59 raw,
+  within noise) — validates §5. (For vectorisable code the builtin
+  already wins — filter() 5.85 < MATLAB 7.22 — so codegen's value is the
+  scalar-loop / non-vectorisable / fused-custom path.) Bench:
+  src/codegen/benchmarks/biquad_codegen_bench.cpp.
 - **M1** — inference skeleton: type lattice ✅ → const facet → AST→CFG →
   dataflow driver (fixpoint) → transfer-function interface + first
   templates → entry-point type annotations.
