@@ -8,6 +8,7 @@
 // up sooner.
 
 #include <numkit/lang/operators/binary_ops.hpp>
+#include <numkit/math/arithmetic/misc.hpp>   // mod
 #include <numkit/ops/binary_ops.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
@@ -59,6 +60,28 @@ static void BM_Times(benchmark::State &s) { runBinaryBench(s, numkit::lang::time
 
 BENCHMARK(BM_Plus)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Times)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+
+// Remaining SIMD-backed binary ops on the same memory-bound shape: minus /
+// rdivide / mod (ops::*Loop) and the six comparisons (ops::*Fast).
+static void BM_Minus(benchmark::State &s)   { runBinaryBench(s, numkit::lang::minus);   }
+static void BM_Rdivide(benchmark::State &s) { runBinaryBench(s, numkit::lang::rdivide); }
+static void BM_Mod(benchmark::State &s)     { runBinaryBench(s, numkit::math::mod);     }
+static void BM_Lt(benchmark::State &s)      { runBinaryBench(s, numkit::lang::lt); }
+static void BM_Gt(benchmark::State &s)      { runBinaryBench(s, numkit::lang::gt); }
+static void BM_Le(benchmark::State &s)      { runBinaryBench(s, numkit::lang::le); }
+static void BM_Ge(benchmark::State &s)      { runBinaryBench(s, numkit::lang::ge); }
+static void BM_Eq(benchmark::State &s)      { runBinaryBench(s, numkit::lang::eq); }
+static void BM_Ne(benchmark::State &s)      { runBinaryBench(s, numkit::lang::ne); }
+
+BENCHMARK(BM_Minus)  ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Rdivide)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Mod)    ->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Lt)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Gt)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Le)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Ge)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Eq)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+BENCHMARK(BM_Ne)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 
 // ── Decomposed micro-benches ─────────────────────────────────
 // `z = x + y` from a .m script does three things:
