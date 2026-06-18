@@ -5,4 +5,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/inference_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/indexing_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/emitter_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/aot_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/e2e_test.cpp
 )
