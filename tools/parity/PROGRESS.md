@@ -2694,7 +2694,7 @@ intentionally omitted — flat solver functions only.
 | `instfreq` | ✅ | Sig: f = instfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `meanfreq` | ✅ | Sig: f = meanfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `medfreq` | ✅ | Sig: f = medfreq(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
-| `obw` | ✅ | Sig: bw = obw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
+| `obw` | ✅ | Sig: [bw, flo, fhi, power] = obw(x, fs, p). Occupied bandwidth = width of the band holding fraction p (default 0.99) of total power. PSD = rectangular-windowed periodogram with nfft = numel(x) (NOT the default max(256,2^nextpow2(N)) zero-pad). Cumulative power is the rectangle rule sum(P)*df; a band edge is the frequency at the bin UPPER edge (F + df/2) where the cumulative reaches (1-+p)/2 of the total. power = p*total. Fixes bugs/signal/obw-value-outputs (value was ~108.77 vs MATLAB 100.97 from nfft=1024 + trapz + no half-bin shift; flo/fhi/power were missing). Verified vs MATLAB R2025b: bw=100.96875, flo=99.50625, fhi=200.475, power=0.61875. |
 | `powerbw` | ✅ | Sig: bw = powerbw(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `sfdr` | ✅ | Sig: r = sfdr(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |
 | `sinad` | ✅ | Sig: r = sinad(x, fs). Spec-extension batch 2026-05-09 (cycle 40). |

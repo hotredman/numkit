@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (108 entries):** ✅ 65 fixed · 🔴 43 open = **7 bug** + 4 stub +
+**Tally (108 entries):** ✅ 66 fixed · 🔴 42 open = **6 bug** + 4 stub +
 1 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (60)
+### ✅ FIXED (61)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | ✅ FIXED: obw 99% bandwidth was ~8% wrong (108.77 vs MATLAB 100.97) + [bw,flo,fhi,power] outputs missing. Three compounded bugs: PSD used the default nfft=1024 (zero-pad) not nfft=N; trapezoid not the rectangle-rule cumulative; band edge at bin centre not the upper edge F+df/2. Window is rectangular (not Kaiser). numkit periodogram is radix-2 only (can't do nfft=N for non-pow2 N → garbage), so obw now computes the length-N DFT via the general fft (Bluestein) and forms the one-sided PSD inline. Returns (bw,flo,fhi,power) by nargout. Parity OK vs MATLAB R2025b: bw=100.96875, flo=99.50625, fhi=200.475, power=0.61875 (2026-06-18) |
 | missing-output | [signal/periodogram-pxxc](signal/periodogram-pxxc.md) | P2 | ✅ FIXED: [pxx,f,pxxc]=periodogram(...,'ConfidenceLevel',p) threw ('ConfidenceLevel' unparsed + pxxc not computed). Now emits the chi-square CI as the 3rd output: pxxc = pxx.*v./chi2inv([1-a/2,a/2],v) with INTEGER v (=2 for interior bins, =1 for the real DC & even-nfft Nyquist bins; black-box-pinned from MATLAB outputs, no source read — it's a standard textbook method), closed forms chi2inv(q,2)=-2ln(1-q) & chi2inv(q,1)=(sqrt2*erfinv(q))^2 (erfinv from the math layer, no stats dep). Default level 0.95. New compute fn periodogramConf. Parity OK vs MATLAB R2025b: lower [32.25 7.40 2.17 1.27 0.40], DC/Nyquist ratio 0.19905, interior 0.27108. pwelch/cpsd CI still open (averaged EDOF) (2026-06-18) |
 | perf | [ops/cheap-elementwise-simd-small-n](ops/cheap-elementwise-simd-small-n.md) | P3 | ✅ FIXED: Highway SIMD cheap element-wise (+ - .* ./) ran 0.1-0.3x of scalar at cache-resident N on native MSVC = HWY_DYNAMIC_DISPATCH indirect-call overhead vs MSVC autovec (WASM static dispatch had no crater -> MSVC-specific). Size-gated before dispatch (kSimdInlineThreshold, native 256K / WASM 0): plus 0.10→0.97x, times 0.12→1.54x. Fused affine/abs/sq same gate — but their parallel_for lambda captured [&], escaping out/x and defeating MSVC alias analysis so the gate loop wouldn't vectorize (vec-report 1104); switching to [=] fixed it (0.68→1.0x). big-N + WASM unchanged, suite bit-identical (2026-06-18) |
 | bug | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | ✅ FIXED: non-2ⁿ complex-cepstrum phase was garbage past DC + the nd 2nd output was missing. Ported MATLAB rcunwrap (full unwrap + linear-phase removal: nd=round(unwrapped(nh+1)/pi), subtract pi*nd*(0:n-1)/nh) → nd is the 2nd output. Also fixed a latent time-reversal (the forward fft used dir=+1 like the inverse pass) in cceps + icceps. Parity OK vs MATLAB R2025b: [1 2 3 4 3 2 1] and (1:8) bit-identical, nd=1/−3 (2026-06-18) |
@@ -220,12 +221,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 7
+### 🔴 OPEN — bug (defect on an implemented function) — 6
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
-| [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
