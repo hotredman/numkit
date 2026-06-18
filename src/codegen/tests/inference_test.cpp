@@ -90,13 +90,82 @@ TEST(Inference, UnknownVariableIsDynamic)
     EXPECT_TRUE(env.get("q").type.isDynamic());
 }
 
-// Control flow is not modelled precisely yet: a variable assigned inside
-// an `if` is conservatively Dynamic (sound). Precise join/fixpoint is the
-// next (CFG) brick.
-TEST(Inference, ControlFlowIsConservativelyDynamic)
+// A variable assigned only inside an `if` (no else, not defined before)
+// may be undefined on the fall-through path -> Dynamic at the merge.
+TEST(Inference, IfAssignedVarWithoutElseIsMaybeUndefined)
 {
     const auto env = inferSrc("if true\n w = 5;\n end");
     EXPECT_TRUE(env.get("w").type.isDynamic());
+}
+
+// if/else that defines the variable on BOTH branches with the same type
+// joins to that precise type.
+TEST(Inference, IfElseBothBranchesJoin)
+{
+    const auto env = inferSrc("if c\n a = 5;\n else\n a = 10;\n end");
+    const auto a = env.get("a");
+    EXPECT_TRUE(a.type.isUnboxableScalar());
+    EXPECT_EQ(a.type.dtype, ValueType::DOUBLE);
+}
+
+// A variable defined before the `if` and conditionally reassigned with
+// the same type stays precisely typed (branch joins fall-through).
+TEST(Inference, IfWithPriorDefinitionStaysTyped)
+{
+    const auto env = inferSrc("a = 1; if c\n a = 2;\n end");
+    EXPECT_TRUE(env.get("a").type.isUnboxableScalar());
+}
+
+// Type-unstable across branches (double vs char) -> Dynamic.
+TEST(Inference, TypeUnstableAcrossBranchesIsDynamic)
+{
+    const auto env = inferSrc("a = 1; if c\n a = 'x';\n end");
+    EXPECT_TRUE(env.get("a").type.isDynamic());
+}
+
+// for n = 1:10 -> n is a scalar double (a colon range iterates scalars).
+TEST(Inference, ForLoopVariableIsScalarDouble)
+{
+    const auto env = inferSrc("for n = 1:10\n end");
+    const auto n = env.get("n");
+    EXPECT_TRUE(n.type.isUnboxableScalar());
+    EXPECT_EQ(n.type.dtype, ValueType::DOUBLE);
+}
+
+// while-loop fixpoint: loop-carried scalars stay precisely typed.
+TEST(Inference, WhileFixpointTypesLoopCarried)
+{
+    const auto env = inferSrc("s = 0; k = 1; while k < 10\n s = s + 1; k = k + 1;\n end");
+    EXPECT_TRUE(env.get("s").type.isUnboxableScalar());
+    EXPECT_TRUE(env.get("k").type.isUnboxableScalar());
+}
+
+// M1 capstone — the whole biquad loop types: the loop variable is a
+// scalar double, the loop-carried filter state stays a scalar double
+// (fixpoint), and the output stays a double array. This is the loop M0
+// measured; with this, the transpiler can emit it fully unboxed.
+TEST(Inference, BiquadLoopFullyTyped)
+{
+    const auto env = inferSrc(
+        "N = 64; x = zeros(1, N); y = zeros(1, N);"
+        "b0=0.0675; b1=0.1349; b2=0.0675; a1=-1.1430; a2=0.4128;"
+        "x1=0; x2=0; y1=0; y2=0;"
+        "for n = 1:N\n"
+        "  xn = x(n);\n"
+        "  yn = b0*xn + b1*x1 + b2*x2 - a1*y1 - a2*y2;\n"
+        "  y(n) = yn;\n"
+        "  x2 = x1; x1 = xn; y2 = y1; y1 = yn;\n"
+        "end");
+
+    // loop variable
+    EXPECT_TRUE(env.get("n").type.isUnboxableScalar());
+    // loop-carried state survives the fixpoint as a scalar double
+    EXPECT_TRUE(env.get("x1").type.isUnboxableScalar());
+    EXPECT_TRUE(env.get("y1").type.isUnboxableScalar());
+    // the output is a typed double array (shape unknown after indexed writes)
+    const auto y = env.get("y");
+    ASSERT_TRUE(y.type.isConcrete());
+    EXPECT_EQ(y.type.dtype, ValueType::DOUBLE);
 }
 
 // Scalar arithmetic now types through the elementwise family: a + 1 is

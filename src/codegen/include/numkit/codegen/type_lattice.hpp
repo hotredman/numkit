@@ -43,6 +43,8 @@ namespace numkit::codegen {
 enum class ShapeKind : std::uint8_t {
     Unknown,    // top — any shape
     Scalar,     // 1 x 1
+    RowVector,  // 1 x N, N not statically known (e.g. 1:N, runtime linspace)
+    ColVector,  // N x 1, N not statically known
     KnownDims,  // concrete rows x cols
 };
 
@@ -51,8 +53,10 @@ struct Shape {
     std::size_t rows = 0;   // meaningful only when kind == KnownDims
     std::size_t cols = 0;
 
-    static Shape unknown() { return {ShapeKind::Unknown, 0, 0}; }
-    static Shape scalar()  { return {ShapeKind::Scalar, 1, 1}; }
+    static Shape unknown()   { return {ShapeKind::Unknown, 0, 0}; }
+    static Shape scalar()    { return {ShapeKind::Scalar, 1, 1}; }
+    static Shape rowVector() { return {ShapeKind::RowVector, 0, 0}; }
+    static Shape colVector() { return {ShapeKind::ColVector, 0, 0}; }
     // A 1x1 KnownDims is canonicalised to Scalar so the two never alias.
     static Shape dims(std::size_t r, std::size_t c)
     {

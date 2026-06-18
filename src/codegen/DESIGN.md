@@ -204,6 +204,15 @@ almost nothing for the real use case.
     broadcast), comparison/logical (-> logical), unary, real-preserving
     math (sin/cos/exp/…), abs (|complex| -> real). The biquad inner
     expression now types end-to-end to an unboxed scalar double.
+  - **control flow ✅ (closes M1's inference skeleton)** — structured
+    abstract interpretation over if/elseif/else, switch, for, while
+    (MATLAB is structured — no explicit basic-block CFG needed). Env
+    join at merges (a var defined on only one path -> Dynamic;
+    type-unstable across branches -> Dynamic), fixpoint on loops
+    (loop-carried scalars stay precise), for-loop variable from the
+    range element (1:N -> scalar). Added RowVector/ColVector shapes.
+    The whole biquad loop now types: loop var + carried state scalar
+    double, output a double array.
 - **M2** — emitter + interop: emit C++ for one fully-typed function
   end-to-end (biquad), call the runtime for the rest, compile, measure.
 - **M3** — broaden: transfer-function DB for the hot ~50-100, shape
