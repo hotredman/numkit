@@ -28,6 +28,7 @@ void wavedec_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void waverec_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void appcoef_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void detcoef_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wenergy_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/dwt2.cpp
 void dwt2_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void idwt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -86,6 +87,7 @@ void WaveletLibrary::install(Engine &engine)
     reg("dwt",  "waverec",  &wavelet::detail::waverec_reg);
     reg("dwt",  "appcoef",  &wavelet::detail::appcoef_reg);
     reg("dwt",  "detcoef",  &wavelet::detail::detcoef_reg);
+    reg("dwt",  "wenergy",  &wavelet::detail::wenergy_reg);
     reg("dwt",  "dyaddown", &wavelet::detail::dyaddown_reg);
     reg("dwt",  "dyadup",   &wavelet::detail::dyadup_reg);
     reg("dwt",  "wmaxlev",  &wavelet::detail::wmaxlev_reg);

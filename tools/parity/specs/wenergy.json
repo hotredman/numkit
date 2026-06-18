@@ -1,0 +1,10 @@
+{
+  "name": "wenergy",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "[c,l]=wavedec([1 2 3 4 5 6 7 8],2,'db1'); [Ea,Ed]=wenergy(c,l); ea1=Ea; e1=Ed(1); e2=Ed(2); [c2,l2]=wavedec(sin(1:32),2,'db2'); [Ea2,Ed2]=wenergy(c2,l2); ea2=Ea2; d1=Ed2(1); d2=Ed2(2); s=Ea2+sum(Ed2);",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": ["ea1", "e1", "e2", "ea2", "d1", "d2", "s"],
+  "comment": "Sig: [Ea,Ed] = wenergy(C,L). Percent of energy in the approximation (Ea = 100·‖cA_N‖²/‖C‖²) and each detail band (Ed(i) = 100·‖cD‖²/‖C‖²). Ed is ordered FINEST-first (level 1 … level N) — the reverse of the C-vector packing (cD_N … cD_1). Ea + sum(Ed) = 100. Fingerprint: [1..8] db1 L2 -> Ea=95.0980392, Ed=[0.98039216, 3.92156863]; sin(1:32) db2 L2 -> Ea=34.187599, Ed=[9.833376, 55.979025], sum=100. Verified vs MATLAB R2025b. Fixes bugs/wavelet/wenergy (split from wenergy-upcoef; upcoef still open)."
+}

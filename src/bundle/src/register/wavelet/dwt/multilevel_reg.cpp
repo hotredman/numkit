@@ -202,5 +202,15 @@ void detcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 }
 
+void wenergy_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("wenergy: requires (C, L)",
+                    0, 0, "wenergy", "", "numkit:wenergy:nargin");
+    auto r = wenergy(args[0], args[1], ctx.engine->resource());
+    if (outs.size() >= 1) outs[0] = std::move(r.Ea);
+    if (outs.size() >= 2) outs[1] = std::move(r.Ed);
+}
+
 } // namespace detail
 } // namespace numkit::wavelet
