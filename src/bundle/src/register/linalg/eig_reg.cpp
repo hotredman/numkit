@@ -193,7 +193,13 @@ void schur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
         throw Error("schur: requires exactly 1 argument",
                     0, 0, "schur", "", "numkit:schur:nargin");
     auto *mr = ctx.engine->resource();
-    auto [U, T] = schur_sym(args[0], mr);
+    if (args[0].dims().ndim() != 2 || args[0].dims().dim(0) != args[0].dims().dim(1))
+        throw Error("schur: matrix must be square",
+                    0, 0, "schur", "", "numkit:schur:notSquare");
+    // Symmetric A → diagonal Schur (eig); general A → real Schur (Francis QR).
+    auto [U, T] = isSymmetricApprox(args[0], 1e-10)
+                      ? schur_sym(args[0], mr)
+                      : schur_general(args[0], mr);
     if (nargout >= 2) {
         outs[0] = std::move(U);
         outs[1] = std::move(T);

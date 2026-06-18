@@ -9,5 +9,5 @@
     "T(1,1)", "T(2,2)", "T(3,3)",
     "err", "off_diag"
   ],
-  "comment": "Sig: [U, T] = schur(A). For symmetric A this is the eigendecomposition: A = U*T*U' with T diagonal. General (non-symmetric) Schur returns quasi-triangular T with 2x2 blocks for complex eigenpairs -- deferred to Phase 2b. Eigenvalues bit-identical with MATLAB."
+  "comment": "Sig: [U, T] = schur(A). For symmetric A this is the eigendecomposition: A = U*T*U' with T diagonal. General (non-symmetric) Schur now implemented (Francis double-shift QR) -- see schur_general.json. Eigenvalues bit-identical with MATLAB."
 }
