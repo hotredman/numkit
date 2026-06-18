@@ -79,4 +79,24 @@ TEST_P(LpcParametricTest, PronyInvfreqCorrmtx)
     EXPECT_DOUBLE_EQ(evalScalar("as_(1)"), 1.0);
 }
 
+TEST_P(LpcParametricTest, Stmcb)
+{
+    // bugs/signal/stmcb — Steiglitz-McBride IIR identification.
+    // 0.5^n impulse response -> 1/(1 - 0.5 z^-1): a = [1 -0.5], b ~ [1 0].
+    eval("[b1, a1] = stmcb([1 0.5 0.25 0.125 0.0625], 1, 1);");
+    EXPECT_NEAR(evalScalar("a1(1)"), 1.0,  1e-12);
+    EXPECT_NEAR(evalScalar("a1(2)"), -0.5, 1e-9);
+    EXPECT_NEAR(evalScalar("b1(1)"), 1.0,  1e-9);
+    EXPECT_NEAR(evalScalar("abs(b1(2))"), 0.0, 1e-9);
+
+    // 2nd-order system B=[1 0.3], A=[1 -0.6 0.2] recovered from its impulse
+    // response (MATLAB R2025b: b=[1 0.3], a=[1 -0.6 0.2]).
+    eval("h = filter([1 0.3], [1 -0.6 0.2], [1 zeros(1,29)]);");
+    eval("[b2, a2] = stmcb(h, 1, 2);");
+    EXPECT_NEAR(evalScalar("b2(1)"),  1.0,  1e-7);
+    EXPECT_NEAR(evalScalar("b2(2)"),  0.3,  1e-7);
+    EXPECT_NEAR(evalScalar("a2(2)"), -0.6,  1e-7);
+    EXPECT_NEAR(evalScalar("a2(3)"),  0.2,  1e-7);
+}
+
 INSTANTIATE_DUAL(LpcParametricTest);

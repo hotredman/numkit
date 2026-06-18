@@ -2536,7 +2536,7 @@ intentionally omitted — flat solver functions only.
 | `rc2poly` | ✅ | Sig [a,efinal]=rc2poly(k,r0): reflection coeffs -> AR poly via step-up. k=[-0.5 0.4 0.2] -> a=[1 -0.62 0.26 0.2]. Two-output form [a,efinal]=rc2poly([0.5 0.3],4): a=[1 0.65 0.3], efinal=r0*prod(1-k.^2)=4*0.75*0.91=2.73. numkit previously returned only a (no efinal 2nd output) -- added r0 arg + efinal. |
 | `rlevinson` | ✅ | Sig: r = rlevinson(a, efinal). Spec-extension batch 2026-05-09 (cycle 40). |
 | `schurrc` | ✅ | Sig: K = schurrc(R). Schur reflection coefficients from autocorrelation R, length numel(R)-1. Element-wise SAVE. |
-| `stmcb` | ❌ | Steiglitz-McBride |
+| `stmcb` | ✅ | Sig: [b,a] = stmcb(h, nb, na, niter). Steiglitz-McBride IIR identification: B(z)/A(z) with nb zeros, na poles approximating impulse response h. Init A via prony, then niter (default 5) iterations: prefilter unit impulse + h by 1/A, solve LS [E|-G][b;a]~g. Fixes bugs/signal/stmcb (was undefined). Verified vs MATLAB R2025b: stmcb([1 .5 .25 .125 .0625],1,1) -> a=[1 -0.5], b~[1 0]; 2nd-order system B=[1 0.3]/A=[1 -0.6 0.2] recovered exactly from its impulse response. Two-signal form stmcb(y,x,...) and explicit ai init are rejected (not yet supported). harness prefers MATLAB. |
 
 ### Correlation and Convolution
 
