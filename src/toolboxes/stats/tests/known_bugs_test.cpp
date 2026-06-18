@@ -75,13 +75,20 @@ TEST_F(StatsKnownBug, IsoutlierGesd)
     EXPECT_DOUBLE_EQ(evalScalar("double(m(10))"), 1.0);
 }
 
-// bugs/stats/smoothdata-methods.md — sgolay (+ lowess/loess).
-// (Verify exact smoothed values vs MATLAB when enabling; default window
-// heuristic must match.)
-TEST_F(StatsKnownBug, DISABLED_SmoothdataSgolay)
+// bugs/stats/smoothdata-methods.md — sgolay FIXED (explicit window exact).
+TEST_F(StatsKnownBug, SmoothdataSgolay)
 {
+    // Default-window form runs + preserves length. (MATLAB's default window is a
+    // data-dependent heuristic that numkit's shared default only approximates, so
+    // here we check shape, not values, for the default form.)
     eval("y = smoothdata([1 5 2 8 3 9 4 7 2 8 3], 'sgolay');");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 11);
+    // Explicit odd window matches MATLAB R2025b exactly (degree-2 Savitzky-Golay).
+    eval("z = smoothdata([1 5 2 8 3 9 4 7 2 6 1 8], 'sgolay', 5);");
+    EXPECT_NEAR(evalScalar("z(1)"),  1.114286, 1e-5);   // leading edge
+    EXPECT_NEAR(evalScalar("z(4)"),  4.4,      1e-5);
+    EXPECT_NEAR(evalScalar("z(7)"),  7.0,      1e-5);    // interior
+    EXPECT_NEAR(evalScalar("z(12)"), 7.142857, 1e-5);   // trailing edge
 }
 
 // bugs/stats/kstest-pvalue.md — exact small-n Kolmogorov distribution. FIXED
