@@ -181,47 +181,62 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         outs[0] = fn(args[0], args[1], ctx.engine->resource());               \
     }
 
-// histcounts(x, edges[, name, value...]): bin counts, optionally normalized.
-// Edges may be passed positionally (histcounts(x, edges)) or via the
-// 'BinEdges' name-value pair (histcounts(x, 'BinEdges', edges)). The second
-// output returns the bin edges as a row vector: [n, e] = histcounts(...).
-// 'Normalization' mode ∈ {count, probability, countdensity, pdf, cumcount,
-// cdf}. Automatic binning (nbins / 'BinWidth' / 'BinLimits' / 'BinMethod')
-// is not supported — edges must be given explicitly.
+// histcounts(x[, edges | nbins][, name, value...]): bin counts, optionally
+// normalized. The second positional argument is the bin count when scalar
+// (histcounts(x, 8)) and an explicit edge vector otherwise (histcounts(x,
+// edges)); edges may also be passed via 'BinEdges'. With neither, bins are
+// chosen automatically (MATLAB binpicker rules) per 'BinMethod' (default
+// 'auto'), 'NumBins', 'BinWidth' and 'BinLimits'. The second output returns the
+// bin edges as a row vector. 'Normalization' ∈ {count, probability,
+// countdensity, pdf, cumcount, cdf}.
 void histcounts_reg(Span<const Value> args, size_t nargout,
                     Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("histcounts: requires at least 2 arguments",
+    if (args.empty())
+        throw Error("histcounts: requires at least one argument",
                      0, 0, "histcounts", "", "numkit:histcounts:nargin");
     auto *mr = ctx.engine->resource();
 
     HistNorm norm = HistNorm::Count;
     Value edges = Value::Empty;
     bool haveEdges = false;
-    bool binMethodIntegers = false;
+    HistBinSpec spec;   // method = Auto by default
 
-    // A non-char second argument is the positional edges vector; otherwise
-    // every trailing argument is a name-value pair (incl. 'BinEdges').
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        return s;
+    };
+    auto requireNumBins = [](double v) {
+        if (!(std::isfinite(v) && v >= 1.0 && v == std::floor(v)))
+            throw Error("histcounts: number of bins must be a positive integer",
+                         0, 0, "histcounts", "", "numkit:histcounts:badNumBins");
+    };
+
+    // A non-char second argument is either the bin count (scalar) or an
+    // explicit edge vector; otherwise every trailing argument is a name-value
+    // pair (incl. 'BinEdges').
     size_t optStart = 1;
-    if (args[1].type() != ValueType::CHAR) {
-        edges = args[1];
-        haveEdges = true;
+    if (args.size() >= 2 && args[1].type() != ValueType::CHAR) {
+        if (args[1].numel() == 1) {
+            requireNumBins(args[1].toScalar());
+            spec.hasNumBins = true;
+            spec.numBins = args[1].toScalar();
+        } else {
+            edges = args[1];
+            haveEdges = true;
+        }
         optStart = 2;
     }
 
     for (size_t i = optStart; i + 1 < args.size(); ++i) {
         if (args[i].type() != ValueType::CHAR) continue;
-        std::string key = args[i].toString();
-        std::transform(key.begin(), key.end(), key.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+        std::string key = lower(args[i].toString());
         if (key == "normalization") {
             if (args[i + 1].type() != ValueType::CHAR)
                 throw Error("histcounts: 'Normalization' value must be a string",
                              0, 0, "histcounts", "", "numkit:histcounts:badNorm");
-            std::string m = args[i + 1].toString();
-            std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
+            std::string m = lower(args[i + 1].toString());
             if      (m == "count")        norm = HistNorm::Count;
             else if (m == "probability")  norm = HistNorm::Probability;
             else if (m == "countdensity") norm = HistNorm::CountDensity;
@@ -231,62 +246,58 @@ void histcounts_reg(Span<const Value> args, size_t nargout,
             else
                 throw Error("histcounts: unknown Normalization '" + m + "'",
                              0, 0, "histcounts", "", "numkit:histcounts:badNorm");
-            ++i;   // consume the value
+            ++i;
         } else if (key == "binedges") {
             edges = args[i + 1];
             haveEdges = true;
-            ++i;   // consume the value
+            ++i;
+        } else if (key == "numbins") {
+            requireNumBins(args[i + 1].toScalar());
+            spec.hasNumBins = true;
+            spec.numBins = args[i + 1].toScalar();
+            ++i;
+        } else if (key == "binwidth") {
+            const double w = args[i + 1].toScalar();
+            if (!(std::isfinite(w) && w > 0.0))
+                throw Error("histcounts: 'BinWidth' must be a positive scalar",
+                             0, 0, "histcounts", "", "numkit:histcounts:badBinWidth");
+            spec.hasBinWidth = true;
+            spec.binWidth = w;
+            ++i;
+        } else if (key == "binlimits") {
+            const Value &bl = args[i + 1];
+            if (bl.numel() != 2)
+                throw Error("histcounts: 'BinLimits' must be a two-element vector",
+                             0, 0, "histcounts", "", "numkit:histcounts:badBinLimits");
+            spec.hasBinLimits = true;
+            spec.limLo = bl.elemAsDouble(0);
+            spec.limHi = bl.elemAsDouble(1);
+            ++i;
         } else if (key == "binmethod") {
             if (args[i + 1].type() != ValueType::CHAR)
                 throw Error("histcounts: 'BinMethod' value must be a string",
                              0, 0, "histcounts", "", "numkit:histcounts:badBinMethod");
-            std::string m = args[i + 1].toString();
-            std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
-            if (m == "integers")
-                binMethodIntegers = true;
+            std::string m = lower(args[i + 1].toString());
+            if      (m == "auto")     spec.method = HistBinMethod::Auto;
+            else if (m == "scott")    spec.method = HistBinMethod::Scott;
+            else if (m == "fd")       spec.method = HistBinMethod::Fd;
+            else if (m == "integers") spec.method = HistBinMethod::Integers;
+            else if (m == "sturges")  spec.method = HistBinMethod::Sturges;
+            else if (m == "sqrt")     spec.method = HistBinMethod::Sqrt;
             else
-                throw Error("histcounts: 'BinMethod' '" + m + "' not supported "
-                                "(only 'integers'; use explicit edges otherwise)",
+                throw Error("histcounts: 'BinMethod' '" + m + "' not supported",
                              0, 0, "histcounts", "", "numkit:histcounts:badBinMethod");
-            ++i;   // consume the value
+            ++i;
         } else {
             throw Error("histcounts: option '" + args[i].toString() +
-                            "' not supported (use explicit edges or 'BinEdges')",
+                            "' not supported",
                          0, 0, "histcounts", "", "numkit:histcounts:badOption");
         }
     }
 
-    // 'BinMethod','integers': one unit-width bin centered on each integer in
-    // [round(min), round(max)] of the finite data; bin edges are center +/-0.5.
-    // (MATLAB caps the integers method at 65536 bins and then widens; that
-    // widening is deferred — the common small-range case is exact.)
-    if (binMethodIntegers && !haveEdges) {
-        const Value &x = args[0];
-        const size_t nx = x.numel();
-        double lo = 0.0, hi = 0.0;
-        bool any = false;
-        for (size_t k = 0; k < nx; ++k) {
-            const double v = x.elemAsDouble(k);
-            if (!std::isfinite(v)) continue;
-            if (!any) { lo = hi = v; any = true; }
-            else { if (v < lo) lo = v; if (v > hi) hi = v; }
-        }
-        long first = any ? static_cast<long>(std::llround(lo)) : 0;
-        long last  = any ? static_cast<long>(std::llround(hi)) : 0;
-        if (last < first) last = first;
-        const size_t nEdges = static_cast<size_t>(last - first) + 2;
-        edges = Value::matrix(1, nEdges, ValueType::DOUBLE, mr);
-        double *ed = edges.doubleDataMut();
-        for (size_t e = 0; e < nEdges; ++e)
-            ed[e] = (static_cast<double>(first) - 0.5) + static_cast<double>(e);
-        haveEdges = true;
-    }
-
+    // No explicit edges → choose them automatically (MATLAB binpicker rules).
     if (!haveEdges)
-        throw Error("histcounts: bin edges required — automatic binning "
-                     "(nbins / 'BinWidth' / 'BinLimits') is not supported",
-                     0, 0, "histcounts", "", "numkit:histcounts:noEdges");
+        edges = histcountsAutoEdges(args[0], spec, mr);
 
     outs[0] = histcounts(args[0], edges, norm, mr);
 

@@ -11,5 +11,5 @@
     "m1", "m3", "f3",
     "p1", "p2"
   ],
-  "comment": "histcounts 'BinEdges' name-value + [n,edges] second output vs MATLAB R2025b. histcounts(x,'BinEdges',E) == histcounts(x,E): n=[1 2 2]. [n,e]=histcounts(...) returns the edges as a row vector (e=[0 2 4 6], ne=4). 'BinEdges' composes with 'Normalization' (probability -> [0.2 0.4 0.4]). Bug fixed 2026-05-30: 'BinEdges' threw 'Not a double array' (the name-value wasn't parsed), and the second output (edges) was missing. Automatic binning (nbins / BinWidth / BinLimits) remains unsupported."
+  "comment": "histcounts 'BinEdges' name-value + [n,edges] second output vs MATLAB R2025b. histcounts(x,'BinEdges',E) == histcounts(x,E): n=[1 2 2]. [n,e]=histcounts(...) returns the edges as a row vector (e=[0 2 4 6], ne=4). 'BinEdges' composes with 'Normalization' (probability -> [0.2 0.4 0.4]). Bug fixed 2026-05-30: 'BinEdges' threw 'Not a double array' (the name-value wasn't parsed), and the second output (edges) was missing. Automatic binning (nbins / BinWidth / BinLimits / BinMethod) is now supported — see the histcounts_autobin spec."
 }

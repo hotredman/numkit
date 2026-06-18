@@ -1,0 +1,10 @@
+{
+  "name": "histcounts_autobin",
+  "namespace": "builtin",
+  "setup": "xi = [1 2 2 3 3 3 5 5 5 5]; xc = (1:200)/7;",
+  "expr": "[na,ea] = histcounts(xi); [nb,eb] = histcounts(1:10, 3); [nc,ec] = histcounts(xc); [nd,ed] = histcounts([1 5 2 8 3], 'BinWidth', 2); [ng,eg] = histcounts(1:5, 'BinLimits', [0 6], 'NumBins', 3); [nf,ef] = histcounts(xc, 'BinMethod', 'sturges'); [nq,eq] = histcounts(xc, 'BinMethod', 'sqrt'); [nfd,efd] = histcounts(xc, 'BinMethod', 'fd');",
+  "iters": 3,
+  "tol": 1e-09,
+  "fingerprint": ["numel(na)", "ea(1)", "ea(end)", "sum(na)", "nb(2)", "eb(2)", "numel(nc)", "ec(1)", "ec(end)", "sum(nd)", "ed(2)", "ng(2)", "eg(3)", "numel(nf)", "numel(nq)", "numel(nfd)"],
+  "comment": "histcounts automatic binning (bugs/math/histcounts-autobinning): na = auto integer rule (xi integer-valued, range<=50); nb = NumBins=3; nc = auto Scott's rule (xc continuous); nd = BinWidth=2; ng = BinLimits+NumBins; nf/nq/nfd = sturges/sqrt/fd BinMethods. Deterministic input (no rng) so edges match MATLAB binpicker bit-for-bit. NOTE: the parity harness currently reports N/A for histcounts (pre-existing — the committed histcounts_binedges/_integers specs are N/A too; MATLAB runs histcounts fine standalone). Parity was confirmed by a DIRECT MATLAB R2025b run of this exact expr: all 16 fingerprints match numkit (numel(na)=5,ea=[0.5,5.5],sum=10; nb(2)=4,eb(2)=4; numel(nc)=6,ec=[0,30]; sum(nd)=5,ed(2)=2; ng(2)=2,eg(3)=4; sturges=10,sqrt=15,fd=6 bins). namespace=builtin."
+}

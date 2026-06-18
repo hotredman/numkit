@@ -154,6 +154,37 @@ enum class HistNorm {
 Value histcounts(const Value &x, const Value &edges, HistNorm norm,
                  std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Automatic bin-selection method (`'BinMethod'` of `histcounts`).
+enum class HistBinMethod { Auto, Scott, Fd, Integers, Sturges, Sqrt };
+
+/// @brief Options for automatic histogram bin-edge selection.
+/// Mirrors MATLAB `histcounts` auto-binning: pick by `method` (default `Auto`),
+/// or a fixed bin count (`hasNumBins`), or a fixed `binWidth` (`hasBinWidth`),
+/// optionally restricted to `[limLo, limHi]` (`hasBinLimits`).
+struct HistBinSpec {
+    HistBinMethod method       = HistBinMethod::Auto;
+    bool          hasNumBins   = false;  double numBins  = 0.0;
+    bool          hasBinWidth  = false;  double binWidth = 0.0;
+    bool          hasBinLimits = false;  double limLo = 0.0, limHi = 0.0;
+};
+
+/// @brief Choose histogram bin edges automatically (MATLAB `binpicker` rules).
+///
+/// Reproduces MATLAB R2025b `histcounts` auto-binning: the default `Auto` method
+/// uses unit-integer bins for integer-valued data of range ≤ 50 and Scott's
+/// normal-reference rule otherwise; `NumBins` / `BinWidth` / `BinLimits` and the
+/// `Scott`/`Fd`/`Integers`/`Sturges`/`Sqrt` methods follow the documented rules.
+/// Non-finite values are excluded from the data range. Returns a row vector of
+/// edges (length `nbins + 1`).
+///
+/// @param x    Data array.
+/// @param spec Bin-selection options.
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Row vector of bin edges.
+/// @see histcounts
+Value histcountsAutoEdges(const Value &x, const HistBinSpec &spec,
+                          std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Bin assignment (`bin = discretize(x, edges)`).
 ///
 /// 1-based bin index per element; `NaN` for out-of-range entries.

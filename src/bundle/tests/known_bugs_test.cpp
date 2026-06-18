@@ -20,8 +20,8 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/builtin/histcounts-autobinning.md — automatic bin selection.
-TEST_F(BuiltinKnownBug, DISABLED_HistcountsAutoBins)
+// bugs/math/histcounts-autobinning.md — automatic bin selection (FIXED; live guard).
+TEST_F(BuiltinKnownBug, HistcountsAutoBins)
 {
     eval("[N, e] = histcounts([1 2 2 3 3 3]);");
     EXPECT_DOUBLE_EQ(evalScalar("N(1)"), 1.0);
@@ -31,8 +31,8 @@ TEST_F(BuiltinKnownBug, DISABLED_HistcountsAutoBins)
     EXPECT_DOUBLE_EQ(evalScalar("e(4)"), 3.5);
 }
 
-// bugs/builtin/histcounts-autobinning.md — explicit nbins form.
-TEST_F(BuiltinKnownBug, DISABLED_HistcountsNbins)
+// bugs/math/histcounts-autobinning.md — explicit nbins form (FIXED; live guard).
+TEST_F(BuiltinKnownBug, HistcountsNbins)
 {
     eval("N = histcounts([1 2 3 4 5 6 7 8 9 10], 3);");
     EXPECT_DOUBLE_EQ(evalScalar("N(1)"), 3.0);
