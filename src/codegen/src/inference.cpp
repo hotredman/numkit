@@ -215,36 +215,52 @@ AbstractValue forIterValue(const InferredType &range)
 // converges in a handful of steps; this is a defensive backstop.
 constexpr int kMaxFixpoint = 16;
 
+// Join `t` into a decl-type recorder at variable `name` (Bottom identity
+// for a not-yet-present variable). No-op when `declOut` is null.
+void recordDecl(DeclTypeRecorder *declOut, const std::string &name,
+                const InferredType &t)
+{
+    if (!declOut) return;
+    auto it = declOut->find(name);
+    (*declOut)[name] = (it == declOut->end()) ? t : join(it->second, t);
+}
+
 // Conservatively mark every variable assigned anywhere within `node` as
 // Dynamic (used for statement kinds the straight-line driver does not
 // model precisely yet — try/catch, function defs, etc.). Sound.
-void markAssignedDynamic(const ASTNode &node, TypeEnv &env)
+void markAssignedDynamic(const ASTNode &node, TypeEnv &env,
+                         DeclTypeRecorder *declOut = nullptr)
 {
     if (node.type == NodeType::ASSIGN && !node.children.empty()
         && node.children[0]->type == NodeType::IDENTIFIER) {
         env.set(node.children[0]->strValue, AbstractValue::dynamic());
+        recordDecl(declOut, node.children[0]->strValue, InferredType::dynamic());
     }
     if (node.type == NodeType::MULTI_ASSIGN)
         for (const auto &rn : node.returnNames)
-            if (!rn.empty()) env.set(rn, AbstractValue::dynamic());
+            if (!rn.empty()) {
+                env.set(rn, AbstractValue::dynamic());
+                recordDecl(declOut, rn, InferredType::dynamic());
+            }
 
     for (const auto &c : node.children)
-        if (c) markAssignedDynamic(*c, env);
+        if (c) markAssignedDynamic(*c, env, declOut);
     for (const auto &br : node.branches) {
-        if (br.first)  markAssignedDynamic(*br.first, env);
-        if (br.second) markAssignedDynamic(*br.second, env);
+        if (br.first)  markAssignedDynamic(*br.first, env, declOut);
+        if (br.second) markAssignedDynamic(*br.second, env, declOut);
     }
-    if (node.elseBranch) markAssignedDynamic(*node.elseBranch, env);
+    if (node.elseBranch) markAssignedDynamic(*node.elseBranch, env, declOut);
 }
 
 } // namespace
 
-void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
+void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
+               DeclTypeRecorder *declOut)
 {
     switch (stmt.type) {
     case NodeType::BLOCK:
         for (const auto &c : stmt.children)
-            if (c) inferStmt(*c, env, reg);
+            if (c) inferStmt(*c, env, reg, declOut);
         return;
 
     case NodeType::ASSIGN: {
@@ -253,6 +269,7 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
         const AbstractValue rhs = inferExpr(*stmt.children[1], env, reg);
         if (lhs.type == NodeType::IDENTIFIER) {
             env.set(lhs.strValue, rhs);
+            recordDecl(declOut, lhs.strValue, rhs.type);
         } else if (!lhs.children.empty()
                    && lhs.children[0]->type == NodeType::IDENTIFIER) {
             // Indexed / field assign: x(i)=rhs, s.f=rhs. The base
@@ -269,6 +286,7 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
             } else {
                 env.set(base, AbstractValue::dynamic());
             }
+            recordDecl(declOut, base, env.get(base).type);
         }
         return;
     }
@@ -290,12 +308,12 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
         };
         for (const auto &br : stmt.branches) {
             TypeEnv branchEnv = env;
-            if (br.second) inferStmt(*br.second, branchEnv, reg);
+            if (br.second) inferStmt(*br.second, branchEnv, reg, declOut);
             mergeIn(branchEnv);
         }
         if (stmt.elseBranch) {
             TypeEnv elseEnv = env;
-            inferStmt(*stmt.elseBranch, elseEnv, reg);
+            inferStmt(*stmt.elseBranch, elseEnv, reg, declOut);
             mergeIn(elseEnv);
         } else {
             mergeIn(env);  // no branch taken — fall-through
@@ -314,12 +332,12 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
         };
         for (const auto &br : stmt.branches) {
             TypeEnv caseEnv = env;
-            if (br.second) inferStmt(*br.second, caseEnv, reg);
+            if (br.second) inferStmt(*br.second, caseEnv, reg, declOut);
             mergeIn(caseEnv);
         }
         if (stmt.elseBranch) {
             TypeEnv otherEnv = env;
-            inferStmt(*stmt.elseBranch, otherEnv, reg);
+            inferStmt(*stmt.elseBranch, otherEnv, reg, declOut);
             mergeIn(otherEnv);
         } else {
             mergeIn(env);
@@ -330,7 +348,7 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
 
     case NodeType::FOR_STMT: {
         // for <strValue> = children[0]; children[1]; end
-        if (stmt.children.size() != 2) { markAssignedDynamic(stmt, env); return; }
+        if (stmt.children.size() != 2) { markAssignedDynamic(stmt, env, declOut); return; }
         const std::string &loopVar = stmt.strValue;
         const AbstractValue iterVal = forIterValue(
             inferExpr(*stmt.children[0], env, reg).type);
@@ -338,29 +356,32 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
 
         // Fixpoint: the body may run 0..n times and carry values across
         // iterations. Start from the entry env; repeatedly run the body
-        // (loop var rebound) and join back until stable.
+        // (loop var rebound) and join back until stable. The env only
+        // widens between iterations, so a def-site type recorded into
+        // declOut is monotone — recording on every pass is exact.
         TypeEnv cur = env;
         for (int i = 0; i < kMaxFixpoint; ++i) {
             TypeEnv bodyEnv = cur;
             bodyEnv.set(loopVar, iterVal);
-            inferStmt(body, bodyEnv, reg);
+            inferStmt(body, bodyEnv, reg, declOut);
             TypeEnv next = joinEnv(cur, bodyEnv);
             if (next == cur) break;
             cur = next;
         }
         cur.set(loopVar, iterVal);  // loop var keeps its (last) iteration type
+        recordDecl(declOut, loopVar, iterVal.type);
         env = cur;
         return;
     }
 
     case NodeType::WHILE_STMT: {
         // while children[0]; children[1]; end — fixpoint, no loop var.
-        if (stmt.children.size() != 2) { markAssignedDynamic(stmt, env); return; }
+        if (stmt.children.size() != 2) { markAssignedDynamic(stmt, env, declOut); return; }
         const ASTNode &body = *stmt.children[1];
         TypeEnv cur = env;
         for (int i = 0; i < kMaxFixpoint; ++i) {
             TypeEnv bodyEnv = cur;
-            inferStmt(body, bodyEnv, reg);
+            inferStmt(body, bodyEnv, reg, declOut);
             TypeEnv next = joinEnv(cur, bodyEnv);
             if (next == cur) break;
             cur = next;
@@ -372,7 +393,7 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg)
     default:
         // try/catch, multi-assign, function defs, etc. — not modelled
         // precisely. Sound fallback: anything they assign -> Dynamic.
-        markAssignedDynamic(stmt, env);
+        markAssignedDynamic(stmt, env, declOut);
         return;
     }
 }

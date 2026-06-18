@@ -1,19 +1,39 @@
 // codegen/include/numkit/codegen/emitter.hpp
 //
-// The C++ emitter — turns a typed AST into C++ source text. Built in
-// sub-bricks; this first one is the unboxed-scalar expression core:
-// literals, identifiers, and scalar arithmetic / comparison / logical /
-// power operators emit a plain C++ expression (double / bool / complex),
-// no Value involved. Array access, runtime calls, statements and control
-// flow come in later sub-bricks.
+// The C++ emitter — turns a typed AST into C++ source text.
+//
+// Sub-brick 3a: the unboxed-scalar expression core (literals, identifiers,
+// scalar arithmetic / comparison / logical / power) -> a plain C++
+// expression. Sub-bricks 3b-3f add statements, control flow, builtin
+// calls, indexing and whole-function emission, wired together by the
+// stateful Emitter (in emitter.cpp) and exposed here via emitFunction().
+//
+// ABI (DESIGN.md §6, RawBuffer variant): the whole-function emitter
+// produces a SELF-CONTAINED translation unit depending only on the C++
+// standard library — scalars are unboxed primitives, an array parameter
+// `a` becomes `const T* a, std::size_t a_len`, and a single output array
+// becomes a trailing caller-allocated out-param `T* ret, std::size_t
+// ret_len` (void return). This makes the end-to-end differential gate
+// (compile with an external compiler + run + diff) robust without linking
+// the numkit runtime. The Value-ABI variant (array args/returns as
+// numkit::Value) is a thin wrapper around the identical numeric core.
+//
+// Contract 2 (DESIGN.md §10): the emitter emits a fast unboxed form ONLY
+// for a construct it can prove correct; anything outside the supported
+// subset throws std::runtime_error (the explicit boundary) rather than
+// emitting code that might be wrong.
 
 #pragma once
 
+#include <numkit/codegen/inference.hpp>
+#include <numkit/codegen/transfer.hpp>
 #include <numkit/codegen/type_lattice.hpp>
 
 #include <numkit/core/ast.hpp>
 
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace numkit::codegen {
 
@@ -29,7 +49,36 @@ std::string formatDoubleLiteral(double v);
 // Emit a C++ expression string for an unboxed-scalar AST expression
 // (NUMBER/IMAG/BOOL literal, IDENTIFIER, scalar BINARY_OP / UNARY_OP).
 // `^`/`.^` lower to std::pow. Throws std::runtime_error on a node kind
-// outside this sub-brick's scope (calls, indexing, matrices — later).
+// outside this pure-scalar subset (calls, indexing — handled by Emitter).
 std::string emitScalarExpr(const ASTNode &expr);
+
+// Declaration type per variable = the lattice JOIN of every type it is
+// ever assigned in `body` (so one hoisted C++ declaration is valid at
+// every program point). RHS types are evaluated under the inference
+// fixpoint env, making the result a sound over-approximation. `entryEnv`
+// seeds parameter types, which are also recorded.
+using DeclTypeMap = std::unordered_map<std::string, InferredType>;
+DeclTypeMap computeDeclTypes(const ASTNode &body, const TypeEnv &entryEnv,
+                             const TransferRegistry &reg);
+
+// Entry-point parameter type annotation (the inference seed for one
+// function). The order must match the FUNCTION_DEF's parameter list.
+struct ParamSpec {
+    std::string  name;
+    InferredType type;
+};
+
+// A complete emitted function.
+struct EmittedFunction {
+    std::string source;     // a self-contained C++ translation unit
+    std::string name;       // the emitted C++ symbol
+    std::string signature;  // the function's declaration (for a header)
+};
+
+// Emit one FUNCTION_DEF as a self-contained C++ TU (RawBuffer ABI, above).
+// Throws std::runtime_error on any construct outside the supported subset.
+EmittedFunction emitFunction(const ASTNode &funcDef,
+                             const std::vector<ParamSpec> &params,
+                             const TransferRegistry &reg);
 
 } // namespace numkit::codegen
