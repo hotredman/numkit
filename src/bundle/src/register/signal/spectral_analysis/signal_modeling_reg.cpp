@@ -195,6 +195,28 @@ void prony_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(a);
 }
 
+void stmcb_reg(Span<const Value> args, size_t nargout,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("stmcb: requires (h, nb, na[, niter])",
+                    0, 0, "stmcb", "", "numkit:stmcb:nargin");
+    // Two-signal form stmcb(y, x, nb, na) — x is a vector, not a scalar order.
+    if (!args[1].isScalar())
+        throw Error("stmcb: the two-signal form stmcb(y, x, ...) is not yet supported",
+                    0, 0, "stmcb", "", "numkit:stmcb:twosignal");
+    const int nb    = static_cast<int>(args[1].toScalar());
+    const int na    = static_cast<int>(args[2].toScalar());
+    const int niter = (args.size() >= 4 && !args[3].isEmpty())
+                          ? static_cast<int>(args[3].toScalar()) : 5;
+    if (args.size() >= 5)
+        throw Error("stmcb: an explicit ai initial estimate is not yet supported",
+                    0, 0, "stmcb", "", "numkit:stmcb:ai");
+    auto [b, a] = stmcb(args[0], nb, na, niter, ctx.engine->resource());
+    outs[0] = std::move(b);
+    if (nargout > 1) outs[1] = std::move(a);
+}
+
 void corrmtx_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
 {

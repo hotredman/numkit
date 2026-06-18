@@ -256,6 +256,7 @@ void rc2lar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void arcov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void armcov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void prony_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void stmcb_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void corrmtx_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poly2lsf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lsf2poly_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -543,6 +544,7 @@ void SignalLibrary::install(Engine &engine)
     reg("parametric", "arcov",     &signal::detail::arcov_reg);
     reg("parametric", "armcov",    &signal::detail::armcov_reg);
     reg("parametric", "prony",     &signal::detail::prony_reg);
+    reg("parametric", "stmcb",     &signal::detail::stmcb_reg);
     reg("parametric", "corrmtx",   &signal::detail::corrmtx_reg);
     reg("parametric", "poly2lsf",  &signal::detail::poly2lsf_reg);
     reg("parametric", "lsf2poly",  &signal::detail::lsf2poly_reg);
