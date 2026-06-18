@@ -36,8 +36,8 @@ InferredType TransferRegistry::apply(const std::string &name,
 void registerStandardTransfers(TransferRegistry &reg)
 {
     registerConstructorTransfers(reg);
-    // future: registerElementwiseTransfers(reg);
-    //         registerReductionTransfers(reg);
+    registerElementwiseTransfers(reg);
+    // future: registerReductionTransfers(reg);
     //         registerShapeTransfers(reg);
     //         registerCastTransfers(reg);
     //         registerBespokeTransfers(reg);

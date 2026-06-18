@@ -100,3 +100,60 @@ TEST_F(TransferDiff, OnesRectangular)
                  ArgInfo::scalarConst(ValueType::DOUBLE, 7.0)},
                 "ones(2, 7)");
 }
+
+// ── elementwise family vs the runtime ────────────────────────────────
+
+TEST_F(TransferDiff, ScalarPlus)
+{
+    expectMatch("plus",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, 3.0),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 4.0)},
+                "3 + 4");
+}
+
+TEST_F(TransferDiff, ArrayPlusScalarBroadcast)
+{
+    expectMatch("plus",
+                {ArgInfo::of(InferredType::concrete(ValueType::DOUBLE, Shape::dims(1, 3))),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 1.0)},
+                "[1 2 3] + 1");
+}
+
+TEST_F(TransferDiff, ComparisonIsLogical)
+{
+    expectMatch("lt",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, 2.0),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 3.0)},
+                "2 < 3");
+}
+
+TEST_F(TransferDiff, SinScalar)
+{
+    expectMatch("sin",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, 0.5)},
+                "sin(0.5)");
+}
+
+TEST_F(TransferDiff, AbsScalar)
+{
+    expectMatch("abs",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, -5.0)},
+                "abs(-5)");
+}
+
+// |complex| is real double — the abs dtype-narrowing rule.
+TEST_F(TransferDiff, AbsComplexIsReal)
+{
+    expectMatch("abs",
+                {ArgInfo::of(InferredType::scalar(ValueType::COMPLEX))},
+                "abs(3 + 4i)");
+}
+
+// single + single stays single (promotion).
+TEST_F(TransferDiff, SinglePlusSingle)
+{
+    expectMatch("plus",
+                {ArgInfo::of(InferredType::scalar(ValueType::SINGLE)),
+                 ArgInfo::of(InferredType::scalar(ValueType::SINGLE))},
+                "single(1) + single(2)");
+}
