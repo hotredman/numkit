@@ -37,8 +37,8 @@ void registerStandardTransfers(TransferRegistry &reg)
 {
     registerConstructorTransfers(reg);
     registerElementwiseTransfers(reg);
+    registerShapeTransfers(reg);
     // future: registerReductionTransfers(reg);
-    //         registerShapeTransfers(reg);
     //         registerCastTransfers(reg);
     //         registerBespokeTransfers(reg);
 }

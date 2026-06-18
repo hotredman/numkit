@@ -28,6 +28,48 @@ std::string emit(const std::string &expr)
     return emitScalarExpr(*assign.children[1]);               // rhs
 }
 
+bool contains(const std::string &hay, const std::string &needle)
+{
+    return hay.find(needle) != std::string::npos;
+}
+
+// Parse `src` and return the first FUNCTION_DEF (kept alive via `root`).
+const numkit::ASTNode *findFunc(const std::string &src, numkit::ASTNodePtr &root)
+{
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    root = parser.parse();
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) return c.get();
+    return nullptr;
+}
+
+// A standard registry for the function-level tests.
+TransferRegistry stdReg()
+{
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    return reg;
+}
+
+const InferredType kDoubleScalar = InferredType::scalar(ValueType::DOUBLE);
+const InferredType kDoubleRow    =
+    InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::rowVector());
+
+const char *kBiquadSrc =
+    "function y = biquad(x, b0, b1, b2, a1, a2)\n"
+    "  n = numel(x);\n"
+    "  y = zeros(1, n);\n"
+    "  x1 = 0; x2 = 0; y1 = 0; y2 = 0;\n"
+    "  for k = 1:n\n"
+    "    xn = x(k);\n"
+    "    yn = b0*xn + b1*x1 + b2*x2 - a1*y1 - a2*y2;\n"
+    "    y(k) = yn;\n"
+    "    x2 = x1; x1 = xn;\n"
+    "    y2 = y1; y1 = yn;\n"
+    "  end\n"
+    "end\n";
+
 }  // namespace
 
 TEST(Emitter, ScalarType)
@@ -97,4 +139,153 @@ TEST(Emitter, ImaginaryLiteral)
 TEST(Emitter, UnsupportedThrows)
 {
     EXPECT_THROW(emit("foo(x)"), std::runtime_error);
+}
+
+// ── 3b: declaration-type prepass ──────────────────────────────────────
+TEST(EmitterFn, DeclTypesBiquad)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(kBiquadSrc, root);
+    ASSERT_NE(fn, nullptr);
+
+    TypeEnv entry;
+    entry.set("x", {kDoubleRow, ConstVal::unknown()});
+    for (const char *p : {"b0", "b1", "b2", "a1", "a2"})
+        entry.set(p, {kDoubleScalar, ConstVal::unknown()});
+
+    const DeclTypeMap dt = computeDeclTypes(*fn->children[0], entry, reg);
+
+    // y is the double output array; the loop carries scalar doubles.
+    ASSERT_TRUE(dt.count("y"));
+    EXPECT_TRUE(dt.at("y").isConcrete());
+    EXPECT_EQ(dt.at("y").dtype, ValueType::DOUBLE);
+    EXPECT_FALSE(dt.at("y").shape.isScalar());
+    for (const char *v : {"n", "k", "x1", "x2", "y1", "y2", "xn", "yn"}) {
+        ASSERT_TRUE(dt.count(v)) << v;
+        EXPECT_TRUE(dt.at(v).isUnboxableScalar()) << v;
+        EXPECT_EQ(dt.at(v).dtype, ValueType::DOUBLE) << v;
+    }
+}
+
+// ── 3f: whole-function emission ───────────────────────────────────────
+TEST(EmitterFn, ScalarReturnSignature)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn =
+        findFunc("function y = f(a, b)\n  y = a + b;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+
+    const EmittedFunction out = emitFunction(
+        *fn, {{"a", kDoubleScalar}, {"b", kDoubleScalar}}, reg);
+
+    EXPECT_EQ(out.signature, "double f(double a, double b)");
+    EXPECT_TRUE(contains(out.source, "double y = 0.0;"));  // hoisted local
+    EXPECT_TRUE(contains(out.source, "y = (a + b);"));
+    EXPECT_TRUE(contains(out.source, "return y;"));
+    EXPECT_TRUE(contains(out.source, "#include <cmath>"));  // self-contained prelude
+}
+
+TEST(EmitterFn, BiquadFullFunction)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(kBiquadSrc, root);
+    ASSERT_NE(fn, nullptr);
+
+    std::vector<ParamSpec> params = {{"x", kDoubleRow}};
+    for (const char *p : {"b0", "b1", "b2", "a1", "a2"})
+        params.push_back({p, kDoubleScalar});
+
+    const EmittedFunction out = emitFunction(*fn, params, reg);
+    const std::string &s = out.source;
+
+    // RawBuffer ABI signature: array param -> ptr + len; output -> trailing
+    // out-param; scalars unboxed; void return.
+    EXPECT_EQ(out.signature,
+              "void biquad(const double* x, std::size_t x_len, double b0, "
+              "double b1, double b2, double a1, double a2, double* y, "
+              "std::size_t y_len)");
+
+    // hoisted scalar locals
+    for (const char *v : {"n", "k", "x1", "x2", "xn", "y1", "y2", "yn"})
+        EXPECT_TRUE(contains(s, std::string("double ") + v + " = 0.0;")) << v;
+
+    EXPECT_TRUE(contains(s, "n = static_cast<double>(x_len);"));        // numel(x)
+    EXPECT_TRUE(contains(s, "for (std::size_t __i = 0; __i < y_len; ++__i)"));  // y = zeros(1,n)
+    EXPECT_TRUE(contains(s, "y[__i] = 0.0;"));
+    EXPECT_TRUE(contains(s, "for (k = 1.0; k <= n; k += 1.0)"));        // for k = 1:n
+    EXPECT_TRUE(contains(s, "xn = nk_rt::index(x, x_len, k);"));        // x(k) read
+    EXPECT_TRUE(contains(
+        s, "yn = (((((b0 * xn) + (b1 * x1)) + (b2 * x2)) - (a1 * y1)) - (a2 * y2));"));
+    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, y_len, k, yn);"));     // y(k) = yn
+    EXPECT_TRUE(contains(s, "x2 = x1;"));
+    EXPECT_TRUE(contains(s, "y1 = yn;"));
+}
+
+// ── 3c: control flow ──────────────────────────────────────────────────
+TEST(EmitterFn, IfElseTyping)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = pick(c, a, b)\n"
+        "  if c\n    y = a;\n  else\n    y = b;\n  end\n"
+        "end\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+
+    const EmittedFunction out = emitFunction(
+        *fn, {{"c", kDoubleScalar}, {"a", kDoubleScalar}, {"b", kDoubleScalar}}, reg);
+    const std::string &s = out.source;
+
+    EXPECT_EQ(out.signature, "double pick(double c, double a, double b)");
+    EXPECT_TRUE(contains(s, "if (c) {"));
+    EXPECT_TRUE(contains(s, "y = a;"));
+    EXPECT_TRUE(contains(s, "} else {") || contains(s, "else {"));
+    EXPECT_TRUE(contains(s, "y = b;"));
+    EXPECT_TRUE(contains(s, "return y;"));
+}
+
+TEST(EmitterFn, WhileLoop)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = acc(n)\n"
+        "  y = 0;\n  i = 1;\n  while i <= n\n    y = y + i;\n    i = i + 1;\n  end\n"
+        "end\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+
+    const EmittedFunction out = emitFunction(*fn, {{"n", kDoubleScalar}}, reg);
+    EXPECT_TRUE(contains(out.source, "while ((i <= n))"));
+    EXPECT_TRUE(contains(out.source, "y = (y + i);"));
+}
+
+// ── 3d: builtin call lowering ─────────────────────────────────────────
+TEST(EmitterFn, BuiltinMathLowering)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = g(x)\n  y = sin(x) + cos(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+
+    const EmittedFunction out = emitFunction(*fn, {{"x", kDoubleScalar}}, reg);
+    EXPECT_TRUE(contains(out.source, "y = (std::sin(x) + std::cos(x));"));
+}
+
+// A construct that infers to Dynamic (eval) cannot be typed -> the output
+// type is unsupported and emission refuses (Contract 2: never emit wrong
+// code).
+TEST(EmitterFn, DynamicOutputRefused)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn =
+        findFunc("function y = h(x)\n  y = eval(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }

@@ -78,9 +78,20 @@ TypeEnv joinEnv(const TypeEnv &a, const TypeEnv &b);
 AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                         const TransferRegistry &reg);
 
+// Optional decl-type recorder: a map joined at every definition site with
+// the type the variable is assigned THERE (its program-point type, not the
+// post-merge value). The emitter consumes this to choose one C++ type per
+// local that is valid at every point. nullptr disables recording.
+using DeclTypeRecorder = std::unordered_map<std::string, InferredType>;
+
 // Apply one statement to the environment (straight-line). Unmodelled
-// statement kinds set every variable they assign to Dynamic (sound).
-void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg);
+// statement kinds set every variable they assign to Dynamic (sound). When
+// `declOut` is non-null, every definition (including loop variables and
+// conservatively-Dynamic assignments) is joined into it at its actual
+// program point — so a loop-body temporary records its in-loop type, not
+// its (maybe-undefined) post-loop type.
+void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
+               DeclTypeRecorder *declOut = nullptr);
 
 // Infer a whole parsed program (the BLOCK Parser::parse() returns),
 // returning the final environment.
