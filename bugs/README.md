@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (109 entries):** ✅ 71 fixed · 🔴 38 open = **6 bug** + 4 stub +
-1 missing-output + **26 missing-fn** + 1 perf (the 26 missing-fns are parity
+**Tally (109 entries):** ✅ 72 fixed · 🔴 37 open = **6 bug** + 4 stub +
+1 missing-output + **25 missing-fn** + 1 perf (the 25 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (66)
+### ✅ FIXED (67)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | ✅ FIXED (peak-freq parity): pmusic (MUSIC) + peig pseudospectra were undefined. R=X'X (order 2p via corrmtx) -> Jacobi eig -> noise subspace (smallest p) -> P(w)=1/sum\|e'vk\|^2 (pmusic) / weighted 1/lambda_k (peig). Validated by PEAK FREQUENCIES (the estimator's purpose); absolute pseudospectrum NOT bit-matched (peaks are 1/near-zero, eigendecomposition-sensitive, scale-arbitrary). Parity OK vs MATLAB R2025b: 2-tone -> peaks at 0.6381, 1.5708 rad for both (2026-06-18) |
 | missing-fn | [signal/stmcb](signal/stmcb.md) | P2 | ✅ FIXED: Steiglitz-McBride IIR identification stmcb(h,nb,na,niter) was undefined. Init A via prony, then niter (default 5) iterations: prefilter unit impulse + h by 1/A, solve the Toeplitz LS [E\|-G][b;a]~g (normal equations). Parity OK vs MATLAB R2025b: stmcb([1 .5 .25 .125 .0625],1,1)=a[1 -0.5]; 2nd-order B/A recovered exactly. Two-signal form stmcb(y,x,...) + explicit ai init rejected (deferred) (2026-06-18) |
 | missing-fn | [stats/autocorr](stats/autocorr.md) | P2 | ✅ FIXED: autocorr + crosscorr + parcorr (Econometrics ACF/CCF/PACF) were undefined. autocorr/crosscorr = biased estimator normalised to a correlation (lag-0 ACF=1), default NumLags=min(20,N-1), ±2/√N bounds; crosscorr normalised by √(c1(0)c2(0)). parcorr matches MATLAB's DEFAULT OLS Method (AR(k) lag regression, PACF(k)=deepest coeff; can exceed 1), via normal equations — full precision on well-conditioned lags. Parity OK vs MATLAB R2025b. parcorr 'yule-walker' (Durbin-Levinson) spelling not wired (2026-06-18) |
 | missing-fn | [stats/friedman](stats/friedman.md) | P2 | ✅ FIXED (reps=1): Friedman nonparametric two-way ANOVA by ranks was undefined. Ranks k treatments within each of n blocks (mid-ranks for ties) → tie-corrected Q = [12/(n·k·(k+1))·ΣRj² − 3n(k+1)]/C, C=1−Σ(t³−t)/(n(k³−k)), p=1−chi2cdf(Q,k−1). Returns [p, Q, df] (statistic+df, like kruskalwallis — not MATLAB's tbl/stats); primary p matches MATLAB exactly. Parity OK: p=0.0183156 (no ties), 0.8464817 (ties). reps>1 (replicated layout) rejected with a clear error — its ranking doesn't reduce to averaging-then-rank, deferred (2026-06-18) |
@@ -252,14 +253,13 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 26
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 25
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | pmusic/peig |
 | [signal/fillgaps](signal/fillgaps.md) | P2 | fillgaps |
 | [image/watershed](image/watershed.md) | P2 | watershed |
 | [image/imfindcircles](image/imfindcircles.md) | P2 | imfindcircles |

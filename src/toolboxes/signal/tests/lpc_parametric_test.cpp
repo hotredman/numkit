@@ -99,4 +99,25 @@ TEST_P(LpcParametricTest, Stmcb)
     EXPECT_NEAR(evalScalar("a2(3)"),  0.2,  1e-7);
 }
 
+TEST_P(LpcParametricTest, PmusicPeig)
+{
+    // bugs/signal/pmusic-peig — MUSIC / eigenvector pseudospectra. Two real
+    // tones at 0.1 and 0.25 cyc/sample -> peaks at 0.6283 and 1.5708 rad
+    // (nearest bins 0.6381, 1.5708). Peak-frequency parity (frequency estimator).
+    eval("nn = 0:63; xt = cos(2*pi*0.1*nn) + cos(2*pi*0.25*nn);");
+    eval("[P, f] = pmusic(xt, 4);");
+    EXPECT_EQ(eval("P").numel(), 129u);            // nfft 256 -> 129 one-sided bins
+    EXPECT_NEAR(evalScalar("f(end)"), M_PI, 1e-9);
+    eval("fa = f(find(P == max(P(f < 1)), 1));");   // low-band peak (0.1 tone)
+    eval("fb = f(find(P == max(P(f > 1 & f < 2)), 1));");  // 0.25 tone
+    EXPECT_NEAR(evalScalar("fa"), 0.6381, 0.03);    // within one bin of the tone
+    EXPECT_NEAR(evalScalar("fb"), 1.5708, 0.03);
+    // peig resolves the same two tones.
+    eval("[Pe, fe] = peig(xt, 4);");
+    eval("ga = fe(find(Pe == max(Pe(fe < 1)), 1));");
+    eval("gb = fe(find(Pe == max(Pe(fe > 1 & fe < 2)), 1));");
+    EXPECT_NEAR(evalScalar("ga"), 0.6381, 0.03);
+    EXPECT_NEAR(evalScalar("gb"), 1.5708, 0.03);
+}
+
 INSTANTIATE_DUAL(LpcParametricTest);

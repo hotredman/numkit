@@ -299,6 +299,50 @@ Value corrmtx(const Value &                x,
               int                          m,
               std::pmr::memory_resource *  mr = nullptr);
 
+/// MUSIC pseudospectrum (`[P, F] = pmusic(x, p, nfft, fs)`).
+///
+/// Builds the correlation matrix `R = X'·X` (order `2p`, via @ref corrmtx),
+/// eigendecomposes it, takes the smallest `p` eigenvectors as the noise
+/// subspace, and evaluates `P(ω) = 1 / Σ_{noise} |e(ω)'·v_k|²` over a one-sided
+/// grid of `nfft/2+1` frequencies on `[0, fs/2]`.
+///
+/// Matches MATLAB on the **peak frequencies** (the estimator's purpose). The
+/// absolute pseudospectrum is scale-arbitrary and eigendecomposition-sensitive
+/// (peaks are `1/near-zero`), so it is not bit-matched to MATLAB.
+///
+/// @param x     Real 1-D signal.
+/// @param p     Signal-subspace dimension (≈ number of complex exponentials).
+/// @param nfft  Frequency points: `nfft/2+1` one-sided (default 256 → 129).
+/// @param fs    Sample rate; default `2π` → frequencies in `[0, π]` rad/sample.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(P, F)` column vectors.
+/// @see peig, corrmtx, pwelch
+std::tuple<Value, Value>
+pmusic(const Value &                x,
+       int                          p,
+       int                          nfft = 256,
+       double                       fs   = 2.0 * 3.14159265358979323846,
+       std::pmr::memory_resource *  mr   = nullptr);
+
+/// Eigenvector pseudospectrum (`[P, F] = peig(x, p, nfft, fs)`).
+///
+/// As @ref pmusic, but weights each noise term by `1/λ_k`:
+/// `P(ω) = 1 / Σ_{noise} |e(ω)'·v_k|² / λ_k`. Same peak-frequency parity caveat.
+///
+/// @param x     Real 1-D signal.
+/// @param p     Signal-subspace dimension.
+/// @param nfft  Frequency points (default 256).
+/// @param fs    Sample rate (default `2π`).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(P, F)` column vectors.
+/// @see pmusic
+std::tuple<Value, Value>
+peig(const Value &                x,
+     int                          p,
+     int                          nfft = 256,
+     double                       fs   = 2.0 * 3.14159265358979323846,
+     std::pmr::memory_resource *  mr   = nullptr);
+
 // ─────────────────────────────────────────────────────────────────────
 // LSF ↔ AR poly
 // ─────────────────────────────────────────────────────────────────────
