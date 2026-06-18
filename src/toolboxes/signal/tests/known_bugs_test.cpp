@@ -156,11 +156,19 @@ TEST_F(SignalKnownBug, DISABLED_ObwValueAndOutputs)
     EXPECT_NEAR(evalScalar("fhi"), 200.4750, 1e-2);
 }
 
-// bugs/signal/periodogram-pxxc.md — confidence-interval 3rd output.
-TEST_F(SignalKnownBug, DISABLED_PeriodogramPxxc)
+// bugs/signal/periodogram-pxxc.md — confidence-interval 3rd output (FIXED).
+TEST_F(SignalKnownBug, PeriodogramPxxc)
 {
     eval("[pxx,f,pxxc]=periodogram([1 2 3 4 5 6 7 8],[],[],1,'ConfidenceLevel',0.95);");
     EXPECT_EQ(static_cast<int>(evalScalar("size(pxxc,2)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pxxc,1)")),
+              static_cast<int>(evalScalar("numel(pxx)")));
+    // DC bin (real, 1 DOF): lower-bound ratio = 1/chi2inv(0.975,1) = 0.19905;
+    // interior bins (2 DOF): 2/chi2inv(0.975,2) = 0.27108. Default nfft=256 is
+    // even, so the Nyquist bin (pxx(end)) is also 1 DOF.
+    EXPECT_NEAR(evalScalar("pxxc(1,1)/pxx(1)"),     0.1990490952, 1e-9);
+    EXPECT_NEAR(evalScalar("pxxc(2,1)/pxx(2)"),     0.2710850307, 1e-9);
+    EXPECT_NEAR(evalScalar("pxxc(end,1)/pxx(end)"), 0.1990490952, 1e-9);
 }
 
 // bugs/builtin/complex-input-unsupported.md — conv/filter on complex input.

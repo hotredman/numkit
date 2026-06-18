@@ -8,6 +8,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
+#include <numkit/math/special/special.hpp>
 
 #include "../dsp_helpers.hpp"
 
@@ -84,6 +85,41 @@ periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pm
     }
 
     return std::make_tuple(std::move(Pxx), std::move(F));
+}
+
+Value
+periodogramConf(const Value &Pxx, double confidenceLevel, bool realInput, bool nfftEven,
+                std::pmr::memory_resource *mr)
+{
+    const size_t  nf = Pxx.numel();
+    const double *p  = Pxx.doubleData();
+
+    const double alpha = 1.0 - confidenceLevel;
+    const double qLo   = 1.0 - alpha / 2.0;   // upper chi-square quantile → lower PSD bound
+    const double qHi   = alpha / 2.0;          // lower chi-square quantile → upper PSD bound
+
+    // Closed-form chi-square inverse CDFs at the two coverage points:
+    //   chi2inv(q, 2) = -2 ln(1-q)            (exponential / 2 DOF)
+    //   chi2inv(q, 1) = (√2 · erfinv(q))²     (folded normal / 1 DOF)
+    const double c2Lo = -2.0 * std::log(1.0 - qLo);
+    const double c2Hi = -2.0 * std::log(1.0 - qHi);
+    const double eLo  = math::erfinv(Value::scalar(qLo, mr)).toScalar();
+    const double eHi  = math::erfinv(Value::scalar(qHi, mr)).toScalar();
+    const double c1Lo = 2.0 * eLo * eLo;
+    const double c1Hi = 2.0 * eHi * eHi;
+
+    // PSD → [lower, upper] multipliers per degrees-of-freedom (Pxx · v / chi2inv).
+    const double r2Lo = 2.0 / c2Lo, r2Hi = 2.0 / c2Hi;   // v = 2 (interior bins)
+    const double r1Lo = 1.0 / c1Lo, r1Hi = 1.0 / c1Hi;   // v = 1 (real DC / Nyquist)
+
+    Value   out = Value::matrix(nf, 2, ValueType::DOUBLE, mr);
+    double *o   = out.doubleDataMut();
+    for (size_t i = 0; i < nf; ++i) {
+        const bool oneDof = realInput && (i == 0 || (nfftEven && i + 1 == nf));
+        o[i]      = p[i] * (oneDof ? r1Lo : r2Lo);   // column 0 — lower bound
+        o[nf + i] = p[i] * (oneDof ? r1Hi : r2Hi);   // column 1 — upper bound
+    }
+    return out;
 }
 
 std::tuple<Value, Value>
