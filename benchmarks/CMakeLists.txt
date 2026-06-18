@@ -31,7 +31,7 @@ endforeach()
 # Base-layer (math / lang) + interpreter/VM (core) benches — co-located under
 # src/<layer>/benchmarks/, same as the per-toolbox benches above and the
 # src/<module>/tests/ layout.
-foreach(_bench_layer math lang core)
+foreach(_bench_layer math lang ops core)
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/${_bench_layer}/benchmarks/CMakeLists.txt)
         add_subdirectory(${CMAKE_SOURCE_DIR}/src/${_bench_layer}/benchmarks
                          ${CMAKE_BINARY_DIR}/${_bench_layer}/benchmarks)
