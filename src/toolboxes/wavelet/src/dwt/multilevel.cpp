@@ -269,4 +269,51 @@ WenergyResult wenergy(const Value &C, const Value &L,
     return out;
 }
 
+namespace {
+// Full convolution y[n] = Σ_k a[k]·b[n−k], length |a|+|b|−1.
+std::vector<double> convFull(const std::vector<double> &a,
+                             const std::vector<double> &b) {
+    if (a.empty() || b.empty()) return {};
+    std::vector<double> c(a.size() + b.size() - 1, 0.0);
+    for (size_t i = 0; i < a.size(); ++i)
+        for (size_t j = 0; j < b.size(); ++j)
+            c[i + j] += a[i] * b[j];
+    return c;
+}
+} // anonymous
+
+Value upcoef(const std::string &type, const Value &X, const std::string &wname,
+             int n, long long len, std::pmr::memory_resource *mr)
+{
+    if (type != "a" && type != "d")
+        throw Error("upcoef: type must be 'a' (approximation) or 'd' (detail)",
+                    0, 0, "upcoef", "", "numkit:upcoef:type");
+    if (n < 0)
+        throw Error("upcoef: N must be >= 0",
+                    0, 0, "upcoef", "", "numkit:upcoef:N");
+
+    auto fb = wavelet_filters(wname);
+    auto y = vecFromValue(X);
+    const bool detail = (type == "d");
+
+    for (int i = 0; i < n; ++i) {
+        // First level of a detail branch uses the highpass; all else lowpass.
+        const std::vector<double> &F = (i == 0 && detail) ? fb.Hi_R : fb.Lo_R;
+        std::vector<double> up;
+        if (!y.empty()) {
+            up.assign(2 * y.size() - 1, 0.0);          // [y0, 0, y1, 0, …, y_{n-1}]
+            for (size_t k = 0; k < y.size(); ++k) up[2 * k] = y[k];
+        }
+        y = convFull(up, F);
+    }
+
+    // Optional: keep the central `len` samples (MATLAB wkeep convention).
+    if (len >= 0 && static_cast<size_t>(len) < y.size()) {
+        const size_t start = (y.size() - static_cast<size_t>(len)) / 2;
+        y = std::vector<double>(y.begin() + start,
+                                y.begin() + start + static_cast<size_t>(len));
+    }
+    return rowFromVec(y, mr);
+}
+
 } // namespace numkit::wavelet

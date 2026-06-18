@@ -58,7 +58,8 @@ TEST_F(WaveletKnownBug, Wenergy)
 }
 
 // bugs/wavelet/upcoef.md — single-branch coefficient reconstruction.
-TEST_F(WaveletKnownBug, DISABLED_Upcoef)
+// FIXED 2026-06-19 (synthesis cascade) — promoted live.
+TEST_F(WaveletKnownBug, Upcoef)
 {
     eval("y = upcoef('a', 5, 'db1', 2);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
