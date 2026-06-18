@@ -49,9 +49,16 @@ HWY_EXPORT(AffineImpl);
 void fusedAffine(const double *x, double scale, double offset,
                  double *out, std::size_t n) {
     if (n == 0) return;
-    // Each chunk is a disjoint output slice; no-op (sequential) unless
-    // NUMKIT_WITH_THREADS and n is large.
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    // Small native arrays: inline scalar loop the compiler auto-vectorizes —
+    // beats the HWY_DYNAMIC_DISPATCH indirect call below the SIMD crossover.
+    // NB: the parallel_for lambda must capture by VALUE [=]; a [&] capture
+    // escapes out/x and defeats MSVC's alias analysis, so this gate loop would
+    // NOT vectorize (vec-report reason 1104). See bugs/ops/cheap-elementwise.
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        for (std::size_t i = 0; i < n; ++i) out[i] = scale * x[i] + offset;
+        return;
+    }
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(AffineImpl)(x + s, scale, offset, out + s, e - s);
     });
 }

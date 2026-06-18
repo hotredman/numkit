@@ -65,7 +65,11 @@ HWY_EXPORT(AbsDiffImpl);
 void fusedAbsAffine(const double *x, double scale, double offset,
                     double *out, std::size_t n) {
     if (n == 0) return;
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec; lambda below MUST be [=]
+        for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(scale * x[i] + offset);
+        return;
+    }
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(AbsAffineImpl)(x + s, scale, offset, /*divide=*/false,
                                             out + s, e - s);
     });
@@ -74,7 +78,11 @@ void fusedAbsAffine(const double *x, double scale, double offset,
 void fusedAbsShiftDiv(const double *x, double sub, double div,
                       double *out, std::size_t n) {
     if (n == 0) return;
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs((x[i] - sub) / div);
+        return;
+    }
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(AbsAffineImpl)(x + s, sub, div, /*divide=*/true,
                                             out + s, e - s);
     });
@@ -82,7 +90,11 @@ void fusedAbsShiftDiv(const double *x, double sub, double div,
 
 void fusedAbsDiff(const double *x, const double *y, double *out, std::size_t n) {
     if (n == 0) return;
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        for (std::size_t i = 0; i < n; ++i) out[i] = std::fabs(x[i] - y[i]);
+        return;
+    }
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(AbsDiffImpl)(x + s, y + s, out + s, e - s);
     });
 }

@@ -83,18 +83,33 @@ SSE2 portable baseline). Big-N path unchanged (still Highway). Full suite
 12178/12177 bit-identical (the inline `+ - .* ./` is one IEEE op, == the Highway
 lane op). WASM untouched (gate compile-disabled).
 
-**Fused affine/abs/sq follow-up — attempted, did NOT work, reverted.** Gating the
-simpler `fused{Affine,AbsAffine,AbsDiff,AbsShiftDiv,SqAffine,SqDiff,SqShiftDiv}`
-the same way (inline scalar below the threshold) did not help: in the gated zone
-the SIMD build stayed ~0.5–0.8× of the scalar build (consistent across N=1k–64k,
-not noise). The inline scalar loop apparently does NOT auto-vectorize inside the
-fused Highway TUs on MSVC — unlike the binary `*_highway.cpp` TUs where the same
-pattern recovered to ~1×. Reverted (no point shipping a no-op branch). A real fix
-would need a different vehicle (a dedicated auto-vectorized scalar TU, or a
-`#pragma`/attribute forcing vectorization of the gate loop) — deferred: the fused
-crater is milder and only on the VM-expression-fusion path. Why MSVC vectorizes
-the gate in `binary_ops_highway.cpp` but not the `fused_*_highway.cpp` TUs is the
-open question for that follow-up.
+## Fused affine/abs/sq fix + root cause (2026-06-18)
+
+Gating the same way at first did NOT help (gated zone stuck ~0.5–0.8×). Root-caused
+it with `cl /Qvec-report:2` on a structural repro: **the difference was the
+`parallel_for` lambda capture.** The binary wrappers capture `[=]` (by value); the
+fused wrappers captured `[&]` (by reference). A `[&]` capture of the function's
+`out`/`x` pointers makes MSVC treat them as address-escaped → conservative alias
+analysis → the *earlier* gate loop `out[i] = scale*x[i]+offset` fails to vectorize
+(vec-report **reason 1104**), running scalar at ~half speed. With `[=]` the same
+gate loop vectorizes (vec-report C5001). The loop body itself was never the
+problem — it vectorizes fine standalone under `/fp:precise`.
+
+Fix: gate `fused{Affine,AbsAffine,AbsShiftDiv,AbsDiff,SqAffine,SqShiftDiv,SqDiff}`
+(`fused_{affine,abs,sq}_highway.cpp`) **and** switch their `parallel_for` lambdas
+`[&]` → `[=]`. A/B at N=1024 / 16384 / 65536, before → after:
+
+```
+FusedAffine     0.78x → 0.99x / 1.11x / 0.95x
+FusedAbsAffine  0.68x → 0.98x / 1.02x / 1.00x
+FusedSqAffine   0.69x → 0.98x / 1.03x / 1.01x
+```
+
+Bit-identical (suite 12178/12177; the inline body == the Highway scalar tail).
+The branchy/transcendental fused (clamp, soft-threshold, sqrt-sum-sq, trans) win
+3–27× and were left ungated. **Lesson:** an HWY dispatcher wrapping its body in a
+`parallel_for` must capture `[=]`, or any inline fast-path loop sharing its
+pointers won't vectorize on MSVC.
 
 ## References
 
