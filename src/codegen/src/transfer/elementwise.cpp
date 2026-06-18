@@ -6,15 +6,24 @@
 // two mechanisms — dtype promotion (MATLAB's class rules) and shape
 // broadcast.
 //
+// SOUNDNESS CONTRACT (DESIGN.md §10): every transfer over-approximates —
+// the runtime type must be ⊑ the predicted type. A transfer claims a
+// precise dtype only on the sub-domain where the operation is provably
+// closed over it; elsewhere it returns Dynamic. In particular `power` is
+// NOT closed over the reals ((-2)^0.5 is complex), so it is real only for
+// a provably-integer exponent and Dynamic otherwise.
+//
 // Deferred / conservative (documented):
 //   * full implicit-expansion broadcast with singleton dims (today:
 //     equal-or-scalar shapes are precise, other mismatches -> Unknown);
-//   * mtimes/mpower matrix shapes beyond the scalar and known-dims cases;
+//   * mtimes matrix shapes beyond the scalar and known-dims cases;
 //   * can-go-complex math (sqrt/log/asin/…): NOT registered, so they fall
 //     back to Dynamic — sound, because sqrt of a possibly-negative real
 //     is complex in MATLAB and must not be mistyped as real.
 
 #include <numkit/codegen/transfer.hpp>
+
+#include <cmath>
 
 namespace numkit::codegen {
 
@@ -80,6 +89,45 @@ InferredType mtimesTransfer(const std::vector<ArgInfo> &args)
     return InferredType::concrete(dt, Shape::unknown());
 }
 
+// A known integer-valued constant (any sign)? Used to decide when
+// real^real stays real.
+bool isIntegerConst(const ConstVal &c)
+{
+    return c.isKnown() && std::isfinite(c.value) && std::floor(c.value) == c.value;
+}
+
+// a .^ b — power is NOT closed over the reals: (-2)^0.5 is complex. So
+// the result is real only when (Contract 1, soundness):
+//   * an operand is already complex -> complex; OR
+//   * the exponent is a provably-integer constant -> real (promoted).
+// Otherwise the real result could be real OR complex depending on the
+// (statically unknown) sign of the base -> Dynamic (neither real nor
+// complex over-approximates both in the flat dtype lattice).
+InferredType powerTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2) return InferredType::dynamic();
+    const InferredType &a = args[0].type, &b = args[1].type;
+    if (!a.isConcrete() || !b.isConcrete()) return InferredType::dynamic();
+    if (mixedDistinctIntegers(a.dtype, b.dtype)) return InferredType::dynamic();
+    if (a.dtype == ValueType::COMPLEX || b.dtype == ValueType::COMPLEX)
+        return InferredType::concrete(ValueType::COMPLEX, broadcastShape(a.shape, b.shape));
+    if (isIntegerConst(args[1].constant))  // integer exponent -> stays real
+        return InferredType::concrete(promoteArith(a.dtype, b.dtype),
+                                      broadcastShape(a.shape, b.shape));
+    return InferredType::dynamic();  // real base, non-integer exponent -> maybe complex
+}
+
+// a ^ b (matrix power). Scalar operands reduce to elementwise power; a
+// genuine matrix power needs a square base + integer exponent — deferred.
+InferredType mpowerTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2) return InferredType::dynamic();
+    const InferredType &a = args[0].type, &b = args[1].type;
+    if (!a.isConcrete() || !b.isConcrete()) return InferredType::dynamic();
+    if (a.shape.isScalar() && b.shape.isScalar()) return powerTransfer(args);
+    return InferredType::dynamic();
+}
+
 // ==, <, &, … — always logical, shape broadcast.
 InferredType comparisonTransfer(const std::vector<ArgInfo> &args)
 {
@@ -132,12 +180,14 @@ InferredType absTransfer(const std::vector<ArgInfo> &args)
 
 void registerElementwiseTransfers(TransferRegistry &reg)
 {
-    // arithmetic (elementwise) — broadcast shape
-    for (const char *n : {"plus", "minus", "times", "rdivide", "ldivide", "power"})
+    // arithmetic (elementwise, closed over reals) — broadcast shape
+    for (const char *n : {"plus", "minus", "times", "rdivide", "ldivide"})
         reg.add(n, arithmeticBinaryTransfer);
+    // power is NOT closed over reals -> its own (soundness) rule
+    reg.add("power", powerTransfer);
+    reg.add("mpower", mpowerTransfer);
     // matrix forms — scalar/known-dims shape
     reg.add("mtimes", mtimesTransfer);
-    reg.add("mpower", mtimesTransfer);
     reg.add("mrdivide", arithmeticBinaryTransfer);  // scalar case is exact
     reg.add("mldivide", arithmeticBinaryTransfer);
 

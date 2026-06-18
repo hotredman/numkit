@@ -226,3 +226,62 @@ almost nothing for the real use case.
 of `src/scriptgraph`: pure C++ over a parsed AST, core-coupled
 (parser/AST), **registers no engine builtin**. Compiled into
 `numkit_toolboxes_obj`; tests into `numkit_gtest`.
+
+## 10. Reliability architecture
+
+Correctness of the generated code rests on **two contracts**; if both
+hold, the output is correct, and everything else is optimisation.
+
+**Contract 1 — inference soundness (over-approximation).** Every
+transfer function returns a type `T` with the true runtime type ⊑ `T`.
+Where it cannot prove a precise type over part of its domain, it returns
+`Dynamic` (top) there. It NEVER under-approximates (claims a type more
+specific than reality). Precision is claimed only with a closure
+argument: `real+real` is always real (OK); `real^real` is NOT always
+real ((-2)^0.5 is complex) → real only for a provably-integer exponent,
+else `Dynamic`. Enforced by the differential validator generating inputs
+across the domain **including adversarial corners** (negative / zero /
+complex / Inf-NaN / empty) and checking `runtime ⊑ predicted`
+(over-approx), not equality (`expectSound`).
+
+**Contract 2 — lowering soundness (precondition ⟹ equivalence).** Every
+fast (unboxed) emitter form has a precondition `P` and a lemma
+`P ⟹ (fast code ≡ runtime semantics)`. The emitter emits the fast form
+only when `P` is established; otherwise it emits the runtime call. MATLAB
+indexing semantics are NOT reimplemented in the emitter — the fallback
+reuses the engine's `Value::index` / `indexSet`.
+
+**No-kludge litmus:** delete every optimisation analysis (bounds
+elision, integer-loop promotion) and the system is still *correct*, just
+slower (everything bounds-checked, loop variable a `double`, index via
+`(size_t)n - 1`). Optimisations are pure additions whose absence is
+always safe — correctness ⊥ optimisation.
+
+**Pipeline:** AST → Inference (lattice + transfers, Contract 1) →
+typed AST + facts → Analyses (produce *facts*: index ⊆ extent;
+1:N unit-stride index-only — a fact only *enables* an optimisation, its
+absence is the safe default) → Emitter (Contract 2: scalar→double,
+array→Value+ptr, dynamic→Value; one index module: form by (arg types,
+array, facts), no proven form → `nk_rt::index`) → `.cpp` → external
+compiler. **Verification gate:** differential VALUE testing
+(compile + run + diff vs the interpreter) + fuzz the index grammar; a
+debug assert is never the release-correctness mechanism.
+
+## 11. Build plan
+
+1. **Soundness foundation** ✅ (this brick) — Contract 1 documented;
+   validator strengthened to over-approximation + adversarial domain
+   (`expectSound`); transfer audit fixed `power`/`mpower` (real^real →
+   real only for integer exponent, else Dynamic).
+2. **Index module** — `IndexPlan` (LinearScalar / Subscript2D /
+   Runtime) + `nk_rt::index`/`indexSet` wrappers; bounds checked by
+   default; differential value tests.
+3. **Emitter core** — typed AST → compilable `.cpp` (scalars / arrays /
+   calls / control flow via the index module).
+4. **AOT harness** — compile the emitted `.cpp` with the external
+   compiler, load, run.
+5. **End-to-end differential gate** — compile + run + diff vs
+   interpreter; fuzz.
+6. **Optimisations** (separate, each gated on a fact) — integer-loop
+   promotion, bounds-check elision.
+7. **biquad end-to-end** + re-measure against M0.
