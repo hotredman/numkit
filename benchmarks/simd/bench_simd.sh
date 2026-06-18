@@ -20,7 +20,7 @@
 set -eu
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
-PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+PROJECT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"   # benchmarks/simd/ -> repo root
 FILTER='BM_Abs|BM_Sin|BM_Cos|BM_Exp|BM_Log|BM_Plus|BM_Times|BM_Mtimes_Square|BM_Fft_PowerOfTwo'
 MIN_TIME='0.2s'
 
