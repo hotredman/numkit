@@ -1238,7 +1238,7 @@ intentionally omitted.
 | `prescale` | ❌ | improve numerics by scaling |
 | `modalreal` | ❌ | modal realisation |
 | `compreal` | ❌ | companion realisation |
-| `minreal` | ❌ | minimal realisation |
+| `minreal` | ✅ | Sig: sysr = minreal(sys[, tol]). Minimal realization by pole/zero cancellation. tf/zpk: cancel each pole against the nearest zero within relative tol (default sqrt(eps)), rebuild from surviving roots (poly expansion, real part — conjugate pairs cancel together). SISO ss: ss2tf -> cancel -> tf2ss (order + transfer-function parity, realization not unique). Fingerprint: case (s+1)/(s+1)^2 -> 1/(s+1): numel(den)=2, num(end)=1, den(end)=1; gain 2(s+1)/(s+1)^2 -> num(end)=2; complex (s^2+1)(...)/((s^2+1)(s+3)) -> 1/(s+3): den(end)=3, numel(den)=2. tfdata pads num to den length. Verified vs MATLAB R2025b. Fixes bugs/control/minreal. |
 | `sminreal` | ❌ | structurally minimal |
 | `balred` | ❌ | balanced reduction |
 | `modred` | ❌ | model reduction |
