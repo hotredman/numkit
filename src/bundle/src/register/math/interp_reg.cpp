@@ -355,16 +355,46 @@ void makima_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     outs[0] = makima(args[0], args[1], args[2], mr);
 }
 
-// interpn — dispatch to interp2 / interp3 based on V's ndim. Form A
-// (V, Xq1..XqN[, method]) inspects args[0]; Form B
-// (X1..XN, V, Xq1..XqN[, method]) follows the same dispatch pattern
-// because V always lives at args[0] in Form A and the implementation
-// distinguishes them inside interp2_reg / interp3_reg.
+// interpn — N-D gridded interpolation. The 1-D grid-vector query form delegates
+// to interp1; 2-D / 3-D dispatch to interp2 / interp3 by the value array's ndim.
+// In Form A
+// (V, Xq1..XqN[, method]) V is args[0]; in Form B (X1..XN, V, Xq1..XqN[, method])
+// the grids precede V. For N>=2 the value array V is itself N-D, so a 2-D+ data
+// argument is always present — its ABSENCE is exactly the 1-D case. The ndim
+// dispatch keys off args[0], which in 1-D Form B is the grid vector X — it would
+// be misread as 2-D and return NaN, so peel 1-D off first and reuse interp1
+// (which already does the linear/method interpolation and whose (x, v, xq)
+// spelling matches Form B verbatim). 4+-D remains a parity gap
+// (bugs/math/interpn-nan.md / PARITY_GAPS.md).
 void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("interpn: requires at least 2 arguments",
                      0, 0, "interpn", "", "numkit:interpn:nargin");
+
+    auto isData     = [](const Value &v) { return !v.isChar() && !v.isString(); };
+    auto isMultiDim = [](const Value &v) {
+        return v.dims().ndim() >= 3 || (v.dims().rows() > 1 && v.dims().cols() > 1);
+    };
+
+    // 1-D grid-vector query interpn(X, V, Xq[, method[, extrap]]): no data
+    // argument is 2-D+, and there are >=3 leading data args (grid, values,
+    // query). interp1 does this exactly — its (x, v, xq) spelling matches —
+    // so delegate. NB interpn(V) / interpn(V, ntimes) (fewer than 3 leading
+    // data args) is the grid-REFINEMENT form, a distinct unimplemented feature,
+    // not the query bug — it falls through (unchanged behaviour).
+    bool anyMatrix = false;
+    for (const auto &a : args)
+        if (isData(a) && isMultiDim(a)) { anyMatrix = true; break; }
+    if (!anyMatrix) {
+        size_t L = 0;                                 // leading data (non-method) args
+        while (L < args.size() && isData(args[L])) ++L;
+        if (L >= 3) {                                 // (X, V, Xq[, method[, extrap]])
+            interp1_reg(args, nargout, outs, ctx);
+            return;
+        }
+    }
+
     const auto &V0 = args[0];
     const int ndV = V0.dims().is3D() ? 3
                   : (V0.dims().ndim() <= 2 ? 2 : V0.dims().ndim());
