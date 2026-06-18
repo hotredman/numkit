@@ -37,7 +37,7 @@ public:
     numkit::Value eval(const std::string &c) { return engine.eval(c); }
 
     // Assert the registered transfer for `name` predicts exactly the
-    // type/shape the engine produces for `expr`.
+    // type/shape the engine produces for `expr` (precision check).
     void expectMatch(const std::string &name,
                      const std::vector<ArgInfo> &args,
                      const std::string &expr)
@@ -48,13 +48,33 @@ public:
         ASSERT_TRUE(pred.isConcrete()) << name << ": predicted non-concrete";
         EXPECT_EQ(pred.dtype, actual.type()) << name << ": dtype mismatch";
 
-        // Shape: a concrete prediction must match the actual dims. (An
-        // Unknown-shape prediction is a sound under-approximation and is
-        // not checked here — those cases are covered by the unit test.)
         if (pred.shape.kind == ShapeKind::Scalar) {
             EXPECT_EQ(actual.dims().rows(), 1u) << name;
             EXPECT_EQ(actual.dims().cols(), 1u) << name;
         } else if (pred.shape.kind == ShapeKind::KnownDims) {
+            EXPECT_EQ(pred.shape.rows, actual.dims().rows()) << name << ": rows";
+            EXPECT_EQ(pred.shape.cols, actual.dims().cols()) << name << ": cols";
+        }
+    }
+
+    // SOUNDNESS check (Contract 1): the runtime type must be ⊑ the
+    // prediction (over-approximation). Dynamic over-approximates anything;
+    // a concrete prediction must have the actual dtype and either an
+    // Unknown shape or the exact dims. A concrete prediction with the
+    // WRONG dtype is unsound (the failure mode `power` had).
+    void expectSound(const std::string &name,
+                     const std::vector<ArgInfo> &args,
+                     const std::string &expr)
+    {
+        const numkit::Value actual = eval(expr);
+        const InferredType  pred   = reg.apply(name, args);
+
+        if (pred.isDynamic()) return;  // top — over-approximates everything
+        ASSERT_TRUE(pred.isConcrete()) << name << ": Bottom is never sound here";
+        EXPECT_EQ(pred.dtype, actual.type())
+            << name << " UNSOUND: predicted " << pred.str()
+            << " but runtime produced " << numkit::mtypeName(actual.type());
+        if (pred.shape.kind == ShapeKind::KnownDims) {
             EXPECT_EQ(pred.shape.rows, actual.dims().rows()) << name << ": rows";
             EXPECT_EQ(pred.shape.cols, actual.dims().cols()) << name << ": cols";
         }
@@ -156,4 +176,47 @@ TEST_F(TransferDiff, SinglePlusSingle)
                 {ArgInfo::of(InferredType::scalar(ValueType::SINGLE)),
                  ArgInfo::of(InferredType::scalar(ValueType::SINGLE))},
                 "single(1) + single(2)");
+}
+
+// ── soundness (Contract 1): runtime type must be ⊑ prediction ─────────
+// These hit the adversarial corner that pure precision tests miss.
+
+// power is NOT closed over reals: (-2)^0.5 is complex. With a non-integer
+// exponent the transfer must NOT claim double — it returns Dynamic, which
+// soundly over-approximates the complex result. (Before the fix it
+// claimed double here -> unsound -> this test would fail.)
+TEST_F(TransferDiff, PowerNegativeBaseFractionalExponentIsSound)
+{
+    expectSound("mpower",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, -2.0),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 0.5)},
+                "(-2)^0.5");          // runtime: complex
+    expectSound("mpower",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, -8.0),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 1.0 / 3.0)},
+                "(-8)^(1/3)");        // runtime: complex
+}
+
+// With an integer exponent power stays real — precise (and sound).
+TEST_F(TransferDiff, PowerIntegerExponentIsReal)
+{
+    expectMatch("mpower",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, -8.0),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 2.0)},
+                "(-8)^2");            // runtime: double (64)
+    expectMatch("mpower",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, 2.0),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 3.0)},
+                "2^3");               // runtime: double (8)
+}
+
+// Positive base, fractional exponent: runtime is double; transfer returns
+// Dynamic (it can't prove the base is non-negative) — sound, just
+// imprecise. Asserting soundness (not precision) is the honest contract.
+TEST_F(TransferDiff, PowerPositiveBaseFractionalIsSound)
+{
+    expectSound("mpower",
+                {ArgInfo::scalarConst(ValueType::DOUBLE, 2.0),
+                 ArgInfo::scalarConst(ValueType::DOUBLE, 0.5)},
+                "2^0.5");             // runtime: double; pred: Dynamic (sound)
 }
