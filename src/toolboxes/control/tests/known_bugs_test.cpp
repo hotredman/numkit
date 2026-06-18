@@ -105,7 +105,8 @@ TEST_F(ControlKnownBug, ZpkEmptyZerosGain)
 }
 
 // bugs/control/covar.md — output covariance from white-noise input.
-TEST_F(ControlKnownBug, DISABLED_Covar)
+// FIXED 2026-06-19 (lyap/dlyap gramian + C·Q·Cᵀ) — promoted live.
+TEST_F(ControlKnownBug, Covar)
 {
     EXPECT_NEAR(evalScalar("covar(ss(-1, 1, 1, 0), 1)"), 0.5, 1e-9);
 }

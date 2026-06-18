@@ -50,5 +50,15 @@ void gram_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     o[0] = gram(a[0], a[1].toString(), c.engine->resource());
 }
 
+void covar_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("covar: requires (sys, W)",
+                    0, 0, "covar", "", "numkit:covar:nargin");
+    auto r = covar(a[0], a[1], c.engine->resource());
+    if (o.size() >= 1) o[0] = std::move(r.P);
+    if (o.size() >= 2) o[1] = std::move(r.Q);
+}
+
 } // namespace detail
 } // namespace numkit::control

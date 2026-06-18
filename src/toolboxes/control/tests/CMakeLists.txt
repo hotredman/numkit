@@ -17,5 +17,6 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/initial_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/minreal_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/allmargin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/covar_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )

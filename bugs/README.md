@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (111 entries):** ✅ 82 fixed · 🔴 29 open = **5 bug** + 2 stub +
-1 missing-output + **20 missing-fn** + 1 perf (the 20 missing-fns are parity
+**Tally (111 entries):** ✅ 83 fixed · 🔴 28 open = **5 bug** + 2 stub +
+1 missing-output + **19 missing-fn** + 1 perf (the 19 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (77)
+### ✅ FIXED (78)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [control/covar](control/covar.md) | P2 | ✅ FIXED: covar (steady-state output+state covariance under white noise) was undefined. Reuses lyap/dlyap (pullABC): state cov Q solves the gramian Lyapunov eqn with B·W·Bᵀ (continuous→lyap, discrete→dlyap); output cov P=C·Q·Cᵀ (+D·W·Dᵀ discrete; ∞ if continuous & D≠0). W scalar (W·I) or m×m. Returns [P,Q]. Parity OK vs MATLAB R2025b: 1/(s+1) W=1→P=0.5, 2-state→P=1.41667 Q=[0.5 0.3333;0.3333 0.25], linear in W, discrete→9.570351. Closes the control namespace (no OPEN control bugs left) (2026-06-19) |
 | bug | [control/zpk-empty-zeros](control/zpk-empty-zeros.md) | P2 | ✅ FIXED: zpk([],poles,k) with no finite zeros dropped the gain k (num came out all-zero → zero system after any tf op). Root: math::poly([]) returns an empty row not [1], collapsing num=k·poly([]). Localized guard in zp2tf (conversion.cpp): empty math::poly(z) → num=[1] before the k multiply, so num=[k] (zero-padded downstream). Non-empty-zero path unchanged. Parity OK vs MATLAB R2025b: zpk([],[-1 -2],2)→[0 0 2], zpk([],[-1 -2 -3],1)→[0 0 0 1], zpk(-5,...)→[0 0 1 5]. Found while wiring allmargin (2026-06-19) |
 | missing-fn | [control/allmargin](control/allmargin.md) | P2 | ✅ FIXED: allmargin (all gain/phase/delay margins + Stable as a 7-field struct) was undefined. Unlike margin (Bode-grid interp), evaluates the EXACT open-loop G(jω)=num(jω)/den(jω): fine log scan brackets sign changes of \|G\|−1 (gain crossovers→phase+delay margins) and Im(G) with Re(G)<0 (phase crossovers→gain margins), each bisected on the exact response (matches MATLAB even at sharp resonances a grid misses). DelayMargin=PM(rad)/ω_gc; Stable=roots(den+num) all in LHP. Parity OK vs MATLAB R2025b: 1/((s+1)(s+2)(s+3))→GM=60 at √11, no gain crossover, Stable=1; 1/(s(s+1)(s+2))→GM=6, PM=53.41°, DM=2.0913. Found control/zpk-empty-zeros (zp2tf) en route (2026-06-19) |
 | missing-fn | [control/minreal](control/minreal.md) | P2 | ✅ FIXED: minreal (minimal realization) was undefined. tf/zpk: roots(num)/roots(den), greedily cancel each pole against nearest zero within rel tol (default sqrt(eps)), rebuild num=num_lead·∏(surviving zeros) / den=den_lead·∏(surviving poles) via complex ∏(s−r) expansion (real part — conjugate pairs cancel symmetrically), gain preserved via leading-coeff ratio → tf. SISO ss: ss2tf→cancel→tf2ss → reduced-order ss (order+transfer-fn parity, realization non-unique); MIMO ss throws. Parity OK vs MATLAB R2025b: (s+1)/(s+1)²→[0 1]/[1 1], 2(s+1)/(s+1)²→[0 2]/[1 1] (gain), complex (s²+1)/((s²+1)(s+3))→[0 1]/[1 3], SISO ss uncontrollable mode order 2→1 (2026-06-19) |
@@ -260,7 +261,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 24
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 23
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -277,7 +278,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
-| [control/covar](control/covar.md) | P2 | output covariance from white noise |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
 | [comm/syndtable](comm/syndtable.md) | P2 | syndrome decoding table (coset leaders) |
 | [math/numerical-integration-nd](math/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |
