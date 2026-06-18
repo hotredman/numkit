@@ -86,8 +86,13 @@ HWY_EXPORT(SqrtSumSqImpl);
 void fusedSqAffine(const double *x, double scale, double offset,
                    double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec; lambda below MUST be [=]
-        for (std::size_t i = 0; i < n; ++i) { const double v = scale * x[i] + offset; out[i] = v * v; }
+    // Small native arrays delegate to the shared scalar kernel (fused_scalar.cpp)
+    // rather than an inline loop: one body shared with the portable fallback
+    // (can't drift), and living in a lambda-free TU it vectorizes regardless of
+    // the worker capture below — the [&]-escape alias trap can't recur (see
+    // bugs/ops/cheap-elementwise-simd-small-n).
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        fusedSqAffineScalar(x, scale, offset, out, n);
         return;
     }
     detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
@@ -99,8 +104,8 @@ void fusedSqAffine(const double *x, double scale, double offset,
 void fusedSqShiftDiv(const double *x, double sub, double div,
                      double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {
-        for (std::size_t i = 0; i < n; ++i) { const double v = (x[i] - sub) / div; out[i] = v * v; }
+    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see fusedSqAffine)
+        fusedSqShiftDivScalar(x, sub, div, out, n);
         return;
     }
     detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
@@ -111,8 +116,8 @@ void fusedSqShiftDiv(const double *x, double sub, double div,
 
 void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n) {
     if (n == 0) return;
-    if (n < numkit::detail::kSimdInlineThreshold) {
-        for (std::size_t i = 0; i < n; ++i) { const double v = x[i] - y[i]; out[i] = v * v; }
+    if (n < numkit::detail::kSimdInlineThreshold) {   // delegate (see fusedSqAffine)
+        fusedSqDiffScalar(x, y, out, n);
         return;
     }
     detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {

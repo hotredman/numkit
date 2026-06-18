@@ -10,24 +10,27 @@
 
 namespace numkit::ops::detail {
 
+// plus/minus/times/rdivide forward to the shared scalar bodies in
+// binary_scalar.cpp so this fallback and the Highway small-N gate are one
+// definition (can't drift) — see bugs/ops/cheap-elementwise-simd-small-n.
 void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    for (std::size_t i = 0; i < n; ++i) out[i] = a[i] + b[i];
+    plusScalar(a, b, out, n);
 }
 
 void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    for (std::size_t i = 0; i < n; ++i) out[i] = a[i] - b[i];
+    minusScalar(a, b, out, n);
 }
 
 void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    for (std::size_t i = 0; i < n; ++i) out[i] = a[i] * b[i];
+    timesScalar(a, b, out, n);
 }
 
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    for (std::size_t i = 0; i < n; ++i) out[i] = a[i] / b[i];
+    rdivideScalar(a, b, out, n);
 }
 
 void matmulDoubleLoop(const double *a, const double *b, double *c,

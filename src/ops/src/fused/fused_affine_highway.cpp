@@ -49,13 +49,15 @@ HWY_EXPORT(AffineImpl);
 void fusedAffine(const double *x, double scale, double offset,
                  double *out, std::size_t n) {
     if (n == 0) return;
-    // Small native arrays: inline scalar loop the compiler auto-vectorizes —
-    // beats the HWY_DYNAMIC_DISPATCH indirect call below the SIMD crossover.
-    // NB: the parallel_for lambda must capture by VALUE [=]; a [&] capture
-    // escapes out/x and defeats MSVC's alias analysis, so this gate loop would
-    // NOT vectorize (vec-report reason 1104). See bugs/ops/cheap-elementwise.
+    // Small native arrays: a scalar loop the compiler auto-vectorizes beats the
+    // HWY_DYNAMIC_DISPATCH indirect call below the SIMD crossover. Delegated to
+    // the shared scalar kernel (fused_scalar.cpp) rather than an inline loop —
+    // one body shared with the portable fallback (can't drift), and living in a
+    // lambda-free TU it vectorizes regardless of the worker capture below, so
+    // the [&]-escape alias trap that once silently descalarized this gate can't
+    // recur (see bugs/ops/cheap-elementwise-simd-small-n).
     if (n < numkit::detail::kSimdInlineThreshold) {
-        for (std::size_t i = 0; i < n; ++i) out[i] = scale * x[i] + offset;
+        fusedAffineScalar(x, scale, offset, out, n);
         return;
     }
     detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {

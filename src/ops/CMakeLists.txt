@@ -17,7 +17,13 @@ set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
     # Complex-input fused kernels — scalar std::complex (no SIMD), needed in
     # both the SIMD and portable builds.
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_complex.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_complex.cpp
+    # Shared scalar bodies for the cheap element-wise ops that carry a small-N
+    # inline gate. Compiled in both builds: the portable fallbacks forward here
+    # and the Highway dispatchers' small-N gate calls these (one body, no drift;
+    # lambda-free TU so it auto-vectorizes) — see bugs/ops/cheap-elementwise-simd-small-n.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_scalar.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_scalar.cpp)
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()

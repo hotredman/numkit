@@ -236,4 +236,23 @@ void fusedAbsDiffScalarCx(const Cx *z, Cx c, double *out, std::size_t n);
 // (0 at z==0) — MATLAB's complex shrinkage. t real; out complex.
 void fusedSoftThresholdCx(const Cx *x, double t, Cx *out, std::size_t n);
 
+// ---- shared scalar bodies (small-N gate ↔ portable fallback) -----------
+// Internal — NOT part of the fusion API (declared alongside the kernels, in
+// numkit::ops rather than ::detail, because the public fused kernels live here
+// too and a bare `detail::` in the Highway TUs already means numkit::detail).
+// The kernels that carry a small-N inline gate (fusedAffine, fusedAbs*,
+// fusedSq*) share their scalar body here: the portable fallback and the Highway
+// gate both call these, so they are one definition (can't drift) and the loop
+// lives in a lambda-free TU (fused_scalar.cpp) that auto-vectorizes regardless
+// of the dispatcher's parallel_for capture. See fused_scalar.cpp +
+// bugs/ops/cheap-elementwise-simd-small-n. Bit-identical to the per-op path
+// (one IEEE chain each).
+void fusedAffineScalar(const double *x, double scale, double offset, double *out, std::size_t n);
+void fusedAbsAffineScalar(const double *x, double scale, double offset, double *out, std::size_t n);
+void fusedAbsShiftDivScalar(const double *x, double sub, double div, double *out, std::size_t n);
+void fusedAbsDiffScalar(const double *x, const double *y, double *out, std::size_t n);
+void fusedSqAffineScalar(const double *x, double scale, double offset, double *out, std::size_t n);
+void fusedSqShiftDivScalar(const double *x, double sub, double div, double *out, std::size_t n);
+void fusedSqDiffScalar(const double *x, const double *y, double *out, std::size_t n);
+
 } // namespace numkit::ops
