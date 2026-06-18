@@ -786,4 +786,73 @@ DecodeResult decode(const Value &code, long long n, long long k,
     return res;
 }
 
+namespace {
+// Next lexicographic combination of `w` indices drawn from [0, n), in place.
+// Returns false when `c` was the last combination.
+bool nextCombination(std::vector<std::size_t> &c, std::size_t n) {
+    const std::size_t w = c.size();
+    if (w == 0) return false;
+    std::size_t i = w - 1;
+    while (true) {
+        if (c[i] < n - w + i) {
+            ++c[i];
+            for (std::size_t j = i + 1; j < w; ++j) c[j] = c[j - 1] + 1;
+            return true;
+        }
+        if (i == 0) return false;
+        --i;
+    }
+}
+} // anonymous
+
+Value syndtable(const Value &H, std::pmr::memory_resource *mr)
+{
+    const std::size_t nk = H.dims().rows();
+    const std::size_t n  = H.dims().cols();
+    if (nk == 0 || n == 0)
+        throw Error("syndtable: H must be a nonempty (n-k) x n parity-check matrix",
+                    0, 0, "syndtable", "", "numkit:syndtable:empty");
+    if (nk > 24)
+        throw Error("syndtable: n-k too large (table would be 2^(n-k) rows)",
+                    0, 0, "syndtable", "", "numkit:syndtable:size");
+
+    const std::size_t M = static_cast<std::size_t>(1) << nk;
+
+    // Syndrome of a single-bit error at position j = column j of H, packed
+    // MSB-first (row 0 of H is the most significant bit, matching
+    // bi2de(..., 'left-msb')).
+    std::vector<std::uint32_t> colSynd(n, 0);
+    for (std::size_t j = 0; j < n; ++j) {
+        std::uint32_t s = 0;
+        for (std::size_t i = 0; i < nk; ++i)
+            if (H.elemAsDouble(j * nk + i) != 0.0)
+                s |= (std::uint32_t{1} << (nk - 1 - i));
+        colSynd[j] = s;
+    }
+
+    Value out = Value::matrix(M, n, ValueType::DOUBLE, mr);
+    double *d = out.doubleDataMut();              // column-major: (row, col) at col*M + row
+    std::fill(d, d + M * n, 0.0);
+
+    std::vector<std::uint8_t> filled(M, 0);
+    filled[0] = 1;                                 // syndrome 0 → all-zero pattern
+    std::size_t cnt = 1;
+
+    std::vector<std::size_t> comb;
+    for (std::size_t w = 1; w <= n && cnt < M; ++w) {
+        comb.resize(w);
+        for (std::size_t i = 0; i < w; ++i) comb[i] = i;
+        do {
+            std::uint32_t s = 0;
+            for (std::size_t p : comb) s ^= colSynd[p];
+            if (!filled[s]) {
+                filled[s] = 1;
+                for (std::size_t p : comb) d[p * M + s] = 1.0;
+                if (++cnt == M) break;
+            }
+        } while (nextCombination(comb, n));
+    }
+    return out;
+}
+
 } // namespace numkit::comm

@@ -48,7 +48,8 @@ TEST_F(CommKnownBug, DISABLED_MskDemodExists)
 }
 
 // bugs/comm/syndtable.md — syndrome decoding table (coset leaders).
-TEST_F(CommKnownBug, DISABLED_Syndtable)
+// FIXED 2026-06-19 (min-weight coset-leader enumeration) — promoted live.
+TEST_F(CommKnownBug, Syndtable)
 {
     eval("H = [1 0 1 1 0 0; 0 1 1 0 1 0; 1 1 0 0 0 1];");  // 3x6, n-k=3
     eval("t = syndtable(H);");
