@@ -172,4 +172,27 @@ struct WenergyResult {
 WenergyResult wenergy(const Value &C, const Value &L,
                       std::pmr::memory_resource *mr = nullptr);
 
+/// Direct reconstruction of a single coefficient branch (`Y = upcoef(O, X,
+/// wname, N[, L])`).
+///
+/// Reconstructs the approximation (`O = "a"`) or detail (`O = "d"`)
+/// coefficient vector `X` up `N` levels through the synthesis filter bank:
+/// each level interleaves zeros (`[x0, 0, x1, 0, …]`) and convolves with the
+/// reconstruction lowpass `Lo_R` — except the first level for `O = "d"`,
+/// which uses the highpass `Hi_R`. No idwt-style trimming: a level grows the
+/// length to `2·n − 1 + |F| − 1`. The optional `L` keeps the central `L`
+/// samples of the result.
+///
+/// @param type   `"a"` (approximation) or `"d"` (detail).
+/// @param X      Coefficient row to reconstruct.
+/// @param wname  Wavelet name.
+/// @param n      Number of reconstruction levels (`≥ 0`; `n = 0` returns `X`).
+/// @param len    Central length to keep (`< 0` → full result, no trim).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Reconstructed row vector.
+/// @throws       Error on a bad `type`, negative `n`, or unknown wavelet.
+/// @see wrcoef, waverec, detcoef
+Value upcoef(const std::string &type, const Value &X, const std::string &wname,
+             int n, long long len = -1, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::wavelet

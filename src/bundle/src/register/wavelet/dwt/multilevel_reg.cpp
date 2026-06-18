@@ -212,5 +212,18 @@ void wenergy_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (outs.size() >= 2) outs[1] = std::move(r.Ed);
 }
 
+void upcoef_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("upcoef: requires (O, X, wname [, N [, L]])",
+                    0, 0, "upcoef", "", "numkit:upcoef:nargin");
+    const std::string type = args[0].toString();
+    const std::string wname = args[2].toString();
+    const int n = (args.size() >= 4) ? static_cast<int>(args[3].toScalar()) : 1;
+    const long long len =
+        (args.size() >= 5) ? static_cast<long long>(args[4].toScalar()) : -1;
+    outs[0] = upcoef(type, args[1], wname, n, len, ctx.engine->resource());
+}
+
 } // namespace detail
 } // namespace numkit::wavelet

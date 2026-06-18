@@ -1,0 +1,10 @@
+{
+  "name": "upcoef",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "ya=upcoef('a',5,'db1',2); a1=ya(1); na=numel(ya); yd=upcoef('d',5,'db1',2); d4=yd(4); yb=upcoef('a',[1 2],'db2',1); b1=yb(1); b4=yb(4); b6=yb(6); nb=numel(yb);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["a1", "na", "d4", "b1", "b4", "b6", "nb"],
+  "comment": "Sig: Y = upcoef(O, X, wname, N[, L]). Direct single-branch reconstruction up N levels: each level interleaves zeros ([x0,0,x1,0,…]) and full-convolves with Lo_R (approximation) — or Hi_R on the first level for a detail branch (O='d'). No idwt-style trim, so a level grows the length to 2n-1+|F|-1. Fingerprint: upcoef('a',5,'db1',2)=[2.5 2.5 2.5 2.5] (a1=2.5, numel=4); upcoef('d',5,'db1',2)=[2.5 2.5 -2.5 -2.5] (d4=-2.5); upcoef('a',[1 2],'db2',1)=[0.482963 0.836516 1.190074 1.543628 0.448288 -0.258819] (b1=0.482963, b4=1.543628, b6=-0.258819, numel=6). Verified vs MATLAB R2025b. Fixes bugs/wavelet/upcoef (closes the wenergy/upcoef cluster)."
+}
