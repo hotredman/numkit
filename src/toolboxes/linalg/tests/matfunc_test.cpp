@@ -99,8 +99,14 @@ TEST_F(MatFuncTest, SchurOfSymmetricGivesDiagonalT)
     EXPECT_DOUBLE_EQ(evalScalar("T(3,1)"), 0.0);
 }
 
-TEST_F(MatFuncTest, SchurAsymmetricRejected)
+TEST_F(MatFuncTest, SchurNonsymmetric)
 {
-    // General Schur is Phase 2b -- asymmetric must throw for now.
-    EXPECT_THROW(eval("schur([1 2; 3 4]);"), std::exception);
+    // Real Schur of a nonsymmetric matrix (Francis double-shift QR).
+    // Real eigenvalues -> upper-triangular T; A == U*T*U'; U orthogonal.
+    eval("A = [1 2; 3 4]; [U, T] = schur(A);");
+    EXPECT_NEAR(evalScalar("abs(T(2,1))"), 0.0, 1e-12);              // triangular
+    EXPECT_NEAR(evalScalar("min(diag(T))"), -0.37228132, 1e-6);     // eigenvalues
+    EXPECT_NEAR(evalScalar("max(diag(T))"),  5.37228132, 1e-6);
+    EXPECT_NEAR(evalScalar("max(abs(A(:) - reshape(U*T*U.',[],1)))"), 0.0, 1e-10);
+    EXPECT_NEAR(evalScalar("max(abs(reshape(U.'*U - eye(2),[],1)))"), 0.0, 1e-12);
 }

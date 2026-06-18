@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (109 entries):** ✅ 74 fixed · 🔴 35 open = **5 bug** + 3 stub +
+**Tally (109 entries):** ✅ 75 fixed · 🔴 34 open = **5 bug** + 2 stub +
 1 missing-output + **25 missing-fn** + 1 perf (the 25 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (69)
+### ✅ FIXED (70)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| stub | [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | ✅ FIXED: schur(A) threw on non-symmetric A. Implemented the real Schur form — Hessenberg reduction + Francis double-shift QR (francisSchur, bulge-chase + deflation, U accumulation) + dlanv2 2×2 block standardization (real eig → triangular, complex pair → 2×2 block). schur_reg dispatches symmetric→Jacobi / general→Francis. Parity OK vs MATLAB R2025b on the invariants (A=U·T·U', U orthogonal, eigenvalues, triangular-for-real): [1 2;3 4] diag [-0.372 5.372], [1 2 3;4 5 6;7 8 10] eig [-0.906 0.198 16.708], 4×4 complex-pair recon ~1e-14. Unblocks care/dare + complex-eig (2026-06-18) |
 | bug | [image/imresize-interp](image/imresize-interp.md) | P2 | ✅ FIXED: imresize bilinear/bicubic diverged from MATLAB (wrong corners/grid on upscale, no antialias on downscale). Rewrote the 2-D interp to MATLAB's separable algorithm: pixel-centre map u=o/scale+0.5(1-1/scale), mirror boundary (folded taps sum; clamp gave 0.789 vs MATLAB 0.71875), antialias kernel stretched by 1/scale on shrink; default method now bicubic (reg defaulted to bilinear). Parity OK vs MATLAB R2025b: bilinear x2, bicubic x2 (1,1)=0.71875, downscale [1..6]->[1 3]=[1.44922 3.5 5.55078]. nearest unchanged. Reused the (correct) imresize3 machinery's approach (2026-06-18) |
 | stub | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | ✅ FIXED: smoothdata sgolay/lowess/loess methods threw. Implemented inline in stats (no cross-dep on signal): sgolay = degree-2 Savitzky-Golay (B=A(A'A)^-1A'); lowess/loess = tricube-weighted local linear/quadratic regression (F-nearest window, fit at query point). Explicit-window matches MATLAB R2025b exactly (sgolay w5/w7, lowess/loess w5/w7); loess interior-identity explained (3-pt quad interpolates). Auto default window approximate (MATLAB's is data-dependent — same caveat as the existing movmean default) (2026-06-18) |
 | missing-fn | [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | ✅ FIXED (peak-freq parity): pmusic (MUSIC) + peig pseudospectra were undefined. R=X'X (order 2p via corrmtx) -> Jacobi eig -> noise subspace (smallest p) -> P(w)=1/sum\|e'vk\|^2 (pmusic) / weighted 1/lambda_k (peig). Validated by PEAK FREQUENCIES (the estimator's purpose); absolute pseudospectrum NOT bit-matched (peaks are 1/near-zero, eigendecomposition-sensitive, scale-arbitrary). Parity OK vs MATLAB R2025b: 2-tone -> peaks at 0.6381, 1.5708 rad for both (2026-06-18) |
@@ -239,11 +240,10 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 3
+### 🔴 OPEN — stub (option/branch throws "not supported") — 2
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | schur(A) throws on non-symmetric A (real Schur form deferred; eig values work) |
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
