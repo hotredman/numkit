@@ -61,6 +61,20 @@ inline constexpr std::size_t kCheapElementwiseThreshold =     256 * 1024;
 #endif
 inline constexpr std::size_t kTranscendentalThreshold =   4 * 1024;
 
+// Below this N the cheapest element-wise ops (+ - .* ./) skip the Highway
+// dynamic-dispatch path and run an inline scalar loop the compiler
+// auto-vectorizes. On native (MSVC) the indirect HWY_DYNAMIC_DISPATCH call
+// into the non-inlinable per-target body loses to inline autovec at
+// cache-resident sizes — up to ~8x slower (see
+// bugs/ops/cheap-elementwise-simd-small-n). On WASM the dispatch is
+// static/inlinable and already wins on small inputs, so the gate is disabled
+// (0 → `n < 0` never trips). Set at the measured native break-even (~256K).
+#if defined(__EMSCRIPTEN__)
+inline constexpr std::size_t kSimdInlineThreshold = 0;
+#else
+inline constexpr std::size_t kSimdInlineThreshold = 256 * 1024;
+#endif
+
 // Worker caps for memory-bandwidth-bound kernels. On dual-channel
 // DDR5-6400 (≈ 100 GB/s aggregate), 4-6 workers already saturate
 // the bus on `z = x op y` and friends; more workers add signaling

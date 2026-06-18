@@ -408,6 +408,10 @@ HWY_EXPORT(MatmulLoop);
 
 void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
+    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
+        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] + b[i];
+        return;
+    }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(PlusLoop)(a + s, b + s, out + s, e - s);
@@ -417,6 +421,10 @@ void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
+    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
+        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] - b[i];
+        return;
+    }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(MinusLoop)(a + s, b + s, out + s, e - s);
@@ -426,6 +434,10 @@ void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 {
+    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
+        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] * b[i];
+        return;
+    }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(TimesLoop)(a + s, b + s, out + s, e - s);
@@ -435,6 +447,10 @@ void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n)
 {
+    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec beats HWY dynamic dispatch
+        for (std::size_t i = 0; i < n; ++i) out[i] = a[i] / b[i];
+        return;
+    }
     numkit::detail::parallel_for(n, numkit::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(RdivideLoop)(a + s, b + s, out + s, e - s);
