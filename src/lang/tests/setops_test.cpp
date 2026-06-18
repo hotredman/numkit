@@ -386,8 +386,13 @@ TEST_P(SetOpsTest, HistcountsOutOfRangeIgnored)
 
 TEST_P(SetOpsTest, HistcountsBadEdgesThrows)
 {
+    // Non-monotonic explicit edges are invalid.
     EXPECT_THROW(eval("histcounts([1 2 3], [3 2 1]);"), std::runtime_error);
-    EXPECT_THROW(eval("histcounts([1 2 3], [1]);"), std::runtime_error);
+    // A scalar second argument is the bin COUNT (MATLAB), not a 1-element edge
+    // vector: histcounts(x, 1) -> a single bin (no throw).
+    eval("h1 = histcounts([1 2 3], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(h1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("h1(1)"), 3.0);
 }
 
 // ── histcounts 'Normalization' ──────────────────────────────
@@ -480,11 +485,35 @@ TEST_P(SetOpsTest, HistcountsSecondOutputEdges)
     EXPECT_DOUBLE_EQ(e->doubleData()[2], 4.0);
 }
 
-TEST_P(SetOpsTest, HistcountsUnsupportedOptionThrows)
+// Automatic bin selection (MATLAB binpicker rules) — was an unsupported stub
+// (bugs/math/histcounts-autobinning). Values verified against MATLAB R2025b.
+TEST_P(SetOpsTest, HistcountsAutomaticBinning)
 {
-    // Automatic-binning options are explicitly unsupported (not silently
-    // misinterpreted as edges).
-    EXPECT_THROW(eval("histcounts([1 2 3], 'BinWidth', 1);"), std::runtime_error);
+    // 'BinWidth': fixed-width bins on multiples of the width covering the data.
+    eval("[n, e] = histcounts([1 5 2 8 3], 'BinWidth', 2);");   // e = [0 2 4 6 8]
+    EXPECT_DOUBLE_EQ(evalScalar("numel(e)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(n)"), 5.0);
+
+    // 'BinLimits' + 'NumBins': nbins uniform bins over the limits. n2 = [1 2 2].
+    eval("[n2, e2] = histcounts(1:5, 'BinLimits', [0 6], 'NumBins', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("e2(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e2(3)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e2(4)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("n2(2)"), 2.0);
+
+    // Default 'auto' on continuous data → Scott's rule; binpicker snaps the
+    // width to a nice value (5) → 6 bins on [0, 30].
+    eval("[n3, e3] = histcounts((1:200)/7);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(n3)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e3(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e3(end)"), 30.0);
+
+    // sturges / sqrt / fd: the rule's bin count is re-derived through binpicker.
+    EXPECT_DOUBLE_EQ(evalScalar("numel(histcounts((1:200)/7,'BinMethod','sturges'))"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(histcounts((1:200)/7,'BinMethod','sqrt'))"), 15.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(histcounts((1:200)/7,'BinMethod','fd'))"), 6.0);
 }
 
 // DEEP-PROBE 2026-05-31: 'BinMethod','integers' (one unit-width bin centered
@@ -536,9 +565,13 @@ TEST_P(SetOpsTest, HistcountsBinMethodIntegers)
     ASSERT_NE(p, nullptr);
     EXPECT_NEAR(p->doubleData()[0], 0.5, 1e-12);
 
-    // A non-integers BinMethod still throws.
-    EXPECT_THROW(eval("histcounts([1 2 3], 'BinMethod', 'auto');"),
-                 std::runtime_error);
+    // 'auto' on small integer data resolves to the integer rule (was a stub
+    // throw before bugs/math/histcounts-autobinning was fixed).
+    eval("[a, ea] = histcounts([1 2 3], 'BinMethod', 'auto');");
+    auto *a = getVarPtr("a");
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->numel(), 3u);
+    EXPECT_DOUBLE_EQ(getVarPtr("ea")->doubleData()[0], 0.5);
 }
 
 // ── histc (legacy) ──────────────────────────────────────────

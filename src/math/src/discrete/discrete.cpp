@@ -662,6 +662,317 @@ Value histcounts(const Value &x, const Value &edges, HistNorm norm, std::pmr::me
     return counts;
 }
 
+// ── automatic bin selection (MATLAB binpicker rules) ───────────────
+// Faithful port of MATLAB R2025b's histcounts auto-binning:
+//   datafun/histcounts.m (dispatch + scott/fd/sturges/sqrt/auto rules),
+//   datafun/+matlab/+internal/+math/{binpicker,binpickerbl}.m,
+//   datafun/private/integerrule.m.
+namespace {
+
+// MATLAB eps(x): distance from |x| to the next larger double.
+inline double matlabEps(double x)
+{
+    x = std::fabs(x);
+    return std::nextafter(x, std::numeric_limits<double>::infinity()) - x;
+}
+
+// Append the colon range lo:step:hi (MATLAB colon point count, with the usual
+// floating tolerance so an exact-multiple endpoint is included). step > 0.
+void appendColon(std::vector<double> &e, double lo, double step, double hi)
+{
+    if (step <= 0.0 || !std::isfinite(step)) { e.push_back(lo); return; }
+    const double span = (hi - lo) / step;
+    const double tol  = 4.0 * std::numeric_limits<double>::epsilon()
+                            * std::max(std::fabs(span), 1.0);
+    const long n = static_cast<long>(std::floor(span + tol));
+    for (long i = 0; i <= n; ++i) e.push_back(lo + static_cast<double>(i) * step);
+}
+
+// linspace(a, b, nbins+1) — nbins uniform bins, exact endpoints.
+std::vector<double> linspaceEdges(double a, double b, long nbins)
+{
+    if (nbins < 1) nbins = 1;
+    std::vector<double> e(static_cast<std::size_t>(nbins) + 1);
+    for (long i = 0; i <= nbins; ++i)
+        e[i] = a + (b - a) * (static_cast<double>(i) / static_cast<double>(nbins));
+    e[0] = a; e[nbins] = b;
+    return e;
+}
+
+double sampleStd(const std::vector<double> &x)
+{
+    const std::size_t n = x.size();
+    if (n < 2) return 0.0;
+    double mean = 0.0;
+    for (double v : x) mean += v;
+    mean /= static_cast<double>(n);
+    double s = 0.0;
+    for (double v : x) { const double d = v - mean; s += d * d; }
+    return std::sqrt(s / static_cast<double>(n - 1));
+}
+
+// MATLAB iqr = prctile(x,75) - prctile(x,25); prctile linearly interpolates the
+// sorted samples placed at percentiles 100*((1:n)-0.5)/n.
+double iqrMatlab(std::vector<double> x)
+{
+    const std::size_t n = x.size();
+    if (n == 0) return 0.0;
+    std::sort(x.begin(), x.end());
+    auto prc = [&](double p) -> double {
+        if (n == 1) return x[0];
+        const double pos = p / 100.0 * static_cast<double>(n) - 0.5;  // 0-based
+        if (pos <= 0.0) return x.front();
+        if (pos >= static_cast<double>(n - 1)) return x.back();
+        const std::size_t lo = static_cast<std::size_t>(std::floor(pos));
+        const double frac = pos - static_cast<double>(lo);
+        return x[lo] + frac * (x[lo + 1] - x[lo]);
+    };
+    return prc(75.0) - prc(25.0);
+}
+
+// Assemble [leftEdge, leftEdge+1..n-1*binWidth, rightEdge] (binpicker tail).
+std::vector<double> niceEdges(double leftEdge, double binWidth,
+                              double rightEdge, long nbins)
+{
+    if (nbins < 1) nbins = 1;
+    if (!std::isfinite(binWidth)) return linspaceEdges(leftEdge, rightEdge, nbins);
+    std::vector<double> e(static_cast<std::size_t>(nbins) + 1);
+    e[0] = leftEdge;
+    for (long i = 1; i < nbins; ++i) e[i] = leftEdge + static_cast<double>(i) * binWidth;
+    e[nbins] = rightEdge;
+    return e;
+}
+
+std::vector<double> binpicker(double xmin, double xmax,
+                              bool haveNbins, double nbins, double rawBinWidth)
+{
+    static const double kSqrtEps = std::sqrt(std::numeric_limits<double>::epsilon());
+    const double dmax    = std::numeric_limits<double>::max();
+    const double xscale  = std::max(std::fabs(xmin), std::fabs(xmax));
+    const double xrange  = xmax - xmin;
+    rawBinWidth = std::max(rawBinWidth, matlabEps(xscale));
+
+    if (xrange > std::max(kSqrtEps * xscale, std::numeric_limits<double>::min())) {
+        const double powOfTen = std::pow(10.0, std::floor(std::log10(rawBinWidth)));
+        const double relSize  = rawBinWidth / powOfTen;          // in [1, 10)
+        double binWidth, leftEdge, rightEdge, nbinsActual;
+        if (!haveNbins) {                                        // automatic rule
+            if      (relSize < 1.5) binWidth = 1.0  * powOfTen;
+            else if (relSize < 2.5) binWidth = 2.0  * powOfTen;
+            else if (relSize < 4.0) binWidth = 3.0  * powOfTen;
+            else if (relSize < 7.5) binWidth = 5.0  * powOfTen;
+            else                    binWidth = 10.0 * powOfTen;
+            leftEdge    = std::max(std::min(binWidth * std::floor(xmin / binWidth), xmin), -dmax);
+            nbinsActual = std::max(1.0, std::ceil((xmax - leftEdge) / binWidth));
+            rightEdge   = std::min(std::max(leftEdge + nbinsActual * binWidth, xmax), dmax);
+        } else {                                                 // bin count fixed
+            binWidth = powOfTen * std::floor(relSize);
+            leftEdge = std::max(std::min(binWidth * std::floor(xmin / binWidth), xmin), -dmax);
+            if (nbins > 1.0) {
+                const double ll  = (xmax - leftEdge) / nbins;
+                const double ul  = (xmax - leftEdge) / (nbins - 1.0);
+                const double p10 = std::pow(10.0, std::floor(std::log10(ul - ll)));
+                binWidth = p10 * std::ceil(ll / p10);
+            }
+            nbinsActual = nbins;
+            rightEdge   = std::min(std::max(leftEdge + nbinsActual * binWidth, xmax), dmax);
+        }
+        return niceEdges(leftEdge, binWidth, rightEdge, static_cast<long>(nbinsActual));
+    }
+
+    // nearly-constant data
+    const double nb       = haveNbins ? nbins : 1.0;
+    const double binRange = std::max(1.0, std::ceil(nb * matlabEps(xscale)));
+    const double leftEdge  = std::floor(2.0 * (xmin - binRange / 4.0)) / 2.0;
+    const double rightEdge = std::ceil(2.0 * (xmax + binRange / 4.0)) / 2.0;
+    const long   nbi       = static_cast<long>(nb);
+    return niceEdges(leftEdge, (rightEdge - leftEdge) / nb, rightEdge, nbi);
+}
+
+std::vector<double> binpickerbl(double dmin, double dmax,
+                                double minlimit, double maxlimit, double binwidth)
+{
+    static const double kSqrtEps = std::sqrt(std::numeric_limits<double>::epsilon());
+    const double xscale = std::max(std::fabs(dmin), std::fabs(dmax));
+    const double xrange = dmax - dmin;
+    binwidth = std::max(binwidth, matlabEps(xscale));
+    if (xrange > std::max(kSqrtEps * xscale, std::numeric_limits<double>::min())) {
+        const long nbins = std::max(1L,
+            static_cast<long>(std::ceil((maxlimit - minlimit) / binwidth)));
+        return linspaceEdges(minlimit, maxlimit, nbins);
+    }
+    return {minlimit, maxlimit};
+}
+
+// integerrule (non-empty data). dataMin/dataMax/dataScale over the finite data.
+std::vector<double> integerrule(double minx, double maxx,
+                                double dataMin, double dataMax, double dataScale,
+                                bool hardlimits, double maximumbins)
+{
+    const double dataRange = dataMax - dataMin;
+    double bw;
+    if (dataRange > maximumbins)
+        bw = std::pow(10.0, std::ceil(std::log10(dataRange / maximumbins)));
+    else if (matlabEps(dataScale) > 1.0)
+        bw = std::pow(10.0, std::ceil(std::log10(matlabEps(dataScale))));
+    else
+        bw = 1.0;
+
+    std::vector<double> e;
+    if (!hardlimits) {
+        const double mn = bw * std::round(minx / bw);
+        const double mx = bw * std::round(maxx / bw);
+        appendColon(e, std::floor(mn) - 0.5 * bw, bw, std::ceil(mx) + 0.5 * bw);
+    } else {
+        e.push_back(minx);
+        appendColon(e, bw * std::ceil(minx / bw) + 0.5, bw, bw * std::floor(maxx / bw) - 0.5);
+        e.push_back(maxx);
+    }
+    return e;
+}
+
+// Apply a BinMethod to data `xc` (finite) with range [minx,maxx]. dmin/dmax are
+// the finite-data extremes (== minx/maxx unless hardlimits restrict the data).
+std::vector<double> applyMethod(HistBinMethod m, const std::vector<double> &xc,
+                                double minx, double maxx, bool hard,
+                                double dmin, double dmax)
+{
+    const double dataScale = std::max(std::fabs(dmin), std::fabs(dmax));
+    const double maxbins   = 65536.0;
+    const double n         = static_cast<double>(xc.size());
+
+    HistBinMethod eff = m;
+    if (m == HistBinMethod::Auto) {
+        bool integerLike = !xc.empty() && (maxx - minx) <= 50.0
+                        && maxx <= 4503599627370496.0 && minx >= -4503599627370496.0;
+        if (integerLike)
+            for (double v : xc) if (std::round(v) != v) { integerLike = false; break; }
+        eff = integerLike ? HistBinMethod::Integers : HistBinMethod::Scott;
+    }
+
+    switch (eff) {
+    case HistBinMethod::Integers:
+        return integerrule(minx, maxx, dmin, dmax, dataScale, hard, maxbins);
+    case HistBinMethod::Scott: {
+        const double bw = 3.5 * sampleStd(xc) / std::pow(n, 1.0 / 3.0);
+        return hard ? binpickerbl(dmin, dmax, minx, maxx, bw)
+                    : binpicker(minx, maxx, false, 0.0, bw);
+    }
+    case HistBinMethod::Fd: {
+        double bw;
+        if (xc.size() > 1) {
+            const double iq = std::max(iqrMatlab(xc), (dmax - dmin) / 10.0);
+            bw = 2.0 * iq * std::pow(n, -1.0 / 3.0);
+        } else {
+            bw = 1.0;
+        }
+        return hard ? binpickerbl(dmin, dmax, minx, maxx, bw)
+                    : binpicker(minx, maxx, false, 0.0, bw);
+    }
+    case HistBinMethod::Sturges: {
+        const long nb = std::max(1L, static_cast<long>(std::ceil(std::log2(n) + 1.0)));
+        if (hard) return linspaceEdges(minx, maxx, nb);
+        const double bw = (maxx - minx) / static_cast<double>(nb);
+        return std::isfinite(bw) ? binpicker(minx, maxx, false, 0.0, bw)
+                                 : binpicker(minx, maxx, true, static_cast<double>(nb), bw);
+    }
+    case HistBinMethod::Sqrt: {
+        const long nb = std::max(1L, static_cast<long>(std::ceil(std::sqrt(n))));
+        if (hard) return linspaceEdges(minx, maxx, nb);
+        const double bw = (maxx - minx) / static_cast<double>(nb);
+        return std::isfinite(bw) ? binpicker(minx, maxx, false, 0.0, bw)
+                                 : binpicker(minx, maxx, true, static_cast<double>(nb), bw);
+    }
+    default:
+        return binpicker(minx, maxx, false, 0.0, 0.0);
+    }
+}
+
+} // namespace
+
+Value histcountsAutoEdges(const Value &x, const HistBinSpec &spec,
+                          std::pmr::memory_resource *mr)
+{
+    // Finite-data extremes (MATLAB excludes Inf/NaN from the range).
+    const std::size_t nx = x.numel();
+    std::vector<double> xc;
+    xc.reserve(nx);
+    bool any = false;
+    double dmin = 0.0, dmax = 0.0;
+    for (std::size_t k = 0; k < nx; ++k) {
+        const double v = x.elemAsDouble(k);
+        if (!std::isfinite(v)) continue;
+        xc.push_back(v);
+        if (!any) { dmin = dmax = v; any = true; }
+        else { if (v < dmin) dmin = v; if (v > dmax) dmax = v; }
+    }
+
+    std::vector<double> edges;
+
+    if (spec.hasBinLimits) {
+        const double lo = spec.limLo, hi = spec.limHi;
+        if (spec.hasNumBins) {
+            const long n = std::max(1L, static_cast<long>(spec.numBins));
+            edges.resize(static_cast<std::size_t>(n) + 1);
+            const double w = (hi - lo) / static_cast<double>(n);
+            for (long i = 0; i < n; ++i) edges[i] = lo + static_cast<double>(i) * w;
+            edges[n] = hi;
+        } else if (spec.hasBinWidth) {
+            const double bw = std::max(spec.binWidth, (hi - lo) / 65536.0);
+            appendColon(edges, lo, bw, hi);
+            if (edges.empty() || edges.back() < hi || edges.size() == 1) edges.push_back(hi);
+        } else {
+            std::vector<double> xr;
+            for (double v : xc) if (v >= lo && v <= hi) xr.push_back(v);
+            double rmin = lo, rmax = hi;
+            if (!xr.empty()) {
+                rmin = *std::min_element(xr.begin(), xr.end());
+                rmax = *std::max_element(xr.begin(), xr.end());
+            }
+            edges = applyMethod(spec.method, xr, lo, hi, true, rmin, rmax);
+        }
+    } else if (spec.hasNumBins) {
+        const long n = std::max(1L, static_cast<long>(spec.numBins));
+        if (!any) { edges.resize(static_cast<std::size_t>(n) + 1);
+                    for (long i = 0; i <= n; ++i) edges[i] = static_cast<double>(i); }
+        else edges = binpicker(dmin, dmax, true, static_cast<double>(n),
+                               (dmax - dmin) / static_cast<double>(n));
+    } else if (spec.hasBinWidth) {
+        const double bw = spec.binWidth;
+        if (!any) { edges = {0.0, bw}; }
+        else {
+            const double xrange = dmax - dmin;
+            double binWidth = bw;
+            double leftEdge = binWidth * std::floor(dmin / binWidth);
+            long nbins = std::max(1L, static_cast<long>(std::ceil((dmax - leftEdge) / binWidth)));
+            const double maxbins = 65536.0;
+            if (static_cast<double>(nbins) > maxbins) {
+                nbins = static_cast<long>(maxbins);
+                binWidth = xrange / (maxbins - 1.0);
+                leftEdge = binWidth * std::floor(dmin / binWidth);
+                if (dmax <= leftEdge + (nbins - 1) * binWidth) {
+                    binWidth = xrange / maxbins;
+                    leftEdge = dmin;
+                }
+            }
+            edges.resize(static_cast<std::size_t>(nbins) + 1);
+            for (long i = 0; i <= nbins; ++i) edges[i] = leftEdge + static_cast<double>(i) * binWidth;
+            if (edges.back() < dmax) edges.back() = dmax;
+        }
+    } else {  // BinMethod (default Auto)
+        if (!any)
+            edges = (spec.method == HistBinMethod::Integers)
+                        ? std::vector<double>{-0.5, 0.5}
+                        : std::vector<double>{0.0, 1.0};
+        else
+            edges = applyMethod(spec.method, xc, dmin, dmax, false, dmin, dmax);
+    }
+
+    Value e = Value::matrix(1, edges.size(), ValueType::DOUBLE, mr);
+    std::copy(edges.begin(), edges.end(), e.doubleDataMut());
+    return e;
+}
+
 Value discretize(const Value &x, const Value &edges, std::pmr::memory_resource *mr)
 {
     validateEdges(edges, "discretize");
