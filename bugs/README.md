@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (108 entries):** ✅ 64 fixed · 🔴 44 open = **7 bug** + 4 stub +
-2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
+**Tally (108 entries):** ✅ 65 fixed · 🔴 43 open = **7 bug** + 4 stub +
+1 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (59)
+### ✅ FIXED (60)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-output | [signal/periodogram-pxxc](signal/periodogram-pxxc.md) | P2 | ✅ FIXED: [pxx,f,pxxc]=periodogram(...,'ConfidenceLevel',p) threw ('ConfidenceLevel' unparsed + pxxc not computed). Now emits the chi-square CI as the 3rd output: pxxc = pxx.*v./chi2inv([1-a/2,a/2],v) with INTEGER v (=2 for interior bins, =1 for the real DC & even-nfft Nyquist bins; black-box-pinned from MATLAB outputs, no source read — it's a standard textbook method), closed forms chi2inv(q,2)=-2ln(1-q) & chi2inv(q,1)=(sqrt2*erfinv(q))^2 (erfinv from the math layer, no stats dep). Default level 0.95. New compute fn periodogramConf. Parity OK vs MATLAB R2025b: lower [32.25 7.40 2.17 1.27 0.40], DC/Nyquist ratio 0.19905, interior 0.27108. pwelch/cpsd CI still open (averaged EDOF) (2026-06-18) |
 | perf | [ops/cheap-elementwise-simd-small-n](ops/cheap-elementwise-simd-small-n.md) | P3 | ✅ FIXED: Highway SIMD cheap element-wise (+ - .* ./) ran 0.1-0.3x of scalar at cache-resident N on native MSVC = HWY_DYNAMIC_DISPATCH indirect-call overhead vs MSVC autovec (WASM static dispatch had no crater -> MSVC-specific). Size-gated before dispatch (kSimdInlineThreshold, native 256K / WASM 0): plus 0.10→0.97x, times 0.12→1.54x. Fused affine/abs/sq same gate — but their parallel_for lambda captured [&], escaping out/x and defeating MSVC alias analysis so the gate loop wouldn't vectorize (vec-report 1104); switching to [=] fixed it (0.68→1.0x). big-N + WASM unchanged, suite bit-identical (2026-06-18) |
 | bug | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | ✅ FIXED: non-2ⁿ complex-cepstrum phase was garbage past DC + the nd 2nd output was missing. Ported MATLAB rcunwrap (full unwrap + linear-phase removal: nd=round(unwrapped(nh+1)/pi), subtract pi*nd*(0:n-1)/nh) → nd is the 2nd output. Also fixed a latent time-reversal (the forward fft used dir=+1 like the inverse pass) in cceps + icceps. Parity OK vs MATLAB R2025b: [1 2 3 4 3 2 1] and (1:8) bit-identical, nd=1/−3 (2026-06-18) |
 | bug | [image/regionprops-perimeter](image/regionprops-perimeter.md) | P1 | ✅ FIXED: requesting an unimplemented property (e.g. Perimeter) was silently dropped → confusing downstream field error. Now (a) unknown/unimplemented property names throw clearly, and (b) Perimeter is implemented: outer 8-conn Moore boundary trace + MATLAB's Vossepoel-Smeulders estimator 0.980·Ne+1.406·No−0.091·Nc. Matches MATLAB R2025b exactly (3x3=7.476, 4x4=11.396, plus=5.624, eye4=8.436). Harness N/A for regionprops (pre-existing); verified by direct MATLAB run (2026-06-18) |
@@ -240,12 +241,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | sgolay/lowess/loess throw |
 | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
-### 🔴 OPEN — missing-output (Nth output not emitted) — 2
+### 🔴 OPEN — missing-output (Nth output not emitted) — 1
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [signal/periodogram-pxxc](signal/periodogram-pxxc.md) | P2 | ConfidenceLevel / pxxc CI 3rd output |
-| [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (centroids) |
+| [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
 ### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 30
 

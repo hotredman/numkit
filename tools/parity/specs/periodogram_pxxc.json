@@ -1,0 +1,15 @@
+{
+  "name": "periodogram_pxxc",
+  "namespace": "signal",
+  "setup": "x = (1:8)'; w = rectwin(8);",
+  "expr": "[pxx, f, pxxc] = periodogram(x, w, 8, 1, 'ConfidenceLevel', 0.95);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "size(pxxc,1)", "size(pxxc,2)",
+    "pxx(1)", "pxx(2)",
+    "pxxc(1,1)", "pxxc(2,1)", "pxxc(5,1)",
+    "pxxc(1,2)", "pxxc(2,2)", "pxxc(5,2)"
+  ],
+  "comment": "Sig: [pxx, f, pxxc] = periodogram(x, win, nfft, fs, 'ConfidenceLevel', p). 3rd output pxxc is the nf x 2 chi-square confidence interval [lower upper]. Each PSD bin ~ chi-square with v DOF: v=2 for the general (folded) interior bins, v=1 for the purely-real DC bin and -- when nfft is even -- the Nyquist bin. pxxc = pxx .* v ./ chi2inv([1-a/2, a/2], v), a=1-p, using closed forms chi2inv(q,2)=-2*log(1-q) and chi2inv(q,1)=(sqrt(2)*erfinv(q))^2. Default level 0.95 when 3 outputs requested without the name-value. Fixes bugs/signal/periodogram-pxxc. Verified vs MATLAB R2025b. Octave's periodogram does not return a chi-square CI the same way; harness prefers MATLAB."
+}
