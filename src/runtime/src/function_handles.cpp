@@ -70,16 +70,27 @@ void registerFunctionHandles(Engine &engine)
                                Span<Value> outs, CallContext &ctx) {
                                 if (args.empty())
                                     throw std::runtime_error("func2str requires 1 argument");
-                                if (!args[0].isFuncHandle())
+                                // A VM closure that captures variables is packed
+                                // as a cell {handle, captures...} (the same
+                                // convention Engine::callFunctionHandleMulti uses
+                                // to make it callable). Unwrap to the bare handle
+                                // so func2str works on captured anon functions too
+                                // (e.g. @(x) x + a). On TreeWalker / for capture-
+                                // free anons the handle is plain — this is a no-op.
+                                const Value *h = &args[0];
+                                if (h->isCell() && h->numel() >= 1 &&
+                                    h->cellAt(0).isFuncHandle())
+                                    h = &h->cellAt(0);
+                                if (!h->isFuncHandle())
                                     throw std::runtime_error(
                                         "func2str: argument must be a function handle");
-                                const std::string name = args[0].funcHandleName();
+                                const std::string name = h->funcHandleName();
                                 // Anonymous handles carry their source text;
                                 // named handles (sin, foo, …) return the name.
                                 const bool isAnon = name.rfind("__anon_", 0) == 0;
                                 std::string text;
                                 if (isAnon) {
-                                    const std::string src = args[0].funcHandleSource();
+                                    const std::string src = h->funcHandleSource();
                                     text = !src.empty() ? src : ("@" + name);
                                 } else {
                                     text = name;
