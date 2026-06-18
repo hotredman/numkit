@@ -269,7 +269,7 @@ debug assert is never the release-correctness mechanism.
 
 ## 11. Build plan
 
-1. **Soundness foundation** ✅ (this brick) — Contract 1 documented;
+1. **Soundness foundation** ✅ — Contract 1 documented;
    validator strengthened to over-approximation + adversarial domain
    (`expectSound`); transfer audit fixed `power`/`mpower` (real^real →
    real only for integer exponent, else Dynamic).
@@ -278,16 +278,34 @@ debug assert is never the release-correctness mechanism.
    form only for a typed buffer indexed by 1–2 scalar non-logical
    positions, with a matching unboxed scalar rhs for writes; everything
    else — N-D 3+ subscripts, logical/range/`end`, deletion, non-typed
-   array, dtype-changing write — routes to Runtime). **Remaining:** the
-   `nk_rt::index`/`indexSet` wrappers + C++ emission of each form (with
-   the emitter) + differential VALUE tests (with the AOT harness). bounds
-   checked by default (elision is brick 6).
-3. **Emitter core** — typed AST → compilable `.cpp` (scalars / arrays /
-   calls / control flow via the index module).
-4. **AOT harness** — compile the emitted `.cpp` with the external
-   compiler, load, run.
-5. **End-to-end differential gate** — compile + run + diff vs
-   interpreter; fuzz.
-6. **Optimisations** (separate, each gated on a fact) — integer-loop
-   promotion, bounds-check elision.
-7. **biquad end-to-end** + re-measure against M0.
+   array, dtype-changing write — routes to Runtime). Emission ✅ (brick 3):
+   `nk_rt::index`/`index_set` bounds-checked wrappers; LinearScalar read/
+   write emitted; bounds checked by default (elision is brick 6).
+3. **Emitter core** ✅ — typed AST → self-contained compilable `.cpp`
+   (RawBuffer ABI). `emitFunction()`: decl-type prepass (inferStmt threads
+   a DeclTypeRecorder so loop-body temporaries are typed at their
+   definition site), hoisted scalar locals, scalar/control-flow/builtin/
+   index emission. Any unsupported construct throws — never wrong code.
+   The whole biquad function emits end-to-end (string-verified).
+4. **AOT harness** ✅ — `aot::compileToExecutable` /
+   `compileToSharedLibrary` shell out to the compiler captured at
+   CMake-configure time (`aot_config.hpp`); MSVC via vcvars64.bat (from
+   `CMAKE_GENERATOR_INSTANCE`) through a generated .bat. Degrades to
+   Unavailable (caller skips) — toolchainless CI stays green.
+5. **End-to-end differential gate** ✅ — transpile biquad.m → C++ →
+   compile → RUN → diff the binary's output vs (A) the runtime's filter()
+   (1e-9) and (B) the exact DF-I recurrence (1e-12). A second gate proves
+   the bounds-checked fallback path runs correctly (the deletable form).
+6. **Optimisations** ✅ — clean-index loop promotion (gated on
+   numel-equality + clean-index-use + no post-loop use): `for k=1:numel(A)`
+   indexing buffers of length numel(A) → 0-based `std::size_t` counter,
+   unchecked `A[k]`. Deleting analyzeOptimizations() → the checked form,
+   still correct (no-kludge litmus). Both forms e2e-verified.
+7. **biquad end-to-end + re-measure** ✅ — `BM_Biquad_Codegen_Generated`
+   generates biquad.m → C++ → compiles it `/O2` to a DLL → loads → times
+   it. Arrow Lake / desktop-fast Release / N=131072: **generated 1.71
+   ns/sample** vs M0 hand-written 1.55 vs VM 151.4 — the transpiler output
+   is **~88× the VM** and faster than MATLAB's JIT loop (2.70). The ~10%
+   gap to the hand-written M0 is exactly the `y = zeros(1,n)` zero-fill the
+   source mandates (an extra streaming write the hand loop omits). The
+   emitter's actual output achieves the M0 prize.

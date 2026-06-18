@@ -44,4 +44,11 @@ bool available();
 CompileResult compileToExecutable(const std::string &cppSource,
                                   const std::string &exePath);
 
+// As above but emits a shared library (DLL / .so) at `libPath` — for
+// loading the transpiler's output and benchmarking it against the
+// hand-written reference (brick 7). The source should export a symbol
+// (e.g. extern "C" __declspec(dllexport) on Windows).
+CompileResult compileToSharedLibrary(const std::string &cppSource,
+                                     const std::string &libPath);
+
 } // namespace numkit::codegen::aot
