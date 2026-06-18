@@ -58,12 +58,13 @@ void registerFunctionHandles(Engine &engine)
                                 }
                             });
 
-    // func2str(@fn) — recover the name of a function handle.
-    // MATLAB: named handles (`@sin`) return just the bare name `'sin'`;
-    // anonymous handles (`@(x) x*2`) return the full `'@(x)x*2'` source
-    // text. We don't store anon source text, so fall back to the
-    // internal `__anon_<N>` name with `@` prefix for those — best-
-    // effort placeholder. See BUGS.md #16.
+    // func2str(@fn) — recover a function handle's text.
+    // MATLAB: named handles (`@sin`) return the bare name `'sin'`; anonymous
+    // handles return their reconstructed source (`@(x) x*2` -> `'@(x)x*2'`). The
+    // parser stores that source on the handle (reconstructed from the token
+    // stream, MATLAB-normalized whitespace); we return it here. If it's somehow
+    // absent (e.g. a VM closure-with-captures, represented as a cell) we fall
+    // back to the internal `@__anon_<N>` placeholder.
     engine.registerFunction("func2str",
                             [](Span<const Value> args, size_t /*nargout*/,
                                Span<Value> outs, CallContext &ctx) {
@@ -73,13 +74,17 @@ void registerFunctionHandles(Engine &engine)
                                     throw std::runtime_error(
                                         "func2str: argument must be a function handle");
                                 const std::string name = args[0].funcHandleName();
-                                // Detect anon-handle naming convention: parser
-                                // assigns `__anon_<N>` to lambdas. Named
-                                // handles (sin, foo, etc.) get the bare name.
+                                // Anonymous handles carry their source text;
+                                // named handles (sin, foo, …) return the name.
                                 const bool isAnon = name.rfind("__anon_", 0) == 0;
-                                outs[0] = Value::fromString(
-                                    isAnon ? ("@" + name) : name,
-                                    ctx.engine->resource());
+                                std::string text;
+                                if (isAnon) {
+                                    const std::string src = args[0].funcHandleSource();
+                                    text = !src.empty() ? src : ("@" + name);
+                                } else {
+                                    text = name;
+                                }
+                                outs[0] = Value::fromString(text, ctx.engine->resource());
                             });
 }
 

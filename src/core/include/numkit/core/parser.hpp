@@ -96,6 +96,9 @@ private:
     ASTNodePtr parseMatrixLiteral();
     ASTNodePtr parseCellLiteral();
     ASTNodePtr parseAnonFunc();
+    // Reconstruct anonymous-function source from the token span [from, to)
+    // (for func2str). MATLAB-style: no inter-token whitespace, literals re-quoted.
+    std::string reconstructAnonSource(size_t from, size_t to) const;
 
     // — Lookahead для function def —
     bool probeHasOutputSignature() const;

@@ -72,8 +72,8 @@ TEST_F(BuiltinKnownBug, CellfunStringName)
     EXPECT_DOUBLE_EQ(evalScalar("r(3)"), 1.0);
 }
 
-// bugs/builtin/func2str-anonymous.md — anon handle should return its source.
-TEST_F(BuiltinKnownBug, DISABLED_Func2StrAnonymous)
+// bugs/runtime/func2str-anonymous.md — anon handle returns its source (FIXED; live guard).
+TEST_F(BuiltinKnownBug, Func2StrAnonymous)
 {
     eval("s = func2str(@(x) x + 1);");                  // MATLAB: '@(x)x+1'
     EXPECT_EQ(eval("s").toString(), std::string("@(x)x+1"));
