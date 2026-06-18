@@ -1,6 +1,6 @@
 # stats.smoothdata — 'sgolay' / 'lowess' / 'loess' methods throw
 
-- **Status:** 🔴 OPEN (lowess/loess) — `sgolay` ✅ FIXED (2026-06-18)
+- **Status:** ✅ FIXED (2026-06-18) — sgolay + lowess + loess all implemented
 - **Severity:** P2 (missing option)
 - **Kind:** stub
 - **Found:** 2026-06 via DEEP-PROBE
@@ -44,11 +44,21 @@ fall back to passthrough.
 doesn't replicate — the explicit-window form is the matched contract. (The
 existing `movmean`/`movmedian`/`gaussian` defaults share this approximation.)
 
-## Still open — lowess / loess
-`'lowess'` (local linear) and `'loess'` (local quadratic) regression smoothers
-still throw. They need a tricube-weighted moving local-regression; MATLAB's
-`loess` also shows an interior-identity quirk on short windows that needs
-understanding before a parity match. Separate change.
+## Fix (2026-06-18) — lowess / loess
+`'lowess'` (local linear) and `'loess'` (local quadratic) now work too, inline in
+the same file (`localRegressSlice`/`smoothLocalRegDim`). For each sample: take the
+`F` nearest points (window shifted to stay in range), tricube-weight by the
+in-window distance (the window's two outermost samples get weight 0), fit a
+degree-1/2 polynomial by weighted least squares, and evaluate it at the query
+point. Reconstructed + confirmed against MATLAB before porting. The `loess`
+interior-identity quirk is explained: tricube zeroes the window edges, leaving 3
+non-zero-weight points, and a quadratic through 3 points interpolates the centre
+→ the interior sample is returned unchanged.
+
+Explicit window matches MATLAB R2025b exactly (parity `smoothdata_lowess.json`
+→ OK): lowess w5 = `[1.7113 3.0349 4.5768 …]`, loess w5 =
+`[1.5509 2.9192 2 8 …]`. Guard: `known_bugs_test.cpp` (`SmoothdataLowessLoess`);
+smoke extended. (Same data-dependent default-window approximation as sgolay.)
 
 ## References
 - `src/toolboxes/stats/src/moving/moving.cpp` (`buildSGMatrix`, `smoothSGDim`,
