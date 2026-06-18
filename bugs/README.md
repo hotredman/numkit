@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (113 entries):** ✅ 87 fixed · 🔴 26 open = **5 bug** + 2 stub +
-1 missing-output + **17 missing-fn** + 1 perf (the 17 missing-fns are parity
+**Tally (113 entries):** ✅ 88 fixed · 🔴 25 open = **5 bug** + 2 stub +
+1 missing-output + **16 missing-fn** + 1 perf (the 16 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (82)
+### ✅ FIXED (83)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [wavelet/ddencmp](wavelet/ddencmp.md) | P2 | ✅ FIXED: ddencmp (default denoise/compress params) was undefined. Noise estimate from finest-detail of a 1-level db1 dwt: σ̂=median(\|cD1\|)/0.6745. 'den': thr=sqrt(2·log(n))·σ̂ (universal), sorh='s'; 'cmp': thr=median(\|cD1\|), sorh='h'; keepapp=1. numkit dwt('db1') matches MATLAB's finest detail bit-for-bit (incl. odd-length) so thresholds match exactly. Parity OK vs MATLAB R2025b: den/wv [1 2 3 8 3 2 1 2]→2.137919772574, cmp→0.707106781187, den [1..5]→1.880854323469. 'wp' deferred. Closes the wentropy/ddencmp cluster (2026-06-19) |
 | missing-fn | [wavelet/wentropy](wavelet/wentropy.md) | P2 | ✅ FIXED: wentropy (coefficient entropy "cost") was undefined. Closed-form additive entropy: 'shannon'=-Σs²·log(s²) (zeros→0), 'log energy'=Σlog(s²) nonzero, 'threshold'(P)=#{\|s\|>P}, 'sure'(P)=n-2·#{\|s\|≤P}+Σmin(s²,P²), 'norm'(P≥1)=Σ\|s\|ᴾ. Parity OK vs MATLAB R2025b on [0.5 -0.3 0.8 0 -0.1 0.2]: shannon=1.023719, logenergy=-12.064573, threshold(0.2)=3, sure(0.2)=0.17, norm(1.5)=1.354477; shannon([1 2 3 4])=-69.6816182. Split from wentropy-ddencmp; ddencmp still open (2026-06-19) |
 | missing-fn | [comm/syndtable](comm/syndtable.md) | P2 | ✅ FIXED: syndtable (syndrome decoding table / coset-leader lookup) was undefined. Returns the 2^(n-k)×n table whose row s+1 is the min-weight error with syndrome s=bi2de(mod(H·eᵀ,2),'left-msb'); enumerate error patterns by ascending Hamming weight, within a weight by lexicographic bit position, first to reach each syndrome wins (lowest-position tie-break = MATLAB's). Parity OK vs MATLAB R2025b (exact full-table match incl. weight-2 leaders + ties): (7,4) Hamming→8×7 all-weight-1; 3×4 code→weight-2 leaders, s=3→[1 0 0 1]; repro 3×6→8×6 (2026-06-19) |
 | missing-fn | [wavelet/upcoef](wavelet/upcoef.md) | P2 | ✅ FIXED: upcoef (single-branch coefficient reconstruction) was undefined. Synthesis cascade: per level interleave zeros ([x0,0,x1,0,…]) + full-conv with Lo_R (or Hi_R on the first level for a detail branch); no idwt trim, so length grows to 2n-1+\|F\|-1. Filters from wavelet_filters; optional L center-trims; N=0 returns X. Parity OK vs MATLAB R2025b: upcoef('a',5,'db1',2)=[2.5 2.5 2.5 2.5], upcoef('d',5,'db1',2)=[2.5 2.5 -2.5 -2.5], upcoef('a',[1 2],'db2',1)=[0.482963 0.836516 1.190074 1.543628 0.448288 -0.258819]. Closes the wenergy/upcoef cluster (2026-06-19) |
@@ -265,7 +266,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 21
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 20
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -277,7 +278,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [image/imfindcircles](image/imfindcircles.md) | P2 | imfindcircles |
 | [image/corner](image/corner.md) | P2 | corner-point detection (cornermetric exists) |
 | [wavelet/wpdec](wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
-| [wavelet/ddencmp](wavelet/ddencmp.md) | P2 | ddencmp default denoise/compress params (wentropy split off ✅) |
 | [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |

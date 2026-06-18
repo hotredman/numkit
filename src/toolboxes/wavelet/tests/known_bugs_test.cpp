@@ -27,7 +27,8 @@ TEST_F(WaveletKnownBug, WentropyShannon)
 }
 
 // bugs/wavelet/ddencmp.md — ddencmp default denoise params.
-TEST_F(WaveletKnownBug, DISABLED_Ddencmp)
+// FIXED 2026-06-19 (MAD noise estimate + universal threshold) — promoted live.
+TEST_F(WaveletKnownBug, Ddencmp)
 {
     eval("[thr, sorh, keepapp] = ddencmp('den', 'wv', [1 2 3 8 3 2 1 2]);");
     EXPECT_NEAR(evalScalar("thr"), 2.137920, 1e-5);

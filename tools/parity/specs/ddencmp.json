@@ -1,0 +1,10 @@
+{
+  "name": "ddencmp",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "[t1,s1,k1]=ddencmp('den','wv',[1 2 3 8 3 2 1 2]); td=t1; kd=k1; [t2,s2,k2]=ddencmp('cmp','wv',[1 2 3 8 3 2 1 2]); tc=t2; [t3,~,~]=ddencmp('den','wv',[1 2 3 4 5]); to=t3;",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["td", "kd", "tc", "to"],
+  "comment": "Sig: [thr,sorh,keepapp] = ddencmp(opt,type,x). Default denoise/compress params from the finest-detail coeffs of a 1-level db1 DWT: sigma=median(|cD1|)/0.6745. 'den': thr=sqrt(2*log(n))*sigma (universal threshold), sorh='s'; 'cmp': thr=median(|cD1|), sorh='h'; keepapp=1. Only type='wv' (wavelet) supported; 'wp' deferred. Fingerprint: den/wv [1 2 3 8 3 2 1 2] -> thr=2.137919772574, keepapp=1; cmp/wv same -> thr=0.707106781187; den/wv odd-length [1 2 3 4 5] -> thr=1.880854323469. Verified vs MATLAB R2025b. Fixes bugs/wavelet/ddencmp (closes the wentropy/ddencmp cluster). sorh strings not fingerprinted (harness compares numeric)."
+}

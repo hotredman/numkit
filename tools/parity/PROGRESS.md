@@ -3520,7 +3520,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `wpdencmp` | ❌ | wavelet-packet denoise / compress |
 | `wnoisest` | ✅ | Sig: sigma = wnoisest(c, l, level). MAD-based noise sigma estimate from wavedec output. Bit-identical with MATLAB R2025b on deterministic-input probe (sigma=0.0900008 on db4 level-3 decomposition of test signal). |
 | `wvarchg` | ❌ | variance-change detection |
-| `ddencmp` | ❌ | default thresholding parameters |
+| `ddencmp` | ✅ | Sig: [thr,sorh,keepapp] = ddencmp(opt,type,x). Default denoise/compress params from the finest-detail coeffs of a 1-level db1 DWT: sigma=median(|cD1|)/0.6745. 'den': thr=sqrt(2*log(n))*sigma (universal threshold), sorh='s'; 'cmp': thr=median(|cD1|), sorh='h'; keepapp=1. Only type='wv' (wavelet) supported; 'wp' deferred. Fingerprint: den/wv [1 2 3 8 3 2 1 2] -> thr=2.137919772574, keepapp=1; cmp/wv same -> thr=0.707106781187; den/wv odd-length [1 2 3 4 5] -> thr=1.880854323469. Verified vs MATLAB R2025b. Fixes bugs/wavelet/ddencmp (closes the wentropy/ddencmp cluster). sorh strings not fingerprinted (harness compares numeric). |
 | `thselect` | ❌ | threshold selection |
 | `wthcoef` | ❌ | apply threshold to detail coeffs |
 | `wthcoef2` | ❌ |  |
