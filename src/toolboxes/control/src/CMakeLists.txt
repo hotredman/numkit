@@ -7,6 +7,7 @@ set(CONTROLLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/response/response.cpp       # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/freq/freq.cpp               # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/analyze/analyze.cpp         # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/analyze/hinfnorm.cpp        # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/discretize/discretize.cpp   # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/state/state.cpp             # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/state/place.cpp             # compute (engine-free)

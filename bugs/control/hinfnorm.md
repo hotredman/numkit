@@ -1,15 +1,13 @@
 # control.hinfnorm — H-infinity norm of an LTI system missing
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-19) — Hamiltonian-test bisection
 - **Severity:** P2 (missing function)
 - **Kind:** missing-fn
 - **Found:** 2026-06 via DEEP-PROBE (split out of control/lqr-dlqr-gram on 2026-06-19)
 
 ## Symptom
 `hinfnorm(sys)` — the peak gain `‖G‖∞ = sup_ω σ_max(G(jω))` of a stable
-LTI system — is not registered. (Split from the original
-lqr/hinfnorm/dlqr/gram cluster; lqr/dlqr/gram are fixed, see
-control/lqr-dlqr-gram.md.)
+LTI system — is not registered.
 
 ## Repro
 ```matlab
@@ -22,32 +20,47 @@ hinfnorm(ss(-1,1,1,0))
 ## Root cause
 Not implemented.
 
-## Suggested fix
-The exact value is computed by the **Boyd–Balakrishnan / Bruinsma–Steinbuch
-Hamiltonian test** with bisection on γ: for a candidate γ, form
+## Fix (2026-06-19)
+Implemented `numkit::control::hinfnorm` (`analyze/hinfnorm.cpp`) by the
+**Bruinsma–Steinbuch Hamiltonian test with bisection on γ**. For a
+candidate γ, form
 
 ```
-M(γ) = [ A + B R⁻¹ Dᵀ C      B R⁻¹ Bᵀ
-        −Cᵀ(I + D R⁻¹ Dᵀ)C   −(A + B R⁻¹ Dᵀ C)ᵀ ],   R = γ²I − DᵀD
+R    = γ²I − DᵀD
+Ā    = A + B R⁻¹ DᵀC
+M(γ) = [  Ā                    B R⁻¹ Bᵀ
+         −Cᵀ(I + D R⁻¹ Dᵀ)C    −Āᵀ ]
 ```
 
-γ is an upper bound on `‖G‖∞` iff `M(γ)` has **no purely imaginary
-eigenvalues**; bisect γ until convergence. numkit now has a general real
-eigensolver (`francisSchur` / `eig`, see linalg/schur-nonsymmetric), so the
-imaginary-axis test is feasible (check `|Re(λ)| < tol` over `eig(M(γ))`).
+γ is an upper bound on `‖G‖∞` **iff** `R ≻ 0` (γ > σ_max(D)) **and** `M(γ)`
+has no purely imaginary eigenvalue. Bisect γ between a lower bracket (any
+frequency-point gain ≤ `‖G‖∞` — here the DC gain `D − C A⁻¹ B` and the
+ω→∞ gain `D`, σ_max'd by a lower-bound-safe Rayleigh power iteration) and
+an upper bound found by doubling. **No frequency sweep** — the Hamiltonian
+test is exact, so it catches sharp resonances a grid would miss between
+samples. `M(γ)`'s spectrum comes from `charPoly → math::roots` (the same
+path `pole` uses — all real arithmetic, no complex SVD). Returns `Inf`
+when any pole sits on/right of the jω axis (`max Re(eig(A)) ≥ −1e-9`).
 
-Edge cases to match MATLAB:
-- **Inf** when the system has poles on the jω axis (unstable / marginally
-  stable) — detect via the closed-loop/`A` eigenvalues before bisecting.
-- The static-gain and `D≠0` terms (the `R = γ²I − DᵀD` correction).
+Verified vs MATLAB R2025b (parity `hinfnorm.json` → OK): `1/(s+1)`→1;
+`±i` poles→Inf; lightly-damped resonance `1/(s²+0.1s+1)`→10.012523 (peak
+near ω=1, **not** at a grid point); static peak `1/(s+2)+1/(s+3)`→0.83333;
+`D=0.5`→1.5; `tf(1,[1 2 1])`→1. Guards: `hinfnorm_test.cpp` (8 TEST_F:
+DC peak / resonance / static / feedthrough / marginal-Inf / unstable-Inf /
+tf-input / discrete-throws), `known_bugs_test.cpp` (`Hinfnorm`, promoted
+live); smoke `hinfnorm_smoke.m`.
 
-A frequency-grid maximum of `σ_max(G(jω))` is only a *lower* bound (misses
-sharp resonances between grid points) — fine for a sanity check, **not** for
-parity, so the Hamiltonian test is required.
+Deferred: discrete-time systems (the unit-circle test differs — a Tustin
+bilinear transform to continuous, which preserves `‖G‖∞`, would wire it
+up; throws a clear error for now).
+
+With this the original lqr/hinfnorm/dlqr/gram cluster is fully closed.
 
 ## References
-- new entry point under `src/toolboxes/control/src/...` (freq or a new
-  `norm`/`hinf` TU); cf. `sigma` (already computes σ_max(G(jω)) on a grid).
-- shipped: `eig`/`schur` general (linalg), `care`/`dare`, `ss`.
-- related: control/lqr-dlqr-gram.md (the rest of the original cluster)
+- `src/toolboxes/control/src/analyze/hinfnorm.cpp`,
+  `.../include/numkit/control/analyze/analyze.hpp` (`hinfnorm`),
+  `src/bundle/src/register/control/analyze/analyze_reg.cpp` (`hinfnorm_reg`).
+- `tools/parity/specs/hinfnorm.json`.
+- related: control/lqr-dlqr-gram.md (the rest of the original cluster),
+  control/care-dare.md, linalg/schur-nonsymmetric.md (general eig).
 - MATLAB `doc hinfnorm`, `doc norm` (for LTI systems)
