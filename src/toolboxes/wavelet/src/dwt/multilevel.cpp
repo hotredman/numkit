@@ -229,4 +229,44 @@ Value detcoef(const Value &C, const Value &L, int level,
     return rowFromVec(out, mr);
 }
 
+WenergyResult wenergy(const Value &C, const Value &L,
+                      std::pmr::memory_resource *mr)
+{
+    auto Cv = vecFromValue(C);
+    auto Lv = vecFromValue(L);
+    if (Lv.size() < 3)
+        throw Error("wenergy: L must have at least 3 entries (a + 1 detail + length)",
+                    0, 0, "wenergy", "", "numkit:wenergy:L");
+    const size_t nLev = Lv.size() - 2;   // number of detail levels
+
+    auto energy = [&](size_t off, size_t len) {
+        double s = 0.0;
+        for (size_t i = off; i < off + len && i < Cv.size(); ++i) s += Cv[i] * Cv[i];
+        return s;
+    };
+
+    double total = 0.0;
+    for (double c : Cv) total += c * c;
+    const double scale = (total > 0.0) ? 100.0 / total : 0.0;
+
+    // Approximation band = first L(0) coefficients.
+    const size_t aLen = static_cast<size_t>(Lv[0]);
+    Value Ea = Value::scalar(energy(0, aLen) * scale, mr);
+
+    // C packs details coarsest-first (cD_N … cD_1 at L(1) … L(nLev)); MATLAB's
+    // Ed is ordered finest-first (level 1 … level N), so store reversed.
+    std::vector<double> Ed(nLev, 0.0);
+    size_t off = aLen;
+    for (size_t k = 0; k < nLev; ++k) {
+        const size_t len = static_cast<size_t>(Lv[1 + k]);   // band cD_{N-k} = level (N-k)
+        Ed[nLev - 1 - k] = energy(off, len) * scale;
+        off += len;
+    }
+
+    WenergyResult out;
+    out.Ea = std::move(Ea);
+    out.Ed = rowFromVec(Ed, mr);
+    return out;
+}
+
 } // namespace numkit::wavelet

@@ -148,4 +148,28 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
              const std::string &wname, int n,
              std::pmr::memory_resource *mr = nullptr);
 
+/// Energy distribution of a wavelet decomposition.
+struct WenergyResult {
+    Value Ea;   ///< Percent of energy in the approximation (scalar).
+    Value Ed;   ///< Percent of energy in each detail band (row, level N→1).
+};
+
+/// Percentage of energy in the approximation and detail bands
+/// (`[Ea, Ed] = wenergy(C, L)`).
+///
+/// For a 1-D wavelet decomposition `(C, L)` (from @ref wavedec), returns the
+/// energy of the approximation band as a percentage of the total
+/// (`Ea = 100·‖cA_N‖² / ‖C‖²`) and the per-level detail percentages
+/// `Ed(i) = 100·‖cD‖² / ‖C‖²` ordered as `C` packs them (coarsest level `N`
+/// first, finest level `1` last). `Ea + sum(Ed) = 100`.
+///
+/// @param C   Coefficient row from @ref wavedec.
+/// @param L   Bookkeeping row (`length(L) − 2` detail levels).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `{Ea, Ed}` (see @ref WenergyResult).
+/// @throws    Error if `C` / `L` are inconsistent.
+/// @see wavedec, detcoef, appcoef
+WenergyResult wenergy(const Value &C, const Value &L,
+                      std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::wavelet

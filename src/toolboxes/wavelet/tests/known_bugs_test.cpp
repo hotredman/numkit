@@ -48,12 +48,18 @@ TEST_F(WaveletKnownBug, DISABLED_WpdecExists)
     EXPECT_NO_THROW(eval("t = wpdec([1 2 3 4 5 6 7 8], 2, 'db1');"));
 }
 
-// bugs/wavelet/wenergy-upcoef.md — energy distribution + coeff reconstruction.
-TEST_F(WaveletKnownBug, DISABLED_WenergyUpcoef)
+// bugs/wavelet/wenergy.md — energy distribution of a decomposition.
+// FIXED 2026-06-19 (band energy percentages) — promoted live.
+TEST_F(WaveletKnownBug, Wenergy)
 {
     eval("[c, l] = wavedec([1 2 3 4 5 6 7 8], 2, 'db1'); [Ea, Ed] = wenergy(c, l);");
     EXPECT_NEAR(evalScalar("Ea"), 95.0980392157, 1e-6);
     EXPECT_NEAR(evalScalar("Ea + sum(Ed)"), 100.0, 1e-6);   // percentages sum to 100
+}
+
+// bugs/wavelet/upcoef.md — single-branch coefficient reconstruction.
+TEST_F(WaveletKnownBug, DISABLED_Upcoef)
+{
     eval("y = upcoef('a', 5, 'db1', 2);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
     EXPECT_NEAR(evalScalar("y(1)"), 2.5, 1e-9);
