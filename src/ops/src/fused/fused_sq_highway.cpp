@@ -86,7 +86,11 @@ HWY_EXPORT(SqrtSumSqImpl);
 void fusedSqAffine(const double *x, double scale, double offset,
                    double *out, std::size_t n) {
     if (n == 0) return;
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    if (n < numkit::detail::kSimdInlineThreshold) {   // small (native): inline autovec; lambda below MUST be [=]
+        for (std::size_t i = 0; i < n; ++i) { const double v = scale * x[i] + offset; out[i] = v * v; }
+        return;
+    }
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(SqAffineImpl)(x + s, scale, offset, /*divide=*/false,
                                            out + s, e - s);
     });
@@ -95,7 +99,11 @@ void fusedSqAffine(const double *x, double scale, double offset,
 void fusedSqShiftDiv(const double *x, double sub, double div,
                      double *out, std::size_t n) {
     if (n == 0) return;
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        for (std::size_t i = 0; i < n; ++i) { const double v = (x[i] - sub) / div; out[i] = v * v; }
+        return;
+    }
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(SqAffineImpl)(x + s, sub, div, /*divide=*/true,
                                            out + s, e - s);
     });
@@ -103,14 +111,18 @@ void fusedSqShiftDiv(const double *x, double sub, double div,
 
 void fusedSqDiff(const double *x, const double *y, double *out, std::size_t n) {
     if (n == 0) return;
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    if (n < numkit::detail::kSimdInlineThreshold) {
+        for (std::size_t i = 0; i < n; ++i) { const double v = x[i] - y[i]; out[i] = v * v; }
+        return;
+    }
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(SqDiffImpl)(x + s, y + s, out + s, e - s);
     });
 }
 
 void fusedSqrtSumSq(const double *x, const double *y, double *out, std::size_t n) {
     if (n == 0) return;
-    detail::parallel_for(n, std::size_t{1} << 16, [&](std::size_t s, std::size_t e) {
+    detail::parallel_for(n, std::size_t{1} << 16, [=](std::size_t s, std::size_t e) {
         HWY_DYNAMIC_DISPATCH(SqrtSumSqImpl)(x + s, y + s, out + s, e - s);
     });
 }
