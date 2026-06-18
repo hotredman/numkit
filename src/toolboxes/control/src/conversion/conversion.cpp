@@ -92,6 +92,15 @@ zp2tf(const Value &z, const Value &p, const Value &k,
     Value den = numkit::math::poly(p, mr);
     Value num = numkit::math::poly(z, mr);
 
+    // poly([]) of no zeros is the constant polynomial 1 (MATLAB: poly([])==1).
+    // numkit::math::poly returns an empty row for empty input, which would
+    // collapse num to [] and silently drop the gain (bugs/control/zpk-empty-zeros).
+    // Normalize the no-zero case to [1] so num scales to [k].
+    if (num.numel() == 0) {
+        num = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        num.doubleDataMut()[0] = 1.0;
+    }
+
     // Multiply num by the gain (real scalar in our zpk; we handle the
     // complex-product case by promoting num if k or num is complex).
     const double kVal = k.toScalar();

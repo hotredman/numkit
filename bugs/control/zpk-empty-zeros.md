@@ -1,6 +1,6 @@
 # control.zpk / zp2tf — empty zeros drop the gain k
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-19) — zp2tf empty-zero → num=[k]
 - **Severity:** P2 (wrong numeric result)
 - **Kind:** bug
 - **Found:** 2026-06-19 while wiring `allmargin` (zpk input path)
@@ -38,15 +38,25 @@ tf-domain operation (`tfdata`, `tf`, `bode`, `step`, `allmargin`, …).
 `allmargin` reaches it via its zpk→`zp2tf` path; the tf input path is
 unaffected.
 
-## Suggested fix
-In `zp2tf` (toolboxes/control `conversion.cpp`), make the empty-`z` case
-return `num = [k]` (then zero-pad to the denominator length downstream).
-Equivalently, ensure `poly([])` yields `[1]` and the `k` multiply runs
-regardless of the zero count. Verify `zpk([],[-1 -2],2)` → `[0 0 2]` and a
-mixed case against MATLAB.
+## Fix (2026-06-19)
+In `zp2tf` (`conversion.cpp`), normalize the empty-`z` case: when
+`math::poly(z)` returns an empty row (numel 0), replace `num` with `[1]`
+before the gain multiply, so `num = k·[1] = [k]` (then zero-padded to the
+denominator length downstream by `tfdata`). The deeper cause is
+`math::poly([])` returning an empty row instead of `[1]` (MATLAB's
+`poly([])==1`); the localized control-side guard fixes the reported
+symptom without touching the shared math layer. The non-empty-zero path is
+unchanged.
+
+Verified vs MATLAB R2025b (parity `zpk_empty_zeros.json` → OK):
+`zpk([],[-1 -2],2)` → `num=[0 0 2]` (was `[0 0 0]`); `zpk([],[-1 -2 -3],1)`
+→ `[0 0 0 1]` (was `[0 0 0 0]`); `zpk(-5,[-1 -2 -3],1)` → `[0 0 1 5]`
+(unchanged). Guard: `known_bugs_test.cpp` (`ZpkEmptyZerosGain`, promoted live).
 
 ## References
 - `src/toolboxes/control/src/conversion/conversion.cpp` (`zp2tf`)
-- guard: `known_bugs_test.cpp` (`DISABLED_ZpkEmptyZerosGain`)
+- `tools/parity/specs/zpk_empty_zeros.json`
+- guard: `known_bugs_test.cpp` (`ZpkEmptyZerosGain`)
 - found via bugs/control/allmargin.md (zpk input path)
+- deeper cause (not fixed here): `numkit::math::poly([])` returns `[]` not `[1]`
 - MATLAB `doc zpk`, `doc zp2tf`

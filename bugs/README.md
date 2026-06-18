@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (111 entries):** ✅ 81 fixed · 🔴 30 open = **6 bug** + 2 stub +
+**Tally (111 entries):** ✅ 82 fixed · 🔴 29 open = **5 bug** + 2 stub +
 1 missing-output + **20 missing-fn** + 1 perf (the 20 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (76)
+### ✅ FIXED (77)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [control/zpk-empty-zeros](control/zpk-empty-zeros.md) | P2 | ✅ FIXED: zpk([],poles,k) with no finite zeros dropped the gain k (num came out all-zero → zero system after any tf op). Root: math::poly([]) returns an empty row not [1], collapsing num=k·poly([]). Localized guard in zp2tf (conversion.cpp): empty math::poly(z) → num=[1] before the k multiply, so num=[k] (zero-padded downstream). Non-empty-zero path unchanged. Parity OK vs MATLAB R2025b: zpk([],[-1 -2],2)→[0 0 2], zpk([],[-1 -2 -3],1)→[0 0 0 1], zpk(-5,...)→[0 0 1 5]. Found while wiring allmargin (2026-06-19) |
 | missing-fn | [control/allmargin](control/allmargin.md) | P2 | ✅ FIXED: allmargin (all gain/phase/delay margins + Stable as a 7-field struct) was undefined. Unlike margin (Bode-grid interp), evaluates the EXACT open-loop G(jω)=num(jω)/den(jω): fine log scan brackets sign changes of \|G\|−1 (gain crossovers→phase+delay margins) and Im(G) with Re(G)<0 (phase crossovers→gain margins), each bisected on the exact response (matches MATLAB even at sharp resonances a grid misses). DelayMargin=PM(rad)/ω_gc; Stable=roots(den+num) all in LHP. Parity OK vs MATLAB R2025b: 1/((s+1)(s+2)(s+3))→GM=60 at √11, no gain crossover, Stable=1; 1/(s(s+1)(s+2))→GM=6, PM=53.41°, DM=2.0913. Found control/zpk-empty-zeros (zp2tf) en route (2026-06-19) |
 | missing-fn | [control/minreal](control/minreal.md) | P2 | ✅ FIXED: minreal (minimal realization) was undefined. tf/zpk: roots(num)/roots(den), greedily cancel each pole against nearest zero within rel tol (default sqrt(eps)), rebuild num=num_lead·∏(surviving zeros) / den=den_lead·∏(surviving poles) via complex ∏(s−r) expansion (real part — conjugate pairs cancel symmetrically), gain preserved via leading-coeff ratio → tf. SISO ss: ss2tf→cancel→tf2ss → reduced-order ss (order+transfer-fn parity, realization non-unique); MIMO ss throws. Parity OK vs MATLAB R2025b: (s+1)/(s+1)²→[0 1]/[1 1], 2(s+1)/(s+1)²→[0 2]/[1 1] (gain), complex (s²+1)/((s²+1)(s+3))→[0 1]/[1 3], SISO ss uncontrollable mode order 2→1 (2026-06-19) |
 | missing-fn | [control/initial](control/initial.md) | P2 | ✅ FIXED: initial (initial-condition response) was undefined. Reuses the existing ZOH state propagator (simulate) with u≡0 and x(0)=x0, output y=C·x — initial(sys,x0[,tArg]), tArg semantics match step/impulse (Empty→auto grid, scalar→tFinal, vector→explicit), returns [y,t,x] by nargout. Parity OK vs MATLAB R2025b on the explicit grid (machine precision): 1st-order A=−2,x0=1→y=e^{−2t}, e^{−6}=0.002478752177; 2-state→y(t=1)=0.6004235991. Auto-grid horizon matches to ~1e-7 (heuristic, same caveat as step/impulse auto-time; explicit-t exact) (2026-06-19) |
@@ -236,7 +237,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 6
+### 🔴 OPEN — bug (defect on an implemented function) — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -245,7 +246,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
-| [control/zpk-empty-zeros](control/zpk-empty-zeros.md) | P2 | zpk([],poles,k) drops the gain (zp2tf empty-zero numerator) |
 
 ### 🔴 OPEN — stub (option/branch throws "not supported") — 2
 
