@@ -147,3 +147,67 @@ TEST(CodegenE2E, BiquadMatchesRuntimeFilter)
         }
     }
 }
+
+// The bounds-CHECKED path (the form that survives if brick-6 promotion is
+// deleted — the no-kludge litmus made executable). `y(k) = x(k) + k` is
+// not clean-index promotable (k in arithmetic), so the emitted code uses
+// nk_rt::index / index_set; it must still run correctly.
+TEST(CodegenE2E, CheckedIndexPathRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex("function y = f(x)\n  n = numel(x);\n  y = zeros(1, n);\n"
+                       "  for k = 1:n\n    y(k) = x(k) + k;\n  end\nend\n");
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    const numkit::ASTNode *fn = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}},
+                     reg);
+    ASSERT_TRUE(emitted.source.find("nk_rt::index") != std::string::npos)
+        << "expected the checked path, not promotion";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_checked_e2e.exe").string();
+    const std::string outTxt = (base / "nk_checked_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    const std::size_t N       = 32;
+    std::string       program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const std::size_t N = 32;\n"
+        "  double x[32], y[32];\n"
+        "  for (std::size_t i = 0; i < N; ++i) x[i] = std::sin(0.01 * double(i + 1));\n"
+        "  f(x, N, y, N);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (std::size_t i = 0; i < N; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n"
+        "}\n";
+
+    const auto r = aot::compileToExecutable(program, exe);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), N);
+    for (std::size_t i = 0; i < N; ++i)
+        EXPECT_NEAR(got[i], std::sin(0.01 * double(i + 1)) + double(i + 1), 1e-12)
+            << "checked-path mismatch at i=" << i;
+}

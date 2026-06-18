@@ -208,20 +208,65 @@ TEST(EmitterFn, BiquadFullFunction)
               "double b1, double b2, double a1, double a2, double* y, "
               "std::size_t y_len)");
 
-    // hoisted scalar locals
-    for (const char *v : {"n", "k", "x1", "x2", "xn", "y1", "y2", "yn"})
+    // hoisted scalar locals (k is the promoted counter -> declared in the
+    // for, not hoisted; see brick 6 below)
+    for (const char *v : {"n", "x1", "x2", "xn", "y1", "y2", "yn"})
         EXPECT_TRUE(contains(s, std::string("double ") + v + " = 0.0;")) << v;
 
     EXPECT_TRUE(contains(s, "n = static_cast<double>(x_len);"));        // numel(x)
     EXPECT_TRUE(contains(s, "for (std::size_t __i = 0; __i < y_len; ++__i)"));  // y = zeros(1,n)
     EXPECT_TRUE(contains(s, "y[__i] = 0.0;"));
-    EXPECT_TRUE(contains(s, "for (k = 1.0; k <= n; k += 1.0)"));        // for k = 1:n
-    EXPECT_TRUE(contains(s, "xn = nk_rt::index(x, x_len, k);"));        // x(k) read
     EXPECT_TRUE(contains(
         s, "yn = (((((b0 * xn) + (b1 * x1)) + (b2 * x2)) - (a1 * y1)) - (a2 * y2));"));
-    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, y_len, k, yn);"));     // y(k) = yn
     EXPECT_TRUE(contains(s, "x2 = x1;"));
     EXPECT_TRUE(contains(s, "y1 = yn;"));
+}
+
+// ── 6: clean-index loop promotion (gated, deletable) ──────────────────
+// The biquad loop is the canonical case: k used only as a 1-based index of
+// arrays whose element count is provably the loop extent -> a 0-based
+// size_t counter, unchecked A[k], no double loop var, no -1.
+TEST(EmitterFn, BiquadPromotedLoop)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(kBiquadSrc, root);
+    ASSERT_NE(fn, nullptr);
+
+    std::vector<ParamSpec> params = {{"x", kDoubleRow}};
+    for (const char *p : {"b0", "b1", "b2", "a1", "a2"})
+        params.push_back({p, kDoubleScalar});
+    const std::string s = emitFunction(*fn, params, reg).source;
+
+    EXPECT_TRUE(contains(s, "for (std::size_t k = 0; k < x_len; ++k)"));
+    EXPECT_TRUE(contains(s, "xn = x[k];"));
+    EXPECT_TRUE(contains(s, "y[k] = yn;"));
+    // the optimisation fired: no checked access, no double loop var
+    EXPECT_FALSE(contains(s, "nk_rt::index"));
+    EXPECT_FALSE(contains(s, "double k = 0.0;"));
+    EXPECT_FALSE(contains(s, "k <= n"));
+}
+
+// When the gate does NOT hold (k used in arithmetic), the emitter must
+// fall back to the always-correct checked form (no-kludge litmus).
+TEST(EmitterFn, NonPromotableLoopFallsBack)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = f(x)\n"
+        "  n = numel(x);\n  y = zeros(1, n);\n"
+        "  for k = 1:n\n    y(k) = x(k) + k;\n  end\n"  // `+ k` -> not clean-index
+        "end\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+
+    const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
+    EXPECT_TRUE(contains(s, "double k = 0.0;"));                 // hoisted double loop var
+    EXPECT_TRUE(contains(s, "for (k = 1.0; k <= n; k += 1.0)"));  // checked counted loop
+    EXPECT_TRUE(contains(s, "nk_rt::index(x, x_len, k)"));        // checked read
+    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, y_len, k,"));    // checked write
+    EXPECT_FALSE(contains(s, "for (std::size_t k = 0;"));        // NOT promoted
 }
 
 // ── 3c: control flow ──────────────────────────────────────────────────
