@@ -5,23 +5,23 @@ Two complementary benchmark worlds.
 ## 1. C++ micro-benches — the `numkit_bench` executable
 
 [Google Benchmark](https://github.com/google/benchmark)-based, one executable.
-Each source registers `BM_*` functions that time C++ kernels (or, in
-`interpreter/`, the engine itself) in-process.
+Each source registers `BM_*` functions that time C++ kernels (or, for the core
+engine, the interpreter itself) in-process.
 
 ### Layout
 
-Sources are grouped to mirror `src/` layering; each directory has a
-`CMakeLists.txt` that does `target_sources(numkit_bench PRIVATE ...)`.
+Bench sources are **co-located with the module they measure** — each module has
+a `benchmarks/` dir with a `CMakeLists.txt` that does
+`target_sources(numkit_bench PRIVATE ...)`, the same layout as
+`src/<module>/tests/`. This `benchmarks/` directory owns the `numkit_bench`
+target and pulls them all in.
 
-| Directory | What it benches |
+| Bench sources | What they bench |
 |---|---|
-| `math/` | base **math** layer — elementwise, interp, reductions, setops |
-| `lang/` | base **lang** layer — binary ops, matmul, manipulation, sort |
-| `interpreter/` | the engine itself — native-C++ vs bytecode-VM vs TreeWalker (see `iir_filter_bench.cpp`) |
-| `src/toolboxes/<lib>/benchmarks/` | per-toolbox kernels, **co-located** with the toolbox (signal, stats, image, …) |
-
-(`math/` + `lang/` replaced the old `benchmarks/builtin/` umbrella on
-2026-06-17, matching the `builtin`→`math`/`lang`/`runtime` src split.)
+| `src/math/benchmarks/` | base **math** layer — elementwise, interp, reductions, setops |
+| `src/lang/benchmarks/` | base **lang** layer — binary ops, matmul, manipulation, sort |
+| `src/core/benchmarks/` | the engine itself — native-C++ vs bytecode-VM vs TreeWalker (`iir_filter_bench.cpp`) |
+| `src/toolboxes/<lib>/benchmarks/` | per-toolbox kernels (signal, stats, image, …) |
 
 ### Build & run
 
@@ -42,10 +42,11 @@ Presets: `bench` (scalar), `bench-simd` (Highway SIMD), `bench-clang`,
 `bench-simd-clang`, `bench-simd-threads`, `bench-wasm` (run via
 `node numkit_bench.js`).
 
-### SIMD A/B comparison
+### SIMD A/B comparison — `benchmarks/simd/`
 
-`bench_simd.sh` / `bench_simd.bat` build the scalar and SIMD presets, run both,
-and `compare_simd.py` diffs the two JSON outputs into a speedup table.
+`simd/bench_simd.sh` / `simd/bench_simd.bat` build the scalar and SIMD presets,
+run both, and `simd/compare_simd.py` diffs the two JSON outputs into a speedup
+table.
 
 ## 2. M-script benches — `benchmarks/m/`
 
@@ -58,7 +59,6 @@ Hand-run `.m` scripts that measure performance from the language side
 | `benchmark_simd.m` | vectorised library functions (abs/sin/cos/exp/log, `+ - .* ./`) |
 | `benchmark_simd_inplace.m` | same kernels writing a pre-allocated buffer via `z(:) = rhs` |
 | `benchmark_grow.m` | incremental array-grow patterns |
-| `iir_filter_ref.m` | **cross-engine** biquad loop + `filter()` — portable (no `import`), run the same file in MATLAB / Octave / numkit to compare the scalar-loop cost. Companion to `interpreter/iir_filter_bench.cpp`. |
 
 Run with the smoke runner (each starts with `clear`):
 
@@ -66,15 +66,19 @@ Run with the smoke runner (each starts with `clear`):
 build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/m/benchmark_interp.m
 ```
 
-Most use `import compat.*` and so are numkit-only. The exception is
-`iir_filter_ref.m`, which is deliberately import-free and `try/catch`-guards
-`filter()`, so the identical file runs in MATLAB / Octave / numkit:
+These use `import compat.*` and so are numkit-only.
+
+### Cross-engine reference — `src/core/benchmarks/iir_filter_ref.m`
+
+Co-located with its C++ companion `iir_filter_bench.cpp`. Deliberately
+import-free and `try/catch`-guards `filter()`, so the identical file runs in
+MATLAB / Octave / numkit to compare the scalar-loop cost:
 
 ```sh
-matlab -batch "run('benchmarks/m/iir_filter_ref.m')"   # ~3.9 ns/sample (JIT)
-octave-cli benchmarks/m/iir_filter_ref.m
-build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/m/iir_filter_ref.m  # ~150
+matlab -batch "run('src/core/benchmarks/iir_filter_ref.m')"   # ~3.9 ns/sample (JIT)
+octave-cli src/core/benchmarks/iir_filter_ref.m
+build/desktop-fast/tests/smoke/Release/numkit_smoke.exe src/core/benchmarks/iir_filter_ref.m  # ~150
 ```
 
 The interpreter-overhead theme of `benchmark_interp.m` is being migrated into
-permanent, CI-able Google Benchmark form under `interpreter/`.
+permanent, CI-able Google Benchmark form under `src/core/benchmarks/`.
