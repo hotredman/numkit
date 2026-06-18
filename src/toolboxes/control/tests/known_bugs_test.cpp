@@ -29,7 +29,8 @@ TEST_F(ControlKnownBug, Lqr)
 }
 
 // bugs/control/hinfnorm.md — H-infinity norm (Inf for poles on jω axis).
-TEST_F(ControlKnownBug, DISABLED_Hinfnorm)
+// FIXED 2026-06-19 (Hamiltonian bisection) — promoted live.
+TEST_F(ControlKnownBug, Hinfnorm)
 {
     eval("g = hinfnorm(ss([0 1; -1 0], [0; 1], [1 0], 0));");
     EXPECT_TRUE(std::isinf(evalScalar("g")));

@@ -86,4 +86,20 @@ MarginResult margin(const Value &sys,
 /// @see margin, dcgain, step_response
 Value stepinfo(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
+/// H-infinity norm of a continuous-time LTI system (`g = hinfnorm(sys)`).
+///
+/// Returns @f$ \|G\|_\infty = \sup_\omega \sigma_{\max}(G(j\omega)) @f$ via
+/// the Bruinsma–Steinbuch Hamiltonian test with bisection on @f$ \gamma @f$
+/// (@f$ \gamma @f$ is an upper bound iff the Hamiltonian @f$ M(\gamma) @f$
+/// has no purely imaginary eigenvalue). Returns `Inf` for an unstable or
+/// marginally stable system (a pole on/right of the jω axis).
+///
+/// @param sys  Continuous-time LTI struct (ss / tf / zpk).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Scalar `‖G‖∞` (or `Inf`).
+/// @throws     Error on a non-LTI input or a discrete-time system
+///             (discrete H∞ is not yet supported).
+/// @see margin, sigma, dcgain
+Value hinfnorm(const Value &sys, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::control

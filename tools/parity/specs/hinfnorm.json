@@ -1,0 +1,10 @@
+{
+  "name": "hinfnorm",
+  "namespace": "control",
+  "setup": "",
+  "expr": "g1 = hinfnorm(ss(-1,1,1,0)); g3 = hinfnorm(ss([0 1; -1 -0.1],[0;1],[1 0],0)); g4 = hinfnorm(ss([-2 0;0 -3],[1;1],[1 1],0)); g5 = hinfnorm(ss(-1,1,1,0.5));",
+  "iters": 5,
+  "tol": 1e-05,
+  "fingerprint": ["g1", "g3", "g4", "g5"],
+  "comment": "Sig: g = hinfnorm(sys). H-infinity norm ||G||inf = sup_w sigma_max(G(jw)) of a continuous-time LTI system via the Bruinsma-Steinbuch Hamiltonian test with bisection on gamma (gamma is an upper bound iff M(gamma)=[A+BR^-1D'C, BR^-1B'; -C'(I+DR^-1D')C, -(...)'] has no purely imaginary eigenvalue, R=gamma^2 I - D'D). Eigenvalues of M via charPoly->roots (the pole path); no frequency sweep (the test is exact). Returns Inf for unstable / jw-axis poles. Fingerprint: g1=1 (1/(s+1)), g3=10.012523 (lightly-damped resonance), g4=0.83333 (static peak), g5=1.5 (D=0.5). Verified vs MATLAB R2025b. Discrete-time deferred. Fixes bugs/control/hinfnorm."
+}
