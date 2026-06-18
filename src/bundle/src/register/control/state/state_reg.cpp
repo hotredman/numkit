@@ -42,5 +42,13 @@ void obsv_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     o[0] = obsv_AC(a[0], a[1], mr);
 }
 
+void gram_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("gram: requires (sys, type) where type is 'c' or 'o'",
+                    0, 0, "gram", "", "numkit:gram:nargin");
+    o[0] = gram(a[0], a[1].toString(), c.engine->resource());
+}
+
 } // namespace detail
 } // namespace numkit::control

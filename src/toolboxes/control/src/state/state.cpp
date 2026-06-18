@@ -7,6 +7,7 @@
 
 #include <numkit/control/state/state.hpp>
 #include <numkit/control/conversion/conversion.hpp>
+#include <numkit/control/lyapunov/lyapunov.hpp>   // gram delegates to lyap / dlyap
 
 // Compute-only TU: Value substrate + Error, no engine. The ctrb / obsv
 // builtins (CallContext wrappers) live in state/state_reg.cpp.
@@ -14,6 +15,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <vector>
 
 namespace numkit::control {
@@ -157,6 +159,55 @@ Value ctrb_sys(const Value &sys, std::pmr::memory_resource *mr) {
 Value obsv_sys(const Value &sys, std::pmr::memory_resource *mr) {
     auto abc = pullABC(sys, mr);
     return obsv_AC(abc.A, abc.C, mr);
+}
+
+Value gram(const Value &sys, const std::string &type, std::pmr::memory_resource *mr)
+{
+    auto abc = pullABC(sys, mr);
+    const size_t n = abc.A.dims().rows();
+    const bool discrete =
+        (sys.isStruct() && sys.hasField("Ts") && sys.field("Ts").toScalar() != 0.0);
+
+    const char t = type.empty()
+                 ? 'c'
+                 : static_cast<char>(std::tolower(static_cast<unsigned char>(type[0])));
+    if (t != 'c' && t != 'o')
+        throw Error("gram: type must be 'c' (controllability) or 'o' (observability)",
+                    0, 0, "gram", "", "numkit:gram:type");
+
+    // gram solves a Lyapunov equation; the controllability / observability
+    // gramian differs only in which (A, Q) pair is fed to lyap / dlyap:
+    //   'c': A·Wc + Wc·Aᵀ + B·Bᵀ = 0   → lyap(A,  B·Bᵀ)
+    //   'o': Aᵀ·Wo + Wo·A + Cᵀ·C = 0   → lyap(Aᵀ, Cᵀ·C)
+    auto A = readMat(abc.A, n, n);
+    std::vector<double> Q(n * n, 0.0);
+    Value Ause;
+    if (t == 'c') {
+        const size_t m = abc.B.dims().cols();
+        auto B = readMat(abc.B, n, m);
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < n; ++i) {
+                double s = 0.0;
+                for (size_t k = 0; k < m; ++k) s += B[k * n + i] * B[k * n + j];  // (B·Bᵀ)[i,j]
+                Q[j * n + i] = s;
+            }
+        Ause = abc.A;
+    } else {
+        const size_t p = abc.C.dims().rows();
+        auto C = readMat(abc.C, p, n);   // p×n column-major: C[i,j] = C[j*p + i]
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < n; ++i) {
+                double s = 0.0;
+                for (size_t k = 0; k < p; ++k) s += C[i * p + k] * C[j * p + k];  // (Cᵀ·C)[i,j]
+                Q[j * n + i] = s;
+            }
+        std::vector<double> At(n * n, 0.0);
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < n; ++i) At[j * n + i] = A[i * n + j];   // Aᵀ
+        Ause = matFromVec(n, n, At, mr);
+    }
+    Value Qv = matFromVec(n, n, Q, mr);
+    return discrete ? dlyap(Ause, Qv, mr) : lyap(Ause, Qv, mr);
 }
 
 } // namespace numkit::control

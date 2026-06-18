@@ -62,6 +62,7 @@ void d2c_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // state/state.cpp
 void ctrb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void obsv_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gram_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // state/place.cpp
 void acker_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void place_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -71,6 +72,8 @@ void dlyap_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // riccati/riccati.cpp
 void care_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dare_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lqr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dlqr_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in toolboxes/builtin and toolboxes/signal — we don't shadow them here.)
 } // namespace numkit::control::detail
@@ -137,6 +140,7 @@ void ControlLibrary::install(Engine &engine)
 
     reg("state", "ctrb",  &control::detail::ctrb_reg);
     reg("state", "obsv",  &control::detail::obsv_reg);
+    reg("state", "gram",  &control::detail::gram_reg);
     reg("state", "acker", &control::detail::acker_reg);
     reg("state", "place", &control::detail::place_reg);
 
@@ -145,6 +149,8 @@ void ControlLibrary::install(Engine &engine)
 
     reg("riccati", "care", &control::detail::care_reg);
     reg("riccati", "dare", &control::detail::dare_reg);
+    reg("riccati", "lqr",  &control::detail::lqr_reg);
+    reg("riccati", "dlqr", &control::detail::dlqr_reg);
 }
 
 } // namespace numkit
