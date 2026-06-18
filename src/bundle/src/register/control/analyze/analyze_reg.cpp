@@ -52,5 +52,13 @@ void hinfnorm_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     o[0] = hinfnorm(a[0], c.engine->resource());
 }
 
+void allmargin_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.empty())
+        throw Error("allmargin: requires sys",
+                    0, 0, "allmargin", "", "numkit:allmargin:nargin");
+    o[0] = allmargin(a[0], c.engine->resource());
+}
+
 } // namespace detail
 } // namespace numkit::control

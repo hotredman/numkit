@@ -1297,7 +1297,7 @@ output args).
 | function | status | comment |
 |---|:---:|---|
 | `margin` | ✅ | Sig: r = margin(...). Spec-extension batch 2026-05-09. |
-| `allmargin` | ❌ | all stability margins |
+| `allmargin` | ✅ | Sig: S = allmargin(sys). 7-field struct (GainMargin/GMFrequency/PhaseMargin/PMFrequency/DelayMargin/DMFrequency row vectors + Stable logical). Exact open-loop G(jw)=num(jw)/den(jw) (no bode-grid interpolation): fine log scan brackets sign changes of |G|-1 (gain crossovers -> phase+delay margins) and Im(G) with Re(G)<0 (phase crossovers -> gain margins), each bisected on the exact response; DelayMargin=PM(rad)/w_gc; Stable=roots(den+num) all in LHP. Fingerprint: A=1/((s+1)(s+2)(s+3)) -> GM=60, GMf=sqrt(11)=3.31662, no gain crossover (numel(PM)=0), Stable=1; B=1/(s(s+1)(s+2)) -> GM=6, GMf=sqrt(2), PM=53.4109, PMf=0.445747, DM=2.09131, Stable=1. Verified vs MATLAB R2025b. Fixes bugs/control/allmargin. |
 | `db2mag` | ✅ | Sig: r = db2mag(...). Spec-extension batch 2026-05-09. |
 | `mag2db` | ✅ | Sig: r = mag2db(...). Spec-extension batch 2026-05-09. |
 | `pzmap` | ✅ | Sig: r = pzmap(...). Spec-extension batch 2026-05-09. |
