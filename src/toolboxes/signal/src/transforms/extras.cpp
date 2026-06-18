@@ -218,25 +218,44 @@ std::pair<Value, Value> rcepsMinPhase(const Value &x, std::pmr::memory_resource 
 //   dir = +1  →  W[k] = exp(+2πj k/N)  →  INVERSE DFT (caller scales by 1/N)
 // The inverse-step here MUST be dir=+1; using -1 produces a forward DFT
 // which time-reverses the output .
-Value cceps(const Value &x, std::pmr::memory_resource *mr)
+Value cceps(const Value &x, std::pmr::memory_resource *mr, double *ndOut)
 {
     const size_t n = x.numel();
+    if (ndOut) *ndOut = 0.0;
     if (n == 0) return realLike(x, 0, mr);
     ScratchArena arena(mr);
     auto X = ScratchVec<Complex>(n, &arena);
     for (size_t i = 0; i < n; ++i) X[i] = Complex(x.elemAsDouble(i), 0.0);
-    dftExact(X.data(), n, +1, mr);
-    // log + unwrap phase.
+    dftExact(X.data(), n, -1, mr);                  // FORWARD fft (h); the inverse
+                                                    // step below is dir=+1. (Using
+                                                    // +1 here too time-reverses the
+                                                    // cepstrum and flips nd's sign.)
+    // log magnitude + UNWRAPPED phase (relative to the previous bin = standard
+    // unwrap), then apply MATLAB's rcunwrap linear-phase removal: the cepstrum
+    // needs no phase discontinuity at ±pi, so subtract the integer-lag term
+    //   nd = round(unwrapped(nh+1)/pi);  phase -= pi*nd*(0:n-1)/nh
+    // with nh = fix((n+1)/2). `nd` is the (circular) delay removed (2nd output).
+    // Without this term the per-sample result diverges past DC for non-2^n n
+    // (see bugs/signal/cceps-nd-phase).
+    auto ph   = ScratchVec<double>(n, &arena);
+    auto lmag = ScratchVec<double>(n, &arena);
     double prevPhase = 0.0;
     for (size_t i = 0; i < n; ++i) {
         const double mag = std::abs(X[i]);
         double phase = std::arg(X[i]);
-        // Unwrap relative to previous bin.
         while (phase - prevPhase > M_PI)  phase -= 2.0 * M_PI;
         while (phase - prevPhase < -M_PI) phase += 2.0 * M_PI;
         prevPhase = phase;
-        X[i] = Complex(std::log(std::max(mag, 1e-300)), phase);
+        ph[i]   = phase;
+        lmag[i] = std::log(std::max(mag, 1e-300));
     }
+    const size_t nh  = (n + 1) / 2;                 // fix((n+1)/2)
+    const size_t idx = (n == 1) ? 0 : nh;           // MATLAB's 1-based nh+1
+    const double nd  = std::round(ph[idx] / M_PI);
+    for (size_t i = 0; i < n; ++i)
+        ph[i] -= M_PI * nd * static_cast<double>(i) / static_cast<double>(nh);
+    if (ndOut) *ndOut = nd;
+    for (size_t i = 0; i < n; ++i) X[i] = Complex(lmag[i], ph[i]);
     dftExact(X.data(), n, +1, mr);
     const double invN = 1.0 / static_cast<double>(n);
     auto out = realLike(x, n, mr);
@@ -246,8 +265,11 @@ Value cceps(const Value &x, std::pmr::memory_resource *mr)
 }
 
 // ── icceps ────────────────────────────────────────────────────────────
-// Inverse complex cepstrum: ifft(exp(fft(c))). Same sign-convention fix
-// as cceps — the second pass MUST be inverse (dir=+1).
+// Inverse complex cepstrum: real(ifft(exp(fft(c)))). FORWARD fft is dir=-1,
+// the inverse pass dir=+1 — mirroring cceps. (Using +1 for both time-reverses
+// the result, which the cceps fix exposed via the round-trip test. Without an
+// `nd` argument this is MATLAB's icceps(xhat) with nd=0; it recovers cceps's
+// input up to the circular shift cceps removed.)
 Value icceps(const Value &c, std::pmr::memory_resource *mr)
 {
     const size_t n = c.numel();
@@ -255,9 +277,9 @@ Value icceps(const Value &c, std::pmr::memory_resource *mr)
     ScratchArena arena(mr);
     auto X = ScratchVec<Complex>(n, &arena);
     for (size_t i = 0; i < n; ++i) X[i] = Complex(c.elemAsDouble(i), 0.0);
-    dftExact(X.data(), n, +1, mr);
+    dftExact(X.data(), n, -1, mr);                  // FORWARD fft
     for (size_t i = 0; i < n; ++i) X[i] = std::exp(X[i]);
-    dftExact(X.data(), n, +1, mr);
+    dftExact(X.data(), n, +1, mr);                  // inverse
     const double invN = 1.0 / static_cast<double>(n);
     auto out = realLike(c, n, mr);
     double *dst = out.doubleDataMut();
