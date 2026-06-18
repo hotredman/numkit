@@ -15,7 +15,9 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <string>
 #include <vector>
 
 namespace numkit::wavelet {
@@ -141,6 +143,43 @@ Value wdenoise(const Value &x, int level, const std::string &wname, std::pmr::me
 
     // 5. Reconstruct.
     return waverec(C, L, w, mr);
+}
+
+Value wentropy(const Value &X, const std::string &type, double param,
+               std::pmr::memory_resource *mr)
+{
+    std::string t = type;
+    std::transform(t.begin(), t.end(), t.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    auto x = vecFromValue(X);
+    const std::size_t n = x.size();
+    double e = 0.0;
+
+    if (t == "shannon") {
+        for (double v : x) { const double s2 = v * v; if (s2 > 0.0) e -= s2 * std::log(s2); }
+    } else if (t == "log energy" || t == "logenergy") {
+        for (double v : x) { const double s2 = v * v; if (s2 > 0.0) e += std::log(s2); }
+    } else if (t == "threshold") {
+        for (double v : x) if (std::fabs(v) > param) e += 1.0;
+    } else if (t == "sure") {
+        e = static_cast<double>(n);
+        const double t2 = param * param;
+        for (double v : x) {
+            if (std::fabs(v) <= param) e -= 2.0;
+            e += std::min(v * v, t2);
+        }
+    } else if (t == "norm") {
+        if (param < 1.0)
+            throw Error("wentropy: 'norm' exponent P must be >= 1",
+                        0, 0, "wentropy", "", "numkit:wentropy:norm");
+        for (double v : x) e += std::pow(std::fabs(v), param);
+    } else {
+        throw Error("wentropy: unknown type '" + type +
+                        "' (shannon / log energy / threshold / sure / norm)",
+                    0, 0, "wentropy", "", "numkit:wentropy:type");
+    }
+    return Value::scalar(e, mr);
 }
 
 } // namespace numkit::wavelet

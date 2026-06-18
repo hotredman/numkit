@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (112 entries):** ✅ 86 fixed · 🔴 26 open = **5 bug** + 2 stub +
+**Tally (113 entries):** ✅ 87 fixed · 🔴 26 open = **5 bug** + 2 stub +
 1 missing-output + **17 missing-fn** + 1 perf (the 17 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (81)
+### ✅ FIXED (82)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [wavelet/wentropy](wavelet/wentropy.md) | P2 | ✅ FIXED: wentropy (coefficient entropy "cost") was undefined. Closed-form additive entropy: 'shannon'=-Σs²·log(s²) (zeros→0), 'log energy'=Σlog(s²) nonzero, 'threshold'(P)=#{\|s\|>P}, 'sure'(P)=n-2·#{\|s\|≤P}+Σmin(s²,P²), 'norm'(P≥1)=Σ\|s\|ᴾ. Parity OK vs MATLAB R2025b on [0.5 -0.3 0.8 0 -0.1 0.2]: shannon=1.023719, logenergy=-12.064573, threshold(0.2)=3, sure(0.2)=0.17, norm(1.5)=1.354477; shannon([1 2 3 4])=-69.6816182. Split from wentropy-ddencmp; ddencmp still open (2026-06-19) |
 | missing-fn | [comm/syndtable](comm/syndtable.md) | P2 | ✅ FIXED: syndtable (syndrome decoding table / coset-leader lookup) was undefined. Returns the 2^(n-k)×n table whose row s+1 is the min-weight error with syndrome s=bi2de(mod(H·eᵀ,2),'left-msb'); enumerate error patterns by ascending Hamming weight, within a weight by lexicographic bit position, first to reach each syndrome wins (lowest-position tie-break = MATLAB's). Parity OK vs MATLAB R2025b (exact full-table match incl. weight-2 leaders + ties): (7,4) Hamming→8×7 all-weight-1; 3×4 code→weight-2 leaders, s=3→[1 0 0 1]; repro 3×6→8×6 (2026-06-19) |
 | missing-fn | [wavelet/upcoef](wavelet/upcoef.md) | P2 | ✅ FIXED: upcoef (single-branch coefficient reconstruction) was undefined. Synthesis cascade: per level interleave zeros ([x0,0,x1,0,…]) + full-conv with Lo_R (or Hi_R on the first level for a detail branch); no idwt trim, so length grows to 2n-1+\|F\|-1. Filters from wavelet_filters; optional L center-trims; N=0 returns X. Parity OK vs MATLAB R2025b: upcoef('a',5,'db1',2)=[2.5 2.5 2.5 2.5], upcoef('d',5,'db1',2)=[2.5 2.5 -2.5 -2.5], upcoef('a',[1 2],'db2',1)=[0.482963 0.836516 1.190074 1.543628 0.448288 -0.258819]. Closes the wenergy/upcoef cluster (2026-06-19) |
 | missing-fn | [wavelet/wenergy](wavelet/wenergy.md) | P2 | ✅ FIXED: wenergy (energy distribution of a wavedec) was undefined. Ea=100·‖cA_N‖²/‖C‖² (approximation), Ed(i)=100·‖cD‖²/‖C‖² per detail; Ea+sum(Ed)=100. Ordering gotcha: C packs details coarsest-first (cD_N…cD_1) but MATLAB's Ed is by level number (Ed(1)=level 1 finest … Ed(N)=coarsest) — reverse of the C walk. Parity OK vs MATLAB R2025b: [1..8] db1 L2→Ea=95.0980392, Ed=[0.98039216,3.92156863]; 1:16 db1 L3→Ea=94.385, Ed=[0.267,1.069,4.278]; sin db2→Ea=34.188. Split from wenergy-upcoef; upcoef still open (2026-06-19) |
@@ -276,7 +277,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [image/imfindcircles](image/imfindcircles.md) | P2 | imfindcircles |
 | [image/corner](image/corner.md) | P2 | corner-point detection (cornermetric exists) |
 | [wavelet/wpdec](wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
-| [wavelet/wentropy-ddencmp](wavelet/wentropy-ddencmp.md) | P2 | wentropy / ddencmp |
+| [wavelet/ddencmp](wavelet/ddencmp.md) | P2 | ddencmp default denoise/compress params (wentropy split off ✅) |
 | [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |

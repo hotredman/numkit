@@ -79,4 +79,24 @@ Value wnoisest(const Value &C, const Value &L, const Value &S,
 Value wdenoise(const Value &x, int level, const std::string &wname,
                std::pmr::memory_resource *mr = nullptr);
 
+/// Entropy of a coefficient vector (`E = wentropy(X, T[, P])`).
+///
+/// Closed-form additive entropy over the elements of `X` (a "cost" used by
+/// wavelet-packet best-tree selection):
+/// - `"shannon"`: `−Σ sᵢ²·log(sᵢ²)` (terms with `sᵢ=0` contribute 0).
+/// - `"log energy"`: `Σ log(sᵢ²)` (nonzero `sᵢ` only).
+/// - `"threshold"` (P = threshold): `#{i : |sᵢ| > P}`.
+/// - `"sure"` (P = threshold): `n − 2·#{i : |sᵢ| ≤ P} + Σ min(sᵢ², P²)`.
+/// - `"norm"` (P = exponent ≥ 1): `Σ |sᵢ|ᴾ`.
+///
+/// @param X      Coefficient vector (any shape; flattened).
+/// @param type   Entropy type (case-insensitive).
+/// @param param  `P` for threshold / sure / norm (ignored otherwise).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Scalar entropy.
+/// @throws       Error on an unknown type or `norm` exponent `< 1`.
+/// @see wthresh, wdenoise
+Value wentropy(const Value &X, const std::string &type, double param = 0.0,
+               std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::wavelet

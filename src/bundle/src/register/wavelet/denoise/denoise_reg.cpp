@@ -56,5 +56,15 @@ void wdenoise_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = wdenoise(args[0], level, wname, ctx.engine->resource());
 }
 
+void wentropy_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                  CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("wentropy: requires (X, T [, P])",
+                    0, 0, "wentropy", "", "numkit:wentropy:nargin");
+    const double param = (args.size() >= 3) ? args[2].toScalar() : 0.0;
+    outs[0] = wentropy(args[0], argString(args[1]), param, ctx.engine->resource());
+}
+
 } // namespace detail
 } // namespace numkit::wavelet
