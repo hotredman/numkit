@@ -85,12 +85,22 @@ TEST_F(ControlKnownBug, Initial)
 }
 
 // bugs/control/allmargin.md — all stability margins as a struct.
-TEST_F(ControlKnownBug, DISABLED_Allmargin)
+// FIXED 2026-06-19 (exact G(jω) scan + bisection) — promoted live.
+TEST_F(ControlKnownBug, Allmargin)
 {
     eval("S = allmargin(tf(1, [1 6 11 6]));");   // 1/((s+1)(s+2)(s+3))
     EXPECT_DOUBLE_EQ(evalScalar("double(S.Stable)"), 1.0);
     EXPECT_NEAR(evalScalar("S.GainMargin(1)"),  60.0,            1e-2);
     EXPECT_NEAR(evalScalar("S.GMFrequency(1)"), 3.31662561934,   1e-6);  // sqrt(11)
+}
+
+// bugs/control/zpk-empty-zeros.md — zpk with no finite zeros drops gain k.
+TEST_F(ControlKnownBug, DISABLED_ZpkEmptyZerosGain)
+{
+    eval("[n, d] = tfdata(zpk([], [-1 -2], 2), 'v');");
+    EXPECT_NEAR(evalScalar("n(end)"), 2.0, 1e-12);   // numkit: 0 (gain dropped)
+    EXPECT_NEAR(evalScalar("d(1)"),   1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("d(end)"), 2.0, 1e-12);
 }
 
 // bugs/control/covar.md — output covariance from white-noise input.

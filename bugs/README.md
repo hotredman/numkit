@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (110 entries):** ✅ 80 fixed · 🔴 30 open = **5 bug** + 2 stub +
-1 missing-output + **21 missing-fn** + 1 perf (the 21 missing-fns are parity
+**Tally (111 entries):** ✅ 81 fixed · 🔴 30 open = **6 bug** + 2 stub +
+1 missing-output + **20 missing-fn** + 1 perf (the 20 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (75)
+### ✅ FIXED (76)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [control/allmargin](control/allmargin.md) | P2 | ✅ FIXED: allmargin (all gain/phase/delay margins + Stable as a 7-field struct) was undefined. Unlike margin (Bode-grid interp), evaluates the EXACT open-loop G(jω)=num(jω)/den(jω): fine log scan brackets sign changes of \|G\|−1 (gain crossovers→phase+delay margins) and Im(G) with Re(G)<0 (phase crossovers→gain margins), each bisected on the exact response (matches MATLAB even at sharp resonances a grid misses). DelayMargin=PM(rad)/ω_gc; Stable=roots(den+num) all in LHP. Parity OK vs MATLAB R2025b: 1/((s+1)(s+2)(s+3))→GM=60 at √11, no gain crossover, Stable=1; 1/(s(s+1)(s+2))→GM=6, PM=53.41°, DM=2.0913. Found control/zpk-empty-zeros (zp2tf) en route (2026-06-19) |
 | missing-fn | [control/minreal](control/minreal.md) | P2 | ✅ FIXED: minreal (minimal realization) was undefined. tf/zpk: roots(num)/roots(den), greedily cancel each pole against nearest zero within rel tol (default sqrt(eps)), rebuild num=num_lead·∏(surviving zeros) / den=den_lead·∏(surviving poles) via complex ∏(s−r) expansion (real part — conjugate pairs cancel symmetrically), gain preserved via leading-coeff ratio → tf. SISO ss: ss2tf→cancel→tf2ss → reduced-order ss (order+transfer-fn parity, realization non-unique); MIMO ss throws. Parity OK vs MATLAB R2025b: (s+1)/(s+1)²→[0 1]/[1 1], 2(s+1)/(s+1)²→[0 2]/[1 1] (gain), complex (s²+1)/((s²+1)(s+3))→[0 1]/[1 3], SISO ss uncontrollable mode order 2→1 (2026-06-19) |
 | missing-fn | [control/initial](control/initial.md) | P2 | ✅ FIXED: initial (initial-condition response) was undefined. Reuses the existing ZOH state propagator (simulate) with u≡0 and x(0)=x0, output y=C·x — initial(sys,x0[,tArg]), tArg semantics match step/impulse (Empty→auto grid, scalar→tFinal, vector→explicit), returns [y,t,x] by nargout. Parity OK vs MATLAB R2025b on the explicit grid (machine precision): 1st-order A=−2,x0=1→y=e^{−2t}, e^{−6}=0.002478752177; 2-state→y(t=1)=0.6004235991. Auto-grid horizon matches to ~1e-7 (heuristic, same caveat as step/impulse auto-time; explicit-t exact) (2026-06-19) |
 | missing-fn | [control/hinfnorm](control/hinfnorm.md) | P2 | ✅ FIXED: hinfnorm (H∞ norm ‖G‖∞=sup_ω σmax(G(jω))) was undefined. Bruinsma–Steinbuch Hamiltonian test + bisection on γ: γ is an upper bound iff R=γ²I−DᵀD≻0 and M(γ)=[Ā, BR⁻¹Bᵀ; −Cᵀ(I+DR⁻¹Dᵀ)C, −Āᵀ] (Ā=A+BR⁻¹DᵀC) has no purely imaginary eigenvalue. No frequency sweep (exact test catches resonances a grid misses); M's spectrum via charPoly→roots (all real, no complex SVD); lower bracket = DC/∞ gains via lower-bound-safe Rayleigh power iteration. Returns Inf for jω-axis/unstable poles. Parity OK vs MATLAB R2025b: 1/(s+1)→1, ±i→Inf, resonance 1/(s²+0.1s+1)→10.012523, static→0.8333, D=0.5→1.5. Closes the original lqr/hinfnorm/dlqr/gram cluster. Discrete deferred (2026-06-19) |
@@ -235,7 +236,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 5
+### 🔴 OPEN — bug (defect on an implemented function) — 6
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -244,6 +245,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
+| [control/zpk-empty-zeros](control/zpk-empty-zeros.md) | P2 | zpk([],poles,k) drops the gain (zp2tf empty-zero numerator) |
 
 ### 🔴 OPEN — stub (option/branch throws "not supported") — 2
 
@@ -258,7 +260,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 25
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 24
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -275,7 +277,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
-| [control/allmargin](control/allmargin.md) | P2 | all gain/phase/delay margins struct |
 | [control/covar](control/covar.md) | P2 | output covariance from white noise |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
 | [comm/syndtable](comm/syndtable.md) | P2 | syndrome decoding table (coset leaders) |

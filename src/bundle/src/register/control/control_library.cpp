@@ -59,6 +59,7 @@ void dcgain_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void margin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void stepinfo_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void hinfnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void allmargin_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 // discretize/discretize.cpp
 void c2d_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void d2c_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -140,6 +141,7 @@ void ControlLibrary::install(Engine &engine)
     reg("analyze", "margin",   &control::detail::margin_reg);
     reg("analyze", "stepinfo", &control::detail::stepinfo_reg);
     reg("analyze", "hinfnorm", &control::detail::hinfnorm_reg);
+    reg("analyze", "allmargin", &control::detail::allmargin_reg);
 
     reg("discretize", "c2d", &control::detail::c2d_reg);
     reg("discretize", "d2c", &control::detail::d2c_reg);
