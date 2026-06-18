@@ -95,7 +95,8 @@ TEST_F(ControlKnownBug, Allmargin)
 }
 
 // bugs/control/zpk-empty-zeros.md — zpk with no finite zeros drops gain k.
-TEST_F(ControlKnownBug, DISABLED_ZpkEmptyZerosGain)
+// FIXED 2026-06-19 (zp2tf empty-zero → num=[k]) — promoted live.
+TEST_F(ControlKnownBug, ZpkEmptyZerosGain)
 {
     eval("[n, d] = tfdata(zpk([], [-1 -2], 2), 'v');");
     EXPECT_NEAR(evalScalar("n(end)"), 2.0, 1e-12);   // numkit: 0 (gain dropped)
