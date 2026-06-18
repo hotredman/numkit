@@ -1,0 +1,10 @@
+{
+  "name": "syndtable",
+  "namespace": "comm",
+  "setup": "",
+  "expr": "H=hammgen(3); T=syndtable(H); r=size(T,1); c=size(T,2); v51=T(5,1); sh=sum(T(:)); H3=[1 0 0 1;0 1 0 1;0 0 1 1]; T3=syndtable(H3); s3=sum(T3(:)); a41=T3(4,1); a44=T3(4,4); a84=T3(8,4);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r", "c", "v51", "sh", "s3", "a41", "a44", "a84"],
+  "comment": "Sig: t = syndtable(H). Coset-leader table for an (n-k) x n parity-check matrix H: row s+1 = the minimum-weight error pattern with syndrome s = bi2de(mod(H*e',2),'left-msb') (row 1 of H is the MSB). Enumerate error patterns by ascending Hamming weight, within a weight by lexicographic bit position; first pattern to reach each syndrome wins (lowest-position tie-break). Fingerprint: (7,4) Hamming -> 8x7 table, bit-1 leader T(5,1)=1, total set bits=7 (all weight-1, perfect code); H3=[1 0 0 1;0 1 0 1;0 0 1 1] (needs weight-2 leaders + ties) -> total set bits=10, s=3 leader [1 0 0 1] (T(4,1)=T(4,4)=1), s=7 leader bit-4 (T(8,4)=1). Verified vs MATLAB R2025b (exact table match incl. weight-2 leaders and tie-breaks). Fixes bugs/comm/syndtable."
+}

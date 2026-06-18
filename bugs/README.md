@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (112 entries):** ✅ 85 fixed · 🔴 27 open = **5 bug** + 2 stub +
-1 missing-output + **18 missing-fn** + 1 perf (the 18 missing-fns are parity
+**Tally (112 entries):** ✅ 86 fixed · 🔴 26 open = **5 bug** + 2 stub +
+1 missing-output + **17 missing-fn** + 1 perf (the 17 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (80)
+### ✅ FIXED (81)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [comm/syndtable](comm/syndtable.md) | P2 | ✅ FIXED: syndtable (syndrome decoding table / coset-leader lookup) was undefined. Returns the 2^(n-k)×n table whose row s+1 is the min-weight error with syndrome s=bi2de(mod(H·eᵀ,2),'left-msb'); enumerate error patterns by ascending Hamming weight, within a weight by lexicographic bit position, first to reach each syndrome wins (lowest-position tie-break = MATLAB's). Parity OK vs MATLAB R2025b (exact full-table match incl. weight-2 leaders + ties): (7,4) Hamming→8×7 all-weight-1; 3×4 code→weight-2 leaders, s=3→[1 0 0 1]; repro 3×6→8×6 (2026-06-19) |
 | missing-fn | [wavelet/upcoef](wavelet/upcoef.md) | P2 | ✅ FIXED: upcoef (single-branch coefficient reconstruction) was undefined. Synthesis cascade: per level interleave zeros ([x0,0,x1,0,…]) + full-conv with Lo_R (or Hi_R on the first level for a detail branch); no idwt trim, so length grows to 2n-1+\|F\|-1. Filters from wavelet_filters; optional L center-trims; N=0 returns X. Parity OK vs MATLAB R2025b: upcoef('a',5,'db1',2)=[2.5 2.5 2.5 2.5], upcoef('d',5,'db1',2)=[2.5 2.5 -2.5 -2.5], upcoef('a',[1 2],'db2',1)=[0.482963 0.836516 1.190074 1.543628 0.448288 -0.258819]. Closes the wenergy/upcoef cluster (2026-06-19) |
 | missing-fn | [wavelet/wenergy](wavelet/wenergy.md) | P2 | ✅ FIXED: wenergy (energy distribution of a wavedec) was undefined. Ea=100·‖cA_N‖²/‖C‖² (approximation), Ed(i)=100·‖cD‖²/‖C‖² per detail; Ea+sum(Ed)=100. Ordering gotcha: C packs details coarsest-first (cD_N…cD_1) but MATLAB's Ed is by level number (Ed(1)=level 1 finest … Ed(N)=coarsest) — reverse of the C walk. Parity OK vs MATLAB R2025b: [1..8] db1 L2→Ea=95.0980392, Ed=[0.98039216,3.92156863]; 1:16 db1 L3→Ea=94.385, Ed=[0.267,1.069,4.278]; sin db2→Ea=34.188. Split from wenergy-upcoef; upcoef still open (2026-06-19) |
 | missing-fn | [control/covar](control/covar.md) | P2 | ✅ FIXED: covar (steady-state output+state covariance under white noise) was undefined. Reuses lyap/dlyap (pullABC): state cov Q solves the gramian Lyapunov eqn with B·W·Bᵀ (continuous→lyap, discrete→dlyap); output cov P=C·Q·Cᵀ (+D·W·Dᵀ discrete; ∞ if continuous & D≠0). W scalar (W·I) or m×m. Returns [P,Q]. Parity OK vs MATLAB R2025b: 1/(s+1) W=1→P=0.5, 2-state→P=1.41667 Q=[0.5 0.3333;0.3333 0.25], linear in W, discrete→9.570351. Closes the control namespace (no OPEN control bugs left) (2026-06-19) |
@@ -263,7 +264,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 22
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 21
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -280,7 +281,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | am/fm/pm/ssb/msk demod |
-| [comm/syndtable](comm/syndtable.md) | P2 | syndrome decoding table (coset leaders) |
 | [math/numerical-integration-nd](math/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |
 | [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/funm](linalg/funm.md) | P2 | general matrix function funm(A,fun) |
