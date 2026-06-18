@@ -55,6 +55,10 @@ struct HeapObject
     // nullptr until first STRUCT allocation; ownership matches structArray.
     std::pmr::vector<std::string> *fieldOrder = nullptr;
     std::string *funcName = nullptr;
+    // For anonymous-function handles only: the reconstructed source text
+    // (e.g. "@(x)x+1") that func2str returns. nullptr for named handles
+    // (which return their bare name) and all non-handle values.
+    std::string *funcSource = nullptr;
 
     // ── OBJECT (class instance / array) — object.hpp / OBJECT_MODEL.md ──
     // objClass: registry key (class name). objStates: per-element instance

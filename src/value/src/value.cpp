@@ -2940,6 +2940,18 @@ std::string Value::funcHandleName() const
         return *heap_->funcName;
     return "";
 }
+std::string Value::funcHandleSource() const
+{
+    if (isHeap() && heap_->funcSource)
+        return *heap_->funcSource;
+    return "";
+}
+void Value::setFuncHandleSource(const std::string &source)
+{
+    if (!isHeap()) return;
+    delete heap_->funcSource;
+    heap_->funcSource = new std::string(source);
+}
 
 const Complex *Value::complexData() const
 {

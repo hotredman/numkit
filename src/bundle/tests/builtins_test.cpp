@@ -1549,6 +1549,22 @@ TEST_P(BuiltinTest, Func2Str)
     EXPECT_EQ(getVarPtr("s")->toString(), "sin");
     eval("h2 = str2func('cos'); s2 = func2str(h2);");
     EXPECT_EQ(getVarPtr("s2")->toString(), "cos");
+
+    // Anonymous handles return their reconstructed source with MATLAB-normalized
+    // whitespace (bugs/runtime/func2str-anonymous). Capture-free forms only —
+    // they are plain handles on both engines.
+    eval("a = func2str(@(x) x + 1);");
+    EXPECT_EQ(getVarPtr("a")->toString(), "@(x)x+1");
+    eval("b = func2str(@(a,b) a.*b + 1);");
+    EXPECT_EQ(getVarPtr("b")->toString(), "@(a,b)a.*b+1");
+    eval("c = func2str(@() 42);");
+    EXPECT_EQ(getVarPtr("c")->toString(), "@()42");
+    // A char literal keeps its interior whitespace; only inter-token space is dropped.
+    eval("d = func2str(@(s) [s, ' world']);");
+    EXPECT_EQ(getVarPtr("d")->toString(), "@(s)[s,' world']");
+    // str2func(func2str(h)) round-trips for anonymous handles.
+    eval("e = func2str(str2func('@(x) x.^2 - 3'));");
+    EXPECT_EQ(getVarPtr("e")->toString(), "@(x)x.^2-3");
 }
 
 // ── shiftdim — Pack 12 ────────────────────────────────────────

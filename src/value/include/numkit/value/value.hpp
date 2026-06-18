@@ -527,6 +527,11 @@ public:
 
     // ── Func handle ──────────────────────────────────────────
     std::string funcHandleName() const;
+    /// Reconstructed source text of an anonymous-function handle (e.g.
+    /// "@(x)x+1"), set at creation; empty for named handles. Used by func2str.
+    std::string funcHandleSource() const;
+    /// Attach the anonymous-function source text to a freshly-created handle.
+    void setFuncHandleSource(const std::string &source);
 
     // ── Debug ────────────────────────────────────────────────
     std::string debugString() const;

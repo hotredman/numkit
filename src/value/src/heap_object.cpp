@@ -17,6 +17,7 @@ HeapObject::~HeapObject()
     delete structArray;
     delete fieldOrder;
     delete funcName;
+    delete funcSource;
     delete objClass;
     // objStates holds shared_ptrs in a vector — released automatically.
 }
@@ -51,6 +52,8 @@ HeapObject *HeapObject::clone() const
         h->fieldOrder = new std::pmr::vector<std::string>(*fieldOrder, cmr);
     if (funcName)
         h->funcName = new std::string(*funcName);
+    if (funcSource)
+        h->funcSource = new std::string(*funcSource);
     // ── OBJECT: the value/handle pivot (OBJECT_MODEL.md §1), per element ──
     if (objClass) {
         h->objClass = new std::string(*objClass);

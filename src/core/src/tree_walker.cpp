@@ -2933,7 +2933,9 @@ Value TreeWalker::execAnonFunc(const ASTNode *node, Environment *env)
                                   engine_.globalsEnv_.get());
 
     engine_.userFuncs_[anonName] = std::move(uf);
-    return Value::funcHandle(anonName, engine_.mr_);
+    Value h = Value::funcHandle(anonName, engine_.mr_);
+    h.setFuncHandleSource(node->strValue);   // reconstructed "@(...)..." for func2str
+    return h;
 }
 
 // ============================================================

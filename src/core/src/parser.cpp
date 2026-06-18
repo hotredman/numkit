@@ -1374,6 +1374,7 @@ ASTNodePtr Parser::parsePrimary()
 ASTNodePtr Parser::parseAnonFunc()
 {
     auto [ln, cl] = loc();
+    const size_t atPos = pos_;   // index of '@' — start of the source span
     consume(TokenType::AT, "@");
 
     // @funcName — хэндл на существующую функцию
@@ -1394,7 +1395,43 @@ ASTNodePtr Parser::parseAnonFunc()
     }
     consume(TokenType::RPAREN, ")");
     n->children.push_back(parseExpression());
+    // Reconstruct the source text from the token span [atPos, pos_) so func2str
+    // can return it (e.g. "@(x)x+1"). Stored in strValue: the @funcName
+    // discriminator (strValue non-empty AND no children) still holds because an
+    // anonymous node always carries a body child.
+    n->strValue = reconstructAnonSource(atPos, pos_);
     return n;
+}
+
+// Reconstruct anonymous-function source from the token stream, MATLAB-style:
+// tokens concatenated with NO separators (insignificant whitespace dropped),
+// char/string literals re-quoted (internal quotes doubled). This reproduces
+// MATLAB's func2str normalization (`@(x) x + 1` -> `@(x)x+1`, while
+// `' world'` keeps its interior space).
+std::string Parser::reconstructAnonSource(size_t from, size_t to) const
+{
+    std::string s;
+    for (size_t i = from; i < to && i < tokens_.size(); ++i) {
+        const Token &t = tokens_[i];
+        switch (t.type) {
+        case TokenType::STRING:           // 'char literal'
+            s += '\'';
+            for (char c : t.value) { if (c == '\'') s += "''"; else s += c; }
+            s += '\'';
+            break;
+        case TokenType::DQSTRING:         // "string literal"
+            s += '"';
+            for (char c : t.value) { if (c == '"') s += "\"\""; else s += c; }
+            s += '"';
+            break;
+        case TokenType::COMMENT:
+        case TokenType::NEWLINE:
+            break;                        // not part of the expression text
+        default:
+            s += t.value;                 // operators / identifiers / numbers verbatim
+        }
+    }
+    return s;
 }
 
 // ============================================================

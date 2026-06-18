@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (108 entries):** ✅ 61 fixed · 🔴 47 open = **10 bug** + 4 stub +
+**Tally (108 entries):** ✅ 62 fixed · 🔴 46 open = **9 bug** + 4 stub +
 2 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -154,6 +154,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
 | perf | [ops/cheap-elementwise-simd-small-n](ops/cheap-elementwise-simd-small-n.md) | P3 | ✅ FIXED: Highway SIMD cheap element-wise (+ - .* ./) ran 0.1-0.3x of scalar at cache-resident N on native MSVC = HWY_DYNAMIC_DISPATCH indirect-call overhead vs MSVC autovec (WASM static dispatch had no crater -> MSVC-specific). Size-gated before dispatch (kSimdInlineThreshold, native 256K / WASM 0): plus 0.10→0.97x, times 0.12→1.54x. Fused affine/abs/sq same gate — but their parallel_for lambda captured [&], escaping out/x and defeating MSVC alias analysis so the gate loop wouldn't vectorize (vec-report 1104); switching to [=] fixed it (0.68→1.0x). big-N + WASM unchanged, suite bit-identical (2026-06-18) |
+| bug | [runtime/func2str-anonymous](runtime/func2str-anonymous.md) | P2 | ✅ FIXED: func2str(@(x)x+1) returned the internal '@__anon_0', not the source. Parser reconstructs the anon source from its token span (no inter-token whitespace, char/string literals re-quoted — matches MATLAB normalization) and stores it on the handle (HeapObject.funcSource, set by both engines); func2str returns it. str2func(func2str(h)) round-trips. Parity OK vs MATLAB R2025b. VM closures that capture vars (cell repr) still throw on func2str — separate pre-existing gap (2026-06-18) |
 | stub | [math/histcounts-autobinning](math/histcounts-autobinning.md) | P2 | ✅ FIXED: automatic binning was a stub (edges required). Ported MATLAB R2025b binpicker/binpickerbl/integerrule + autorule (integer bins for integer data range<=50, else Scott) + scott/fd/sturges/sqrt. histcounts_reg now takes histcounts(x), a scalar 2nd arg as bin COUNT (vs vector edges), and NumBins/BinWidth/BinLimits/BinMethod. histcounts([1 2 2 3 3 3])=[1 2 3]; histcounts(1:10,3)=[3 4 3]. Verified 16/16 fingerprints vs MATLAB directly (parity harness reports N/A for histcounts — pre-existing) (2026-06-18) |
 | bug | [math/interpn-nan](math/interpn-nan.md) | P2 | ✅ FIXED: interpn 1-D grid-vector query interpn(X,V,Xq) returned NaN — the dispatch keyed off args[0], which in Form B is the grid vector X, so it misrouted to interp2. Now the 1-D case (no 2-D+ data arg) with >=3 leading data args delegates to interp1 → 6.5. Parity caught an overreach: interpn(V,scalar) is MATLAB's grid-REFINEMENT form (returns a refined grid, not a query), so only the grid-vector spelling is delegated; refinement + 4+-D stay parity gaps (2026-06-18) |
 | stub | [math/maxmin-complex](math/maxmin-complex.md) | P2 | binary max(A,B)/min(A,B) + clamp accept complex - by modulus then angle(z), NaN-component omitted (omitnan default); no all-real fallback (max(complex(-3,0),1)=-3). Prior VM-dispatch-blocker note was a misdiagnosis: default omitnan routes to maxOmitNanBinary, not max (2026-06-17) |
@@ -216,14 +217,13 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 10
+### 🔴 OPEN — bug (defect on an implemented function) — 9
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/obw-value-outputs](signal/obw-value-outputs.md) | P1 | wrong 99% bandwidth value + missing [bw,flo,fhi,power] |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
-| [runtime/func2str-anonymous](runtime/func2str-anonymous.md) | P2 | anon handle returns '@__anon_N' not the source text |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/cceps-nd-phase](signal/cceps-nd-phase.md) | P1 | non-2ⁿ phase wrong (rcunwrap) + missing `nd` |

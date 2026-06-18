@@ -3379,6 +3379,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
         // No captures — simple func handle
         uint8_t dst = tempReg();
         Value fh = Value::funcHandle(anonName, engine_.resource());
+        fh.setFuncHandleSource(node->strValue);   // reconstructed "@(...)..." for func2str
         int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
         chunk_.constants.push_back(std::move(fh));
         emitAD(OpCode::LOAD_CONST, dst, constIdx);
@@ -3393,6 +3394,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     // funcHandle constant
     uint8_t fhReg = tempReg();
     Value fh = Value::funcHandle(anonName, engine_.resource());
+    fh.setFuncHandleSource(node->strValue);   // reconstructed "@(...)..." for func2str
     int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
     chunk_.constants.push_back(std::move(fh));
     emitAD(OpCode::LOAD_CONST, fhReg, constIdx);
