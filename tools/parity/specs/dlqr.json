@@ -1,0 +1,10 @@
+{
+  "name": "dlqr",
+  "namespace": "control",
+  "setup": "A = [0.9 0.1; 0 0.8]; B = [0; 1]; Q = eye(2); R = 1;",
+  "expr": "[K,S,P] = dlqr(A,B,Q,R); sk = sum(K); k1 = K(1); k2 = K(2); mp = max(abs(P));",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": ["sk", "k1", "k2", "mp"],
+  "comment": "Sig: [K,S,P] = dlqr(A,B,Q[,R]). Discrete LQR — a thin wrapper on dare: K = (R+B'XB)^-1B'XA gain (= dare's G), S = Riccati solution (= dare's X), P = closed-loop poles (= dare's L, |lambda|<1). Fingerprint = sum(K), K(1), K(2), max|pole|. Verified vs MATLAB R2025b: sum(K)=0.71004388, K=[0.211338, 0.498706]. Fixes bugs/control/lqr-hinfnorm (dlqr part)."
+}

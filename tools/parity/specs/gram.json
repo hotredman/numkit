@@ -1,0 +1,10 @@
+{
+  "name": "gram",
+  "namespace": "control",
+  "setup": "sys = ss([-1 0; 0 -2], [1; 1], [1 1], 0);",
+  "expr": "Wc = gram(sys,'c'); Wo = gram(sys,'o'); sc = sum(Wc(:)); so = sum(Wo(:)); w11 = Wc(1,1); w12 = Wc(1,2);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["sc", "so", "w11", "w12"],
+  "comment": "Sig: W = gram(sys, 'c'|'o'). Controllability / observability gramian — a thin wrapper on lyap/dlyap. 'c': A*Wc+Wc*A'+B*B'=0 -> lyap(A, B*B'); 'o': A'*Wo+Wo*A+C'*C=0 -> lyap(A', C'*C); discrete (Ts!=0) routes to dlyap. Fingerprint = sum(Wc), sum(Wo), Wc(1,1), Wc(1,2). Verified vs MATLAB R2025b: Wc=[0.5 0.3333; 0.3333 0.25], sum=1.41667. Fixes bugs/control/lqr-hinfnorm (gram part)."
+}

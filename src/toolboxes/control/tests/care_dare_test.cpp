@@ -97,3 +97,47 @@ TEST_F(CareDareTest, DareSingularAThrows)
 {
     EXPECT_THROW(eval("dare([0 0; 0 0], [0; 1], eye(2), 1);"), std::exception);
 }
+
+// --- lqr / dlqr (wrappers on care / dare) ------------------------------
+
+// lqr returns [K, S, P]: gain, Riccati solution, closed-loop poles.
+TEST_F(CareDareTest, LqrGainSolutionPoles)
+{
+    eval("[K,S,P] = lqr([0 1; 0 0], [0; 1], eye(2), 1);");
+    EXPECT_NEAR(evalScalar("K(1)"), 1.0,              1e-6);
+    EXPECT_NEAR(evalScalar("K(2)"), 1.73205080756888, 1e-6);
+    EXPECT_NEAR(evalScalar("S(1,1)"), 1.73205080756888, 1e-7);   // = care X
+    EXPECT_NEAR(evalScalar("max(real(P))"), -0.86602540378444, 1e-7);
+}
+
+// dlqr returns the discrete LQR gain via the DARE.
+TEST_F(CareDareTest, DlqrGain)
+{
+    eval("K = dlqr([0.9 0.1; 0 0.8], [0; 1], eye(2), 1);");
+    EXPECT_NEAR(evalScalar("sum(K)"), 0.71004388, 1e-6);
+}
+
+// --- gram (controllability / observability gramian) --------------------
+
+// gram(sys,'c') solves A*Wc + Wc*A' + B*B' = 0 via lyap.
+TEST_F(CareDareTest, GramControllability)
+{
+    eval("Wc = gram(ss([-1 0; 0 -2], [1; 1], [1 1], 0), 'c');");
+    EXPECT_NEAR(evalScalar("Wc(1,1)"), 0.5,       1e-9);
+    EXPECT_NEAR(evalScalar("Wc(1,2)"), 1.0/3.0,   1e-9);
+    EXPECT_NEAR(evalScalar("Wc(2,2)"), 0.25,      1e-9);
+    EXPECT_NEAR(evalScalar("sum(Wc(:))"), 1.41666666666667, 1e-9);
+}
+
+// gram(sys,'o') solves A'*Wo + Wo*A + C'*C = 0.
+TEST_F(CareDareTest, GramObservability)
+{
+    eval("Wo = gram(ss([-1 0; 0 -2], [1; 1], [1 1], 0), 'o');");
+    EXPECT_NEAR(evalScalar("sum(Wo(:))"), 1.41666666666667, 1e-9);
+}
+
+// Unknown gramian type throws.
+TEST_F(CareDareTest, GramBadTypeThrows)
+{
+    EXPECT_THROW(eval("gram(ss([-1 0;0 -2],[1;1],[1 1],0), 'x');"), std::exception);
+}

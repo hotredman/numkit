@@ -55,5 +55,37 @@ void dare_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     emit(dare(a[0], a[1], a[2], R, mr), o);
 }
 
+namespace {
+// lqr / dlqr are thin wrappers on care / dare. MATLAB returns [K, S, P]:
+// optimal gain, Riccati solution, closed-loop poles — i.e. care's
+// {G, X, L} re-ordered. (Cross-term N and the lqr(sys,…) form are
+// deferred; the (A,B,Q[,R]) signature covers the common case.)
+void emitLqr(const RiccatiResult &r, Span<Value> o) {
+    if (o.size() >= 1) o[0] = r.G;   // K — optimal gain
+    if (o.size() >= 2) o[1] = r.X;   // S — Riccati solution
+    if (o.size() >= 3) o[2] = r.L;   // P — closed-loop poles
+}
+} // anonymous
+
+void lqr_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.size() < 3)
+        throw Error("lqr: requires (A, B, Q) and optionally R",
+                    0, 0, "lqr", "", "numkit:lqr:nargin");
+    auto *mr = c.engine->resource();
+    Value R = (a.size() >= 4) ? a[3] : eyeVal(a[1].dims().cols(), mr);
+    emitLqr(care(a[0], a[1], a[2], R, mr), o);
+}
+
+void dlqr_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.size() < 3)
+        throw Error("dlqr: requires (A, B, Q) and optionally R",
+                    0, 0, "dlqr", "", "numkit:dlqr:nargin");
+    auto *mr = c.engine->resource();
+    Value R = (a.size() >= 4) ? a[3] : eyeVal(a[1].dims().cols(), mr);
+    emitLqr(dare(a[0], a[1], a[2], R, mr), o);
+}
+
 } // namespace detail
 } // namespace numkit::control

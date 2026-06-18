@@ -20,14 +20,15 @@ public:
 };
 
 // bugs/control/lqr-hinfnorm.md — LQR gain via the CARE.
-TEST_F(ControlKnownBug, DISABLED_Lqr)
+// FIXED 2026-06-19 (wraps care) — promoted live.
+TEST_F(ControlKnownBug, Lqr)
 {
     eval("K = lqr([0 1; 0 0], [0; 1], eye(2), 1);");
     EXPECT_NEAR(evalScalar("K(1)"), 1.000000, 1e-5);
     EXPECT_NEAR(evalScalar("K(2)"), 1.732051, 1e-5);
 }
 
-// bugs/control/lqr-hinfnorm.md — H-infinity norm (Inf for poles on jω axis).
+// bugs/control/hinfnorm.md — H-infinity norm (Inf for poles on jω axis).
 TEST_F(ControlKnownBug, DISABLED_Hinfnorm)
 {
     eval("g = hinfnorm(ss([0 1; -1 0], [0; 1], [1 0], 0));");
@@ -35,14 +36,16 @@ TEST_F(ControlKnownBug, DISABLED_Hinfnorm)
 }
 
 // bugs/control/lqr-hinfnorm.md — dlqr (discrete LQR) missing.
-TEST_F(ControlKnownBug, DISABLED_Dlqr)
+// FIXED 2026-06-19 (wraps dare) — promoted live.
+TEST_F(ControlKnownBug, Dlqr)
 {
     eval("K = dlqr([0.9 0.1; 0 0.8], [0; 1], eye(2), 1);");
     EXPECT_NEAR(evalScalar("sum(K)"), 0.71004388, 1e-5);
 }
 
 // bugs/control/lqr-hinfnorm.md — gram (controllability/observability gramian).
-TEST_F(ControlKnownBug, DISABLED_Gram)
+// FIXED 2026-06-19 (wraps lyap/dlyap) — promoted live.
+TEST_F(ControlKnownBug, Gram)
 {
     eval("W = gram(ss([-1 0; 0 -2], [1; 1], [1 1], 0), 'c');");
     EXPECT_NEAR(evalScalar("sum(W(:))"), 1.4166667, 1e-5);

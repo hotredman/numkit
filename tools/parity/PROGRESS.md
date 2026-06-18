@@ -1313,10 +1313,10 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 
 | function | status | comment |
 |---|:---:|---|
-| `lqr` | ❌ | linear-quadratic regulator |
+| `lqr` | ✅ | Sig: [K,S,P] = lqr(A,B,Q[,R]). Continuous LQR — a thin wrapper on care: K = optimal gain (= care's G = R^-1B'X), S = Riccati solution (= care's X), P = closed-loop poles (= care's L). Fingerprint = K(1), K(2), S(1,1), max real part of poles. Verified vs MATLAB R2025b: K=[1, sqrt(3)], S(1,1)=sqrt(3), poles -0.866+-0.5i. (A,B,Q[,R]) signature only; cross-term N and lqr(sys,...) form deferred. Fixes bugs/control/lqr-hinfnorm (lqr part). |
 | `lqry` | ❌ | LQR with output weighting |
 | `lqi` | ❌ | LQR with integral action |
-| `dlqr` | ❌ | discrete LQR |
+| `dlqr` | ✅ | Sig: [K,S,P] = dlqr(A,B,Q[,R]). Discrete LQR — a thin wrapper on dare: K = (R+B'XB)^-1B'XA gain (= dare's G), S = Riccati solution (= dare's X), P = closed-loop poles (= dare's L, |lambda|<1). Fingerprint = sum(K), K(1), K(2), max|pole|. Verified vs MATLAB R2025b: sum(K)=0.71004388, K=[0.211338, 0.498706]. Fixes bugs/control/lqr-hinfnorm (dlqr part). |
 | `lqrd` | ❌ | continuous LQR with sampled controller |
 | `lqg` | ❌ | linear-quadratic Gaussian |
 | `lqgreg` | ❌ | LQG regulator |
@@ -1328,7 +1328,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `reg` | ❌ | full-state controller + observer |
 | `ctrb` | ✅ | MATLAB ctrb — controllability matrix [B A*B]. A=[1 2;3 4], B=[5;6] -> [5 17; 6 39]. Pins all entries (was numel-only). Bit-equal MATLAB R2025b. |
 | `obsv` | ✅ | MATLAB obsv — observability matrix [C; C*A]. A=[1 2;3 4], C=[5 6] -> [5 6; 23 34]. Pins all entries (was numel-only). Bit-equal MATLAB R2025b. |
-| `gram` | ❌ | controllability/observability gramian |
+| `gram` | ✅ | Sig: W = gram(sys, 'c'|'o'). Controllability / observability gramian — a thin wrapper on lyap/dlyap. 'c': A*Wc+Wc*A'+B*B'=0 -> lyap(A, B*B'); 'o': A'*Wo+Wo*A+C'*C=0 -> lyap(A', C'*C); discrete (Ts!=0) routes to dlyap. Fingerprint = sum(Wc), sum(Wo), Wc(1,1), Wc(1,2). Verified vs MATLAB R2025b: Wc=[0.5 0.3333; 0.3333 0.25], sum=1.41667. Fixes bugs/control/lqr-hinfnorm (gram part). |
 | `ctrbf` | ❌ | controllable-form decomposition |
 | `obsvf` | ❌ | observable-form decomposition |
 
