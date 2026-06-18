@@ -7,6 +7,7 @@
 
 #include <numkit/wavelet/denoise/denoise.hpp>
 #include <numkit/wavelet/dwt/multilevel.hpp>
+#include <numkit/wavelet/dwt/dwt.hpp>     // ddencmp: 1-level dwt noise estimate
 
 // Compute-only TU: Value substrate + Error, no engine. The wthresh /
 // wnoisest / wdenoise builtins (CallContext wrappers) live in
@@ -180,6 +181,47 @@ Value wentropy(const Value &X, const std::string &type, double param,
                     0, 0, "wentropy", "", "numkit:wentropy:type");
     }
     return Value::scalar(e, mr);
+}
+
+DdencmpResult ddencmp(const std::string &opt, const std::string &type,
+                      const Value &x, std::pmr::memory_resource *mr)
+{
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return s;
+    };
+    const std::string o = lower(opt);
+    const std::string t = lower(type);
+
+    if (t == "wp")
+        throw Error("ddencmp: wavelet-packet ('wp') defaults are not yet "
+                    "supported (use 'wv')",
+                    0, 0, "ddencmp", "", "numkit:ddencmp:wp");
+    if (t != "wv")
+        throw Error("ddencmp: type must be 'wv' (wavelet) or 'wp'",
+                    0, 0, "ddencmp", "", "numkit:ddencmp:type");
+
+    // Noise level from the finest-detail coefficients of a 1-level db1 DWT.
+    auto [cA, cD] = dwt(x, "db1", mr);
+    (void)cA;
+    const double med = median_abs(vecFromValue(cD));   // median(|cD1|)
+    const double sigma = med / 0.6745;
+    const double n = static_cast<double>(x.numel());
+
+    DdencmpResult r;
+    if (o == "den") {
+        r.thr = Value::scalar(std::sqrt(2.0 * std::log(n)) * sigma, mr);
+        r.sorh = Value::fromString("s", mr);
+    } else if (o == "cmp") {
+        r.thr = Value::scalar(med, mr);
+        r.sorh = Value::fromString("h", mr);
+    } else {
+        throw Error("ddencmp: option must be 'den' (denoise) or 'cmp' (compress)",
+                    0, 0, "ddencmp", "", "numkit:ddencmp:opt");
+    }
+    r.keepapp = Value::scalar(1.0, mr);
+    return r;
 }
 
 } // namespace numkit::wavelet
