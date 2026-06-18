@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (108 entries):** ✅ 66 fixed · 🔴 42 open = **6 bug** + 4 stub +
+**Tally (109 entries):** ✅ 66 fixed · 🔴 43 open = **7 bug** + 4 stub +
 1 missing-output + **30 missing-fn** + 1 perf (the 30 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -221,11 +221,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 6
+### 🔴 OPEN — bug (defect on an implemented function) — 7
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
+| [signal/periodogram-nonpow2-nfft](signal/periodogram-nonpow2-nfft.md) | P2 | radix-2-only → garbage spectrum for an explicit non-pow2 nfft (route via Bluestein fft) |
 | [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
