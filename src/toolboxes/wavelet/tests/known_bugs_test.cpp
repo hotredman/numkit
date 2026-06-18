@@ -19,13 +19,14 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/wavelet/wentropy-ddencmp.md — wentropy (Shannon).
-TEST_F(WaveletKnownBug, DISABLED_WentropyShannon)
+// bugs/wavelet/wentropy.md — wentropy (Shannon).
+// FIXED 2026-06-19 (closed-form entropy) — promoted live.
+TEST_F(WaveletKnownBug, WentropyShannon)
 {
     EXPECT_NEAR(evalScalar("wentropy([1 2 3 4], 'shannon')"), -69.681618, 1e-4);
 }
 
-// bugs/wavelet/wentropy-ddencmp.md — ddencmp default denoise params.
+// bugs/wavelet/ddencmp.md — ddencmp default denoise params.
 TEST_F(WaveletKnownBug, DISABLED_Ddencmp)
 {
     eval("[thr, sorh, keepapp] = ddencmp('den', 'wv', [1 2 3 8 3 2 1 2]);");

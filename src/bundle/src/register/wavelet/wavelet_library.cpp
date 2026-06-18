@@ -48,6 +48,7 @@ void ihaart_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wrcoef_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // denoise/denoise.cpp
 void wthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wentropy_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wnoisest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wdenoise_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // swt/swt.cpp
@@ -102,6 +103,7 @@ void WaveletLibrary::install(Engine &engine)
     reg("dwt2", "idwt2",    &wavelet::detail::idwt2_reg);
 
     reg("denoise", "wthresh",  &wavelet::detail::wthresh_reg);
+    reg("denoise", "wentropy", &wavelet::detail::wentropy_reg);
     reg("denoise", "wnoisest", &wavelet::detail::wnoisest_reg);
     reg("denoise", "wdenoise", &wavelet::detail::wdenoise_reg);
 

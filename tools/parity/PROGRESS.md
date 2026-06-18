@@ -3611,7 +3611,7 @@ as a pair of flat decomposition / reconstruction functions.
 | `wfbmesti` | ❌ | Hurst exponent estimate |
 | `wfusimg` | ❌ | image fusion |
 | `wfusmat` | ❌ | matrix fusion |
-| `wentropy` | ❌ | wavelet entropy |
+| `wentropy` | ✅ | Sig: E = wentropy(X, T[, P]). Closed-form additive entropy of a coefficient vector: 'shannon' = -sum(s^2*log(s^2)) (zeros contribute 0); 'log energy' = sum(log(s^2)) over nonzero s; 'threshold' = #{|s|>P}; 'sure' = n - 2*#{|s|<=P} + sum(min(s^2,P^2)); 'norm' = sum(|s|^P) (P>=1). Fingerprint on x=[0.5 -0.3 0.8 0 -0.1 0.2]: shannon=1.023719175595, log energy=-12.064573083256, threshold(0.2)=3, sure(0.2)=0.17, norm(1.5)=1.354477406346; shannon([1 2 3 4])=-69.6816181963. Verified vs MATLAB R2025b. Fixes bugs/wavelet/wentropy (split from wentropy-ddencmp; ddencmp still open). |
 
 ## Misc / not in TODO
 

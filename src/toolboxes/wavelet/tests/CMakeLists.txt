@@ -20,6 +20,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/appcoef_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wenergy_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/upcoef_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wentropy_test.cpp
     # ── dwt helpers ─────────────────────────────────────────────
     ${CMAKE_CURRENT_SOURCE_DIR}/dyaddown_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dyadup_test.cpp
