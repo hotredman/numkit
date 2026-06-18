@@ -37,7 +37,17 @@ struct AbstractValue {
 
     // The ArgInfo a transfer function consumes for this value.
     ArgInfo asArg() const { return ArgInfo(type, constant); }
+
+    bool operator==(const AbstractValue &o) const
+    {
+        return type == o.type && constant == o.constant;
+    }
+    bool operator!=(const AbstractValue &o) const { return !(*this == o); }
 };
+
+// Lattice join of two abstract values (type join + constant join) — used
+// at control-flow merge points.
+AbstractValue join(const AbstractValue &a, const AbstractValue &b);
 
 // Variable name -> abstract value. A name not present reads back as
 // Dynamic (an externally-supplied or use-before-def variable is
@@ -49,9 +59,18 @@ public:
     bool          has(const std::string &name) const;
     std::size_t   size() const { return vars_.size(); }
 
+    const std::unordered_map<std::string, AbstractValue> &entries() const { return vars_; }
+    bool operator==(const TypeEnv &o) const { return vars_ == o.vars_; }
+    bool operator!=(const TypeEnv &o) const { return !(*this == o); }
+
 private:
     std::unordered_map<std::string, AbstractValue> vars_;
 };
+
+// Join two environments at a control-flow merge: a variable in both is
+// joined value-wise; a variable in only one path is conservatively
+// Dynamic (it may be undefined on the other path).
+TypeEnv joinEnv(const TypeEnv &a, const TypeEnv &b);
 
 // Infer the abstract value of an expression node. `env` is consulted for
 // identifiers and to disambiguate `x(i)` (indexed read of a variable)

@@ -86,6 +86,8 @@ std::string InferredType::str() const
             os << mtypeName(dtype);
             switch (shape.kind) {
                 case ShapeKind::Scalar:    os << " scalar"; break;
+                case ShapeKind::RowVector: os << " 1x?"; break;
+                case ShapeKind::ColVector: os << " ?x1"; break;
                 case ShapeKind::KnownDims: os << ' ' << shape.rows << 'x' << shape.cols; break;
                 case ShapeKind::Unknown:   os << " [?]"; break;
             }
