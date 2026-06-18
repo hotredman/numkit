@@ -64,7 +64,8 @@ TEST_F(ControlKnownBug, CareDare)
 }
 
 // bugs/control/minreal.md — minimal realization (pole/zero cancellation).
-TEST_F(ControlKnownBug, DISABLED_Minreal)
+// FIXED 2026-06-19 (root cancellation) — promoted live.
+TEST_F(ControlKnownBug, Minreal)
 {
     // (s+1)/(s+1)^2 -> 1/(s+1)
     eval("sysr = minreal(tf([1 1], [1 2 1])); [n, d] = tfdata(sysr, 'v');");

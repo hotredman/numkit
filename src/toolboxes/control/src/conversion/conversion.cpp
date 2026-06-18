@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <vector>
 
 namespace numkit::control {
@@ -302,11 +303,141 @@ ss2tf(const Value &A, const Value &B,
             rowOfDoubles(denOutVec, mr)};
 }
 
+// --- minreal: pole/zero cancellation -----------------------------------
+
+namespace {
+
+bool isKind(const Value &sys, const char *want) {
+    return sys.isStruct() && sys.hasField("kind") &&
+           sys.field("kind").toString() == want;
+}
+
+double sampleTimeOf(const Value &sys) {
+    return (sys.isStruct() && sys.hasField("Ts")) ? sys.field("Ts").toScalar() : 0.0;
+}
+
+std::vector<std::complex<double>>
+rootsComplex(const Value &polyV, std::pmr::memory_resource *mr) {
+    Value r = numkit::math::roots(polyV, mr);
+    const size_t n = r.numel();
+    std::vector<std::complex<double>> out(n);
+    if (r.type() == ValueType::COMPLEX) {
+        const std::complex<double> *s = r.complexData();
+        for (size_t i = 0; i < n; ++i) out[i] = s[i];
+    } else {
+        for (size_t i = 0; i < n; ++i) out[i] = {r.elemAsDouble(i), 0.0};
+    }
+    return out;
+}
+
+// Monic polynomial whose roots are `rts`, expanded as ∏(s − r_i) in complex
+// arithmetic; the real part is returned (conjugate pairs cancel the imaginary
+// part exactly, up to round-off noise).
+std::vector<double> polyFromRoots(const std::vector<std::complex<double>> &rts) {
+    std::vector<std::complex<double>> c{{1.0, 0.0}};
+    for (const auto &r : rts) {
+        std::vector<std::complex<double>> nc(c.size() + 1, {0.0, 0.0});
+        for (size_t i = 0; i < c.size(); ++i) { nc[i] += c[i]; nc[i + 1] -= c[i] * r; }
+        c.swap(nc);
+    }
+    std::vector<double> out(c.size());
+    for (size_t i = 0; i < c.size(); ++i) out[i] = c[i].real();
+    return out;
+}
+
+Value taggedStruct(const char *kind, double Ts, std::pmr::memory_resource *mr) {
+    Value s = Value::structure(mr);
+    s.field("kind") = Value::fromString(kind, mr);
+    s.field("Ts") = Value::scalar(Ts, mr);
+    return s;
+}
+
+// Cancel common roots of (num, den) within relative tolerance; returns the
+// reduced (num, den) as real coefficient rows. Greedy: each pole claims the
+// nearest surviving zero within tol — symmetric, so conjugate pairs cancel
+// together and the rebuilt polynomials stay real.
+std::pair<Value, Value>
+cancelTf(const Value &numV, const Value &denV, double tol,
+         std::pmr::memory_resource *mr) {
+    auto numS = stripLeading(coeffsReal(numV));
+    auto denS = stripLeading(coeffsReal(denV));
+    if (denS.empty())
+        throw Error("minreal: denominator is identically zero",
+                    0, 0, "minreal", "", "numkit:minreal:den");
+    const double numLead = numS.empty() ? 0.0 : numS.front();
+    const double denLead = denS.front();
+
+    auto z = rootsComplex(numV, mr);
+    auto p = rootsComplex(denV, mr);
+
+    std::vector<char> zused(z.size(), 0);
+    std::vector<std::complex<double>> remP, remZ;
+    for (const auto &pj : p) {
+        int best = -1;
+        double bd = std::numeric_limits<double>::max();
+        for (size_t i = 0; i < z.size(); ++i)
+            if (!zused[i]) {
+                const double d = std::abs(z[i] - pj);
+                if (d < bd) { bd = d; best = static_cast<int>(i); }
+            }
+        if (best >= 0 && bd <= tol * std::max(1.0, std::abs(pj))) zused[best] = 1;
+        else remP.push_back(pj);
+    }
+    for (size_t i = 0; i < z.size(); ++i) if (!zused[i]) remZ.push_back(z[i]);
+
+    auto nn = polyFromRoots(remZ);
+    for (auto &c : nn) c *= numLead;
+    auto dd = polyFromRoots(remP);
+    for (auto &c : dd) c *= denLead;
+    return {rowOfDoubles(nn, mr), rowOfDoubles(dd, mr)};
+}
+
+} // anonymous
+
+Value minreal(const Value &sys, double tol, std::pmr::memory_resource *mr) {
+    if (tol <= 0.0) tol = std::sqrt(std::numeric_limits<double>::epsilon());
+
+    if (isKind(sys, "tf")) {
+        auto [n2, d2] = cancelTf(sys.field("num"), sys.field("den"), tol, mr);
+        Value s = taggedStruct("tf", sampleTimeOf(sys), mr);
+        s.field("num") = std::move(n2);
+        s.field("den") = std::move(d2);
+        return s;
+    }
+    if (isKind(sys, "zpk")) {
+        auto [num, den] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
+        auto [n2, d2] = cancelTf(num, den, tol, mr);
+        Value s = taggedStruct("tf", sampleTimeOf(sys), mr);   // returns tf form
+        s.field("num") = std::move(n2);
+        s.field("den") = std::move(d2);
+        return s;
+    }
+    if (isKind(sys, "ss")) {
+        const Value &B = sys.field("B");
+        const Value &C = sys.field("C");
+        if (C.dims().rows() != 1 || B.dims().cols() != 1)
+            throw Error("minreal: only SISO state-space is supported",
+                        0, 0, "minreal", "", "numkit:minreal:mimo");
+        auto [num, den] = ss2tf(sys.field("A"), B, C, sys.field("D"), 1, mr);
+        auto [n2, d2] = cancelTf(num, den, tol, mr);
+        StateSpace r = tf2ss(n2, d2, mr);
+        Value s = taggedStruct("ss", sampleTimeOf(sys), mr);
+        s.field("A") = std::move(r.A);
+        s.field("B") = std::move(r.B);
+        s.field("C") = std::move(r.C);
+        s.field("D") = std::move(r.D);
+        return s;
+    }
+    throw Error("minreal: expected an LTI struct (tf / zpk / ss)",
+                0, 0, "minreal", "", "numkit:minreal:kind");
+}
+
 // No `*_reg` adapters are provided here — every conversion entry
 // point (tf2zp, zp2tf in toolboxes/builtin; tf2ss, ss2tf in toolboxes/signal)
 // is already registered as a builtin. The C++ APIs above are kept
 // public so upcoming control cycles (e.g. step / lsim / feedback)
 // can compose them internally without paying the runtime dispatch
-// tax on the builtin lookup.
+// tax on the builtin lookup. (minreal's CallContext wrapper lives in
+// lti_reg.cpp alongside the other model-level builtins.)
 
 } // namespace numkit::control
