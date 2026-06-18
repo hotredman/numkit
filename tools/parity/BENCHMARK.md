@@ -1673,7 +1673,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imcrop` |  |  |  |  |  |  |  |
 | `imcrop3` |  |  |  |  |  |  |  |
 | `impyramid` |  |  |  |  |  |  |  |
-| `imresize` | 0.04069 | 14.69× |  | 5.497 | 0.37× |  | grayscale double N×N (100×100 / 1000×1000) |
+| `imresize` | 0.2675 | 1.72× |  | 29.95 | 0.08× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imresize3` |  |  |  |  |  |  |  |
 | `imrotate` | 0.1137 | 2.37× |  | 17.71 | 0.38× |  | grayscale double N×N (100×100 / 1000×1000) |
 | `imrotate3` |  |  |  |  |  |  |  |

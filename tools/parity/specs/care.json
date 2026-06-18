@@ -1,0 +1,10 @@
+{
+  "name": "care",
+  "namespace": "control",
+  "setup": "A = [0 1; 0 0]; B = [0; 1]; Q = eye(2);",
+  "expr": "[X,L,G] = care(A,B,Q); t = trace(X); x11 = X(1,1); g2 = G(2); rp = max(real(L)); res = max(abs(reshape(A'*X + X*A - X*B*(B'*X) + Q,[],1)));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["t", "x11", "g2", "rp", "res"],
+  "comment": "Sig: [X,L,G] = care(A,B,Q[,R]). Continuous-time algebraic Riccati equation A'X+XA-XBR^-1B'X+Q=0 via the matrix sign-function of the Hamiltonian H=[A -BR^-1B'; -Q -A'] (Newton iteration to sign(H), stable invariant subspace -> X via least squares; no Schur ordering). Outputs match MATLAB order [X, L=eig(A-BG) closed-loop poles, G=R^-1B'X gain]. Fingerprint = trace(X), X(1,1)=sqrt(3), gain G(2), max real part of poles (-0.866, stable), and the ARE residual (~0 on both engines). X is the unique stabilizing solution so all entries are well-defined. Verified vs MATLAB R2025b: trace=3.46410161513776, X(1,1)=1.73205080756888. Fixes bugs/control/care-dare."
+}

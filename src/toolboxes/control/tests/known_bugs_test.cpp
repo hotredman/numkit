@@ -49,7 +49,8 @@ TEST_F(ControlKnownBug, DISABLED_Gram)
 }
 
 // bugs/control/care-dare.md — continuous/discrete algebraic Riccati solvers.
-TEST_F(ControlKnownBug, DISABLED_CareDare)
+// FIXED 2026-06-18 (matrix sign-function method) — promoted live.
+TEST_F(ControlKnownBug, CareDare)
 {
     eval("X = care([0 1; 0 0], [0; 1], eye(2));");
     EXPECT_NEAR(evalScalar("trace(X)"), 3.46410161513776, 1e-8);

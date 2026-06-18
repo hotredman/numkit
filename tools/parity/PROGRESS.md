@@ -1342,8 +1342,8 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `lyapchol` | ❌ | factored continuous Lyapunov |
 | `dlyap` | ✅ | Sig: r = dlyap(...). Spec-extension batch 2026-05-09. |
 | `dlyapchol` | ❌ | factored discrete Lyapunov |
-| `care` | ❌ | continuous algebraic Riccati |
-| `dare` | ❌ | discrete algebraic Riccati |
+| `care` | ✅ | Sig: [X,L,G] = care(A,B,Q[,R]). Continuous-time algebraic Riccati equation A'X+XA-XBR^-1B'X+Q=0 via the matrix sign-function of the Hamiltonian H=[A -BR^-1B'; -Q -A'] (Newton iteration to sign(H), stable invariant subspace -> X via least squares; no Schur ordering). Outputs match MATLAB order [X, L=eig(A-BG) closed-loop poles, G=R^-1B'X gain]. Fingerprint = trace(X), X(1,1)=sqrt(3), gain G(2), max real part of poles (-0.866, stable), and the ARE residual (~0 on both engines). X is the unique stabilizing solution so all entries are well-defined. Verified vs MATLAB R2025b: trace=3.46410161513776, X(1,1)=1.73205080756888. Fixes bugs/control/care-dare. |
+| `dare` | ✅ | Sig: [X,L,G] = dare(A,B,Q[,R]). Discrete-time algebraic Riccati equation A'XA-X-A'XB(R+B'XB)^-1B'XA+Q=0. No Hamiltonian exists, so we build the symplectic matrix and apply a Cayley transform C=(S-I)(S+I)^-1 (maps the unit disk to the left half-plane) and reuse the same matrix sign-function machinery as care. Requires A nonsingular (explicit symplectic form needs A^-1; singular-A pencil path would need QZ). Outputs match MATLAB order [X, L=eig(A-BG) (|lambda|<1), G=(R+B'XB)^-1B'XA gain]. Fingerprint = trace(X), X(1,1), gain G(1), max|pole| (0.4221, inside unit circle), ARE residual (~0). Verified vs MATLAB R2025b: trace=7.56025722770319, X(1,1)=2.94712296779058. Fixes bugs/control/care-dare. |
 | `gcare` | ❌ | generalised continuous Riccati |
 | `gdare` | ❌ | generalised discrete Riccati |
 

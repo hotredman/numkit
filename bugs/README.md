@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (109 entries):** ✅ 75 fixed · 🔴 34 open = **5 bug** + 2 stub +
-1 missing-output + **25 missing-fn** + 1 perf (the 25 missing-fns are parity
+**Tally (109 entries):** ✅ 76 fixed · 🔴 33 open = **5 bug** + 2 stub +
+1 missing-output + **24 missing-fn** + 1 perf (the 24 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (70)
+### ✅ FIXED (71)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [control/care-dare](control/care-dare.md) | P2 | ✅ FIXED: continuous/discrete algebraic Riccati solvers care/dare were undefined. Implemented by the matrix sign-function method (no Schur ordering — only inv + a small LS solve on toolboxes/control's own LU kernel). care: Hamiltonian H=[A -BR⁻¹Bᵀ; -Q -Aᵀ] → scaled Newton Z←½(cZ+(cZ)⁻¹) to sign(H) → stable subspace W1=[Z12;Z22+I], W2=-[Z11+I;Z21], X=W1\W2, symmetrize. dare: no Hamiltonian → build symplectic matrix + Cayley transform C=(S-I)(S+I)⁻¹ (unit disk→LHP), reuse the same sign machinery; needs A nonsingular (singular-A QZ path deferred, throws). Outputs match MATLAB [X, L=eig(A-BG) poles, G gain]; R defaults to I. Parity OK vs MATLAB R2025b: care X(1,1)=√3, trace=3.46410161513776, poles -0.866±0.5i, residual ~4e-16; dare X(1,1)=2.94712296779058, trace=7.56025722770319, \|poles\|=0.4221. Lets lqr/dlqr become thin wrappers (still open) (2026-06-19) |
 | stub | [linalg/schur-nonsymmetric](linalg/schur-nonsymmetric.md) | P2 | ✅ FIXED: schur(A) threw on non-symmetric A. Implemented the real Schur form — Hessenberg reduction + Francis double-shift QR (francisSchur, bulge-chase + deflation, U accumulation) + dlanv2 2×2 block standardization (real eig → triangular, complex pair → 2×2 block). schur_reg dispatches symmetric→Jacobi / general→Francis. Parity OK vs MATLAB R2025b on the invariants (A=U·T·U', U orthogonal, eigenvalues, triangular-for-real): [1 2;3 4] diag [-0.372 5.372], [1 2 3;4 5 6;7 8 10] eig [-0.906 0.198 16.708], 4×4 complex-pair recon ~1e-14. Unblocks care/dare + complex-eig (2026-06-18) |
 | bug | [image/imresize-interp](image/imresize-interp.md) | P2 | ✅ FIXED: imresize bilinear/bicubic diverged from MATLAB (wrong corners/grid on upscale, no antialias on downscale). Rewrote the 2-D interp to MATLAB's separable algorithm: pixel-centre map u=o/scale+0.5(1-1/scale), mirror boundary (folded taps sum; clamp gave 0.789 vs MATLAB 0.71875), antialias kernel stretched by 1/scale on shrink; default method now bicubic (reg defaulted to bilinear). Parity OK vs MATLAB R2025b: bilinear x2, bicubic x2 (1,1)=0.71875, downscale [1..6]->[1 3]=[1.44922 3.5 5.55078]. nearest unchanged. Reused the (correct) imresize3 machinery's approach (2026-06-18) |
 | stub | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | ✅ FIXED: smoothdata sgolay/lowess/loess methods threw. Implemented inline in stats (no cross-dep on signal): sgolay = degree-2 Savitzky-Golay (B=A(A'A)^-1A'); lowess/loess = tricube-weighted local linear/quadratic regression (F-nearest window, fit at query point). Explicit-window matches MATLAB R2025b exactly (sgolay w5/w7, lowess/loess w5/w7); loess interior-identity explained (3-pt quad interpolates). Auto default window approximate (MATLAB's is data-dependent — same caveat as the existing movmean default) (2026-06-18) |
@@ -271,7 +272,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [control/lqr-hinfnorm](control/lqr-hinfnorm.md) | P2 | lqr/hinfnorm/dlqr/gram |
-| [control/care-dare](control/care-dare.md) | P2 | algebraic Riccati solvers (care/dare) |
 | [control/minreal](control/minreal.md) | P2 | minimal realization (pole/zero cancellation) |
 | [control/initial](control/initial.md) | P2 | initial-condition response |
 | [control/allmargin](control/allmargin.md) | P2 | all gain/phase/delay margins struct |
