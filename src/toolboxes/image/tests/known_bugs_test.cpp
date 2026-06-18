@@ -43,13 +43,22 @@ TEST_F(ImageKnownBug, DISABLED_ImfindcirclesExists)
               static_cast<int>(evalScalar("numel(r)")));   // one center per radius
 }
 
-// bugs/image/imresize-interp.md — bilinear/bicubic grid + boundary + antialias.
-TEST_F(ImageKnownBug, DISABLED_ImresizeBilinear)
+// bugs/image/imresize-interp.md — bilinear/bicubic grid + boundary + antialias (FIXED).
+TEST_F(ImageKnownBug, ImresizeBilinear)
 {
+    // bilinear upscale x2 — pixel-centre map + mirror boundary (was 0.5625, ...).
     eval("r = imresize([1 2; 3 4], 2, 'bilinear');");
-    EXPECT_NEAR(evalScalar("r(1,1)"), 1.0,  1e-4);   // numkit 0.5625
-    EXPECT_NEAR(evalScalar("r(1,2)"), 1.25, 1e-4);   // numkit 0.9375
-    EXPECT_NEAR(evalScalar("r(4,4)"), 4.0,  1e-4);   // numkit 2.25
+    EXPECT_NEAR(evalScalar("r(1,1)"), 1.0,  1e-9);
+    EXPECT_NEAR(evalScalar("r(1,2)"), 1.25, 1e-9);
+    EXPECT_NEAR(evalScalar("r(4,4)"), 4.0,  1e-9);
+    // bicubic upscale x2 (was 0.5625).
+    eval("c = imresize([1 2; 3 4], 2, 'bicubic');");
+    EXPECT_NEAR(evalScalar("c(1,1)"), 0.71875, 1e-7);
+    // downscale with the default method (bicubic) + antialiasing.
+    eval("d = imresize([1 2 3 4 5 6], [1 3]);");
+    EXPECT_NEAR(evalScalar("d(1)"), 1.44922, 1e-4);
+    EXPECT_NEAR(evalScalar("d(2)"), 3.5,     1e-9);
+    EXPECT_NEAR(evalScalar("d(3)"), 5.55078, 1e-4);
 }
 
 // bugs/image/corner.md — corner-point detection (cornermetric exists, corner doesn't).

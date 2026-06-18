@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (109 entries):** ✅ 73 fixed · 🔴 36 open = **6 bug** + 3 stub +
+**Tally (109 entries):** ✅ 74 fixed · 🔴 35 open = **5 bug** + 3 stub +
 1 missing-output + **25 missing-fn** + 1 perf (the 25 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (68)
+### ✅ FIXED (69)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [image/imresize-interp](image/imresize-interp.md) | P2 | ✅ FIXED: imresize bilinear/bicubic diverged from MATLAB (wrong corners/grid on upscale, no antialias on downscale). Rewrote the 2-D interp to MATLAB's separable algorithm: pixel-centre map u=o/scale+0.5(1-1/scale), mirror boundary (folded taps sum; clamp gave 0.789 vs MATLAB 0.71875), antialias kernel stretched by 1/scale on shrink; default method now bicubic (reg defaulted to bilinear). Parity OK vs MATLAB R2025b: bilinear x2, bicubic x2 (1,1)=0.71875, downscale [1..6]->[1 3]=[1.44922 3.5 5.55078]. nearest unchanged. Reused the (correct) imresize3 machinery's approach (2026-06-18) |
 | stub | [stats/smoothdata-methods](stats/smoothdata-methods.md) | P2 | ✅ FIXED: smoothdata sgolay/lowess/loess methods threw. Implemented inline in stats (no cross-dep on signal): sgolay = degree-2 Savitzky-Golay (B=A(A'A)^-1A'); lowess/loess = tricube-weighted local linear/quadratic regression (F-nearest window, fit at query point). Explicit-window matches MATLAB R2025b exactly (sgolay w5/w7, lowess/loess w5/w7); loess interior-identity explained (3-pt quad interpolates). Auto default window approximate (MATLAB's is data-dependent — same caveat as the existing movmean default) (2026-06-18) |
 | missing-fn | [signal/pmusic-peig](signal/pmusic-peig.md) | P2 | ✅ FIXED (peak-freq parity): pmusic (MUSIC) + peig pseudospectra were undefined. R=X'X (order 2p via corrmtx) -> Jacobi eig -> noise subspace (smallest p) -> P(w)=1/sum\|e'vk\|^2 (pmusic) / weighted 1/lambda_k (peig). Validated by PEAK FREQUENCIES (the estimator's purpose); absolute pseudospectrum NOT bit-matched (peaks are 1/near-zero, eigendecomposition-sensitive, scale-arbitrary). Parity OK vs MATLAB R2025b: 2-tone -> peaks at 0.6381, 1.5708 rad for both (2026-06-18) |
 | missing-fn | [signal/stmcb](signal/stmcb.md) | P2 | ✅ FIXED: Steiglitz-McBride IIR identification stmcb(h,nb,na,niter) was undefined. Init A via prony, then niter (default 5) iterations: prefilter unit impulse + h by 1/A, solve the Toeplitz LS [E\|-G][b;a]~g (normal equations). Parity OK vs MATLAB R2025b: stmcb([1 .5 .25 .125 .0625],1,1)=a[1 -0.5]; 2nd-order B/A recovered exactly. Two-signal form stmcb(y,x,...) + explicit ai init rejected (deferred) (2026-06-18) |
@@ -228,12 +229,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 6
+### 🔴 OPEN — bug (defect on an implemented function) — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
-| [image/imresize-interp](image/imresize-interp.md) | P2 | bilinear/bicubic diverge (grid + boundary + antialias) — deferred-G |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
