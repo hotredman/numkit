@@ -55,6 +55,39 @@ Value colVec(const std::vector<double> &v, std::pmr::memory_resource *mr)
     return out;
 }
 
+// Solve the n×n system A·x = b in place (row-major A, Gaussian elimination with
+// partial pivoting). Returns false on a near-singular pivot; on success the
+// solution overwrites b. Used for the per-lag OLS normal equations in parcorr.
+bool solveDense(std::vector<double> &A, std::vector<double> &b, size_t n)
+{
+    for (size_t col = 0; col < n; ++col) {
+        size_t piv = col;
+        double best = std::abs(A[col * n + col]);
+        for (size_t r = col + 1; r < n; ++r) {
+            const double v = std::abs(A[r * n + col]);
+            if (v > best) { best = v; piv = r; }
+        }
+        if (best < 1e-294) return false;
+        if (piv != col) {
+            for (size_t c = 0; c < n; ++c) std::swap(A[col * n + c], A[piv * n + c]);
+            std::swap(b[col], b[piv]);
+        }
+        const double d = A[col * n + col];
+        for (size_t r = col + 1; r < n; ++r) {
+            const double f = A[r * n + col] / d;
+            if (f == 0.0) continue;
+            for (size_t c = col; c < n; ++c) A[r * n + c] -= f * A[col * n + c];
+            b[r] -= f * b[col];
+        }
+    }
+    for (size_t i = n; i-- > 0;) {
+        double s = b[i];
+        for (size_t c = i + 1; c < n; ++c) s -= A[i * n + c] * b[c];
+        b[i] = s / A[i * n + i];
+    }
+    return true;
+}
+
 } // namespace
 
 std::tuple<Value, Value, Value>
@@ -115,6 +148,45 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
     const double b = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
     std::vector<double> bounds = { b, -b };
     return std::make_tuple(colVec(xcf, mr), colVec(lags, mr), colVec(bounds, mr));
+}
+
+std::tuple<Value, Value, Value>
+parcorr(const Value &y, int numLags, double numSTD, std::pmr::memory_resource *mr)
+{
+    const size_t N = y.numel();
+    const size_t K = (numLags >= 0) ? static_cast<size_t>(numLags) : defaultNumLags(N);
+
+    std::vector<double> yv(N);
+    for (size_t i = 0; i < N; ++i) yv[i] = y.elemAsDouble(i);
+
+    std::vector<double> pacf(K + 1, 0.0), lags(K + 1, 0.0);
+    pacf[0] = 1.0;   // lag 0
+    // MATLAB's default parcorr Method is OLS: for each lag k fit the AR(k)
+    // model y_t = c + Σ_{j=1..k} φ_j·y_{t-j} on observations t = k+1..N and take
+    // PACF(k) = φ_k (the deepest-lag coefficient). Normal equations reproduce
+    // MATLAB's QR to full precision on well-conditioned lags (N-k ≥ k+1);
+    // deeper, rank-deficient lags are unstable in both engines.
+    std::vector<double> xr;   // predictor row, reused
+    for (size_t k = 1; k <= K; ++k) {
+        lags[k] = static_cast<double>(k);
+        if (N <= k) continue;                 // no observations → leave 0
+        const size_t p = k + 1;               // intercept + k lags
+        std::vector<double> A(p * p, 0.0), bb(p, 0.0);
+        xr.assign(p, 0.0);
+        for (size_t t = k; t < N; ++t) {
+            xr[0] = 1.0;
+            for (size_t j = 1; j <= k; ++j) xr[j] = yv[t - j];
+            for (size_t r = 0; r < p; ++r) {
+                bb[r] += xr[r] * yv[t];
+                for (size_t c = 0; c < p; ++c) A[r * p + c] += xr[r] * xr[c];
+            }
+        }
+        if (solveDense(A, bb, p)) pacf[k] = bb[p - 1];   // φ_k; else leave 0
+    }
+
+    const double bnd = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
+    std::vector<double> bounds = { bnd, -bnd };
+    return std::make_tuple(colVec(pacf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 
 } // namespace numkit::stats

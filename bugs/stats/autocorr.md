@@ -1,6 +1,6 @@
 # stats.autocorr / parcorr / crosscorr — Econometrics correlation fns missing
 
-- **Status:** 🔴 OPEN (parcorr only) — `autocorr` + `crosscorr` ✅ FIXED (2026-06-18)
+- **Status:** ✅ FIXED (2026-06-18) — autocorr + crosscorr + parcorr all implemented
 - **Severity:** P2 (missing functions)
 - **Kind:** missing-fn
 - **Found:** 2026-06-04 via missing-fn sweep
@@ -44,16 +44,23 @@ bounds=±0.666667; `crosscorr([1 2 3 4],[4 3 2 1],'NumLags',2)` =
 `[0.3 −0.25 −1 −0.25 0.3]`. Guards: `sample_corr_test.cpp`; smoke
 `sample_corr_smoke.m`.
 
-## Still open — parcorr
-`parcorr` is NOT implemented. **MATLAB's default `parcorr` Method is `OLS`**
-(regress `y_t` on its lags; the last coefficient is the PACF), NOT the
-Durbin-Levinson recursion on the ACF — probed 2026-06-18:
-`parcorr(y,'Method','yule-walker')` equals Durbin-Levinson exactly, but the
-DEFAULT differs (and can exceed 1, e.g. PACF=1.0008, since OLS is unconstrained;
-on degenerate inputs MATLAB itself warns "rank deficient"). Matching the default
-needs a rank-robust least-squares (QR) lag regression per lag — deferred to its
-own change. The Durbin-Levinson path (matches the `yule-walker` option) is the
-easy fallback if only that's needed.
+## Fix (2026-06-18) — parcorr
+Implemented `numkit::stats::parcorr` in the same file. **Matches MATLAB's default
+`parcorr` Method (OLS), NOT Durbin-Levinson**: for each lag `k` it fits the AR(k)
+model `y_t = c + Σ_{j=1..k} φ_j·y_{t-j}` by least squares on `t = k+1..N` and
+returns `PACF(k) = φ_k` (lag-0 = 1; bounds `±NumSTD/√N`). Solved via the normal
+equations + a small Gaussian-elimination solver — reproduces MATLAB's QR to full
+precision on **well-conditioned** lags (`N-k ≥ k+1`). Deeper, rank-deficient lags
+are numerically unstable in both engines (MATLAB warns "rank deficient"); numkit
+leaves a near-singular lag at 0 rather than emitting QR-implementation-specific
+noise — these lags aren't statistically meaningful anyway.
+
+Verified vs MATLAB R2025b (parity `parcorr.json` → OK) on a well-conditioned
+N=16 series: `pacf = [1, 0.55, 0.241249, 1.000776, 0.442451, 0.677598]` (note
+PACF can exceed 1 under OLS), `bounds = ±0.5`. Guard:
+`sample_corr_test.cpp` (`ParcorrOLS`); smoke `sample_corr_smoke.m`.
+(MATLAB's `'Method','yule-walker'` option — Durbin-Levinson on the ACF — is a
+separate spelling not wired here; the default OLS is what `parcorr(y)` uses.)
 
 ## References
 - `src/toolboxes/stats/src/descriptive/sample_corr.cpp`,

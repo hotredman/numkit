@@ -648,6 +648,25 @@ std::tuple<Value, Value, Value>
 crosscorr(const Value &y1, const Value &y2, int numLags = -1, double numSTD = 2.0,
           std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Sample partial autocorrelation function (`[pacf, lags, bounds] = parcorr(y)`).
+///
+/// Matches MATLAB's default `parcorr` Method (**OLS**): for each lag `k`, fits
+/// the AR(k) model `y_t = c + Σ_{j=1..k} φ_j·y_{t-j}` by least squares on
+/// observations `t = k+1..N` and returns `PACF(k) = φ_k` (lag-0 = 1). Confidence
+/// bounds are `±numSTD/√N`. Solved via the normal equations — reproduces
+/// MATLAB's QR to full precision on well-conditioned lags (`N-k ≥ k+1`); deeper
+/// rank-deficient lags are numerically unstable in both engines.
+///
+/// @param y        Real 1-D series.
+/// @param numLags  Number of lags; `< 0` → MATLAB default `min(20, N-1)`.
+/// @param numSTD   Bound width in standard errors (default `2`).
+/// @param mr       Memory resource (nullptr → process default).
+/// @return         `(pacf, lags, bounds)` column vectors (`numLags+1` entries).
+/// @see autocorr, crosscorr
+std::tuple<Value, Value, Value>
+parcorr(const Value &y, int numLags = -1, double numSTD = 2.0,
+        std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Correlation matrix from covariance (`[R, sigma] = corrcov(C)`).
 ///
 /// `R(i, j) = C(i, j) / sqrt(C(i, i) · C(j, j))`;

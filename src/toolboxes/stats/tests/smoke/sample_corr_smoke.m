@@ -15,3 +15,9 @@ fprintf('crosscorr: numel=%d   (expect 5)\n', numel(xcf));
 fprintf('  lags = %g..%g\n', xl(1), xl(end));
 fprintf('  xcf  = %.4f %.4f %.4f %.4f %.4f   (expect 0.30 -0.25 -1.00 -0.25 0.30)\n', ...
         xcf(1), xcf(2), xcf(3), xcf(4), xcf(5));
+
+% parcorr — sample PACF via OLS (MATLAB's default Method); lag-0 = 1.
+pacf = parcorr([4 3 5 6 4 5 7 6 5 8 7 6 9 8 7 10]', 'NumLags', 5);
+fprintf('parcorr: numel=%d   (expect 6)\n', numel(pacf));
+fprintf('  pacf = %.4f %.4f %.4f %.4f %.4f %.4f\n', pacf(1),pacf(2),pacf(3),pacf(4),pacf(5),pacf(6));
+fprintf('  expect: 1.0000 0.5500 0.2412 1.0008 0.4425 0.6776\n');
