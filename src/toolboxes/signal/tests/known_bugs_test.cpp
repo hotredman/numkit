@@ -63,12 +63,13 @@ TEST_F(SignalKnownBug, DISABLED_InstfreqTracksChirp)
 // NOTE: dct/idct Type 1/3/4 FIXED — live tests in
 // toolboxes/signal/tests/dct_types_test.cpp.
 
-// bugs/signal/cceps-nd-phase.md — non-2^n phase + 2nd output nd.
-TEST_F(SignalKnownBug, DISABLED_CcepsPhaseAndNd)
+// bugs/signal/cceps-nd-phase.md — non-2^n phase + 2nd output nd (FIXED; live guard).
+TEST_F(SignalKnownBug, CcepsPhaseAndNd)
 {
     eval("[xh, nd] = cceps([1 2 3 4 3 2 1]);");
-    EXPECT_NEAR(evalScalar("xh(2)"), 0.523560, 1e-5);   // numkit currently 3.6689
+    EXPECT_NEAR(evalScalar("xh(2)"), 0.523560, 1e-5);
     EXPECT_NEAR(evalScalar("xh(7)"), 1.222516, 1e-5);
+    EXPECT_DOUBLE_EQ(evalScalar("nd"), -3.0);
 }
 
 // bugs/signal/risetime-falltime-outputs.md — [R,LT,UT] multi-output.

@@ -98,12 +98,16 @@ void rceps_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     outs[0] = rceps(args[0], mr);
 }
 
-void cceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void cceps_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("cceps: requires x",
                      0, 0, "cceps", "", "numkit:cceps:nargin");
-    outs[0] = cceps(args[0], ctx.engine->resource());
+    auto *mr = ctx.engine->resource();
+    double nd = 0.0;
+    outs[0] = cceps(args[0], mr, &nd);
+    if (nargout >= 2)   // [xhat, nd] = cceps(x): samples of (circular) delay removed
+        outs[1] = Value::scalar(nd, mr);
 }
 
 void icceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
