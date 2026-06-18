@@ -48,7 +48,7 @@ Presets: `bench` (scalar), `bench-simd` (Highway SIMD), `bench-clang`,
 run both, and `simd/compare_simd.py` diffs the two JSON outputs into a speedup
 table.
 
-## 2. M-script benches — `benchmarks/m/`
+## 2. M-script benches — `benchmarks/mscripts/`
 
 Hand-run `.m` scripts that measure performance from the language side
 (interpreter throughput and library functions), not individual C++ kernels:
@@ -63,7 +63,7 @@ Hand-run `.m` scripts that measure performance from the language side
 Run with the smoke runner (each starts with `clear`):
 
 ```sh
-build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/m/benchmark_interp.m
+build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/mscripts/benchmark_interp.m
 ```
 
 These use `import compat.*` and so are numkit-only.
