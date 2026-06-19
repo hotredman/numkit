@@ -24,8 +24,9 @@
 namespace numkit::codegen {
 
 struct ClassField {
-    std::string  name;
-    InferredType type;  // inferred from the property's default expression
+    std::string    name;
+    InferredType   type;                  // inferred from the default expression
+    const ASTNode *defaultExpr = nullptr;  // the property's default value expression
 };
 
 struct ClassInfo {

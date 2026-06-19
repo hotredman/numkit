@@ -362,6 +362,27 @@ TEST(EmitterFn, TypedButUnloweredBuiltinThrows)
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }
 
+// ── class brick 5a: struct emission ───────────────────────────────────
+TEST(EmitterFn, ClassStructEmission)
+{
+    const char *src = "classdef Point\n  properties\n    x = 0\n    y = 5\n  end\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser p(lex.tokenize());
+    auto           root = p.parse();
+    const numkit::ASTNode *cd = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::CLASSDEF_DEF) cd = c.get();
+    ASSERT_NE(cd, nullptr);
+
+    const auto reg = stdReg();
+    const ClassInfo ci = buildClassInfo(*cd, 0, reg);
+    const std::string s = emitClassStruct(ci);
+
+    EXPECT_TRUE(contains(s, "struct Point {"));
+    EXPECT_TRUE(contains(s, "double x = 0.0;"));
+    EXPECT_TRUE(contains(s, "double y = 5.0;"));  // the actual default, not zero
+}
+
 // ── engine 1b: interprocedural call emission ──────────────────────────
 TEST(EmitterFn, InterproceduralProgram)
 {
