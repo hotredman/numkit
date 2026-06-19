@@ -147,6 +147,10 @@ void polyval_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void trapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // fzero / fminbnd / fminsearch moved to toolboxes/optim (see OptimLibrary::install)
 void integral_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void integral2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void integral3_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void quadgk_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void quad2d_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void gk15_nodes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void roots_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -915,6 +919,12 @@ void BuiltinLibrary::install(Engine &engine)
     // VM_CALLBACKS_PLAN.md); __gk15_nodes is its C++ node/weight primitive.
     engine.registerFunction("__gk15_nodes", &builtin::detail::gk15_nodes_reg);
     builtin::registerIntegralM(engine);
+    // integral2 / integral3 nest the C++ adaptive integral (synchronous API);
+    // quadgk = the 1-D integral, quad2d = the older name for integral2.
+    engine.registerFunction("integral2", &builtin::detail::integral2_reg);
+    engine.registerFunction("integral3", &builtin::detail::integral3_reg);
+    engine.registerFunction("quadgk",    &builtin::detail::quadgk_reg);
+    engine.registerFunction("quad2d",    &builtin::detail::quad2d_reg);
     engine.registerFunction("roots",     &builtin::detail::roots_reg);
     engine.registerFunction("polyder",   &builtin::detail::polyder_reg);
     engine.registerFunction("polyint",   &builtin::detail::polyint_reg);

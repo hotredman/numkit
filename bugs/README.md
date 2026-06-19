@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (114 entries):** ✅ 89 fixed · 🔴 25 open = **5 bug** + 2 stub +
-1 missing-output + **16 missing-fn** + 1 perf (the 16 missing-fns are parity
+**Tally (114 entries):** ✅ 90 fixed · 🔴 24 open = **5 bug** + 2 stub +
+1 missing-output + **15 missing-fn** + 1 perf (the 15 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (84)
+### ✅ FIXED (85)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [math/numerical-integration-nd](math/numerical-integration-nd.md) | P2 | ✅ FIXED: quadgk/integral2/integral3/quad2d were undefined. Built on numkit's 1-D adaptive Gauss-Kronrod integral: integral2(fn,a,b,c,d) = iterated quadrature (outer x-sweep, inner y-sweep of fn(x,·)) by composing FnHandles in the math layer (inner 1-arg callback wraps the user's 2-arg fn with captured x); integral3 triple-nests; quadgk = the 1-D integral; quad2d = older name for integral2. 'AbsTol' accepted; works on both backends. Parity OK vs MATLAB R2025b: integral2(x·y)=0.25, integral2(exp(x·y))=1.317902151454, integral3(x+y+z)=1.5, quadgk(exp(−x²))=0.746824132812427 (2026-06-19) |
 | bug | [signal/hilbert-nonpow2](signal/hilbert-nonpow2.md) | P1 | ✅ FIXED: hilbert(x) returned a wrong analytic signal for non-power-of-2 lengths (constant envelope lost, \|z\|≈0.75 instead of 1) — hilbertBuf padded to nextPow2(N), transformed the padded length, then sliced N. Root: zero-padding changes the spectrum so the doubled-positive-freq mask + ifft operate on the wrong-length DFT (pow2 N unaffected → hid behind pow2 test inputs). Fix: transform at length N — pow2 keeps the fftRadix2 fast path, non-pow2 routes through the general fft/ifft (Bluestein); mask handles even/odd parity. Parity OK vs MATLAB R2025b: hilbert([1:6]') imag=[2.3094,-1.1547,…], L=100 tone \|hilbert\|=1, ramp \|z(1)\|=128.524726. Also fixes envelope/ssbmod/instfreq/vibration for non-pow2 + unblocks pmdemod/fmdemod. Full suite 12294 pass / 0 fail (2026-06-19) |
 | missing-fn | [wavelet/ddencmp](wavelet/ddencmp.md) | P2 | ✅ FIXED: ddencmp (default denoise/compress params) was undefined. Noise estimate from finest-detail of a 1-level db1 dwt: σ̂=median(\|cD1\|)/0.6745. 'den': thr=sqrt(2·log(n))·σ̂ (universal), sorh='s'; 'cmp': thr=median(\|cD1\|), sorh='h'; keepapp=1. numkit dwt('db1') matches MATLAB's finest detail bit-for-bit (incl. odd-length) so thresholds match exactly. Parity OK vs MATLAB R2025b: den/wv [1 2 3 8 3 2 1 2]→2.137919772574, cmp→0.707106781187, den [1..5]→1.880854323469. 'wp' deferred. Closes the wentropy/ddencmp cluster (2026-06-19) |
 | missing-fn | [wavelet/wentropy](wavelet/wentropy.md) | P2 | ✅ FIXED: wentropy (coefficient entropy "cost") was undefined. Closed-form additive entropy: 'shannon'=-Σs²·log(s²) (zeros→0), 'log energy'=Σlog(s²) nonzero, 'threshold'(P)=#{\|s\|>P}, 'sure'(P)=n-2·#{\|s\|≤P}+Σmin(s²,P²), 'norm'(P≥1)=Σ\|s\|ᴾ. Parity OK vs MATLAB R2025b on [0.5 -0.3 0.8 0 -0.1 0.2]: shannon=1.023719, logenergy=-12.064573, threshold(0.2)=3, sure(0.2)=0.17, norm(1.5)=1.354477; shannon([1 2 3 4])=-69.6816182. Split from wentropy-ddencmp; ddencmp still open (2026-06-19) |
@@ -267,7 +268,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 20
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 19
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -283,7 +284,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | mskdemod (pmdemod/fmdemod/amdemod/ssbdemod done ✅; only MSK left) |
-| [math/numerical-integration-nd](math/numerical-integration-nd.md) | P2 | quadgk/integral2/integral3/quad2d |
 | [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/funm](linalg/funm.md) | P2 | general matrix function funm(A,fun) |
 | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | qz (generalized Schur) / gsvd (generalized SVD) |
