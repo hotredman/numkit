@@ -3718,7 +3718,14 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
         currentLoc_ = {static_cast<uint16_t>(funcDef->endLine), 1};
 
     // Emit return: collect return values
-    if (funcDef->returnNames.size() == 1) {
+    const auto &rnames = funcDef->returnNames;
+    const bool hasVarargout = !rnames.empty() && rnames.back() == "varargout";
+    if (hasVarargout) {
+        // varargout return: gather the fixed leading outputs into consecutive
+        // slots, then RET_VARARGOUT expands the varargout cell after them
+        // (dynamic count). See compileReturn for the explicit-`return` mirror.
+        emitVarargoutReturn();
+    } else if (rnames.size() == 1) {
         uint8_t retReg = varRegLookup(funcDef->returnNames[0]);
         emitA(OpCode::RET, retReg);
     } else if (funcDef->returnNames.empty()) {
@@ -3769,8 +3776,34 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     return result;
 }
 
+void Compiler::emitVarargoutReturn()
+{
+    // chunk_.returnNames.back() == "varargout". Gather the fixed leading
+    // outputs into consecutive slots, then RET_VARARGOUT expands the
+    // varargout cell after them (dynamic count).
+    const auto &rns = chunk_.returnNames;
+    const size_t numFixed = rns.size() - 1;
+    uint8_t vaReg = varRegLookup("varargout");
+    uint8_t fixedBase = 0;
+    if (numFixed > 0) {
+        fixedBase = static_cast<uint8_t>(nextReg_);
+        for (size_t i = 0; i < numFixed; ++i) {
+            uint8_t slot = tempReg();
+            uint8_t r = varRegLookup(rns[i]);
+            if (r != slot)
+                emitAB(OpCode::MOVE, slot, r);
+        }
+    }
+    emit(Instruction::make_abcde(OpCode::RET_VARARGOUT, fixedBase,
+                                 static_cast<int16_t>(numFixed), vaReg, 0, 0));
+}
+
 uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
 {
+    if (!chunk_.returnNames.empty() && chunk_.returnNames.back() == "varargout") {
+        emitVarargoutReturn();
+        return 0;
+    }
     if (chunk_.returnNames.size() <= 1) {
         if (!chunk_.returnNames.empty()) {
             uint8_t retReg = varRegLookup(chunk_.returnNames[0]);

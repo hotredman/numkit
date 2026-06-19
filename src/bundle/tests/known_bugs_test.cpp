@@ -50,6 +50,27 @@ TEST_F(BuiltinKnownBug, MultiOutputHandleCall)
     EXPECT_DOUBLE_EQ(evalScalar("c"), 3.0);
 }
 
+// bugs/lang/anonymous-multi-output.md — varargout (dynamic-count returns)
+// (FIXED core 2026-06-19 via RET_VARARGOUT; live guard). nargout drives the
+// returned count; fixed + varargout mix; single-output.
+TEST_F(BuiltinKnownBug, Varargout)
+{
+    eval("clear; function varargout = gen(n)\n"
+         "  for k = 1:nargout, varargout{k} = k*10; end\n"
+         "end\n"
+         "[a, b, c] = gen(0);");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c"), 30.0);
+    eval("function [first, varargout] = mixed(v)\n"
+         "  first = v; varargout{1} = v*2; varargout{2} = v*3;\n"
+         "end\n"
+         "[p, q, r] = mixed(5);");
+    EXPECT_DOUBLE_EQ(evalScalar("p"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r"), 15.0);
+}
+
 // bugs/lang/anonymous-multi-output.md — an anonymous function does not forward
 // nargout to its body, so [a,b]=(@(x)deal(x+1,x-1))(5) still fails (needs
 // varargout). MATLAB: a=6, b=4.

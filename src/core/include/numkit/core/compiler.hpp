@@ -329,6 +329,9 @@ private:
     void recordCallArgNames(const ASTNode *callNode, size_t callInstrIdx);
     uint8_t compileFunctionDef(const ASTNode *node);
     uint8_t compileReturn(const ASTNode *node);
+    // Emit a RET_VARARGOUT for the current chunk (last return is `varargout`):
+    // gather the fixed leading outputs, then the dynamic varargout cell.
+    void emitVarargoutReturn();
     uint8_t compileDeleteAssign(const ASTNode *node);
     static int8_t resolveBuiltinId(const std::string &name, size_t nargs);
 
