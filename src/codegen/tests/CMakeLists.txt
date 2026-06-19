@@ -8,4 +8,5 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/aot_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/e2e_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/monomorphize_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/classinfo_test.cpp
 )

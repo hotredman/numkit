@@ -58,7 +58,8 @@ bool InferredType::operator==(const InferredType &o) const
 {
     if (kind != o.kind) return false;
     if (kind != TypeKind::Concrete) return true;  // Bottom/Dynamic carry no payload
-    return dtype == o.dtype && shape == o.shape;
+    // classId is -1 for non-object types, so this is a no-op there.
+    return dtype == o.dtype && shape == o.shape && classId == o.classId;
 }
 
 InferredType join(const InferredType &a, const InferredType &b)
@@ -73,6 +74,13 @@ InferredType join(const InferredType &a, const InferredType &b)
     // be boxed. Same dtype => keep it; the shape generalises.
     if (a.dtype != b.dtype)
         return InferredType::dynamic();
+    // Two object instances unify only if they are the SAME class; distinct
+    // classes at a merge are type-unstable -> Dynamic (boxed). (Common
+    // superclass / polymorphism is a later refinement.)
+    if (a.dtype == ValueType::OBJECT) {
+        if (a.classId != b.classId) return InferredType::dynamic();
+        return InferredType::object(a.classId);
+    }
     return InferredType::concrete(a.dtype, joinShape(a.shape, b.shape));
 }
 
@@ -83,6 +91,10 @@ std::string InferredType::str() const
         case TypeKind::Dynamic: return "dynamic";
         case TypeKind::Concrete: {
             std::ostringstream os;
+            if (dtype == ValueType::OBJECT) {
+                os << "object#" << classId;
+                return os.str();
+            }
             os << mtypeName(dtype);
             switch (shape.kind) {
                 case ShapeKind::Scalar:    os << " scalar"; break;
