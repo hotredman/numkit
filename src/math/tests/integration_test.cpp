@@ -2139,4 +2139,22 @@ TEST_P(EngineAdvancedTest, Del2VectorAndMatrix)
     EXPECT_EQ(static_cast<int>(eval("size(rv,2)").toScalar()), 5);
 }
 
+// bugs/builtin/numerical-integration-nd — quadgk / integral2 / integral3 /
+// quad2d via nested adaptive 1-D integral. MATLAB R2025b reference values.
+TEST_P(EngineAdvancedTest, NumericalIntegrationND)
+{
+    EXPECT_NEAR(eval("integral2(@(x,y) x.*y, 0, 1, 0, 1)").toScalar(), 0.25, 1e-9);
+    EXPECT_NEAR(eval("integral2(@(x,y) exp(x.*y), 0, 1, 0, 1)").toScalar(),
+                1.317902151454, 1e-8);
+    EXPECT_NEAR(eval("integral2(@(x,y) x.^2 + y.^2, 0, 2, 0, 3)").toScalar(),
+                26.0, 1e-8);   // ∫₀²∫₀³(x²+y²) dy dx = 26
+    EXPECT_NEAR(eval("integral3(@(x,y,z) x+y+z, 0,1,0,1,0,1)").toScalar(), 1.5, 1e-9);
+    EXPECT_NEAR(eval("integral3(@(x,y,z) x.*y.*z, 0,1,0,1,0,1)").toScalar(), 0.125, 1e-9);
+    EXPECT_NEAR(eval("quadgk(@(x) exp(-x.^2), 0, 1)").toScalar(),
+                0.746824132812427, 1e-9);
+    EXPECT_NEAR(eval("quad2d(@(x,y) x.*y, 0, 1, 0, 1)").toScalar(), 0.25, 1e-9);
+    EXPECT_NEAR(eval("integral2(@(x,y) x.*y, 0, 1, 0, 1, 'AbsTol', 1e-8)").toScalar(),
+                0.25, 1e-7);
+}
+
 INSTANTIATE_DUAL(EngineAdvancedTest);

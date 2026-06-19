@@ -107,6 +107,45 @@ Value cumtrapz(const Value &x, const Value &y,
 Value integral(FnHandle fn, double a, double b, double absTol,
                std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Numerical double integral over a rectangle
+/// (`q = integral2(fn, a, b, c, d)`).
+///
+/// Computes @f$ \int_a^b\!\!\int_c^d f(x,y)\,dy\,dx @f$ by nesting the
+/// adaptive 1-D @ref integral: the outer quadrature over `x ∈ [a,b]` has,
+/// at each node, an inner quadrature over `y ∈ [c,d]` of `f(x,·)`. The
+/// callback `fn` receives a 2-element `args` (`x`, `y`) and writes the
+/// scalar `f(x,y)` into `outs[0]`. For smooth integrands this matches
+/// MATLAB's `integral2` to `absTol`.
+///
+/// @param fn      Callback `(x, y) → f`.
+/// @param a, b    `x` limits.
+/// @param c, d    `y` limits.
+/// @param absTol  Absolute tolerance (per 1-D sweep).
+/// @param mr      Memory resource (nullptr → process default).
+/// @return        Scalar double integral.
+/// @see integral, integral3
+Value integral2(FnHandle fn, double a, double b, double c, double d,
+                double absTol, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Numerical triple integral over a box
+/// (`q = integral3(fn, a, b, c, d, e, f)`).
+///
+/// Computes @f$ \int_a^b\!\!\int_c^d\!\!\int_e^f g(x,y,z)\,dz\,dy\,dx @f$ by
+/// triple-nesting @ref integral. The callback receives a 3-element `args`
+/// (`x`, `y`, `z`).
+///
+/// @param fn         Callback `(x, y, z) → g`.
+/// @param a, b       `x` limits.
+/// @param c, d       `y` limits.
+/// @param e, f       `z` limits.
+/// @param absTol     Absolute tolerance.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Scalar triple integral.
+/// @see integral, integral2
+Value integral3(FnHandle fn, double a, double b, double c, double d,
+                double e, double f, double absTol,
+                std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Trapezoidal integration with unit spacing (`I = trapz(y)`).
 ///
 /// @param y   Integrand values.

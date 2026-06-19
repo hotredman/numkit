@@ -121,7 +121,8 @@ TEST_F(BuiltinKnownBug, Gradient3D)
 // toolboxes/builtin/tests/complex_promotion_arrays_test.cpp.
 
 // bugs/builtin/numerical-integration-nd.md — quadgk/integral2/integral3/quad2d.
-TEST_F(BuiltinKnownBug, DISABLED_NumericalIntegrationND)
+// FIXED 2026-06-19 (nested adaptive integral) — promoted live.
+TEST_F(BuiltinKnownBug, NumericalIntegrationND)
 {
     EXPECT_NEAR(evalScalar("quadgk(@(x)exp(-x.^2),0,1)"), 0.746824132812427, 1e-9);
     EXPECT_NEAR(evalScalar("integral2(@(x,y)x.*y,0,1,0,1)"), 0.25, 1e-9);

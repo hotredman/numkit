@@ -568,6 +568,50 @@ Value integral(FnHandle fn, double a, double b, double absTol,
     return Value::scalar(sign * r, mr);
 }
 
+Value integral2(FnHandle fn, double a, double b, double c, double d,
+                double absTol, std::pmr::memory_resource *mr)
+{
+    // Iterated quadrature: outer sweep over x; at each x, an inner sweep over
+    // y of fn(x, ·). Both reuse the adaptive 1-D `integral`. (function_ref is
+    // non-owning, but every nested call is synchronous, so the lambdas and the
+    // captured x outlive the calls that reference them.)
+    double xval = 0.0;
+    auto innerFn = [&fn, &xval](Span<const Value> ay, Span<Value> oy,
+                                std::pmr::memory_resource *m) {
+        Value xy[2] = { Value::scalar(xval, m), ay[0] };
+        fn(Span<const Value>(xy, 2), oy, m);
+    };
+    auto outerFn = [&](Span<const Value> ax, Span<Value> ox,
+                       std::pmr::memory_resource *m) {
+        xval = ax[0].toScalar();
+        ox[0] = integral(innerFn, c, d, absTol, m);
+    };
+    return integral(outerFn, a, b, absTol, mr);
+}
+
+Value integral3(FnHandle fn, double a, double b, double c, double d,
+                double e, double f, double absTol,
+                std::pmr::memory_resource *mr)
+{
+    double xval = 0.0, yval = 0.0;
+    auto innermostFn = [&fn, &xval, &yval](Span<const Value> az, Span<Value> oz,
+                                           std::pmr::memory_resource *m) {
+        Value xyz[3] = { Value::scalar(xval, m), Value::scalar(yval, m), az[0] };
+        fn(Span<const Value>(xyz, 3), oz, m);
+    };
+    auto middleFn = [&](Span<const Value> ay, Span<Value> oy,
+                        std::pmr::memory_resource *m) {
+        yval = ay[0].toScalar();
+        oy[0] = integral(innermostFn, e, f, absTol, m);
+    };
+    auto outerFn = [&](Span<const Value> ax, Span<Value> ox,
+                       std::pmr::memory_resource *m) {
+        xval = ax[0].toScalar();
+        ox[0] = integral(middleFn, c, d, absTol, m);
+    };
+    return integral(outerFn, a, b, absTol, mr);
+}
+
 namespace detail {
 
 // Trapezoidal integral of `y` along 1-based `dim`. `xData` (length = size of
