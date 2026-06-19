@@ -74,6 +74,12 @@ enum class OpCode : uint8_t {
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)
     CALL_INDIRECT, // dst, fhReg, base, nargs         R[dst] = R[fhReg](R[base..base+nargs-1])
+    // [a,b,…] = R[fhReg](R[base..]): multi-output indirect (handle-variable)
+    // call. a=outBase, b=fhReg, c=argBase, d=nargs, e=nout. Mirrors
+    // CALL_INDIRECT's handle resolution + CALL_MULTI's nout frame-push so a
+    // stored function handle can return several outputs (e.g. fmincon nonlcon
+    // `[c, ceq] = nonlcon(x)`).
+    CALL_INDIRECT_MULTI,
     // Fused element-wise idiom (VM fusion). a=dst, b=operandBase, c=nOps,
     // d=ruleIdx (into engine.fusionRules()), e=skip. Gather R[base..base+nOps)
     // → rule.execute; on success R[dst]=result and skip the `e` following
