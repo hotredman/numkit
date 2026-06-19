@@ -190,3 +190,31 @@ TEST(ClassInfoTest, FieldAccessInference)
     EXPECT_TRUE(inferExpr(badField, env, reg, &creg).type.isDynamic());
     EXPECT_TRUE(inferExpr(okField, env, reg, nullptr).type.isDynamic());
 }
+
+// SOUNDNESS: arithmetic / comparison / math on objects must NOT be typed
+// numeric (the operator may be overloaded by the class) -> Dynamic.
+TEST(ClassInfoTest, ObjectArithmeticIsDynamic)
+{
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::ASTNodePtr croot;
+    const numkit::ASTNode *cd =
+        findClass("classdef Vec\n  properties\n    x = 0\n  end\nend\n", croot);
+    ASSERT_NE(cd, nullptr);
+    ClassRegistry creg;
+    const int     id = creg.add(buildClassInfo(*cd, 0, reg));
+
+    numkit::Lexer  lex("p = a + b;\nq = a == b;\nr = sin(a);\ns = -a;\n");
+    numkit::Parser parser(lex.tokenize());
+    auto           prog = parser.parse();
+
+    TypeEnv env;
+    env.set("a", {InferredType::object(id), ConstVal::unknown()});
+    env.set("b", {InferredType::object(id), ConstVal::unknown()});
+
+    for (std::size_t i = 0; i < 4; ++i) {
+        const numkit::ASTNode &rhs = *prog->children[i]->children[1];
+        EXPECT_TRUE(inferExpr(rhs, env, reg, &creg).type.isDynamic())
+            << "object operator/ math expr #" << i << " must be Dynamic, not numeric";
+    }
+}

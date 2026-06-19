@@ -67,6 +67,11 @@ InferredType arithmeticBinaryTransfer(const std::vector<ArgInfo> &args)
     if (args.size() != 2) return InferredType::dynamic();
     const InferredType &a = args[0].type, &b = args[1].type;
     if (!a.isConcrete() || !b.isConcrete()) return InferredType::dynamic();
+    // An object operand: the operator may be overloaded by the class, so
+    // the result type is the class method's, not a numeric promotion ->
+    // Dynamic (sound; never claim 'double' for obj OP obj).
+    if (a.dtype == ValueType::OBJECT || b.dtype == ValueType::OBJECT)
+        return InferredType::dynamic();
     if (mixedDistinctIntegers(a.dtype, b.dtype)) return InferredType::dynamic();
     return InferredType::concrete(promoteArith(a.dtype, b.dtype),
                                   broadcastShape(a.shape, b.shape));
@@ -80,6 +85,11 @@ InferredType mtimesTransfer(const std::vector<ArgInfo> &args)
     if (args.size() != 2) return InferredType::dynamic();
     const InferredType &a = args[0].type, &b = args[1].type;
     if (!a.isConcrete() || !b.isConcrete()) return InferredType::dynamic();
+    // An object operand: the operator may be overloaded by the class, so
+    // the result type is the class method's, not a numeric promotion ->
+    // Dynamic (sound; never claim 'double' for obj OP obj).
+    if (a.dtype == ValueType::OBJECT || b.dtype == ValueType::OBJECT)
+        return InferredType::dynamic();
     if (mixedDistinctIntegers(a.dtype, b.dtype)) return InferredType::dynamic();
     const ValueType dt = promoteArith(a.dtype, b.dtype);
     if (a.shape.isScalar()) return InferredType::concrete(dt, b.shape);
@@ -108,6 +118,11 @@ InferredType powerTransfer(const std::vector<ArgInfo> &args)
     if (args.size() != 2) return InferredType::dynamic();
     const InferredType &a = args[0].type, &b = args[1].type;
     if (!a.isConcrete() || !b.isConcrete()) return InferredType::dynamic();
+    // An object operand: the operator may be overloaded by the class, so
+    // the result type is the class method's, not a numeric promotion ->
+    // Dynamic (sound; never claim 'double' for obj OP obj).
+    if (a.dtype == ValueType::OBJECT || b.dtype == ValueType::OBJECT)
+        return InferredType::dynamic();
     if (mixedDistinctIntegers(a.dtype, b.dtype)) return InferredType::dynamic();
     if (a.dtype == ValueType::COMPLEX || b.dtype == ValueType::COMPLEX)
         return InferredType::concrete(ValueType::COMPLEX, broadcastShape(a.shape, b.shape));
@@ -124,6 +139,11 @@ InferredType mpowerTransfer(const std::vector<ArgInfo> &args)
     if (args.size() != 2) return InferredType::dynamic();
     const InferredType &a = args[0].type, &b = args[1].type;
     if (!a.isConcrete() || !b.isConcrete()) return InferredType::dynamic();
+    // An object operand: the operator may be overloaded by the class, so
+    // the result type is the class method's, not a numeric promotion ->
+    // Dynamic (sound; never claim 'double' for obj OP obj).
+    if (a.dtype == ValueType::OBJECT || b.dtype == ValueType::OBJECT)
+        return InferredType::dynamic();
     if (a.shape.isScalar() && b.shape.isScalar()) return powerTransfer(args);
     return InferredType::dynamic();
 }
@@ -134,6 +154,11 @@ InferredType comparisonTransfer(const std::vector<ArgInfo> &args)
     if (args.size() != 2) return InferredType::dynamic();
     const InferredType &a = args[0].type, &b = args[1].type;
     if (!a.isConcrete() || !b.isConcrete()) return InferredType::dynamic();
+    // An object operand: the operator may be overloaded by the class, so
+    // the result type is the class method's, not a numeric promotion ->
+    // Dynamic (sound; never claim 'double' for obj OP obj).
+    if (a.dtype == ValueType::OBJECT || b.dtype == ValueType::OBJECT)
+        return InferredType::dynamic();
     return InferredType::concrete(ValueType::LOGICAL,
                                   broadcastShape(a.shape, b.shape));
 }
@@ -142,6 +167,7 @@ InferredType comparisonTransfer(const std::vector<ArgInfo> &args)
 InferredType unaryArithTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[0].type.dtype == ValueType::OBJECT) return InferredType::dynamic();  // may be overloaded
     ValueType dt = args[0].type.dtype;
     if (dt == ValueType::LOGICAL || dt == ValueType::CHAR) dt = ValueType::DOUBLE;
     return InferredType::concrete(dt, args[0].type.shape);
@@ -151,6 +177,7 @@ InferredType unaryArithTransfer(const std::vector<ArgInfo> &args)
 InferredType notTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[0].type.dtype == ValueType::OBJECT) return InferredType::dynamic();  // may be overloaded
     return InferredType::concrete(ValueType::LOGICAL, args[0].type.shape);
 }
 
@@ -160,6 +187,7 @@ InferredType notTransfer(const std::vector<ArgInfo> &args)
 InferredType realMathUnaryTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[0].type.dtype == ValueType::OBJECT) return InferredType::dynamic();  // may be overloaded
     const ValueType dt = args[0].type.dtype;
     if (dt == ValueType::DOUBLE || dt == ValueType::SINGLE || dt == ValueType::COMPLEX)
         return InferredType::concrete(dt, args[0].type.shape);
@@ -170,6 +198,7 @@ InferredType realMathUnaryTransfer(const std::vector<ArgInfo> &args)
 InferredType absTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[0].type.dtype == ValueType::OBJECT) return InferredType::dynamic();  // may be overloaded
     ValueType dt = args[0].type.dtype;
     if (dt == ValueType::COMPLEX || dt == ValueType::LOGICAL || dt == ValueType::CHAR)
         dt = ValueType::DOUBLE;
