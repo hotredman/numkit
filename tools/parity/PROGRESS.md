@@ -2283,7 +2283,7 @@ solver-based legacy API which is flat function-form.
 | `lsqlin` | ❌ | linear LSQ with bounds & linear constraints |
 | `lsqcurvefit` | ❌ | nonlinear LSQ in curve-fit signature |
 | `lsqnonlin` | ❌ | nonlinear LSQ |
-| `fsolve` | ❌ | system of nonlinear equations |
+| `fsolve` | ✅ | Sig: [x,fval,exitflag] = fsolve(fun, x0). Solve F(x)=0 via an embedded-.m Levenberg-Marquardt iteration with a forward-difference Jacobian: (J'J + lambda*diag(J'J))*dx = -J'F, adapting lambda until the residual norm drops. Objective is user code -> runs as bytecode (pausable). Parity is on the SOLUTION (the root), not the iterate trajectory; tol 1e-6 since numkit (LM) and MATLAB (trust-region-dogleg) converge to the same root at slightly different depths. Fingerprint: scalar sqrt(2)=1.41421356, 2x2 [0.70710678 0.70710678], Rosenbrock system [1 1], 3-var system [1 2 3] (multiple roots; from x0=[1 0 4] both engines land on [1 2 3]). Output orientation mirrors x0. Verified vs MATLAB R2025b. Fixes bugs/optim/fsolve. |
 | `mpsread` | ❌ | MPS-format LP reader (defer — I/O) |
 | `optimoptions` | ❌ | options struct (modern) |
 | `resetoptions` | ❌ | reset options to default |

@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (114 entries):** ✅ 96 fixed · 🔴 18 open = **4 bug** + 1 stub +
-1 missing-output + **11 missing-fn** + 1 perf (the 11 missing-fns are parity
+**Tally (114 entries):** ✅ 97 fixed · 🔴 17 open = **4 bug** + 1 stub +
+1 missing-output + **10 missing-fn** + 1 perf (the 10 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (91)
+### ✅ FIXED (92)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [optim/fsolve](optim/fsolve.md) | P2 | ✅ FIXED: nonlinear system solver fsolve(fun,x0) was missing. Embedded-.m Levenberg-Marquardt (forward-diff Jacobian, (J'J+λdiag)dx=-J'F, adaptive λ), mirroring the fzero/fminsearch pausable-objective pattern. Parity on the SOLUTION (root), not iterates. Verified vs MATLAB R2025b: x^2-2→1.41421356, 2x2 unit-circle→[0.70710678 0.70710678] (ef=1), Rosenbrock system→[1 1], 3-var multi-root system from [1 0 4]→[1 2 3] (same root as MATLAB). Output mirrors x0 orientation. options arg accepted+ignored (2026-06-19) |
 | bug | [signal/resample-values](signal/resample-values.md) | P1 | ✅ FIXED: resample produced garbage (sum 10.87, ramped from ~0) — old custom Hamming windowed-sinc FIR with no group-delay compensation. Rewrote as MATLAB resample.m reusing the shipped firls/kaiser/upfirdn (all bit-exact): h = p*firls(2N*pqmax,[0 2fc 2fc 1],[1 1 0 0]).*kaiser(L,5)/sum(...) normalised so sum(h)=p (the KEY: MATLAB normalises over ALL taps, not the polyphase branch — a 1.0006 factor was the whole filter discrepancy), then upfirdn + group-delay trim to ceil(Lx*p/q), GCD-reduced first. Bit-exact vs MATLAB R2025b: repro [1.00061 ... 4.24029] + 2/1, 1/2, sine, DC, GCD-reduce. Strengthened the old length-only parity spec (2026-06-19) |
 | missing-fn | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | ✅ FIXED (all 5): pmdemod/fmdemod/amdemod/ssbdemod (2026-06-19) + now mskdemod. MSK coherent differential demod: bit_k = (sum of within-symbol angle(y[n]*conj(y[n-1])) > 0) — phase-increment decision, invariant to constant rotation + noise-robust, ini_phase only feeds phaseout. numkit mskmod is bit-exact w/ MATLAB so demod matches MATLAB R2025b (20-bit random clean+noisy incl. last bit). Returns [z,phaseout], input orientation preserved. nondiff deferred (mskmod has no nondiff path). (2026-06-19) |
 | missing-fn | [image/corner](image/corner.md) | P2 | ✅ FIXED: corner-point detection was missing (cornermetric shipped). corner(I) wraps cornermetric: local maxima > QualityLevel*max -> connected-peak centroids -> strength-descending sort (ties column-major) -> up to N [x y]=[col row] coords. Border excluded naturally (metric <=0 < thr). numkit cornermetric matches MATLAB to ~1e-8 (not bit-exact + ~1-ULP corner asymmetry), so the strength sort quantises to ~1e-9*max to reproduce MATLAB's bit-exact-symmetric equal-corner ordering. Verified vs MATLAB R2025b: square -> [6 6;6 15;15 6;15 15], two-contrast squares -> 8 strong-first, corner(W,1) -> strong-at-high-col (strength beats position), N truncation, MinimumEigenvalue (2026-06-19) |
@@ -272,7 +273,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 15
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 14
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -287,7 +288,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | qz (generalized Schur) / gsvd (generalized SVD) |
-| [optim/fsolve](optim/fsolve.md) | P2 | nonlinear system solver fsolve |
 | [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | lsqcurvefit/lsqnonlin |
 | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon/linprog/quadprog/fminunc |
 
