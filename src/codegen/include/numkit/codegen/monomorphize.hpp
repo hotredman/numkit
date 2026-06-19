@@ -52,11 +52,21 @@ void collectFunctions(const ASTNode &root, FunctionTable &table);
 
 // Infer the (first) return type of `funcDef` given argument infos, under
 // `reg` (which should already carry the user functions so nested calls
-// resolve). Returns Dynamic when it cannot be typed: arity mismatch,
-// not exactly one output (MVP), or the output is never assigned.
+// resolve). `classes` (optional) lets the body's field accesses type — it
+// is what makes method-body inference work. Returns Dynamic when it cannot
+// be typed: arity mismatch, not exactly one output (MVP), or the output is
+// never assigned.
 InferredType inferFunctionReturn(const ASTNode &funcDef,
                                  const std::vector<ArgInfo> &args,
-                                 const TransferRegistry &reg);
+                                 const TransferRegistry &reg,
+                                 const ClassRegistry *classes = nullptr);
+
+// Register each method of each class in `classes` under the transfer key
+// "ClassName::methodName" (its first parameter is the object). A method
+// call `obj.m(a)` resolves via reg.apply("Class::m", {self, a}). Recursion
+// breaks to Dynamic. `reg`, `classes`, and the underlying AST must outlive
+// the registry's use.
+void registerClassMethods(TransferRegistry &reg, const ClassRegistry &classes);
 
 // Register each function in `table` as a body-inferring transfer in `reg`
 // (recursion -> Dynamic). `reg` and `table` must outlive the registry's

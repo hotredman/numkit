@@ -434,6 +434,7 @@ struct OneFn {
 std::string typeCode(const InferredType &t)
 {
     if (!t.isConcrete()) return "X";
+    if (t.dtype == ValueType::OBJECT) return "o" + std::to_string(t.classId);
     std::string c;
     switch (t.dtype) {
     case ValueType::DOUBLE:  c = "d";   break;
@@ -515,6 +516,7 @@ private:
     std::string emitExpr(const ASTNode &e);
     std::string emitBuiltinCall(const std::string &name, const ASTNode &call);
     std::string emitUserCall(const std::string &name, const ASTNode &call);
+    std::string emitMethodCall(const ASTNode &call);
     std::string emitIndexRead(const std::string &base, const ASTNode &call);
     void        emitAssign(const ASTNode &s);
     void        emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs);
@@ -588,6 +590,8 @@ std::string Emitter::emitExpr(const ASTNode &e)
     case NodeType::CALL: {
         if (e.children.empty()) unsupported("empty call");
         const ASTNode &callee = *e.children[0];
+        if (callee.type == NodeType::FIELD_ACCESS && classes_)
+            return emitMethodCall(e);  // obj.method(args)
         if (callee.type != NodeType::IDENTIFIER)
             unsupported("non-identifier callee");
         if (isArrayVar(callee.strValue))
@@ -661,6 +665,45 @@ std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
     const std::string mangled = mangle(name, argTypes);
     if (ctx_->seen.insert(mangled).second)
         ctx_->pending.push_back({def, argTypes, mangled});
+    return mangled + "(" + argList + ")";
+}
+
+// A method call `obj.m(args)` (ctx_ set). The object is the implicit first
+// argument; dispatch is monomorphic (the exact class is known). Emits a
+// direct call to the specialisation `Class__m(self, args)` and queues it.
+// v1: extra args + result are unboxed scalars (the result may also be an
+// object — value-in/out methods return the modified object).
+std::string Emitter::emitMethodCall(const ASTNode &call)
+{
+    const ASTNode &callee = *call.children[0];  // FIELD_ACCESS: method on object
+    if (callee.children.empty()) unsupported("method call arity");
+    if (!ctx_) unsupported("method call requires program emission (emitProgram)");
+
+    const AbstractValue base = inferExpr(*callee.children[0], types_, reg_, classes_);
+    if (!base.type.isObject() || !classes_) unsupported("method call on a non-object");
+    const ClassInfo *ci = classes_->byId(base.type.classId);
+    const ASTNode   *md = ci ? ci->method(callee.strValue) : nullptr;
+    if (!md) unsupported("unknown method '" + callee.strValue + "'");
+
+    std::vector<InferredType> argTypes;
+    argTypes.push_back(base.type);                       // self is arg 0
+    std::string argList = emitExpr(*callee.children[0]);  // the object expr
+    for (std::size_t i = 1; i < call.children.size(); ++i) {
+        const AbstractValue av = inferExpr(*call.children[i], types_, reg_, classes_);
+        if (!isUnboxableScalarType(av.type))
+            unsupported("method arg must be an unboxed scalar (v1): '" + callee.strValue + "'");
+        argTypes.push_back(av.type);
+        argList += ", " + emitExpr(*call.children[i]);
+    }
+
+    const InferredType ret = reg_.apply(ci->name + "::" + callee.strValue, toArgInfos(argTypes));
+    if (!isUnboxableScalarType(ret) && !ret.isObject())
+        unsupported("method result must be an unboxed scalar or object (v1): '"
+                    + callee.strValue + "'");
+
+    const std::string mangled = mangle(ci->name + "__" + callee.strValue, argTypes);
+    if (ctx_->seen.insert(mangled).second)
+        ctx_->pending.push_back({md, argTypes, mangled});
     return mangled + "(" + argList + ")";
 }
 

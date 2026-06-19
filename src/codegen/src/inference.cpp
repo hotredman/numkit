@@ -192,7 +192,21 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                 return indexResult(env.get(name), argVals);
             return {reg.apply(name, argInfos), ConstVal::unknown()};
         }
-        // Non-identifier callee (chained / expression callee) — deferred.
+        // Method call `obj.m(args)`: callee is FIELD_ACCESS. Resolve the
+        // object's class, prepend the object as the implicit first argument,
+        // and dispatch via the "Class::m" transfer (registerClassMethods).
+        if (callee.type == NodeType::FIELD_ACCESS && classes && !callee.children.empty()) {
+            const AbstractValue base = inferExpr(*callee.children[0], env, reg, classes);
+            if (!base.type.isObject()) return AbstractValue::dynamic();
+            const ClassInfo *ci = classes->byId(base.type.classId);
+            if (!ci || !ci->method(callee.strValue)) return AbstractValue::dynamic();
+            std::vector<ArgInfo> withSelf;
+            withSelf.reserve(argInfos.size() + 1);
+            withSelf.push_back(base.asArg());
+            for (const auto &ai : argInfos) withSelf.push_back(ai);
+            return {reg.apply(ci->name + "::" + callee.strValue, withSelf), ConstVal::unknown()};
+        }
+        // Other non-identifier callee (chained / expression callee) — deferred.
         return AbstractValue::dynamic();
     }
 
