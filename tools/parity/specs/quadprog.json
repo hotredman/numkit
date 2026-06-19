@@ -1,0 +1,10 @@
+{
+  "name": "quadprog",
+  "namespace": "optim",
+  "setup": "",
+  "expr": "a = quadprog(eye(2), [-1 -1]); a1 = a(1); a2 = a(2); [b, bf] = quadprog(eye(2), [-1 -1], [1 1], 1); b1 = b(1); b2 = b(2); c = quadprog(eye(2), [-1 -1], [], [], [1 1], 3); c1 = c(1); c2 = c(2); e = quadprog(eye(2), [-1 -1], [], [], [], [], [0 0], [0.3 0.3]); e1 = e(1); e2 = e(2); g = quadprog([2 0; 0 4], [-2; -8], [1 1], 1); g1 = g(1); g2 = g(2); h = quadprog(eye(2), [-2 -2], [1 1; 1 0], [1; 0.3]); h1 = h(1); h2 = h(2);",
+  "iters": 1,
+  "tol": 1e-08,
+  "fingerprint": ["a1", "a2", "b1", "b2", "bf", "c1", "c2", "e1", "e2", "g1", "g2", "h1", "h2"],
+  "comment": "Sig: [x,fval,exitflag] = quadprog(H, f, A, b, Aeq, beq, lb, ub). Minimise 0.5*x'Hx + f'x s.t. A*x<=b, Aeq*x=beq, lb<=x<=ub. Embedded-.m primal active-set for strictly-convex H (PD): no Phase-1 (starts from the unconstrained -H\\f), each iteration solves the equality-constrained KKT saddle system [H B'; B 0][x;lambda]=[-f;c] over the working set, adding the most-violated inactive inequality / dropping the most-negative active multiplier until KKT holds. The QP optimum is unique for PD H, so this matches MATLAB's solution exactly. Returns a column x. Fingerprint covers every constraint type: unconstrained->[1 1], inequality x1+x2<=1->[0.5 0.5] (fval -0.75), equality x1+x2=3->[1.5 1.5], bounds [0,0.3]->[0.3 0.3], non-identity H mixed->[-1/3 4/3], two active inequalities->[0.3 0.7]. Verified vs MATLAB R2025b. Fixes bugs/optim/quadprog (split from constrained-solvers; linprog/fmincon remain)."
+}

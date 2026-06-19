@@ -29,6 +29,7 @@ void registerFminsearchM(Engine &engine);
 void registerFsolveM(Engine &engine);       // fsolve_reg.cpp
 void registerLsqnonlinM(Engine &engine);    // lsqnonlin_reg.cpp
 void registerFminuncM(Engine &engine);      // fminunc_reg.cpp
+void registerQuadprogM(Engine &engine);     // quadprog_reg.cpp
 } // namespace numkit::optim
 
 namespace numkit {
@@ -52,6 +53,9 @@ void OptimLibrary::install(Engine &engine)
     // fminunc — embedded `.m` BFGS unconstrained minimizer (pausable
     // objective; solution-parity with MATLAB).
     optim::registerFminuncM(engine);
+    // quadprog — embedded `.m` primal active-set quadratic program
+    // (strictly-convex H; solution-parity with MATLAB).
+    optim::registerQuadprogM(engine);
 }
 
 } // namespace numkit

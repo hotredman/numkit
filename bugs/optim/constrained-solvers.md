@@ -1,36 +1,36 @@
-# optim.fmincon / linprog / quadprog — missing
+# optim.fmincon / linprog — missing
 
-- **Status:** 🔴 OPEN (`fminunc` split out + FIXED 2026-06-19 — see
-  [fminunc.md](fminunc.md))
+- **Status:** 🔴 OPEN (`fminunc` + `quadprog` split out + FIXED 2026-06-19 —
+  see [fminunc.md](fminunc.md), [quadprog.md](quadprog.md))
 - **Severity:** P2 (missing functions)
 - **Kind:** missing-fn
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom
-The constrained optimizers are not registered: `fmincon` (nonlinear
-constrained), `linprog` (linear program), `quadprog` (quadratic program).
-(`fminunc` — unconstrained gradient — is now done; see
-[fminunc.md](fminunc.md).)
+The remaining constrained optimizers are not registered: `fmincon`
+(nonlinear constrained) and `linprog` (linear program). (`fminunc` and
+`quadprog` are now done — see their split-out files.)
 
 ## Repro
 ```matlab
 fmincon(@(x) x(1)^2+x(2)^2, [1 1], [],[],[],[], [0 0],[2 2])  % undefined
 linprog([1 1], [-1 0], [-1])                                   % undefined
-quadprog(eye(2), [-1 -1])                                      % undefined
 ```
 
 ## Root cause
-Not implemented. (`fminsearch` / `fminbnd` / `fzero` / `lsqnonneg` / now
-`fminunc` exist.)
+Not implemented. (`fminsearch` / `fminbnd` / `fzero` / `lsqnonneg` / `fminunc`
+/ `quadprog` exist.)
 
 ## Suggested fix
-Substantial — these need real QP/LP/SQP machinery:
-- `quadprog`: active-set or interior-point QP.
-- `linprog`: simplex or interior-point LP.
-- `fmincon`: SQP/interior-point over `fminunc` + constraint handling.
-Large; likely several separate items. ✅ `fminunc` done first (BFGS, the
-smallest). Next: `quadprog`/`linprog`, then `fmincon`. Verify against MATLAB
-on small textbook problems.
+Remaining:
+- `linprog`: simplex or interior-point LP. The optimum is a vertex (or a
+  face for degenerate costs) — match MATLAB's solution; phase-1/phase-2
+  simplex is the natural fit.
+- `fmincon`: SQP/interior-point over `fminunc` + constraint handling
+  (could reuse the `quadprog` active-set as the SQP subproblem solver).
+✅ `fminunc` (BFGS) and `quadprog` (active-set QP) done. `linprog` next
+(reuses no existing solver directly — needs a simplex), then `fmincon`
+(SQP, hardest). Verify against MATLAB on small textbook problems.
 
 ## References
 - new files under `src/toolboxes/optim/src/...`
