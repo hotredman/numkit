@@ -1,0 +1,10 @@
+{
+  "name": "amdemod",
+  "namespace": "comm",
+  "setup": "fs=100; fc=10; t=(0:199)'/fs; m=cos(2*pi*1*t);",
+  "expr": "ma=amdemod(ammod(m,fc,fs),fc,fs); ms=ssbdemod(ssbmod(m,fc,fs),fc,fs); a90=ma(90); a100=ma(100); a110=ma(110); s100=ms(100);",
+  "iters": 5,
+  "tol": 1e-05,
+  "fingerprint": ["a90", "a100", "a110", "s100"],
+  "comment": "Sig: x = amdemod(y,fc,fs[,ini_phase[,carramp]]) / ssbdemod(y,fc,fs[,ini_phase]). Coherent (synchronous) detection: x = 2*filtfilt(butter(5,fc*2/fs), y.*cos(2*pi*fc*t+ini_phase)) (amdemod subtracts carramp). numkit's butter+filter are bit-exact with MATLAB; the residual vs MATLAB is filtfilt EDGE conditions only — the interior is machine-exact (ma(100) matches to ~3e-10) and the edges differ ~3e-6, hence tol 1e-5. Fingerprint (interior, length-200 signal): ma(90)=0.7707458966, ma(100)=0.9981621945, ma(110)=0.8443144337, ms(100)=0.9982563125. Verified vs MATLAB R2025b. Fixes the amdemod/ssbdemod part of bugs/comm/analog-demodulators (only mskdemod remains)."
+}

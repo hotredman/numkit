@@ -97,6 +97,31 @@ void fmdemod_reg(Span<const Value> args, size_t /*nargout*/,
                       args[3].toScalar(), ini_phase, ctx.engine->resource());
 }
 
+void amdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("amdemod: requires (y, Fc, Fs [, ini_phase [, carramp]])",
+                    0, 0, "amdemod", "", "numkit:amdemod:nargin");
+    double ini_phase = 0.0, carr_amp = 0.0;
+    if (args.size() >= 4 && !args[3].isEmpty()) ini_phase = args[3].toScalar();
+    if (args.size() >= 5 && !args[4].isEmpty()) carr_amp = args[4].toScalar();
+    outs[0] = amdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                      ini_phase, carr_amp, ctx.engine->resource());
+}
+
+void ssbdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ssbdemod: requires (y, Fc, Fs [, ini_phase])",
+                    0, 0, "ssbdemod", "", "numkit:ssbdemod:nargin");
+    double ini_phase = 0.0;
+    if (args.size() >= 4 && !args[3].isEmpty()) ini_phase = args[3].toScalar();
+    outs[0] = ssbdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                       ini_phase, ctx.engine->resource());
+}
+
 void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {

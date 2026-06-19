@@ -57,3 +57,23 @@ TEST_F(AnalogDemodTest, NyquistThrows)
     EXPECT_THROW(eval("pmdemod([1 2 3], 60, 100, 1);"), std::exception);
     EXPECT_THROW(eval("fmdemod([1 2 3], 60, 100, 1);"), std::exception);
 }
+
+// amdemod: coherent detection 2*filtfilt(butter(5,fc*2/fs), y.*cos). The
+// interior is machine-exact; edges differ by ~3e-6 (numkit filtfilt edge
+// conditions vs MATLAB), so assert on a settled interior region.
+TEST_F(AnalogDemodTest, AmDemod)
+{
+    eval("t2=(0:199)'/fs; m2=cos(2*pi*1*t2); ma=amdemod(ammod(m2,fc,fs),fc,fs);");
+    EXPECT_NEAR(evalScalar("ma(100)"), 0.9981621945, 1e-6);   // mid-signal: exact
+    EXPECT_NEAR(evalScalar("ma(90)"),  0.7707458966, 1e-5);
+    EXPECT_NEAR(evalScalar("ma(110)"), 0.8443144337, 1e-5);
+}
+
+// ssbdemod: same coherent detector, recovers the message from either sideband.
+TEST_F(AnalogDemodTest, SsbDemod)
+{
+    eval("t2=(0:199)'/fs; m2=cos(2*pi*1*t2); ms=ssbdemod(ssbmod(m2,fc,fs),fc,fs);");
+    EXPECT_NEAR(evalScalar("ms(100)"), 0.9982563125, 1e-6);
+    // recovers the message in the interior (filter rolloff ~5e-4).
+    EXPECT_LT(evalScalar("max(abs(ms(60:140) - m2(60:140)))"), 2e-3);
+}
