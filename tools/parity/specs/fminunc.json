@@ -1,0 +1,10 @@
+{
+  "name": "fminunc",
+  "namespace": "optim",
+  "setup": "",
+  "expr": "a = fminunc(@(x) (x-3)^2, 0); [b, bf] = fminunc(@(x) (x(1)-1)^2 + 2*(x(2)+2)^2 + 3, [0 0]); b1 = b(1); b2 = b(2); c = fminunc(@(x) 100*(x(2)-x(1)^2)^2 + (1-x(1))^2, [-1.2 1]); c1 = c(1); c2 = c(2);",
+  "iters": 1,
+  "tol": 1e-04,
+  "fingerprint": ["a", "b1", "b2", "bf", "c1", "c2"],
+  "comment": "Sig: [x,fval,exitflag] = fminunc(fun, x0). Unconstrained minimization via embedded-.m BFGS quasi-Newton with a central-difference gradient and Armijo backtracking line search (inverse-Hessian estimate H, reset to I on a non-descent direction). Objective is user code -> bytecode (pausable). Parity on the SOLUTION (the minimiser); tol 1e-4 since MATLAB's quasi-newton stops at ~[0.99999 0.99998] on Rosenbrock (numkit's central-FD BFGS converges tighter, both ~[1 1]). Fingerprint: parabola (x-3)^2 -> 3, quadratic bowl -> [1 -2] (fval 3), Rosenbrock -> [1 1]. Output orientation mirrors x0. Verified vs MATLAB R2025b. Fixes bugs/optim/fminunc (split from constrained-solvers cluster; quadprog/linprog/fmincon remain)."
+}

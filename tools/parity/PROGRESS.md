@@ -2271,7 +2271,7 @@ solver-based legacy API which is flat function-form.
 | function | status | comment |
 |---|:---:|---|
 | `fmincon` | ❌ | constrained nonlinear minimisation |
-| `fminunc` | ❌ | unconstrained nonlinear minimisation |
+| `fminunc` | ✅ | Sig: [x,fval,exitflag] = fminunc(fun, x0). Unconstrained minimization via embedded-.m BFGS quasi-Newton with a central-difference gradient and Armijo backtracking line search (inverse-Hessian estimate H, reset to I on a non-descent direction). Objective is user code -> bytecode (pausable). Parity on the SOLUTION (the minimiser); tol 1e-4 since MATLAB's quasi-newton stops at ~[0.99999 0.99998] on Rosenbrock (numkit's central-FD BFGS converges tighter, both ~[1 1]). Fingerprint: parabola (x-3)^2 -> 3, quadratic bowl -> [1 -2] (fval 3), Rosenbrock -> [1 1]. Output orientation mirrors x0. Verified vs MATLAB R2025b. Fixes bugs/optim/fminunc (split from constrained-solvers cluster; quadprog/linprog/fmincon remain). |
 | `fseminf` | ❌ | semi-infinite optimisation |
 | `fgoalattain` | ❌ | multi-objective goal attainment |
 | `fminimax` | ❌ | minimax optimisation |

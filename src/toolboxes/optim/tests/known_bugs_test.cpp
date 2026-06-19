@@ -35,11 +35,15 @@ TEST_F(OptimKnownBug, Lsqnonlin)
     EXPECT_NEAR(evalScalar("p(2)"), 2.0, 1e-4);
 }
 
-// bugs/optim/constrained-solvers.md — fminunc on a parabola.
-TEST_F(OptimKnownBug, DISABLED_Fminunc)
+// bugs/optim/fminunc.md — fminunc on a parabola (FIXED, promoted live).
+TEST_F(OptimKnownBug, Fminunc)
 {
     eval("x = fminunc(@(x) (x-3)^2, 0);");
     EXPECT_NEAR(evalScalar("x"), 3.0, 1e-4);
+    // 2-D quadratic bowl -> [1 -2].
+    eval("xb = fminunc(@(x) (x(1)-1)^2 + 2*(x(2)+2)^2 + 3, [0 0]);");
+    EXPECT_NEAR(evalScalar("xb(1)"),  1.0, 1e-5);
+    EXPECT_NEAR(evalScalar("xb(2)"), -2.0, 1e-5);
 }
 
 // bugs/optim/constrained-solvers.md — quadprog: min 0.5 x'x - [1 1]x -> [1 1].
