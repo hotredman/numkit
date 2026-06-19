@@ -1,0 +1,10 @@
+{
+  "name": "mskdemod",
+  "namespace": "comm",
+  "setup": "data = [1 0 1 1 0 0 1 0 1 1 0 1 0 0 1 0]; nsamp = 8;",
+  "expr": "y = mskmod(data, nsamp); [z, ph] = mskdemod(y, nsamp); m = double(isequal(z(:), data(:))); s = sum(z(:)); zr = mskdemod(y .* exp(1i*0.3), nsamp); mr = double(isequal(zr(:), data(:))); z1 = z(1); zend = z(end);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["m", "s", "ph", "mr", "z1", "zend"],
+  "comment": "Sig: [z, phaseout] = mskdemod(y, nSamp [, 'diff' [, ini_phase]]). Coherent inverse of mskmod (differential): bit_k = (sum over within-symbol pairs of angle(y[n]*conj(y[n-1])) > 0). Differential decision -> invariant to a constant phase rotation (mr: demod of y*exp(1i*0.3) still recovers data) and robust to noise; ini_phase only feeds phaseout. Output keeps the input row/column orientation. Non-differential path deferred (matches mskmod's gap). Fingerprint: round-trip mskdemod(mskmod(data)) == data (m=1), bit sum s, final phase state ph=0 (balanced), rotation-invariant recovery mr=1. numkit's mskmod is bit-exact with MATLAB, so the demod matches MATLAB R2025b mskdemod. Fixes the last of bugs/comm/analog-demodulators (pm/fm/am/ssb done 2026-06-19)."
+}

@@ -27,6 +27,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mil188_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/arith_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/mskmod_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mskdemod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/base_conversions_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pammod_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/poly2trellis_test.cpp

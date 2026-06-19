@@ -41,10 +41,12 @@ TEST_F(CommKnownBug, DISABLED_SsbDemodExists)
     eval("m=[0.2 0.5 -0.3 0.1]; y=ssbdemod(ssbmod(m,30,100),30,100);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
 }
-TEST_F(CommKnownBug, DISABLED_MskDemodExists)
+// bugs/comm/analog-demodulators.md — mskdemod (FIXED 2026-06-19, promoted live).
+TEST_F(CommKnownBug, MskDemodExists)
 {
-    eval("y=mskdemod(mskmod([1 0 1 1 0],8),8);");
-    EXPECT_GT(evalScalar("numel(y)"), 0.0);
+    eval("d=[1 0 1 1 0]; y=mskdemod(mskmod(d,8),8);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 5);
+    EXPECT_EQ(static_cast<int>(evalScalar("sum(y(:)==d(:))")), 5);   // exact round-trip
 }
 
 // bugs/comm/syndtable.md — syndrome decoding table (coset leaders).

@@ -279,6 +279,69 @@ Value mskmod(const Value &x, int nSamp, double ini_phase,
     return out;
 }
 
+// ── mskdemod (differential variant) ────────────────────────────────
+// Coherent inverse of mskmod. Each bit is the sign of the symbol's
+// accumulated phase increment: bit_k = (Σ angle(y[n]·conj(y[n-1])) > 0)
+// over the within-symbol sample pairs n = k·nSamp+1 … (k+1)·nSamp−1.
+// Using phase *increments* makes the decision invariant to a constant
+// phase rotation (and robust to noise), so ini_phase only feeds the
+// returned final-phase state. Matches MATLAB R2025b mskdemod (default
+// 'diff'); the non-differential path is deferred, as for mskmod.
+Value mskdemod(const Value &y, int nSamp, double ini_phase,
+               double *phase_out, std::pmr::memory_resource *mr)
+{
+    if (nSamp <= 0)
+        throw Error("mskdemod: nSamp must be a positive integer",
+                    0, 0, "mskdemod", "", "numkit:mskdemod:nSamp");
+
+    const auto &d = y.dims();
+    size_t H = d.rows();
+    size_t W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) std::swap(H, W);   // a row is one channel of length H
+
+    if (H == 0 || H % static_cast<size_t>(nSamp) != 0)
+        throw Error("mskdemod: signal length must be a positive multiple of nSamp",
+                    0, 0, "mskdemod", "", "numkit:mskdemod:length");
+    const size_t N = H / static_cast<size_t>(nSamp);   // symbols per channel
+    const bool cplx = y.isComplex();
+
+    Value out = Value::matrix(N, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+
+    auto getC = [&](size_t col, size_t row) -> Cd {
+        const size_t idx = was_row ? row : (col * H + row);
+        return cplx ? y.complexData()[idx] : Cd(y.elemAsDouble(idx), 0.0);
+    };
+
+    double lastPhase = ini_phase;
+    for (size_t c = 0; c < W; ++c) {
+        long long cumSum = 0;
+        for (size_t k = 0; k < N; ++k) {
+            const size_t start = k * static_cast<size_t>(nSamp);
+            double acc = 0.0;
+            for (size_t n = start + 1; n < start + static_cast<size_t>(nSamp); ++n) {
+                const Cd p = getC(c, n) * std::conj(getC(c, n - 1));
+                acc += std::atan2(p.imag(), p.real());
+            }
+            const int bit = (acc > 0.0) ? 1 : 0;
+            o[c * N + k] = static_cast<double>(bit);
+            cumSum += (2 * bit - 1);
+        }
+        double ph = std::fmod(ini_phase + (M_PI * 0.5) * (double)cumSum, 2.0 * M_PI);
+        if (ph < 0.0) ph += 2.0 * M_PI;
+        lastPhase = ph;
+    }
+    if (phase_out) *phase_out = lastPhase;
+
+    if (was_row) {
+        Value row = Value::matrix(1, N, ValueType::DOUBLE, mr);
+        std::copy(o, o + N, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
 // ── ssbmod ─────────────────────────────────────────────────────────
 // Single-sideband modulation — closed-form definition (Haykin, "Communication Systems"):
 //   t = (0:1/Fs:(N-1)/Fs)'
