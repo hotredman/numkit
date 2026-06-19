@@ -33,6 +33,20 @@ measurements). The default `instfreq` method is the spectrogram-based
 first conditional spectral moment; numkit may be using the Hilbert
 phase-derivative incorrectly, or with the wrong fs scaling.
 
+## Recheck after the hilbert non-pow2 fix (2026-06-19)
+The chirp repro length is 1000 (non-pow2), so I re-ran it after fixing
+bugs/signal/hilbert-nonpow2. The values **changed** (ifr(1) went −66.58 →
+−19.12) but are **still negative / wrong** — so numkit's `instfreq` IS on
+the Hilbert phase-derivative path (it moved with the hilbert fix), but it
+has its own sign/scaling defect AND, more fundamentally, MATLAB's
+**default** `instfreq(x,fs)` is the spectral-moment TFD method, not the
+Hilbert derivative. So this is a **method mismatch**, not the hilbert bug:
+even a perfectly-signed Hilbert derivative won't match MATLAB's default.
+**Real fix = reimplement the default as the first conditional spectral
+moment over the spectrogram/pspectrum TFD** (then `instbw` = 2nd central
+moment). Matching MATLAB's TFD defaults (window/overlap) to parity tol is
+the work. Substantial — not the quick win the hilbert recheck hoped for.
+
 ## Suggested fix
 Reconcile with MATLAB's definition: default `instfreq(x,fs)` is the
 first conditional spectral moment over the `pspectrum`/spectrogram TFD
