@@ -383,6 +383,38 @@ TEST(EmitterFn, ClassStructEmission)
     EXPECT_TRUE(contains(s, "double y = 5.0;"));  // the actual default, not zero
 }
 
+// ── class brick 5b: field access + object params/returns ─────────────
+TEST(EmitterFn, ValueClassFieldAccess)
+{
+    const char *src =
+        "classdef Point\n  properties\n    x = 0\n    y = 0\n  end\nend\n"
+        "function p = setx(p, v)\n  p.x = v;\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+
+    const auto    reg = stdReg();
+    ClassRegistry creg;
+    collectClasses(*root, creg, reg);
+    ASSERT_TRUE(creg.has("Point"));
+    const int id = creg.idOf("Point");
+
+    const numkit::ASTNode *fn = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    const EmittedFunction out = emitFunction(
+        *fn, {{"p", InferredType::object(id)}, {"v", kDoubleScalar}}, reg, &creg);
+    const std::string &s = out.source;
+
+    EXPECT_EQ(out.signature, "Point setx(Point p, double v)");  // object in + out, by value
+    EXPECT_TRUE(contains(s, "struct Point {"));                 // struct emitted
+    EXPECT_TRUE(contains(s, "double x = 0.0;"));
+    EXPECT_TRUE(contains(s, "p.x = v;"));                       // field write (value -> '.')
+    EXPECT_TRUE(contains(s, "return p;"));
+}
+
 // ── engine 1b: interprocedural call emission ──────────────────────────
 TEST(EmitterFn, InterproceduralProgram)
 {

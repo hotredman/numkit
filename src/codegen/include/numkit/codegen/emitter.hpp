@@ -61,7 +61,8 @@ std::string emitScalarExpr(const ASTNode &expr);
 // seeds parameter types, which are also recorded.
 using DeclTypeMap = std::unordered_map<std::string, InferredType>;
 DeclTypeMap computeDeclTypes(const ASTNode &body, const TypeEnv &entryEnv,
-                             const TransferRegistry &reg);
+                             const TransferRegistry &reg,
+                             const ClassRegistry *classes = nullptr);
 
 // Entry-point parameter type annotation (the inference seed for one
 // function). The order must match the FUNCTION_DEF's parameter list.
@@ -81,7 +82,8 @@ struct EmittedFunction {
 // Throws std::runtime_error on any construct outside the supported subset.
 EmittedFunction emitFunction(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
-                             const TransferRegistry &reg);
+                             const TransferRegistry &reg,
+                             const ClassRegistry *classes = nullptr);
 
 // Emit a whole program (build plan §12, brick 1b): the entry function plus
 // every user-function specialisation it transitively calls, monomorphised
@@ -95,7 +97,8 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
 // /return arrays (RawBuffer ABI) as in emitFunction.
 EmittedFunction emitProgram(const ASTNode &entryDef,
                             const std::vector<ParamSpec> &params,
-                            const FunctionTable &table, const TransferRegistry &reg);
+                            const FunctionTable &table, const TransferRegistry &reg,
+                            const ClassRegistry *classes = nullptr);
 
 // Emit the C++ struct for a class (build plan §12, brick 5). The object's
 // storage is the same for value and handle classes — handle-ness changes

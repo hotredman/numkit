@@ -378,6 +378,56 @@ TEST(CodegenE2E, WhileLoopRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[1], 0.0);   // 0 iterations
 }
 
+// Class brick 5b: a value class round-trips through compiled code. The
+// harness constructs a Point in C++, sets a field, and the transpiled
+// getx() reads it back. Proves struct emission + object param + field read
+// compile and run.
+TEST(CodegenE2E, ValueClassFieldRoundTrip)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "classdef Point\n  properties\n    x = 0\n    y = 0\n  end\nend\n"
+        "function y = getx(p)\n  y = p.x;\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    ClassRegistry creg;
+    collectClasses(*root, creg, reg);
+    const int id = creg.idOf("Point");
+    ASSERT_GE(id, 0);
+    const numkit::ASTNode *fn = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"p", InferredType::object(id)}}, reg, &creg);
+    ASSERT_EQ(emitted.signature, "double getx(Point p)");
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_valueclass_e2e.exe").string();
+    const std::string outTxt = (base / "nk_valueclass_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  Point p{};\n"
+        "  p.x = 7.0;\n"
+        "  double r = getx(p);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 7.0);
+}
+
 // Engine 1b: a 2-function program (f calls g) compiles, runs, and is
 // correct. f(3) = g(3) + 1 = 6 + 1 = 7.
 TEST(CodegenE2E, InterproceduralRunsCorrectly)
