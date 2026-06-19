@@ -1,6 +1,9 @@
 // toolboxes/signal/src/multirate/multirate.cpp
 
 #include <numkit/signal/multirate/multirate.hpp>
+#include <numkit/signal/multirate/extras.hpp>          // upfirdn
+#include <numkit/signal/filter_design/filter_design.hpp> // firls
+#include <numkit/signal/windows/windows.hpp>           // kaiser
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -10,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory_resource>
+#include <numeric>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -115,37 +119,77 @@ Value decimate(const Value &x, size_t factor, std::pmr::memory_resource *mr)
 }
 
 // ── resample ──────────────────────────────────────────────────────────
+// MATLAB resample.m algorithm (default N = 10, beta = 5): design a
+// Kaiser-windowed least-squares anti-alias FIR, apply it via the polyphase
+// upfirdn, then compensate the filter group delay and trim to ceil(Lx·p/q)
+// samples. Reuses the shipped firls / kaiser / upfirdn — all bit-exact with
+// MATLAB, so the assembled output matches MATLAB R2025b exactly.
 Value resample(const Value &x, size_t p, size_t q, std::pmr::memory_resource *mr)
 {
+    if (p == 0 || q == 0)
+        throw Error("resample: P and Q must be positive integers",
+                    0, 0, "resample", "", "numkit:resample:pq");
+
+    // Reduce P/Q by their GCD first (as MATLAB does).
+    const size_t g = std::gcd(p, q);
+    p /= g;
+    q /= g;
+
     const size_t nx = x.numel();
-    const double *xd = x.doubleData();
+    const bool isRow = x.dims().rows() == 1;
+
+    // Anti-alias filter: fc = 1/(2·max(p,q)); L = 2·N·max(p,q)+1.
+    //   h = p · firls(L-1,[0 2fc 2fc 1],[1 1 0 0]) · kaiser(L,beta) / sum(·)
+    // (normalised so sum(h) = p — the interpolation gain).
+    const int    N    = 10;
+    const double beta = 5.0;
+    const size_t pqmax = std::max(p, q);
+    const double fc = 1.0 / (2.0 * static_cast<double>(pqmax));
+    const int    L  = 2 * N * static_cast<int>(pqmax) + 1;
+
+    Value F = Value::matrix(1, 4, ValueType::DOUBLE, mr);
+    { double *f = F.doubleDataMut(); f[0] = 0.0; f[1] = 2.0 * fc; f[2] = 2.0 * fc; f[3] = 1.0; }
+    Value A = Value::matrix(1, 4, ValueType::DOUBLE, mr);
+    { double *a = A.doubleDataMut(); a[0] = 1.0; a[1] = 1.0; a[2] = 0.0; a[3] = 0.0; }
+
+    Value fb = firls(L - 1, F, A, mr);                   // length L
+    Value kw = kaiser(static_cast<size_t>(L), beta, mr); // length L
+    const double *fbd = fb.doubleData();
+    const double *kwd = kw.doubleData();
 
     ScratchArena scratch(mr);
+    auto fk = ScratchVec<double>(static_cast<size_t>(L), &scratch);
+    double sumfk = 0.0;
+    for (int i = 0; i < L; ++i) { fk[i] = fbd[i] * kwd[i]; sumfk += fk[i]; }
 
-    // Upsample by p (zero-stuff, multiply by p for gain)
-    const size_t upLen = nx * p;
-    auto up = ScratchVec<double>(upLen, &scratch);
-    for (size_t i = 0; i < nx; ++i)
-        up[i * p] = static_cast<double>(p) * xd[i];
+    // Front-pad the filter so the group delay lands on an output sample.
+    const long long Lhalf  = (L - 1) / 2;
+    const long long nz     = static_cast<long long>(q) - (Lhalf % static_cast<long long>(q));
+    const long long Lhalf2 = Lhalf + nz;
 
-    // Anti-alias FIR lowpass
-    size_t filtOrder = 10 * std::max(p, q);
-    if (filtOrder >= upLen)
-        filtOrder = upLen - 1;
-    const size_t filtLen = filtOrder + 1;
-    const double wc = M_PI / std::max(p, q);
+    Value hh = Value::matrix(1, static_cast<size_t>(nz) + static_cast<size_t>(L),
+                             ValueType::DOUBLE, mr);
+    {
+        double *hd = hh.doubleDataMut();
+        for (long long i = 0; i < nz; ++i) hd[i] = 0.0;
+        const double scale = static_cast<double>(p) / sumfk;
+        for (int i = 0; i < L; ++i) hd[nz + i] = scale * fk[i];
+    }
 
-    auto h = designLowpassFir(filtLen, wc, &scratch);
-    auto filtered = applyFirDf2t(h.data(), h.size(), up.data(), upLen, &scratch);
+    Value yfull = upfirdn(x, hh, p, q, mr);
+    const size_t  yfn = yfull.numel();
+    const double *yfd = yfull.doubleData();
 
-    // Downsample by q
-    const size_t outLen = (upLen + q - 1) / q;
-    const bool isRow = x.dims().rows() == 1;
-    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
-                   : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
+    const long long delay = Lhalf2 / static_cast<long long>(q);     // floor(ceil(Lhalf2)/q)
+    const long long Ly    = static_cast<long long>((nx * p + q - 1) / q); // ceil(Lx·p/q)
+    const size_t    outLen = (Ly > 0) ? static_cast<size_t>(Ly) : 0;
+
+    Value r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
+                    : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
+    double *rd = r.doubleDataMut();
     for (size_t i = 0; i < outLen; ++i) {
-        const size_t idx = i * q;
-        r.doubleDataMut()[i] = (idx < upLen) ? filtered[idx] : 0.0;
+        const long long idx = delay + static_cast<long long>(i);
+        rd[i] = (idx >= 0 && static_cast<size_t>(idx) < yfn) ? yfd[idx] : 0.0;
     }
     return r;
 }

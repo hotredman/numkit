@@ -138,12 +138,15 @@ TEST_F(SignalKnownBug, DISABLED_FreqsScalarIsNPoints)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(h)")), 2);  // numkit currently 1
 }
 
-// bugs/signal/resample-values.md — resample output values wrong (multirate).
-TEST_F(SignalKnownBug, DISABLED_ResampleValues)
+// bugs/signal/resample-values.md — resample output values (FIXED, promoted live).
+TEST_F(SignalKnownBug, ResampleValues)
 {
     eval("y = resample([1 2 3 4 5 6], 3, 2);");
-    EXPECT_NEAR(evalScalar("y(1)"),   1.00061, 1e-4);   // numkit ~0.0045
-    EXPECT_NEAR(evalScalar("sum(y)"), 31.6965, 1e-3);   // numkit ~10.87
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 9);     // ceil(6*3/2)
+    EXPECT_NEAR(evalScalar("y(1)"),   1.0006061736, 1e-9);
+    EXPECT_NEAR(evalScalar("y(5)"),   3.9409926893, 1e-9);
+    EXPECT_NEAR(evalScalar("y(9)"),   4.2402907078, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(y)"), 31.6965, 1e-3);
 }
 
 // bugs/signal/obw-value-outputs.md — value + [bw,flo,fhi,power] (FIXED).
