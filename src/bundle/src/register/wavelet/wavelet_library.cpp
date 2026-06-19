@@ -33,6 +33,11 @@ void upcoef_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/dwt2.cpp
 void dwt2_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void idwt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+// dwt/multilevel2.cpp
+void wavedec2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void waverec2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void appcoef2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void detcoef2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/dyad.cpp
 void dyaddown_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dyadup_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -102,6 +107,10 @@ void WaveletLibrary::install(Engine &engine)
     reg("dwt",  "wrcoef",   &wavelet::detail::wrcoef_reg);
     reg("dwt2", "dwt2",     &wavelet::detail::dwt2_reg);
     reg("dwt2", "idwt2",    &wavelet::detail::idwt2_reg);
+    reg("dwt2", "wavedec2", &wavelet::detail::wavedec2_reg);
+    reg("dwt2", "waverec2", &wavelet::detail::waverec2_reg);
+    reg("dwt2", "appcoef2", &wavelet::detail::appcoef2_reg);
+    reg("dwt2", "detcoef2", &wavelet::detail::detcoef2_reg);
 
     reg("denoise", "wthresh",  &wavelet::detail::wthresh_reg);
     reg("denoise", "wentropy", &wavelet::detail::wentropy_reg);

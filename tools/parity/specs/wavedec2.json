@@ -1,0 +1,10 @@
+{
+  "name": "wavedec2",
+  "namespace": "wavelet",
+  "setup": "X = reshape(1:16, 4, 4); Y = reshape(1:64, 8, 8);",
+  "expr": "[c, s] = wavedec2(X, 1, 'db1'); H = detcoef2('h', c, s, 1); V = detcoef2('v', c, s, 1); A = appcoef2(c, s, 'db1', 1); nC = numel(c); s11 = s(1,1); c1 = c(1); h11 = H(1,1); v11 = V(1,1); a22 = A(2,2); [c2, s2] = wavedec2(Y, 2, 'db2'); A2 = appcoef2(c2, s2, 'db2', 2); a2_11 = A2(1,1); nC2 = numel(c2); H1 = detcoef2('h', c2, s2, 1); h1_11 = H1(1,1); R = waverec2(c2, s2, 'db2'); rterr = max(max(abs(R - Y)));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["nC", "s11", "c1", "h11", "v11", "a22", "nC2", "a2_11", "h1_11", "rterr"],
+  "comment": "Sig: [C,S]=wavedec2(X,N,wname); D=detcoef2(type,C,S,k); A=appcoef2(C,S,wname,k); X=waverec2(C,S,wname). 2-D multilevel DWT: iterates dwt2 N times on the LL band; [C,S] = coarsest-first coefficient vector + (N+2)x2 size matrix. Built on the single-level dwt2/idwt2 (so bior/rbio work in 2-D too). detcoef2 also supports 'all' (->[H,V,D]). Fingerprint: db1 4x4 N=1 (numel(c)=16, s(1,1)=2, c(1)=7, H(1,1)=-1, V(1,1)=-4, A(2,2)=27), db2 8x8 N=2 (numel(c)=139, appcoef2 L2 A(1,1)=16.4557713660, detcoef2 h L1 H(1,1)=-0.8660254038, waverec2 reconstruction err ~0). Verified vs MATLAB R2025b. Fixes bugs/wavelet/wavedec2-family."
+}
