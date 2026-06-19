@@ -1,6 +1,6 @@
 # optim.fsolve — nonlinear system solver missing
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-19) — embedded-.m Levenberg-Marquardt
 - **Severity:** P2 (missing function)
 - **Kind:** missing-fn
 - **Found:** 2026-06-04 via missing-fn sweep
@@ -25,13 +25,38 @@ Not implemented. The pieces exist (numkit has linear solves and the
 trust-region / Levenberg-Marquardt or Newton iteration on `F` with a
 finite-difference (or supplied) Jacobian.
 
-## Suggested fix
-Newton with a finite-difference Jacobian and a line search (or
-Levenberg-Marquardt for robustness): iterate `x ← x − J⁻¹F(x)` until
-`‖F‖<tol`. `fun` is a vector-valued `FnHandle`. Medium. Verify the scalar
-case (√2) and a 2×2 system vs MATLAB. Shares the Jacobian/step machinery
-with `lsqnonlin` (see optim/nonlinear-lsq.md).
+## Fix (2026-06-19)
+Implemented as an **embedded `.m`** (`fsolve_reg.cpp`, `kFsolveMSource` +
+`registerFsolveM`), mirroring the fzero / fminsearch pattern — the objective
+`F(x)` is always user code, so writing the solver in `.m` makes every `F(x)`
+evaluation run as bytecode (pausable under the debugger, no C++ state
+machine). Split into `fsolve` + `nk_fsolve_eval` + `nk_fsolve_lm` (per the
+255-register VM gotcha).
+
+Algorithm: **Levenberg-Marquardt** with a forward-difference Jacobian —
+`(JᵀJ + λ·diag(JᵀJ))·dx = −JᵀF`, adapting λ (×0.4 on accept, ×3 on reject)
+until the residual norm decreases; robust on singular / ill-conditioned
+Jacobians. Iterates to ‖F‖<1e-12 or a tiny step. The input shape is
+preserved when calling `F` (row x0 → row), and the root mirrors x0's
+orientation.
+
+Parity with MATLAB is on the **solution** (the root), not the iterate
+trajectory: for a unique nearby root any convergent solver lands on the same
+point. Verified vs MATLAB R2025b: `x^2−2 → 1.41421356`, the 2×2 unit-circle
+system `→ [0.70710678 0.70710678]` (exitflag 1, ‖F‖≈6e-13), a Rosenbrock
+square system `→ [1 1]`, and a 3-variable system with multiple roots that —
+from x0=[1 0 4] — lands on `[1 2 3]` exactly as MATLAB. Parity `fsolve.json`
+→ OK.
+
+`options` (a 3rd arg) is accepted and ignored — the defaults are what's
+implemented; the 4th `output`-struct output is not emitted.
 
 ## References
-- new file under `src/toolboxes/optim/src/...`; cf. `fzero`/`fminunc`/`lsqnonlin`
+- `src/bundle/src/register/optim/fsolve_reg.cpp` (`kFsolveMSource`),
+  `optim_library.cpp` (registration)
+- `tools/parity/specs/fsolve.json`,
+  `src/toolboxes/optim/tests/fsolve_test.cpp` (7 cases),
+  `known_bugs_test.cpp` (`Fsolve`, promoted live),
+  smoke `tests/smoke/fsolve_smoke.m`
+- pattern: `fzero` / `fminsearch` embedded-.m wrappers
 - MATLAB `doc fsolve`

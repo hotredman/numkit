@@ -26,6 +26,7 @@ namespace numkit::optim {
 // embedder path).
 void registerFzeroM(Engine &engine);
 void registerFminsearchM(Engine &engine);
+void registerFsolveM(Engine &engine);   // fsolve_reg.cpp
 } // namespace numkit::optim
 
 namespace numkit {
@@ -40,6 +41,9 @@ void OptimLibrary::install(Engine &engine)
     // fminsearch is an embedded `.m` wrapper (pausable objective); shadows the
     // C++ external on both backends. The `Value fminsearch(...)` API is retained.
     optim::registerFminsearchM(engine);
+    // fsolve — embedded `.m` Levenberg-Marquardt nonlinear system solver
+    // (pausable objective; solution-parity with MATLAB).
+    optim::registerFsolveM(engine);
 }
 
 } // namespace numkit
