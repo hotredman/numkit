@@ -378,35 +378,37 @@ discipline as §11 — each brick string-tested, then e2e (compile+run+diff),
 then committed.
 
 **Engine (unlocks multi-function programs; reused by methods):**
-1. **Function table + monomorphizing return-type inference** — a
-   registry of FUNCTION_DEFs (one or many files); `inferExpr` on a call to
-   a user function (not a variable, not a builtin) infers the callee's
-   body under the call's argument types, memoised per (name, arg-type
-   key). Recursion → fixpoint / declared signature. Unit-tested on the
-   lattice, no emitter yet.
-2. **Call emission** — emit each needed specialisation as a C++ function
-   (mangled by arg-type key); emit the call as a direct C++ call. Refuse
-   (diagnose) a callee that cannot be typed concretely.
-3. **e2e gate** — a 2+ function program (`f` calls `g`) compiles, runs,
-   diffs vs the interpreter.
+1. **Function table + monomorphizing return-type inference** ✅ — user
+   functions registered as body-inferring transfers so `inferExpr` routes a
+   user call exactly like a builtin; specialised per arg types; recursion →
+   Dynamic (sound break). (monomorphize.{hpp,cpp})
+2. **Call emission** ✅ — `emitProgram` emits the entry + every
+   transitively-called specialisation, mangled by arg types (typeCode),
+   fwd-decls + defs; a non-concrete / array / Dynamic interprocedural
+   arg/result is refused (v1b scalar).
+3. **e2e gate** ✅ — `f` calls `g` compiles, runs, `f(3)=g(3)+1=7`.
 
-**Classes (value-class vertical slice first, mirroring biquad):**
-4. **Lattice `Object(classId)` + class table** — parse a CLASSDEF_DEF into
-   ClassInfo {name, isHandle, fields:[{name,type}], methods}. Field types
-   inferred from property defaults (else require annotation / refuse).
-   Detect & refuse the §7a out-of-subset features here.
-5. **Struct emission + field access + construction** — ClassInfo →
-   `struct Foo {…}`; `obj.field` read/write (FIELD_ACCESS in inferExpr +
-   emitter); constructor → a factory function.
-6. **Monomorphic method calls** — a method is a function with first param
-   the object; reuse bricks 1–2 (value: `Foo Foo__m(Foo self,…)` value-in/
-   out; handle: `void Foo__m(handle<Foo> self,…)` in-place). `obj.m(a)` →
-   the specialised call.
-7. **value-class e2e gate** — define a class + method, construct, call,
-   compile, run, diff vs the interpreter. Then a handle-class slice (bare
-   `shared_ptr`, no `delete`).
+**Classes (value-class vertical slice; emitter brick 5 split 5a/5b):**
+4. **Lattice `Object(classId)` + class table** ✅ — InferredType.classId +
+   object()/isObject(); ClassInfo/ClassRegistry/buildClassInfo/collectClasses;
+   §7a refusals loud. (classinfo.{hpp,cpp})
+5. **Struct emission + field access** ✅ — emitClassStruct; FIELD_ACCESS
+   read/write inference (classes threaded through inferExpr/inferStmt) +
+   emission (`.`/`->`); object param (by value / handle wrapper), object
+   return (by value), object local hoist. MATLAB-level construction
+   deferred — the e2e/harness constructs in C++.
+6. **Monomorphic method calls** ✅ — `obj.m(args)` (CALL with FIELD_ACCESS
+   callee): registerClassMethods registers "Class::m" transfers; emitter
+   emits `Class__m(self, args)` to the mangled specialisation (self by
+   value / handle). Result scalar or object (value-in/out).
+7. **value-class e2e gate** ✅ — a Rect with an area() method built in C++,
+   run() calls obj.area() -> compiled, run, area = w*h = 12. Plus
+   field-round-trip e2e (5b).
 
-**Later (each its own milestone):** the `Value`-ABI bridge (§6) so compiled
-code calls uncompiled builtins/libs and passes arrays/objects as `Value`;
-2-D / Subscript2D index emission; closed-world polymorphism via class-id
-type-switch (§7a); the `ControlBlock` upgrade for `delete`/`isvalid`.
+**Later (each its own milestone):** MATLAB-level construction
+(`Point(args)` via the constructor method) + a handle-class e2e (bare
+`shared_ptr`); the `Value`-ABI bridge (§6) so compiled code calls
+uncompiled builtins/libs and passes arrays/objects as `Value`; array-valued
+interprocedural args/results; 2-D / Subscript2D index emission; closed-world
+polymorphism via class-id type-switch (§7a); the `ControlBlock` upgrade for
+`delete`/`isvalid`.
