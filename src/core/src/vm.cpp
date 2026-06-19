@@ -2245,6 +2245,11 @@ enter_frame:
                     goto enter_frame;
                 break;
 
+            case OpCode::CALL_INDIRECT_MULTI:
+                if (execCallIndirectMulti(I, R, frame, ip))
+                    goto enter_frame;
+                break;
+
             // ── Display ──────────────────────────────────────────
             case OpCode::DISPLAY:
                 execDisplay(I, R, chunk);
@@ -2562,6 +2567,7 @@ static std::string describeInstruction(const Instruction &instr,
         return nm ? std::string("in call to '") + nm + "'" : "in builtin call";
     }
     case OpCode::CALL_INDIRECT:
+    case OpCode::CALL_INDIRECT_MULTI:
         return "in function call";
     case OpCode::CALL_METHOD:
     case OpCode::CALL_METHOD_MULTI: {
@@ -3499,6 +3505,68 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
         CallContext ctx{&engine_, currentCallEnv()};
         extIt->second(as, 1, os, ctx);
         R[I.a] = std::move(ob[0]);
+        return false;
+    }
+    throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
+}
+
+bool VM::execCallIndirectMulti(const Instruction &I, Value *R,
+                               CallFrame &frame, const Instruction *ip)
+{
+    // a=outBase, b=fhReg, c=argBase, d=nargs, e=nout
+    uint8_t outBase = I.a, fhReg = I.b, argBase = I.c;
+    uint8_t na = static_cast<uint8_t>(I.d);
+    uint8_t nout = I.e;
+
+    // Resolve the function handle (plain or closure cell) + its captures.
+    Value funcHandleVal;
+    size_t numCaptures = 0;
+    if (R[fhReg].isCell() && R[fhReg].numel() >= 1
+        && R[fhReg].cellAt(0).isFuncHandle()) {
+        funcHandleVal = R[fhReg].cellAt(0);
+        numCaptures = R[fhReg].numel() - 1;
+    } else if (R[fhReg].isFuncHandle()) {
+        funcHandleVal = R[fhReg];
+    } else {
+        throw std::runtime_error(
+            "VM: multi-output call '[...] = f(...)' of a value that is not a "
+            "function handle");
+    }
+
+    const std::string &funcName = funcHandleVal.funcHandleName();
+
+    // Build args: user args followed by captured values.
+    size_t totalArgsN = static_cast<size_t>(na) + numCaptures;
+    std::vector<Value> argsBuf(totalArgsN);
+    for (uint8_t i = 0; i < na; ++i)
+        argsBuf[i] = R[argBase + i];
+    for (size_t i = 0; i < numCaptures; ++i)
+        argsBuf[na + i] = R[fhReg].cellAt(1 + i);
+    uint8_t totalArgs = static_cast<uint8_t>(std::min(totalArgsN, size_t(255)));
+
+    // Compiled user / anonymous function → multi-return frame push (the body
+    // runs with nargout = nout and RET_MULTI distributes back to outBase).
+    if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+        frame.ip = ip + 1;
+        returnCount_ = 0;
+        pushCallFrame(*found, argsBuf.data(), totalArgs,
+                      0, nout, true, outBase, nout);
+        return true; // caller re-enters the dispatch loop
+    }
+
+    // External (builtin) function called for several outputs.
+    const ExternalFunc *fnPtr = engine_.findExternal(funcName, currentCallEnv());
+    if (fnPtr) {
+        std::vector<Value> outBuf(nout);
+        Span<const Value> as(argsBuf.data(), totalArgs);
+        Span<Value> os(outBuf.data(), nout);
+        CallContext ctx{&engine_, currentCallEnv()};
+        (*fnPtr)(as, nout, os, ctx);
+        for (uint8_t i = 0; i < nout; ++i)
+            if (outBuf[i].isUnset())
+                throw std::runtime_error("Too many output arguments.");
+        for (size_t i = 0; i < nout; ++i)
+            R[outBase + i] = std::move(outBuf[i]);
         return false;
     }
     throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");

@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (119 entries):** ✅ 103 fixed · 🔴 16 open = **5 bug** + 1 stub +
+**Tally (120 entries):** ✅ 104 fixed · 🔴 16 open = **5 bug** + 1 stub +
 1 missing-output + **8 missing-fn** + 1 perf (the 8 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (98)
+### ✅ FIXED (99)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [lang/multi-output-handle-call](lang/multi-output-handle-call.md) | P2 | ✅ FIXED: `[a,b]=h(x)` for a handle variable failed on the VM (resolved the name as a function). Added CALL_INDIRECT_MULTI opcode (handle resolution + nout frame-push) + the known-var gate in compileMultiAssign + execCallIndirectMulti. Named/user-fn handles now dispatch multi-output: (@size)(ones(2,3))→[2 3], @userfn→[a,b]. Remaining sub-gap: anonymous fns don't forward nargout (needs varargout) → split to lang/anonymous-multi-output. No regressions (12394/0) (2026-06-19) |
 | missing-fn | [optim/fmincon](optim/fmincon.md) | P2 | ✅ FIXED: constrained minimization fmincon was missing (last of the constrained-solvers cluster). Embedded-.m SQP reusing quadprog as the QP subproblem: FD gradient + BFGS Hessian, step from min 0.5 d'Bd+g'd s.t. linearized constraints, backtracking line search on f (QP keeps linear/bound feasible). Parity on solution: bounds→[0 0], lin-ineq→[1 1], eq→[1 1], box-corner→[2 0]. SCOPE: nonlinear constraints (nonlcon) rejected — [c,ceq]=nonlcon(x) multi-output handle call unsupported by VM (see lang/multi-output-handle-call) (2026-06-19) |
 | missing-fn | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | ✅ FIXED (cluster): fminunc + quadprog + linprog + fmincon all implemented (split into per-fn files). Cluster index resolved (2026-06-19) |
 | missing-fn | [optim/linprog](optim/linprog.md) | P2 | ✅ FIXED: linear program linprog(f,A,b,...) was missing (split from constrained-solvers). Solved by proximal (Tikhonov) regularization reusing the quadprog active-set: min f'x + (ε/2)‖x‖² (ε=1e-9). EXACT (not O(ε)): at a vertex optimum n active constraints determine x independent of εI, so it returns the exact vertex (ε-invariant 1e-6..1e-10). Matches MATLAB on unique optima: lower-bound→[1 1], classic max→[4 0]/-12, bounded→[0 4], box→[2 3]. CAVEAT: degenerate optimum → min-norm point (MATLAB returns a vertex; objective matches); unboundedness heuristic only. Full simplex = follow-up (2026-06-19) |
@@ -263,7 +264,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
-| [lang/multi-output-handle-call](lang/multi-output-handle-call.md) | P2 | `[a,b]=h(x)` for a handle variable fails on the VM (blocks fmincon nonlcon) |
+| [lang/anonymous-multi-output](lang/anonymous-multi-output.md) | P2 | anonymous fn doesn't forward nargout — `[a,b]=(@(x)deal(...))(5)` fails (needs varargout; blocks fmincon nonlcon) |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |

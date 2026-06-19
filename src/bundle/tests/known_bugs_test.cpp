@@ -41,8 +41,19 @@ TEST_F(BuiltinKnownBug, HistcountsNbins)
 }
 
 // bugs/lang/multi-output-handle-call.md — [a,b]=h(x) for a handle variable
-// fails on the VM (resolves the variable name as a function). MATLAB: a=6,b=4.
-TEST_F(BuiltinKnownBug, DISABLED_MultiOutputHandleCall)
+// (FIXED 2026-06-19 via CALL_INDIRECT_MULTI; live guard). Named + user-fn
+// handles now dispatch a multi-output indirect call.
+TEST_F(BuiltinKnownBug, MultiOutputHandleCall)
+{
+    eval("h = @size; [r, c] = h(ones(2, 3));");
+    EXPECT_DOUBLE_EQ(evalScalar("r"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c"), 3.0);
+}
+
+// bugs/lang/anonymous-multi-output.md — an anonymous function does not forward
+// nargout to its body, so [a,b]=(@(x)deal(x+1,x-1))(5) still fails (needs
+// varargout). MATLAB: a=6, b=4.
+TEST_F(BuiltinKnownBug, DISABLED_AnonymousMultiOutput)
 {
     eval("h = @(x) deal(x+1, x-1); [a, b] = h(5);");
     EXPECT_DOUBLE_EQ(evalScalar("a"), 6.0);

@@ -1,6 +1,6 @@
 # lang — multi-output call of a function-handle variable fails on the VM
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-19) — new `CALL_INDIRECT_MULTI` opcode
 - **Severity:** P2 (core VM limitation; blocks multi-output handle callbacks)
 - **Kind:** bug
 - **Found:** 2026-06-19 while implementing `fmincon` (its `nonlcon` interface
@@ -8,43 +8,50 @@
 
 ## Symptom
 Calling a function handle held in a **variable** with **more than one output**
-fails: the VM resolves the variable name as a *function name* and reports it
-undefined, instead of making an indirect multi-output call. Single-output
-handle calls work fine.
+failed: the VM resolved the variable name as a *function name* and reported
+it undefined, instead of making an indirect multi-output call. Single-output
+handle calls worked.
 
 ## Repro
 ```matlab
-h = @(x) deal(x+1, x-1);
-[a, b] = h(5);            % VM: "undefined function 'h' (in call to 'h')"
-[a, b] = feval(h, 5);     % VM: "Too many output arguments. (in call to 'feval')"
-r = h(5);                 % OK (single output)
-v = @(x) [x+1, x-1];  r = v(5);   % OK — single output returning a vector
+h = @size;  [r, c] = h(ones(2,3));   % was: "undefined function 'h'"; now r=2, c=3
+function [p,q] = f(v), p=v+1; q=v-1; end
+g = @f;  [a, b] = g(10);             % now a=11, b=9
 ```
-MATLAB: `[a, b] = h(5)` → `a = 6, b = 4`.
 
 ## Root cause
-The VM's indirect-call path (CALL_INDIRECT on a handle variable) does not
-support `nargout > 1`: with a bracketed LHS `[a, b] = h(...)` the dispatcher
-falls back to name-based function resolution (so the variable name is looked
-up as a builtin/user function and not found), and `feval` caps a handle at a
-single output. The TreeWalker may differ — verify both backends.
+The VM's multi-output assignment path (`compileMultiAssign`) only emitted the
+**name-based** `CALL_MULTI` for an IDENTIFIER callee — it never checked
+whether that identifier was a local/workspace variable holding a handle
+(unlike the single-output `compileCall`, which gates a `CALL_INDIRECT` on
+exactly that). So `[a,b] = h(x)` looked `h` up as a function name and failed.
 
-## Impact
-Blocks any `.m` / user code that calls a handle for several outputs — e.g.
-`fmincon`'s `nonlcon` (`[c, ceq] = nonlcon(x)`), and generally
-`[a, b, ...] = fh(args)` for a stored handle `fh`. `fmincon` currently
-**rejects** a non-empty `nonlcon` because of this (see
-[bugs/optim/fmincon.md](../optim/fmincon.md)).
+## Fix (2026-06-19)
+Added a `CALL_INDIRECT_MULTI` bytecode opcode (`a=outBase, b=fhReg,
+c=argBase, d=nargs, e=nout`) that mirrors `CALL_INDIRECT`'s handle resolution
+(plain or closure-cell, with captures) and `CALL_MULTI`'s `nout` frame-push.
+`compileMultiAssign` now applies the same known-variable gate as the
+single-output path and emits `CALL_INDIRECT_MULTI` for a handle-valued
+callee; the VM's `execCallIndirectMulti` dispatches it (compiled user /
+anonymous function → multi-return frame push with `nargout = nout`; external
+builtin → call with `nout` outputs). Full suite 12394/0 — no regressions.
 
-## Suggested fix
-Route a bracketed-LHS call whose callee is a handle-valued variable through
-the indirect-call opcode with the requested `nargout`, and lift `feval`'s
-single-output cap for handle targets. Add coverage for `[a,b]=h(x)`,
-`[a,b]=feval(h,x)`, and the anonymous-`deal` form. Core VM change — touches
-the bytecode call lowering + `feval`.
+Verified: `[r,c] = (@size)(ones(2,3))` → `2, 3`; a user `function [p,q]=f(v)`
+via `g=@f` → `[a,b]=g(10)` = `11, 9`.
+
+## Remaining sub-gap (separate bug)
+An **anonymous** function does not forward `nargout` to its body, so
+`h = @(x) deal(x+1,x-1); [a,b]=h(5)` still throws *"Too many output
+arguments"* (the synthetic `__result__ = deal(...)` body has one declared
+return). That needs **`varargout` / dynamic-nargout** support, which numkit
+lacks entirely — filed as
+[bugs/lang/anonymous-multi-output](anonymous-multi-output.md). `fmincon` keeps
+rejecting `nonlcon` until that lands (the common form is `@(x) deal(c, ceq)`).
+`feval(h, x)` for >1 output also still caps at one (same `varargout` root).
 
 ## References
-- discovered in `src/bundle/src/register/optim/fmincon_reg.cpp`
-- VM call lowering (CALL_INDIRECT), `feval` builtin
-- guard test: `src/bundle/tests/known_bugs_test.cpp`
-  (`DISABLED_MultiOutputHandleCall`)
+- `src/core/include/numkit/core/bytecode.hpp` (`CALL_INDIRECT_MULTI`),
+  `src/core/src/compiler.cpp` (`compileMultiAssign` gate),
+  `src/core/src/vm.cpp` (`execCallIndirectMulti`)
+- live guard: `src/bundle/tests/known_bugs_test.cpp` (`MultiOutputHandleCall`)
+- remaining: [bugs/lang/anonymous-multi-output](anonymous-multi-output.md)

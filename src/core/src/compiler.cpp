@@ -992,6 +992,41 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         tempReg();
 
     const std::string &funcName = callNode->children[0]->strValue;
+
+    // If the callee names a known local / workspace variable holding a
+    // callable, this is a multi-output INDIRECT (handle) call —
+    // `[a,b] = h(x)` for a stored handle. Mirror the single-output
+    // CALL_INDIRECT gate in compileCall and emit CALL_INDIRECT_MULTI, so the
+    // VM dispatches on the handle value instead of resolving `funcName` as a
+    // function name (which would fail). Enables e.g. fmincon's nonlcon.
+    bool calleeIsVar = (varRegisters_.find(funcName) != varRegisters_.end());
+    if (!calleeIsVar && isTopLevel_ && !engine_.isReservedName(funcName)) {
+        Value *existing = engine_.getVariable(funcName);
+        if (existing && !existing->isUnset() && !existing->isDeleted()) {
+            const bool isCallable =
+                existing->isFuncHandle()
+                || (existing->isCell() && existing->numel() >= 1
+                    && existing->cellAt(0).isFuncHandle());
+            if (isCallable
+                || (!engine_.isKnownLeafName(funcName) && !engine_.hasFunction(funcName)))
+                calleeIsVar = true;
+        }
+    }
+    if (calleeIsVar) {
+        uint8_t fhReg = varRegLookup(funcName);
+        size_t callIdx = chunk_.code.size();
+        // CALL_INDIRECT_MULTI: a=outBase, b=fhReg, c=argBase, d=nargs, e=nout
+        emit(Instruction::make_abcde(OpCode::CALL_INDIRECT_MULTI,
+                                     outBase, fhReg, argBase,
+                                     static_cast<int16_t>(argRegs.size()),
+                                     static_cast<uint8_t>(nout)));
+        recordCallArgNames(callNode, callIdx);
+        distribute(outBase);
+        if (complex)
+            return nout ? outBase : 0;
+        return outRegs.empty() ? 0 : outRegs[0];
+    }
+
     int16_t funcIdx = addStringConstant(funcName);
 
     // CALL_MULTI: a=outBase, d=funcIdx, b=argBase, c=nargs, e=nout
