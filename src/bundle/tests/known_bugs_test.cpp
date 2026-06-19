@@ -71,14 +71,18 @@ TEST_F(BuiltinKnownBug, Varargout)
     EXPECT_DOUBLE_EQ(evalScalar("r"), 15.0);
 }
 
-// bugs/lang/anonymous-multi-output.md — an anonymous function does not forward
-// nargout to its body, so [a,b]=(@(x)deal(x+1,x-1))(5) still fails (needs
-// varargout). MATLAB: a=6, b=4.
-TEST_F(BuiltinKnownBug, DISABLED_AnonymousMultiOutput)
+// bugs/lang/anonymous-multi-output.md — an anonymous call-body function now
+// forwards nargout to its body (FIXED 2026-06-19; live guard). MATLAB: a=6,b=4.
+TEST_F(BuiltinKnownBug, AnonymousMultiOutput)
 {
     eval("h = @(x) deal(x+1, x-1); [a, b] = h(5);");
     EXPECT_DOUBLE_EQ(evalScalar("a"), 6.0);
     EXPECT_DOUBLE_EQ(evalScalar("b"), 4.0);
+    // single-output still works, and captures forward too.
+    EXPECT_DOUBLE_EQ(evalScalar("h(5)"), 6.0);
+    eval("k = 100; m = @(x) deal(x+k, x-k); [p, q] = m(5);");
+    EXPECT_DOUBLE_EQ(evalScalar("p"), 105.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q"), -95.0);
 }
 
 // bugs/builtin/unique-last.md — sorted-order 'last' FIXED; live tests in
