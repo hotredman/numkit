@@ -178,6 +178,65 @@ In practice eval-family lives in scripting/glue code, not the numeric
 hot paths worth compiling — so "detect + diagnose + refuse" costs
 almost nothing for the real use case.
 
+## 7a. Object model policy (classes)
+
+Same shape as §7: a **supported subset** with everything else detected and
+refused with a diagnostic — never miscompiled. Locked decisions (from the
+design discussion; rationale preserved here so it is not lost):
+
+**Representation — object vs reference are separate.**
+- **value class** (default) → a plain C++ `struct Foo { … }` held **by
+  value**; assignment copies (MATLAB value semantics). A method that
+  "mutates" is **value-in / value-out**: MATLAB `obj = m(obj,a)` →
+  `Foo Foo__m(Foo self, …)` returning the modified copy. NOT an in-place
+  member mutator.
+- **handle class** (`< handle`) → object is still a plain `struct Foo`;
+  the *variable* holds a reference wrapper **`nk_rt::handle<Foo>`** (a thin
+  type over `std::shared_ptr<Foo>`). Methods mutate in place via `self->`.
+  Identity `==` is pointer equality at the wrapper. We do **NOT** inherit
+  from `shared_ptr`, and we do **NOT** put a mandatory polymorphic base on
+  every class (that would tax every object with a vtable and kill the
+  monomorphic-unboxing win). A polymorphic base is introduced **only**
+  inside a real closed-world subclass hierarchy that is actually used
+  polymorphically.
+- lattice: a new concrete tier `Object(classId)` (carries class identity +
+  whether handle), sitting beside scalar/array/dynamic. A monomorphic
+  object unboxes to its struct exactly as a scalar unboxes to `double`.
+
+**Dispatch.**
+- **monomorphic** (the exact class is statically proven at the call site)
+  → direct call `Foo__method(self,…)`, inlinable. This is the fast path
+  and is achieved by **inference/devirtualization**, not by any base
+  class.
+- **polymorphic, closed-world** (all subclasses known at compile time) →
+  later: a class-id **type-switch** (guarded monomorphization) — correct
+  but pays a per-call guard and boxes at type-inconsistent merges. NOT v1.
+- the speed prize requires monomorphism; vtables/type-switch are the
+  slow-but-correct fallback, not a speedup.
+
+**The real wall (narrow, not "all of OOP").** It is NOT "codegen can't see
+the class file" — in a whole-program compile it sees them all. It is:
+*an object whose class was not compiled into this C++ object model flows
+into compiled dispatch.* Causes: a class left interpreted; a class that
+post-dates the compiled artifact; a class named by a runtime string
+outside the compiled set (`feval(name)`). These reduce to the §7 root
+(runtime-decided) and are **refused** (or, with the §7 totality option,
+bridged to the interpreter as a boxed `Value`).
+
+**Refused in v1 (explicit diagnostic, never wrong code):** inheritance /
+polymorphic dispatch; `get.`/`set.` accessors; `Dependent`/validation
+properties; `subsref`/`subsasgn` and operator overloads; `dynamicprops`/
+`addprop`; `metaclass`/reflection; `delete`/`isvalid`/events; cyclic
+handle graphs (refuse on a detected back-reference, else the bare
+`shared_ptr` would leak). `delete`/`isvalid` fidelity (a `ControlBlock`
+with a valid-flag) is a deliberate later upgrade of the `handle<T>`
+wrapper, scoped to when it is needed.
+
+**v1 supported subset:** a single value class (and a single handle class
+with bare `shared_ptr`, no `delete`), plain stored properties with
+inferred field types, a constructor, and methods called **monomorphically**
+(exact class known). Everything above → refuse.
+
 ## 8. Milestones
 
 - **M0** — measure the prize. **DONE.** biquad scalar recurrence,
@@ -309,3 +368,45 @@ debug assert is never the release-correctness mechanism.
    gap to the hand-written M0 is exactly the `y = zeros(1,n)` zero-fill the
    source mandates (an extra streaming write the hand loop omits). The
    emitter's actual output achieves the M0 prize.
+
+## 12. Build plan — interprocedural calls + classes
+
+The monomorphizing interprocedural engine is the **shared prerequisite**:
+`f(args)` and `obj.method(args)` both type by specialising a callee body
+to its argument types. Build the engine first; classes layer on it. Same
+discipline as §11 — each brick string-tested, then e2e (compile+run+diff),
+then committed.
+
+**Engine (unlocks multi-function programs; reused by methods):**
+1. **Function table + monomorphizing return-type inference** — a
+   registry of FUNCTION_DEFs (one or many files); `inferExpr` on a call to
+   a user function (not a variable, not a builtin) infers the callee's
+   body under the call's argument types, memoised per (name, arg-type
+   key). Recursion → fixpoint / declared signature. Unit-tested on the
+   lattice, no emitter yet.
+2. **Call emission** — emit each needed specialisation as a C++ function
+   (mangled by arg-type key); emit the call as a direct C++ call. Refuse
+   (diagnose) a callee that cannot be typed concretely.
+3. **e2e gate** — a 2+ function program (`f` calls `g`) compiles, runs,
+   diffs vs the interpreter.
+
+**Classes (value-class vertical slice first, mirroring biquad):**
+4. **Lattice `Object(classId)` + class table** — parse a CLASSDEF_DEF into
+   ClassInfo {name, isHandle, fields:[{name,type}], methods}. Field types
+   inferred from property defaults (else require annotation / refuse).
+   Detect & refuse the §7a out-of-subset features here.
+5. **Struct emission + field access + construction** — ClassInfo →
+   `struct Foo {…}`; `obj.field` read/write (FIELD_ACCESS in inferExpr +
+   emitter); constructor → a factory function.
+6. **Monomorphic method calls** — a method is a function with first param
+   the object; reuse bricks 1–2 (value: `Foo Foo__m(Foo self,…)` value-in/
+   out; handle: `void Foo__m(handle<Foo> self,…)` in-place). `obj.m(a)` →
+   the specialised call.
+7. **value-class e2e gate** — define a class + method, construct, call,
+   compile, run, diff vs the interpreter. Then a handle-class slice (bare
+   `shared_ptr`, no `delete`).
+
+**Later (each its own milestone):** the `Value`-ABI bridge (§6) so compiled
+code calls uncompiled builtins/libs and passes arrays/objects as `Value`;
+2-D / Subscript2D index emission; closed-world polymorphism via class-id
+type-switch (§7a); the `ControlBlock` upgrade for `delete`/`isvalid`.
