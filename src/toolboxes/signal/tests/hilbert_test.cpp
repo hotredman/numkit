@@ -51,3 +51,28 @@ TEST_F(HilbertTest, EnvelopeMagnitudePositive)
         EXPECT_GT(evalScalar("e(" + std::to_string(k) + ")"), 0.0);
     }
 }
+
+// bugs/signal/hilbert-nonpow2 — a non-power-of-two length must be
+// transformed at length N, not zero-padded to nextPow2 (which corrupted the
+// analytic signal). MATLAB R2025b: hilbert([1:6]') imag =
+//   [2.3094, -1.1547, -1.1547, -1.1547, -1.1547, 2.3094].
+TEST_F(HilbertTest, NonPowerOfTwoLength)
+{
+    eval("h = hilbert([1:6]'); r = real(h); im = imag(h);");
+    for (int k = 1; k <= 6; ++k)   // real part == input
+        EXPECT_DOUBLE_EQ(evalScalar("r(" + std::to_string(k) + ")"),
+                         static_cast<double>(k));
+    EXPECT_NEAR(evalScalar("im(1)"),  2.3094010768, 1e-9);
+    EXPECT_NEAR(evalScalar("im(2)"), -1.1547005384, 1e-9);
+    EXPECT_NEAR(evalScalar("im(4)"), -1.1547005384, 1e-9);
+    EXPECT_NEAR(evalScalar("im(6)"),  2.3094010768, 1e-9);
+}
+
+// Constant-envelope property at a non-pow2 length: a pure tone at an exact
+// DFT bin has |hilbert(x)| == 1 everywhere (this was ~0.75 before the fix).
+TEST_F(HilbertTest, NonPowerOfTwoConstantEnvelope)
+{
+    eval("n=(0:99)'; x=cos(2*pi*5*n/100); e=abs(hilbert(x));");
+    for (int k = 1; k <= 100; k += 17)
+        EXPECT_NEAR(evalScalar("e(" + std::to_string(k) + ")"), 1.0, 1e-9);
+}
