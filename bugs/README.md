@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (114 entries):** ✅ 95 fixed · 🔴 19 open = **5 bug** + 1 stub +
+**Tally (114 entries):** ✅ 96 fixed · 🔴 18 open = **4 bug** + 1 stub +
 1 missing-output + **11 missing-fn** + 1 perf (the 11 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (90)
+### ✅ FIXED (91)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [signal/resample-values](signal/resample-values.md) | P1 | ✅ FIXED: resample produced garbage (sum 10.87, ramped from ~0) — old custom Hamming windowed-sinc FIR with no group-delay compensation. Rewrote as MATLAB resample.m reusing the shipped firls/kaiser/upfirdn (all bit-exact): h = p*firls(2N*pqmax,[0 2fc 2fc 1],[1 1 0 0]).*kaiser(L,5)/sum(...) normalised so sum(h)=p (the KEY: MATLAB normalises over ALL taps, not the polyphase branch — a 1.0006 factor was the whole filter discrepancy), then upfirdn + group-delay trim to ceil(Lx*p/q), GCD-reduced first. Bit-exact vs MATLAB R2025b: repro [1.00061 ... 4.24029] + 2/1, 1/2, sine, DC, GCD-reduce. Strengthened the old length-only parity spec (2026-06-19) |
 | missing-fn | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | ✅ FIXED (all 5): pmdemod/fmdemod/amdemod/ssbdemod (2026-06-19) + now mskdemod. MSK coherent differential demod: bit_k = (sum of within-symbol angle(y[n]*conj(y[n-1])) > 0) — phase-increment decision, invariant to constant rotation + noise-robust, ini_phase only feeds phaseout. numkit mskmod is bit-exact w/ MATLAB so demod matches MATLAB R2025b (20-bit random clean+noisy incl. last bit). Returns [z,phaseout], input orientation preserved. nondiff deferred (mskmod has no nondiff path). (2026-06-19) |
 | missing-fn | [image/corner](image/corner.md) | P2 | ✅ FIXED: corner-point detection was missing (cornermetric shipped). corner(I) wraps cornermetric: local maxima > QualityLevel*max -> connected-peak centroids -> strength-descending sort (ties column-major) -> up to N [x y]=[col row] coords. Border excluded naturally (metric <=0 < thr). numkit cornermetric matches MATLAB to ~1e-8 (not bit-exact + ~1-ULP corner asymmetry), so the strength sort quantises to ~1e-9*max to reproduce MATLAB's bit-exact-symmetric equal-corner ordering. Verified vs MATLAB R2025b: square -> [6 6;6 15;15 6;15 15], two-contrast squares -> 8 strong-first, corner(W,1) -> strong-at-high-col (strength beats position), N truncation, MinimumEigenvalue (2026-06-19) |
 | missing-fn | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | ✅ FIXED: 2-D multilevel DWT (wavedec2/waverec2/appcoef2/detcoef2) was missing. New TU dwt/multilevel2.cpp iterates the single-level dwt2 N times on the LL band and packs the MATLAB [C,S] layout (coarsest-first vector + (N+2)x2 size matrix); appcoef2 reconstructs via idwt2, detcoef2 slices H/V/D (+ 'all'), waverec2 = appcoef2 level 0. Built on dwt2/idwt2 so bior/rbio work in 2-D too. Verified vs MATLAB R2025b: db1 4x4 (c(1)=7, H=-1, V=-4, A(2,2)=27), db2 8x8 N=2 (numel(c)=139, appcoef2 L2=16.4557713660, detcoef2 L1=-0.8660254038), non-square, bior2.2 round-trip (2026-06-19) |
@@ -250,13 +251,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 5
+### 🔴 OPEN — bug (defect on an implemented function) — 4
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
-| [signal/resample-values](signal/resample-values.md) | P1 | wrong output values (multirate) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 
