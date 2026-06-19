@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (114 entries):** ✅ 91 fixed · 🔴 23 open = **5 bug** + 2 stub +
+**Tally (114 entries):** ✅ 92 fixed · 🔴 22 open = **5 bug** + 1 stub +
 1 missing-output + **14 missing-fn** + 1 perf (the 14 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (86)
+### ✅ FIXED (87)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| stub | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | ✅ FIXED: bior*/rbio* wavelet families were rejected (only haar/db/sym/coif known). New TU filter/biorfilt.cpp tabulates the four DISTINCT filters (Lo_D/Hi_D != Lo_R/Hi_R) for all 15 bior + 15 rbio families (CDF spline coeffs, public math); wavelet_filters() falls back to bior_filterbank() on an orthogonal-table miss. The dwt/idwt/wavedec/waverec machinery already threaded all four filters independently, so the whole family lit up at once. All 30 families bit-exact vs MATLAB R2025b wfilters (worst diff 0); dwt/wavedec/round-trip parity OK; bior1.1==Haar (2026-06-19) |
 | missing-fn | [linalg/funm](linalg/funm.md) | P2 | ✅ FIXED: general matrix function funm(A,fun) (scalar fun OF a matrix, not element-wise) was undefined. Implemented via eigendecomposition — F=V·diag(fun(diag(D)))/V where [V,D]=eig(A), real(F) for real A — as an embedded .m reusing the eig builtin. Matches MATLAB exactly for diagonalizable real-eigenvalue matrices: funm(diag(2,3),@exp)=diag(7.38906,20.0855), funm([1 2;3 4],@exp)=expm, @sin/@cos exact, funm(sym,@sqrt)=sqrtm. MATLAB's funm errors on @sqrt/anon (its generic path passes a derivative-order arg); ours is more lenient. DEFERRED: complex-eigenvalue + defective matrices error (numkit eig [V,D] needs Francis QR) — would need full Schur-Parlett. Parity OK vs MATLAB R2025b (2026-06-19) |
 | missing-fn | [math/numerical-integration-nd](math/numerical-integration-nd.md) | P2 | ✅ FIXED: quadgk/integral2/integral3/quad2d were undefined. Built on numkit's 1-D adaptive Gauss-Kronrod integral: integral2(fn,a,b,c,d) = iterated quadrature (outer x-sweep, inner y-sweep of fn(x,·)) by composing FnHandles in the math layer (inner 1-arg callback wraps the user's 2-arg fn with captured x); integral3 triple-nests; quadgk = the 1-D integral; quad2d = older name for integral2. 'AbsTol' accepted; works on both backends. Parity OK vs MATLAB R2025b: integral2(x·y)=0.25, integral2(exp(x·y))=1.317902151454, integral3(x+y+z)=1.5, quadgk(exp(−x²))=0.746824132812427 (2026-06-19) |
 | bug | [signal/hilbert-nonpow2](signal/hilbert-nonpow2.md) | P1 | ✅ FIXED: hilbert(x) returned a wrong analytic signal for non-power-of-2 lengths (constant envelope lost, \|z\|≈0.75 instead of 1) — hilbertBuf padded to nextPow2(N), transformed the padded length, then sliced N. Root: zero-padding changes the spectrum so the doubled-positive-freq mask + ifft operate on the wrong-length DFT (pow2 N unaffected → hid behind pow2 test inputs). Fix: transform at length N — pow2 keeps the fftRadix2 fast path, non-pow2 routes through the general fft/ifft (Bluestein); mask handles even/odd parity. Parity OK vs MATLAB R2025b: hilbert([1:6]') imag=[2.3094,-1.1547,…], L=100 tone \|hilbert\|=1, ramp \|z(1)\|=128.524726. Also fixes envelope/ssbmod/instfreq/vibration for non-pow2 + unblocks pmdemod/fmdemod. Full suite 12294 pass / 0 fail (2026-06-19) |
@@ -256,12 +257,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
 
-### 🔴 OPEN — stub (option/branch throws "not supported") — 2
+### 🔴 OPEN — stub (option/branch throws "not supported") — 1
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
-| [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | bior*/rbio* families throw |
 
 ### 🔴 OPEN — missing-output (Nth output not emitted) — 1
 

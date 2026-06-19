@@ -41,6 +41,16 @@ struct FilterBank {
 /// @see wfilters
 FilterBank wavelet_filters(const std::string &name);
 
+/// Fill @p out with the four filters of a biorthogonal (`bior*`) or
+/// reverse-biorthogonal (`rbio*`) family. Unlike the orthogonal families
+/// these have distinct analysis/synthesis pairs, so all four are tabulated
+/// independently (see filter/biorfilt.cpp). Used by @ref wavelet_filters.
+///
+/// @param name  Candidate family name (e.g. `"bior2.2"`, `"rbio4.4"`).
+/// @param out   Filled with the four filter vectors on success.
+/// @return      `true` if @p name is a known bior/rbio family, else `false`.
+bool bior_filterbank(const std::string &name, FilterBank &out);
+
 /// Result of @ref wfilters (`[…] = wfilters(wname[, kind])`).
 ///
 /// Which fields are populated depends on `kind`:

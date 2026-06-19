@@ -35,12 +35,16 @@ TEST_F(WaveletKnownBug, Ddencmp)
     EXPECT_DOUBLE_EQ(evalScalar("keepapp"), 1.0);
 }
 
-// bugs/wavelet/dwt-biorthogonal.md — bior2.2 analysis coefficients.
-TEST_F(WaveletKnownBug, DISABLED_DwtBiorthogonal)
+// bugs/wavelet/dwt-biorthogonal.md — bior2.2 analysis coefficients (FIXED).
+TEST_F(WaveletKnownBug, DwtBiorthogonal)
 {
     eval("[a, d] = dwt([1 2 3 4 5 6 7 8], 'bior2.2');");
-    EXPECT_NEAR(evalScalar("a(1)"), 2.651650, 1e-5);
-    EXPECT_NEAR(evalScalar("a(2)"), 1.237437, 1e-5);
+    EXPECT_NEAR(evalScalar("a(1)"), 2.651650429449553, 1e-9);
+    EXPECT_NEAR(evalScalar("a(2)"), 1.237436867076458, 1e-9);
+    // distinct analysis vs synthesis filters: the lowpass synthesis peak.
+    eval("[LoD, HiD, LoR, HiR] = wfilters('bior2.2');");
+    EXPECT_NEAR(evalScalar("LoD(4)"),  1.0606601717798214, 1e-12);
+    EXPECT_NEAR(evalScalar("LoR(3)"),  0.7071067811865476, 1e-12);
 }
 
 // bugs/wavelet/wpdec.md — wavelet packet decomposition exists.
