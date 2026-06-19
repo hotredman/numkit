@@ -23,3 +23,8 @@ fprintf('equality: [%.8f %.8f]  (expect [1 1])\n', x(1), x(2));
 % Objective minimum outside the box clamps to the box corner -> [2 0].
 x = fmincon(@(x) (x(1)-3)^2 + (x(2)+1)^2, [0 0], [],[],[],[], [0 0],[2 2]);
 fprintf('bounded corner: [%.8f %.8f]  (expect [2 0])\n', x(1), x(2));
+
+% Nonlinear inequality constraint x1^2+x2^2<=1, min x1+x2 -> [-1/sqrt2, -1/sqrt2].
+nl = @(x) deal(x(1)^2+x(2)^2-1, []);
+x = fmincon(@(x) x(1)+x(2), [0.5 0.5], [],[],[],[],[],[], nl);
+fprintf('nonlcon ineq: [%.8f %.8f]  (expect [-0.7071 -0.7071])\n', x(1), x(2));

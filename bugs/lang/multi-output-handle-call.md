@@ -39,15 +39,12 @@ builtin → call with `nout` outputs). Full suite 12394/0 — no regressions.
 Verified: `[r,c] = (@size)(ones(2,3))` → `2, 3`; a user `function [p,q]=f(v)`
 via `g=@f` → `[a,b]=g(10)` = `11, 9`.
 
-## Remaining sub-gap (separate bug)
-An **anonymous** function does not forward `nargout` to its body, so
-`h = @(x) deal(x+1,x-1); [a,b]=h(5)` still throws *"Too many output
-arguments"* (the synthetic `__result__ = deal(...)` body has one declared
-return). That needs **`varargout` / dynamic-nargout** support, which numkit
-lacks entirely — filed as
-[bugs/lang/anonymous-multi-output](anonymous-multi-output.md). `fmincon` keeps
-rejecting `nonlcon` until that lands (the common form is `@(x) deal(c, ceq)`).
-`feval(h, x)` for >1 output also still caps at one (same `varargout` root).
+## Follow-up (now also fixed)
+The **anonymous** form `h = @(x) deal(x+1,x-1); [a,b]=h(5)` was a *separate*
+root (the synthetic body had one declared return); it is now fixed too via
+core `varargout` + anonymous nargout forwarding — see
+[bugs/lang/anonymous-multi-output](anonymous-multi-output.md). Together these
+unblocked `fmincon`'s `nonlcon` (`@(x) deal(c, ceq)`).
 
 ## References
 - `src/core/include/numkit/core/bytecode.hpp` (`CALL_INDIRECT_MULTI`),

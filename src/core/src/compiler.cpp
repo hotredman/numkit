@@ -3361,16 +3361,63 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     auto funcNode = makeNode(NodeType::FUNCTION_DEF);
     funcNode->strValue = anonName;
     funcNode->paramNames = node->paramNames;
-    funcNode->returnNames = {"__result__"};
+    // When the body is a named-function call `@(p) g(...)`, lower it to a
+    // varargout function that forwards the call-site nargout to the body via
+    // the `__nk_fwd_call__` helper — `varargout = __nk_fwd_call__(nargout,
+    // 'g', args...)` — so `[a,b] = (@(x) deal(x+1,x-1))(5)` returns both
+    // values (anonymous multi-output / nargout forwarding). Non-call bodies
+    // (e.g. `@(x) x+1`) keep the single-output `__result__ = expr` fast path.
+    const ASTNode *bodyExpr = node->children[0].get();
+    bool forwardVarargout =
+        bodyExpr->type == NodeType::CALL
+        && !bodyExpr->children.empty()
+        && bodyExpr->children[0]->type == NodeType::IDENTIFIER
+        && bodyExpr->children[0]->strValue != "__nk_fwd_call__";
+    if (forwardVarargout) {
+        // Only forward when the callee is a GLOBAL function name (e.g. deal),
+        // not a parameter or a captured handle variable — `@(x) f(x)` /
+        // `@(x) g(h(x))` where f/g/h are handles must NOT be lowered to a
+        // name-string call (that would resolve a function named "f", not the
+        // handle). Those keep the single-output `__result__ = expr` path.
+        const std::string &callee = bodyExpr->children[0]->strValue;
+        bool calleeIsVar =
+            varRegisters_.find(callee) != varRegisters_.end();
+        for (const auto &p : node->paramNames)
+            if (p == callee) { calleeIsVar = true; break; }
+        if (calleeIsVar)
+            forwardVarargout = false;
+    }
 
-    // Body: __result__ = expr
     auto bodyBlock = makeNode(NodeType::BLOCK);
     auto assignNode = makeNode(NodeType::ASSIGN);
     assignNode->suppressOutput = true;
-    auto resultId = makeNode(NodeType::IDENTIFIER);
-    resultId->strValue = "__result__";
-    assignNode->children.push_back(std::move(resultId));
-    assignNode->children.push_back(cloneNode(node->children[0].get()));
+
+    if (forwardVarargout) {
+        funcNode->returnNames = {"varargout"};
+        auto vaId = makeNode(NodeType::IDENTIFIER);
+        vaId->strValue = "varargout";
+        assignNode->children.push_back(std::move(vaId));
+        // RHS: __nk_fwd_call__(nargout, 'g', args...)
+        auto fwdCall = makeNode(NodeType::CALL);
+        auto fwdId = makeNode(NodeType::IDENTIFIER);
+        fwdId->strValue = "__nk_fwd_call__";
+        fwdCall->children.push_back(std::move(fwdId));
+        auto nargoutId = makeNode(NodeType::IDENTIFIER);
+        nargoutId->strValue = "nargout";
+        fwdCall->children.push_back(std::move(nargoutId));
+        auto fnameStr = makeNode(NodeType::STRING_LITERAL);
+        fnameStr->strValue = bodyExpr->children[0]->strValue;
+        fwdCall->children.push_back(std::move(fnameStr));
+        for (size_t i = 1; i < bodyExpr->children.size(); ++i)
+            fwdCall->children.push_back(cloneNode(bodyExpr->children[i].get()));
+        assignNode->children.push_back(std::move(fwdCall));
+    } else {
+        funcNode->returnNames = {"__result__"};
+        auto resultId = makeNode(NodeType::IDENTIFIER);
+        resultId->strValue = "__result__";
+        assignNode->children.push_back(std::move(resultId));
+        assignNode->children.push_back(cloneNode(node->children[0].get()));
+    }
     bodyBlock->children.push_back(std::move(assignNode));
     funcNode->children.push_back(std::move(bodyBlock));
 
@@ -3404,7 +3451,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
         UserFunction uf;
         uf.name = anonName;
         uf.params = funcNode->paramNames;
-        uf.returns = {"__result__"};
+        uf.returns = funcNode->returnNames;   // {"__result__"} or {"varargout"}
         uf.body = std::shared_ptr<const ASTNode>(cloneNode(funcNode->children[0].get()));
         uf.closureEnv = nullptr;
         engine_.adoptUserFunction(anonName, std::move(uf));

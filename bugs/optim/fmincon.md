@@ -1,7 +1,7 @@
 # optim.fmincon — constrained minimization
 
 - **Status:** ✅ FIXED (2026-06-19) — embedded-.m SQP over quadprog
-  (linear + bound constraints; nonlcon deferred — see scope)
+  (linear + bound + nonlinear constraints)
 - **Severity:** P2 (missing function)
 - **Kind:** missing-fn
 - **Found:** 2026-06 via DEEP-PROBE (split from
@@ -39,16 +39,17 @@ objective center `→ [1 1]`; equality `x1+x2=2 → [1 1]`; objective minimum
 outside the box clamps to the corner `→ [2 0]`. Output mirrors x0's
 orientation. Parity `fmincon.json` → OK.
 
-## Scope — nonlinear constraints (`nonlcon`) deferred
-MATLAB's `nonlcon` interface is `[c, ceq] = nonlcon(x)` — a **multi-output
-function-handle call**, which the **numkit VM cannot currently make** (even
-`[a,b] = h(x)` for a handle variable fails; see
-[bugs/lang/multi-output-handle-call](../lang/multi-output-handle-call.md)).
-So a non-empty `nonlcon` is **rejected with a clear error**. Once the VM
-supports multi-output handle calls, the SQP here extends to nonlinear
-constraints by linearising `c`/`ceq` each iteration (their Jacobians via FD)
-and adding them to the QP subproblem + an L1-merit line search — the code was
-prototyped that way before the VM limitation was hit.
+## Nonlinear constraints (`nonlcon`) — supported (2026-06-19)
+`nonlcon` returns `[c, ceq]` (`c ≤ 0`, `ceq = 0`). At each iterate the SQP
+evaluates them + their FD Jacobians and **linearises** them into the QP
+subproblem (`c + Jc·d ≤ 0`, `ceq + Jceq·d = 0`), with an **L1-merit**
+backtracking line search penalising the nonlinear-constraint violation. The
+`[c, ceq] = nonlcon(x)` multi-output handle call is enabled by the
+varargout / anonymous-multi-output support
+([bugs/lang/anonymous-multi-output](../lang/anonymous-multi-output.md),
+[multi-output-handle-call](../lang/multi-output-handle-call.md)). Verified vs
+MATLAB R2025b: `min x1+x2 s.t. x1²+x2²≤1 → [−1/√2 −1/√2]`; `min x1²+x2² s.t.
+x1+x2−2=0 (ceq) → [1 1]`.
 
 ## References
 - `src/bundle/src/register/optim/fmincon_reg.cpp` (`kFminconMSource`),

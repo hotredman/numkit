@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (120 entries):** ✅ 104 fixed · 🔴 16 open = **5 bug** + 1 stub +
+**Tally (120 entries):** ✅ 105 fixed · 🔴 15 open = **4 bug** + 1 stub +
 1 missing-output + **8 missing-fn** + 1 perf (the 8 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (99)
+### ✅ FIXED (100)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [lang/anonymous-multi-output](lang/anonymous-multi-output.md) | P2 | ✅ FIXED: anonymous fns now forward nargout. (1) core varargout (RET_VARARGOUT — `function varargout=f` dynamic-count returns). (2) compileAnonFunc lowers `@(p) g(...)` (global-fn call body) to `varargout=__nk_fwd_call__(nargout,'g',args)` — helper resolves via findExternal (import-aware, so toolbox fns like median work), returns n results in a cell that RET_VARARGOUT expands. Captured-handle/param callees keep single-output (composition unaffected). `[a,b]=(@(x)deal(x+1,x-1))(5)`→6,4. Unblocked fmincon nonlcon. 12397/0 (2026-06-19) |
 | bug | [lang/multi-output-handle-call](lang/multi-output-handle-call.md) | P2 | ✅ FIXED: `[a,b]=h(x)` for a handle variable failed on the VM (resolved the name as a function). Added CALL_INDIRECT_MULTI opcode (handle resolution + nout frame-push) + the known-var gate in compileMultiAssign + execCallIndirectMulti. Named/user-fn handles now dispatch multi-output: (@size)(ones(2,3))→[2 3], @userfn→[a,b]. Remaining sub-gap: anonymous fns don't forward nargout (needs varargout) → split to lang/anonymous-multi-output. No regressions (12394/0) (2026-06-19) |
 | missing-fn | [optim/fmincon](optim/fmincon.md) | P2 | ✅ FIXED: constrained minimization fmincon was missing (last of the constrained-solvers cluster). Embedded-.m SQP reusing quadprog as the QP subproblem: FD gradient + BFGS Hessian, step from min 0.5 d'Bd+g'd s.t. linearized constraints, backtracking line search on f (QP keeps linear/bound feasible). Parity on solution: bounds→[0 0], lin-ineq→[1 1], eq→[1 1], box-corner→[2 0]. SCOPE: nonlinear constraints (nonlcon) rejected — [c,ceq]=nonlcon(x) multi-output handle call unsupported by VM (see lang/multi-output-handle-call) (2026-06-19) |
 | missing-fn | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | ✅ FIXED (cluster): fminunc + quadprog + linprog + fmincon all implemented (split into per-fn files). Cluster index resolved (2026-06-19) |
@@ -259,12 +260,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 5
+### 🔴 OPEN — bug (defect on an implemented function) — 4
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
-| [lang/anonymous-multi-output](lang/anonymous-multi-output.md) | P2 | anonymous fn doesn't forward nargout — `[a,b]=(@(x)deal(...))(5)` fails (needs varargout; blocks fmincon nonlcon) |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |

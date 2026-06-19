@@ -54,9 +54,18 @@ TEST_F(FminconTest, ColumnOrientation) {
     EXPECT_EQ(static_cast<int>(evalScalar("size(x,2)")), 1);
 }
 
-// Nonlinear constraints are rejected (VM multi-output-handle limitation).
-TEST_F(FminconTest, NonlconRejected) {
-    EXPECT_THROW(
-        eval("fmincon(@(x) x(1)+x(2), [0.5 0.5], [],[],[],[],[],[], @(x) deal(x(1)^2-1, []));"),
-        std::exception);
+// Nonlinear inequality constraint x1^2+x2^2<=1, min x1+x2 -> [-1/sqrt2, -1/sqrt2].
+TEST_F(FminconTest, NonlconInequality) {
+    eval("nl = @(x) deal(x(1)^2+x(2)^2-1, []);");
+    eval("x = fmincon(@(x) x(1)+x(2), [0.5 0.5], [],[],[],[],[],[], nl);");
+    EXPECT_NEAR(evalScalar("x(1)"), -0.7071067811865476, 1e-5);
+    EXPECT_NEAR(evalScalar("x(2)"), -0.7071067811865476, 1e-5);
+}
+
+// Nonlinear equality constraint x1+x2-2=0, min x1^2+x2^2 -> [1 1].
+TEST_F(FminconTest, NonlconEquality) {
+    eval("nle = @(x) deal([], x(1)+x(2)-2);");
+    eval("x = fmincon(@(x) x(1)^2+x(2)^2, [2 0], [],[],[],[],[],[], nle);");
+    EXPECT_NEAR(evalScalar("x(1)"), 1.0, 1e-5);
+    EXPECT_NEAR(evalScalar("x(2)"), 1.0, 1e-5);
 }
