@@ -211,3 +211,64 @@ TEST(CodegenE2E, CheckedIndexPathRunsCorrectly)
         EXPECT_NEAR(got[i], std::sin(0.01 * double(i + 1)) + double(i + 1), 1e-12)
             << "checked-path mismatch at i=" << i;
 }
+
+// SOUNDNESS e2e: the loop bound is reassigned (`n = numel(x); n = 3;`) so
+// the loop must run 3 times, NOT numel(x)=8. The output buffer is sized 3.
+// If the stale numel fact wrongly promoted the loop to `k < x_len` (=8) it
+// would write y[0..7] out of bounds. Correct emission runs k=1..3 only.
+TEST(CodegenE2E, ReassignedBoundComputesCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex("function y = f(x)\n  n = numel(x);\n  n = 3;\n  y = zeros(1, n);\n"
+                       "  for k = 1:n\n    y(k) = x(k);\n  end\nend\n");
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    const numkit::ASTNode *fn = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}},
+                     reg);
+    // must be the checked form (stale fact -> no promotion)
+    ASSERT_TRUE(emitted.source.find("for (std::size_t k = 0;") == std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_reassign_e2e.exe").string();
+    const std::string outTxt = (base / "nk_reassign_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[8]; double y[3];\n"
+        "  for (std::size_t i = 0; i < 8; ++i) x[i] = std::sin(0.01 * double(i + 1));\n"
+        "  f(x, 8, y, 3);\n"  // x_len=8, y_len=3; loop must run 3 (n), not 8
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (std::size_t i = 0; i < 3; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n"
+        "}\n";
+
+    const auto r = aot::compileToExecutable(program, exe);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 3u);
+    for (std::size_t i = 0; i < 3; ++i)
+        EXPECT_NEAR(got[i], std::sin(0.01 * double(i + 1)), 1e-12) << "at i=" << i;
+}

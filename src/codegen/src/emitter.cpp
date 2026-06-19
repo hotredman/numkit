@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <iterator>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -209,41 +210,67 @@ bool isNumelOfArray(const ASTNode &e,
     return true;
 }
 
-// Record numel-equality facts (forward walk): arrayLenVar[A] = v means
-// numel(A) == value of scalar variable v. Sources: `v = numel(A)` and a
-// vector size-constructor `B = zeros(1,v)` / `zeros(v,1)`.
-void recordLengthFacts(const ASTNode &node,
-                       const std::unordered_map<std::string, ArrayInfo> &arrays,
-                       std::unordered_map<std::string, std::string> &arrayLenVar)
+// numel-equality fact store: arrayLenVar[A] = v means numel(A) == value of
+// scalar variable v. The store is maintained FLOW-SENSITIVELY by
+// walkForFacts (forward over the top-level statement sequence) so a fact
+// is only ever used where it provably holds.
+
+// A change to variable `v` invalidates (a) any fact about an array named
+// `v` (its contents/size changed) and (b) any fact whose length TOKEN is
+// `v` (the token's value changed, so numel(A)==v no longer pinned).
+void invalidateLen(std::unordered_map<std::string, std::string> &lenVar,
+                   const std::string &v)
 {
-    if (node.type == NodeType::ASSIGN && node.children.size() == 2
-        && node.children[0]->type == NodeType::IDENTIFIER) {
-        const std::string &lhs = node.children[0]->strValue;
-        const ASTNode     &rhs = *node.children[1];
-        std::string        arr;
-        if (isNumelOfArray(rhs, arrays, arr))
-            arrayLenVar[arr] = lhs;  // numel(arr) == lhs
-        else if (rhs.type == NodeType::CALL && rhs.children.size() == 3
-                 && rhs.children[0]->type == NodeType::IDENTIFIER
-                 && (rhs.children[0]->strValue == "zeros"
-                     || rhs.children[0]->strValue == "ones")
-                 && arrays.count(lhs)) {
-            const ASTNode &d1 = *rhs.children[1], &d2 = *rhs.children[2];
-            if (d1.type == NodeType::NUMBER_LITERAL && d1.numValue == 1.0
-                && d2.type == NodeType::IDENTIFIER)
-                arrayLenVar[lhs] = d2.strValue;  // zeros(1, v) -> numel == v
-            else if (d2.type == NodeType::NUMBER_LITERAL && d2.numValue == 1.0
-                     && d1.type == NodeType::IDENTIFIER)
-                arrayLenVar[lhs] = d1.strValue;  // zeros(v, 1) -> numel == v
-        }
+    lenVar.erase(v);
+    for (auto it = lenVar.begin(); it != lenVar.end();)
+        it = (it->second == v) ? lenVar.erase(it) : std::next(it);
+}
+
+// All variables assigned anywhere within `node` (identifier / indexed-base
+// / for-var / multi-assign). Used to conservatively invalidate facts a
+// compound statement (if/while/loop body) may have changed.
+void collectAssignedVars(const ASTNode &node, std::set<std::string> &out)
+{
+    if (node.type == NodeType::ASSIGN && !node.children.empty()) {
+        const ASTNode &lhs = *node.children[0];
+        if (lhs.type == NodeType::IDENTIFIER)
+            out.insert(lhs.strValue);
+        else if (!lhs.children.empty() && lhs.children[0]->type == NodeType::IDENTIFIER)
+            out.insert(lhs.children[0]->strValue);  // indexed / field base
     }
-    for (const auto &c : node.children)
-        if (c) recordLengthFacts(*c, arrays, arrayLenVar);
+    if (node.type == NodeType::FOR_STMT) out.insert(node.strValue);
+    if (node.type == NodeType::MULTI_ASSIGN)
+        for (const auto &rn : node.returnNames)
+            if (!rn.empty()) out.insert(rn);
+    for (const auto &c : node.children) if (c) collectAssignedVars(*c, out);
     for (const auto &br : node.branches) {
-        if (br.first)  recordLengthFacts(*br.first, arrays, arrayLenVar);
-        if (br.second) recordLengthFacts(*br.second, arrays, arrayLenVar);
+        if (br.first)  collectAssignedVars(*br.first, out);
+        if (br.second) collectAssignedVars(*br.second, out);
     }
-    if (node.elseBranch) recordLengthFacts(*node.elseBranch, arrays, arrayLenVar);
+    if (node.elseBranch) collectAssignedVars(*node.elseBranch, out);
+}
+
+// Establish a fact from a single assignment `lhs = rhs` (lhs already
+// invalidated by the caller): `lhs = numel(A)` -> numel(A)==lhs;
+// `lhs = zeros(1,v)` / `zeros(v,1)` -> numel(lhs)==v.
+void establishLenFact(const std::string &lhs, const ASTNode &rhs,
+                      const std::unordered_map<std::string, ArrayInfo> &arrays,
+                      std::unordered_map<std::string, std::string> &lenVar)
+{
+    std::string arr;
+    if (isNumelOfArray(rhs, arrays, arr)) { lenVar[arr] = lhs; return; }
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 3
+        && rhs.children[0]->type == NodeType::IDENTIFIER
+        && (rhs.children[0]->strValue == "zeros" || rhs.children[0]->strValue == "ones")
+        && arrays.count(lhs)) {
+        const ASTNode &d1 = *rhs.children[1], &d2 = *rhs.children[2];
+        if (d1.type == NodeType::NUMBER_LITERAL && d1.numValue == 1.0
+            && d2.type == NodeType::IDENTIFIER)
+            lenVar[lhs] = d2.strValue;
+        else if (d2.type == NodeType::NUMBER_LITERAL && d2.numValue == 1.0
+                 && d1.type == NodeType::IDENTIFIER)
+            lenVar[lhs] = d1.strValue;
+    }
 }
 
 // Every use of `k` in `node` is the sole index of a buffer-array access
@@ -286,54 +313,85 @@ int countIdentUses(const ASTNode &node, const std::string &name)
     return n;
 }
 
-void analyzeLoops(const ASTNode &node, const ASTNode &funcBody,
-                  const std::unordered_map<std::string, ArrayInfo> &arrays,
-                  const std::unordered_map<std::string, std::string> &arrayLenVar,
-                  OptFacts &facts)
+// Promote one top-level `for k = 1:H` loop iff (gate, all must hold with
+// facts valid AT THE LOOP): every use of k is the sole index of a buffer
+// array whose numel is provably H; and k is used nowhere outside the loop.
+bool tryPromoteLoop(const ASTNode &f, const ASTNode &funcBody,
+                    const std::unordered_map<std::string, ArrayInfo> &arrays,
+                    const std::unordered_map<std::string, std::string> &lenVar,
+                    OptFacts &facts)
 {
-    if (node.type == NodeType::FOR_STMT && node.children.size() == 2) {
-        const ASTNode     &range = *node.children[0];
-        const std::string &k     = node.strValue;
-        if (range.type == NodeType::COLON_EXPR && range.children.size() == 2
-            && range.children[0]->type == NodeType::NUMBER_LITERAL
-            && range.children[0]->numValue == 1.0
-            && range.children[1]->type == NodeType::IDENTIFIER) {
-            const std::string     boundVar = range.children[1]->strValue;
-            const ASTNode        &lbody    = *node.children[1];
-            std::set<std::string> idxArrays;
-            bool safe = collectCleanIndexUses(lbody, k, arrays, idxArrays)
-                        && !idxArrays.empty();
-            for (const auto &A : idxArrays) {
-                auto it = arrayLenVar.find(A);
-                if (it == arrayLenVar.end() || it->second != boundVar) { safe = false; break; }
+    if (f.children.size() != 2) return false;
+    const ASTNode     &range = *f.children[0];
+    const std::string &k     = f.strValue;
+    if (!(range.type == NodeType::COLON_EXPR && range.children.size() == 2
+          && range.children[0]->type == NodeType::NUMBER_LITERAL
+          && range.children[0]->numValue == 1.0
+          && range.children[1]->type == NodeType::IDENTIFIER))
+        return false;
+    const std::string     boundVar = range.children[1]->strValue;
+    const ASTNode        &lbody    = *f.children[1];
+    std::set<std::string> idxArrays;
+    bool safe = collectCleanIndexUses(lbody, k, arrays, idxArrays) && !idxArrays.empty();
+    for (const auto &A : idxArrays) {
+        auto it = lenVar.find(A);
+        if (it == lenVar.end() || it->second != boundVar) { safe = false; break; }
+    }
+    if (!safe || countIdentUses(funcBody, k) != countIdentUses(lbody, k)) return false;
+
+    std::string bound;  // prefer a param array's companion (== numel exactly)
+    for (const auto &A : idxArrays)
+        if (!arrays.at(A).isOutput) { bound = arrays.at(A).lenVar; break; }
+    if (bound.empty()) bound = arrays.at(*idxArrays.begin()).lenVar;
+    facts.promotedLoops.insert(&f);
+    facts.loopBound[&f] = bound;
+    return true;
+}
+
+// Flow-sensitive forward walk over a statement sequence, maintaining the
+// numel-fact store (`lenVar`) with invalidation. A top-level `for` is
+// promoted against the facts valid at its position; any compound statement
+// conservatively invalidates every variable it could assign. (Only
+// top-level loops are promoted in this MVP; a loop nested in a branch /
+// another loop stays the always-correct checked form.)
+void walkForFacts(const ASTNode &block, const ASTNode &funcBody,
+                  const std::unordered_map<std::string, ArrayInfo> &arrays,
+                  std::unordered_map<std::string, std::string> &lenVar, OptFacts &facts)
+{
+    for (const auto &sp : block.children) {
+        if (!sp) continue;
+        const ASTNode &s = *sp;
+        if (s.type == NodeType::ASSIGN && !s.children.empty()) {
+            const ASTNode &lhs = *s.children[0];
+            if (lhs.type == NodeType::IDENTIFIER) {
+                invalidateLen(lenVar, lhs.strValue);
+                if (s.children.size() == 2)
+                    establishLenFact(lhs.strValue, *s.children[1], arrays, lenVar);
+            } else if (!lhs.children.empty()
+                       && lhs.children[0]->type == NodeType::IDENTIFIER) {
+                invalidateLen(lenVar, lhs.children[0]->strValue);  // indexed base changed
             }
-            // k must appear ONLY inside this loop body (no post-loop use).
-            if (safe && countIdentUses(funcBody, k) == countIdentUses(lbody, k)) {
-                std::string bound;  // prefer a param array's companion (== numel exactly)
-                for (const auto &A : idxArrays)
-                    if (!arrays.at(A).isOutput) { bound = arrays.at(A).lenVar; break; }
-                if (bound.empty()) bound = arrays.at(*idxArrays.begin()).lenVar;
-                facts.promotedLoops.insert(&node);
-                facts.loopBound[&node] = bound;
-            }
+        } else if (s.type == NodeType::FOR_STMT) {
+            tryPromoteLoop(s, funcBody, arrays, lenVar, facts);
+            std::set<std::string> assigned;  // body may rebind facts -> invalidate
+            collectAssignedVars(s, assigned);
+            for (const auto &v : assigned) invalidateLen(lenVar, v);
+        } else {
+            // if / while / switch / try / multi-assign / expr — conservative:
+            // every variable it might assign becomes unknown.
+            std::set<std::string> assigned;
+            collectAssignedVars(s, assigned);
+            for (const auto &v : assigned) invalidateLen(lenVar, v);
         }
     }
-    for (const auto &c : node.children)
-        if (c) analyzeLoops(*c, funcBody, arrays, arrayLenVar, facts);
-    for (const auto &br : node.branches) {
-        if (br.first)  analyzeLoops(*br.first, funcBody, arrays, arrayLenVar, facts);
-        if (br.second) analyzeLoops(*br.second, funcBody, arrays, arrayLenVar, facts);
-    }
-    if (node.elseBranch) analyzeLoops(*node.elseBranch, funcBody, arrays, arrayLenVar, facts);
 }
 
 OptFacts analyzeOptimizations(const ASTNode &body,
                               const std::unordered_map<std::string, ArrayInfo> &arrays)
 {
-    std::unordered_map<std::string, std::string> arrayLenVar;
-    recordLengthFacts(body, arrays, arrayLenVar);
-    OptFacts facts;
-    analyzeLoops(body, body, arrays, arrayLenVar, facts);
+    std::unordered_map<std::string, std::string> lenVar;
+    OptFacts                                     facts;
+    walkForFacts(body, body, arrays, lenVar, facts);
     return facts;
 }
 
