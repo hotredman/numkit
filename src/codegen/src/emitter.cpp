@@ -141,7 +141,7 @@ std::string emitScalarExpr(const ASTNode &expr)
 
 // ── declaration-type prepass (3b) ─────────────────────────────────────
 DeclTypeMap computeDeclTypes(const ASTNode &body, const TypeEnv &entryEnv,
-                             const TransferRegistry &reg)
+                             const TransferRegistry &reg, const ClassRegistry *classes)
 {
     // One inference pass records, at every definition site (including
     // loop-body temporaries and loop variables), the type the variable is
@@ -153,7 +153,7 @@ DeclTypeMap computeDeclTypes(const ASTNode &body, const TypeEnv &entryEnv,
         dt[name] = av.type;
 
     TypeEnv env = entryEnv;
-    inferStmt(body, env, reg, &dt);
+    inferStmt(body, env, reg, &dt, classes);
     return dt;
 }
 
@@ -179,6 +179,17 @@ bool isBufferArrayType(const InferredType &t)
 {
     if (!t.isConcrete() || t.shape.isScalar()) return false;
     return isBufferArray(AbstractValue{t, ConstVal::unknown()});
+}
+
+[[noreturn]] void unsupported(const std::string &what);  // fwd (defined below)
+
+// The C++ variable type for an object: a value class is the plain struct
+// (value semantics); a handle class is nk_rt::handle<T> (shared reference).
+std::string cppObjectType(int classId, const ClassRegistry *classes)
+{
+    const ClassInfo *ci = classes ? classes->byId(classId) : nullptr;
+    if (!ci) unsupported("object type with no class registry / unknown classId");
+    return ci->isHandle ? "nk_rt::handle<" + ci->name + ">" : ci->name;
 }
 
 // ── brick 6: optimisation facts (gated, deletable) ────────────────────
@@ -471,14 +482,23 @@ class Emitter {
 public:
     Emitter(TypeEnv types, const TransferRegistry &reg,
             std::unordered_map<std::string, ArrayInfo> arrays, OptFacts opt,
-            ProgramEmitCtx *ctx = nullptr)
+            ProgramEmitCtx *ctx = nullptr, const ClassRegistry *classes = nullptr)
         : types_(std::move(types)), reg_(reg), arrays_(std::move(arrays)),
-          opt_(std::move(opt)), ctx_(ctx)
+          opt_(std::move(opt)), ctx_(ctx), classes_(classes)
     {}
 
-    // Hoist a local scalar declaration at function entry.
+    // Hoist a local declaration at function entry (scalar or object).
     void hoistLocal(const std::string &name, const InferredType &t)
     {
+        if (t.isObject()) {
+            const ClassInfo *ci = classes_ ? classes_->byId(t.classId) : nullptr;
+            if (!ci) unsupported("object local '" + name + "' with no class registry");
+            if (ci->isHandle)
+                line("nk_rt::handle<" + ci->name + "> " + name + ";");  // null until assigned
+            else
+                line(ci->name + " " + name + "{};");                    // default-constructed
+            return;
+        }
         line(cppScalarType(t.dtype) + " " + name + " = " + zeroLiteral(t.dtype) + ";");
     }
 
@@ -523,6 +543,9 @@ private:
     // Non-null when emitting as part of a multi-function program: routes
     // user-function calls and accumulates the specialisations to emit.
     ProgramEmitCtx                             *ctx_ = nullptr;
+    // Non-null when classes are in play: resolves object field access,
+    // value-vs-handle representation, and constructor calls.
+    const ClassRegistry                        *classes_ = nullptr;
 };
 
 // MATLAB unary-math name -> std:: name. Restricted to functions that BOTH
@@ -576,6 +599,16 @@ std::string Emitter::emitExpr(const ASTNode &e)
             return emitUserCall(callee.strValue, e);
         return emitBuiltinCall(callee.strValue, e);
     }
+    case NodeType::FIELD_ACCESS: {  // obj.field read -> obj.field / obj->field
+        if (e.children.empty()) unsupported("field access arity");
+        const AbstractValue base = inferExpr(*e.children[0], types_, reg_, classes_);
+        if (!base.type.isObject() || !classes_)
+            unsupported("field access on a non-object value");
+        const ClassInfo *ci = classes_->byId(base.type.classId);
+        if (!ci || !ci->field(e.strValue))
+            unsupported("unknown field '" + e.strValue + "'");
+        return emitExpr(*e.children[0]) + (ci->isHandle ? "->" : ".") + e.strValue;
+    }
     default:
         unsupported("expression node kind");
     }
@@ -610,7 +643,7 @@ std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
     std::vector<InferredType> argTypes;
     std::string               argList;
     for (std::size_t i = 1; i < call.children.size(); ++i) {
-        const AbstractValue av = inferExpr(*call.children[i], types_, reg_);
+        const AbstractValue av = inferExpr(*call.children[i], types_, reg_, classes_);
         if (!isUnboxableScalarType(av.type))
             unsupported("interprocedural call arg must be an unboxed scalar (v1b): '"
                         + name + "'");
@@ -642,7 +675,7 @@ std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
 
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < call.children.size(); ++i)
-        idx.push_back(inferExpr(*call.children[i], types_, reg_));
+        idx.push_back(inferExpr(*call.children[i], types_, reg_, classes_));
 
     const IndexPlan plan = planIndexRead(arrayValue(base), idx);
     if (plan.form != IndexForm::LinearScalar)
@@ -672,8 +705,8 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
 
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < lhsCall.children.size(); ++i)
-        idx.push_back(inferExpr(*lhsCall.children[i], types_, reg_));
-    const AbstractValue rhsAV = inferExpr(rhs, types_, reg_);
+        idx.push_back(inferExpr(*lhsCall.children[i], types_, reg_, classes_));
+    const AbstractValue rhsAV = inferExpr(rhs, types_, reg_, classes_);
 
     const IndexPlan plan = planIndexWrite(arrayValue(base), idx, rhsAV);
     if (plan.form != IndexForm::LinearScalar)
@@ -725,7 +758,20 @@ void Emitter::emitAssign(const ASTNode &s)
         // no cast (the builtin emitter already produced a double). But the
         // companion length is size_t, so the cast is inside emitBuiltinCall.
         line(name + " = " + rhsExpr + ";");
-        types_.set(name, inferExpr(rhs, types_, reg_));
+        types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+        return;
+    }
+
+    if (lhs.type == NodeType::FIELD_ACCESS) {  // obj.field = rhs
+        if (lhs.children.empty()) unsupported("field write arity");
+        const AbstractValue base = inferExpr(*lhs.children[0], types_, reg_, classes_);
+        if (!base.type.isObject() || !classes_)
+            unsupported("field write on a non-object value");
+        const ClassInfo *ci = classes_->byId(base.type.classId);
+        if (!ci || !ci->field(lhs.strValue))
+            unsupported("unknown field '" + lhs.strValue + "'");
+        line(emitExpr(*lhs.children[0]) + (ci->isHandle ? "->" : ".") + lhs.strValue + " = "
+             + emitExpr(rhs) + ";");
         return;
     }
 
@@ -758,7 +804,7 @@ void Emitter::emitFor(const ASTNode &s)
     for (int i = 0; i < kMaxFixpoint; ++i) {
         TypeEnv bodyEnv = cur;
         bodyEnv.set(loopVar, iterVal);
-        inferStmt(body, bodyEnv, reg_);
+        inferStmt(body, bodyEnv, reg_, nullptr, classes_);
         TypeEnv next = joinEnv(cur, bodyEnv);
         if (next == cur) break;
         cur = next;
@@ -790,7 +836,7 @@ void Emitter::emitFor(const ASTNode &s)
         stepE = "1.0";
         cond  = "<=";
     } else if (range.children.size() == 3) {
-        const ConstVal sc = inferExpr(*range.children[1], types_, reg_).constant;
+        const ConstVal sc = inferExpr(*range.children[1], types_, reg_, classes_).constant;
         if (!sc.isKnown() || sc.value == 0.0)
             unsupported("for range step must be a known non-zero constant");
         stepE = emitExpr(*range.children[1]);
@@ -815,7 +861,7 @@ void Emitter::emitWhile(const ASTNode &s)
     TypeEnv cur = types_;
     for (int i = 0; i < kMaxFixpoint; ++i) {
         TypeEnv bodyEnv = cur;
-        inferStmt(body, bodyEnv, reg_);
+        inferStmt(body, bodyEnv, reg_, nullptr, classes_);
         TypeEnv next = joinEnv(cur, bodyEnv);
         if (next == cur) break;
         cur = next;
@@ -884,9 +930,27 @@ const char *kPrelude =
     "#include <cstddef>\n"
     "#include <cstdint>\n"
     "#include <limits>\n"
+    "#include <memory>\n"
     "#include <stdexcept>\n"
     "\n"
     "namespace nk_rt {\n"
+    "// Reference wrapper for a handle class: shared identity + lifetime; the\n"
+    "// wrapped object stays a plain struct (no inheritance from shared_ptr).\n"
+    "template <class T> class handle {\n"
+    "    std::shared_ptr<T> p_;\n"
+    "public:\n"
+    "    handle() = default;\n"
+    "    explicit handle(std::shared_ptr<T> p) : p_(static_cast<std::shared_ptr<T>&&>(p)) {}\n"
+    "    T* operator->() const { return p_.get(); }\n"
+    "    T& operator*()  const { return *p_; }\n"
+    "    bool operator==(const handle& o) const { return p_ == o.p_; }\n"
+    "    bool operator!=(const handle& o) const { return p_ != o.p_; }\n"
+    "    bool isvalid() const { return static_cast<bool>(p_); }\n"
+    "    template <class U> handle(const handle<U>& o) : p_(o.shared()) {}\n"
+    "    const std::shared_ptr<T>& shared() const { return p_; }\n"
+    "    template <class... A> static handle make(A&&... a)\n"
+    "        { return handle(std::make_shared<T>(static_cast<A&&>(a)...)); }\n"
+    "};\n"
     "template <class T>\n"
     "inline T index(const T* a, std::size_t len, double idx1) {\n"
     "    const std::size_t i = static_cast<std::size_t>(idx1);\n"
@@ -908,7 +972,7 @@ const char *kPrelude =
 // further specialisations. Returns {signature, definition}.
 OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &params,
                       const TransferRegistry &reg, ProgramEmitCtx *ctx,
-                      const std::string &cppName)
+                      const std::string &cppName, const ClassRegistry *classes)
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
@@ -931,12 +995,15 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             arrays[p.name] = {p.type.dtype, lenVar, /*isOutput=*/false};
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
                                 + ", std::size_t " + lenVar);
+        } else if (p.type.isObject()) {
+            // value class -> by value (value semantics); handle -> wrapper.
+            sigParams.push_back(cppObjectType(p.type.classId, classes) + " " + p.name);
         } else {
             unsupported("parameter '" + p.name + "' has an unsupported type for RawBuffer ABI");
         }
     }
 
-    const DeclTypeMap decls   = computeDeclTypes(body, entry, reg);
+    const DeclTypeMap decls   = computeDeclTypes(body, entry, reg, classes);
     const std::string retName = funcDef.returnNames[0];
     const auto        retIt   = decls.find(retName);
     if (retIt == decls.end())
@@ -954,6 +1021,10 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         arrays[retName] = {retType.dtype, lenVar, /*isOutput=*/true};
         sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName
                             + ", std::size_t " + lenVar);
+    } else if (retType.isObject()) {
+        // an object is returned BY VALUE (value class) / by handle wrapper —
+        // not an out-param; the scalar-return path (return retName;) applies.
+        retCpp = cppObjectType(retType.classId, classes);
     } else {
         unsupported("output '" + retName + "' has an unsupported type for RawBuffer ABI");
     }
@@ -971,13 +1042,13 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     for (const ASTNode *f : opt.promotedLoops) promotedVars.insert(f->strValue);
 
     // Emit hoisted local declarations (deterministic order) + the body.
-    Emitter em(entry, reg, arrays, opt, ctx);
+    Emitter em(entry, reg, arrays, opt, ctx, classes);
     std::map<std::string, InferredType> ordered(decls.begin(), decls.end());
     for (const auto &[name, t] : ordered) {
         if (entry.has(name) || arrays.count(name) || promotedVars.count(name))
             continue;  // params / arrays / promoted loop counters
-        if (!isUnboxableScalarType(t))
-            unsupported("local '" + name + "' is not an unboxable scalar (type "
+        if (!isUnboxableScalarType(t) && !t.isObject())
+            unsupported("local '" + name + "' is not an unboxable scalar or object (type "
                         + t.str() + ") — unsupported in RawBuffer ABI");
         em.hoistLocal(name, t);
     }
@@ -992,14 +1063,25 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
 
 } // namespace
 
+// Emit the C++ struct for every class in `classes` (empty when null).
+static std::string emitAllStructs(const ClassRegistry *classes)
+{
+    std::string s;
+    if (classes)
+        for (std::size_t i = 0; i < classes->size(); ++i)
+            s += emitClassStruct(*classes->byId(static_cast<int>(i)));
+    return s;
+}
+
 // ── whole-function emission (3f) ──────────────────────────────────────
 EmittedFunction emitFunction(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
-                             const TransferRegistry &reg)
+                             const TransferRegistry &reg, const ClassRegistry *classes)
 {
-    const OneFn f = emitOneFunction(funcDef, params, reg, /*ctx=*/nullptr, /*cppName=*/"");
+    const OneFn f = emitOneFunction(funcDef, params, reg, /*ctx=*/nullptr, /*cppName=*/"", classes);
     std::string source = kPrelude;
     source += "\n";
+    source += emitAllStructs(classes);
     source += f.definition;
     return {source, funcDef.strValue, f.signature};
 }
@@ -1007,7 +1089,8 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
 // ── whole-program emission (§12 brick 1b) ─────────────────────────────
 EmittedFunction emitProgram(const ASTNode &entryDef,
                             const std::vector<ParamSpec> &params,
-                            const FunctionTable &table, const TransferRegistry &reg)
+                            const FunctionTable &table, const TransferRegistry &reg,
+                            const ClassRegistry *classes)
 {
     ProgramEmitCtx ctx;
     ctx.funcs = &table;
@@ -1019,7 +1102,7 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
     ctx.seen.insert(entryMangled);
 
     std::vector<std::string> sigs, defs;
-    const OneFn ef = emitOneFunction(entryDef, params, reg, &ctx, entryMangled);
+    const OneFn ef = emitOneFunction(entryDef, params, reg, &ctx, entryMangled, classes);
     const std::string entrySig = ef.signature;
     sigs.push_back(ef.signature);
     defs.push_back(ef.definition);
@@ -1034,12 +1117,14 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
         ps.reserve(cs.argTypes.size());
         for (std::size_t i = 0; i < cs.argTypes.size(); ++i)
             ps.push_back({cs.def->paramNames[i], cs.argTypes[i]});
-        const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled);
+        const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes);
         sigs.push_back(cf.signature);
         defs.push_back(cf.definition);
     }
 
     std::string source = kPrelude;
+    source += "\n";
+    source += emitAllStructs(classes);              // class structs precede all functions
     source += "\n";
     for (const auto &s : sigs) source += s + ";\n";  // forward declarations
     source += "\n";
