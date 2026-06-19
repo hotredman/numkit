@@ -337,11 +337,29 @@ TEST(EmitterFn, BuiltinMathLowering)
     const auto reg = stdReg();
     numkit::ASTNodePtr root;
     const numkit::ASTNode *fn = findFunc(
-        "function y = g(x)\n  y = sin(x) + cos(x);\nend\n", root);
+        "function y = g(x)\n  y = sin(x) + cos(x) + tan(x) + exp(x) + floor(x) + fix(x);\nend\n",
+        root);
     ASSERT_NE(fn, nullptr);
 
-    const EmittedFunction out = emitFunction(*fn, {{"x", kDoubleScalar}}, reg);
-    EXPECT_TRUE(contains(out.source, "y = (std::sin(x) + std::cos(x));"));
+    const std::string s = emitFunction(*fn, {{"x", kDoubleScalar}}, reg).source;
+    EXPECT_TRUE(contains(s, "std::sin(x)"));
+    EXPECT_TRUE(contains(s, "std::cos(x)"));
+    EXPECT_TRUE(contains(s, "std::tan(x)"));
+    EXPECT_TRUE(contains(s, "std::exp(x)"));
+    EXPECT_TRUE(contains(s, "std::floor(x)"));
+    EXPECT_TRUE(contains(s, "std::trunc(x)"));  // MATLAB fix -> std::trunc
+}
+
+// A builtin that the transfer registry CAN type (sign -> scalar double)
+// but the emitter does not lower hits the explicit boundary and throws —
+// no silent wrong code, and (post dead-code trim) no unreachable lowering.
+TEST(EmitterFn, TypedButUnloweredBuiltinThrows)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc("function y = g(x)\n  y = sign(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }
 
 // A construct that infers to Dynamic (eval) cannot be typed -> the output

@@ -448,24 +448,21 @@ private:
     const std::string                          *promotedCounter_ = nullptr;
 };
 
-// std::<name> for a 1-arg real math builtin with an exact std equivalent.
+// MATLAB unary-math name -> std:: name. Restricted to functions that BOTH
+// have a registered transfer (so the result types to a concrete scalar and
+// this lowering is actually reachable) AND have an exact std equivalent.
+// Builtins outside this set (sqrt/log/asin/… not yet typed; sign no clean
+// std form) hit the explicit boundary in emitBuiltinCall and throw — never
+// silently wrong, never dead-but-unreachable speculation.
 const char *unaryMathStd(const std::string &name)
 {
-    static const std::unordered_set<std::string> kSet = {
-        "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
-        "asinh", "acosh", "atanh", "exp", "expm1", "log", "log1p", "log2",
-        "log10", "sqrt", "cbrt", "abs", "floor", "ceil", "round", "trunc"};
-    return kSet.count(name) ? name.c_str() : nullptr;
-}
-
-const char *binaryMathStd(const std::string &name)
-{
-    if (name == "atan2") return "atan2";
-    if (name == "hypot") return "hypot";
-    if (name == "power" || name == "mpower") return "pow";  // function-call form
-    if (name == "min")   return "fmin";  // MATLAB min/max ignore NaN, like fmin/fmax
-    if (name == "max")   return "fmax";
-    return nullptr;
+    static const std::unordered_map<std::string, const char *> kMap = {
+        {"sin", "sin"},     {"cos", "cos"},   {"tan", "tan"},   {"atan", "atan"},
+        {"sinh", "sinh"},   {"cosh", "cosh"}, {"tanh", "tanh"}, {"exp", "exp"},
+        {"floor", "floor"}, {"ceil", "ceil"}, {"round", "round"},
+        {"abs", "abs"},     {"fix", "trunc"}};
+    const auto it = kMap.find(name);
+    return it == kMap.end() ? nullptr : it->second;
 }
 
 std::string Emitter::emitExpr(const ASTNode &e)
@@ -513,21 +510,10 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
         return "static_cast<double>(" + arrays_.at(call.children[1]->strValue).lenVar + ")";
     }
 
-    if (nargs == 1) {
+    if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
-    }
-    if (nargs == 2) {
-        if (const char *fn = binaryMathStd(name))
-            return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ", "
-                   + emitExpr(*call.children[2]) + ")";
-        if (name == "mod")
-            return "nk_rt::mod(" + emitExpr(*call.children[1]) + ", "
-                   + emitExpr(*call.children[2]) + ")";
-        if (name == "rem")
-            return "nk_rt::rem(" + emitExpr(*call.children[1]) + ", "
-                   + emitExpr(*call.children[2]) + ")";
-    }
+
     unsupported("builtin call '" + name + "' (arity " + std::to_string(nargs) + ")");
 }
 
@@ -799,10 +785,6 @@ const char *kPrelude =
     "    if (idx1 < 1.0 || i > len)\n"
     "        throw std::out_of_range(\"numkit: index out of bounds (RawBuffer ABI cannot grow)\");\n"
     "    a[i - 1] = v;\n"
-    "}\n"
-    "inline double mod(double a, double b) { return b == 0.0 ? a : a - std::floor(a / b) * b; }\n"
-    "inline double rem(double a, double b) {\n"
-    "    return b == 0.0 ? std::numeric_limits<double>::quiet_NaN() : std::fmod(a, b);\n"
     "}\n"
     "} // namespace nk_rt\n";
 
