@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (116 entries):** ✅ 100 fixed · 🔴 16 open = **4 bug** + 1 stub +
+**Tally (117 entries):** ✅ 101 fixed · 🔴 16 open = **4 bug** + 1 stub +
 1 missing-output + **9 missing-fn** + 1 perf (the 9 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (95)
+### ✅ FIXED (96)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [optim/linprog](optim/linprog.md) | P2 | ✅ FIXED: linear program linprog(f,A,b,...) was missing (split from constrained-solvers). Solved by proximal (Tikhonov) regularization reusing the quadprog active-set: min f'x + (ε/2)‖x‖² (ε=1e-9). EXACT (not O(ε)): at a vertex optimum n active constraints determine x independent of εI, so it returns the exact vertex (ε-invariant 1e-6..1e-10). Matches MATLAB on unique optima: lower-bound→[1 1], classic max→[4 0]/-12, bounded→[0 4], box→[2 3]. CAVEAT: degenerate optimum → min-norm point (MATLAB returns a vertex; objective matches); unboundedness heuristic only. Full simplex = follow-up (2026-06-19) |
 | missing-fn | [optim/quadprog](optim/quadprog.md) | P2 | ✅ FIXED: quadratic program quadprog(H,f,...) was missing (split from constrained-solvers). Embedded-.m primal active-set for strictly-convex H (PD): no Phase-1 (starts from -H\\f), each iter solves the KKT saddle system [H B';B 0][x;λ]=[-f;c] over the working set, adds most-violated inequality / drops most-negative multiplier until KKT. Bounds folded into inequalities. Unique optimum -> matches MATLAB exactly across ALL constraint types: unconstrained→[1 1], ineq→[0.5 0.5], eq→[1.5 1.5], bounds→[0.3 0.3], mixed H→[-1/3 4/3], 2 active ineqs→[0.3 0.7] (2026-06-19) |
 | missing-fn | [optim/fminunc](optim/fminunc.md) | P2 | ✅ FIXED: unconstrained gradient minimizer fminunc(fun,x0) was missing (split from constrained-solvers cluster). Embedded-.m BFGS quasi-Newton with central-difference gradient + Armijo line search (inverse-Hessian H, reset to I on non-descent). Like fminsearch but gradient-based. Parity on solution: parabola→3, quad bowl→[1 -2] (fval 3), Rosenbrock→[1 1]. Output mirrors x0 orientation. Supplied-gradient form + options deferred (2026-06-19) |
 | missing-fn | [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | ✅ FIXED: lsqnonlin/lsqcurvefit (nonlinear least squares) were missing. Embedded-.m Levenberg-Marquardt reusing the fsolve LM core, but terminating at the LSQ minimiser (handles over-determined residuals). lsqcurvefit=lsqnonlin(@(p)fun(p,x)-y,p0). Outputs [p,resnorm,residual,exitflag]. Parity on solution: lsqnonlin linear→[1 2] resnorm 0, Rosenbrock→[1 1], noise-free sin→[2 1.5]; a*exp(b*x) fit has FLAT minimum (params loose, resnorm tight 0.001248164767 matched 8 digits). Bounds deferred (rejected) (2026-06-19) |
@@ -291,7 +292,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | qz (generalized Schur) / gsvd (generalized SVD) |
-| [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon/linprog (fminunc + quadprog ✅ split out) |
+| [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon (fminunc + quadprog + linprog ✅ split out) |
 
 ### 🔴 OPEN — perf (correct but slower than MATLAB) — 1
 

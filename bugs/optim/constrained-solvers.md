@@ -1,36 +1,35 @@
-# optim.fmincon / linprog — missing
+# optim.fmincon — missing
 
-- **Status:** 🔴 OPEN (`fminunc` + `quadprog` split out + FIXED 2026-06-19 —
-  see [fminunc.md](fminunc.md), [quadprog.md](quadprog.md))
-- **Severity:** P2 (missing functions)
+- **Status:** 🔴 OPEN (`fminunc` + `quadprog` + `linprog` split out + FIXED
+  2026-06-19 — see [fminunc.md](fminunc.md), [quadprog.md](quadprog.md),
+  [linprog.md](linprog.md))
+- **Severity:** P2 (missing function)
 - **Kind:** missing-fn
 - **Found:** 2026-06 via DEEP-PROBE
 
 ## Symptom
-The remaining constrained optimizers are not registered: `fmincon`
-(nonlinear constrained) and `linprog` (linear program). (`fminunc` and
-`quadprog` are now done — see their split-out files.)
+The last constrained optimizer is not registered: `fmincon` (general
+nonlinear constrained minimization). (`fminunc`, `quadprog` and `linprog`
+are now done — see their split-out files.)
 
 ## Repro
 ```matlab
 fmincon(@(x) x(1)^2+x(2)^2, [1 1], [],[],[],[], [0 0],[2 2])  % undefined
-linprog([1 1], [-1 0], [-1])                                   % undefined
 ```
 
 ## Root cause
 Not implemented. (`fminsearch` / `fminbnd` / `fzero` / `lsqnonneg` / `fminunc`
-/ `quadprog` exist.)
+/ `quadprog` / `linprog` exist.)
 
 ## Suggested fix
-Remaining:
-- `linprog`: simplex or interior-point LP. The optimum is a vertex (or a
-  face for degenerate costs) — match MATLAB's solution; phase-1/phase-2
-  simplex is the natural fit.
-- `fmincon`: SQP/interior-point over `fminunc` + constraint handling
-  (could reuse the `quadprog` active-set as the SQP subproblem solver).
-✅ `fminunc` (BFGS) and `quadprog` (active-set QP) done. `linprog` next
-(reuses no existing solver directly — needs a simplex), then `fmincon`
-(SQP, hardest). Verify against MATLAB on small textbook problems.
+`fmincon`: SQP or interior-point over `fminunc` + constraint handling. The
+natural build is **SQP** reusing the shipped `quadprog` as the QP subproblem
+solver: at each iterate linearise the constraints and solve a QP for the
+step, with a line search / merit function. The FnHandle objective +
+(optional) nonlinear-constraint handle run as bytecode (pausable), like the
+other embedded-.m solvers. Hardest of the cluster (constraint linearization,
+merit function, convergence). Verify against MATLAB on small textbook
+problems (e.g. quadratic objective with bounds / linear constraints).
 
 ## References
 - new files under `src/toolboxes/optim/src/...`

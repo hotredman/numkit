@@ -59,12 +59,17 @@ TEST_F(OptimKnownBug, Quadprog)
     EXPECT_NEAR(evalScalar("fvi"), -0.75, 1e-6);
 }
 
-// bugs/optim/constrained-solvers.md — linprog with lower-bound constraints.
-TEST_F(OptimKnownBug, DISABLED_Linprog)
+// bugs/optim/linprog.md — linprog with lower-bound constraints (FIXED).
+TEST_F(OptimKnownBug, Linprog)
 {
     eval("x = linprog([1 1], [-1 0; 0 -1], [-1; -1]);");  // x1>=1, x2>=1
     EXPECT_NEAR(evalScalar("x(1)"), 1.0, 1e-4);
     EXPECT_NEAR(evalScalar("x(2)"), 1.0, 1e-4);
+    // classic LP: max 3x+2y s.t. x+y<=4, x+3y<=6, x>=0 -> [4 0].
+    eval("[xc, fc] = linprog([-3 -2], [1 1; 1 3], [4; 6], [], [], [0 0], []);");
+    EXPECT_NEAR(evalScalar("xc(1)"), 4.0, 1e-6);
+    EXPECT_NEAR(evalScalar("xc(2)"), 0.0, 1e-6);
+    EXPECT_NEAR(evalScalar("fc"), -12.0, 1e-6);
 }
 
 // bugs/optim/constrained-solvers.md — fmincon on a bounded parabola -> [0 0].
