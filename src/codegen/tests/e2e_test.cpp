@@ -58,6 +58,44 @@ std::string fwd(std::string s)  // backslashes -> forward (valid in C++ literal 
     return s;
 }
 
+// Compile a self-contained program, run it (no args — it writes results to
+// `outTxt`, whose path the caller baked into the program), and return the
+// doubles it printed. Asserts on compile/run failure.
+std::vector<double> compileRunReadDoubles(const std::string &program,
+                                          const std::string &exe,
+                                          const std::string &outTxt)
+{
+    std::error_code ec;
+    std::filesystem::remove(outTxt, ec);
+    const auto r = numkit::codegen::aot::compileToExecutable(program, exe);
+    EXPECT_EQ(r.status, numkit::codegen::aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+    std::vector<double> got;
+    if (r.ok() && std::system(("\"" + exe + "\"").c_str()) == 0) {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    } else {
+        ADD_FAILURE() << "compile or run failed";
+    }
+    return got;
+}
+
+// Transpile the single FUNCTION_DEF in `srcM` with the given param types.
+EmittedFunction transpile(const std::string &srcM, const std::vector<ParamSpec> &params)
+{
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex(srcM);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    const numkit::ASTNode *fn = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    EXPECT_NE(fn, nullptr);
+    return emitFunction(*fn, params, reg);
+}
+
 }  // namespace
 
 TEST(CodegenE2E, BiquadMatchesRuntimeFilter)
@@ -271,4 +309,71 @@ TEST(CodegenE2E, ReassignedBoundComputesCorrectly)
     ASSERT_EQ(got.size(), 3u);
     for (std::size_t i = 0; i < 3; ++i)
         EXPECT_NEAR(got[i], std::sin(0.01 * double(i + 1)), 1e-12) << "at i=" << i;
+}
+
+// Control flow run end-to-end (previously only string-tested): an if/else
+// function, both branches exercised.
+TEST(CodegenE2E, IfElseRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = pick(c, a, b)\n  if c\n    y = a;\n  else\n    y = b;\n  end\nend\n",
+        {{"c", InferredType::scalar(ValueType::DOUBLE)},
+         {"a", InferredType::scalar(ValueType::DOUBLE)},
+         {"b", InferredType::scalar(ValueType::DOUBLE)}});
+    ASSERT_EQ(emitted.signature, "double pick(double c, double a, double b)");
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_if_e2e.exe").string();
+    const std::string outTxt = (base / "nk_if_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r1 = pick(1.0, 7.0, 9.0);\n"
+        "  double r0 = pick(0.0, 7.0, 9.0);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n%.17g\\n\", r1, r0);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 7.0);  // c true  -> a
+    EXPECT_DOUBLE_EQ(got[1], 9.0);  // c false -> b
+}
+
+// A while loop run end-to-end, including the 0-iteration case (fixpoint /
+// loop-carried typing).
+TEST(CodegenE2E, WhileLoopRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = acc(n)\n  y = 0;\n  i = 1;\n  while i <= n\n    y = y + i;\n"
+        "    i = i + 1;\n  end\nend\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+    ASSERT_EQ(emitted.signature, "double acc(double n)");
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_while_e2e.exe").string();
+    const std::string outTxt = (base / "nk_while_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double s10 = acc(10.0);\n"
+        "  double s0  = acc(0.0);\n"  // loop body never runs
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n%.17g\\n\", s10, s0);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 55.0);  // 1+2+...+10
+    EXPECT_DOUBLE_EQ(got[1], 0.0);   // 0 iterations
 }
