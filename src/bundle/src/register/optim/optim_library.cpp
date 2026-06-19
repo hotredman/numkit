@@ -28,6 +28,7 @@ void registerFzeroM(Engine &engine);
 void registerFminsearchM(Engine &engine);
 void registerFsolveM(Engine &engine);       // fsolve_reg.cpp
 void registerLsqnonlinM(Engine &engine);    // lsqnonlin_reg.cpp
+void registerFminuncM(Engine &engine);      // fminunc_reg.cpp
 } // namespace numkit::optim
 
 namespace numkit {
@@ -48,6 +49,9 @@ void OptimLibrary::install(Engine &engine)
     // lsqnonlin / lsqcurvefit — embedded `.m` nonlinear least squares (LM;
     // pausable residual; solution-parity with MATLAB).
     optim::registerLsqnonlinM(engine);
+    // fminunc — embedded `.m` BFGS unconstrained minimizer (pausable
+    // objective; solution-parity with MATLAB).
+    optim::registerFminuncM(engine);
 }
 
 } // namespace numkit
