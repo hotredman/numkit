@@ -46,12 +46,17 @@ TEST_F(OptimKnownBug, Fminunc)
     EXPECT_NEAR(evalScalar("xb(2)"), -2.0, 1e-5);
 }
 
-// bugs/optim/constrained-solvers.md — quadprog: min 0.5 x'x - [1 1]x -> [1 1].
-TEST_F(OptimKnownBug, DISABLED_Quadprog)
+// bugs/optim/quadprog.md — quadprog: min 0.5 x'x - [1 1]x -> [1 1] (FIXED).
+TEST_F(OptimKnownBug, Quadprog)
 {
     eval("x = quadprog(eye(2), [-1 -1]);");
     EXPECT_NEAR(evalScalar("x(1)"), 1.0, 1e-4);
     EXPECT_NEAR(evalScalar("x(2)"), 1.0, 1e-4);
+    // inequality x1+x2<=1 -> [0.5 0.5].
+    eval("[xi, fvi] = quadprog(eye(2), [-1 -1], [1 1], 1);");
+    EXPECT_NEAR(evalScalar("xi(1)"), 0.5, 1e-6);
+    EXPECT_NEAR(evalScalar("xi(2)"), 0.5, 1e-6);
+    EXPECT_NEAR(evalScalar("fvi"), -0.75, 1e-6);
 }
 
 // bugs/optim/constrained-solvers.md — linprog with lower-bound constraints.

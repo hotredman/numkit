@@ -2277,7 +2277,7 @@ solver-based legacy API which is flat function-form.
 | `fminimax` | ❌ | minimax optimisation |
 | `linprog` | ❌ | linear programming |
 | `intlinprog` | ❌ | mixed-integer linear programming |
-| `quadprog` | ❌ | quadratic programming |
+| `quadprog` | ✅ | Sig: [x,fval,exitflag] = quadprog(H, f, A, b, Aeq, beq, lb, ub). Minimise 0.5*x'Hx + f'x s.t. A*x<=b, Aeq*x=beq, lb<=x<=ub. Embedded-.m primal active-set for strictly-convex H (PD): no Phase-1 (starts from the unconstrained -H\f), each iteration solves the equality-constrained KKT saddle system [H B'; B 0][x;lambda]=[-f;c] over the working set, adding the most-violated inactive inequality / dropping the most-negative active multiplier until KKT holds. The QP optimum is unique for PD H, so this matches MATLAB's solution exactly. Returns a column x. Fingerprint covers every constraint type: unconstrained->[1 1], inequality x1+x2<=1->[0.5 0.5] (fval -0.75), equality x1+x2=3->[1.5 1.5], bounds [0,0.3]->[0.3 0.3], non-identity H mixed->[-1/3 4/3], two active inequalities->[0.3 0.7]. Verified vs MATLAB R2025b. Fixes bugs/optim/quadprog (split from constrained-solvers; linprog/fmincon remain). |
 | `coneprog` | ❌ | second-order cone programming |
 | `secondordercone` | ❌ | SOC constraint helper |
 | `lsqlin` | ❌ | linear LSQ with bounds & linear constraints |
