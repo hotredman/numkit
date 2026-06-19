@@ -101,6 +101,42 @@ Value pmdemod(const Value &y, double fc, double fs, double phasedev,
 Value fmdemod(const Value &y, double fc, double fs, double freqdev,
               double ini_phase, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Amplitude demodulator — inverse of @ref ammod
+/// (`x = amdemod(y, fc, fs, ini_phase, carramp)`).
+///
+/// Coherent (synchronous) detection: multiply by the carrier and zero-phase
+/// low-pass — `x = 2·filtfilt(butter(5, fc·2/fs), y·cos(2π·fc·t +
+/// ini_phase)) − carramp`. (`carramp` is the transmitted-carrier amplitude;
+/// the default 0 is double-sideband suppressed-carrier.)
+///
+/// @param y          Modulated signal.
+/// @param fc         Carrier frequency in Hz.
+/// @param fs         Sample rate in Hz.
+/// @param ini_phase  Initial carrier phase in radians.
+/// @param carr_amp   Transmitted-carrier amplitude (subtracted after detect).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Recovered message, same shape as `y`.
+/// @see ammod, ssbdemod
+Value amdemod(const Value &y, double fc, double fs, double ini_phase,
+              double carr_amp, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Single-sideband demodulator — inverse of @ref ssbmod
+/// (`x = ssbdemod(y, fc, fs, ini_phase)`).
+///
+/// Coherent detection: `x = 2·filtfilt(butter(5, fc·2/fs), y·cos(2π·fc·t +
+/// ini_phase))`. Recovers the message regardless of which sideband was
+/// transmitted.
+///
+/// @param y          Modulated signal.
+/// @param fc         Carrier frequency in Hz.
+/// @param fs         Sample rate in Hz.
+/// @param ini_phase  Initial carrier phase in radians.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Recovered message, same shape as `y`.
+/// @see ssbmod, amdemod
+Value ssbdemod(const Value &y, double fc, double fs, double ini_phase,
+               std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Single-sideband modulator
 /// (`y = ssbmod(x, fc, fs, ini_phase, upper)`).
 ///

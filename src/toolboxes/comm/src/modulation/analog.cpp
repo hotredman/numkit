@@ -10,6 +10,8 @@
 #include <numkit/comm/modulation/analog.hpp>
 
 #include <numkit/signal/transforms/hilbert.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>     // butter
+#include <numkit/signal/digital_filtering/filter.hpp>        // filtfilt
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -442,6 +444,62 @@ Value fmdemod(const Value &y, double fc, double fs, double freqdev,
         return row;
     }
     return out;
+}
+
+namespace {
+// Coherent (synchronous) detection shared by amdemod / ssbdemod:
+//   2 · filtfilt(butter(5, fc·2/fs), y · cos(2π·fc·t + ini_phase)).
+Value coherentDetect(const Value &y, double fc, double fs, double ini_phase,
+                     std::pmr::memory_resource *mr)
+{
+    const auto &d = y.dims();
+    const size_t N = y.numel();
+    Value yc = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *yo = yc.doubleDataMut();
+    const double twoPiFc = 2.0 * M_PI * fc;
+    const double inv_fs = 1.0 / fs;
+    for (size_t i = 0; i < N; ++i)   // flat sample order: sample i → t = i/fs
+        yo[i] = y.elemAsDouble(i) * std::cos(twoPiFc * (static_cast<double>(i) * inv_fs) + ini_phase);
+
+    auto [b, a] = numkit::signal::butter(5, fc * 2.0 / fs, "low", mr);
+    Value z = numkit::signal::filtfilt(b, a, yc, mr);
+
+    Value out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *oo = out.doubleDataMut();
+    const double *zd = z.doubleData();
+    for (size_t i = 0; i < N; ++i) oo[i] = 2.0 * zd[i];
+    return out;
+}
+
+void checkCarrier(double fc, double fs, const char *fn)
+{
+    if (!(fs > 0.0))
+        throw Error(std::string(fn) + ": Fs must be positive", 0, 0, fn, "", "numkit:demod:Fs");
+    if (!(fc > 0.0))
+        throw Error(std::string(fn) + ": Fc must be positive", 0, 0, fn, "", "numkit:demod:Fc");
+    if (fs < 2.0 * fc)
+        throw Error(std::string(fn) + ": Fs must be >= 2*Fc", 0, 0, fn, "", "numkit:demod:FsLessThan2Fc");
+}
+} // anonymous
+
+Value amdemod(const Value &y, double fc, double fs, double ini_phase,
+              double carr_amp, std::pmr::memory_resource *mr)
+{
+    checkCarrier(fc, fs, "amdemod");
+    Value z = coherentDetect(y, fc, fs, ini_phase, mr);
+    if (carr_amp != 0.0) {
+        double *zd = z.doubleDataMut();
+        const size_t N = z.numel();
+        for (size_t i = 0; i < N; ++i) zd[i] -= carr_amp;
+    }
+    return z;
+}
+
+Value ssbdemod(const Value &y, double fc, double fs, double ini_phase,
+               std::pmr::memory_resource *mr)
+{
+    checkCarrier(fc, fs, "ssbdemod");
+    return coherentDetect(y, fc, fs, ini_phase, mr);
 }
 
 } // namespace numkit::comm

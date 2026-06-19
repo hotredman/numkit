@@ -31,6 +31,8 @@ void ammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fmmod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pmdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fmdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void amdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ssbdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssbmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mskmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -158,6 +160,8 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "fmmod",     &comm::detail::fmmod_reg);
     reg("mod", "pmdemod",   &comm::detail::pmdemod_reg);
     reg("mod", "fmdemod",   &comm::detail::fmdemod_reg);
+    reg("mod", "amdemod",   &comm::detail::amdemod_reg);
+    reg("mod", "ssbdemod",  &comm::detail::ssbdemod_reg);
     reg("mod", "ssbmod",    &comm::detail::ssbmod_reg);
     reg("mod", "mskmod",    &comm::detail::mskmod_reg);
 
