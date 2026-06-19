@@ -83,6 +83,10 @@ struct InferredType {
     TypeKind  kind  = TypeKind::Dynamic;
     ValueType dtype = ValueType::EMPTY;  // meaningful only when Concrete
     Shape     shape{};                   // meaningful only when Concrete
+    // Class identity, meaningful ONLY when dtype == OBJECT (a class
+    // instance). -1 for every non-object type, so it never perturbs the
+    // numeric path's equality / join. Indexes a ClassRegistry (classinfo.hpp).
+    int       classId = -1;
 
     // ── constructors ──
     static InferredType dynamic() { return {TypeKind::Dynamic, ValueType::EMPTY, {}}; }
@@ -92,10 +96,17 @@ struct InferredType {
         return {TypeKind::Concrete, dt, s};
     }
     static InferredType scalar(ValueType dt) { return concrete(dt, Shape::scalar()); }
+    // A class instance (value or handle decided by the ClassRegistry, not
+    // the lattice). A scalar object in v1 (object arrays are a later tier).
+    static InferredType object(int classId)
+    {
+        return {TypeKind::Concrete, ValueType::OBJECT, Shape::scalar(), classId};
+    }
 
     bool isDynamic()  const { return kind == TypeKind::Dynamic; }
     bool isConcrete() const { return kind == TypeKind::Concrete; }
     bool isBottom()   const { return kind == TypeKind::Bottom; }
+    bool isObject()   const { return kind == TypeKind::Concrete && dtype == ValueType::OBJECT; }
 
     // True when this can be emitted as an unboxed C++ primitive scalar
     // (double / float / bool / intN / complex<double>) rather than a
