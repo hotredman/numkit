@@ -346,4 +346,102 @@ Value ssbmod(const Value &x, double fc, double fs, double ini_phase,
     return out;
 }
 
+Value pmdemod(const Value &y, double fc, double fs, double phasedev,
+              double ini_phase, std::pmr::memory_resource *mr)
+{
+    if (!(fs > 0.0))
+        throw Error("pmdemod: Fs must be positive", 0, 0, "pmdemod", "", "numkit:pmdemod:Fs");
+    if (!(fc > 0.0))
+        throw Error("pmdemod: Fc must be positive", 0, 0, "pmdemod", "", "numkit:pmdemod:Fc");
+    if (fs < 2.0 * fc)
+        throw Error("pmdemod: Fs must be >= 2*Fc", 0, 0, "pmdemod", "", "numkit:pmdemod:FsLessThan2Fc");
+    if (!(phasedev > 0.0))
+        throw Error("pmdemod: phasedev must be positive", 0, 0, "pmdemod", "", "numkit:pmdemod:InvalidPhaseDev");
+
+    const auto &d = y.dims();
+    size_t H = d.rows(), W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) std::swap(H, W);
+
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    const double twoPiFc = 2.0 * M_PI * fc;
+    const double inv_fs = 1.0 / fs;
+
+    for (size_t c = 0; c < W; ++c) {
+        Value col_in = Value::matrix(H, 1, ValueType::DOUBLE, mr);
+        double *cp = col_in.doubleDataMut();
+        for (size_t r = 0; r < H; ++r)
+            cp[r] = was_row ? y.elemAsDouble(r) : y.elemAsDouble(c * H + r);
+        Value analytic = numkit::signal::hilbert(col_in, mr);
+        const auto *z = analytic.complexData();
+        for (size_t r = 0; r < H; ++r) {
+            const double ang = twoPiFc * (static_cast<double>(r) * inv_fs) + ini_phase;
+            const double ca = std::cos(ang), sa = std::sin(ang);
+            const double re = z[r].real(), im = z[r].imag();
+            // angle(z·exp(-j·ang))
+            o[c * H + r] = std::atan2(im * ca - re * sa, re * ca + im * sa) / phasedev;
+        }
+    }
+    if (was_row) {
+        Value row = Value::matrix(1, H, ValueType::DOUBLE, mr);
+        std::copy(o, o + H, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
+Value fmdemod(const Value &y, double fc, double fs, double freqdev,
+              double ini_phase, std::pmr::memory_resource *mr)
+{
+    if (!(fs > 0.0))
+        throw Error("fmdemod: Fs must be positive", 0, 0, "fmdemod", "", "numkit:fmdemod:Fs");
+    if (!(fc > 0.0))
+        throw Error("fmdemod: Fc must be positive", 0, 0, "fmdemod", "", "numkit:fmdemod:Fc");
+    if (fs < 2.0 * fc)
+        throw Error("fmdemod: Fs must be >= 2*Fc", 0, 0, "fmdemod", "", "numkit:fmdemod:FsLessThan2Fc");
+    if (!(freqdev > 0.0))
+        throw Error("fmdemod: freqdev must be positive", 0, 0, "fmdemod", "", "numkit:fmdemod:InvalidFreqDev");
+
+    const auto &d = y.dims();
+    size_t H = d.rows(), W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) std::swap(H, W);
+
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    const double twoPiFc = 2.0 * M_PI * fc;
+    const double inv_fs = 1.0 / fs;
+    const double scale = fs / (2.0 * M_PI * freqdev);
+
+    std::vector<double> ph(H);
+    for (size_t c = 0; c < W; ++c) {
+        Value col_in = Value::matrix(H, 1, ValueType::DOUBLE, mr);
+        double *cp = col_in.doubleDataMut();
+        for (size_t r = 0; r < H; ++r)
+            cp[r] = was_row ? y.elemAsDouble(r) : y.elemAsDouble(c * H + r);
+        Value analytic = numkit::signal::hilbert(col_in, mr);
+        const auto *z = analytic.complexData();
+        for (size_t r = 0; r < H; ++r) {
+            const double ang = twoPiFc * (static_cast<double>(r) * inv_fs) + ini_phase;
+            const double ca = std::cos(ang), sa = std::sin(ang);
+            const double re = z[r].real(), im = z[r].imag();
+            ph[r] = std::atan2(im * ca - re * sa, re * ca + im * sa);
+        }
+        // x = [0, diff(unwrap(ph))] · fs/(2π·freqdev)
+        if (H > 0) o[c * H + 0] = 0.0;
+        for (size_t r = 1; r < H; ++r) {
+            double dlt = ph[r] - ph[r - 1];
+            dlt -= 2.0 * M_PI * std::round(dlt / (2.0 * M_PI));   // wrap to [-π, π]
+            o[c * H + r] = dlt * scale;
+        }
+    }
+    if (was_row) {
+        Value row = Value::matrix(1, H, ValueType::DOUBLE, mr);
+        std::copy(o, o + H, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
 } // namespace numkit::comm

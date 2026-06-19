@@ -71,6 +71,32 @@ void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
                     ctx.engine->resource());
 }
 
+void pmdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("pmdemod: requires (y, Fc, Fs, phasedev [, ini_phase])",
+                    0, 0, "pmdemod", "", "numkit:pmdemod:nargin");
+    double ini_phase = 0.0;
+    if (args.size() >= 5 && !args[4].isEmpty())
+        ini_phase = args[4].toScalar();
+    outs[0] = pmdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                      args[3].toScalar(), ini_phase, ctx.engine->resource());
+}
+
+void fmdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("fmdemod: requires (y, Fc, Fs, freqdev [, ini_phase])",
+                    0, 0, "fmdemod", "", "numkit:fmdemod:nargin");
+    double ini_phase = 0.0;
+    if (args.size() >= 5 && !args[4].isEmpty())
+        ini_phase = args[4].toScalar();
+    outs[0] = fmdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                      args[3].toScalar(), ini_phase, ctx.engine->resource());
+}
+
 void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {

@@ -65,6 +65,42 @@ Value fmmod(const Value &x, double fc, double fs, double freqdev,
             double ini_phase,
             std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Phase demodulator — inverse of @ref pmmod
+/// (`x = pmdemod(y, fc, fs, phasedev, ini_phase)`).
+///
+/// `x = angle(hilbert(y)·exp(−j·(2π·fc·t + ini_phase))) / phasedev` — the
+/// instantaneous phase of the analytic signal, down-converted by the
+/// carrier, scaled by the phase-deviation constant.
+///
+/// @param y          Modulated signal.
+/// @param fc         Carrier frequency in Hz.
+/// @param fs         Sample rate in Hz.
+/// @param phasedev   Phase-deviation constant (radians per unit message).
+/// @param ini_phase  Initial carrier phase in radians.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Recovered message, same shape as `y`.
+/// @see pmmod, fmdemod
+Value pmdemod(const Value &y, double fc, double fs, double phasedev,
+              double ini_phase, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Frequency demodulator — inverse of @ref fmmod
+/// (`x = fmdemod(y, fc, fs, freqdev, ini_phase)`).
+///
+/// Differentiates the unwrapped instantaneous phase of the down-converted
+/// analytic signal: `x = [0, diff(unwrap(φ))]·fs / (2π·freqdev)` where
+/// `φ = angle(hilbert(y)·exp(−j·(2π·fc·t + ini_phase)))`.
+///
+/// @param y          Modulated signal.
+/// @param fc         Carrier frequency in Hz.
+/// @param fs         Sample rate in Hz.
+/// @param freqdev    Frequency-deviation factor (Hz per unit message).
+/// @param ini_phase  Initial carrier phase in radians.
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Recovered message, same shape as `y`.
+/// @see fmmod, pmdemod
+Value fmdemod(const Value &y, double fc, double fs, double freqdev,
+              double ini_phase, std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Single-sideband modulator
 /// (`y = ssbmod(x, fc, fs, ini_phase, upper)`).
 ///
