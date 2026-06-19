@@ -26,7 +26,8 @@ namespace numkit::optim {
 // embedder path).
 void registerFzeroM(Engine &engine);
 void registerFminsearchM(Engine &engine);
-void registerFsolveM(Engine &engine);   // fsolve_reg.cpp
+void registerFsolveM(Engine &engine);       // fsolve_reg.cpp
+void registerLsqnonlinM(Engine &engine);    // lsqnonlin_reg.cpp
 } // namespace numkit::optim
 
 namespace numkit {
@@ -44,6 +45,9 @@ void OptimLibrary::install(Engine &engine)
     // fsolve — embedded `.m` Levenberg-Marquardt nonlinear system solver
     // (pausable objective; solution-parity with MATLAB).
     optim::registerFsolveM(engine);
+    // lsqnonlin / lsqcurvefit — embedded `.m` nonlinear least squares (LM;
+    // pausable residual; solution-parity with MATLAB).
+    optim::registerLsqnonlinM(engine);
 }
 
 } // namespace numkit
