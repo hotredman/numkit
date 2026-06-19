@@ -1047,4 +1047,20 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
     return {source, entryMangled, entrySig};
 }
 
+// ── class struct emission (§12 brick 5) ───────────────────────────────
+std::string emitClassStruct(const ClassInfo &ci)
+{
+    std::string s = "struct " + ci.name + " {\n";
+    for (const auto &f : ci.fields) {
+        if (!f.type.isUnboxableScalar())
+            unsupported("class '" + ci.name + "' field '" + f.name
+                        + "' is not an unboxed scalar (v1)");
+        const std::string init =
+            f.defaultExpr ? emitScalarExpr(*f.defaultExpr) : zeroLiteral(f.type.dtype);
+        s += "    " + cppScalarType(f.type.dtype) + " " + f.name + " = " + init + ";\n";
+    }
+    s += "};\n";
+    return s;
+}
+
 } // namespace numkit::codegen

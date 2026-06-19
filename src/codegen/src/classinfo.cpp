@@ -94,7 +94,7 @@ ClassInfo buildClassInfo(const ASTNode &classDef, int id, const TransferRegistry
             if (!ft.isConcrete())
                 throw std::runtime_error("class '" + ci.name + "': property '" + c->strValue
                                          + "' default is not concretely typed (" + ft.str() + ")");
-            ci.fields.push_back({c->strValue, ft});
+            ci.fields.push_back({c->strValue, ft, c->children[0].get()});
         } else if (c->type == NodeType::FUNCTION_DEF) {
             ci.methods.insert_or_assign(c->strValue, c.get());
         }

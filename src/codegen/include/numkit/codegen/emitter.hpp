@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <numkit/codegen/classinfo.hpp>
 #include <numkit/codegen/inference.hpp>
 #include <numkit/codegen/monomorphize.hpp>
 #include <numkit/codegen/transfer.hpp>
@@ -95,5 +96,11 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
 EmittedFunction emitProgram(const ASTNode &entryDef,
                             const std::vector<ParamSpec> &params,
                             const FunctionTable &table, const TransferRegistry &reg);
+
+// Emit the C++ struct for a class (build plan §12, brick 5). The object's
+// storage is the same for value and handle classes — handle-ness changes
+// only the VARIABLE type (`nk_rt::handle<Foo>` vs `Foo`), not this struct.
+// v1: stored scalar properties only (a non-scalar field is refused).
+std::string emitClassStruct(const ClassInfo &ci);
 
 } // namespace numkit::codegen
