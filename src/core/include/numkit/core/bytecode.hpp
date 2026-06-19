@@ -177,6 +177,12 @@ enum class OpCode : uint8_t {
     RET,       // reg                    return R[reg]
     RET_MULTI, // base, count            return R[base..base+count-1]
     RET_EMPTY, //                        return empty
+    // varargout return: a=fixedBase, b=numFixed, c=varargoutReg. Returns the
+    // numFixed leading fixed outputs (R[fixedBase..]) followed by the elements
+    // of the varargout cell R[varargoutReg] — a DYNAMIC return count
+    // (numFixed + numel(cell)), so a `function varargout = f(...)` can return
+    // however many values the caller's nargout asks for.
+    RET_VARARGOUT,
     BREAK,     // [reserved] compiler uses JMP + NOP(flag) instead
     CONTINUE,  // [reserved] compiler uses JMP + NOP(flag) instead
 

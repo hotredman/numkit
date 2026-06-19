@@ -2268,6 +2268,23 @@ enter_frame:
                 popCallFrame(R[base]); // first value as primary return
                 goto enter_frame;
             }
+            case OpCode::RET_VARARGOUT: {
+                // a=fixedBase, b=numFixed, c=varargoutReg. Dynamic return
+                // count = numFixed + numel(varargout cell).
+                uint8_t fixedBase = I.a, numFixed = I.b, vaReg = I.c;
+                uint8_t count = 0;
+                for (uint8_t i = 0; i < numFixed && count < kMaxReturns; ++i)
+                    returnBuf_[count++] = R[fixedBase + i];
+                const Value &va = R[vaReg];
+                if (va.isCell()) {
+                    const size_t n = va.numel();
+                    for (size_t i = 0; i < n && count < kMaxReturns; ++i)
+                        returnBuf_[count++] = va.cellAt(i);
+                }
+                returnCount_ = count;
+                popCallFrame(count > 0 ? Value(returnBuf_[0]) : Value());
+                goto enter_frame;
+            }
             case OpCode::RET_EMPTY:
                 popCallFrame(Value());
                 goto enter_frame;
