@@ -395,12 +395,85 @@ OptFacts analyzeOptimizations(const ASTNode &body,
     return facts;
 }
 
+// ── interprocedural call emission (§12 brick 1b) ──────────────────────
+// A specialisation still to emit: callee body + the concrete arg types it
+// is specialised to + its mangled C++ symbol.
+struct CallSite {
+    const ASTNode             *def = nullptr;
+    std::vector<InferredType>  argTypes;
+    std::string                mangled;
+};
+
+// Shared across all functions emitted for one program: the function table,
+// a worklist of specialisations still to emit, and the mangled names
+// already queued (dedup).
+struct ProgramEmitCtx {
+    const FunctionTable   *funcs = nullptr;
+    std::vector<CallSite>  pending;
+    std::set<std::string>  seen;
+};
+
+struct OneFn {
+    std::string signature;
+    std::string definition;  // signature + " { ... }"
+};
+
+// A C++-identifier-safe code for a type so distinct specialisations get
+// distinct symbols: dtype letter + shape tag (scalar = none).
+std::string typeCode(const InferredType &t)
+{
+    if (!t.isConcrete()) return "X";
+    std::string c;
+    switch (t.dtype) {
+    case ValueType::DOUBLE:  c = "d";   break;
+    case ValueType::SINGLE:  c = "f";   break;
+    case ValueType::COMPLEX: c = "c";   break;
+    case ValueType::LOGICAL: c = "b";   break;
+    case ValueType::INT8:    c = "i8";  break;
+    case ValueType::INT16:   c = "i16"; break;
+    case ValueType::INT32:   c = "i32"; break;
+    case ValueType::INT64:   c = "i64"; break;
+    case ValueType::UINT8:   c = "u8";  break;
+    case ValueType::UINT16:  c = "u16"; break;
+    case ValueType::UINT32:  c = "u32"; break;
+    case ValueType::UINT64:  c = "u64"; break;
+    default:                 c = "o";   break;
+    }
+    switch (t.shape.kind) {
+    case ShapeKind::Scalar:    break;
+    case ShapeKind::RowVector: c += "r"; break;
+    case ShapeKind::ColVector: c += "k"; break;
+    case ShapeKind::KnownDims:
+        c += "m" + std::to_string(t.shape.rows) + "x" + std::to_string(t.shape.cols);
+        break;
+    case ShapeKind::Unknown:   c += "u"; break;
+    }
+    return c;
+}
+
+std::string mangle(const std::string &base, const std::vector<InferredType> &args)
+{
+    if (args.empty()) return base + "__v";
+    std::string m = base;
+    for (const auto &a : args) m += "__" + typeCode(a);
+    return m;
+}
+
+std::vector<ArgInfo> toArgInfos(const std::vector<InferredType> &types)
+{
+    std::vector<ArgInfo> out;
+    out.reserve(types.size());
+    for (const auto &t : types) out.push_back(ArgInfo(t, ConstVal::unknown()));
+    return out;
+}
+
 class Emitter {
 public:
     Emitter(TypeEnv types, const TransferRegistry &reg,
-            std::unordered_map<std::string, ArrayInfo> arrays, OptFacts opt)
+            std::unordered_map<std::string, ArrayInfo> arrays, OptFacts opt,
+            ProgramEmitCtx *ctx = nullptr)
         : types_(std::move(types)), reg_(reg), arrays_(std::move(arrays)),
-          opt_(std::move(opt))
+          opt_(std::move(opt)), ctx_(ctx)
     {}
 
     // Hoist a local scalar declaration at function entry.
@@ -421,6 +494,7 @@ private:
 
     std::string emitExpr(const ASTNode &e);
     std::string emitBuiltinCall(const std::string &name, const ASTNode &call);
+    std::string emitUserCall(const std::string &name, const ASTNode &call);
     std::string emitIndexRead(const std::string &base, const ASTNode &call);
     void        emitAssign(const ASTNode &s);
     void        emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs);
@@ -446,6 +520,9 @@ private:
     // Non-null inside a promoted clean-index loop: the 0-based size_t
     // counter that replaced the 1-based double loop variable.
     const std::string                          *promotedCounter_ = nullptr;
+    // Non-null when emitting as part of a multi-function program: routes
+    // user-function calls and accumulates the specialisations to emit.
+    ProgramEmitCtx                             *ctx_ = nullptr;
 };
 
 // MATLAB unary-math name -> std:: name. Restricted to functions that BOTH
@@ -492,6 +569,11 @@ std::string Emitter::emitExpr(const ASTNode &e)
             unsupported("non-identifier callee");
         if (isArrayVar(callee.strValue))
             return emitIndexRead(callee.strValue, e);
+        // A user function (not a variable in scope) takes priority over a
+        // same-named builtin (MATLAB path shadowing) when emitting a program.
+        if (ctx_ && ctx_->funcs && !types_.has(callee.strValue)
+            && ctx_->funcs->has(callee.strValue))
+            return emitUserCall(callee.strValue, e);
         return emitBuiltinCall(callee.strValue, e);
     }
     default:
@@ -515,6 +597,38 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
 
     unsupported("builtin call '" + name + "' (arity " + std::to_string(nargs) + ")");
+}
+
+// A call to a user-defined function within a program (ctx_ set). v1b:
+// arguments and result are unboxed scalars. Emits a direct call to the
+// monomorphised specialisation and queues that specialisation for emission.
+std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
+{
+    const ASTNode *def = ctx_->funcs->find(name);
+    if (!def) unsupported("user call to unknown function '" + name + "'");
+
+    std::vector<InferredType> argTypes;
+    std::string               argList;
+    for (std::size_t i = 1; i < call.children.size(); ++i) {
+        const AbstractValue av = inferExpr(*call.children[i], types_, reg_);
+        if (!isUnboxableScalarType(av.type))
+            unsupported("interprocedural call arg must be an unboxed scalar (v1b): '"
+                        + name + "'");
+        argTypes.push_back(av.type);
+        argList += (i > 1 ? ", " : "") + emitExpr(*call.children[i]);
+    }
+    if (argTypes.size() != def->paramNames.size())
+        unsupported("arity mismatch calling '" + name + "'");
+
+    const InferredType ret = reg_.apply(name, toArgInfos(argTypes));
+    if (!isUnboxableScalarType(ret))
+        unsupported("interprocedural call result must be an unboxed scalar (v1b): '"
+                    + name + "'");
+
+    const std::string mangled = mangle(name, argTypes);
+    if (ctx_->seen.insert(mangled).second)
+        ctx_->pending.push_back({def, argTypes, mangled});
+    return mangled + "(" + argList + ")";
 }
 
 std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
@@ -788,15 +902,16 @@ const char *kPrelude =
     "}\n"
     "} // namespace nk_rt\n";
 
-} // namespace
-
-// ── whole-function emission (3f) ──────────────────────────────────────
-EmittedFunction emitFunction(const ASTNode &funcDef,
-                             const std::vector<ParamSpec> &params,
-                             const TransferRegistry &reg)
+// Emit ONE function (no prelude) under the RawBuffer ABI. `cppName`
+// overrides the emitted symbol (for a mangled specialisation; empty -> the
+// source name). `ctx` (when set) routes user-function calls and collects
+// further specialisations. Returns {signature, definition}.
+OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &params,
+                      const TransferRegistry &reg, ProgramEmitCtx *ctx,
+                      const std::string &cppName)
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
-        unsupported("emitFunction expects a FUNCTION_DEF with a body");
+        unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
     if (funcDef.returnNames.size() != 1)
         unsupported("only single-output functions are supported (MVP)");
 
@@ -843,7 +958,8 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
         unsupported("output '" + retName + "' has an unsupported type for RawBuffer ABI");
     }
 
-    std::string sig = retCpp + " " + funcDef.strValue + "(";
+    const std::string symbol = cppName.empty() ? funcDef.strValue : cppName;
+    std::string       sig    = retCpp + " " + symbol + "(";
     for (std::size_t i = 0; i < sigParams.size(); ++i)
         sig += (i ? ", " : "") + sigParams[i];
     sig += ")";
@@ -855,7 +971,7 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
     for (const ASTNode *f : opt.promotedLoops) promotedVars.insert(f->strValue);
 
     // Emit hoisted local declarations (deterministic order) + the body.
-    Emitter em(entry, reg, arrays, opt);
+    Emitter em(entry, reg, arrays, opt, ctx);
     std::map<std::string, InferredType> ordered(decls.begin(), decls.end());
     for (const auto &[name, t] : ordered) {
         if (entry.has(name) || arrays.count(name) || promotedVars.count(name))
@@ -868,13 +984,67 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
     em.emitStmt(body);
     if (!arrayReturn) em.emitReturnScalar(retName);
 
+    std::string definition = sig + " {\n";
+    definition += em.out();
+    definition += "}\n";
+    return {sig, definition};
+}
+
+} // namespace
+
+// ── whole-function emission (3f) ──────────────────────────────────────
+EmittedFunction emitFunction(const ASTNode &funcDef,
+                             const std::vector<ParamSpec> &params,
+                             const TransferRegistry &reg)
+{
+    const OneFn f = emitOneFunction(funcDef, params, reg, /*ctx=*/nullptr, /*cppName=*/"");
     std::string source = kPrelude;
     source += "\n";
-    source += sig + " {\n";
-    source += em.out();
-    source += "}\n";
+    source += f.definition;
+    return {source, funcDef.strValue, f.signature};
+}
 
-    return {source, funcDef.strValue, sig};
+// ── whole-program emission (§12 brick 1b) ─────────────────────────────
+EmittedFunction emitProgram(const ASTNode &entryDef,
+                            const std::vector<ParamSpec> &params,
+                            const FunctionTable &table, const TransferRegistry &reg)
+{
+    ProgramEmitCtx ctx;
+    ctx.funcs = &table;
+
+    std::vector<InferredType> entryArgTypes;
+    entryArgTypes.reserve(params.size());
+    for (const auto &p : params) entryArgTypes.push_back(p.type);
+    const std::string entryMangled = mangle(entryDef.strValue, entryArgTypes);
+    ctx.seen.insert(entryMangled);
+
+    std::vector<std::string> sigs, defs;
+    const OneFn ef = emitOneFunction(entryDef, params, reg, &ctx, entryMangled);
+    const std::string entrySig = ef.signature;
+    sigs.push_back(ef.signature);
+    defs.push_back(ef.definition);
+
+    // Drain the worklist: each specialisation may discover more calls.
+    while (!ctx.pending.empty()) {
+        const CallSite cs = ctx.pending.back();
+        ctx.pending.pop_back();
+        if (cs.argTypes.size() != cs.def->paramNames.size())
+            unsupported("arity mismatch emitting '" + cs.def->strValue + "'");
+        std::vector<ParamSpec> ps;
+        ps.reserve(cs.argTypes.size());
+        for (std::size_t i = 0; i < cs.argTypes.size(); ++i)
+            ps.push_back({cs.def->paramNames[i], cs.argTypes[i]});
+        const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled);
+        sigs.push_back(cf.signature);
+        defs.push_back(cf.definition);
+    }
+
+    std::string source = kPrelude;
+    source += "\n";
+    for (const auto &s : sigs) source += s + ";\n";  // forward declarations
+    source += "\n";
+    for (const auto &d : defs) source += d;
+    return {source, entryMangled, entrySig};
 }
 
 } // namespace numkit::codegen

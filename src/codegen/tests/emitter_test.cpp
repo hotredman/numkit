@@ -362,6 +362,55 @@ TEST(EmitterFn, TypedButUnloweredBuiltinThrows)
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }
 
+// ── engine 1b: interprocedural call emission ──────────────────────────
+TEST(EmitterFn, InterproceduralProgram)
+{
+    const char *src =
+        "function y = f(x)\n  y = g(x) + 1;\nend\n"
+        "function y = g(x)\n  y = x*2;\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+
+    FunctionTable table;
+    collectFunctions(*root, table);
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    registerUserFunctions(reg, table);
+
+    const numkit::ASTNode *f = table.find("f");
+    ASSERT_NE(f, nullptr);
+    const EmittedFunction out = emitProgram(*f, {{"x", kDoubleScalar}}, table, reg);
+    const std::string    &s   = out.source;
+
+    EXPECT_EQ(out.name, "f__d");                              // mangled entry symbol
+    EXPECT_TRUE(contains(s, "double f__d(double x);"));       // forward decls
+    EXPECT_TRUE(contains(s, "double g__d(double x);"));
+    EXPECT_TRUE(contains(s, "double f__d(double x) {"));      // definitions
+    EXPECT_TRUE(contains(s, "double g__d(double x) {"));
+    EXPECT_TRUE(contains(s, "g__d(x)"));                      // f calls the specialisation
+    EXPECT_TRUE(contains(s, "y = (g__d(x) + 1.0);"));
+}
+
+// A non-scalar interprocedural argument is refused in v1b (explicit
+// boundary): passing an array variable to a user function.
+TEST(EmitterFn, InterproceduralArrayArgRefused)
+{
+    const char *src =
+        "function y = f(v)\n  y = g(v);\nend\n"
+        "function y = g(v)\n  y = numel(v);\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    FunctionTable  table;
+    collectFunctions(*root, table);
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    registerUserFunctions(reg, table);
+    EXPECT_THROW(emitProgram(*table.find("f"), {{"v", kDoubleRow}}, table, reg),
+                 std::runtime_error);
+}
+
 // A construct that infers to Dynamic (eval) cannot be typed -> the output
 // type is unsupported and emission refuses (Contract 2: never emit wrong
 // code).

@@ -26,6 +26,7 @@
 #pragma once
 
 #include <numkit/codegen/inference.hpp>
+#include <numkit/codegen/monomorphize.hpp>
 #include <numkit/codegen/transfer.hpp>
 #include <numkit/codegen/type_lattice.hpp>
 
@@ -80,5 +81,19 @@ struct EmittedFunction {
 EmittedFunction emitFunction(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
                              const TransferRegistry &reg);
+
+// Emit a whole program (build plan §12, brick 1b): the entry function plus
+// every user-function specialisation it transitively calls, monomorphised
+// by argument types, into one self-contained C++ TU. `reg` must already
+// carry the user functions from `table` (registerUserFunctions) so calls
+// type. `EmittedFunction::name` is the mangled entry symbol to call.
+//
+// v1b scope: interprocedural calls pass and return UNBOXED SCALARS (a call
+// whose arg or result is an array/Dynamic is refused — array-valued
+// interprocedural calls are a later brick). The entry itself may still take
+// /return arrays (RawBuffer ABI) as in emitFunction.
+EmittedFunction emitProgram(const ASTNode &entryDef,
+                            const std::vector<ParamSpec> &params,
+                            const FunctionTable &table, const TransferRegistry &reg);
 
 } // namespace numkit::codegen
