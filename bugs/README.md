@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (117 entries):** ✅ 101 fixed · 🔴 16 open = **4 bug** + 1 stub +
-1 missing-output + **9 missing-fn** + 1 perf (the 9 missing-fns are parity
+**Tally (119 entries):** ✅ 103 fixed · 🔴 16 open = **5 bug** + 1 stub +
+1 missing-output + **8 missing-fn** + 1 perf (the 8 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (96)
+### ✅ FIXED (98)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [optim/fmincon](optim/fmincon.md) | P2 | ✅ FIXED: constrained minimization fmincon was missing (last of the constrained-solvers cluster). Embedded-.m SQP reusing quadprog as the QP subproblem: FD gradient + BFGS Hessian, step from min 0.5 d'Bd+g'd s.t. linearized constraints, backtracking line search on f (QP keeps linear/bound feasible). Parity on solution: bounds→[0 0], lin-ineq→[1 1], eq→[1 1], box-corner→[2 0]. SCOPE: nonlinear constraints (nonlcon) rejected — [c,ceq]=nonlcon(x) multi-output handle call unsupported by VM (see lang/multi-output-handle-call) (2026-06-19) |
+| missing-fn | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | ✅ FIXED (cluster): fminunc + quadprog + linprog + fmincon all implemented (split into per-fn files). Cluster index resolved (2026-06-19) |
 | missing-fn | [optim/linprog](optim/linprog.md) | P2 | ✅ FIXED: linear program linprog(f,A,b,...) was missing (split from constrained-solvers). Solved by proximal (Tikhonov) regularization reusing the quadprog active-set: min f'x + (ε/2)‖x‖² (ε=1e-9). EXACT (not O(ε)): at a vertex optimum n active constraints determine x independent of εI, so it returns the exact vertex (ε-invariant 1e-6..1e-10). Matches MATLAB on unique optima: lower-bound→[1 1], classic max→[4 0]/-12, bounded→[0 4], box→[2 3]. CAVEAT: degenerate optimum → min-norm point (MATLAB returns a vertex; objective matches); unboundedness heuristic only. Full simplex = follow-up (2026-06-19) |
 | missing-fn | [optim/quadprog](optim/quadprog.md) | P2 | ✅ FIXED: quadratic program quadprog(H,f,...) was missing (split from constrained-solvers). Embedded-.m primal active-set for strictly-convex H (PD): no Phase-1 (starts from -H\\f), each iter solves the KKT saddle system [H B';B 0][x;λ]=[-f;c] over the working set, adds most-violated inequality / drops most-negative multiplier until KKT. Bounds folded into inequalities. Unique optimum -> matches MATLAB exactly across ALL constraint types: unconstrained→[1 1], ineq→[0.5 0.5], eq→[1.5 1.5], bounds→[0.3 0.3], mixed H→[-1/3 4/3], 2 active ineqs→[0.3 0.7] (2026-06-19) |
 | missing-fn | [optim/fminunc](optim/fminunc.md) | P2 | ✅ FIXED: unconstrained gradient minimizer fminunc(fun,x0) was missing (split from constrained-solvers cluster). Embedded-.m BFGS quasi-Newton with central-difference gradient + Armijo line search (inverse-Hessian H, reset to I on non-descent). Like fminsearch but gradient-based. Parity on solution: parabola→3, quad bowl→[1 -2] (fval 3), Rosenbrock→[1 1]. Output mirrors x0 orientation. Supplied-gradient form + options deferred (2026-06-19) |
@@ -256,11 +258,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 4
+### 🔴 OPEN — bug (defect on an implemented function) — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | entire linalg suite (eig/svd/qr/lu/chol/det/inv/trace/…) rejects complex matrices |
+| [lang/multi-output-handle-call](lang/multi-output-handle-call.md) | P2 | `[a,b]=h(x)` for a handle variable fails on the VM (blocks fmincon nonlcon) |
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
@@ -277,7 +280,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 13
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 12
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -292,7 +295,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | qz (generalized Schur) / gsvd (generalized SVD) |
-| [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon (fminunc + quadprog + linprog ✅ split out) |
 
 ### 🔴 OPEN — perf (correct but slower than MATLAB) — 1
 

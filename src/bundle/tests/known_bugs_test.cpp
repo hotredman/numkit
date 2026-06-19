@@ -40,6 +40,15 @@ TEST_F(BuiltinKnownBug, HistcountsNbins)
     EXPECT_DOUBLE_EQ(evalScalar("N(3)"), 3.0);
 }
 
+// bugs/lang/multi-output-handle-call.md — [a,b]=h(x) for a handle variable
+// fails on the VM (resolves the variable name as a function). MATLAB: a=6,b=4.
+TEST_F(BuiltinKnownBug, DISABLED_MultiOutputHandleCall)
+{
+    eval("h = @(x) deal(x+1, x-1); [a, b] = h(5);");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 4.0);
+}
+
 // bugs/builtin/unique-last.md — sorted-order 'last' FIXED; live tests in
 // toolboxes/builtin/tests/unique_last_test.cpp. Remaining sub-gap: 'stable'+'last'
 // ORDERING (MATLAB orders unique values by their last occurrence).
