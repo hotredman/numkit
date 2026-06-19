@@ -18,8 +18,8 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/optim/nonlinear-lsq.md — lsqcurvefit recovers a*exp(b*x) params.
-TEST_F(OptimKnownBug, DISABLED_Lsqcurvefit)
+// bugs/optim/nonlinear-lsq.md — lsqcurvefit recovers a*exp(b*x) params (FIXED).
+TEST_F(OptimKnownBug, Lsqcurvefit)
 {
     eval("p = lsqcurvefit(@(p,xd) p(1)*exp(p(2)*xd), [2 -0.5], "
          "[0 1 2 3], [2 1.2 0.7 0.45]);");
@@ -27,8 +27,8 @@ TEST_F(OptimKnownBug, DISABLED_Lsqcurvefit)
     EXPECT_NEAR(evalScalar("p(2)"), -0.5,  0.05);
 }
 
-// bugs/optim/nonlinear-lsq.md — lsqnonlin minimizes a residual to its root.
-TEST_F(OptimKnownBug, DISABLED_Lsqnonlin)
+// bugs/optim/nonlinear-lsq.md — lsqnonlin minimizes a residual to its root (FIXED).
+TEST_F(OptimKnownBug, Lsqnonlin)
 {
     eval("p = lsqnonlin(@(p) [p(1)-1; p(2)-2], [0 0]);");
     EXPECT_NEAR(evalScalar("p(1)"), 1.0, 1e-4);

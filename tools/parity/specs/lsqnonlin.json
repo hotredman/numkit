@@ -1,0 +1,10 @@
+{
+  "name": "lsqnonlin",
+  "namespace": "optim",
+  "setup": "xd = [0 0.5 1 1.5 2]; yd = 2*sin(1.5*xd);",
+  "expr": "[a, arn] = lsqnonlin(@(p) [p(1)-1; p(2)-2], [0 0]); a1 = a(1); a2 = a(2); b = lsqnonlin(@(x) [10*(x(2)-x(1)^2); 1-x(1)], [-1.2 1]); b1 = b(1); b2 = b(2); [c, crn] = lsqcurvefit(@(p,xd) p(1)*exp(p(2)*xd), [1 -1], [0 1 2], [1 0.5 0.2]); d = lsqcurvefit(@(p,x) p(1)*sin(p(2)*x), [1 1], xd, yd); d1 = d(1); d2 = d(2);",
+  "iters": 1,
+  "tol": 1e-06,
+  "fingerprint": ["a1", "a2", "arn", "b1", "b2", "crn", "d1", "d2"],
+  "comment": "Sig: [p,resnorm,residual,exitflag]=lsqnonlin(fun,p0); lsqcurvefit(fun,p0,x,y). Nonlinear least squares via embedded-.m Levenberg-Marquardt (forward-diff Jacobian, same Gauss-Newton/LM core as fsolve but terminates at the LSQ minimiser so it handles over-determined residuals). lsqcurvefit = lsqnonlin(@(p) fun(p,x)-y, p0). Pausable residual (bytecode). Parity on the SOLUTION: well-determined params + resnorm. NOTE the a*exp(b*x) fit (crn) has a FLAT minimum so its params are loosely determined (numkit vs MATLAB land ~1e-5 apart) but the RESNORM is tight — fingerprint uses crn (resnorm=0.001248164767), not c's params. Exact-param cases fingerprinted directly: lsqnonlin linear -> [1 2] resnorm 0, Rosenbrock -> [1 1], lsqcurvefit noise-free sin -> [2 1.5]. Bounds (lb/ub) deferred (rejected). Verified vs MATLAB R2025b. Fixes bugs/optim/nonlinear-lsq."
+}

@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (114 entries):** ✅ 97 fixed · 🔴 17 open = **4 bug** + 1 stub +
-1 missing-output + **10 missing-fn** + 1 perf (the 10 missing-fns are parity
+**Tally (114 entries):** ✅ 98 fixed · 🔴 16 open = **4 bug** + 1 stub +
+1 missing-output + **9 missing-fn** + 1 perf (the 9 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (92)
+### ✅ FIXED (93)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | ✅ FIXED: lsqnonlin/lsqcurvefit (nonlinear least squares) were missing. Embedded-.m Levenberg-Marquardt reusing the fsolve LM core, but terminating at the LSQ minimiser (handles over-determined residuals). lsqcurvefit=lsqnonlin(@(p)fun(p,x)-y,p0). Outputs [p,resnorm,residual,exitflag]. Parity on solution: lsqnonlin linear→[1 2] resnorm 0, Rosenbrock→[1 1], noise-free sin→[2 1.5]; a*exp(b*x) fit has FLAT minimum (params loose, resnorm tight 0.001248164767 matched 8 digits). Bounds deferred (rejected) (2026-06-19) |
 | missing-fn | [optim/fsolve](optim/fsolve.md) | P2 | ✅ FIXED: nonlinear system solver fsolve(fun,x0) was missing. Embedded-.m Levenberg-Marquardt (forward-diff Jacobian, (J'J+λdiag)dx=-J'F, adaptive λ), mirroring the fzero/fminsearch pausable-objective pattern. Parity on the SOLUTION (root), not iterates. Verified vs MATLAB R2025b: x^2-2→1.41421356, 2x2 unit-circle→[0.70710678 0.70710678] (ef=1), Rosenbrock system→[1 1], 3-var multi-root system from [1 0 4]→[1 2 3] (same root as MATLAB). Output mirrors x0 orientation. options arg accepted+ignored (2026-06-19) |
 | bug | [signal/resample-values](signal/resample-values.md) | P1 | ✅ FIXED: resample produced garbage (sum 10.87, ramped from ~0) — old custom Hamming windowed-sinc FIR with no group-delay compensation. Rewrote as MATLAB resample.m reusing the shipped firls/kaiser/upfirdn (all bit-exact): h = p*firls(2N*pqmax,[0 2fc 2fc 1],[1 1 0 0]).*kaiser(L,5)/sum(...) normalised so sum(h)=p (the KEY: MATLAB normalises over ALL taps, not the polyphase branch — a 1.0006 factor was the whole filter discrepancy), then upfirdn + group-delay trim to ceil(Lx*p/q), GCD-reduced first. Bit-exact vs MATLAB R2025b: repro [1.00061 ... 4.24029] + 2/1, 1/2, sine, DC, GCD-reduce. Strengthened the old length-only parity spec (2026-06-19) |
 | missing-fn | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | ✅ FIXED (all 5): pmdemod/fmdemod/amdemod/ssbdemod (2026-06-19) + now mskdemod. MSK coherent differential demod: bit_k = (sum of within-symbol angle(y[n]*conj(y[n-1])) > 0) — phase-increment decision, invariant to constant rotation + noise-robust, ini_phase only feeds phaseout. numkit mskmod is bit-exact w/ MATLAB so demod matches MATLAB R2025b (20-bit random clean+noisy incl. last bit). Returns [z,phaseout], input orientation preserved. nondiff deferred (mskmod has no nondiff path). (2026-06-19) |
@@ -273,7 +274,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 14
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 13
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -288,7 +289,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | qz (generalized Schur) / gsvd (generalized SVD) |
-| [optim/nonlinear-lsq](optim/nonlinear-lsq.md) | P2 | lsqcurvefit/lsqnonlin |
 | [optim/constrained-solvers](optim/constrained-solvers.md) | P2 | fmincon/linprog/quadprog/fminunc |
 
 ### 🔴 OPEN — perf (correct but slower than MATLAB) — 1
