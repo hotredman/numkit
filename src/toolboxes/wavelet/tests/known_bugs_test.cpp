@@ -81,16 +81,20 @@ TEST_F(WaveletKnownBug, DISABLED_Cwt)
     EXPECT_TRUE(eval("~isreal(cfs)").toBool());                  // complex (Morse)
 }
 
-// bugs/wavelet/wavedec2-family.md — 2-D multilevel decomposition + extractors.
-TEST_F(WaveletKnownBug, DISABLED_Wavedec2Family)
+// bugs/wavelet/wavedec2-family.md — 2-D multilevel decomposition + extractors (FIXED).
+TEST_F(WaveletKnownBug, Wavedec2Family)
 {
     eval("[c, s] = wavedec2(reshape(1:16,4,4), 1, 'db1');");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(c)")), 16);
     EXPECT_NEAR(evalScalar("c(1)"), 7.0, 1e-9);                 // approx coeff
+    EXPECT_EQ(static_cast<int>(evalScalar("s(1,1)")), 2);       // size(cA_1)
     eval("H = detcoef2('h', c, s, 1);");
     EXPECT_NEAR(evalScalar("H(1,1)"), -1.0, 1e-9);
+    eval("V = detcoef2('v', c, s, 1);");
+    EXPECT_NEAR(evalScalar("V(1,1)"), -4.0, 1e-9);
     eval("A = appcoef2(c, s, 'db1', 1);");
     EXPECT_NEAR(evalScalar("A(1,1)"), 7.0, 1e-9);
+    EXPECT_NEAR(evalScalar("A(2,2)"), 27.0, 1e-9);
 }
 
 // bugs/wavelet/centfrq-scal2frq.md — wavelet center frequency + scale mapping.

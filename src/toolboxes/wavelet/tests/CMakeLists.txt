@@ -18,6 +18,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/wfilters_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/biorfilt_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt_idwt_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/wavedec2_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/appcoef_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/wenergy_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/upcoef_test.cpp

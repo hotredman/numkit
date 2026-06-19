@@ -3469,7 +3469,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 |---|:---:|---|
 | `dwt2` | ✅ | Sig [cA,cH,cV,cD]=dwt2(X,'haar'): single-level 2-D Haar DWT, 4x4 ramp -> 2x2 subbands. Approximation cA=[7 11; 23 27] (col-major: cA(1,1)=7, cA(2,2)=27); horizontal cH(1,1)=-1; vertical cV(1,1)=-4; diagonal cD(1,1)=0 (separable ramp has no diagonal detail); sum(cA)=68. Pins distinct cA entries (not a constant) so the orientation/scaling of all four subbands is fixed. |
 | `idwt2` | ✅ | Sig X=idwt2(cA,cH,cV,cD,wname): single-level 2-D inverse Haar DWT, 2x2 subbands -> 4x4. Distinct nonzero detail coeffs: X(1,1)=1.3, X(2,2)=-0.2, X(4,4)=1.825, X(1,3)=0.85, sum(X)=20. Pins the per-quadrant reconstruction (not just a round-trip identity). |
-| `wavedec2` | ❌ |  |
+| `wavedec2` | ✅ | Sig: [C,S]=wavedec2(X,N,wname); D=detcoef2(type,C,S,k); A=appcoef2(C,S,wname,k); X=waverec2(C,S,wname). 2-D multilevel DWT: iterates dwt2 N times on the LL band; [C,S] = coarsest-first coefficient vector + (N+2)x2 size matrix. Built on the single-level dwt2/idwt2 (so bior/rbio work in 2-D too). detcoef2 also supports 'all' (->[H,V,D]). Fingerprint: db1 4x4 N=1 (numel(c)=16, s(1,1)=2, c(1)=7, H(1,1)=-1, V(1,1)=-4, A(2,2)=27), db2 8x8 N=2 (numel(c)=139, appcoef2 L2 A(1,1)=16.4557713660, detcoef2 h L1 H(1,1)=-0.8660254038, waverec2 reconstruction err ~0). Verified vs MATLAB R2025b. Fixes bugs/wavelet/wavedec2-family. |
 | `waverec2` | ❌ |  |
 | `appcoef2` | ❌ |  |
 | `detcoef2` | ❌ |  |

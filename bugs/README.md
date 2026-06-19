@@ -139,8 +139,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (114 entries):** ✅ 92 fixed · 🔴 22 open = **5 bug** + 1 stub +
-1 missing-output + **14 missing-fn** + 1 perf (the 14 missing-fns are parity
+**Tally (114 entries):** ✅ 93 fixed · 🔴 21 open = **5 bug** + 1 stub +
+1 missing-output + **13 missing-fn** + 1 perf (the 13 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (87)
+### ✅ FIXED (88)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| missing-fn | [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | ✅ FIXED: 2-D multilevel DWT (wavedec2/waverec2/appcoef2/detcoef2) was missing. New TU dwt/multilevel2.cpp iterates the single-level dwt2 N times on the LL band and packs the MATLAB [C,S] layout (coarsest-first vector + (N+2)x2 size matrix); appcoef2 reconstructs via idwt2, detcoef2 slices H/V/D (+ 'all'), waverec2 = appcoef2 level 0. Built on dwt2/idwt2 so bior/rbio work in 2-D too. Verified vs MATLAB R2025b: db1 4x4 (c(1)=7, H=-1, V=-4, A(2,2)=27), db2 8x8 N=2 (numel(c)=139, appcoef2 L2=16.4557713660, detcoef2 L1=-0.8660254038), non-square, bior2.2 round-trip (2026-06-19) |
 | stub | [wavelet/dwt-biorthogonal](wavelet/dwt-biorthogonal.md) | P2 | ✅ FIXED: bior*/rbio* wavelet families were rejected (only haar/db/sym/coif known). New TU filter/biorfilt.cpp tabulates the four DISTINCT filters (Lo_D/Hi_D != Lo_R/Hi_R) for all 15 bior + 15 rbio families (CDF spline coeffs, public math); wavelet_filters() falls back to bior_filterbank() on an orthogonal-table miss. The dwt/idwt/wavedec/waverec machinery already threaded all four filters independently, so the whole family lit up at once. All 30 families bit-exact vs MATLAB R2025b wfilters (worst diff 0); dwt/wavedec/round-trip parity OK; bior1.1==Haar (2026-06-19) |
 | missing-fn | [linalg/funm](linalg/funm.md) | P2 | ✅ FIXED: general matrix function funm(A,fun) (scalar fun OF a matrix, not element-wise) was undefined. Implemented via eigendecomposition — F=V·diag(fun(diag(D)))/V where [V,D]=eig(A), real(F) for real A — as an embedded .m reusing the eig builtin. Matches MATLAB exactly for diagonalizable real-eigenvalue matrices: funm(diag(2,3),@exp)=diag(7.38906,20.0855), funm([1 2;3 4],@exp)=expm, @sin/@cos exact, funm(sym,@sqrt)=sqrtm. MATLAB's funm errors on @sqrt/anon (its generic path passes a derivative-order arg); ours is more lenient. DEFERRED: complex-eigenvalue + defective matrices error (numkit eig [V,D] needs Francis QR) — would need full Schur-Parlett. Parity OK vs MATLAB R2025b (2026-06-19) |
 | missing-fn | [math/numerical-integration-nd](math/numerical-integration-nd.md) | P2 | ✅ FIXED: quadgk/integral2/integral3/quad2d were undefined. Built on numkit's 1-D adaptive Gauss-Kronrod integral: integral2(fn,a,b,c,d) = iterated quadrature (outer x-sweep, inner y-sweep of fn(x,·)) by composing FnHandles in the math layer (inner 1-arg callback wraps the user's 2-arg fn with captured x); integral3 triple-nests; quadgk = the 1-D integral; quad2d = older name for integral2. 'AbsTol' accepted; works on both backends. Parity OK vs MATLAB R2025b: integral2(x·y)=0.25, integral2(exp(x·y))=1.317902151454, integral3(x+y+z)=1.5, quadgk(exp(−x²))=0.746824132812427 (2026-06-19) |
@@ -269,7 +270,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 |---|---|---|
 | [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
-### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 18
+### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 17
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
 [PARITY_GAPS.md](PARITY_GAPS.md).)*
@@ -282,7 +283,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [image/corner](image/corner.md) | P2 | corner-point detection (cornermetric exists) |
 | [wavelet/wpdec](wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
 | [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
-| [wavelet/wavedec2-family](wavelet/wavedec2-family.md) | P2 | wavedec2/detcoef2/appcoef2 (2-D multilevel) |
 | [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
 | [comm/analog-demodulators](comm/analog-demodulators.md) | P2 | mskdemod (pmdemod/fmdemod/amdemod/ssbdemod done ✅; only MSK left) |
 | [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
