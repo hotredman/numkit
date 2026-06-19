@@ -6,6 +6,7 @@
 // properties, missing default) are loud — never silently miscompiled.
 
 #include <numkit/codegen/classinfo.hpp>
+#include <numkit/codegen/inference.hpp>
 #include <numkit/codegen/transfer.hpp>
 #include <numkit/codegen/type_lattice.hpp>
 
@@ -154,4 +155,38 @@ TEST(ClassInfoTest, RefusePropertyWithoutDefault)
         findClass("classdef Q\n  properties\n    x\n  end\nend\n", root);
     ASSERT_NE(cd, nullptr);
     EXPECT_THROW(buildClassInfo(*cd, 0, reg), std::runtime_error);  // no concrete default
+}
+
+// ── field-access inference (brick 5b): obj.field types to the field's type
+// when a ClassRegistry is supplied; Dynamic otherwise. ─────────────────
+TEST(ClassInfoTest, FieldAccessInference)
+{
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::ASTNodePtr croot;
+    const numkit::ASTNode *cd = findClass(
+        "classdef Point\n  properties\n    x = 0\n    y = 0\n  end\nend\n", croot);
+    ASSERT_NE(cd, nullptr);
+    ClassRegistry creg;
+    const int     id = creg.add(buildClassInfo(*cd, 0, reg));
+
+    // a tiny program whose statements hold `p.x` / `p.nope` as RHS exprs
+    numkit::Lexer  lex("z = p.x;\nw = p.nope;\n");
+    numkit::Parser parser(lex.tokenize());
+    auto           prog = parser.parse();
+    const numkit::ASTNode &okField  = *prog->children[0]->children[1];  // p.x
+    const numkit::ASTNode &badField = *prog->children[1]->children[1];  // p.nope
+    ASSERT_EQ(okField.type, numkit::NodeType::FIELD_ACCESS);
+
+    TypeEnv env;
+    env.set("p", {InferredType::object(id), ConstVal::unknown()});
+
+    // with the registry: p.x -> double scalar
+    const InferredType tx = inferExpr(okField, env, reg, &creg).type;
+    EXPECT_TRUE(tx.isUnboxableScalar());
+    EXPECT_EQ(tx.dtype, ValueType::DOUBLE);
+
+    // unknown field -> Dynamic; no registry -> Dynamic
+    EXPECT_TRUE(inferExpr(badField, env, reg, &creg).type.isDynamic());
+    EXPECT_TRUE(inferExpr(okField, env, reg, nullptr).type.isDynamic());
 }

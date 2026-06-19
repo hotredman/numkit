@@ -2,6 +2,8 @@
 
 #include <numkit/codegen/inference.hpp>
 
+#include <numkit/codegen/classinfo.hpp>
+
 #include <vector>
 
 namespace numkit::codegen {
@@ -103,7 +105,7 @@ AbstractValue indexResult(const AbstractValue &var,
 } // namespace
 
 AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
-                        const TransferRegistry &reg)
+                        const TransferRegistry &reg, const ClassRegistry *classes)
 {
     switch (expr.type) {
     case NodeType::NUMBER_LITERAL:
@@ -139,8 +141,8 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         if (expr.children.size() != 2) return AbstractValue::dynamic();
         const std::string fn = opFuncName(expr.strValue, /*unary=*/false);
         if (fn.empty()) return AbstractValue::dynamic();
-        const AbstractValue a = inferExpr(*expr.children[0], env, reg);
-        const AbstractValue b = inferExpr(*expr.children[1], env, reg);
+        const AbstractValue a = inferExpr(*expr.children[0], env, reg, classes);
+        const AbstractValue b = inferExpr(*expr.children[1], env, reg, classes);
         return {reg.apply(fn, {a.asArg(), b.asArg()}), ConstVal::unknown()};
     }
 
@@ -148,8 +150,23 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         if (expr.children.size() != 1) return AbstractValue::dynamic();
         const std::string fn = opFuncName(expr.strValue, /*unary=*/true);
         if (fn.empty()) return AbstractValue::dynamic();
-        const AbstractValue a = inferExpr(*expr.children[0], env, reg);
+        const AbstractValue a = inferExpr(*expr.children[0], env, reg, classes);
         return {reg.apply(fn, {a.asArg()}), ConstVal::unknown()};
+    }
+
+    case NodeType::FIELD_ACCESS: {
+        // obj.field : strValue = field name, children[0] = object expr.
+        // Typed only when a class registry is supplied and the base is a
+        // known object; otherwise Dynamic (sound — non-class code, or a
+        // struct/handle we cannot class).
+        if (!classes || expr.children.empty()) return AbstractValue::dynamic();
+        const AbstractValue base = inferExpr(*expr.children[0], env, reg, classes);
+        if (!base.type.isObject()) return AbstractValue::dynamic();
+        const ClassInfo *ci = classes->byId(base.type.classId);
+        if (!ci) return AbstractValue::dynamic();
+        const ClassField *f = ci->field(expr.strValue);
+        if (!f) return AbstractValue::dynamic();
+        return {f->type, ConstVal::unknown()};
     }
 
     case NodeType::CALL: {
@@ -162,14 +179,15 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         argVals.reserve(expr.children.size() - 1);
         argInfos.reserve(expr.children.size() - 1);
         for (std::size_t i = 1; i < expr.children.size(); ++i) {
-            argVals.push_back(inferExpr(*expr.children[i], env, reg));
+            argVals.push_back(inferExpr(*expr.children[i], env, reg, classes));
             argInfos.push_back(argVals.back().asArg());
         }
 
         if (callee.type == NodeType::IDENTIFIER) {
             const std::string &name = callee.strValue;
             // MATLAB ambiguity: `name(...)` is an indexed read when `name`
-            // is a variable in scope, otherwise a function call.
+            // is a variable in scope, otherwise a function call (or a class
+            // constructor, registered as a transfer).
             if (env.has(name))
                 return indexResult(env.get(name), argVals);
             return {reg.apply(name, argInfos), ConstVal::unknown()};
@@ -255,38 +273,41 @@ void markAssignedDynamic(const ASTNode &node, TypeEnv &env,
 } // namespace
 
 void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
-               DeclTypeRecorder *declOut)
+               DeclTypeRecorder *declOut, const ClassRegistry *classes)
 {
     switch (stmt.type) {
     case NodeType::BLOCK:
         for (const auto &c : stmt.children)
-            if (c) inferStmt(*c, env, reg, declOut);
+            if (c) inferStmt(*c, env, reg, declOut, classes);
         return;
 
     case NodeType::ASSIGN: {
         if (stmt.children.size() != 2) return;
         const ASTNode &lhs = *stmt.children[0];
-        const AbstractValue rhs = inferExpr(*stmt.children[1], env, reg);
+        const AbstractValue rhs = inferExpr(*stmt.children[1], env, reg, classes);
         if (lhs.type == NodeType::IDENTIFIER) {
             env.set(lhs.strValue, rhs);
             recordDecl(declOut, lhs.strValue, rhs.type);
         } else if (!lhs.children.empty()
                    && lhs.children[0]->type == NodeType::IDENTIFIER) {
-            // Indexed / field assign: x(i)=rhs, s.f=rhs. The base
-            // variable keeps its dtype when the assigned value matches
-            // (the buffer stays e.g. double) — its shape may grow, so it
-            // drops to Unknown. A differing dtype (or unknown base/rhs)
-            // could promote/convert the whole array -> Dynamic.
-            const std::string &base = lhs.children[0]->strValue;
-            const AbstractValue cur = env.get(base);
-            if (cur.type.isConcrete() && rhs.type.isConcrete()
-                && cur.type.dtype == rhs.type.dtype) {
+            const std::string  &base = lhs.children[0]->strValue;
+            const AbstractValue cur  = env.get(base);
+            if (lhs.type == NodeType::FIELD_ACCESS && cur.type.isObject()) {
+                // Writing a field (`obj.f = rhs`) leaves the object's class
+                // unchanged — do NOT clobber the base to Dynamic.
+                recordDecl(declOut, base, cur.type);
+            } else if (cur.type.isConcrete() && rhs.type.isConcrete()
+                       && cur.type.dtype == rhs.type.dtype) {
+                // Indexed assign x(i)=rhs: base keeps its dtype; shape may
+                // grow -> Unknown.
                 env.set(base, {InferredType::concrete(cur.type.dtype, Shape::unknown()),
                                ConstVal::unknown()});
+                recordDecl(declOut, base, env.get(base).type);
             } else {
+                // Differing dtype / unknown base or rhs -> conservative.
                 env.set(base, AbstractValue::dynamic());
+                recordDecl(declOut, base, env.get(base).type);
             }
-            recordDecl(declOut, base, env.get(base).type);
         }
         return;
     }
@@ -308,12 +329,12 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         };
         for (const auto &br : stmt.branches) {
             TypeEnv branchEnv = env;
-            if (br.second) inferStmt(*br.second, branchEnv, reg, declOut);
+            if (br.second) inferStmt(*br.second, branchEnv, reg, declOut, classes);
             mergeIn(branchEnv);
         }
         if (stmt.elseBranch) {
             TypeEnv elseEnv = env;
-            inferStmt(*stmt.elseBranch, elseEnv, reg, declOut);
+            inferStmt(*stmt.elseBranch, elseEnv, reg, declOut, classes);
             mergeIn(elseEnv);
         } else {
             mergeIn(env);  // no branch taken — fall-through
@@ -332,12 +353,12 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         };
         for (const auto &br : stmt.branches) {
             TypeEnv caseEnv = env;
-            if (br.second) inferStmt(*br.second, caseEnv, reg, declOut);
+            if (br.second) inferStmt(*br.second, caseEnv, reg, declOut, classes);
             mergeIn(caseEnv);
         }
         if (stmt.elseBranch) {
             TypeEnv otherEnv = env;
-            inferStmt(*stmt.elseBranch, otherEnv, reg, declOut);
+            inferStmt(*stmt.elseBranch, otherEnv, reg, declOut, classes);
             mergeIn(otherEnv);
         } else {
             mergeIn(env);
@@ -351,7 +372,7 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         if (stmt.children.size() != 2) { markAssignedDynamic(stmt, env, declOut); return; }
         const std::string &loopVar = stmt.strValue;
         const AbstractValue iterVal = forIterValue(
-            inferExpr(*stmt.children[0], env, reg).type);
+            inferExpr(*stmt.children[0], env, reg, classes).type);
         const ASTNode &body = *stmt.children[1];
 
         // Fixpoint: the body may run 0..n times and carry values across
@@ -363,7 +384,7 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         for (int i = 0; i < kMaxFixpoint; ++i) {
             TypeEnv bodyEnv = cur;
             bodyEnv.set(loopVar, iterVal);
-            inferStmt(body, bodyEnv, reg, declOut);
+            inferStmt(body, bodyEnv, reg, declOut, classes);
             TypeEnv next = joinEnv(cur, bodyEnv);
             if (next == cur) break;
             cur = next;
@@ -381,7 +402,7 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         TypeEnv cur = env;
         for (int i = 0; i < kMaxFixpoint; ++i) {
             TypeEnv bodyEnv = cur;
-            inferStmt(body, bodyEnv, reg, declOut);
+            inferStmt(body, bodyEnv, reg, declOut, classes);
             TypeEnv next = joinEnv(cur, bodyEnv);
             if (next == cur) break;
             cur = next;
