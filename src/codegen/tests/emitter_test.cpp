@@ -269,6 +269,28 @@ TEST(EmitterFn, NonPromotableLoopFallsBack)
     EXPECT_FALSE(contains(s, "for (std::size_t k = 0;"));        // NOT promoted
 }
 
+// SOUNDNESS: the loop bound `n` is reassigned after `n = numel(x)`, so the
+// numel-equality fact is stale — the loop must NOT promote (promotion
+// would emit `k < x_len`, the wrong count, and could write the output out
+// of bounds). The flow-sensitive fact store invalidates on reassignment.
+TEST(EmitterFn, ReassignedBoundNotPromoted)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = f(x)\n"
+        "  n = numel(x);\n  n = 3;\n  y = zeros(1, n);\n"
+        "  for k = 1:n\n    y(k) = x(k);\n  end\n"
+        "end\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+
+    const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
+    EXPECT_FALSE(contains(s, "for (std::size_t k = 0;"));         // NOT promoted (stale fact)
+    EXPECT_TRUE(contains(s, "for (k = 1.0; k <= n; k += 1.0)"));   // checked form, bound n
+    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, y_len, k,"));
+}
+
 // ── 3c: control flow ──────────────────────────────────────────────────
 TEST(EmitterFn, IfElseTyping)
 {
