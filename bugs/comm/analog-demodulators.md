@@ -1,6 +1,6 @@
 # comm.mskdemod — missing (pmdemod/fmdemod/amdemod/ssbdemod done)
 
-- **Status:** 🔴 OPEN (partial — only `mskdemod` remains; the other 4 fixed 2026-06-19)
+- **Status:** ✅ FIXED (2026-06-19) — all five demodulators implemented
 - **Severity:** P2 (missing function)
 - **Kind:** missing-fn
 - **Found:** 2026-06 via DEEP-PROBE
@@ -24,7 +24,20 @@ a separate minor item). Parity OK vs MATLAB R2025b (`pmdemod.json`,
 `fmdemod.json`, `amdemod.json`, all interior). Guards:
 `analog_demod_test.cpp`; smoke `analog_demod_smoke.m`.
 
-**Still OPEN:** `mskdemod` (MSK coherent / Viterbi demod).
+**mskdemod (2026-06-19):** coherent **differential** demod — `bit_k =
+(Σ_{within symbol k} angle(y[n]·conj(y[n-1])) > 0)`, summing the per-sample
+phase increments over the symbol's interior pairs. Because the decision uses
+phase *increments* it is invariant to a constant phase rotation and robust
+to noise (`ini_phase` only sets the returned final-phase state). numkit's
+`mskmod` is bit-exact with MATLAB, and this rule reproduces MATLAB R2025b
+`mskdemod` exactly (verified on 20-bit random clean + noisy: full match,
+including the last bit, which uses the within-symbol pairs rather than a
+boundary-to-boundary difference). Returns `[z, phaseout]`, bits in the input
+orientation. **Non-differential** `'nondiff'` path **deferred** — numkit's
+`mskmod` has no non-diff path either, so it cannot round-trip; rejected with
+a clear error. Guards: `mskdemod_test.cpp`, `known_bugs_test.cpp`
+(`MskDemodExists`, promoted live); smoke `mskdemod_smoke.m`; parity
+`mskdemod.json` → OK.
 
 ## Symptom
 The analog **modulators** are all implemented; the **demodulator** inverses
@@ -44,10 +57,9 @@ mskmod([1 0 1],8) % OK        mskdemod([1 0 1],8) % undefined function 'mskdemod
 Only the `*mod` functions were registered (`src/toolboxes/comm/src/modulation/
 analog.cpp` + `library.cpp`); the `*demod` inverses were never added.
 
-## Suggested fix (remaining)
-- `mskdemod`: MSK coherent / Viterbi demod (the only one left).
-
-Done: `pmdemod`/`fmdemod` (phase) + `amdemod`/`ssbdemod` (coherent
+## Fix summary
+All five demodulators implemented (`analog.cpp`):
+`pmdemod`/`fmdemod` (phase) + `amdemod`/`ssbdemod` (coherent
 `2·filtfilt(butter(5,Fc·2/Fs), y·cos)` — note MATLAB uses **zero-phase
 filtfilt**, not a causal `filter`, and the `×2` recovers the suppressed
 carrier).

@@ -172,4 +172,26 @@ Value ssbmod(const Value &x, double fc, double fs, double ini_phase,
 Value mskmod(const Value &x, int nSamp, double ini_phase,
              std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Minimum-shift-keying demodulator (differential variant)
+/// (`z = mskdemod(y, nSamp [, ini_phase])`).
+///
+/// Coherent inverse of @ref mskmod. Each bit is the sign of the symbol's
+/// accumulated phase increment: `bit_k = (Σ_{within symbol k}
+/// angle(y[n]·conj(y[n-1])) > 0)`. Because the decision uses phase
+/// *increments*, it is robust to a constant phase rotation and to noise,
+/// and `ini_phase` does not affect the bits (it only sets the returned
+/// final-phase state). Output has `numel(y) / nSamp` bits per channel, in
+/// the input's row/column orientation. Non-differential variant deferred
+/// (matching @ref mskmod).
+///
+/// @param y          Complex baseband MSK waveform (length a multiple of nSamp).
+/// @param nSamp      Samples per symbol.
+/// @param ini_phase  Initial carrier phase (radians); only feeds @p phase_out.
+/// @param phase_out  If non-null, receives the final phase state in [0, 2π).
+/// @param mr         Memory resource (nullptr → process default).
+/// @return           Demodulated bit stream ({0,1}).
+Value mskdemod(const Value &y, int nSamp, double ini_phase,
+               double *phase_out = nullptr,
+               std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::comm

@@ -35,6 +35,7 @@ void amdemod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssbdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssbmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mskmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mskdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // modulation/generic_qam.cpp
 void genqammod_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -164,6 +165,7 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "ssbdemod",  &comm::detail::ssbdemod_reg);
     reg("mod", "ssbmod",    &comm::detail::ssbmod_reg);
     reg("mod", "mskmod",    &comm::detail::mskmod_reg);
+    reg("mod", "mskdemod",  &comm::detail::mskdemod_reg);
 
     reg("mod", "genqammod",   &comm::detail::genqammod_reg);
     reg("mod", "genqamdemod", &comm::detail::genqamdemod_reg);
