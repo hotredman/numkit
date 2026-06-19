@@ -377,3 +377,44 @@ TEST(CodegenE2E, WhileLoopRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 55.0);  // 1+2+...+10
     EXPECT_DOUBLE_EQ(got[1], 0.0);   // 0 iterations
 }
+
+// Engine 1b: a 2-function program (f calls g) compiles, runs, and is
+// correct. f(3) = g(3) + 1 = 6 + 1 = 7.
+TEST(CodegenE2E, InterproceduralRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function y = f(x)\n  y = g(x) + 1;\nend\n"
+        "function y = g(x)\n  y = x*2;\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    FunctionTable  table;
+    collectFunctions(*root, table);
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    registerUserFunctions(reg, table);
+
+    const EmittedFunction emitted =
+        emitProgram(*table.find("f"), {{"x", InferredType::scalar(ValueType::DOUBLE)}},
+                    table, reg);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_interproc_e2e.exe").string();
+    const std::string outTxt = (base / "nk_interproc_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "(3.0);\n"  // f__d(3.0)
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 7.0);
+}
