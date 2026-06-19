@@ -1,0 +1,10 @@
+{
+  "name": "fmincon",
+  "namespace": "optim",
+  "setup": "",
+  "expr": "a = fmincon(@(x) x(1)^2+x(2)^2, [1 1], [],[],[],[], [0 0],[2 2]); a1 = a(1); a2 = a(2); b = fmincon(@(x) (x(1)-2)^2+(x(2)-2)^2, [0 0], [1 1], 2); b1 = b(1); b2 = b(2); c = fmincon(@(x) x(1)^2+x(2)^2, [2 0], [],[], [1 1], 2); c1 = c(1); c2 = c(2); e = fmincon(@(x) (x(1)-3)^2 + (x(2)+1)^2, [0 0], [],[],[],[], [0 0],[2 2]); e1 = e(1); e2 = e(2);",
+  "iters": 1,
+  "tol": 1e-05,
+  "fingerprint": ["b1", "b2", "c1", "c2", "e1", "e2"],
+  "comment": "Sig: [x,fval,exitflag] = fmincon(fun, x0, A, b, Aeq, beq, lb, ub). Constrained minimization via embedded-.m SQP reusing quadprog as the QP subproblem: FD gradient g, BFGS Hessian estimate B, step from min 0.5 d'Bd + g'd s.t. A*d<=b-Ax, Aeq*d=beq-Aeq x, lb-x<=d<=ub-x, then a backtracking line search on f (the QP keeps the convex linear/bound feasible region, so x+alpha*d stays feasible). Objective is user code -> bytecode (pausable). Parity on the SOLUTION (tol 1e-5). Fingerprint (cases where MATLAB's default interior-point converges tightly): linear inequality x1+x2<=2 with far center -> [1 1], equality x1+x2=2 -> [1 1], objective minimum outside the box clamps to the corner -> [2 0]. The bounds-only min x1^2+x2^2 in [0,2]^2 (a1/a2) is computed but NOT fingerprinted: numkit's active-set SQP reaches the exact bound [0 0] while MATLAB's DEFAULT interior-point stops ~6.4e-4 inside it (barrier) -- that case is guarded in fmincon_test.cpp against the true optimum [0 0]. Output orientation mirrors x0. SCOPE: nonlinear constraints (nonlcon) are rejected -- the [c,ceq]=nonlcon(x) multi-output handle call is unsupported by the numkit VM (bugs/lang/multi-output-handle-call). Verified vs MATLAB R2025b. Fixes bugs/optim/fmincon (last of the constrained-solvers cluster)."
+}

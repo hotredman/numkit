@@ -72,12 +72,16 @@ TEST_F(OptimKnownBug, Linprog)
     EXPECT_NEAR(evalScalar("fc"), -12.0, 1e-6);
 }
 
-// bugs/optim/constrained-solvers.md — fmincon on a bounded parabola -> [0 0].
-TEST_F(OptimKnownBug, DISABLED_Fmincon)
+// bugs/optim/fmincon.md — fmincon on a bounded parabola -> [0 0] (FIXED).
+TEST_F(OptimKnownBug, Fmincon)
 {
     eval("x = fmincon(@(x) x(1)^2+x(2)^2, [1 1], [],[],[],[], [0 0],[2 2]);");
-    EXPECT_NEAR(evalScalar("x(1)"), 0.0, 1e-3);
-    EXPECT_NEAR(evalScalar("x(2)"), 0.0, 1e-3);
+    EXPECT_NEAR(evalScalar("x(1)"), 0.0, 1e-5);
+    EXPECT_NEAR(evalScalar("x(2)"), 0.0, 1e-5);
+    // linear inequality x1+x2<=2 with a far objective center -> [1 1].
+    eval("x2 = fmincon(@(x) (x(1)-2)^2+(x(2)-2)^2, [0 0], [1 1], 2);");
+    EXPECT_NEAR(evalScalar("x2(1)"), 1.0, 1e-5);
+    EXPECT_NEAR(evalScalar("x2(2)"), 1.0, 1e-5);
 }
 
 // bugs/optim/fsolve.md — nonlinear system solver (FIXED, promoted live).

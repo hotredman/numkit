@@ -31,6 +31,7 @@ void registerLsqnonlinM(Engine &engine);    // lsqnonlin_reg.cpp
 void registerFminuncM(Engine &engine);      // fminunc_reg.cpp
 void registerQuadprogM(Engine &engine);     // quadprog_reg.cpp
 void registerLinprogM(Engine &engine);      // linprog_reg.cpp
+void registerFminconM(Engine &engine);      // fmincon_reg.cpp
 } // namespace numkit::optim
 
 namespace numkit {
@@ -60,6 +61,9 @@ void OptimLibrary::install(Engine &engine)
     // linprog — embedded `.m` linear program via proximal regularization
     // over quadprog (exact vertex for unique optima).
     optim::registerLinprogM(engine);
+    // fmincon — embedded `.m` SQP (quadprog QP subproblem; pausable
+    // objective + nonlcon). Solution-parity with MATLAB.
+    optim::registerFminconM(engine);
 }
 
 } // namespace numkit
