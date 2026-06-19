@@ -1,0 +1,10 @@
+{
+  "name": "corner",
+  "namespace": "image",
+  "setup": "I = zeros(20,20); I(6:15,6:15) = 1; A = zeros(30,30); A(5:9,5:9) = 1; A(20:27,20:27) = 0.5; W = zeros(30,30); W(5:9,5:9) = 0.3; W(20:24,20:24) = 1.0;",
+  "expr": "C = corner(I); nC = size(C,1); c11 = C(1,1); c12 = C(1,2); c41 = C(4,1); c42 = C(4,2); Ca = corner(A); nA = size(Ca,1); ca51 = Ca(5,1); Cn = corner(A,2); nN = size(Cn,1); Cw = corner(W,1); cw11 = Cw(1,1); Cme = corner(I,'MinimumEigenvalue'); nMe = size(Cme,1);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["nC", "c11", "c12", "c41", "c42", "nA", "ca51", "nN", "cw11", "nMe"],
+  "comment": "Sig: C = corner(I [, METHOD] [, N] [, 'QualityLevel'/'SensitivityFactor'/'FilterCoefficients', val]). Detect corner points by wrapping the shipped cornermetric: local maxima above QualityLevel*max -> connected-peak centroids -> strength-descending sort (ties by column-major/find order) -> up to N [x y]=[col row] integer coords. Border excluded naturally (metric <=0 < threshold). numkit's cornermetric matches MATLAB to ~1e-8 (not bit-exact), so the strength sort quantises to ~1e-9*max to reproduce MATLAB's bit-exact-symmetric equal-corner ordering. Fingerprint: bright square -> 4 corners [6 6;6 15;15 6;15 15]; two squares (contrast 1 vs 0.5) -> 8 with strong first (Ca(5,:)=[20 20]); N=2 truncates; strong-at-high-col W -> corner(W,1)=[20 20] (strength beats position); MinimumEigenvalue -> 4. Verified vs MATLAB R2025b. Fixes bugs/image/corner."
+}

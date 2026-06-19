@@ -61,12 +61,16 @@ TEST_F(ImageKnownBug, ImresizeBilinear)
     EXPECT_NEAR(evalScalar("d(3)"), 5.55078, 1e-4);
 }
 
-// bugs/image/corner.md — corner-point detection (cornermetric exists, corner doesn't).
-TEST_F(ImageKnownBug, DISABLED_Corner)
+// bugs/image/corner.md — corner-point detection (FIXED; built on cornermetric).
+TEST_F(ImageKnownBug, Corner)
 {
     eval("I = zeros(20,20); I(6:15,6:15) = 1; C = corner(I);");
     EXPECT_EQ(static_cast<int>(evalScalar("size(C,2)")), 2);   // [x y] coords
-    EXPECT_GE(static_cast<int>(evalScalar("size(C,1)")), 4);   // 4 block corners
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C,1)")), 4);   // 4 block corners
+    EXPECT_EQ(static_cast<int>(evalScalar("C(1,1)")), 6);      // first corner [6 6]
+    EXPECT_EQ(static_cast<int>(evalScalar("C(1,2)")), 6);
+    EXPECT_EQ(static_cast<int>(evalScalar("C(4,1)")), 15);     // last corner [15 15]
+    EXPECT_EQ(static_cast<int>(evalScalar("C(4,2)")), 15);
 }
 
 // bugs/image/adapthisteq-mapping.md — CLAHE brightness regression FIXED

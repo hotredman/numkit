@@ -231,6 +231,7 @@ void imgradientxyz_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgradient3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cornermetric_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void corner_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void hough_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void houghpeaks_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void houghlines_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -539,6 +540,7 @@ void ImageLibrary::install(Engine &engine)
     reg("object", "imgradient3",  &image::detail::imgradient3_reg);
     reg("object", "edge",         &image::detail::edge_reg);
     reg("object", "cornermetric", &image::detail::cornermetric_reg);
+    reg("object", "corner",       &image::detail::corner_reg);
     reg("object", "hough",        &image::detail::hough_reg);
     reg("object", "houghpeaks",   &image::detail::houghpeaks_reg);
     reg("object", "houghlines",   &image::detail::houghlines_reg);
