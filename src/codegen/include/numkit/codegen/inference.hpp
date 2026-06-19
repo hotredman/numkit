@@ -27,6 +27,11 @@
 
 namespace numkit::codegen {
 
+// Forward-declared: when supplied to inference, a FIELD_ACCESS `obj.f` on
+// an object-typed value resolves to the class field's type. nullptr (the
+// default) leaves field access Dynamic — so non-class code is unaffected.
+class ClassRegistry;
+
 // Abstract value at a program point: the inferred type plus the
 // constant facet (a known literal value drives shape-from-value).
 struct AbstractValue {
@@ -76,7 +81,8 @@ TypeEnv joinEnv(const TypeEnv &a, const TypeEnv &b);
 // identifiers and to disambiguate `x(i)` (indexed read of a variable)
 // from `f(x)` (a call), exactly as the interpreter does.
 AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
-                        const TransferRegistry &reg);
+                        const TransferRegistry &reg,
+                        const ClassRegistry *classes = nullptr);
 
 // Optional decl-type recorder: a map joined at every definition site with
 // the type the variable is assigned THERE (its program-point type, not the
@@ -91,7 +97,7 @@ using DeclTypeRecorder = std::unordered_map<std::string, InferredType>;
 // program point — so a loop-body temporary records its in-loop type, not
 // its (maybe-undefined) post-loop type.
 void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
-               DeclTypeRecorder *declOut = nullptr);
+               DeclTypeRecorder *declOut = nullptr, const ClassRegistry *classes = nullptr);
 
 // Infer a whole parsed program (the BLOCK Parser::parse() returns),
 // returning the final environment.
