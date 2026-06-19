@@ -162,6 +162,29 @@ Value cornermetric(const Value &I, const std::string &method,
                    const Value &filter_coef,
                    std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Detect corner points (`C = corner(I, ...)`).
+///
+/// Wraps @ref cornermetric: keep its local maxima above
+/// `quality_level · max(metric)`, take each connected peak's centroid,
+/// sort by strength (descending), and return up to `maxN` integer
+/// `[x y] = [col row]` coordinates (one row per corner). Equal-strength
+/// peaks tie-break by ascending column-major index (MATLAB `find` order);
+/// the image border is excluded naturally (its metric is ≤ 0 < threshold).
+///
+/// @param I              2-D grayscale or logical image.
+/// @param method         `"Harris"` (default) or `"MinimumEigenvalue"`.
+/// @param maxN           Maximum number of corners (default 200; <0 = all).
+/// @param quality_level  Threshold fraction of the peak metric (default 0.01).
+/// @param sensitivity    Harris `k ∈ (0, 0.25)` (default 0.04); ignored for MinEig.
+/// @param filter_coef    Smoothing filter (empty → default 5-tap Gaussian).
+/// @param mr             Memory resource (nullptr → process default).
+/// @return               `K × 2` DOUBLE matrix of `[x y]` corner coordinates.
+/// @see cornermetric
+Value corner(const Value &I, const std::string &method, int maxN,
+             double quality_level, double sensitivity,
+             const Value &filter_coef,
+             std::pmr::memory_resource *mr = nullptr);
+
 /// @brief Standard Hough transform (`[H, T, R] = hough(BW, ...)`).
 ///
 /// Computes the parameter-space accumulator for the line

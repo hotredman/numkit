@@ -188,6 +188,60 @@ void cornermetric_reg(Span<const Value> args, std::size_t /*nargout*/,
     outs[0] = cornermetric(I, method, sensitivity, filter_coef, mr);
 }
 
+void corner_reg(Span<const Value> args, std::size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("corner: requires (I [, METHOD] [, N] [, NV...])",
+                    0, 0, "corner", "", "numkit:corner:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &I = args[0];
+    auto is_string = [](const Value &v) { return v.isChar() || v.isString(); };
+
+    std::string method = "Harris";
+    int maxN = 200;
+    double quality = 0.01;
+    double sensitivity = 0.04;
+    Value filter_coef;
+    std::size_t i = 1;
+
+    // Optional positional METHOD.
+    if (i < args.size() && is_string(args[i])) {
+        std::string m = args[i].toString();
+        if (m == "Harris" || m == "MinimumEigenvalue") {
+            method = m;
+            ++i;
+        }   // else: an NV-pair name — leave for the loop below.
+    }
+    // Optional positional N (max corners).
+    if (i < args.size() && !is_string(args[i]) && args[i].numel() == 1) {
+        maxN = static_cast<int>(args[i].toScalar());
+        ++i;
+    }
+    // Name-value pairs.
+    while (i + 1 < args.size()) {
+        if (!is_string(args[i]))
+            throw Error("corner: expected NV-pair name",
+                        0, 0, "corner", "", "numkit:corner:badNv");
+        std::string name = args[i].toString();
+        std::string nlo;
+        for (char ch : name)
+            nlo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (nlo == "qualitylevel") {
+            quality = args[i + 1].toScalar();
+        } else if (nlo == "sensitivityfactor") {
+            sensitivity = args[i + 1].toScalar();
+        } else if (nlo == "filtercoefficients") {
+            filter_coef = args[i + 1];
+        } else {
+            throw Error("corner: unknown option '" + name + "'",
+                        0, 0, "corner", "", "numkit:corner:unknownNv");
+        }
+        i += 2;
+    }
+    outs[0] = corner(I, method, maxN, quality, sensitivity, filter_coef, mr);
+}
+
 void hough_reg(Span<const Value> args, std::size_t nargout,
                Span<Value> outs, CallContext &ctx)
 {
