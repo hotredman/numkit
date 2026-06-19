@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (113 entries):** ✅ 88 fixed · 🔴 25 open = **5 bug** + 2 stub +
+**Tally (114 entries):** ✅ 89 fixed · 🔴 25 open = **5 bug** + 2 stub +
 1 missing-output + **16 missing-fn** + 1 perf (the 16 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -149,10 +149,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (83)
+### ✅ FIXED (84)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [signal/hilbert-nonpow2](signal/hilbert-nonpow2.md) | P1 | ✅ FIXED: hilbert(x) returned a wrong analytic signal for non-power-of-2 lengths (constant envelope lost, \|z\|≈0.75 instead of 1) — hilbertBuf padded to nextPow2(N), transformed the padded length, then sliced N. Root: zero-padding changes the spectrum so the doubled-positive-freq mask + ifft operate on the wrong-length DFT (pow2 N unaffected → hid behind pow2 test inputs). Fix: transform at length N — pow2 keeps the fftRadix2 fast path, non-pow2 routes through the general fft/ifft (Bluestein); mask handles even/odd parity. Parity OK vs MATLAB R2025b: hilbert([1:6]') imag=[2.3094,-1.1547,…], L=100 tone \|hilbert\|=1, ramp \|z(1)\|=128.524726. Also fixes envelope/ssbmod/instfreq/vibration for non-pow2 + unblocks pmdemod/fmdemod. Full suite 12294 pass / 0 fail (2026-06-19) |
 | missing-fn | [wavelet/ddencmp](wavelet/ddencmp.md) | P2 | ✅ FIXED: ddencmp (default denoise/compress params) was undefined. Noise estimate from finest-detail of a 1-level db1 dwt: σ̂=median(\|cD1\|)/0.6745. 'den': thr=sqrt(2·log(n))·σ̂ (universal), sorh='s'; 'cmp': thr=median(\|cD1\|), sorh='h'; keepapp=1. numkit dwt('db1') matches MATLAB's finest detail bit-for-bit (incl. odd-length) so thresholds match exactly. Parity OK vs MATLAB R2025b: den/wv [1 2 3 8 3 2 1 2]→2.137919772574, cmp→0.707106781187, den [1..5]→1.880854323469. 'wp' deferred. Closes the wentropy/ddencmp cluster (2026-06-19) |
 | missing-fn | [wavelet/wentropy](wavelet/wentropy.md) | P2 | ✅ FIXED: wentropy (coefficient entropy "cost") was undefined. Closed-form additive entropy: 'shannon'=-Σs²·log(s²) (zeros→0), 'log energy'=Σlog(s²) nonzero, 'threshold'(P)=#{\|s\|>P}, 'sure'(P)=n-2·#{\|s\|≤P}+Σmin(s²,P²), 'norm'(P≥1)=Σ\|s\|ᴾ. Parity OK vs MATLAB R2025b on [0.5 -0.3 0.8 0 -0.1 0.2]: shannon=1.023719, logenergy=-12.064573, threshold(0.2)=3, sure(0.2)=0.17, norm(1.5)=1.354477; shannon([1 2 3 4])=-69.6816182. Split from wentropy-ddencmp; ddencmp still open (2026-06-19) |
 | missing-fn | [comm/syndtable](comm/syndtable.md) | P2 | ✅ FIXED: syndtable (syndrome decoding table / coset-leader lookup) was undefined. Returns the 2^(n-k)×n table whose row s+1 is the min-weight error with syndrome s=bi2de(mod(H·eᵀ,2),'left-msb'); enumerate error patterns by ascending Hamming weight, within a weight by lexicographic bit position, first to reach each syndrome wins (lowest-position tie-break = MATLAB's). Parity OK vs MATLAB R2025b (exact full-table match incl. weight-2 leaders + ties): (7,4) Hamming→8×7 all-weight-1; 3×4 code→weight-2 leaders, s=3→[1 0 0 1]; repro 3×6→8×6 (2026-06-19) |
