@@ -2,6 +2,8 @@
 
 #include <numkit/codegen/monomorphize.hpp>
 
+#include <numkit/codegen/classinfo.hpp>
+
 #include <memory>
 #include <unordered_set>
 
@@ -33,7 +35,7 @@ void collectFunctions(const ASTNode &root, FunctionTable &table)
 
 InferredType inferFunctionReturn(const ASTNode &funcDef,
                                  const std::vector<ArgInfo> &args,
-                                 const TransferRegistry &reg)
+                                 const TransferRegistry &reg, const ClassRegistry *classes)
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         return InferredType::dynamic();
@@ -48,8 +50,28 @@ InferredType inferFunctionReturn(const ASTNode &funcDef,
     for (std::size_t i = 0; i < args.size(); ++i)
         env.set(funcDef.paramNames[i], {args[i].type, args[i].constant});
 
-    inferStmt(*funcDef.children[0], env, reg);
+    inferStmt(*funcDef.children[0], env, reg, nullptr, classes);
     return env.get(funcDef.returnNames[0]).type;
+}
+
+void registerClassMethods(TransferRegistry &reg, const ClassRegistry &classes)
+{
+    auto inProgress = std::make_shared<std::unordered_set<std::string>>();
+    for (std::size_t i = 0; i < classes.size(); ++i) {
+        const ClassInfo *ci = classes.byId(static_cast<int>(i));
+        if (!ci) continue;
+        for (const auto &[mname, mdef] : ci->methods) {
+            const std::string key = ci->name + "::" + mname;
+            const ASTNode    *md  = mdef;
+            reg.add(key, [md, key, &reg, &classes, inProgress](const std::vector<ArgInfo> &args) {
+                if (!inProgress->insert(key).second)
+                    return InferredType::dynamic();          // recursion -> sound break
+                const InferredType r = inferFunctionReturn(*md, args, reg, &classes);
+                inProgress->erase(key);
+                return r;
+            });
+        }
+    }
 }
 
 void registerUserFunctions(TransferRegistry &reg, const FunctionTable &table)

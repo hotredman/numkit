@@ -415,6 +415,39 @@ TEST(EmitterFn, ValueClassFieldAccess)
     EXPECT_TRUE(contains(s, "return p;"));
 }
 
+// ── class brick 6: monomorphic method calls ──────────────────────────
+TEST(EmitterFn, MethodCallEmission)
+{
+    const char *src =
+        "classdef Rect\n  properties\n    w = 0\n    h = 0\n  end\n"
+        "  methods\n    function a = area(obj)\n      a = obj.w * obj.h;\n    end\n  end\nend\n"
+        "function y = run(p)\n  y = p.area();\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    ClassRegistry creg;
+    collectClasses(*root, creg, reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+    registerClassMethods(reg, creg);
+
+    const int id = creg.idOf("Rect");
+    ASSERT_GE(id, 0);
+    const EmittedFunction out =
+        emitProgram(*ft.find("run"), {{"p", InferredType::object(id)}}, ft, reg, &creg);
+    const std::string &s = out.source;
+
+    EXPECT_EQ(out.name, "run__o0");
+    EXPECT_TRUE(contains(s, "struct Rect {"));
+    EXPECT_TRUE(contains(s, "double Rect__area__o0(Rect obj)"));  // method specialisation
+    EXPECT_TRUE(contains(s, "a = (obj.w * obj.h);"));            // field reads in the body
+    EXPECT_TRUE(contains(s, "Rect__area__o0(p)"));               // call site (self = p)
+}
+
 // ── engine 1b: interprocedural call emission ──────────────────────────
 TEST(EmitterFn, InterproceduralProgram)
 {

@@ -378,6 +378,56 @@ TEST(CodegenE2E, WhileLoopRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[1], 0.0);   // 0 iterations
 }
 
+// Class brick 6/7: a value class with a METHOD, end-to-end. The harness
+// builds a Rect in C++, the transpiled run() calls obj.area() (a
+// monomorphic method call -> Rect__area(obj)), and the result is checked.
+TEST(CodegenE2E, ValueClassMethodCall)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "classdef Rect\n  properties\n    w = 0\n    h = 0\n  end\n"
+        "  methods\n    function a = area(obj)\n      a = obj.w * obj.h;\n    end\n  end\nend\n"
+        "function y = run(p)\n  y = p.area();\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    ClassRegistry creg;
+    collectClasses(*root, creg, reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+    registerClassMethods(reg, creg);
+
+    const int id = creg.idOf("Rect");
+    ASSERT_GE(id, 0);
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("run"), {{"p", InferredType::object(id)}}, ft, reg, &creg);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_method_e2e.exe").string();
+    const std::string outTxt = (base / "nk_method_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  Rect p{};\n"
+        "  p.w = 3.0;\n"
+        "  p.h = 4.0;\n"
+        "  double r = " + emitted.name + "(p);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 12.0);  // area = w * h = 3 * 4
+}
+
 // Class brick 5b: a value class round-trips through compiled code. The
 // harness constructs a Point in C++, sets a field, and the transpiled
 // getx() reads it back. Proves struct emission + object param + field read
