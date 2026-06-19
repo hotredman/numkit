@@ -97,6 +97,28 @@ void pagelsqminnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 namespace numkit {
 
+// funm — general matrix function via the eigendecomposition:
+//   F = V·diag(fun(eig(A)))·V⁻¹  (valid for diagonalizable A).
+// A real matrix with complex eigenvalues yields a complex V/D and hits the
+// complex-linalg limitation (bugs/linalg/complex-matrix-unsupported); the
+// common real-eigenvalue / symmetric cases match MATLAB exactly. The
+// Schur–Parlett path for defective matrices is not implemented.
+static const char *kFunmMSource = R"NKM(
+function F = funm(A, fun)
+  if nargin < 2
+    error('numkit:funm:nargin', 'funm: requires (A, fun)');
+  end
+  if ~(ismatrix(A) && size(A,1) == size(A,2))
+    error('numkit:funm:square', 'funm: A must be a square matrix');
+  end
+  [V, D] = eig(A);
+  F = V * diag(fun(diag(D))) / V;
+  if isreal(A)
+    F = real(F);
+  end
+end
+)NKM";
+
 void LinalgLibrary::install(Engine &engine)
 {
     // Every function lands in THREE places:
@@ -197,6 +219,9 @@ void LinalgLibrary::install(Engine &engine)
     reg("page", "pagemldivide",   &linalg::detail::pagemldivide_reg);
     reg("page", "pagemrdivide",   &linalg::detail::pagemrdivide_reg);
     reg("page", "pagelsqminnorm", &linalg::detail::pagelsqminnorm_reg);
+
+    // funm: general matrix function via eig (embedded .m).
+    engine.registerBuiltinMSource(kFunmMSource);
 }
 
 } // namespace numkit

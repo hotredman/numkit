@@ -13,6 +13,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/polyeig_ordeig_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/expmv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/funm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cond_pnorm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/norm_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/qr_pivoting_test.cpp
