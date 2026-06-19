@@ -428,6 +428,58 @@ TEST(CodegenE2E, ValueClassMethodCall)
     EXPECT_DOUBLE_EQ(got[0], 12.0);  // area = w * h = 3 * 4
 }
 
+// Handle class end-to-end: exercises the nk_rt::handle<T> path (shared
+// reference, obj->field, handle param + method) that the value-class tests
+// never touch. v1 supports a 1-output method (getter); a void in-place
+// mutator is refused (single-output requirement) — a documented limit.
+TEST(CodegenE2E, HandleClassMethodCall)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "classdef Box < handle\n  properties\n    v = 0\n  end\n"
+        "  methods\n    function r = getv(obj)\n      r = obj.v;\n    end\n  end\nend\n"
+        "function y = run(b)\n  y = b.getv();\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    ClassRegistry creg;
+    collectClasses(*root, creg, reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+    registerClassMethods(reg, creg);
+
+    const int id = creg.idOf("Box");
+    ASSERT_GE(id, 0);
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("run"), {{"b", InferredType::object(id)}}, ft, reg, &creg);
+    ASSERT_TRUE(emitted.source.find("nk_rt::handle<Box>") != std::string::npos)
+        << "handle class should use the handle<T> wrapper";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_handle_e2e.exe").string();
+    const std::string outTxt = (base / "nk_handle_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  nk_rt::handle<Box> b = nk_rt::handle<Box>::make();\n"
+        "  b->v = 9.0;\n"
+        "  double r = " + emitted.name + "(b);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 9.0);  // obj->v read through the handle
+}
+
 // Class brick 5b: a value class round-trips through compiled code. The
 // harness constructs a Point in C++, sets a field, and the transpiled
 // getx() reads it back. Proves struct emission + object param + field read
