@@ -413,6 +413,8 @@ struct CallSite {
     const ASTNode             *def = nullptr;
     std::vector<InferredType>  argTypes;
     std::string                mangled;
+    // Pre-typed non-parameter locals to seed (a constructor's output object).
+    std::vector<ParamSpec>     extraSeed;
 };
 
 // Shared across all functions emitted for one program: the function table,
@@ -720,10 +722,41 @@ std::string Emitter::emitConstruct(const std::string &name, const ASTNode &call)
     const ClassInfo *ci = classes_->byName(name);
     if (!ci) unsupported("construction of unknown class '" + name + "'");
     const std::size_t nargs = call.children.size() - 1;
-    if (ci->method(name))
-        unsupported("explicit constructor for '" + name + "' not yet emitted (1b)");
+    const ASTNode    *ctor  = ci->method(name);
+
+    if (ctor) {
+        // Explicit constructor: emit a call to its specialisation, whose
+        // OUTPUT object is seeded as Object(this class) so its field writes
+        // type (the object can't be inferred from field writes alone).
+        if (!ctx_) unsupported("constructor call requires program emission (emitProgram)");
+        if (ctor->returnNames.size() != 1)
+            unsupported("constructor of '" + name + "' must have one output");
+        if (ctor->paramNames.size() != nargs)
+            unsupported("constructor of '" + name + "' arity mismatch");
+        std::vector<InferredType> argTypes;
+        std::string               argList;
+        for (std::size_t i = 1; i < call.children.size(); ++i) {
+            const AbstractValue av = inferExpr(*call.children[i], types_, reg_, classes_);
+            if (!isUnboxableScalarType(av.type))
+                unsupported("constructor arg must be an unboxed scalar (v1): '" + name + "'");
+            argTypes.push_back(av.type);
+            argList += (i > 1 ? ", " : "") + emitExpr(*call.children[i]);
+        }
+        const std::string mangled = mangle(ci->name + "__ctor", argTypes);
+        if (ctx_->seen.insert(mangled).second) {
+            CallSite cs;
+            cs.def       = ctor;
+            cs.argTypes  = argTypes;
+            cs.mangled   = mangled;
+            cs.extraSeed = {{ctor->returnNames[0], InferredType::object(ci->id)}};
+            ctx_->pending.push_back(cs);
+        }
+        return mangled + "(" + argList + ")";
+    }
+
+    // No explicit constructor: default construction.
     if (nargs != 0)
-        unsupported("class '" + name + "' has no constructor accepting arguments (v1)");
+        unsupported("class '" + name + "' has no constructor accepting arguments");
     return ci->isHandle ? "nk_rt::handle<" + ci->name + ">::make()" : ci->name + "{}";
 }
 
@@ -1035,7 +1068,8 @@ const char *kPrelude =
 // further specialisations. Returns {signature, definition}.
 OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &params,
                       const TransferRegistry &reg, ProgramEmitCtx *ctx,
-                      const std::string &cppName, const ClassRegistry *classes)
+                      const std::string &cppName, const ClassRegistry *classes,
+                      const std::vector<ParamSpec> &extraSeed = {})
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
@@ -1044,13 +1078,17 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
 
     const ASTNode &body = *funcDef.children[0];
 
-    // Entry env (parameter types) + array metadata + the signature's
-    // parameter list, in source order.
+    // The typing seed (entry) and the signature's parameters are distinct:
+    // params drive the signature + the hoist-skip; `entry` is the typing
+    // env (params PLUS extraSeed — pre-typed non-parameter locals such as a
+    // constructor's output object, which are hoisted as locals, not params).
     TypeEnv                                     entry;
     std::unordered_map<std::string, ArrayInfo>  arrays;
     std::vector<std::string>                    sigParams;
+    std::set<std::string>                       paramSet;
     for (const ParamSpec &p : params) {
         entry.set(p.name, {p.type, ConstVal::unknown()});
+        paramSet.insert(p.name);
         if (isUnboxableScalarType(p.type)) {
             sigParams.push_back(cppScalarType(p.type.dtype) + " " + p.name);
         } else if (isBufferArrayType(p.type)) {
@@ -1065,6 +1103,8 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             unsupported("parameter '" + p.name + "' has an unsupported type for RawBuffer ABI");
         }
     }
+    for (const ParamSpec &es : extraSeed)  // pre-typed locals (e.g. ctor output)
+        entry.set(es.name, {es.type, ConstVal::unknown()});
 
     const DeclTypeMap decls   = computeDeclTypes(body, entry, reg, classes);
     const std::string retName = funcDef.returnNames[0];
@@ -1108,8 +1148,8 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     Emitter em(entry, reg, arrays, opt, ctx, classes);
     std::map<std::string, InferredType> ordered(decls.begin(), decls.end());
     for (const auto &[name, t] : ordered) {
-        if (entry.has(name) || arrays.count(name) || promotedVars.count(name))
-            continue;  // params / arrays / promoted loop counters
+        if (paramSet.count(name) || arrays.count(name) || promotedVars.count(name))
+            continue;  // signature params / arrays / promoted loop counters
         if (!isUnboxableScalarType(t) && !t.isObject())
             unsupported("local '" + name + "' is not an unboxable scalar or object (type "
                         + t.str() + ") — unsupported in RawBuffer ABI");
@@ -1180,7 +1220,7 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
         ps.reserve(cs.argTypes.size());
         for (std::size_t i = 0; i < cs.argTypes.size(); ++i)
             ps.push_back({cs.def->paramNames[i], cs.argTypes[i]});
-        const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes);
+        const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes, cs.extraSeed);
         sigs.push_back(cf.signature);
         defs.push_back(cf.definition);
     }
