@@ -67,6 +67,14 @@ typedef nk_val (*nk_fn)(const nk_val *args, size_t nargs, size_t nargout,
  * an existing name overrides it. */
 int nk_register_fn(const char *name, nk_fn fn);
 
+/* Load a plugin shared library from `path`, verify its ABI version, and run
+ * its registration hook (which registers the plugin's functions into this
+ * runtime via the host API; see nk_plugin.h). Returns 0 on success; on
+ * failure returns non-zero and sets *err. On success the library stays loaded
+ * for the process lifetime — its registered function pointers remain live.
+ * (DESIGN.md §6b) */
+int nk_load_plugin(const char *path, nk_error *err);
+
 #ifdef __cplusplus
 }
 #endif
