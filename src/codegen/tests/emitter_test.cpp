@@ -362,6 +362,32 @@ TEST(EmitterFn, TypedButUnloweredBuiltinThrows)
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }
 
+// ── boundary #2b: multi-output emission ───────────────────────────────
+TEST(EmitterFn, MultiOutputEmission)
+{
+    const char *src =
+        "function [a, b] = two(x)\n  a = x + 1;\n  b = x * 2;\nend\n"
+        "function y = run(x)\n  [p, q] = two(x);\n  y = p + q;\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    FunctionTable  ft;
+    collectFunctions(*root, ft);
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction out =
+        emitProgram(*ft.find("run"), {{"x", kDoubleScalar}}, ft, reg);
+    const std::string &s = out.source;
+
+    // multi-output -> void + reference out-params
+    EXPECT_TRUE(contains(s, "void two__d(double x, double& a, double& b)"));
+    EXPECT_TRUE(contains(s, "two__d(x, p, q);"));   // targets appended as out-args
+    EXPECT_TRUE(contains(s, "double p = 0.0;"));    // targets hoisted in the caller
+    EXPECT_TRUE(contains(s, "double q = 0.0;"));
+}
+
 // ── class brick 5a: struct emission ───────────────────────────────────
 TEST(EmitterFn, ClassStructEmission)
 {
