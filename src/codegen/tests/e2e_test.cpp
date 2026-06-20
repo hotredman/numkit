@@ -888,6 +888,55 @@ TEST(CodegenE2E, ArrayLocalRunsCorrectly)
         EXPECT_NEAR(got[i], 0.5 * double(i + 1) * 2.0 + 1.0, 1e-12) << "at i=" << i;
 }
 
+// Array local passed ACROSS an interprocedural call + numel(local): covers the
+// changed appendCallArg path (a local is passed as `z.data(), z.size()`) and
+// numel on a local. f builds z (a local copy of x), then y = g(z) + numel(z),
+// where g sums its array arg -> y = sum(x) + n.
+TEST(CodegenE2E, ArrayLocalAsCallArgAndNumel)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function y = f(x)\n  n = numel(x);\n  z = zeros(1, n);\n"
+        "  for k = 1:n\n    z(k) = x(k);\n  end\n"
+        "  y = g(z) + numel(z);\nend\n"
+        "function s = g(v)\n  m = numel(v);\n  s = 0;\n"
+        "  for k = 1:m\n    s = s + v(k);\n  end\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted = emitProgram(
+        *ft.find("f"), {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, ft,
+        reg);
+    ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);
+    ASSERT_NE(emitted.source.find("z.data(), z.size()"), std::string::npos);  // local as call arg
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_arrlocal_arg_e2e.exe").string();
+    const std::string outTxt = (base / "nk_arrlocal_arg_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[8];\n"
+        "  for (std::size_t i = 0; i < 8; ++i) x[i] = double(i + 1);\n"
+        "  double r = " + emitted.name + "(x, 8);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 36.0 + 8.0);  // sum(1..8) + numel = 44
+}
+
 // BRIDGED e2e (DESIGN.md §6a brick 4): a program calling a builtin the emitter
 // cannot lower (`sign`) compiles in BRIDGED mode, links the nk_codegen_rt
 // shared lib, RUNS, and matches the interpreter. Proves the C-ABI bridge end
