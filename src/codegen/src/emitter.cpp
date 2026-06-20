@@ -663,10 +663,15 @@ std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
     if (argTypes.size() != def->paramNames.size())
         unsupported("arity mismatch calling '" + name + "'");
 
-    const InferredType ret = reg_.apply(name, toArgInfos(argTypes));
-    if (!isUnboxableScalarType(ret))
-        unsupported("interprocedural call result must be an unboxed scalar (v1b): '"
-                    + name + "'");
+    const std::size_t nout = def->returnNames.size();
+    if (nout >= 2)
+        unsupported("multi-output call not yet supported (2b): '" + name + "'");
+    if (nout == 1) {  // 0 -> void function, result discarded
+        const InferredType ret = reg_.apply(name, toArgInfos(argTypes));
+        if (!isUnboxableScalarType(ret))
+            unsupported("interprocedural call result must be an unboxed scalar (v1): '"
+                        + name + "'");
+    }
 
     const std::string mangled = mangle(name, argTypes);
     if (ctx_->seen.insert(mangled).second)
@@ -702,10 +707,16 @@ std::string Emitter::emitMethodCall(const ASTNode &call)
         argList += ", " + emitExpr(*call.children[i]);
     }
 
-    const InferredType ret = reg_.apply(ci->name + "::" + callee.strValue, toArgInfos(argTypes));
-    if (!isUnboxableScalarType(ret) && !ret.isObject())
-        unsupported("method result must be an unboxed scalar or object (v1): '"
-                    + callee.strValue + "'");
+    const std::size_t nout = md->returnNames.size();
+    if (nout >= 2)
+        unsupported("multi-output method not yet supported (2b): '" + callee.strValue + "'");
+    if (nout == 1) {  // 0 -> void method (in-place mutator), result discarded
+        const InferredType ret =
+            reg_.apply(ci->name + "::" + callee.strValue, toArgInfos(argTypes));
+        if (!isUnboxableScalarType(ret) && !ret.isObject())
+            unsupported("method result must be an unboxed scalar or object (v1): '"
+                        + callee.strValue + "'");
+    }
 
     const std::string mangled = mangle(ci->name + "__" + callee.strValue, argTypes);
     if (ctx_->seen.insert(mangled).second)
@@ -1012,7 +1023,13 @@ void Emitter::emitStmt(const ASTNode &s)
     case NodeType::WHILE_STMT: emitWhile(s);  return;
     case NodeType::IF_STMT:    emitIf(s);     return;
     case NodeType::EXPR_STMT:
-        unsupported("expression statement (no value binding modelled)");
+        // A call evaluated for effect — a void method/function (e.g. a
+        // handle class's in-place mutator), result discarded.
+        if (!s.children.empty() && s.children[0]->type == NodeType::CALL) {
+            line(emitExpr(*s.children[0]) + ";");
+            return;
+        }
+        unsupported("expression statement (only a void call is supported)");
     default:
         unsupported("statement node kind");
     }
@@ -1073,8 +1090,9 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
-    if (funcDef.returnNames.size() != 1)
-        unsupported("only single-output functions are supported (MVP)");
+    if (funcDef.returnNames.size() > 1)
+        unsupported("multi-output functions are not yet supported (2b)");
+    const bool voidReturn = funcDef.returnNames.empty();
 
     const ASTNode &body = *funcDef.children[0];
 
@@ -1106,30 +1124,36 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     for (const ParamSpec &es : extraSeed)  // pre-typed locals (e.g. ctor output)
         entry.set(es.name, {es.type, ConstVal::unknown()});
 
-    const DeclTypeMap decls   = computeDeclTypes(body, entry, reg, classes);
-    const std::string retName = funcDef.returnNames[0];
-    const auto        retIt   = decls.find(retName);
-    if (retIt == decls.end())
-        unsupported("output '" + retName + "' is never assigned");
-    const InferredType retType = retIt->second;
+    const DeclTypeMap decls = computeDeclTypes(body, entry, reg, classes);
 
-    std::string retCpp;
+    // Return classification. A 0-output function is `void` (e.g. a handle
+    // class's in-place mutator); 1-output is a scalar / array (out-param) /
+    // object (by value).
+    std::string retCpp      = "void";
+    std::string retName;
     bool        arrayReturn = false;
-    if (isUnboxableScalarType(retType)) {
-        retCpp = cppScalarType(retType.dtype);
-    } else if (isBufferArrayType(retType)) {
-        arrayReturn = true;
-        retCpp      = "void";
-        const std::string lenVar = retName + "_len";
-        arrays[retName] = {retType.dtype, lenVar, /*isOutput=*/true};
-        sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName
-                            + ", std::size_t " + lenVar);
-    } else if (retType.isObject()) {
-        // an object is returned BY VALUE (value class) / by handle wrapper —
-        // not an out-param; the scalar-return path (return retName;) applies.
-        retCpp = cppObjectType(retType.classId, classes);
-    } else {
-        unsupported("output '" + retName + "' has an unsupported type for RawBuffer ABI");
+    if (!voidReturn) {
+        retName             = funcDef.returnNames[0];
+        const auto retIt    = decls.find(retName);
+        if (retIt == decls.end())
+            unsupported("output '" + retName + "' is never assigned");
+        const InferredType retType = retIt->second;
+        if (isUnboxableScalarType(retType)) {
+            retCpp = cppScalarType(retType.dtype);
+        } else if (isBufferArrayType(retType)) {
+            arrayReturn = true;
+            retCpp      = "void";
+            const std::string lenVar = retName + "_len";
+            arrays[retName] = {retType.dtype, lenVar, /*isOutput=*/true};
+            sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName
+                                + ", std::size_t " + lenVar);
+        } else if (retType.isObject()) {
+            // returned BY VALUE (value class) / handle wrapper — not an
+            // out-param; the scalar-return path (return retName;) applies.
+            retCpp = cppObjectType(retType.classId, classes);
+        } else {
+            unsupported("output '" + retName + "' has an unsupported type");
+        }
     }
 
     const std::string symbol = cppName.empty() ? funcDef.strValue : cppName;
@@ -1156,7 +1180,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         em.hoistLocal(name, t);
     }
     em.emitStmt(body);
-    if (!arrayReturn) em.emitReturnScalar(retName);
+    if (!voidReturn && !arrayReturn) em.emitReturnScalar(retName);
 
     std::string definition = sig + " {\n";
     definition += em.out();
