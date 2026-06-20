@@ -405,18 +405,26 @@ then committed.
    run() calls obj.area() -> compiled, run, area = w*h = 12. Plus
    field-round-trip e2e (5b).
 
-**Boundary work DONE since:** #1 construction (1a default `Point{}` /
+**Boundary work DONE:** #1 construction (1a default `Point{}` /
 handle::make + 1b explicit ctor with obj-seeded output); #2a void/0-output
-functions & methods (handle in-place mutators); #3 array & object
-interprocedural ARGUMENTS (`ptr,len` passing); handle-class e2e (getter +
-void mutator). collectFunctions no longer leaks methods into the
-free-function table.
+functions & methods (handle in-place mutators); #2b multi-output
+`[a,b]=f()` (void + reference out-params + MULTI_ASSIGN); #3 array & object
+interprocedural ARGUMENTS (`ptr,len`); handle-class e2e (getter + void
+mutator). collectFunctions no longer leaks methods into the free-function
+table.
 
-**Still later (each its own milestone):** #2b true multi-output
-`[a,b]=f()` (tuple / out-params + MULTI_ASSIGN); array RESULTS from a call
+**Deliberately deferred (low value / would harm cleanliness):**
+- recursion precision — a Bottom-start fixpoint to type recursive returns
+  instead of the current Dynamic break. Non-trivial; Dynamic is already
+  sound (recursive fns are refused, not miscompiled). Low value for hot
+  numeric code.
+- early refusal of a non-constant property default — currently refused at
+  emission (emitClassStruct, where emitScalarExpr lives). Moving it into
+  buildClassInfo would invert layering (classinfo -> emitter); not worth it.
+
+**Still later (each its own milestone):** array RESULTS from a call
 (out-param threading at the call site); the `Value`-ABI bridge (§6) so
 compiled code calls uncompiled builtins/libs and passes arrays/objects as
-`Value`; 2-D / Subscript2D index emission; closed-world polymorphism via
-class-id type-switch (§7a); the `ControlBlock` upgrade for `delete`/
-`isvalid`; recursion precision (Bottom-start fixpoint vs the current
-Dynamic break).
+`Value`; multi-output methods + partial-nargout + `~`-ignored outputs; 2-D
+/ Subscript2D index emission; closed-world polymorphism via class-id
+type-switch (§7a); the `ControlBlock` upgrade for `delete`/`isvalid`.
