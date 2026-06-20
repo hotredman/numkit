@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #if defined(_WIN32)
@@ -87,6 +88,23 @@ nk_val nk_box_array(const double *p, size_t len)
         for (size_t i = 0; i < len; ++i) d[i] = p[i];
         return wrap(new Value(std::move(m)));
     } catch (...) {
+        return nullptr;
+    }
+}
+
+nk_val nk_eval(const char *code, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    if (!code) { setError(err, "null code"); return nullptr; }
+    try {
+        // suppressTopLevelDisplay = true: an embedder wants the value back,
+        // not `ans = ...` printed to the engine's output sink.
+        return wrap(new Value(engine().eval(code, true)));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
         return nullptr;
     }
 }
@@ -202,6 +220,13 @@ int nk_load_plugin(const char *path, nk_error *err)
     if (err) { err->code = 0; err->message[0] = '\0'; }
     if (!path) { setError(err, "null plugin path"); return 1; }
     try {
+        // Idempotent per path: loading an already-loaded plugin is a no-op
+        // success. Re-running its register hook would otherwise hit the
+        // runtime's duplicate-registration guard. (Plugin loading is a setup
+        // operation, not a concurrent hot path, so a plain static set is fine.)
+        static std::unordered_set<std::string> loaded;
+        if (loaded.count(path)) return 0;
+
         using version_fn  = int (*)();
         using register_fn = int (*)(const nk_host_api *);
 
@@ -251,6 +276,7 @@ int nk_load_plugin(const char *path, nk_error *err)
 
         const int rc = reg(&host);
         if (rc != 0) { setError(err, "plugin registration hook returned an error"); return rc; }
+        loaded.insert(path);  // record only on success, so a failed load retries
         // `lib` is intentionally left loaded: its registered function pointers
         // must stay live for the process lifetime. (A proper unload API would
         // first unregister those names; deferred.)
