@@ -9,6 +9,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/e2e_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/monomorphize_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/classinfo_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/driver_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bridge_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tiered_test.cpp
     # The Value-ABI bridge runtime (DESIGN.md §6a). Compiled into the test

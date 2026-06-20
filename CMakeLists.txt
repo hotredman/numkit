@@ -206,6 +206,13 @@ target_link_libraries(numkit PUBLIC
     $<BUILD_INTERFACE:numkit_ops>
     $<BUILD_INTERFACE:numkit_fs>)
 
+# The `numkit build` CLI front end (codegen driver, DESIGN.md §8 M4) — a tool
+# that transpiles a numkit source file to C++. Built after numkit so it links
+# it; skipped under Emscripten (no native CLI in a WASM build).
+if(NOT EMSCRIPTEN)
+    add_subdirectory(src/codegen/tools)
+endif()
+
 # ── Architectural layering guard ────────────────────────────────────
 #
 # Fails the build if value/ fs/ ops/ core/ gain a forbidden *upward*

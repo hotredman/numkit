@@ -4,6 +4,7 @@ set(CODEGENLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/indexing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/emitter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/aot.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/driver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/monomorphize.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/classinfo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transfer/registry.cpp

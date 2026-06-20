@@ -474,7 +474,12 @@ inferred field types, a constructor, and methods called **monomorphically**
 - **M3** — broaden: transfer-function DB for the hot ~50-100, shape
   inference, complex/more dtypes, more control flow.
 - **M4** — product: `numkit build` (AOT a project); optionally an
-  emscripten→wasm target.
+  emscripten→wasm target. ✅ FIRST CUT: `numkit_codegen` CLI
+  (src/codegen/tools) + a testable driver core (driver.{hpp,cpp}:
+  `parseTypeSpec` MATLAB-Coder `-args` style + `transpileSource`). Emits the
+  C++ TU (self-contained or `--bridge`); `--entry`/`--args`/`-o`. Compilation
+  of the emitted TU is the user's toolchain (the e2e tests cover the bridged
+  link). Next: package to a shared lib / exe with clean exports.
 
 ## 9. Layering
 
