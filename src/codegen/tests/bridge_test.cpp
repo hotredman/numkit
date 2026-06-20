@@ -195,3 +195,61 @@ TEST(Plugin, LoadMissingFileFails)
     EXPECT_NE(err.code, 0);
     EXPECT_NE(err.message[0], '\0');
 }
+
+// ---- Embedding (DESIGN.md §6b) ---------------------------------------------
+// nk_eval runs numkit source in the runtime's persistent workspace — the host
+// embedding entry point.
+
+TEST(Embed, EvalExpression)
+{
+    nk_error err;
+    err.code = 0;
+    nk_val r = nk_eval("3 + 4", &err);
+    ASSERT_NE(r, nullptr) << err.message;
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 7.0);
+    nk_release(r);
+}
+
+TEST(Embed, EvalStatefulWorkspace)
+{
+    nk_release(nk_eval("nk_embed_x = 10;", nullptr));  // persist into workspace
+    nk_val r = nk_eval("nk_embed_x * 2", nullptr);
+    ASSERT_NE(r, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 20.0);
+    nk_release(r);
+}
+
+TEST(Embed, EvalArrayResult)
+{
+    nk_val r = nk_eval("sort([3 1 2])", nullptr);
+    ASSERT_NE(r, nullptr);
+    ASSERT_EQ(nk_numel(r), 3u);
+    double out[3] = {0, 0, 0};
+    nk_unbox_array(r, out, 3);
+    EXPECT_DOUBLE_EQ(out[0], 1.0);
+    EXPECT_DOUBLE_EQ(out[2], 3.0);
+    nk_release(r);
+}
+
+TEST(Embed, EvalErrorTranslated)
+{
+    nk_error err;
+    err.code = 0;
+    nk_val r = nk_eval("error('boom from embed')", &err);
+    EXPECT_EQ(r, nullptr);
+    EXPECT_NE(err.code, 0);
+    EXPECT_NE(err.message[0], '\0');
+}
+
+// A plugin function is callable from evaluated numkit source, not just nk_call
+// — closing the loop: load a plugin, then USE it from a script.
+TEST(Embed, EvalCallsPluginFunction)
+{
+    nk_error err;
+    err.code = 0;
+    ASSERT_EQ(nk_load_plugin(NK_SAMPLE_PLUGIN_PATH, &err), 0) << err.message;
+    nk_val r = nk_eval("nk_sample_triple(5)", &err);
+    ASSERT_NE(r, nullptr) << err.message;
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 15.0);  // 5 * 3
+    nk_release(r);
+}

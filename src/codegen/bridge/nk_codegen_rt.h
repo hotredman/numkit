@@ -32,6 +32,13 @@ typedef struct nk_error {
 nk_val nk_box_scalar(double v);
 nk_val nk_box_array(const double *p, size_t len);  /* copies the data in */
 
+/* Evaluate numkit source `code` in the runtime's persistent workspace and
+ * return the last expression's value (owned; an empty handle for pure
+ * statements). State persists across calls — nk_eval("x=5;",0) then
+ * nk_eval("x+1",0) yields 6. On failure returns NULL and sets *err. This is
+ * the host embedding entry point (DESIGN.md §6b). */
+nk_val nk_eval(const char *code, nk_error *err);
+
 /* Invoke builtin/registered function `name` on `args` (borrowed), producing
  * `nargout` results. Returns the first (owned); results [1..nargout-1] are
  * written (owned) into extra_outs[0..nargout-2] (extra_outs may be null when
@@ -63,8 +70,9 @@ typedef nk_val (*nk_fn)(const nk_val *args, size_t nargs, size_t nargout,
 
 /* Register `fn` under `name` into the numkit runtime. Thereafter `name` is
  * resolvable from numkit source, the embedding API, and nk_call — exactly
- * like a builtin. Returns 0 on success, non-zero on failure. Re-registering
- * an existing name overrides it. */
+ * like a builtin. Returns 0 on success, non-zero on failure — including if
+ * `name` is already registered (the runtime rejects duplicates; there is no
+ * override without an unregister API). */
 int nk_register_fn(const char *name, nk_fn fn);
 
 /* Load a plugin shared library from `path`, verify its ABI version, and run
@@ -72,6 +80,7 @@ int nk_register_fn(const char *name, nk_fn fn);
  * runtime via the host API; see nk_plugin.h). Returns 0 on success; on
  * failure returns non-zero and sets *err. On success the library stays loaded
  * for the process lifetime — its registered function pointers remain live.
+ * Idempotent per path: loading an already-loaded plugin is a no-op success.
  * (DESIGN.md §6b) */
 int nk_load_plugin(const char *path, nk_error *err);
 
