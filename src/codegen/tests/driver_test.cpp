@@ -90,3 +90,22 @@ TEST(Driver, BridgeOptionEmitsBridgedCall)
         "function y = f(x)\n  y = sign(x);\nend\n", "", driver::parseTypeSpec("double"), b);
     EXPECT_NE(em.source.find("nk_rt::bridge_scalar(\"sign\""), std::string::npos);
 }
+
+TEST(Driver, TranspileToPluginEmitsRegisterHook)
+{
+    const std::string tu = driver::transpileToPlugin(
+        "function s = mysum(v)\n  n = numel(v);\n  s = 0;\n"
+        "  for k = 1:n\n    s = s + v(k);\n  end\nend\n",
+        "", driver::parseTypeSpec("double[]"), "my_sum", "nk_plugin.h");
+    EXPECT_NE(tu.find("#include \"nk_plugin.h\""), std::string::npos);
+    EXPECT_NE(tu.find("nk_plugin_register"), std::string::npos);
+    EXPECT_NE(tu.find("register_fn(\"my_sum\""), std::string::npos);
+}
+
+TEST(Driver, TranspileToPluginRefusesArrayOutput)
+{
+    // array OUTPUT isn't tierable yet -> emitScalarPlugin refuses.
+    EXPECT_THROW(driver::transpileToPlugin("function y = f(v)\n  y = v * 2;\nend\n", "",
+                                           driver::parseTypeSpec("double[]"), "f", "nk_plugin.h"),
+                 std::runtime_error);
+}

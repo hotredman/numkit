@@ -34,4 +34,17 @@ EmittedFunction transpileSource(const std::string &source, const std::string &en
                                 const std::vector<InferredType> &paramTypes,
                                 const BridgeOptions &bridge = {});
 
+// Transpile the entry as a loadable numkit PLUGIN translation unit
+// (codegen-as-plugin / tiered acceleration, DESIGN.md §6b): the compiled
+// function + the nk_plugin_register hooks, ready to compile to a shared library
+// and load with nk_load_plugin. `exportName` is the name the function registers
+// under (callable from any numkit session); `abiHeaderPath` is the include path
+// to nk_plugin.h the TU will #include. Requires a SCALAR-output function whose
+// params are scalars / double vectors (emitScalarPlugin's contract); throws
+// std::runtime_error otherwise. Returns the TU source.
+std::string transpileToPlugin(const std::string &source, const std::string &entry,
+                              const std::vector<InferredType> &paramTypes,
+                              const std::string &exportName,
+                              const std::string &abiHeaderPath);
+
 } // namespace numkit::codegen::driver
