@@ -165,9 +165,20 @@ constexpr int kMaxFixpoint = 16;  // matches inference.cpp; lattice is shallow
 // Per-array metadata for an array parameter or the single output array.
 struct ArrayInfo {
     ValueType   dtype;
-    std::string lenVar;    // companion length variable (`<name>_len`)
-    bool        isOutput;  // the function's caller-allocated out-param
+    std::string lenVar;            // 1-D: numel companion (`<name>_len`)
+    bool        isOutput = false;  // the function's caller-allocated out-param
+    bool        is2D     = false;  // a 2-D matrix (column-major storage)
+    std::string rowsVar, colsVar;  // 2-D: dim companions (`<name>_rows/_cols`)
 };
+
+// A 2-D matrix type (KnownDims with both dims > 1): indexed A(i,j),
+// column-major. A KnownDims(1,n)/(n,1) is treated as a 1-D vector.
+bool is2DMatrixType(const InferredType &t)
+{
+    return t.isConcrete() && t.shape.kind == ShapeKind::KnownDims
+           && t.shape.rows > 1 && t.shape.cols > 1
+           && isBufferArray(AbstractValue{t, ConstVal::unknown()});
+}
 
 bool isUnboxableScalarType(const InferredType &t)
 {
@@ -631,11 +642,18 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
 {
     const std::size_t nargs = call.children.size() - 1;
 
-    // numel / length of an array variable -> its length companion.
+    // numel / length of an array variable. 1-D: the length companion.
+    // 2-D: numel = rows*cols; length = max(rows,cols) (MATLAB).
     if ((name == "numel" || name == "length") && nargs == 1
         && call.children[1]->type == NodeType::IDENTIFIER
         && isArrayVar(call.children[1]->strValue)) {
-        return "static_cast<double>(" + arrays_.at(call.children[1]->strValue).lenVar + ")";
+        const ArrayInfo &ai = arrays_.at(call.children[1]->strValue);
+        if (!ai.is2D)
+            return "static_cast<double>(" + ai.lenVar + ")";
+        if (name == "numel")
+            return "static_cast<double>(" + ai.rowsVar + " * " + ai.colsVar + ")";
+        return "static_cast<double>(" + ai.rowsVar + " > " + ai.colsVar + " ? " + ai.rowsVar
+               + " : " + ai.colsVar + ")";  // length = max(rows, cols)
     }
 
     if (nargs == 1)
@@ -798,15 +816,20 @@ std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
     for (std::size_t i = 1; i < call.children.size(); ++i)
         idx.push_back(inferExpr(*call.children[i], types_, reg_, classes_));
 
-    const IndexPlan plan = planIndexRead(arrayValue(base), idx);
-    if (plan.form != IndexForm::LinearScalar)
+    const IndexPlan  plan = planIndexRead(arrayValue(base), idx);
+    const ArrayInfo &ai   = arrays_.at(base);
+    if (plan.form == IndexForm::Subscript2D) {
+        if (!ai.is2D) unsupported("A(i,j) on a non-matrix '" + base + "'");
+        return "nk_rt::index2(" + base + ", " + ai.rowsVar + ", " + ai.colsVar + ", "
+               + emitExpr(*call.children[1]) + ", " + emitExpr(*call.children[2]) + ")";
+    }
+    if (plan.form != IndexForm::LinearScalar || ai.is2D)
         unsupported("index read form for '" + base
-                    + "' (only 1-D scalar index in RawBuffer ABI MVP)");
+                    + "' (a 1-D scalar index, or A(i,j) on a matrix)");
 
     const std::string idxExpr = emitExpr(*call.children[1]);
-    const std::string lenVar  = arrays_.at(base).lenVar;
     if (plan.boundsChecked)
-        return "nk_rt::index(" + base + ", " + lenVar + ", " + idxExpr + ")";
+        return "nk_rt::index(" + base + ", " + ai.lenVar + ", " + idxExpr + ")";
     return base + "[static_cast<std::size_t>(" + idxExpr + ") - 1]";  // proven in-bounds
 }
 
@@ -829,16 +852,20 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         idx.push_back(inferExpr(*lhsCall.children[i], types_, reg_, classes_));
     const AbstractValue rhsAV = inferExpr(rhs, types_, reg_, classes_);
 
-    const IndexPlan plan = planIndexWrite(arrayValue(base), idx, rhsAV);
-    if (plan.form != IndexForm::LinearScalar)
+    const IndexPlan  plan = planIndexWrite(arrayValue(base), idx, rhsAV);
+    const ArrayInfo &ai   = arrays_.at(base);
+    if (plan.form == IndexForm::Subscript2D)
+        // A matrix is a read-only param in v1; writing A(i,j) needs a
+        // mutable 2-D (output/local), a later step.
+        unsupported("2-D matrix write A(i,j) = rhs is not yet supported (v1)");
+    if (plan.form != IndexForm::LinearScalar || ai.is2D)
         unsupported("index write form for '" + base
-                    + "' (only 1-D scalar store of matching scalar dtype in MVP)");
+                    + "' (a 1-D scalar store, or A(i,j) on a matrix)");
 
     const std::string idxExpr = emitExpr(*lhsCall.children[1]);
     const std::string rhsExpr = emitExpr(rhs);
-    const std::string lenVar  = arrays_.at(base).lenVar;
     if (plan.boundsChecked)
-        line("nk_rt::index_set(" + base + ", " + lenVar + ", " + idxExpr + ", "
+        line("nk_rt::index_set(" + base + ", " + ai.lenVar + ", " + idxExpr + ", "
              + rhsExpr + ");");
     else
         line(base + "[static_cast<std::size_t>(" + idxExpr + ") - 1] = " + rhsExpr + ";");
@@ -1133,6 +1160,13 @@ const char *kPrelude =
     "        throw std::out_of_range(\"numkit: index out of bounds (RawBuffer ABI cannot grow)\");\n"
     "    a[i - 1] = v;\n"
     "}\n"
+    "template <class T>\n"  // A(i,j) read, column-major; 2-D writes are a later step
+    "inline T index2(const T* a, std::size_t rows, std::size_t cols, double i1, double j1) {\n"
+    "    const std::size_t i = static_cast<std::size_t>(i1), j = static_cast<std::size_t>(j1);\n"
+    "    if (i1 < 1.0 || i > rows || j1 < 1.0 || j > cols)\n"
+    "        throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    return a[(j - 1) * rows + (i - 1)];\n"
+    "}\n"
     "} // namespace nk_rt\n";
 
 // Emit ONE function (no prelude) under the RawBuffer ABI. `cppName`
@@ -1163,6 +1197,16 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         paramSet.insert(p.name);
         if (isUnboxableScalarType(p.type)) {
             sigParams.push_back(cppScalarType(p.type.dtype) + " " + p.name);
+        } else if (is2DMatrixType(p.type)) {
+            // 2-D matrix -> pointer + dim companions (column-major).
+            ArrayInfo ai;
+            ai.dtype   = p.type.dtype;
+            ai.is2D    = true;
+            ai.rowsVar = p.name + "_rows";
+            ai.colsVar = p.name + "_cols";
+            arrays[p.name] = ai;
+            sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
+                                + ", std::size_t " + ai.rowsVar + ", std::size_t " + ai.colsVar);
         } else if (isBufferArrayType(p.type)) {
             const std::string lenVar = p.name + "_len";
             arrays[p.name] = {p.type.dtype, lenVar, /*isOutput=*/false};

@@ -473,6 +473,48 @@ TEST(CodegenE2E, SelfContainedClassProgram)
     EXPECT_DOUBLE_EQ(got[0], 12.0);  // Rect() default, w=3 h=4, area = 12
 }
 
+// 2-D indexing: a matrix param A(i,j), column-major, read end-to-end.
+// tr(A) sums the 3x3 diagonal.
+TEST(CodegenE2E, Matrix2DRead)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src = "function s = tr(A)\n  s = A(1,1) + A(2,2) + A(3,3);\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted = emitProgram(
+        *ft.find("tr"), {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 3))}},
+        ft, reg);
+    ASSERT_TRUE(emitted.source.find("std::size_t A_rows, std::size_t A_cols")
+                != std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_mat2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_mat2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[9] = {1,0,0, 0,2,0, 0,0,3};\n"  // column-major; diagonal 1,2,3
+        "  double r = " + emitted.name + "(A, 3, 3);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 6.0);  // trace = 1 + 2 + 3
+}
+
 // Boundary #2b: a multi-output function `[a,b] = f(...)`, end-to-end.
 // divmod returns quotient + remainder via reference out-params.
 TEST(CodegenE2E, MultiOutputCall)
