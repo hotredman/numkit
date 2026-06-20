@@ -520,6 +520,8 @@ private:
     std::string emitUserCall(const std::string &name, const ASTNode &call);
     std::string emitMethodCall(const ASTNode &call);
     std::string emitConstruct(const std::string &name, const ASTNode &call);
+    void        appendCallArg(const ASTNode &arg, std::vector<InferredType> &argTypes,
+                              std::string &argList);
     std::string emitIndexRead(const std::string &base, const ASTNode &call);
     void        emitAssign(const ASTNode &s);
     void        emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs);
@@ -642,9 +644,31 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
     unsupported("builtin call '" + name + "' (arity " + std::to_string(nargs) + ")");
 }
 
-// A call to a user-defined function within a program (ctx_ set). v1b:
-// arguments and result are unboxed scalars. Emits a direct call to the
-// monomorphised specialisation and queues that specialisation for emission.
+// Append one interprocedural call argument: a scalar or object is passed by
+// value (one C++ arg); an array VARIABLE is passed as `ptr, len` (two C++
+// args, reusing its length companion). An array expression (no companion)
+// or a Dynamic arg is refused (v1). Its inferred type drives the callee
+// specialisation's signature.
+void Emitter::appendCallArg(const ASTNode &arg, std::vector<InferredType> &argTypes,
+                            std::string &argList)
+{
+    const AbstractValue av = inferExpr(arg, types_, reg_, classes_);
+    if (!argList.empty()) argList += ", ";
+    if (isUnboxableScalarType(av.type) || av.type.isObject()) {
+        argList += emitExpr(arg);
+    } else if (isBufferArrayType(av.type) && arg.type == NodeType::IDENTIFIER
+               && isArrayVar(arg.strValue)) {
+        argList += arg.strValue + ", " + arrays_.at(arg.strValue).lenVar;  // ptr + len
+    } else {
+        unsupported("call argument must be a scalar, object, or array variable (v1)");
+    }
+    argTypes.push_back(av.type);
+}
+
+// A call to a user-defined function within a program (ctx_ set). Arguments
+// may be scalars, objects, or array variables; the result is scalar/object
+// or void. Emits a direct call to the monomorphised specialisation and
+// queues it for emission.
 std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
 {
     const ASTNode *def = ctx_->funcs->find(name);
@@ -652,14 +676,8 @@ std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
 
     std::vector<InferredType> argTypes;
     std::string               argList;
-    for (std::size_t i = 1; i < call.children.size(); ++i) {
-        const AbstractValue av = inferExpr(*call.children[i], types_, reg_, classes_);
-        if (!isUnboxableScalarType(av.type))
-            unsupported("interprocedural call arg must be an unboxed scalar (v1b): '"
-                        + name + "'");
-        argTypes.push_back(av.type);
-        argList += (i > 1 ? ", " : "") + emitExpr(*call.children[i]);
-    }
+    for (std::size_t i = 1; i < call.children.size(); ++i)
+        appendCallArg(*call.children[i], argTypes, argList);
     if (argTypes.size() != def->paramNames.size())
         unsupported("arity mismatch calling '" + name + "'");
 
@@ -699,13 +717,8 @@ std::string Emitter::emitMethodCall(const ASTNode &call)
     std::vector<InferredType> argTypes;
     argTypes.push_back(base.type);                       // self is arg 0
     std::string argList = emitExpr(*callee.children[0]);  // the object expr
-    for (std::size_t i = 1; i < call.children.size(); ++i) {
-        const AbstractValue av = inferExpr(*call.children[i], types_, reg_, classes_);
-        if (!isUnboxableScalarType(av.type))
-            unsupported("method arg must be an unboxed scalar (v1): '" + callee.strValue + "'");
-        argTypes.push_back(av.type);
-        argList += ", " + emitExpr(*call.children[i]);
-    }
+    for (std::size_t i = 1; i < call.children.size(); ++i)
+        appendCallArg(*call.children[i], argTypes, argList);
 
     const std::size_t nout = md->returnNames.size();
     if (nout >= 2)

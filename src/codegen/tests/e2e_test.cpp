@@ -473,6 +473,50 @@ TEST(CodegenE2E, SelfContainedClassProgram)
     EXPECT_DOUBLE_EQ(got[0], 12.0);  // Rect() default, w=3 h=4, area = 12
 }
 
+// Boundary #3: an ARRAY passed across an interprocedural call. run(v)
+// forwards its array to mysum(v) (emitted as `ptr, len`), which sums it.
+TEST(CodegenE2E, InterproceduralArrayArg)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function s = mysum(v)\n  n = numel(v);\n  s = 0;\n"
+        "  for k = 1:n\n    s = s + v(k);\n  end\nend\n"
+        "function y = run(v)\n  y = mysum(v);\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted = emitProgram(
+        *ft.find("run"), {{"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}},
+        ft, reg, nullptr);
+    ASSERT_TRUE(emitted.source.find("mysum") != std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_arrarg_e2e.exe").string();
+    const std::string outTxt = (base / "nk_arrarg_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double v[4] = {1.0, 2.0, 3.0, 4.0};\n"
+        "  double r = " + emitted.name + "(v, 4);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0);  // mysum([1 2 3 4]) forwarded across the call
+}
+
 // Boundary #2a: a handle class's VOID in-place mutator — the canonical
 // handle pattern, previously refused by the single-output requirement.
 // b.setv(7) is a statement (void call) mutating the shared object via ->;
