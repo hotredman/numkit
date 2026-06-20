@@ -524,6 +524,7 @@ private:
                               std::string &argList);
     std::string emitIndexRead(const std::string &base, const ASTNode &call);
     void        emitAssign(const ASTNode &s);
+    void        emitMultiAssign(const ASTNode &s);
     void        emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs);
     void        emitFor(const ASTNode &s);
     void        emitWhile(const ASTNode &s);
@@ -904,6 +905,47 @@ void Emitter::emitAssign(const ASTNode &s)
     unsupported("assignment lhs kind");
 }
 
+// `[a, b, ...] = f(args)` -> a void call to f's specialisation with the
+// targets appended as reference out-args. v1: simple-identifier targets, a
+// bare-name user-function RHS, and all of f's outputs requested.
+void Emitter::emitMultiAssign(const ASTNode &s)
+{
+    if (!s.lhsTargets.empty()) unsupported("complex multi-assign targets (v1)");
+    if (s.children.empty()) unsupported("multi-assign arity");
+    const ASTNode &rhs = *s.children[0];
+    if (rhs.type != NodeType::CALL || rhs.children.empty()
+        || rhs.children[0]->type != NodeType::IDENTIFIER)
+        unsupported("multi-assign RHS must be a user-function call (v1)");
+    const std::string &name = rhs.children[0]->strValue;
+    if (!ctx_ || !ctx_->funcs || types_.has(name) || !ctx_->funcs->has(name))
+        unsupported("multi-assign of a non-user-function '" + name + "'");
+    const ASTNode *def = ctx_->funcs->find(name);
+
+    std::vector<InferredType> argTypes;
+    std::string               argList;
+    for (std::size_t i = 1; i < rhs.children.size(); ++i)
+        appendCallArg(*rhs.children[i], argTypes, argList);
+    if (argTypes.size() != def->paramNames.size())
+        unsupported("arity mismatch calling '" + name + "'");
+    if (s.returnNames.size() != def->returnNames.size())
+        unsupported("multi-assign must request all of '" + name + "'s outputs (v1)");
+
+    const std::vector<InferredType> outs = reg_.applyMulti(name, toArgInfos(argTypes));
+    for (std::size_t i = 0; i < s.returnNames.size(); ++i) {
+        const std::string &rn = s.returnNames[i];
+        if (rn.empty() || rn == "~")
+            unsupported("ignored (~) multi-output target not yet supported (v1)");
+        if (!argList.empty()) argList += ", ";
+        argList += rn;  // out-arg, bound to the callee's reference out-param
+        types_.set(rn, {i < outs.size() ? outs[i] : InferredType::dynamic(), ConstVal::unknown()});
+    }
+
+    const std::string mangled = mangle(name, argTypes);
+    if (ctx_->seen.insert(mangled).second)
+        ctx_->pending.push_back({def, argTypes, mangled});
+    line(mangled + "(" + argList + ");");
+}
+
 void Emitter::emitFor(const ASTNode &s)
 {
     if (s.children.size() != 2) unsupported("for arity");
@@ -1031,7 +1073,8 @@ void Emitter::emitStmt(const ASTNode &s)
         for (const auto &c : s.children)
             if (c) emitStmt(*c);
         return;
-    case NodeType::ASSIGN:     emitAssign(s); return;
+    case NodeType::ASSIGN:        emitAssign(s);      return;
+    case NodeType::MULTI_ASSIGN:  emitMultiAssign(s); return;
     case NodeType::FOR_STMT:   emitFor(s);    return;
     case NodeType::WHILE_STMT: emitWhile(s);  return;
     case NodeType::IF_STMT:    emitIf(s);     return;
@@ -1103,9 +1146,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
-    if (funcDef.returnNames.size() > 1)
-        unsupported("multi-output functions are not yet supported (2b)");
-    const bool voidReturn = funcDef.returnNames.empty();
+    const std::size_t nout = funcDef.returnNames.size();
 
     const ASTNode &body = *funcDef.children[0];
 
@@ -1139,13 +1180,14 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
 
     const DeclTypeMap decls = computeDeclTypes(body, entry, reg, classes);
 
-    // Return classification. A 0-output function is `void` (e.g. a handle
-    // class's in-place mutator); 1-output is a scalar / array (out-param) /
-    // object (by value).
+    // Return classification:
+    //   0 outputs -> void (e.g. a handle class's in-place mutator);
+    //   1 output  -> scalar (by value) / array (out-param) / object (by value);
+    //   N outputs -> void + a reference out-param per (scalar) output.
     std::string retCpp      = "void";
     std::string retName;
     bool        arrayReturn = false;
-    if (!voidReturn) {
+    if (nout == 1) {
         retName             = funcDef.returnNames[0];
         const auto retIt    = decls.find(retName);
         if (retIt == decls.end())
@@ -1166,6 +1208,18 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             retCpp = cppObjectType(retType.classId, classes);
         } else {
             unsupported("output '" + retName + "' has an unsupported type");
+        }
+    } else if (nout >= 2) {
+        // Each output is a reference out-param the body writes directly.
+        // v1: scalar outputs only (array/object multi-outputs deferred).
+        for (const std::string &rn : funcDef.returnNames) {
+            if (rn.empty()) unsupported("multi-output with an unnamed output");
+            const auto         it = decls.find(rn);
+            const InferredType t  = (it != decls.end()) ? it->second : InferredType::dynamic();
+            if (!isUnboxableScalarType(t))
+                unsupported("multi-output '" + rn + "' must be an unboxed scalar (v1)");
+            sigParams.push_back(cppScalarType(t.dtype) + "& " + rn);
+            paramSet.insert(rn);  // a reference param, not a hoisted local
         }
     }
 
@@ -1193,7 +1247,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         em.hoistLocal(name, t);
     }
     em.emitStmt(body);
-    if (!voidReturn && !arrayReturn) em.emitReturnScalar(retName);
+    if (nout == 1 && !arrayReturn) em.emitReturnScalar(retName);
 
     std::string definition = sig + " {\n";
     definition += em.out();

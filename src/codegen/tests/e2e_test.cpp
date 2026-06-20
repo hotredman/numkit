@@ -473,6 +473,49 @@ TEST(CodegenE2E, SelfContainedClassProgram)
     EXPECT_DOUBLE_EQ(got[0], 12.0);  // Rect() default, w=3 h=4, area = 12
 }
 
+// Boundary #2b: a multi-output function `[a,b] = f(...)`, end-to-end.
+// divmod returns quotient + remainder via reference out-params.
+TEST(CodegenE2E, MultiOutputCall)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function [a, b] = divmod(x, d)\n  a = floor(x / d);\n  b = x - a * d;\nend\n"
+        "function y = run(x, d)\n  [q, r] = divmod(x, d);\n  y = q * 100 + r;\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted = emitProgram(
+        *ft.find("run"), {{"x", InferredType::scalar(ValueType::DOUBLE)},
+                          {"d", InferredType::scalar(ValueType::DOUBLE)}},
+        ft, reg);
+    ASSERT_TRUE(emitted.source.find("double& a, double& b") != std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_multiout_e2e.exe").string();
+    const std::string outTxt = (base / "nk_multiout_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "(17.0, 5.0);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 302.0);  // 17/5 -> q=3 r=2 -> 3*100+2
+}
+
 // Boundary #3: an ARRAY passed across an interprocedural call. run(v)
 // forwards its array to mysum(v) (emitted as `ptr, len`), which sums it.
 TEST(CodegenE2E, InterproceduralArrayArg)
