@@ -48,6 +48,25 @@ size_t nk_numel(nk_val v);
 /* Free an owned handle. */
 void nk_release(nk_val v);
 
+/* ---- Plugin / extension ABI (DESIGN.md §6b) -------------------------------
+ *
+ * A plugin PROVIDES functions with this signature — the mirror image of
+ * nk_call. It receives borrowed `args` (do not release them), must produce
+ * `nargout` results: return the first (OWNED — the runtime releases it) and
+ * write results [1..nargout-1] (OWNED) into extra_outs[0..nargout-2]
+ * (extra_outs is sized nargout-1, valid only when nargout > 1). To report a
+ * failure, set err->code non-zero with a message and return NULL; the runtime
+ * raises it as a numkit error at the call site. A plugin function must NEVER
+ * throw a C++ exception across this boundary. */
+typedef nk_val (*nk_fn)(const nk_val *args, size_t nargs, size_t nargout,
+                        nk_val *extra_outs, nk_error *err);
+
+/* Register `fn` under `name` into the numkit runtime. Thereafter `name` is
+ * resolvable from numkit source, the embedding API, and nk_call — exactly
+ * like a builtin. Returns 0 on success, non-zero on failure. Re-registering
+ * an existing name overrides it. */
+int nk_register_fn(const char *name, nk_fn fn);
+
 #ifdef __cplusplus
 }
 #endif

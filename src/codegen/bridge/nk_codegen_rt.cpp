@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <exception>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -136,5 +137,54 @@ size_t nk_numel(nk_val v)
 }
 
 void nk_release(nk_val v) { delete unwrap(v); }
+
+int nk_register_fn(const char *name, nk_fn fn)
+{
+    if (!name || !fn) return 1;
+    try {
+        // Adapt the plugin's C-ABI function into an ExternalFunc the engine
+        // dispatches like any builtin. Marshalling crosses the boundary in
+        // both directions; a plugin-signalled error becomes a thrown numkit
+        // error (the engine's own dispatch catches + reports it — and so the
+        // exception NEVER unwinds through the plugin's extern "C" frame, which
+        // has already returned by the time we throw).
+        nk_fn f = fn;
+        engine().registerFunction(
+            name,
+            [f](numkit::Span<const Value> args, size_t nargout,
+                numkit::Span<Value> outs, numkit::CallContext &) {
+                std::vector<nk_val> in;  // owned by us, borrowed by the plugin
+                in.reserve(args.size());
+                for (const Value &a : args) in.push_back(wrap(new Value(a)));
+
+                const size_t        nout = nargout == 0 ? 1 : nargout;
+                std::vector<nk_val> extra(nout > 1 ? nout - 1 : 0, nullptr);
+
+                nk_error err;
+                err.code    = 0;
+                err.message[0] = '\0';
+                nk_val r = f(in.data(), in.size(), nargout, extra.data(), &err);
+
+                for (nk_val h : in) delete unwrap(h);  // release inputs
+
+                if (err.code != 0) {
+                    std::string msg = err.message[0] ? err.message : "plugin error";
+                    delete unwrap(r);
+                    for (nk_val h : extra) delete unwrap(h);
+                    throw std::runtime_error(msg);
+                }
+
+                if (!outs.empty()) outs[0] = r ? *unwrap(r) : Value();
+                delete unwrap(r);
+                for (size_t k = 1; k < nout && k < outs.size(); ++k) {
+                    outs[k] = extra[k - 1] ? *unwrap(extra[k - 1]) : Value();
+                    delete unwrap(extra[k - 1]);
+                }
+            });
+        return 0;
+    } catch (...) {
+        return 1;
+    }
+}
 
 } // extern "C"
