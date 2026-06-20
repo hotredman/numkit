@@ -241,16 +241,22 @@ dispatch (`a+b` on Dynamics); object boxing across the bridge; zero-copy
 array views; 2-D array box/unbox.
 
 **Build plan (bricks):**
-1. `nk_codegen_rt` shared lib — the opaque C ABI (box/call/unbox/retain/
-   release) over an encapsulated default `StandardEngine`; a gtest links it
-   and checks `nk_call("sin", {nk_box_scalar(0)})` etc.
-2. bridged emission — a mode flag; `nk_rt::val` RAII wrapper in the prelude;
-   emit box/unbox + `nk_call` for an uncompiled builtin; Dynamic locals as
-   `nk_rt::val`.
-3. aot link — bridged-mode compile links `nk_codegen_rt` (path captured at
-   configure); skip cleanly if absent.
-4. e2e — a program calling a real builtin (e.g. `y = sort(x)`) compiles
-   bridged, runs, diffs vs the interpreter.
+1. ✅ `nk_codegen_rt` — the opaque C ABI (box/call/unbox/numel/release) over
+   an encapsulated default `StandardEngine`; gtests check `nk_call("sin",…)`,
+   sum/sort round-trips. (Built into the test binary; the standalone shared
+   lib for AOT artifacts is brick ③.)
+2. ✅ bridged emission (SCALAR) — opt-in `BridgeOptions`; `nk_rt::bridge_scalar`
+   helper in the prelude; `emitBuiltinCall` emits a C-ABI call for an
+   un-lowerable builtin ONLY when inference proves the result is a real scalar
+   (Contract 2), else still throws. Demo: `sign` (registry-typed scalar, no std
+   form). Off ⇒ TU stays stdlib-only (the litmus). Array-valued bridging +
+   Dynamic locals (an array result needs an owned-buffer storage kind) = a
+   later layer.
+3. ⏳ aot link — `nk_codegen_rt` as a standalone shared lib embedding the
+   runtime; bridged-mode compile links it (path captured at configure); skip
+   cleanly if absent.
+4. ⏳ e2e — a program calling a real builtin compiles bridged, runs, diffs vs
+   the interpreter.
 
 ## 6b. Embedding C-ABI + plugin system
 

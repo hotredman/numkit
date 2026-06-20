@@ -78,12 +78,25 @@ struct EmittedFunction {
     std::string signature;  // the function's declaration (for a header)
 };
 
+// Bridged emission (DESIGN.md §6a). OPT-IN: when disabled (the default), a
+// call the emitter cannot lower throws (the TU stays stdlib-only,
+// self-contained — the no-kludge litmus). When enabled, such a call — IF
+// inference proves its result is an unboxed scalar — is emitted as a C-ABI
+// call into the numkit runtime (nk_rt::bridge_scalar), and the TU #includes
+// `runtimeHeader` (nk_codegen_rt.h) + links the runtime. Correctness is
+// unchanged either way; bridging only widens what compiles.
+struct BridgeOptions {
+    bool        enabled = false;
+    std::string runtimeHeader;  // include path to nk_codegen_rt.h (when enabled)
+};
+
 // Emit one FUNCTION_DEF as a self-contained C++ TU (RawBuffer ABI, above).
 // Throws std::runtime_error on any construct outside the supported subset.
 EmittedFunction emitFunction(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
                              const TransferRegistry &reg,
-                             const ClassRegistry *classes = nullptr);
+                             const ClassRegistry *classes = nullptr,
+                             const BridgeOptions &bridge = {});
 
 // Emit a whole program (build plan §12, brick 1b): the entry function plus
 // every user-function specialisation it transitively calls, monomorphised
@@ -98,7 +111,8 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
 EmittedFunction emitProgram(const ASTNode &entryDef,
                             const std::vector<ParamSpec> &params,
                             const FunctionTable &table, const TransferRegistry &reg,
-                            const ClassRegistry *classes = nullptr);
+                            const ClassRegistry *classes = nullptr,
+                            const BridgeOptions &bridge = {});
 
 // Emit the C++ struct for a class (build plan §12, brick 5). The object's
 // storage is the same for value and handle classes — handle-ness changes

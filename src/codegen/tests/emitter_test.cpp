@@ -187,6 +187,56 @@ TEST(EmitterFn, ScalarReturnSignature)
     EXPECT_TRUE(contains(out.source, "#include <cmath>"));  // self-contained prelude
 }
 
+// ---- bridged emission (DESIGN.md §6a) --------------------------------------
+// `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
+// has no clean std form, so the emitter cannot lower it. Opt-in bridging emits
+// it as a C-ABI call into the runtime instead of throwing.
+
+TEST(EmitterFn, BridgedScalarCallWhenEnabled)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sign(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+
+    const BridgeOptions   bridge{true, "nk_codegen_rt.h"};
+    const EmittedFunction out = emitFunction(*fn, {{"x", kDoubleScalar}}, reg, nullptr, bridge);
+
+    EXPECT_TRUE(contains(out.source, "nk_rt::bridge_scalar(\"sign\", {x})"));  // the bridged call
+    EXPECT_TRUE(contains(out.source, "#include \"nk_codegen_rt.h\""));         // runtime header
+    EXPECT_TRUE(contains(out.source, "inline double bridge_scalar("));         // helper present
+}
+
+// Opt-in / self-contained contract: with bridging OFF (the default) an
+// un-lowerable call throws — the TU never silently pulls in the runtime.
+TEST(EmitterFn, UnlowerableCallThrowsWhenBridgingDisabled)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sign(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
+}
+
+// Bridging is a FALLBACK, not a hijack: a builtin the emitter CAN lower
+// (numel here) is still lowered natively even with bridging enabled — no
+// bridged call is emitted.
+TEST(EmitterFn, LowerableBuiltinsNotBridgedWhenEnabled)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(kBiquadSrc, root);
+    ASSERT_NE(fn, nullptr);
+    const BridgeOptions bridge{true, "nk_codegen_rt.h"};
+    const std::string   s =
+        emitFunction(*fn,
+                     {{"x", kDoubleRow}, {"b0", kDoubleScalar}, {"b1", kDoubleScalar},
+                      {"b2", kDoubleScalar}, {"a1", kDoubleScalar}, {"a2", kDoubleScalar}},
+                     reg, nullptr, bridge)
+            .source;
+    EXPECT_FALSE(contains(s, "bridge_scalar(\""));  // a CALL; the helper def has no quote
+}
+
 TEST(EmitterFn, BiquadFullFunction)
 {
     const auto reg = stdReg();
