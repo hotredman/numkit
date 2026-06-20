@@ -4,6 +4,8 @@
 
 #include "nk_codegen_rt.h"
 
+#include "nk_plugin.h"
+
 #include <numkit/bundle/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/value/span.hpp>
@@ -17,6 +19,14 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#if defined(_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  define NOMINMAX
+#  include <windows.h>
+#else
+#  include <dlfcn.h>
+#endif
 
 namespace {
 
@@ -183,6 +193,73 @@ int nk_register_fn(const char *name, nk_fn fn)
             });
         return 0;
     } catch (...) {
+        return 1;
+    }
+}
+
+int nk_load_plugin(const char *path, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    if (!path) { setError(err, "null plugin path"); return 1; }
+    try {
+        using version_fn  = int (*)();
+        using register_fn = int (*)(const nk_host_api *);
+
+#if defined(_WIN32)
+        HMODULE lib = ::LoadLibraryA(path);
+        if (!lib) { setError(err, "LoadLibrary failed (plugin not found or bad)"); return 1; }
+        auto ver = reinterpret_cast<version_fn>(
+            reinterpret_cast<void *>(::GetProcAddress(lib, "nk_plugin_abi_version")));
+        auto reg = reinterpret_cast<register_fn>(
+            reinterpret_cast<void *>(::GetProcAddress(lib, "nk_plugin_register")));
+#else
+        void *lib = ::dlopen(path, RTLD_NOW | RTLD_LOCAL);
+        if (!lib) { setError(err, ::dlerror()); return 1; }
+        auto ver = reinterpret_cast<version_fn>(::dlsym(lib, "nk_plugin_abi_version"));
+        auto reg = reinterpret_cast<register_fn>(::dlsym(lib, "nk_plugin_register"));
+#endif
+
+        if (!ver || !reg) {
+            setError(err, "plugin missing required entry points "
+                          "(nk_plugin_abi_version / nk_plugin_register)");
+            return 1;
+        }
+        if (ver() != NK_PLUGIN_ABI_VERSION) {
+            setError(err, "plugin ABI version mismatch");
+            return 1;
+        }
+
+        // Hand the plugin a table of THIS runtime's functions (no symbol
+        // coupling — see nk_plugin.h). The table is immutable and identical
+        // for every plugin, so it is a single process-lifetime static: the
+        // pointer the plugin receives stays valid forever (the plugin may
+        // store it — the sample plugin does). A stack local would dangle the
+        // moment this function returns.
+        static const nk_host_api host = [] {
+            nk_host_api h;
+            h.abi_version  = NK_PLUGIN_ABI_VERSION;
+            h.register_fn  = &nk_register_fn;
+            h.box_scalar   = &nk_box_scalar;
+            h.box_array    = &nk_box_array;
+            h.call         = &nk_call;
+            h.unbox_scalar = &nk_unbox_scalar;
+            h.unbox_array  = &nk_unbox_array;
+            h.numel        = &nk_numel;
+            h.release      = &nk_release;
+            return h;
+        }();
+
+        const int rc = reg(&host);
+        if (rc != 0) { setError(err, "plugin registration hook returned an error"); return rc; }
+        // `lib` is intentionally left loaded: its registered function pointers
+        // must stay live for the process lifetime. (A proper unload API would
+        // first unregister those names; deferred.)
+        return 0;
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return 1;
+    } catch (...) {
+        setError(err, "unknown error loading plugin");
         return 1;
     }
 }
