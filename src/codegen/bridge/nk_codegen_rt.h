@@ -21,6 +21,13 @@ extern "C" {
 
 typedef struct nk_val_s *nk_val;  /* opaque boxed numkit value */
 
+/* Error channel. code 0 == success. A C++ exception never crosses the C
+ * boundary — it is caught and reported here (DESIGN.md §6b). */
+typedef struct nk_error {
+    int  code;            /* 0 = ok, non-zero = failure */
+    char message[256];    /* NUL-terminated diagnostic (empty on success) */
+} nk_error;
+
 /* Box an unboxed value into a handle (boundary only — never a hot loop). */
 nk_val nk_box_scalar(double v);
 nk_val nk_box_array(const double *p, size_t len);  /* copies the data in */
@@ -28,9 +35,10 @@ nk_val nk_box_array(const double *p, size_t len);  /* copies the data in */
 /* Invoke builtin/registered function `name` on `args` (borrowed), producing
  * `nargout` results. Returns the first (owned); results [1..nargout-1] are
  * written (owned) into extra_outs[0..nargout-2] (extra_outs may be null when
- * nargout <= 1). */
+ * nargout <= 1). On failure returns NULL and sets *err (if non-null);
+ * never throws across this boundary. */
 nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
-               size_t nargout, nk_val *extra_outs);
+               size_t nargout, nk_val *extra_outs, nk_error *err);
 
 /* Unbox. */
 double nk_unbox_scalar(nk_val v);
