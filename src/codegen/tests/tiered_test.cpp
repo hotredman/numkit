@@ -109,9 +109,67 @@ TEST(CodegenTiered, ScalarFunctionAsPluginMatchesInterpreter)
     nk_release(r);
 }
 
-// The explicit boundary: a non-scalar (array-valued) function is refused at
-// emission, not mis-compiled.
-TEST(CodegenTiered, RefusesNonScalarFunction)
+// Array INPUT, scalar OUTPUT (a reduction): the plugin wrapper unboxes the
+// nk_val array into a buffer and calls the compiled fn (RawBuffer ABI). This
+// is the sound array-tiering subset — no output-size guessing.
+TEST(CodegenTiered, ArrayInputScalarOutputMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function s = nk_hotsum(v)\n"
+        "  n = numel(v);\n  s = 0;\n"
+        "  for k = 1:n\n    s = s + v(k);\n  end\n"
+        "end\n";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    FunctionTable  table;
+    collectFunctions(*root, table);
+    registerUserFunctions(reg, table);
+    const numkit::ASTNode *fn = onlyFunction(*root);
+    ASSERT_NE(fn, nullptr);
+
+    const std::vector<ParamSpec> params = {
+        {"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}};
+    const std::string abiHeader = std::string(NK_BRIDGE_DIR) + "/nk_plugin.h";
+    const std::string pluginSrc =
+        emitScalarPlugin(*fn, params, reg, "nk_tiered_sum", abiHeader);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string lib = (base / "nk_tiered_sum.dll").string();
+    const auto        cr  = aot::compileToSharedLibrary(pluginSrc, lib);
+    ASSERT_EQ(cr.status, aot::CompileStatus::Ok)
+        << "log:\n" << cr.log << "\n--- generated source ---\n" << pluginSrc;
+
+    nk_error err;
+    err.code = 0;
+    ASSERT_EQ(nk_load_plugin(lib.c_str(), &err), 0) << err.message;
+
+    const double in[5] = {1.0, 2.0, 3.0, 4.0, 5.0};
+    nk_val       a     = nk_box_array(in, 5);
+    nk_val       r     = nk_call("nk_tiered_sum", &a, 1, 1, nullptr, &err);
+    ASSERT_NE(r, nullptr) << err.message;
+    const double got = nk_unbox_scalar(r);
+
+    numkit::StandardEngine engine;
+    engine.eval(src);
+    const double ref = engine.eval("nk_hotsum([1 2 3 4 5])", true).toScalar();
+    EXPECT_DOUBLE_EQ(got, ref);    // compiled plugin == interpreter
+    EXPECT_DOUBLE_EQ(got, 15.0);   // 1+2+3+4+5
+
+    nk_release(a);
+    nk_release(r);
+}
+
+// The explicit boundary: a function with an ARRAY OUTPUT is refused at
+// emission (the output-size protocol is a later layer), not mis-compiled.
+TEST(CodegenTiered, RefusesArrayOutputFunction)
 {
     const char *src =
         "function y = nk_vec(v)\n"
