@@ -23,6 +23,10 @@ const ASTNode *FunctionTable::find(const std::string &name) const
 
 void collectFunctions(const ASTNode &root, FunctionTable &table)
 {
+    // A classdef's FUNCTION_DEF children are METHODS, not free functions —
+    // they are handled by registerClassMethods. Do not descend into a
+    // classdef, or methods would leak into the free-function table.
+    if (root.type == NodeType::CLASSDEF_DEF) return;
     if (root.type == NodeType::FUNCTION_DEF) table.add(root);
     for (const auto &c : root.children)
         if (c) collectFunctions(*c, table);
@@ -52,6 +56,17 @@ InferredType inferFunctionReturn(const ASTNode &funcDef,
 
     inferStmt(*funcDef.children[0], env, reg, nullptr, classes);
     return env.get(funcDef.returnNames[0]).type;
+}
+
+void registerClassConstructors(TransferRegistry &reg, const ClassRegistry &classes)
+{
+    for (std::size_t i = 0; i < classes.size(); ++i) {
+        const ClassInfo *ci = classes.byId(static_cast<int>(i));
+        if (!ci) continue;
+        const int id = ci->id;
+        reg.add(ci->name,
+                [id](const std::vector<ArgInfo> &) { return InferredType::object(id); });
+    }
 }
 
 void registerClassMethods(TransferRegistry &reg, const ClassRegistry &classes)

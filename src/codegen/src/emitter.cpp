@@ -517,6 +517,7 @@ private:
     std::string emitBuiltinCall(const std::string &name, const ASTNode &call);
     std::string emitUserCall(const std::string &name, const ASTNode &call);
     std::string emitMethodCall(const ASTNode &call);
+    std::string emitConstruct(const std::string &name, const ASTNode &call);
     std::string emitIndexRead(const std::string &base, const ASTNode &call);
     void        emitAssign(const ASTNode &s);
     void        emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs);
@@ -596,6 +597,9 @@ std::string Emitter::emitExpr(const ASTNode &e)
             unsupported("non-identifier callee");
         if (isArrayVar(callee.strValue))
             return emitIndexRead(callee.strValue, e);
+        // A class name (not a variable in scope) -> construction.
+        if (classes_ && !types_.has(callee.strValue) && classes_->has(callee.strValue))
+            return emitConstruct(callee.strValue, e);
         // A user function (not a variable in scope) takes priority over a
         // same-named builtin (MATLAB path shadowing) when emitting a program.
         if (ctx_ && ctx_->funcs && !types_.has(callee.strValue)
@@ -705,6 +709,22 @@ std::string Emitter::emitMethodCall(const ASTNode &call)
     if (ctx_->seen.insert(mangled).second)
         ctx_->pending.push_back({md, argTypes, mangled});
     return mangled + "(" + argList + ")";
+}
+
+// Object construction `Name(args)`. 1a: default construction only — a
+// value class -> Name{} (fields default-initialised), a handle class ->
+// nk_rt::handle<Name>::make(). An explicit constructor (1b) and
+// argument-taking construction are refused for now.
+std::string Emitter::emitConstruct(const std::string &name, const ASTNode &call)
+{
+    const ClassInfo *ci = classes_->byName(name);
+    if (!ci) unsupported("construction of unknown class '" + name + "'");
+    const std::size_t nargs = call.children.size() - 1;
+    if (ci->method(name))
+        unsupported("explicit constructor for '" + name + "' not yet emitted (1b)");
+    if (nargs != 0)
+        unsupported("class '" + name + "' has no constructor accepting arguments (v1)");
+    return ci->isHandle ? "nk_rt::handle<" + ci->name + ">::make()" : ci->name + "{}";
 }
 
 std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
