@@ -164,74 +164,148 @@ always-correct fallback beside the unboxed fast path.
   Mode is a flag; self-contained stays the default for the hot-kernel path.
   (Equivalently: the artifact links numkit iff any bridge call was emitted.)
 
-**The shim ABI.** One C++ entry, grounded on the engine's existing
-name-dispatch (the runtime already does `callFunctionHandleMulti(handle,
-args, nargout) -> std::vector<Value>` and `feval`):
+**The clean boundary — a separate bridge runtime with an OPAQUE C ABI.**
+The generated artifact must NOT depend on numkit's C++ Value layout or its
+transitive dependency graph. So the bridge is its own shared library,
+`nk_codegen_rt`, which internally owns numkit (`Value` + a `StandardEngine`)
+and exposes a minimal, stable, opaque C ABI:
 
-```cpp
-namespace nk_rt {
-// Resolve `name` to a builtin / registered function and invoke it on Value
-// args, returning `nargout` results. Backed by a process-wide default
-// StandardEngine (lazily built) that carries the builtin registry.
-std::vector<numkit::Value> call(const char* name,
-                                const numkit::Value* args, std::size_t nargs,
-                                std::size_t nargout = 1);
-}
+```c
+typedef struct nk_val_s* nk_val;                 // opaque — Value never leaks
+nk_val nk_box_scalar(double v);
+nk_val nk_box_array (const double* p, size_t len);   // copies at the boundary
+nk_val nk_call(const char* name, const nk_val* args, size_t n,
+               size_t nargout, nk_val* extra_outs);   // -> first result
+double nk_unbox_scalar(nk_val);
+void   nk_unbox_array (nk_val, double* out, size_t len);
+size_t nk_numel(nk_val);
+void   nk_retain(nk_val);  void nk_release(nk_val);
 ```
 
-The bridge therefore needs a **live Engine in the artifact** (a global
-default `StandardEngine`) — that is what holds the builtin registrations.
-This is the one heavyweight implication: a bridged artifact embeds the
-runtime + its builtin table.
+Grounded on the runtime's existing name-dispatch (`callFunctionHandleMulti`
+/ `feval`); the `StandardEngine` that holds the builtin registry is a
+function-local static INSIDE `nk_codegen_rt` — encapsulated, not a global
+the generated code touches. A handle is a heap `numkit::Value*` cast to
+`nk_val`; boxing a scalar/array copies in; results are owned handles.
 
-**Box / unbox.**
-- scalar `double x` → `numkit::Value(x)` — inline, no alloc (16-byte tagged
-  struct, §5).
-- array `(const T* p, size_t len)` → `Value::matrix(1, len, dtype, mr)` with
-  the data copied in; result array → copy `doubleData()` back to a local
-  buffer. Copies live only AT the boundary (an uncompiled call), never in a
-  hot unboxed loop. (A zero-copy non-owning `Value` view is a later
-  optimisation — lifetime-delicate.)
-- Dynamic result → kept AS a `numkit::Value` local (the Dynamic tier).
-- a `memory_resource*` is needed to build array `Value`s — the default
-  resource at the boundary (not hot).
+**Generated code stays clean** — it #includes no numkit header. The codegen
+PRELUDE provides a tiny RAII wrapper `nk_rt::val` over `nk_val`
+(auto-`nk_release` in its destructor, plus box/call/unbox helpers), so the
+emitted body is leak-free and ergonomic and the bridged artifact links only
+`nk_codegen_rt` via the C ABI.
+
+Why this over "use `numkit::Value` directly + link `libnumkit`": the opaque
+C ABI is the minimal stable FFI boundary — the artifact is decoupled from
+numkit's header, binary layout, and dep graph (no hand-rolled transitive
+static-lib capture); the engine is an implementation detail; lifetimes are
+RAII. One import lib, one C ABI.
+
+**Box / unbox.** scalar → `nk_box_scalar` (a tiny heap handle; boundary
+only, never a hot loop). array `(p,len)` → `nk_box_array` (copies);
+result array → `nk_unbox_array` into a local buffer. Dynamic result →
+kept as an `nk_rt::val` (the Dynamic tier). Copies live only AT the boundary
+(an uncompiled call); a zero-copy view is a later optimisation.
 
 **Dynamic tier realised.** In bridged mode a Dynamic-typed local is emitted
-as `numkit::Value`; an operation producing/consuming Dynamic (an uncompiled
-builtin call, or even `a + b` on two Dynamics) lowers to
-`nk_rt::call("<op-or-builtin>", {a,b})`. That is interpreter-speed at those
-sites — exactly the cost the design assigns to Dynamic — while every
-*typed* value stays unboxed. Multi-output bridged calls reuse `nargout`.
+as `nk_rt::val`; an operation producing/consuming Dynamic (an uncompiled
+builtin call, or `a+b` on two Dynamics) lowers to `nk_call("<op>", …)` —
+interpreter-speed at those sites (exactly Dynamic's assigned cost), while
+every *typed* value stays unboxed. Multi-output reuses `nargout`/extra_outs.
 
-**Cleanliness / soundness.** No-kludge litmus: delete the bridge and
-bridged mode is gone; uncompiled builtins are refused (self-contained),
-still correct. The bridge only ENABLES more programs, never changes a
-typed value's semantics. Correctness ⊥ the bridge.
+**Cleanliness / soundness.** No-kludge litmus: delete the bridge and bridged
+mode is gone; uncompiled builtins are refused (self-contained), still
+correct. The bridge only ENABLES more programs; it never changes a typed
+value's semantics. Correctness ⊥ the bridge.
 
-**Build / link (the real cost, and the e2e).** A bridged artifact links
-`libnumkit` (+ its deps: Highway, matio, zlib). For the e2e gate, the
-options (decided at implementation): (a) capture numkit's include dirs +
-the built `numkit.lib` + dep libs at CMake-configure time (like the vcvars
-capture) and have the aot harness add them to the compile/link command; or
-(b) a dedicated small **bridge runtime shared lib** exporting just
-`nk_rt::call`, which the generated artifact links — keeping the link line
-short. (b) is cleaner if the static-lib link line proves fragile.
+**Build / link.** `nk_codegen_rt` is built by CMake (which resolves numkit +
+Highway/matio/zlib normally). A bridged artifact links ONLY
+`nk_codegen_rt` (one import lib) via the C ABI — a short, stable link line,
+so the e2e is robust again. Skip the e2e cleanly if `nk_codegen_rt` was not
+built.
 
 **v1 scope:** opt-in bridged mode; an uncompiled builtin CALL lowers to
-`nk_rt::call` (single output); box scalars + 1-D arrays; result is
-scalar / array / Dynamic. **Deferred:** multi-output bridged calls;
-full Value-arithmetic dispatch (`a+b` on Dynamics); object boxing across
-the bridge; zero-copy array views; 2-D array box/unbox.
+`nk_call` (single output); box scalars + 1-D arrays; result scalar / array /
+Dynamic. **Deferred:** multi-output bridged calls; full Value-arithmetic
+dispatch (`a+b` on Dynamics); object boxing across the bridge; zero-copy
+array views; 2-D array box/unbox.
 
 **Build plan (bricks):**
-1. shim + default engine — `nk_rt::call` in a tiny runtime TU, backed by a
-   lazy default `StandardEngine`; unit-test it calls a builtin by name.
-2. bridged emission — a mode flag; emit box/unbox + `nk_rt::call` for an
-   uncompiled builtin; Dynamic locals as `numkit::Value`.
-3. aot link — capture numkit includes/libs at configure; bridged-mode
-   compile links them (skip e2e cleanly if unavailable).
+1. `nk_codegen_rt` shared lib — the opaque C ABI (box/call/unbox/retain/
+   release) over an encapsulated default `StandardEngine`; a gtest links it
+   and checks `nk_call("sin", {nk_box_scalar(0)})` etc.
+2. bridged emission — a mode flag; `nk_rt::val` RAII wrapper in the prelude;
+   emit box/unbox + `nk_call` for an uncompiled builtin; Dynamic locals as
+   `nk_rt::val`.
+3. aot link — bridged-mode compile links `nk_codegen_rt` (path captured at
+   configure); skip cleanly if absent.
 4. e2e — a program calling a real builtin (e.g. `y = sort(x)`) compiles
    bridged, runs, diffs vs the interpreter.
+
+## 6b. Embedding C-ABI + plugin system
+
+The value-marshaling C-ABI of §6a is not codegen-specific — it is **the
+numkit runtime C boundary**, serving THREE roles over one interface
+(marshal `Value`s across a stable C boundary + dispatch by name):
+1. **embedding** — a host (C / Python / Rust / JS-via-WASM) drives numkit;
+2. **codegen bridge** — a compiled artifact calls the runtime (§6a);
+3. **plugins** — numkit calls externally-supplied functions.
+
+So the bridge runtime is promoted to a proper runtime C-ABI (working name
+`numkit` C-API; today's `nk_codegen_rt` is its first slice). One boundary,
+name dispatch — NOT a C-ABI per toolbox, NOT for internal C++ layers.
+
+**Surface.** engine lifecycle (or a default) + `nk_eval(code)` +
+`nk_call(name, args, nargout)` + value marshal (box/unbox scalar / array /
+complex / string / …, numel/size/class) + **error translation**.
+
+**Exception translation (mandatory; today's gap).** A C++ exception MUST
+NOT cross an `extern "C"` frame (UB). Every C-ABI entry wraps in
+try/catch and surfaces failure via an out `nk_error*` (code + message);
+no throw escapes. (The current `nk_codegen_rt::nk_call` lacks this — a
+MATLAB `error(...)` inside a bridged builtin would throw across the C
+frame. First brick fixes it.)
+
+**Ownership / allocator.** Values cross only as opaque handles built by the
+C-ABI; a consumer (plugin/host) never `new`/`delete`s a `Value` itself, so
+the PMR/allocator stays consistent. box -> owned handle; release frees.
+
+**Plugins (the inverse direction).** A plugin is a shared library that:
+- exports `nk_plugin_register(nk_registry)` and reports the ABI version it
+  was built against (`nk_plugin_abi_version()`);
+- registers functions of the stable C signature
+  `void fn(const nk_val* args, size_t nargs, size_t nargout, nk_val* outs, nk_error*)`.
+numkit `dlopen`/`LoadLibrary`s it, version-checks, and adds its functions
+to the builtin name-dispatch — so they are callable identically from MATLAB
+code, the embedding API, and the codegen bridge. **ABI versioning is then a
+hard commitment**: the C-ABI is frozen + versioned; plugins ship against a
+version and are rejected on mismatch.
+
+**codegen-as-plugin (the payoff / tiered mode).** A codegen artifact that
+also exports `nk_plugin_register` IS a plugin: numkit loads its own
+AOT-compiled functions and swaps them in for the interpreter on hot paths
+— exactly §6/§7's tiered mode. Plugins are the loading mechanism for
+codegen output.
+
+**Native vs WASM.** Native (.dll/.so) is feasible and natural on this
+C-ABI — that is the path. **WASM plugins are a separate, hard problem**
+(no in-browser `dlopen`; needs Emscripten `MAIN_MODULE`/`SIDE_MODULE` +
+shared memory/table) and stay deferred; the WASM target remains statically
+linked. (WASM plugins' one upside — sandboxing — is why one might revisit
+them later; native plugins run in-process with full trust, like MEX, and
+can crash the host. Documented, accepted for a source-available tool.)
+
+**Build plan (bricks):**
+1. error translation — `nk_error` + try/catch in every C-ABI entry; a
+   bridged/embedding call that errors sets `nk_error`, never throws across
+   `extern "C"`. (Fixes the §6a gap.)
+2. promote to the runtime C-API — engine lifecycle + `nk_eval`; (the
+   marshal + `nk_call` already exist). Embedding usable from C.
+3. plugin ABI + loader — `nk_plugin_register` / `nk_plugin_abi_version`, a
+   registry, a `dlopen` loader, version check; name-dispatch consults it.
+4. plugin e2e — a sample plugin lib registering `myfn`; load it; call
+   `myfn(...)` from the engine.
+5. codegen-as-plugin — emit `nk_plugin_register` from codegen; load a
+   compiled function as a plugin and dispatch to it (tiered mode).
 
 ## 7. Dynamic-feature policy (the compile wall)
 
