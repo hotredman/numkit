@@ -19,6 +19,18 @@
 extern "C" {
 #endif
 
+/* Linkage. Default (static / same TU — e.g. compiled into a test, the driver,
+ * or a self-contained artifact): plain. Building the nk_codegen_rt shared
+ * lib: dllexport. A consumer linking that shared lib (a bridged AOT artifact):
+ * define NK_RT_USE_DLL -> dllimport. No effect off Windows. */
+#if defined(_WIN32) && defined(NK_RT_BUILDING_DLL)
+#  define NK_RT_API __declspec(dllexport)
+#elif defined(_WIN32) && defined(NK_RT_USE_DLL)
+#  define NK_RT_API __declspec(dllimport)
+#else
+#  define NK_RT_API
+#endif
+
 typedef struct nk_val_s *nk_val;  /* opaque boxed numkit value */
 
 /* Error channel. code 0 == success. A C++ exception never crosses the C
@@ -29,31 +41,31 @@ typedef struct nk_error {
 } nk_error;
 
 /* Box an unboxed value into a handle (boundary only — never a hot loop). */
-nk_val nk_box_scalar(double v);
-nk_val nk_box_array(const double *p, size_t len);  /* copies the data in */
+NK_RT_API nk_val nk_box_scalar(double v);
+NK_RT_API nk_val nk_box_array(const double *p, size_t len);  /* copies the data in */
 
 /* Evaluate numkit source `code` in the runtime's persistent workspace and
  * return the last expression's value (owned; an empty handle for pure
  * statements). State persists across calls — nk_eval("x=5;",0) then
  * nk_eval("x+1",0) yields 6. On failure returns NULL and sets *err. This is
  * the host embedding entry point (DESIGN.md §6b). */
-nk_val nk_eval(const char *code, nk_error *err);
+NK_RT_API nk_val nk_eval(const char *code, nk_error *err);
 
 /* Invoke builtin/registered function `name` on `args` (borrowed), producing
  * `nargout` results. Returns the first (owned); results [1..nargout-1] are
  * written (owned) into extra_outs[0..nargout-2] (extra_outs may be null when
  * nargout <= 1). On failure returns NULL and sets *err (if non-null);
  * never throws across this boundary. */
-nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
-               size_t nargout, nk_val *extra_outs, nk_error *err);
+NK_RT_API nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
+                         size_t nargout, nk_val *extra_outs, nk_error *err);
 
 /* Unbox. */
-double nk_unbox_scalar(nk_val v);
-void   nk_unbox_array(nk_val v, double *out, size_t len);  /* copies min(len,numel) */
-size_t nk_numel(nk_val v);
+NK_RT_API double nk_unbox_scalar(nk_val v);
+NK_RT_API void   nk_unbox_array(nk_val v, double *out, size_t len);  /* copies min(len,numel) */
+NK_RT_API size_t nk_numel(nk_val v);
 
 /* Free an owned handle. */
-void nk_release(nk_val v);
+NK_RT_API void nk_release(nk_val v);
 
 /* ---- Plugin / extension ABI (DESIGN.md §6b) -------------------------------
  *
@@ -73,7 +85,7 @@ typedef nk_val (*nk_fn)(const nk_val *args, size_t nargs, size_t nargout,
  * like a builtin. Returns 0 on success, non-zero on failure — including if
  * `name` is already registered (the runtime rejects duplicates; there is no
  * override without an unregister API). */
-int nk_register_fn(const char *name, nk_fn fn);
+NK_RT_API int nk_register_fn(const char *name, nk_fn fn);
 
 /* Load a plugin shared library from `path`, verify its ABI version, and run
  * its registration hook (which registers the plugin's functions into this
@@ -82,7 +94,7 @@ int nk_register_fn(const char *name, nk_fn fn);
  * for the process lifetime — its registered function pointers remain live.
  * Idempotent per path: loading an already-loaded plugin is a no-op success.
  * (DESIGN.md §6b) */
-int nk_load_plugin(const char *path, nk_error *err);
+NK_RT_API int nk_load_plugin(const char *path, nk_error *err);
 
 #ifdef __cplusplus
 }

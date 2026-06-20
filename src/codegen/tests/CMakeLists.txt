@@ -39,10 +39,36 @@ set(NK_SAMPLE_PLUGIN_FILE
 # Bridge header dir, so the CodegenTiered test's generated plugin TU can
 # #include "<dir>/nk_plugin.h" with no -I flag.
 get_filename_component(NK_BRIDGE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../bridge" ABSOLUTE)
+
+# ---- nk_codegen_rt as a standalone shared library (DESIGN.md §6a brick 3) ---
+# The Value-ABI bridge runtime, packaged as a DLL that EMBEDS the numkit
+# engine and EXPORTS only the opaque C-ABI (dllexport via NK_RT_BUILDING_DLL).
+# A bridged AOT artifact links THIS thin, stable C-ABI instead of the whole
+# numkit graph; CMake resolves the numkit deps for us.
+add_library(nk_codegen_rt_shared SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../bridge/nk_codegen_rt.cpp)
+target_include_directories(nk_codegen_rt_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../bridge)
+target_compile_definitions(nk_codegen_rt_shared PRIVATE NK_RT_BUILDING_DLL)
+target_link_libraries(nk_codegen_rt_shared PRIVATE numkit)
+set_target_properties(nk_codegen_rt_shared PROPERTIES
+    OUTPUT_NAME                      nk_codegen_rt
+    RUNTIME_OUTPUT_DIRECTORY         ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
+    ARCHIVE_OUTPUT_DIRECTORY         ${CMAKE_CURRENT_BINARY_DIR}
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_CURRENT_BINARY_DIR}
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR})
+# Import library (to link) + the runtime DLL (the e2e copies it beside the
+# generated artifact so it loads). Paths are deterministic from the pinned
+# output dir, so configure_file can bake them in.
+set(NK_RT_IMPORT_LIB
+    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_IMPORT_LIBRARY_PREFIX}nk_codegen_rt${CMAKE_IMPORT_LIBRARY_SUFFIX}")
+set(NK_RT_SHARED_DLL
+    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}nk_codegen_rt${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/nk_codegen_test_paths.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/nk_codegen_test_paths.h @ONLY)
 target_include_directories(numkit_gtest PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-# Ensure the plugin .dll exists before the test binary runs.
-add_dependencies(numkit_gtest nk_sample_plugin)
+# Ensure both fixtures exist before the test binary runs.
+add_dependencies(numkit_gtest nk_sample_plugin nk_codegen_rt_shared)

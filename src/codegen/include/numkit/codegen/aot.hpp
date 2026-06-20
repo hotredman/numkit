@@ -16,8 +16,19 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace numkit::codegen::aot {
+
+// Extra compile/link inputs. Empty (the default) reproduces the original
+// self-contained, stdlib-only compile. A BRIDGED artifact (DESIGN.md §6a)
+// supplies the bridge include dir, NK_RT_USE_DLL, and the nk_codegen_rt
+// import library so its nk_* calls resolve.
+struct CompileOptions {
+    std::vector<std::string> includeDirs;  // added as /I or -I
+    std::vector<std::string> defines;      // added as /D or -D (NAME or NAME=VALUE)
+    std::vector<std::string> linkLibs;     // full library paths added to the link
+};
 
 enum class CompileStatus {
     Ok,            // compiled; the executable exists at exePath
@@ -42,13 +53,15 @@ bool available();
 // a log) next to `exePath`. Synchronous. Returns Unavailable without
 // touching the filesystem when no compiler is configured.
 CompileResult compileToExecutable(const std::string &cppSource,
-                                  const std::string &exePath);
+                                  const std::string &exePath,
+                                  const CompileOptions &opts = {});
 
 // As above but emits a shared library (DLL / .so) at `libPath` — for
 // loading the transpiler's output and benchmarking it against the
 // hand-written reference (brick 7). The source should export a symbol
 // (e.g. extern "C" __declspec(dllexport) on Windows).
 CompileResult compileToSharedLibrary(const std::string &cppSource,
-                                     const std::string &libPath);
+                                     const std::string &libPath,
+                                     const CompileOptions &opts = {});
 
 } // namespace numkit::codegen::aot
