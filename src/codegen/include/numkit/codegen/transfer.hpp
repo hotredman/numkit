@@ -50,14 +50,20 @@ struct ArgInfo {
 };
 
 // A transfer function: abstract args -> inferred type of the (first)
-// result. Multi-output (`[a,b] = ...`) is a later extension.
+// result.
 using TransferFn = std::function<InferredType(const std::vector<ArgInfo> &)>;
+
+// A multi-output transfer: abstract args -> all result types (one per
+// output), for `[a,b] = f(...)`. Registered alongside the single-output
+// TransferFn for functions/methods that can produce several outputs.
+using MultiTransferFn = std::function<std::vector<InferredType>(const std::vector<ArgInfo> &)>;
 
 // builtin name -> transfer function. A name with no entry yields Dynamic
 // (the sound fallback: unknown builtin -> boxed Value).
 class TransferRegistry {
 public:
     void add(std::string name, TransferFn fn);
+    void addMulti(std::string name, MultiTransferFn fn);
 
     bool         has(const std::string &name) const;
     std::size_t  size() const;
@@ -67,8 +73,14 @@ public:
     InferredType apply(const std::string &name,
                        const std::vector<ArgInfo> &args) const;
 
+    // All result types for a multi-output call to `name`; empty if `name`
+    // has no registered multi-output transfer.
+    std::vector<InferredType> applyMulti(const std::string &name,
+                                         const std::vector<ArgInfo> &args) const;
+
 private:
-    std::unordered_map<std::string, TransferFn> table_;
+    std::unordered_map<std::string, TransferFn>      table_;
+    std::unordered_map<std::string, MultiTransferFn> multiTable_;
 };
 
 // Populate a registry with every standard transfer (dispatches to the

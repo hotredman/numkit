@@ -125,3 +125,25 @@ TEST(Monomorphize, UnknownCallDynamic)
     auto p = build("function y = g(x)\n  y = x;\nend\n");
     EXPECT_TRUE(p->reg.apply("nope", {dbl()}).isDynamic());
 }
+
+// ── #2b: multi-output ─────────────────────────────────────────────────
+TEST(Monomorphize, MultiOutputReturns)
+{
+    auto p = build("function [a, b] = f(x)\n  a = x + 1;\n  b = x * 2;\nend\n");
+    const auto outs = inferFunctionReturns(*p->table.find("f"), {dbl()}, p->reg);
+    ASSERT_EQ(outs.size(), 2u);
+    EXPECT_TRUE(outs[0].isUnboxableScalar());
+    EXPECT_TRUE(outs[1].isUnboxableScalar());
+    EXPECT_EQ(p->reg.applyMulti("f", {dbl()}).size(), 2u);     // routed via the registry
+    EXPECT_TRUE(p->reg.apply("f", {dbl()}).isDynamic());       // single projection of 2-out -> Dynamic
+}
+
+TEST(Monomorphize, MultiAssignTypesTargets)
+{
+    auto p = build(
+        "function y = g(x)\n  [p, q] = f(x);\n  y = p + q;\nend\n"
+        "function [a, b] = f(x)\n  a = x;\n  b = x * 2;\nend\n");
+    const InferredType y = inferFunctionReturn(*p->table.find("g"), {dbl()}, p->reg);
+    EXPECT_TRUE(y.isUnboxableScalar());  // [p,q] typed double -> y = p+q double
+    EXPECT_EQ(y.dtype, ValueType::DOUBLE);
+}

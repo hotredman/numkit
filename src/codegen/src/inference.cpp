@@ -425,9 +425,38 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         return;
     }
 
+    case NodeType::MULTI_ASSIGN: {
+        // [a, b, ...] = f(args). Type each simple-identifier target from the
+        // call's corresponding output. Complex lvalue targets (lhsTargets),
+        // or a RHS that is not a bare-name user-function call, fall back to
+        // conservative Dynamic.
+        if (stmt.children.empty() || !stmt.lhsTargets.empty()) {
+            markAssignedDynamic(stmt, env, declOut);
+            return;
+        }
+        const ASTNode           &rhs = *stmt.children[0];
+        std::vector<InferredType> outs;
+        if (rhs.type == NodeType::CALL && !rhs.children.empty()
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && !env.has(rhs.children[0]->strValue)) {
+            std::vector<ArgInfo> argInfos;
+            for (std::size_t i = 1; i < rhs.children.size(); ++i)
+                argInfos.push_back(inferExpr(*rhs.children[i], env, reg, classes).asArg());
+            outs = reg.applyMulti(rhs.children[0]->strValue, argInfos);
+        }
+        for (std::size_t i = 0; i < stmt.returnNames.size(); ++i) {
+            const std::string &rn = stmt.returnNames[i];
+            if (rn.empty() || rn == "~") continue;  // ignored output
+            const InferredType t = (i < outs.size()) ? outs[i] : InferredType::dynamic();
+            env.set(rn, {t, ConstVal::unknown()});
+            recordDecl(declOut, rn, t);
+        }
+        return;
+    }
+
     default:
-        // try/catch, multi-assign, function defs, etc. — not modelled
-        // precisely. Sound fallback: anything they assign -> Dynamic.
+        // try/catch, function defs, etc. — not modelled precisely. Sound
+        // fallback: anything they assign -> Dynamic.
         markAssignedDynamic(stmt, env, declOut);
         return;
     }

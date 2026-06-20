@@ -37,16 +37,15 @@ void collectFunctions(const ASTNode &root, FunctionTable &table)
     if (root.elseBranch) collectFunctions(*root.elseBranch, table);
 }
 
-InferredType inferFunctionReturn(const ASTNode &funcDef,
-                                 const std::vector<ArgInfo> &args,
-                                 const TransferRegistry &reg, const ClassRegistry *classes)
+std::vector<InferredType> inferFunctionReturns(const ASTNode &funcDef,
+                                               const std::vector<ArgInfo> &args,
+                                               const TransferRegistry &reg,
+                                               const ClassRegistry *classes)
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
-        return InferredType::dynamic();
-    if (funcDef.returnNames.size() != 1)            // MVP: single output
-        return InferredType::dynamic();
-    if (args.size() != funcDef.paramNames.size())   // MVP: exact arity
-        return InferredType::dynamic();
+        return {};
+    if (args.size() != funcDef.paramNames.size())   // exact arity (MVP)
+        return {};
 
     // Seed the entry env: each parameter takes the matching argument's type
     // and constant facet (the constant flows into shape-from-value).
@@ -55,7 +54,20 @@ InferredType inferFunctionReturn(const ASTNode &funcDef,
         env.set(funcDef.paramNames[i], {args[i].type, args[i].constant});
 
     inferStmt(*funcDef.children[0], env, reg, nullptr, classes);
-    return env.get(funcDef.returnNames[0]).type;
+
+    std::vector<InferredType> outs;
+    outs.reserve(funcDef.returnNames.size());
+    for (const auto &rn : funcDef.returnNames)
+        outs.push_back(rn.empty() ? InferredType::dynamic() : env.get(rn).type);
+    return outs;
+}
+
+InferredType inferFunctionReturn(const ASTNode &funcDef,
+                                 const std::vector<ArgInfo> &args,
+                                 const TransferRegistry &reg, const ClassRegistry *classes)
+{
+    const std::vector<InferredType> outs = inferFunctionReturns(funcDef, args, reg, classes);
+    return outs.size() == 1 ? outs[0] : InferredType::dynamic();
 }
 
 void registerClassConstructors(TransferRegistry &reg, const ClassRegistry &classes)
@@ -85,6 +97,13 @@ void registerClassMethods(TransferRegistry &reg, const ClassRegistry &classes)
                 inProgress->erase(key);
                 return r;
             });
+            reg.addMulti(key, [md, key, &reg, &classes, inProgress](const std::vector<ArgInfo> &args)
+                                  -> std::vector<InferredType> {
+                if (!inProgress->insert(key).second) return {};
+                std::vector<InferredType> r = inferFunctionReturns(*md, args, reg, &classes);
+                inProgress->erase(key);
+                return r;
+            });
         }
     }
 }
@@ -103,6 +122,13 @@ void registerUserFunctions(TransferRegistry &reg, const FunctionTable &table)
             if (!inProgress->insert(key).second)         // already on the stack
                 return InferredType::dynamic();          // recursion -> sound break
             const InferredType r = inferFunctionReturn(*fn, args, reg);
+            inProgress->erase(key);
+            return r;
+        });
+        reg.addMulti(key, [fn, key, &reg, inProgress](const std::vector<ArgInfo> &args)
+                              -> std::vector<InferredType> {
+            if (!inProgress->insert(key).second) return {};  // recursion -> empty (targets Dynamic)
+            std::vector<InferredType> r = inferFunctionReturns(*fn, args, reg);
             inProgress->erase(key);
             return r;
         });

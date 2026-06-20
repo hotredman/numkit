@@ -14,6 +14,19 @@ void TransferRegistry::add(std::string name, TransferFn fn)
     table_.insert_or_assign(std::move(name), std::move(fn));
 }
 
+void TransferRegistry::addMulti(std::string name, MultiTransferFn fn)
+{
+    multiTable_.insert_or_assign(std::move(name), std::move(fn));
+}
+
+std::vector<InferredType> TransferRegistry::applyMulti(const std::string &name,
+                                                       const std::vector<ArgInfo> &args) const
+{
+    const auto it = multiTable_.find(name);
+    if (it == multiTable_.end()) return {};  // no multi-output transfer
+    return it->second(args);
+}
+
 bool TransferRegistry::has(const std::string &name) const
 {
     return table_.find(name) != table_.end();
