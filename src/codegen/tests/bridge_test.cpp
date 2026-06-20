@@ -218,6 +218,20 @@ TEST(Plugin, LoadMissingFileFails)
     EXPECT_NE(err.message[0], '\0');
 }
 
+// A valid DLL that exports no plugin entry points fails cleanly — exercising
+// the FreeLibrary-on-failure path (the hardening fix): the just-loaded module
+// is unmapped and an error is reported, no crash. (The runtime DLL itself is a
+// real library but has no nk_plugin_register.)
+TEST(Plugin, LoadNonPluginDllReportsMissingEntryPoints)
+{
+    nk_error err;
+    err.code     = 0;
+    const int rc = nk_load_plugin(NK_RT_SHARED_DLL, &err);
+    EXPECT_NE(rc, 0);
+    EXPECT_NE(err.code, 0);
+    EXPECT_NE(err.message[0], '\0');
+}
+
 // ---- Embedding (DESIGN.md §6b) ---------------------------------------------
 // nk_eval runs numkit source in the runtime's persistent workspace — the host
 // embedding entry point.

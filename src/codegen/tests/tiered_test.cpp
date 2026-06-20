@@ -11,6 +11,7 @@
 // when no external compiler is configured (toolchain-less CI stays green).
 
 #include <numkit/codegen/aot.hpp>
+#include <numkit/codegen/driver.hpp>
 #include <numkit/codegen/emitter.hpp>
 #include <numkit/codegen/monomorphize.hpp>
 #include <numkit/codegen/transfer.hpp>
@@ -193,4 +194,39 @@ TEST(CodegenTiered, RefusesArrayOutputFunction)
     const std::string abiHeader = std::string(NK_BRIDGE_DIR) + "/nk_plugin.h";
     EXPECT_THROW(emitScalarPlugin(*fn, params, reg, "nk_tiered_vec", abiHeader),
                  std::runtime_error);
+}
+
+// The DRIVER's plugin path end-to-end (what `numkit_codegen --plugin` drives):
+// transpileToPlugin -> compile shared lib -> load -> call. (CodegenTiered above
+// tests emitScalarPlugin directly; this covers driver::transpileToPlugin.)
+TEST(CodegenTiered, DriverPluginPathMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src = "function s = nk_drv_sum(v)\n  n = numel(v);\n  s = 0;\n"
+                      "  for k = 1:n\n    s = s + v(k);\n  end\nend\n";
+    const std::string abiHeader = std::string(NK_BRIDGE_DIR) + "/nk_plugin.h";
+    const std::string pluginSrc = driver::transpileToPlugin(
+        src, "", driver::parseTypeSpec("double[]"), "nk_drv_sum", abiHeader);
+    ASSERT_NE(pluginSrc.find("register_fn(\"nk_drv_sum\""), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string lib = (base / "nk_drv_sum.dll").string();
+    const auto        cr  = aot::compileToSharedLibrary(pluginSrc, lib);
+    ASSERT_EQ(cr.status, aot::CompileStatus::Ok)
+        << "log:\n" << cr.log << "\n--- generated source ---\n" << pluginSrc;
+
+    nk_error err;
+    err.code = 0;
+    ASSERT_EQ(nk_load_plugin(lib.c_str(), &err), 0) << err.message;
+
+    const double in[4] = {2.0, 4.0, 6.0, 8.0};
+    nk_val       a     = nk_box_array(in, 4);
+    nk_val       r     = nk_call("nk_drv_sum", &a, 1, 1, nullptr, &err);
+    ASSERT_NE(r, nullptr) << err.message;
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 20.0);  // 2+4+6+8
+    nk_release(a);
+    nk_release(r);
 }
