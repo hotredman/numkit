@@ -496,9 +496,10 @@ class Emitter {
 public:
     Emitter(TypeEnv types, const TransferRegistry &reg,
             std::unordered_map<std::string, ArrayInfo> arrays, OptFacts opt,
-            ProgramEmitCtx *ctx = nullptr, const ClassRegistry *classes = nullptr)
+            ProgramEmitCtx *ctx = nullptr, const ClassRegistry *classes = nullptr,
+            bool bridge = false)
         : types_(std::move(types)), reg_(reg), arrays_(std::move(arrays)),
-          opt_(std::move(opt)), ctx_(ctx), classes_(classes)
+          opt_(std::move(opt)), ctx_(ctx), classes_(classes), bridge_(bridge)
     {}
 
     // Hoist a local declaration at function entry (scalar or object).
@@ -565,6 +566,10 @@ private:
     // Non-null when classes are in play: resolves object field access,
     // value-vs-handle representation, and constructor calls.
     const ClassRegistry                        *classes_ = nullptr;
+    // Bridged emission (DESIGN.md §6a): when true, a call the emitter cannot
+    // lower but whose result inference proves scalar is emitted as a C-ABI
+    // call (nk_rt::bridge_scalar) instead of throwing.
+    bool                                        bridge_ = false;
 };
 
 // MATLAB unary-math name -> std:: name. Restricted to functions that BOTH
@@ -659,6 +664,23 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
     if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
+
+    // Bridged fallback (opt-in, DESIGN.md §6a): a builtin the emitter cannot
+    // lower goes through the C-ABI to the runtime — but ONLY when inference
+    // proves the result is an unboxed real scalar (Contract 2: the fast form
+    // is emitted under a proven precondition; otherwise we still throw). Each
+    // argument is emitted as a scalar C++ expression, so an array/complex arg
+    // hits the existing scalar-context boundary rather than miscompiling.
+    if (bridge_) {
+        const AbstractValue res = inferExpr(call, types_, reg_, classes_);
+        if (res.type.isUnboxableScalar() && res.type.dtype != ValueType::COMPLEX) {
+            std::string out = "nk_rt::bridge_scalar(\"" + name + "\", {";
+            for (std::size_t i = 1; i < call.children.size(); ++i)
+                out += (i > 1 ? ", " : "") + emitExpr(*call.children[i]);
+            out += "})";
+            return out;
+        }
+    }
 
     unsupported("builtin call '" + name + "' (arity " + std::to_string(nargs) + ")");
 }
@@ -1169,6 +1191,32 @@ const char *kPrelude =
     "}\n"
     "} // namespace nk_rt\n";
 
+// The bridged-emission addendum (DESIGN.md §6a): the runtime C-ABI header +
+// a tiny scalar-call helper. Appended ONLY when bridging is enabled, so a
+// non-bridged TU stays self-contained / stdlib-only (the no-kludge litmus).
+std::string bridgePrelude(const std::string &runtimeHeader)
+{
+    return "#include \"" + runtimeHeader + "\"\n"
+           "#include <initializer_list>\n"
+           "namespace nk_rt {\n"
+           "// Box scalar args, call the runtime, unbox a scalar result; leak-free,\n"
+           "// errors propagate as a C++ exception (never across the C ABI).\n"
+           "inline double bridge_scalar(const char* name, std::initializer_list<double> args) {\n"
+           "    nk_val argv[16]; std::size_t n = 0;\n"
+           "    for (double x : args) {\n"
+           "        if (n >= 16) throw std::runtime_error(\"numkit bridged call: too many arguments\");\n"
+           "        argv[n++] = nk_box_scalar(x);\n"
+           "    }\n"
+           "    nk_error err; err.code = 0;\n"
+           "    nk_val r = nk_call(name, argv, n, 1, nullptr, &err);\n"
+           "    for (std::size_t i = 0; i < n; ++i) nk_release(argv[i]);\n"
+           "    if (!r || err.code) { nk_release(r);\n"
+           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "    const double v = nk_unbox_scalar(r); nk_release(r); return v;\n"
+           "}\n"
+           "} // namespace nk_rt\n";
+}
+
 // Emit ONE function (no prelude) under the RawBuffer ABI. `cppName`
 // overrides the emitted symbol (for a mangled specialisation; empty -> the
 // source name). `ctx` (when set) routes user-function calls and collects
@@ -1176,7 +1224,7 @@ const char *kPrelude =
 OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &params,
                       const TransferRegistry &reg, ProgramEmitCtx *ctx,
                       const std::string &cppName, const ClassRegistry *classes,
-                      const std::vector<ParamSpec> &extraSeed = {})
+                      const std::vector<ParamSpec> &extraSeed = {}, bool bridge = false)
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
@@ -1280,7 +1328,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     for (const ASTNode *f : opt.promotedLoops) promotedVars.insert(f->strValue);
 
     // Emit hoisted local declarations (deterministic order) + the body.
-    Emitter em(entry, reg, arrays, opt, ctx, classes);
+    Emitter em(entry, reg, arrays, opt, ctx, classes, bridge);
     std::map<std::string, InferredType> ordered(decls.begin(), decls.end());
     for (const auto &[name, t] : ordered) {
         if (paramSet.count(name) || arrays.count(name) || promotedVars.count(name))
@@ -1314,11 +1362,14 @@ static std::string emitAllStructs(const ClassRegistry *classes)
 // ── whole-function emission (3f) ──────────────────────────────────────
 EmittedFunction emitFunction(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
-                             const TransferRegistry &reg, const ClassRegistry *classes)
+                             const TransferRegistry &reg, const ClassRegistry *classes,
+                             const BridgeOptions &bridge)
 {
-    const OneFn f = emitOneFunction(funcDef, params, reg, /*ctx=*/nullptr, /*cppName=*/"", classes);
+    const OneFn f = emitOneFunction(funcDef, params, reg, /*ctx=*/nullptr, /*cppName=*/"", classes,
+                                    /*extraSeed=*/{}, bridge.enabled);
     std::string source = kPrelude;
     source += "\n";
+    if (bridge.enabled) source += bridgePrelude(bridge.runtimeHeader);
     source += emitAllStructs(classes);
     source += f.definition;
     return {source, funcDef.strValue, f.signature};
@@ -1328,7 +1379,7 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
 EmittedFunction emitProgram(const ASTNode &entryDef,
                             const std::vector<ParamSpec> &params,
                             const FunctionTable &table, const TransferRegistry &reg,
-                            const ClassRegistry *classes)
+                            const ClassRegistry *classes, const BridgeOptions &bridge)
 {
     ProgramEmitCtx ctx;
     ctx.funcs = &table;
@@ -1340,7 +1391,8 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
     ctx.seen.insert(entryMangled);
 
     std::vector<std::string> sigs, defs;
-    const OneFn ef = emitOneFunction(entryDef, params, reg, &ctx, entryMangled, classes);
+    const OneFn ef =
+        emitOneFunction(entryDef, params, reg, &ctx, entryMangled, classes, {}, bridge.enabled);
     const std::string entrySig = ef.signature;
     sigs.push_back(ef.signature);
     defs.push_back(ef.definition);
@@ -1355,13 +1407,15 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
         ps.reserve(cs.argTypes.size());
         for (std::size_t i = 0; i < cs.argTypes.size(); ++i)
             ps.push_back({cs.def->paramNames[i], cs.argTypes[i]});
-        const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes, cs.extraSeed);
+        const OneFn cf =
+            emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes, cs.extraSeed, bridge.enabled);
         sigs.push_back(cf.signature);
         defs.push_back(cf.definition);
     }
 
     std::string source = kPrelude;
     source += "\n";
+    if (bridge.enabled) source += bridgePrelude(bridge.runtimeHeader);
     source += emitAllStructs(classes);              // class structs precede all functions
     source += "\n";
     for (const auto &s : sigs) source += s + ";\n";  // forward declarations
