@@ -478,9 +478,10 @@ TEST(EmitterFn, InterproceduralProgram)
     EXPECT_TRUE(contains(s, "y = (g__d(x) + 1.0);"));
 }
 
-// A non-scalar interprocedural argument is refused in v1b (explicit
-// boundary): passing an array variable to a user function.
-TEST(EmitterFn, InterproceduralArrayArgRefused)
+// An array variable passed across an interprocedural call (boundary #3) is
+// emitted as `ptr, len` (its length companion), and the callee
+// specialisation takes the array param.
+TEST(EmitterFn, InterproceduralArrayArgPassed)
 {
     const char *src =
         "function y = f(v)\n  y = g(v);\nend\n"
@@ -493,8 +494,10 @@ TEST(EmitterFn, InterproceduralArrayArgRefused)
     TransferRegistry reg;
     registerStandardTransfers(reg);
     registerUserFunctions(reg, table);
-    EXPECT_THROW(emitProgram(*table.find("f"), {{"v", kDoubleRow}}, table, reg),
-                 std::runtime_error);
+
+    const EmittedFunction out = emitProgram(*table.find("f"), {{"v", kDoubleRow}}, table, reg);
+    EXPECT_TRUE(contains(out.source, "g__dr(v, v_len)"));            // ptr + len at the call site
+    EXPECT_TRUE(contains(out.source, "double g__dr(const double* v, std::size_t v_len)"));
 }
 
 // A construct that infers to Dynamic (eval) cannot be typed -> the output
