@@ -422,9 +422,17 @@ table.
   emission (emitClassStruct, where emitScalarExpr lives). Moving it into
   buildClassInfo would invert layering (classinfo -> emitter); not worth it.
 
-**Still later (each its own milestone):** array RESULTS from a call
-(out-param threading at the call site); the `Value`-ABI bridge (§6) so
+**More DONE:** 2-D matrix indexing `A(i,j)` READ (column-major,
+`const T* A, size_t A_rows, size_t A_cols`; numel/length 2-D; reuses the
+Subscript2D plan). 2-D WRITE is refused (needs a mutable 2-D output/local).
+
+**Still later (each its own milestone):** the `Value`-ABI bridge (§6) so
 compiled code calls uncompiled builtins/libs and passes arrays/objects as
-`Value`; multi-output methods + partial-nargout + `~`-ignored outputs; 2-D
-/ Subscript2D index emission; closed-world polymorphism via class-id
-type-switch (§7a); the `ControlBlock` upgrade for `delete`/`isvalid`.
+`Value` — the biggest unlock (real programs calling fft/sort/…), but it
+abandons self-containedness (links libnumkit) and needs a build/link design
+pass; mutable 2-D (output/local matrices + `A(i,j)=rhs` + index2_set); 2-D
+producing ops (`zeros(m,n)`, transpose, matmul) — needs a richer shape;
+array RESULTS from a call (out-param threading at the call site);
+multi-output methods + partial-nargout + `~`-ignored outputs; closed-world
+polymorphism via class-id type-switch (§7a); `ControlBlock` for `delete`/
+`isvalid`.
