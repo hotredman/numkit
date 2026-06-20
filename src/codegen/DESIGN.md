@@ -145,6 +145,94 @@ A boxed `Value`-ABI thunk (`Value f_boxed(const Value&…, mr)`) is
 (interpreter live, swaps in compiled hot functions). Not part of the
 AOT v1.
 
+## 6a. The Value-ABI bridge (calling the runtime)
+
+The bridge makes §6's points 1–2 concrete: how compiled code calls an
+**uncompiled** builtin/library function (`fft`, `sort`, `adapthisteq`, …)
+and how a **Dynamic** value lives. It is the realisation of the §5 Dynamic
+tier: *a Dynamic value IS a `numkit::Value`, and an operation it can't
+unbox dispatches to the runtime.* It is NOT a new wall — it is the slow,
+always-correct fallback beside the unboxed fast path.
+
+**Two emission modes (the key decision).**
+- **self-contained** (today): no bridge. An uncompiled builtin / Dynamic
+  value is REFUSED. The artifact depends only on the C++ stdlib — what
+  makes the e2e gate trivial and hot kernels deployable standalone.
+- **bridged** (opt-in): the artifact `#include`s numkit headers and links
+  `libnumkit`. An uncompiled builtin / Dynamic op lowers to a runtime call.
+  Pay this only when the program needs library functions.
+  Mode is a flag; self-contained stays the default for the hot-kernel path.
+  (Equivalently: the artifact links numkit iff any bridge call was emitted.)
+
+**The shim ABI.** One C++ entry, grounded on the engine's existing
+name-dispatch (the runtime already does `callFunctionHandleMulti(handle,
+args, nargout) -> std::vector<Value>` and `feval`):
+
+```cpp
+namespace nk_rt {
+// Resolve `name` to a builtin / registered function and invoke it on Value
+// args, returning `nargout` results. Backed by a process-wide default
+// StandardEngine (lazily built) that carries the builtin registry.
+std::vector<numkit::Value> call(const char* name,
+                                const numkit::Value* args, std::size_t nargs,
+                                std::size_t nargout = 1);
+}
+```
+
+The bridge therefore needs a **live Engine in the artifact** (a global
+default `StandardEngine`) — that is what holds the builtin registrations.
+This is the one heavyweight implication: a bridged artifact embeds the
+runtime + its builtin table.
+
+**Box / unbox.**
+- scalar `double x` → `numkit::Value(x)` — inline, no alloc (16-byte tagged
+  struct, §5).
+- array `(const T* p, size_t len)` → `Value::matrix(1, len, dtype, mr)` with
+  the data copied in; result array → copy `doubleData()` back to a local
+  buffer. Copies live only AT the boundary (an uncompiled call), never in a
+  hot unboxed loop. (A zero-copy non-owning `Value` view is a later
+  optimisation — lifetime-delicate.)
+- Dynamic result → kept AS a `numkit::Value` local (the Dynamic tier).
+- a `memory_resource*` is needed to build array `Value`s — the default
+  resource at the boundary (not hot).
+
+**Dynamic tier realised.** In bridged mode a Dynamic-typed local is emitted
+as `numkit::Value`; an operation producing/consuming Dynamic (an uncompiled
+builtin call, or even `a + b` on two Dynamics) lowers to
+`nk_rt::call("<op-or-builtin>", {a,b})`. That is interpreter-speed at those
+sites — exactly the cost the design assigns to Dynamic — while every
+*typed* value stays unboxed. Multi-output bridged calls reuse `nargout`.
+
+**Cleanliness / soundness.** No-kludge litmus: delete the bridge and
+bridged mode is gone; uncompiled builtins are refused (self-contained),
+still correct. The bridge only ENABLES more programs, never changes a
+typed value's semantics. Correctness ⊥ the bridge.
+
+**Build / link (the real cost, and the e2e).** A bridged artifact links
+`libnumkit` (+ its deps: Highway, matio, zlib). For the e2e gate, the
+options (decided at implementation): (a) capture numkit's include dirs +
+the built `numkit.lib` + dep libs at CMake-configure time (like the vcvars
+capture) and have the aot harness add them to the compile/link command; or
+(b) a dedicated small **bridge runtime shared lib** exporting just
+`nk_rt::call`, which the generated artifact links — keeping the link line
+short. (b) is cleaner if the static-lib link line proves fragile.
+
+**v1 scope:** opt-in bridged mode; an uncompiled builtin CALL lowers to
+`nk_rt::call` (single output); box scalars + 1-D arrays; result is
+scalar / array / Dynamic. **Deferred:** multi-output bridged calls;
+full Value-arithmetic dispatch (`a+b` on Dynamics); object boxing across
+the bridge; zero-copy array views; 2-D array box/unbox.
+
+**Build plan (bricks):**
+1. shim + default engine — `nk_rt::call` in a tiny runtime TU, backed by a
+   lazy default `StandardEngine`; unit-test it calls a builtin by name.
+2. bridged emission — a mode flag; emit box/unbox + `nk_rt::call` for an
+   uncompiled builtin; Dynamic locals as `numkit::Value`.
+3. aot link — capture numkit includes/libs at configure; bridged-mode
+   compile links them (skip e2e cleanly if unavailable).
+4. e2e — a program calling a real builtin (e.g. `y = sort(x)`) compiles
+   bridged, runs, diffs vs the interpreter.
+
 ## 7. Dynamic-feature policy (the compile wall)
 
 `eval` / `evalin` / `evalc` / `assignin` / `feval(<non-constant
