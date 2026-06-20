@@ -165,10 +165,14 @@ constexpr int kMaxFixpoint = 16;  // matches inference.cpp; lattice is shallow
 // Per-array metadata for an array parameter or the single output array.
 struct ArrayInfo {
     ValueType   dtype;
-    std::string lenVar;            // 1-D: numel companion (`<name>_len`)
+    std::string lenVar;            // 1-D: the length EXPRESSION — `<name>_len`
+                                   // for a param/output, `<name>.size()` for a local
     bool        isOutput = false;  // the function's caller-allocated out-param
     bool        is2D     = false;  // a 2-D matrix (column-major storage)
     std::string rowsVar, colsVar;  // 2-D: dim companions (`<name>_rows/_cols`)
+    bool        isLocal  = false;  // an owned `std::vector` local (not a buffer ptr)
+    std::string dataExpr;          // the element-pointer EXPRESSION — `<name>` for a
+                                   // param/output buffer, `<name>.data()` for a local
 };
 
 // A 2-D matrix type (KnownDims with both dims > 1): indexed A(i,j),
@@ -517,6 +521,18 @@ public:
         line(cppScalarType(t.dtype) + " " + name + " = " + zeroLiteral(t.dtype) + ";");
     }
 
+    // Declare every owned-vector array local (deterministic order). Their
+    // ArrayInfo carries isLocal; storage is a runtime-sized std::vector filled
+    // by a later assignment (zeros/ones or a bridged array call).
+    void hoistArrayLocals()
+    {
+        std::map<std::string, ValueType> ordered;
+        for (const auto &[name, ai] : arrays_)
+            if (ai.isLocal) ordered.emplace(name, ai.dtype);
+        for (const auto &[name, dtype] : ordered)
+            line("std::vector<" + cppScalarType(dtype) + "> " + name + ";");
+    }
+
     void emitStmt(const ASTNode &s);
     void emitReturnScalar(const std::string &name) { line("return " + name + ";"); }
 
@@ -718,7 +734,8 @@ void Emitter::appendCallArg(const ASTNode &arg, std::vector<InferredType> &argTy
         argList += emitExpr(arg);
     } else if (isBufferArrayType(av.type) && arg.type == NodeType::IDENTIFIER
                && isArrayVar(arg.strValue)) {
-        argList += arg.strValue + ", " + arrays_.at(arg.strValue).lenVar;  // ptr + len
+        const ArrayInfo &ai = arrays_.at(arg.strValue);
+        argList += ai.dataExpr + ", " + ai.lenVar;  // ptr + len (local: .data()/.size())
     } else {
         unsupported("call argument must be a scalar, object, or array variable (v1)");
     }
@@ -846,22 +863,24 @@ std::string Emitter::emitConstruct(const std::string &name, const ASTNode &call)
 
 std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
 {
+    const ArrayInfo  &ai  = arrays_.at(base);
+    const std::string ptr = ai.dataExpr;  // `base` (buffer) or `base.data()` (local vec)
+
     // brick 6: inside a promoted clean-index loop, A(counter) is provably
     // in-bounds -> direct 0-based access, no check, no -1.
     if (promotedCounter_ && call.children.size() == 2
         && call.children[1]->type == NodeType::IDENTIFIER
         && call.children[1]->strValue == *promotedCounter_)
-        return base + "[" + *promotedCounter_ + "]";
+        return ptr + "[" + *promotedCounter_ + "]";
 
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < call.children.size(); ++i)
         idx.push_back(inferExpr(*call.children[i], types_, reg_, classes_));
 
-    const IndexPlan  plan = planIndexRead(arrayValue(base), idx);
-    const ArrayInfo &ai   = arrays_.at(base);
+    const IndexPlan plan = planIndexRead(arrayValue(base), idx);
     if (plan.form == IndexForm::Subscript2D) {
         if (!ai.is2D) unsupported("A(i,j) on a non-matrix '" + base + "'");
-        return "nk_rt::index2(" + base + ", " + ai.rowsVar + ", " + ai.colsVar + ", "
+        return "nk_rt::index2(" + ptr + ", " + ai.rowsVar + ", " + ai.colsVar + ", "
                + emitExpr(*call.children[1]) + ", " + emitExpr(*call.children[2]) + ")";
     }
     if (plan.form != IndexForm::LinearScalar || ai.is2D)
@@ -870,21 +889,23 @@ std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
 
     const std::string idxExpr = emitExpr(*call.children[1]);
     if (plan.boundsChecked)
-        return "nk_rt::index(" + base + ", " + ai.lenVar + ", " + idxExpr + ")";
-    return base + "[static_cast<std::size_t>(" + idxExpr + ") - 1]";  // proven in-bounds
+        return "nk_rt::index(" + ptr + ", " + ai.lenVar + ", " + idxExpr + ")";
+    return ptr + "[static_cast<std::size_t>(" + idxExpr + ") - 1]";  // proven in-bounds
 }
 
 void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
 {
     const std::string &base = lhsCall.children[0]->strValue;
     if (!isArrayVar(base)) unsupported("indexed write to non-array '" + base + "'");
+    const ArrayInfo  &ai  = arrays_.at(base);
+    const std::string ptr = ai.dataExpr;  // `base` (buffer) or `base.data()` (local vec)
 
     // brick 6: inside a promoted clean-index loop, A(counter) is provably
     // in-bounds -> direct 0-based store, no check.
     if (promotedCounter_ && lhsCall.children.size() == 2
         && lhsCall.children[1]->type == NodeType::IDENTIFIER
         && lhsCall.children[1]->strValue == *promotedCounter_) {
-        line(base + "[" + *promotedCounter_ + "] = " + emitExpr(rhs) + ";");
+        line(ptr + "[" + *promotedCounter_ + "] = " + emitExpr(rhs) + ";");
         return;
     }
 
@@ -893,8 +914,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         idx.push_back(inferExpr(*lhsCall.children[i], types_, reg_, classes_));
     const AbstractValue rhsAV = inferExpr(rhs, types_, reg_, classes_);
 
-    const IndexPlan  plan = planIndexWrite(arrayValue(base), idx, rhsAV);
-    const ArrayInfo &ai   = arrays_.at(base);
+    const IndexPlan plan = planIndexWrite(arrayValue(base), idx, rhsAV);
     if (plan.form == IndexForm::Subscript2D)
         // A matrix is a read-only param in v1; writing A(i,j) needs a
         // mutable 2-D (output/local), a later step.
@@ -906,10 +926,9 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
     const std::string idxExpr = emitExpr(*lhsCall.children[1]);
     const std::string rhsExpr = emitExpr(rhs);
     if (plan.boundsChecked)
-        line("nk_rt::index_set(" + base + ", " + ai.lenVar + ", " + idxExpr + ", "
-             + rhsExpr + ");");
+        line("nk_rt::index_set(" + ptr + ", " + ai.lenVar + ", " + idxExpr + ", " + rhsExpr + ");");
     else
-        line(base + "[static_cast<std::size_t>(" + idxExpr + ") - 1] = " + rhsExpr + ";");
+        line(ptr + "[static_cast<std::size_t>(" + idxExpr + ") - 1] = " + rhsExpr + ";");
 }
 
 void Emitter::emitAssign(const ASTNode &s)
@@ -921,20 +940,36 @@ void Emitter::emitAssign(const ASTNode &s)
     if (lhs.type == NodeType::IDENTIFIER) {
         const std::string &name = lhs.strValue;
 
-        // Output array initialised by a size constructor: `y = zeros(1,n)`
-        // becomes a fill loop over the caller-allocated out-param.
-        if (isArrayVar(name) && arrays_.at(name).isOutput
+        // Array initialised by a size constructor: `a = zeros(1,n)` / `ones`.
+        // The OUTPUT out-param (caller-sized) becomes a fill loop over its
+        // length; an owned-vector LOCAL is `a.assign(numel, fill)` (numel =
+        // product of the size args).
+        if (isArrayVar(name) && !arrays_.at(name).is2D
+            && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
             && rhs.type == NodeType::CALL && !rhs.children.empty()
             && rhs.children[0]->type == NodeType::IDENTIFIER
             && (rhs.children[0]->strValue == "zeros"
                 || rhs.children[0]->strValue == "ones")) {
+            const ArrayInfo  &ai   = arrays_.at(name);
             const std::string fill = rhs.children[0]->strValue == "zeros"
-                                         ? zeroLiteral(arrays_.at(name).dtype)
+                                         ? zeroLiteral(ai.dtype)
                                          : "1";
-            const std::string lenVar = arrays_.at(name).lenVar;
-            open("for (std::size_t __i = 0; __i < " + lenVar + "; ++__i)");
-            line(name + "[__i] = " + fill + ";");
-            close();
+            if (ai.isLocal) {
+                std::string numel;  // product of the size args (zeros(1,n) -> 1*n)
+                for (std::size_t i = 1; i < rhs.children.size(); ++i)
+                    numel += (i > 1 ? " * " : "")
+                             + ("static_cast<std::size_t>(" + emitExpr(*rhs.children[i]) + ")");
+                if (numel.empty()) numel = "0";
+                line(name + ".assign(" + numel + ", " + fill + ");");
+            } else {
+                open("for (std::size_t __i = 0; __i < " + ai.lenVar + "; ++__i)");
+                line(ai.dataExpr + "[__i] = " + fill + ";");
+                close();
+            }
+            // Record the array type so a later `name(k)` infers element-access
+            // (the env, not arrays_, drives inferExpr).
+            types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
+                              ConstVal::unknown()});
             return;
         }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
@@ -957,7 +992,7 @@ void Emitter::emitAssign(const ASTNode &s)
                     if (arg.type == NodeType::IDENTIFIER && isArrayVar(arg.strValue)) {
                         const ArrayInfo &aai = arrays_.at(arg.strValue);
                         if (aai.is2D) unsupported("bridged call: 2-D array argument (v1)");
-                        boxed += "nk_box_array(" + arg.strValue + ", " + aai.lenVar + ")";
+                        boxed += "nk_box_array(" + aai.dataExpr + ", " + aai.lenVar + ")";
                     } else {
                         boxed += "nk_box_scalar(" + emitExpr(arg) + ")";
                     }
@@ -973,6 +1008,9 @@ void Emitter::emitAssign(const ASTNode &s)
                          + std::to_string(nargs) + ", " + name + ", " + lenVar + ");");
                     close();
                 }
+                types_.set(name, {InferredType::concrete(arrays_.at(name).dtype,
+                                                         Shape::rowVector()),
+                                  ConstVal::unknown()});
                 return;
             }
         }
@@ -1208,6 +1246,7 @@ const char *kPrelude =
     "#include <limits>\n"
     "#include <memory>\n"
     "#include <stdexcept>\n"
+    "#include <vector>\n"
     "\n"
     "namespace nk_rt {\n"
     "// Reference wrapper for a handle class: shared identity + lifetime; the\n"
@@ -1315,18 +1354,22 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         } else if (is2DMatrixType(p.type)) {
             // 2-D matrix -> pointer + dim companions (column-major).
             ArrayInfo ai;
-            ai.dtype   = p.type.dtype;
-            ai.is2D    = true;
-            ai.rowsVar = p.name + "_rows";
-            ai.colsVar = p.name + "_cols";
+            ai.dtype    = p.type.dtype;
+            ai.is2D     = true;
+            ai.rowsVar  = p.name + "_rows";
+            ai.colsVar  = p.name + "_cols";
+            ai.dataExpr = p.name;
             arrays[p.name] = ai;
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
                                 + ", std::size_t " + ai.rowsVar + ", std::size_t " + ai.colsVar);
         } else if (isBufferArrayType(p.type)) {
-            const std::string lenVar = p.name + "_len";
-            arrays[p.name] = {p.type.dtype, lenVar, /*isOutput=*/false};
+            ArrayInfo ai;
+            ai.dtype       = p.type.dtype;
+            ai.lenVar      = p.name + "_len";
+            ai.dataExpr    = p.name;
+            arrays[p.name] = ai;
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
-                                + ", std::size_t " + lenVar);
+                                + ", std::size_t " + ai.lenVar);
         } else if (p.type.isObject()) {
             // value class -> by value (value semantics); handle -> wrapper.
             sigParams.push_back(cppObjectType(p.type.classId, classes) + " " + p.name);
@@ -1357,10 +1400,14 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         } else if (isBufferArrayType(retType)) {
             arrayReturn = true;
             retCpp      = "void";
-            const std::string lenVar = retName + "_len";
-            arrays[retName] = {retType.dtype, lenVar, /*isOutput=*/true};
+            ArrayInfo ai;
+            ai.dtype        = retType.dtype;
+            ai.lenVar       = retName + "_len";
+            ai.isOutput     = true;
+            ai.dataExpr     = retName;
+            arrays[retName] = ai;
             sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName
-                                + ", std::size_t " + lenVar);
+                                + ", std::size_t " + ai.lenVar);
         } else if (retType.isObject()) {
             // returned BY VALUE (value class) / handle wrapper — not an
             // out-param; the scalar-return path (return retName;) applies.
@@ -1382,6 +1429,22 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         }
     }
 
+    // Array LOCALS: a 1-D buffer-array-typed variable that is neither a
+    // parameter nor the output is an owned, runtime-sized std::vector. Register
+    // it so index / numel / call-arg resolve to `<name>.data()` / `.size()`.
+    // (A 2-D array local is not yet supported — it falls to the hoist below.)
+    for (const auto &[name, t] : decls) {
+        if (paramSet.count(name) || arrays.count(name)) continue;  // params + the output
+        if (isBufferArrayType(t)) {
+            ArrayInfo ai;
+            ai.dtype     = t.dtype;
+            ai.isLocal   = true;
+            ai.dataExpr  = name + ".data()";
+            ai.lenVar    = name + ".size()";
+            arrays[name] = ai;
+        }
+    }
+
     const std::string symbol = cppName.empty() ? funcDef.strValue : cppName;
     std::string       sig    = retCpp + " " + symbol + "(";
     for (std::size_t i = 0; i < sigParams.size(); ++i)
@@ -1396,6 +1459,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
 
     // Emit hoisted local declarations (deterministic order) + the body.
     Emitter em(entry, reg, arrays, opt, ctx, classes, bridge);
+    em.hoistArrayLocals();  // owned-vector array locals first
     std::map<std::string, InferredType> ordered(decls.begin(), decls.end());
     for (const auto &[name, t] : ordered) {
         if (paramSet.count(name) || arrays.count(name) || promotedVars.count(name))

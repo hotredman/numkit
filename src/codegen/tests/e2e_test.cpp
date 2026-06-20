@@ -851,6 +851,43 @@ TEST(CodegenE2E, InterproceduralRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 7.0);
 }
 
+// Array LOCALS end-to-end: an owned-vector local (`z = zeros(1,n)`), written
+// then read in loops, compiled and RUN. Self-contained (no bridge). The result
+// is x*2 + 1 elementwise.
+TEST(CodegenE2E, ArrayLocalRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x)\n  n = numel(x);\n  z = zeros(1, n);\n"
+        "  for k = 1:n\n    z(k) = x(k) * 2;\n  end\n"
+        "  y = zeros(1, n);\n  for k = 1:n\n    y(k) = z(k) + 1;\n  end\nend\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_arrlocal_e2e.exe").string();
+    const std::string outTxt = (base / "nk_arrlocal_e2e_out.txt").string();
+    const std::size_t N       = 16;
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const std::size_t N = 16;\n"
+        "  double x[16], y[16];\n"
+        "  for (std::size_t i = 0; i < N; ++i) x[i] = 0.5 * double(i + 1);\n"
+        "  f(x, N, y, N);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (std::size_t i = 0; i < N; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), N);
+    for (std::size_t i = 0; i < N; ++i)
+        EXPECT_NEAR(got[i], 0.5 * double(i + 1) * 2.0 + 1.0, 1e-12) << "at i=" << i;
+}
+
 // BRIDGED e2e (DESIGN.md §6a brick 4): a program calling a builtin the emitter
 // cannot lower (`sign`) compiles in BRIDGED mode, links the nk_codegen_rt
 // shared lib, RUNS, and matches the interpreter. Proves the C-ABI bridge end

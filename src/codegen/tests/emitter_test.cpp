@@ -228,6 +228,25 @@ TEST(EmitterFn, BinaryMathLowersToStd)
     EXPECT_FALSE(contains(out.source, "nk_codegen_rt.h"));  // self-contained
 }
 
+// ---- array locals ----------------------------------------------------------
+// A buffer-typed LOCAL is an owned std::vector: zeros -> .assign, element
+// read/write through .data()/.size(). Self-contained (no bridge).
+TEST(EmitterFn, ArrayLocalOwnedVector)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = f(x)\n  n = numel(x);\n  z = zeros(1, n);\n"
+        "  for k = 1:n\n    z(k) = x(k) * 2;\n  end\n"
+        "  y = zeros(1, n);\n  for k = 1:n\n    y(k) = z(k) + 1;\n  end\nend\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
+    EXPECT_TRUE(contains(s, "std::vector<double> z;"));  // hoisted owned vector
+    EXPECT_TRUE(contains(s, "z.assign("));               // zeros -> assign(numel, 0.0)
+    EXPECT_TRUE(contains(s, "z.data()"));                // element access via data()/size()
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits
