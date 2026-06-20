@@ -918,6 +918,45 @@ void Emitter::emitAssign(const ASTNode &s)
             close();
             return;
         }
+        // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
+        // when inference proves the RHS is a concrete array (Contract 2); box
+        // the (array-var / scalar) args, call the runtime (1 output), and
+        // unbox into the caller-allocated out-param. v1: a DOUBLE output.
+        if (bridge_ && isArrayVar(name) && arrays_.at(name).isOutput
+            && !arrays_.at(name).is2D && arrays_.at(name).dtype == ValueType::DOUBLE
+            && rhs.type == NodeType::CALL && !rhs.children.empty()
+            && rhs.children[0]->type == NodeType::IDENTIFIER) {
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()
+                && res.type.dtype == ValueType::DOUBLE) {
+                const std::string callee = rhs.children[0]->strValue;
+                const std::size_t nargs  = rhs.children.size() - 1;
+                std::string       boxed;
+                for (std::size_t i = 1; i < rhs.children.size(); ++i) {
+                    const ASTNode &arg = *rhs.children[i];
+                    if (i > 1) boxed += ", ";
+                    if (arg.type == NodeType::IDENTIFIER && isArrayVar(arg.strValue)) {
+                        const ArrayInfo &aai = arrays_.at(arg.strValue);
+                        if (aai.is2D) unsupported("bridged call: 2-D array argument (v1)");
+                        boxed += "nk_box_array(" + arg.strValue + ", " + aai.lenVar + ")";
+                    } else {
+                        boxed += "nk_box_scalar(" + emitExpr(arg) + ")";
+                    }
+                }
+                const std::string lenVar = arrays_.at(name).lenVar;
+                if (nargs == 0) {
+                    line("nk_rt::bridge_into(\"" + callee + "\", nullptr, 0, " + name + ", "
+                         + lenVar + ");");
+                } else {
+                    open("");  // a fresh scope for the temporary arg array
+                    line("nk_val __nk_args[] = { " + boxed + " };");
+                    line("nk_rt::bridge_into(\"" + callee + "\", __nk_args, "
+                         + std::to_string(nargs) + ", " + name + ", " + lenVar + ");");
+                    close();
+                }
+                return;
+            }
+        }
         if (isArrayVar(name))
             unsupported("array-valued assignment to '" + name
                         + "' (only size-constructor init of the output in RawBuffer ABI)");
@@ -1214,6 +1253,17 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
            "    const double v = nk_unbox_scalar(r); nk_release(r); return v;\n"
            "}\n"
+           "// Box-args -> call (1 output) -> unbox the array result into the\n"
+           "// caller-allocated out buffer; releases args + result; errors throw.\n"
+           "inline void bridge_into(const char* name, nk_val* args, std::size_t nargs,\n"
+           "                        double* out, std::size_t out_len) {\n"
+           "    nk_error err; err.code = 0;\n"
+           "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
+           "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
+           "    if (!r || err.code) { nk_release(r);\n"
+           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "    nk_unbox_array(r, out, out_len); nk_release(r);\n"
+           "}\n"
            "} // namespace nk_rt\n";
 }
 
@@ -1430,28 +1480,53 @@ std::string emitScalarPlugin(const ASTNode &funcDef,
                              const TransferRegistry &reg, const std::string &exportName,
                              const std::string &abiHeaderPath, const ClassRegistry *classes)
 {
-    // Preconditions (the sound boundary): scalar params + a scalar single
-    // output. inferFunctionReturn yields Dynamic for a multi-output or
-    // untypeable function, so the isUnboxableScalar() check covers those too.
+    // Preconditions (the sound boundary): a SCALAR single output (the
+    // output-size protocol for an array result is a later layer), and each
+    // parameter is a scalar OR a double row vector. inferFunctionReturn yields
+    // Dynamic for a multi-output / untypeable function, so the
+    // isUnboxableScalar() return check covers those too.
     std::vector<ArgInfo> args;
     args.reserve(params.size());
     for (const auto &p : params) {
-        if (!p.type.isUnboxableScalar())
-            unsupported("plugin export: parameter '" + p.name + "' is not an unboxed scalar (v1)");
+        const bool scalar   = p.type.isUnboxableScalar();
+        const bool dblVector = isBufferArrayType(p.type) && p.type.dtype == ValueType::DOUBLE;
+        if (!scalar && !dblVector)
+            unsupported("plugin export: parameter '" + p.name
+                        + "' must be a scalar or a double vector (v1)");
         args.push_back(ArgInfo::of(p.type));
     }
     const InferredType ret = inferFunctionReturn(funcDef, args, reg, classes);
     if (!ret.isUnboxableScalar())
         unsupported("plugin export: '" + funcDef.strValue
-                    + "' must be a single-output scalar function (v1)");
+                    + "' must have a single SCALAR output (v1; array output needs the "
+                      "size protocol)");
 
     // The compiled function (throws if its body is outside the subset).
     const EmittedFunction ef = emitFunction(funcDef, params, reg, classes);
     const std::size_t     n  = params.size();
 
+    // Per-parameter marshalling: a scalar unboxes inline; a double vector
+    // unboxes into a buffer (sized by the runtime value) passed as ptr+len.
+    std::string preDecls, callArgs;
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::string ix = std::to_string(i);
+        if (i) callArgs += ", ";
+        if (params[i].type.isUnboxableScalar()) {
+            callArgs += "static_cast<" + cppScalarType(params[i].type.dtype)
+                        + ">(nk__host->unbox_scalar(a[" + ix + "]))";
+        } else {  // double vector
+            const std::string b = "__b" + ix;
+            preDecls += "    std::vector<double> " + b + "(nk__host->numel(a[" + ix + "]));\n";
+            preDecls += "    nk__host->unbox_array(a[" + ix + "], " + b + ".data(), " + b
+                        + ".size());\n";
+            callArgs += b + ".data(), " + b + ".size()";
+        }
+    }
+
     std::string s = ef.source;
     s += "\n#include \"" + abiHeaderPath + "\"\n";
     s += "#include <cstdio>\n";
+    s += "#include <vector>\n";
     s += "namespace {\n";
     s += "const nk_host_api *nk__host = nullptr;\n";
     s += "nk_val nk__wrap(const nk_val *a, size_t nargs, size_t nargout,\n";
@@ -1462,13 +1537,8 @@ std::string emitScalarPlugin(const ASTNode &funcDef,
     s += "            \"" + exportName + ": expected " + std::to_string(n) + " argument(s)\"); }\n";
     s += "        return nullptr;\n";
     s += "    }\n";
-    s += "    return nk__host->box_scalar(static_cast<double>(" + ef.name + "(";
-    for (std::size_t i = 0; i < n; ++i) {
-        if (i) s += ", ";
-        s += "static_cast<" + cppScalarType(params[i].type.dtype)
-             + ">(nk__host->unbox_scalar(a[" + std::to_string(i) + "]))";
-    }
-    s += ")));\n";
+    s += preDecls;
+    s += "    return nk__host->box_scalar(static_cast<double>(" + ef.name + "(" + callArgs + ")));\n";
     s += "}\n";
     s += "}  // namespace\n";
     s += "extern \"C\" {\n";

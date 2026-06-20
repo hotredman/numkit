@@ -128,11 +128,12 @@ std::string emitClassStruct(const ClassInfo &ci);
 // library and loaded with nk_load_plugin, the result makes `exportName` run
 // native inside a live session.
 //
-// v1 scope: every parameter AND the single output must be an unboxed scalar
-// (verified by inference); a non-scalar / multi-output / Dynamic function is
-// refused via the explicit boundary (array-valued tiering needs an
-// output-size protocol — a later brick). `abiHeaderPath` is the include path
-// to nk_plugin.h that the generated TU will #include.
+// v1 scope: the single output must be an unboxed SCALAR (verified by
+// inference); each parameter is a scalar OR a double row vector (unboxed into
+// a buffer at the boundary). A multi-output / array-output / Dynamic function
+// is refused via the explicit boundary — an array OUTPUT needs an output-size
+// protocol (a later brick). `abiHeaderPath` is the include path to nk_plugin.h
+// that the generated TU will #include.
 std::string emitScalarPlugin(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
                              const TransferRegistry &reg,

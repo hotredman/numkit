@@ -263,8 +263,11 @@ array views; 2-D array box/unbox.
    RUNS, and -1/0/1 match the interpreter. The opaque handle design keeps all
    Value alloc/free inside the DLL (no cross-module heap / CRT issue).
 
-Remaining (later): array-valued bridging (owned-buffer storage), Dynamic
-locals, then the `numkit build` driver.
+Array layer ✅ (partial): a bridged call whose result inference proves an
+array, assigned to the output, fills the out-param via `nk_rt::bridge_into`
+(box scalar/array-var args -> nk_call -> unbox into the caller buffer). Demo:
+`y = sin(x)`, e2e CodegenBridge.BridgedArrayResult. Remaining: array LOCALS
+(owned-buffer storage) + Dynamic locals.
 
 ## 6b. Embedding C-ABI + plugin system
 
@@ -339,8 +342,10 @@ can crash the host. Documented, accepted for a source-available tool.)
 5. ✅ codegen-as-plugin (tiered) — `emitScalarPlugin` emits the compiled
    function + `nk_plugin_register`; compiled to a `.dll`, loaded with
    `nk_load_plugin`, called native through engine dispatch, diffed against
-   the interpreter (`nk_hot(3,4)=21`). v1 = scalar single-output; array-valued
-   tiering needs an output-size protocol (later).
+   the interpreter (`nk_hot(3,4)=21`). Array layer ✅ (partial): a scalar-output
+   fn may take double-VECTOR params — the wrapper unboxes them into buffers
+   (e2e `nk_hotsum([1..5])=15`). An array OUTPUT still needs the output-size
+   protocol (later).
 
 ## 7. Dynamic-feature policy (the compile wall)
 
