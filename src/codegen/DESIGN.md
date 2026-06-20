@@ -17,10 +17,21 @@ runtime is an order of magnitude less work than an LLVM/JIT backend
 the output is debuggable, and it produces a real deployable artifact
 (a MATLAB-Coder-style "compile my numkit program to a native lib").
 
-Target deployment: **AOT** — compile a call tree from an entry point
-into a standalone native library/binary. There is **no interpreter in
-the AOT runtime**. (A tiered / embedded-interpreter mode is an optional
-later variant; see §6.)
+Target deployment (BOTH are goals — clarified 2026-06):
+- **Standalone AOT** — compile a call tree from an entry point into a
+  native library/binary; no interpreter in that artifact. A `numkit build`
+  driver is the product shape (§8 M4). Programs that call uncompiled
+  library functions compile via the Value-ABI bridge (§6a).
+- **Tiered acceleration** — compile hot functions and load them back into
+  a LIVE numkit session (interpreter stays; hot paths go native). This is
+  "codegen-as-plugin": the compiled artifact is loaded through the plugin
+  mechanism (§6b).
+
+Both share the runtime C-ABI (§6a/§6b). That C-ABI is ALSO the foundation
+for two **in-scope sibling goals** (not codegen per se, but the same hub):
+host **embedding** (C/Python/Rust/JS-via-WASM drive numkit) and a
+**plugin system** (numkit loads third-party native extensions). The C-ABI
+work therefore serves codegen-tiered + embedding + plugins at once.
 
 ## 2. The spine is type inference, not the emitter
 
