@@ -252,11 +252,19 @@ array views; 2-D array box/unbox.
    form). Off ⇒ TU stays stdlib-only (the litmus). Array-valued bridging +
    Dynamic locals (an array result needs an owned-buffer storage kind) = a
    later layer.
-3. ⏳ aot link — `nk_codegen_rt` as a standalone shared lib embedding the
-   runtime; bridged-mode compile links it (path captured at configure); skip
-   cleanly if absent.
-4. ⏳ e2e — a program calling a real builtin compiles bridged, runs, diffs vs
-   the interpreter.
+3. ✅ aot link — `nk_codegen_rt` built as a standalone shared lib (CMake DLL
+   target) EMBEDDING the runtime + EXPORTING only the C-ABI (NK_RT_API:
+   dllexport when NK_RT_BUILDING_DLL, dllimport when NK_RT_USE_DLL, else
+   plain — so the static-into-gtest compile is unchanged). `CompileOptions`
+   {includeDirs, defines, linkLibs} threads through the AOT harness; a bridged
+   compile adds `/I<bridge>`, `/DNK_RT_USE_DLL`, and links the import lib.
+4. ✅ e2e (CodegenBridge) — `y = sign(x)` (un-lowerable) compiles bridged,
+   links nk_codegen_rt, the runtime DLL is copied beside the artifact, it
+   RUNS, and -1/0/1 match the interpreter. The opaque handle design keeps all
+   Value alloc/free inside the DLL (no cross-module heap / CRT issue).
+
+Remaining (later): array-valued bridging (owned-buffer storage), Dynamic
+locals, then the `numkit build` driver.
 
 ## 6b. Embedding C-ABI + plugin system
 

@@ -11,4 +11,9 @@
  * #include "<NK_BRIDGE_DIR>/nk_plugin.h" without an -I flag (CodegenTiered). */
 #define NK_BRIDGE_DIR "@NK_BRIDGE_DIR@"
 
+/* The nk_codegen_rt shared lib (DESIGN.md §6a brick 3): import lib to LINK a
+ * bridged artifact against, and the runtime DLL to copy beside it (CodegenBridge). */
+#define NK_RT_IMPORT_LIB "@NK_RT_IMPORT_LIB@"
+#define NK_RT_SHARED_DLL "@NK_RT_SHARED_DLL@"
+
 #endif

@@ -23,6 +23,8 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/value/value.hpp>
 
+#include "nk_codegen_test_paths.h"  // NK_BRIDGE_DIR / NK_RT_IMPORT_LIB / NK_RT_SHARED_DLL
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -847,4 +849,83 @@ TEST(CodegenE2E, InterproceduralRunsCorrectly)
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 7.0);
+}
+
+// BRIDGED e2e (DESIGN.md §6a brick 4): a program calling a builtin the emitter
+// cannot lower (`sign`) compiles in BRIDGED mode, links the nk_codegen_rt
+// shared lib, RUNS, and matches the interpreter. Proves the C-ABI bridge end
+// to end: generated native code -> runtime DLL -> result. The opaque handle
+// design keeps all Value alloc/free inside the DLL (no cross-module heap).
+TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function y = f(x)\n  y = sign(x);\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";  // resolved via the -I below
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::bridge_scalar(\"sign\""), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_bridged_e2e.exe").string();
+    const std::string outTxt = (base / "nk_bridged_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const double xs[3] = {-3.5, 0.0, 2.75};\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 3; ++i) std::fprintf(g, \"%.17g\\n\", f(xs[i]));\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    // Bridged compile: find nk_codegen_rt.h, request dllimport linkage, and
+    // link the runtime import lib.
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    // The runtime DLL must sit beside the artifact so it loads at run time.
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 3u);
+
+    // Reference: the interpreter's sign over the same inputs.
+    numkit::StandardEngine engine;
+    EXPECT_DOUBLE_EQ(got[0], engine.eval("sign(-3.5)", true).toScalar());  // -1
+    EXPECT_DOUBLE_EQ(got[1], engine.eval("sign(0)", true).toScalar());     //  0
+    EXPECT_DOUBLE_EQ(got[2], engine.eval("sign(2.75)", true).toScalar());  //  1
+    EXPECT_DOUBLE_EQ(got[0], -1.0);
+    EXPECT_DOUBLE_EQ(got[1], 0.0);
+    EXPECT_DOUBLE_EQ(got[2], 1.0);
 }
