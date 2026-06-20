@@ -976,13 +976,15 @@ void Emitter::emitAssign(const ASTNode &s)
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and
         // unbox into the caller-allocated out-param. v1: a DOUBLE output.
-        if (bridge_ && isArrayVar(name) && arrays_.at(name).isOutput
-            && !arrays_.at(name).is2D && arrays_.at(name).dtype == ValueType::DOUBLE
+        if (bridge_ && isArrayVar(name) && !arrays_.at(name).is2D
+            && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
+            && arrays_.at(name).dtype == ValueType::DOUBLE
             && rhs.type == NodeType::CALL && !rhs.children.empty()
             && rhs.children[0]->type == NodeType::IDENTIFIER) {
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
                 && res.type.dtype == ValueType::DOUBLE) {
+                const ArrayInfo  &ai     = arrays_.at(name);
                 const std::string callee = rhs.children[0]->strValue;
                 const std::size_t nargs  = rhs.children.size() - 1;
                 std::string       boxed;
@@ -997,19 +999,21 @@ void Emitter::emitAssign(const ASTNode &s)
                         boxed += "nk_box_scalar(" + emitExpr(arg) + ")";
                     }
                 }
-                const std::string lenVar = arrays_.at(name).lenVar;
+                // A LOCAL resizes its owned vector (bridge_to_vec); the OUTPUT
+                // fills its fixed, caller-sized out-param (bridge_into).
+                const std::string fn   = ai.isLocal ? "nk_rt::bridge_to_vec(\""
+                                                     : "nk_rt::bridge_into(\"";
+                const std::string dest = ai.isLocal ? (", " + name + ");")
+                                                    : (", " + name + ", " + ai.lenVar + ");");
                 if (nargs == 0) {
-                    line("nk_rt::bridge_into(\"" + callee + "\", nullptr, 0, " + name + ", "
-                         + lenVar + ");");
+                    line(fn + callee + "\", nullptr, 0" + dest);
                 } else {
                     open("");  // a fresh scope for the temporary arg array
                     line("nk_val __nk_args[] = { " + boxed + " };");
-                    line("nk_rt::bridge_into(\"" + callee + "\", __nk_args, "
-                         + std::to_string(nargs) + ", " + name + ", " + lenVar + ");");
+                    line(fn + callee + "\", __nk_args, " + std::to_string(nargs) + dest);
                     close();
                 }
-                types_.set(name, {InferredType::concrete(arrays_.at(name).dtype,
-                                                         Shape::rowVector()),
+                types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
                                   ConstVal::unknown()});
                 return;
             }
@@ -1319,6 +1323,17 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    if (!r || err.code) { nk_release(r);\n"
            "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
            "    nk_unbox_array(r, out, out_len); nk_release(r);\n"
+           "}\n"
+           "// Same, but the result fills an owned vector (resized to its numel) —\n"
+           "// for an array LOCAL whose size is only known at the call.\n"
+           "inline void bridge_to_vec(const char* name, nk_val* args, std::size_t nargs,\n"
+           "                          std::vector<double>& out) {\n"
+           "    nk_error err; err.code = 0;\n"
+           "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
+           "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
+           "    if (!r || err.code) { nk_release(r);\n"
+           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "    out.resize(nk_numel(r)); nk_unbox_array(r, out.data(), out.size()); nk_release(r);\n"
            "}\n"
            "} // namespace nk_rt\n";
 }

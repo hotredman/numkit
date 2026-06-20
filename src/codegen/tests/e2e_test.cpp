@@ -1039,3 +1039,75 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
     for (std::size_t i = 0; i < N; ++i)
         EXPECT_NEAR(got[i], std::sin(0.3 * double(i + 1)), 1e-12) << "at i=" << i;
 }
+
+// Bridged array LOCAL: `z = sin(x)` fills an owned-vector local (resized to
+// the result's numel via bridge_to_vec), then z is read element-wise. The
+// payoff of array locals + bridging: a general intermediate array expression.
+TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function y = f(x)\n  n = numel(x);\n  z = sin(x);\n"
+                               "  y = zeros(1, n);\n  for k = 1:n\n    y(k) = z(k) * 2;\n  end\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted = emitFunction(
+        *fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg, nullptr,
+        bridge);
+    ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);   // owned local
+    ASSERT_NE(emitted.source.find("nk_rt::bridge_to_vec(\"sin\""), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_bridged_local_e2e.exe").string();
+    const std::string outTxt = (base / "nk_bridged_local_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    const std::size_t N       = 8;
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const std::size_t N = 8;\n"
+        "  double x[8], y[8];\n"
+        "  for (std::size_t i = 0; i < N; ++i) x[i] = 0.3 * double(i + 1);\n"
+        "  f(x, N, y, N);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (std::size_t i = 0; i < N; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), N);
+    for (std::size_t i = 0; i < N; ++i)
+        EXPECT_NEAR(got[i], std::sin(0.3 * double(i + 1)) * 2.0, 1e-12) << "at i=" << i;
+}
