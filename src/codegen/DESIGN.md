@@ -306,17 +306,27 @@ them later; native plugins run in-process with full trust, like MEX, and
 can crash the host. Documented, accepted for a source-available tool.)
 
 **Build plan (bricks):**
-1. error translation — `nk_error` + try/catch in every C-ABI entry; a
+1. ✅ error translation — `nk_error` + try/catch in every C-ABI entry; a
    bridged/embedding call that errors sets `nk_error`, never throws across
-   `extern "C"`. (Fixes the §6a gap.)
-2. promote to the runtime C-API — engine lifecycle + `nk_eval`; (the
-   marshal + `nk_call` already exist). Embedding usable from C.
-3. plugin ABI + loader — `nk_plugin_register` / `nk_plugin_abi_version`, a
-   registry, a `dlopen` loader, version check; name-dispatch consults it.
-4. plugin e2e — a sample plugin lib registering `myfn`; load it; call
-   `myfn(...)` from the engine.
-5. codegen-as-plugin — emit `nk_plugin_register` from codegen; load a
-   compiled function as a plugin and dispatch to it (tiered mode).
+   `extern "C"`. (Fixed the §6a gap.)
+2. ✅ promote to the runtime C-API — `nk_eval` over the encapsulated engine
+   (stateful workspace); the marshal + `nk_call` already existed. Embedding
+   usable from C. (Multi-engine create/destroy = later; the default engine
+   covers the bridge + tiered + first embedding.)
+3. ✅ plugin ABI + loader — `nk_plugin.h` (`nk_plugin_register` /
+   `nk_plugin_abi_version` + `nk_host_api` table); `nk_register_fn` adapts a
+   plugin `nk_fn` onto `Engine::registerFunction` (NO core change — name
+   dispatch already consults it); `nk_load_plugin` = `LoadLibrary`/`dlopen` +
+   version check + idempotent per path. Model = host-API-passed-in (no
+   symbol coupling, sidesteps the Windows import-lib problem).
+4. ✅ plugin e2e — `sample_plugin.cpp` built as a real `.dll`, loaded,
+   `nk_sample_triple(...)` dispatched through the engine; also callable from
+   an `nk_eval`'d script.
+5. ✅ codegen-as-plugin (tiered) — `emitScalarPlugin` emits the compiled
+   function + `nk_plugin_register`; compiled to a `.dll`, loaded with
+   `nk_load_plugin`, called native through engine dispatch, diffed against
+   the interpreter (`nk_hot(3,4)=21`). v1 = scalar single-output; array-valued
+   tiering needs an output-size protocol (later).
 
 ## 7. Dynamic-feature policy (the compile wall)
 

@@ -1370,6 +1370,63 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
     return {source, entryMangled, entrySig};
 }
 
+// ── codegen-as-plugin (tiered acceleration, §6b) ──────────────────────
+std::string emitScalarPlugin(const ASTNode &funcDef,
+                             const std::vector<ParamSpec> &params,
+                             const TransferRegistry &reg, const std::string &exportName,
+                             const std::string &abiHeaderPath, const ClassRegistry *classes)
+{
+    // Preconditions (the sound boundary): scalar params + a scalar single
+    // output. inferFunctionReturn yields Dynamic for a multi-output or
+    // untypeable function, so the isUnboxableScalar() check covers those too.
+    std::vector<ArgInfo> args;
+    args.reserve(params.size());
+    for (const auto &p : params) {
+        if (!p.type.isUnboxableScalar())
+            unsupported("plugin export: parameter '" + p.name + "' is not an unboxed scalar (v1)");
+        args.push_back(ArgInfo::of(p.type));
+    }
+    const InferredType ret = inferFunctionReturn(funcDef, args, reg, classes);
+    if (!ret.isUnboxableScalar())
+        unsupported("plugin export: '" + funcDef.strValue
+                    + "' must be a single-output scalar function (v1)");
+
+    // The compiled function (throws if its body is outside the subset).
+    const EmittedFunction ef = emitFunction(funcDef, params, reg, classes);
+    const std::size_t     n  = params.size();
+
+    std::string s = ef.source;
+    s += "\n#include \"" + abiHeaderPath + "\"\n";
+    s += "#include <cstdio>\n";
+    s += "namespace {\n";
+    s += "const nk_host_api *nk__host = nullptr;\n";
+    s += "nk_val nk__wrap(const nk_val *a, size_t nargs, size_t nargout,\n";
+    s += "                nk_val *extra_outs, nk_error *err) {\n";
+    s += "    (void)nargout; (void)extra_outs;\n";
+    s += "    if (nargs < " + std::to_string(n) + ") {\n";
+    s += "        if (err) { err->code = 1; std::snprintf(err->message, sizeof(err->message),\n";
+    s += "            \"" + exportName + ": expected " + std::to_string(n) + " argument(s)\"); }\n";
+    s += "        return nullptr;\n";
+    s += "    }\n";
+    s += "    return nk__host->box_scalar(static_cast<double>(" + ef.name + "(";
+    for (std::size_t i = 0; i < n; ++i) {
+        if (i) s += ", ";
+        s += "static_cast<" + cppScalarType(params[i].type.dtype)
+             + ">(nk__host->unbox_scalar(a[" + std::to_string(i) + "]))";
+    }
+    s += ")));\n";
+    s += "}\n";
+    s += "}  // namespace\n";
+    s += "extern \"C\" {\n";
+    s += "NK_PLUGIN_EXPORT int nk_plugin_abi_version(void) { return NK_PLUGIN_ABI_VERSION; }\n";
+    s += "NK_PLUGIN_EXPORT int nk_plugin_register(const nk_host_api *host) {\n";
+    s += "    nk__host = host;\n";
+    s += "    return host->register_fn(\"" + exportName + "\", &nk__wrap);\n";
+    s += "}\n";
+    s += "}  // extern \"C\"\n";
+    return s;
+}
+
 // ── class struct emission (§12 brick 5) ───────────────────────────────
 std::string emitClassStruct(const ClassInfo &ci)
 {
