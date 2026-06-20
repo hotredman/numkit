@@ -10,6 +10,9 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/value_type.hpp>
 
+#include <cstdio>
+#include <exception>
+#include <limits>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -41,47 +44,96 @@ const Value &handleFor(const std::string &name)
 Value *unwrap(nk_val v) { return reinterpret_cast<Value *>(v); }
 nk_val  wrap(Value *v) { return reinterpret_cast<nk_val>(v); }
 
+void setError(nk_error *err, const char *msg)
+{
+    if (!err) return;
+    err->code = 1;
+    std::snprintf(err->message, sizeof(err->message), "%s", msg ? msg : "error");
+}
+
 } // namespace
 
+// Every entry is try/catch-guarded: a C++ exception (a MATLAB error, a bad
+// argument, bad_alloc) is NEVER allowed to cross the extern "C" frame
+// (that is UB). nk_call reports it via nk_error; the infallible-in-correct-
+// use entries return a safe default.
 extern "C" {
 
-nk_val nk_box_scalar(double v) { return wrap(new Value(Value::scalar(v))); }
+nk_val nk_box_scalar(double v)
+{
+    try {
+        return wrap(new Value(Value::scalar(v)));
+    } catch (...) {
+        return nullptr;
+    }
+}
 
 nk_val nk_box_array(const double *p, size_t len)
 {
-    Value   m = Value::matrix(1, len, numkit::ValueType::DOUBLE, nullptr);
-    double *d = m.doubleDataMut();
-    for (size_t i = 0; i < len; ++i) d[i] = p[i];
-    return wrap(new Value(std::move(m)));
+    try {
+        Value   m = Value::matrix(1, len, numkit::ValueType::DOUBLE, nullptr);
+        double *d = m.doubleDataMut();
+        for (size_t i = 0; i < len; ++i) d[i] = p[i];
+        return wrap(new Value(std::move(m)));
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
-               size_t nargout, nk_val *extra_outs)
+               size_t nargout, nk_val *extra_outs, nk_error *err)
 {
-    std::vector<Value> a;
-    a.reserve(nargs);
-    for (size_t i = 0; i < nargs; ++i) a.push_back(*unwrap(args[i]));
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        std::vector<Value> a;
+        a.reserve(nargs);
+        for (size_t i = 0; i < nargs; ++i) a.push_back(*unwrap(args[i]));
 
-    const size_t       nout = nargout == 0 ? 1 : nargout;
-    std::vector<Value> outs = engine().callFunctionHandleMulti(
-        handleFor(name), numkit::Span<const Value>(a.data(), a.size()), nout);
+        const size_t       nout = nargout == 0 ? 1 : nargout;
+        std::vector<Value> outs = engine().callFunctionHandleMulti(
+            handleFor(name), numkit::Span<const Value>(a.data(), a.size()), nout);
 
-    for (size_t k = 1; k < nargout && extra_outs; ++k)
-        extra_outs[k - 1] = wrap(new Value(k < outs.size() ? outs[k] : Value()));
-    return wrap(new Value(outs.empty() ? Value() : outs[0]));
+        for (size_t k = 1; k < nargout && extra_outs; ++k)
+            extra_outs[k - 1] = wrap(new Value(k < outs.size() ? outs[k] : Value()));
+        return wrap(new Value(outs.empty() ? Value() : outs[0]));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
 }
 
-double nk_unbox_scalar(nk_val v) { return unwrap(v)->toScalar(); }
+double nk_unbox_scalar(nk_val v)
+{
+    try {
+        return unwrap(v)->toScalar();
+    } catch (...) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+}
 
 void nk_unbox_array(nk_val v, double *out, size_t len)
 {
-    const Value  *val = unwrap(v);
-    const double *d   = val->doubleData();
-    const size_t  nm  = val->numel();
-    for (size_t i = 0; i < len && i < nm; ++i) out[i] = d[i];
+    try {
+        const Value  *val = unwrap(v);
+        const double *d   = val->doubleData();
+        const size_t  nm  = val->numel();
+        for (size_t i = 0; i < len && i < nm; ++i) out[i] = d[i];
+    } catch (...) {
+        // leave `out` as the caller initialised it
+    }
 }
 
-size_t nk_numel(nk_val v) { return unwrap(v)->numel(); }
+size_t nk_numel(nk_val v)
+{
+    try {
+        return unwrap(v)->numel();
+    } catch (...) {
+        return 0;
+    }
+}
 
 void nk_release(nk_val v) { delete unwrap(v); }
 
