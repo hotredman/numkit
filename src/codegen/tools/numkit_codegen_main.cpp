@@ -84,8 +84,10 @@ int main(int argc, char **argv)
             std::cout << em.source;
         } else {
             std::ofstream os(outPath, std::ios::binary);
-            if (!os) { std::cerr << "error: cannot write " << outPath << "\n"; return 1; }
+            if (!os) { std::cerr << "error: cannot open " << outPath << "\n"; return 1; }
             os << em.source;
+            os.flush();
+            if (!os) { std::cerr << "error: failed writing " << outPath << "\n"; return 1; }
         }
         // The emitted entry symbol + signature, to stderr so -o stays clean.
         std::cerr << "numkit_codegen: emitted entry '" << em.name << "': " << em.signature << "\n";
