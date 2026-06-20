@@ -171,3 +171,21 @@ TEST(Transfer, UnaryMath)
     // sin on an integer errors in MATLAB -> not safely typeable
     EXPECT_TRUE(reg.apply("sin", {ArgInfo::of(InferredType::scalar(ValueType::INT8))}).isDynamic());
 }
+
+// atan2/hypot: scalar real^2 -> scalar real; complex or array arg -> Dynamic
+// (no std complex overload; codegen lowers only the scalar real case).
+TEST(Transfer, BinaryMath)
+{
+    const auto reg = makeRegistry();
+    EXPECT_EQ(reg.apply("atan2", {ArgInfo::of(InferredType::scalar(ValueType::DOUBLE)),
+                                  ArgInfo::of(InferredType::scalar(ValueType::DOUBLE))})
+                  .dtype,
+              ValueType::DOUBLE);
+    EXPECT_TRUE(reg.apply("hypot", {ArgInfo::of(InferredType::scalar(ValueType::COMPLEX)),
+                                    ArgInfo::of(InferredType::scalar(ValueType::DOUBLE))})
+                    .isDynamic());
+    EXPECT_TRUE(reg.apply("atan2",
+                          {ArgInfo::of(InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())),
+                           ArgInfo::of(InferredType::scalar(ValueType::DOUBLE))})
+                    .isDynamic());
+}

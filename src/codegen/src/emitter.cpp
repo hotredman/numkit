@@ -592,6 +592,17 @@ const char *unaryMathStd(const std::string &name)
     return it == kMap.end() ? nullptr : it->second;
 }
 
+// MATLAB binary-math name -> std:: name. Total on ℝ², typed scalar->scalar by
+// realBinaryMathTransfer (complex/array -> Dynamic, so this only fires for a
+// real scalar result).
+const char *binaryMathStd(const std::string &name)
+{
+    static const std::unordered_map<std::string, const char *> kMap = {
+        {"atan2", "atan2"}, {"hypot", "hypot"}};
+    const auto it = kMap.find(name);
+    return it == kMap.end() ? nullptr : it->second;
+}
+
 std::string Emitter::emitExpr(const ASTNode &e)
 {
     switch (e.type) {
@@ -667,6 +678,11 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
     if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
+
+    if (nargs == 2)
+        if (const char *fn = binaryMathStd(name))
+            return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ", "
+                   + emitExpr(*call.children[2]) + ")";
 
     // Bridged fallback (opt-in, DESIGN.md §6a): a builtin the emitter cannot
     // lower goes through the C-ABI to the runtime — but ONLY when inference
