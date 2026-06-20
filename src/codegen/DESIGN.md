@@ -405,10 +405,18 @@ then committed.
    run() calls obj.area() -> compiled, run, area = w*h = 12. Plus
    field-round-trip e2e (5b).
 
-**Later (each its own milestone):** MATLAB-level construction
-(`Point(args)` via the constructor method) + a handle-class e2e (bare
-`shared_ptr`); the `Value`-ABI bridge (§6) so compiled code calls
-uncompiled builtins/libs and passes arrays/objects as `Value`; array-valued
-interprocedural args/results; 2-D / Subscript2D index emission; closed-world
-polymorphism via class-id type-switch (§7a); the `ControlBlock` upgrade for
-`delete`/`isvalid`.
+**Boundary work DONE since:** #1 construction (1a default `Point{}` /
+handle::make + 1b explicit ctor with obj-seeded output); #2a void/0-output
+functions & methods (handle in-place mutators); #3 array & object
+interprocedural ARGUMENTS (`ptr,len` passing); handle-class e2e (getter +
+void mutator). collectFunctions no longer leaks methods into the
+free-function table.
+
+**Still later (each its own milestone):** #2b true multi-output
+`[a,b]=f()` (tuple / out-params + MULTI_ASSIGN); array RESULTS from a call
+(out-param threading at the call site); the `Value`-ABI bridge (§6) so
+compiled code calls uncompiled builtins/libs and passes arrays/objects as
+`Value`; 2-D / Subscript2D index emission; closed-world polymorphism via
+class-id type-switch (§7a); the `ControlBlock` upgrade for `delete`/
+`isvalid`; recursion precision (Bottom-start fixpoint vs the current
+Dynamic break).
