@@ -362,6 +362,24 @@ TEST(EmitterFn, TypedButUnloweredBuiltinThrows)
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }
 
+// ── 2-D matrix indexing emission ──────────────────────────────────────
+TEST(EmitterFn, Matrix2DIndexEmission)
+{
+    const auto reg = stdReg();
+    numkit::ASTNodePtr root;
+    const numkit::ASTNode *fn =
+        findFunc("function s = tr(A)\n  s = A(1,1) + A(3,2);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+
+    const std::string s = emitFunction(
+        *fn, {{"A", InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::dims(3, 3))}},
+        reg).source;
+
+    EXPECT_TRUE(contains(s, "const double* A, std::size_t A_rows, std::size_t A_cols"));
+    EXPECT_TRUE(contains(s, "nk_rt::index2(A, A_rows, A_cols, 1.0, 1.0)"));
+    EXPECT_TRUE(contains(s, "nk_rt::index2(A, A_rows, A_cols, 3.0, 2.0)"));
+}
+
 // ── boundary #2b: multi-output emission ───────────────────────────────
 TEST(EmitterFn, MultiOutputEmission)
 {
