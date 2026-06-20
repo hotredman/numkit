@@ -584,7 +584,10 @@ const char *unaryMathStd(const std::string &name)
         {"sin", "sin"},     {"cos", "cos"},   {"tan", "tan"},   {"atan", "atan"},
         {"sinh", "sinh"},   {"cosh", "cosh"}, {"tanh", "tanh"}, {"exp", "exp"},
         {"floor", "floor"}, {"ceil", "ceil"}, {"round", "round"},
-        {"abs", "abs"},     {"fix", "trunc"}};
+        {"abs", "abs"},     {"fix", "trunc"},
+        // total-on-ℝ, real-only (transfer refuses complex) — see
+        // realOnlyMathUnaryTransfer
+        {"asinh", "asinh"}, {"erf", "erf"}, {"erfc", "erfc"}, {"expm1", "expm1"}};
     const auto it = kMap.find(name);
     return it == kMap.end() ? nullptr : it->second;
 }

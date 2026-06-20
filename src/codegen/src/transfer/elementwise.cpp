@@ -194,6 +194,19 @@ InferredType realMathUnaryTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// asinh/erf/erfc/expm1 — total on the reals, but with NO std complex overload,
+// so a COMPLEX argument is refused (-> Dynamic) rather than emitting a
+// non-compiling std::erf(complex). Real (double/single) -> same shape; else
+// Dynamic. (The emitter lowers these to std::<name>; see unaryMathStd.)
+InferredType realOnlyMathUnaryTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    const ValueType dt = args[0].type.dtype;
+    if (dt == ValueType::DOUBLE || dt == ValueType::SINGLE)
+        return InferredType::concrete(dt, args[0].type.shape);
+    return InferredType::dynamic();
+}
+
 // abs — |complex| is real; logical/char promote to double; numeric stays.
 InferredType absTransfer(const std::vector<ArgInfo> &args)
 {
@@ -234,6 +247,9 @@ void registerElementwiseTransfers(TransferRegistry &reg)
                           "atan", "floor", "ceil", "round", "fix", "sign"})
         reg.add(n, realMathUnaryTransfer);
     reg.add("abs", absTransfer);
+    // real-only elementwise math (no std complex overload)
+    for (const char *n : {"asinh", "erf", "erfc", "expm1"})
+        reg.add(n, realOnlyMathUnaryTransfer);
 }
 
 } // namespace numkit::codegen

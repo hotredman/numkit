@@ -187,6 +187,33 @@ TEST(EmitterFn, ScalarReturnSignature)
     EXPECT_TRUE(contains(out.source, "#include <cmath>"));  // self-contained prelude
 }
 
+// ---- native math coverage --------------------------------------------------
+// erf/erfc/expm1/asinh are total on R and lower straight to std:: — no bridge,
+// the TU stays self-contained.
+TEST(EmitterFn, RealOnlyMathLowersToStd)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = erf(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const EmittedFunction out = emitFunction(*fn, {{"x", kDoubleScalar}}, reg);
+    EXPECT_TRUE(contains(out.source, "std::erf("));
+    EXPECT_FALSE(contains(out.source, "nk_codegen_rt.h"));  // self-contained, no bridge
+}
+
+// A complex argument has no std::erf overload, so the transfer refuses it
+// (Dynamic) and — without bridging — the emitter throws rather than emit
+// non-compiling std::erf(std::complex).
+TEST(EmitterFn, ComplexErfRefusedWithoutBridge)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = erf(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn, {{"x", InferredType::scalar(ValueType::COMPLEX)}}, reg),
+                 std::runtime_error);
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits
