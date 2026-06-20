@@ -61,6 +61,15 @@ InferredType inferFunctionReturn(const ASTNode &funcDef,
                                  const TransferRegistry &reg,
                                  const ClassRegistry *classes = nullptr);
 
+// All output types of `funcDef` given argument infos (one per returnName),
+// for multi-output calls `[a,b] = f(...)`. Empty on arity mismatch. A `~`
+// (ignored) output still occupies its slot. inferFunctionReturn is the
+// single-output projection of this.
+std::vector<InferredType> inferFunctionReturns(const ASTNode &funcDef,
+                                               const std::vector<ArgInfo> &args,
+                                               const TransferRegistry &reg,
+                                               const ClassRegistry *classes = nullptr);
+
 // Register each method of each class in `classes` under the transfer key
 // "ClassName::methodName" (its first parameter is the object). A method
 // call `obj.m(a)` resolves via reg.apply("Class::m", {self, a}). Recursion
