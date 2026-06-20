@@ -16,10 +16,17 @@ const nk_host_api *g_host = nullptr;
 nk_val sample_triple(const nk_val *args, size_t nargs, size_t nargout,
                      nk_val *extra_outs, nk_error *err)
 {
-    (void)nargs;
     (void)nargout;
     (void)extra_outs;
-    (void)err;
+    // A plugin function should validate its inputs and report failure via
+    // nk_error (never assume nargs / dereference a missing arg).
+    if (!g_host || nargs < 1 || !args) {
+        if (err) {
+            err->code = 1;
+            err->message[0] = '\0';  // (a real plugin would set a diagnostic)
+        }
+        return nullptr;
+    }
     return g_host->box_scalar(g_host->unbox_scalar(args[0]) * 3.0);
 }
 

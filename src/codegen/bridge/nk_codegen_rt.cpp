@@ -82,6 +82,7 @@ nk_val nk_box_scalar(double v)
 
 nk_val nk_box_array(const double *p, size_t len)
 {
+    if (!p && len != 0) return nullptr;  // a null read is UB, not a throw
     try {
         Value   m = Value::matrix(1, len, numkit::ValueType::DOUBLE, nullptr);
         double *d = m.doubleDataMut();
@@ -114,9 +115,14 @@ nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
 {
     if (err) { err->code = 0; err->message[0] = '\0'; }
     try {
+        if (nargs != 0 && !args) throw std::runtime_error("nk_call: null args");
         std::vector<Value> a;
         a.reserve(nargs);
-        for (size_t i = 0; i < nargs; ++i) a.push_back(*unwrap(args[i]));
+        for (size_t i = 0; i < nargs; ++i) {
+            const Value *av = unwrap(args[i]);  // a null handle is UB to deref
+            if (!av) throw std::runtime_error("nk_call: null argument handle");
+            a.push_back(*av);
+        }
 
         const size_t       nout = nargout == 0 ? 1 : nargout;
         std::vector<Value> outs = engine().callFunctionHandleMulti(
@@ -204,9 +210,13 @@ int nk_register_fn(const char *name, nk_fn fn)
 
                 if (!outs.empty()) outs[0] = r ? *unwrap(r) : Value();
                 delete unwrap(r);
-                for (size_t k = 1; k < nout && k < outs.size(); ++k) {
-                    outs[k] = extra[k - 1] ? *unwrap(extra[k - 1]) : Value();
-                    delete unwrap(extra[k - 1]);
+                // Release EVERY owned extra output, whether or not it fits in
+                // `outs` — decoupled from outs.size() so a slot count mismatch
+                // can never leak a plugin-owned handle.
+                for (size_t j = 0; j < extra.size(); ++j) {
+                    const size_t k = j + 1;
+                    if (k < outs.size()) outs[k] = extra[j] ? *unwrap(extra[j]) : Value();
+                    delete unwrap(extra[j]);
                 }
             });
         return 0;
@@ -233,6 +243,7 @@ int nk_load_plugin(const char *path, nk_error *err)
 #if defined(_WIN32)
         HMODULE lib = ::LoadLibraryA(path);
         if (!lib) { setError(err, "LoadLibrary failed (plugin not found or bad)"); return 1; }
+        auto closeLib = [&] { ::FreeLibrary(lib); };
         auto ver = reinterpret_cast<version_fn>(
             reinterpret_cast<void *>(::GetProcAddress(lib, "nk_plugin_abi_version")));
         auto reg = reinterpret_cast<register_fn>(
@@ -240,16 +251,21 @@ int nk_load_plugin(const char *path, nk_error *err)
 #else
         void *lib = ::dlopen(path, RTLD_NOW | RTLD_LOCAL);
         if (!lib) { setError(err, ::dlerror()); return 1; }
+        auto closeLib = [&] { ::dlclose(lib); };
         auto ver = reinterpret_cast<version_fn>(::dlsym(lib, "nk_plugin_abi_version"));
         auto reg = reinterpret_cast<register_fn>(::dlsym(lib, "nk_plugin_register"));
 #endif
 
+        // On any failure below, unmap the module (only a SUCCESSFUL load keeps
+        // it resident, since its registered function pointers must stay live).
         if (!ver || !reg) {
+            closeLib();
             setError(err, "plugin missing required entry points "
                           "(nk_plugin_abi_version / nk_plugin_register)");
             return 1;
         }
         if (ver() != NK_PLUGIN_ABI_VERSION) {
+            closeLib();
             setError(err, "plugin ABI version mismatch");
             return 1;
         }
@@ -275,7 +291,11 @@ int nk_load_plugin(const char *path, nk_error *err)
         }();
 
         const int rc = reg(&host);
-        if (rc != 0) { setError(err, "plugin registration hook returned an error"); return rc; }
+        if (rc != 0) {
+            closeLib();
+            setError(err, "plugin registration hook returned an error");
+            return rc;
+        }
         loaded.insert(path);  // record only on success, so a failed load retries
         // `lib` is intentionally left loaded: its registered function pointers
         // must stay live for the process lifetime. (A proper unload API would

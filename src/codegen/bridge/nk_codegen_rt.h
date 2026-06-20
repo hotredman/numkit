@@ -6,9 +6,15 @@
  * transitive dependency graph. The implementation (nk_codegen_rt.cpp) owns
  * numkit (Value + a private StandardEngine) entirely behind this boundary.
  *
- * Ownership: box_* and call return OWNED handles the caller must nk_release.
- * call BORROWS its argument handles (caller still owns them). A handle is
- * opaque — never dereference it.
+ * Ownership: box_* / eval / call return OWNED handles the caller must release
+ * with nk_release — and ONLY with nk_release. A handle's storage belongs to
+ * this runtime (the DLL when built as one); never free/delete it yourself or
+ * across a different allocator/CRT. call BORROWS its argument handles (caller
+ * still owns them). A handle is opaque — never dereference it.
+ *
+ * Threading: NOT thread-safe. All entry points share one process-wide engine
+ * (+ caches); serialise calls, or give each thread its own process. (The
+ * underlying interpreter is single-threaded.)
  */
 #ifndef NK_CODEGEN_RT_H
 #define NK_CODEGEN_RT_H

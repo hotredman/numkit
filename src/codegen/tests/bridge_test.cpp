@@ -74,6 +74,28 @@ TEST(Bridge, ErrorTranslatedNotThrown)
     nk_release(x);
 }
 
+// Hardening (self-review): a null argument handle is REPORTED, never
+// dereferenced (a null deref is UB the try/catch cannot save).
+TEST(Bridge, NullArgHandleReportsError)
+{
+    nk_val   args[1] = {nullptr};
+    nk_error err;
+    err.code = 0;
+    nk_val r = nk_call("sin", args, 1, 1, nullptr, &err);
+    EXPECT_EQ(r, nullptr);
+    EXPECT_NE(err.code, 0);
+}
+
+// Hardening (self-review): boxing a null array pointer fails cleanly; a
+// zero-length array (null ok, nothing to read) is a valid empty handle.
+TEST(Bridge, BoxArrayNullPointer)
+{
+    EXPECT_EQ(nk_box_array(nullptr, 3), nullptr);
+    nk_val z = nk_box_array(nullptr, 0);
+    EXPECT_EQ(nk_numel(z), 0u);
+    nk_release(z);
+}
+
 // ---- Plugin / extension ABI (DESIGN.md §6b) --------------------------------
 // A plugin PROVIDES functions with the nk_fn signature (the mirror of
 // nk_call). Once registered, they resolve from numkit source / nk_call /
