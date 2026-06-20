@@ -194,6 +194,25 @@ InferredType realMathUnaryTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// atan2/hypot — total on ℝ², no std complex overload. SCALAR real args only
+// (the codegen lowers these in scalar context); an array / complex / non-real
+// arg -> Dynamic (sound over-approximation). single promotes to double when
+// mixed, matching MATLAB.
+InferredType realBinaryMathTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2) return InferredType::dynamic();
+    for (const auto &a : args) {
+        if (!a.type.isConcrete() || !a.type.shape.isScalar()) return InferredType::dynamic();
+        const ValueType dt = a.type.dtype;
+        if (dt != ValueType::DOUBLE && dt != ValueType::SINGLE) return InferredType::dynamic();
+    }
+    const ValueType dt =
+        (args[0].type.dtype == ValueType::DOUBLE || args[1].type.dtype == ValueType::DOUBLE)
+            ? ValueType::DOUBLE
+            : ValueType::SINGLE;
+    return InferredType::scalar(dt);
+}
+
 // asinh/erf/erfc/expm1 — total on the reals, but with NO std complex overload,
 // so a COMPLEX argument is refused (-> Dynamic) rather than emitting a
 // non-compiling std::erf(complex). Real (double/single) -> same shape; else
@@ -250,6 +269,9 @@ void registerElementwiseTransfers(TransferRegistry &reg)
     // real-only elementwise math (no std complex overload)
     for (const char *n : {"asinh", "erf", "erfc", "expm1"})
         reg.add(n, realOnlyMathUnaryTransfer);
+    // real-only binary math (scalar; no std complex overload)
+    for (const char *n : {"atan2", "hypot"})
+        reg.add(n, realBinaryMathTransfer);
 }
 
 } // namespace numkit::codegen

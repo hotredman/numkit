@@ -214,6 +214,20 @@ TEST(EmitterFn, ComplexErfRefusedWithoutBridge)
                  std::runtime_error);
 }
 
+// Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
+TEST(EmitterFn, BinaryMathLowersToStd)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn =
+        findFunc("function r = f(y, x)\n  r = atan2(y, x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const EmittedFunction out =
+        emitFunction(*fn, {{"y", kDoubleScalar}, {"x", kDoubleScalar}}, reg);
+    EXPECT_TRUE(contains(out.source, "std::atan2("));
+    EXPECT_FALSE(contains(out.source, "nk_codegen_rt.h"));  // self-contained
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits
