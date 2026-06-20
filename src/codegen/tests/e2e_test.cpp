@@ -428,6 +428,51 @@ TEST(CodegenE2E, ValueClassMethodCall)
     EXPECT_DOUBLE_EQ(got[0], 12.0);  // area = w * h = 3 * 4
 }
 
+// Boundary #1a: a SELF-CONTAINED class program — the object is constructed,
+// mutated, and used entirely in numkit code (no C++-side construction). The
+// harness only calls the entry. Default construction Rect() -> Rect{}.
+TEST(CodegenE2E, SelfContainedClassProgram)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "classdef Rect\n  properties\n    w = 0\n    h = 0\n  end\n"
+        "  methods\n    function a = area(o)\n      a = o.w * o.h;\n    end\n  end\nend\n"
+        "function y = demo()\n  r = Rect();\n  r.w = 3;\n  r.h = 4;\n  y = r.area();\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    ClassRegistry creg;
+    collectClasses(*root, creg, reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+    registerClassMethods(reg, creg);
+    registerClassConstructors(reg, creg);
+
+    const EmittedFunction emitted = emitProgram(*ft.find("demo"), {}, ft, reg, &creg);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_selfclass_e2e.exe").string();
+    const std::string outTxt = (base / "nk_selfclass_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "();\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 12.0);  // Rect() default, w=3 h=4, area = 12
+}
+
 // Handle class end-to-end: exercises the nk_rt::handle<T> path (shared
 // reference, obj->field, handle param + method) that the value-class tests
 // never touch. v1 supports a 1-output method (getter); a void in-place

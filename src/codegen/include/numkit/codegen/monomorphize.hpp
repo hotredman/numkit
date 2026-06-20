@@ -68,6 +68,12 @@ InferredType inferFunctionReturn(const ASTNode &funcDef,
 // the registry's use.
 void registerClassMethods(TransferRegistry &reg, const ClassRegistry &classes);
 
+// Register each class name as a constructor transfer: `Point(args)` ->
+// Object(classId) (a constructor always yields an instance of its class;
+// argument validation happens at emission). Lets inference type a
+// construction site. `classes` must outlive the registry's use.
+void registerClassConstructors(TransferRegistry &reg, const ClassRegistry &classes);
+
 // Register each function in `table` as a body-inferring transfer in `reg`
 // (recursion -> Dynamic). `reg` and `table` must outlive the registry's
 // use. Call after registerStandardTransfers so user functions shadow
