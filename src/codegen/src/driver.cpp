@@ -73,16 +73,22 @@ std::vector<InferredType> parseTypeSpec(const std::string &spec)
     return out;
 }
 
-EmittedFunction transpileSource(const std::string &source, const std::string &entry,
-                                const std::vector<InferredType> &paramTypes,
-                                const BridgeOptions &bridge)
+namespace {
+
+// Parse `source`, register transfers/user-functions/classes, resolve the entry
+// (named or sole), arity-check, build the ParamSpec list, then invoke `emit`
+// WHILE everything is still alive. Nothing borrowing escapes — the registry's
+// user-function transfers reference these locals, so emission must run inside
+// this scope (shared by both transpileSource and transpileToPlugin).
+template <class Emit>
+auto withPrepared(const std::string &source, const std::string &entry,
+                  const std::vector<InferredType> &paramTypes, Emit &&emit)
 {
     Lexer  lex(source);
     Parser parser(lex.tokenize());
     auto   root = parser.parse();
     if (!root) throw std::runtime_error("numkit build: failed to parse source");
 
-    // Register transfers + user functions + classes so calls / methods type.
     TransferRegistry reg;
     registerStandardTransfers(reg);
     ClassRegistry classes;
@@ -96,7 +102,6 @@ EmittedFunction transpileSource(const std::string &source, const std::string &en
     }
     const ClassRegistry *classesPtr = classes.size() > 0 ? &classes : nullptr;
 
-    // Resolve the entry: the named function, or the sole one.
     const ASTNode *fn = nullptr;
     if (!entry.empty()) {
         fn = table.find(entry);
@@ -104,9 +109,8 @@ EmittedFunction transpileSource(const std::string &source, const std::string &en
     } else if (table.size() == 1) {
         fn = table.entries().begin()->second;
     } else {
-        throw std::runtime_error(
-            "numkit build: source has " + std::to_string(table.size())
-            + " functions — specify the entry with --entry");
+        throw std::runtime_error("numkit build: source has " + std::to_string(table.size())
+                                 + " functions — specify the entry with --entry");
     }
 
     if (paramTypes.size() != fn->paramNames.size())
@@ -120,7 +124,34 @@ EmittedFunction transpileSource(const std::string &source, const std::string &en
     for (std::size_t i = 0; i < paramTypes.size(); ++i)
         params.push_back({fn->paramNames[i], paramTypes[i]});
 
-    return emitProgram(*fn, params, table, reg, classesPtr, bridge);
+    return emit(*fn, params, reg, table, classesPtr);
+}
+
+} // namespace
+
+EmittedFunction transpileSource(const std::string &source, const std::string &entry,
+                                const std::vector<InferredType> &paramTypes,
+                                const BridgeOptions &bridge)
+{
+    return withPrepared(source, entry, paramTypes,
+                        [&](const ASTNode &fn, const std::vector<ParamSpec> &params,
+                            const TransferRegistry &reg, const FunctionTable &table,
+                            const ClassRegistry *classes) {
+                            return emitProgram(fn, params, table, reg, classes, bridge);
+                        });
+}
+
+std::string transpileToPlugin(const std::string &source, const std::string &entry,
+                              const std::vector<InferredType> &paramTypes,
+                              const std::string &exportName, const std::string &abiHeaderPath)
+{
+    return withPrepared(source, entry, paramTypes,
+                        [&](const ASTNode &fn, const std::vector<ParamSpec> &params,
+                            const TransferRegistry &reg, const FunctionTable &,
+                            const ClassRegistry *classes) {
+                            return emitScalarPlugin(fn, params, reg, exportName, abiHeaderPath,
+                                                    classes);
+                        });
 }
 
 } // namespace numkit::codegen::driver

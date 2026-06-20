@@ -30,7 +30,7 @@ namespace {
 {
     std::cerr << "error: " << err << "\n\n"
               << "usage: " << argv0 << " <file.m> [--args \"<spec>\"] [--entry <name>]"
-              << " [--bridge] [-o <file>]\n";
+              << " [--bridge | --plugin <name>] [-o <file>]\n";
     std::exit(2);
 }
 
@@ -48,7 +48,7 @@ std::string readFile(const std::string &path, bool &ok)
 
 int main(int argc, char **argv)
 {
-    std::string file, argsSpec, entry, outPath;
+    std::string file, argsSpec, entry, outPath, pluginExport;
     bool        bridge = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -61,6 +61,7 @@ int main(int argc, char **argv)
         else if (a == "--entry") entry = next("--entry");
         else if (a == "-o") outPath = next("-o");
         else if (a == "--bridge") bridge = true;
+        else if (a == "--plugin") pluginExport = next("--plugin");
         else if (a == "-h" || a == "--help") usage(argv[0], "help");
         else if (!a.empty() && a[0] == '-') usage(argv[0], "unknown option " + a);
         else if (file.empty()) file = a;
@@ -72,25 +73,40 @@ int main(int argc, char **argv)
     const std::string source = readFile(file, ok);
     if (!ok) { std::cerr << "error: cannot read " << file << "\n"; return 1; }
 
+    if (bridge && !pluginExport.empty())
+        usage(argv[0], "--plugin and --bridge are mutually exclusive (a plugin TU is "
+                       "self-contained-compiled, not bridged)");
+
     try {
-        const auto paramTypes = numkit::codegen::driver::parseTypeSpec(argsSpec);
-        numkit::codegen::BridgeOptions bridgeOpts;
-        bridgeOpts.enabled       = bridge;
-        bridgeOpts.runtimeHeader = "nk_codegen_rt.h";
-        const numkit::codegen::EmittedFunction em =
-            numkit::codegen::driver::transpileSource(source, entry, paramTypes, bridgeOpts);
+        namespace cg = numkit::codegen;
+        const auto  paramTypes = cg::driver::parseTypeSpec(argsSpec);
+
+        std::string generated;  // the C++ TU to write
+        std::string info;       // a one-line note to stderr (keeps -o clean)
+        if (!pluginExport.empty()) {
+            generated = cg::driver::transpileToPlugin(source, entry, paramTypes, pluginExport,
+                                                      "nk_plugin.h");
+            info      = "emitted plugin registering '" + pluginExport + "'";
+        } else {
+            cg::BridgeOptions bridgeOpts;
+            bridgeOpts.enabled       = bridge;
+            bridgeOpts.runtimeHeader = "nk_codegen_rt.h";
+            const cg::EmittedFunction em =
+                cg::driver::transpileSource(source, entry, paramTypes, bridgeOpts);
+            generated = em.source;
+            info      = "emitted entry '" + em.name + "': " + em.signature;
+        }
 
         if (outPath.empty()) {
-            std::cout << em.source;
+            std::cout << generated;
         } else {
             std::ofstream os(outPath, std::ios::binary);
             if (!os) { std::cerr << "error: cannot open " << outPath << "\n"; return 1; }
-            os << em.source;
+            os << generated;
             os.flush();
             if (!os) { std::cerr << "error: failed writing " << outPath << "\n"; return 1; }
         }
-        // The emitted entry symbol + signature, to stderr so -o stays clean.
-        std::cerr << "numkit_codegen: emitted entry '" << em.name << "': " << em.signature << "\n";
+        std::cerr << "numkit_codegen: " << info << "\n";  // stderr, so -o stays clean
         return 0;
     } catch (const std::exception &e) {
         std::cerr << "error: " << e.what() << "\n";
