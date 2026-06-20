@@ -10,6 +10,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/monomorphize_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/classinfo_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bridge_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tiered_test.cpp
     # The Value-ABI bridge runtime (DESIGN.md §6a). Compiled into the test
     # binary for brick ①; packaged as the standalone nk_codegen_rt shared
     # lib for AOT-compiled artifacts in a later brick.
@@ -35,9 +36,12 @@ set_target_properties(nk_sample_plugin PROPERTIES
 
 set(NK_SAMPLE_PLUGIN_FILE
     "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}nk_sample_plugin${CMAKE_SHARED_LIBRARY_SUFFIX}")
+# Bridge header dir, so the CodegenTiered test's generated plugin TU can
+# #include "<dir>/nk_plugin.h" with no -I flag.
+get_filename_component(NK_BRIDGE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../bridge" ABSOLUTE)
 configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/nk_sample_plugin_path.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/nk_sample_plugin_path.h @ONLY)
+    ${CMAKE_CURRENT_SOURCE_DIR}/nk_codegen_test_paths.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/nk_codegen_test_paths.h @ONLY)
 target_include_directories(numkit_gtest PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # Ensure the plugin .dll exists before the test binary runs.

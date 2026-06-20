@@ -106,4 +106,24 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
 // v1: stored scalar properties only (a non-scalar field is refused).
 std::string emitClassStruct(const ClassInfo &ci);
 
+// Emit a SCALAR function wrapped as a loadable numkit plugin (tiered
+// acceleration / codegen-as-plugin, DESIGN.md §6b): the compiled function
+// (emitFunction, RawBuffer ABI) + the plugin ABI hooks
+// (nk_plugin_abi_version / nk_plugin_register) + an nk_fn that marshals
+// nk_val<->scalar through the host table and calls it. Compiled to a shared
+// library and loaded with nk_load_plugin, the result makes `exportName` run
+// native inside a live session.
+//
+// v1 scope: every parameter AND the single output must be an unboxed scalar
+// (verified by inference); a non-scalar / multi-output / Dynamic function is
+// refused via the explicit boundary (array-valued tiering needs an
+// output-size protocol — a later brick). `abiHeaderPath` is the include path
+// to nk_plugin.h that the generated TU will #include.
+std::string emitScalarPlugin(const ASTNode &funcDef,
+                             const std::vector<ParamSpec> &params,
+                             const TransferRegistry &reg,
+                             const std::string &exportName,
+                             const std::string &abiHeaderPath,
+                             const ClassRegistry *classes = nullptr);
+
 } // namespace numkit::codegen
