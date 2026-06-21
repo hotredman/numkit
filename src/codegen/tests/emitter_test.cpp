@@ -521,6 +521,42 @@ TEST(EmitterFn, SizeNoDimRowVector)
     }
 }
 
+// [r, c] = size(A): native two-output size. r = axis 0 (rows); c folds the
+// remaining axes (cols for a matrix, the trailing-dim product for N-D). Both
+// targets are real scalars -- no array producer.
+TEST(EmitterFn, SizeTwoOutputRowsCols)
+{
+    const auto reg = stdReg();
+    {  // 2-D operand -> r = rows, c = cols (both scalar OUTPUT params)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn =
+            findFunc("function [r, c] = f(A)\n  [r, c] = size(A);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const InferredType mat = InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 4));
+        const std::string  s   = emitFunction(*fn, {{"A", mat}}, reg).source;
+        EXPECT_TRUE(contains(s, "r = static_cast<double>(_nk_A_rows);"));
+        EXPECT_TRUE(contains(s, "c = static_cast<double>(_nk_A_cols);"));
+    }
+    {  // N-D operand -> c folds the trailing dims (d1 * d2), matching MATLAB
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn =
+            findFunc("function [r, c] = f(A)\n  [r, c] = size(A);\nend\n", root);
+        const InferredType nd =
+            InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 3, 4}));
+        const std::string s = emitFunction(*fn, {{"A", nd}}, reg).source;
+        EXPECT_TRUE(contains(s, "r = static_cast<double>(_nk_A_d0);"));
+        EXPECT_TRUE(contains(s, "c = static_cast<double>(_nk_A_d1 * _nk_A_d2);"));
+    }
+    {  // 1-D row operand -> r = 1, c = len; r,c are scalar LOCALS (must hoist)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc(
+            "function y = f(x)\n  [r, c] = size(x);\n  y = r * 100 + c;\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
+        EXPECT_TRUE(contains(s, "r = static_cast<double>(1);"));
+        EXPECT_TRUE(contains(s, "c = static_cast<double>(_nk_x_len);"));
+    }
+}
+
 // RUNTIME-dim N-D LOCAL: zeros(m,n,p) with variable dims -> per-dim size_t
 // companion vars (hoisted, set from the args), a flat owned vector sized to
 // their product; indexN / size / numel read the vars (ndims still folds to the

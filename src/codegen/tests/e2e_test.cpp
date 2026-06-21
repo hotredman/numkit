@@ -1236,6 +1236,53 @@ TEST(CodegenE2E, SizeNoDimRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 1005.0);  // [1 5] -> 1*1000 + 5
 }
 
+// [r, c] = size(A) end-to-end. r, c are scalar LOCALS, so this also validates
+// that multi-assign targets are hoisted. 2-D: A is 3x4 -> r=3, c=4 -> 3004.
+// N-D: c folds the trailing dims (3*4=12), matching MATLAB's
+// [r,c]=size(rand(2,3,4)) -> 2, 12.
+TEST(CodegenE2E, SizeTwoOutputRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    auto run = [](const EmittedFunction &emitted, const std::string &tag,
+                  const std::string &call) -> std::vector<double> {
+        auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+        std::filesystem::create_directories(base);
+        const std::string exe    = (base / ("nk_" + tag + ".exe")).string();
+        const std::string outTxt = (base / ("nk_" + tag + "_out.txt")).string();
+        std::string       program = emitted.source +
+            "#include <cstdio>\n"
+            "int main() {\n"
+            "  double A[24] = {0};\n"
+            "  double y = " + call + ";\n"
+            "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+            "  if (!g) return 2;\n"
+            "  std::fprintf(g, \"%.17g\\n\", y);\n"
+            "  std::fclose(g); return 0;\n}\n";
+        return compileRunReadDoubles(program, exe, outTxt);
+    };
+
+    const char *src = "function y = f(A)\n  [r, c] = size(A);\n  y = r * 1000 + c;\nend\n";
+    {  // 2-D: r=rows, c=cols (both scalar locals)
+        const EmittedFunction emitted =
+            transpile(src, {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 4))}});
+        ASSERT_NE(emitted.source.find("r = static_cast<double>(_nk_A_rows);"), std::string::npos);
+        const std::vector<double> got = run(emitted, "size2_e2e", emitted.name + "(A, 3, 4)");
+        ASSERT_EQ(got.size(), 1u);
+        EXPECT_DOUBLE_EQ(got[0], 3004.0);  // r=3, c=4
+    }
+    {  // N-D: c folds the trailing dims (d1*d2 = 3*4 = 12)
+        const EmittedFunction emitted = transpile(
+            src, {{"A", InferredType::concrete(ValueType::DOUBLE,
+                                               numkit::codegen::Shape::ndShape({2, 3, 4}))}});
+        ASSERT_NE(emitted.source.find("_nk_A_d1 * _nk_A_d2"), std::string::npos);
+        const std::vector<double> got = run(emitted, "size2nd_e2e", emitted.name + "(A, 2, 3, 4)");
+        ASSERT_EQ(got.size(), 1u);
+        EXPECT_DOUBLE_EQ(got[0], 2012.0);  // r=2, c=3*4=12
+    }
+}
+
 // RUNTIME-dim N-D LOCAL end-to-end: A = zeros(m,n,p) with the dims passed in as
 // args. f(2,3,4): A is 2x3x4 (NOT a cube — proves per-axis strides), A(1,1,1)=7
 // (offset 0), A(2,2,2)=9 (column-major offset 1 + 2*1 + (2*3)*1 = 9). Then
