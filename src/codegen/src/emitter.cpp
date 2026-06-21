@@ -1115,8 +1115,7 @@ void Emitter::emitAssign(const ASTNode &s)
         // length; an owned-vector LOCAL is `a.assign(numel, fill)` (numel =
         // product of the size args).
         if (isArrayVar(name)
-            && (arrays_.at(name).isLocal || !arrays_.at(name).is2D)  // a local may be 2-D
-            && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
+            && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)  // local/output, any rank
             && rhs.type == NodeType::CALL && !rhs.children.empty()
             && rhs.children[0]->type == NodeType::IDENTIFIER
             && (rhs.children[0]->strValue == "zeros"
@@ -1147,11 +1146,11 @@ void Emitter::emitAssign(const ASTNode &s)
                 close();
             }
             // Record the array type so a later `name(k)` infers element-access
-            // (the env, not arrays_, drives inferExpr). An N-D local records its
-            // TRUE N-D shape (inferExpr of the zeros/ones RHS) instead of a 1-D
+            // (the env, not arrays_, drives inferExpr). A 2-D / N-D array records
+            // its TRUE shape (inferExpr of the zeros/ones RHS) instead of a 1-D
             // row-vector stand-in — accurate, no type-lie; arrays_ still drives
             // indexing/queries either way.
-            if (ai.isND)
+            if (ai.isND || ai.is2D)
                 types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             else
                 types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
@@ -1757,6 +1756,26 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.lenVar       = "(" + prod + ")";  // drives the zeros/ones fill loop
             arrays[retName] = ai;
             sigParams.push_back(sig);
+        } else if (is2DMatrixType(retType)) {
+            // 2-D matrix OUTPUT -> caller-allocated out-param: a MUTABLE pointer
+            // + rows/cols companions (column-major), passed IN by value (the
+            // caller allocates rows*cols and passes the dims). The body fills it
+            // (zeros + index2_set); size/numel read the companions. Mirror of the
+            // N-D-output branch on the KnownDims rank-2 fast path. Checked BEFORE
+            // isBufferArrayType (which also matches a 2-D shape).
+            arrayReturn = true;
+            retCpp      = "void";
+            ArrayInfo ai;
+            ai.dtype    = retType.dtype;
+            ai.is2D     = true;
+            ai.isOutput = true;
+            ai.dataExpr = retName;
+            ai.rowsVar  = companion(retName, "_rows");
+            ai.colsVar  = companion(retName, "_cols");
+            ai.lenVar   = "(" + ai.rowsVar + " * " + ai.colsVar + ")";  // zeros/ones fill bound
+            arrays[retName] = ai;
+            sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName + ", std::size_t "
+                                + ai.rowsVar + ", std::size_t " + ai.colsVar);
         } else if (isBufferArrayType(retType)) {
             arrayReturn = true;
             retCpp      = "void";
