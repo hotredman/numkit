@@ -23,7 +23,11 @@ set(NUMKIT_OPS_SOURCES
     # and the Highway dispatchers' small-N gate calls these (one body, no drift;
     # lambda-free TU so it auto-vectorizes) — see bugs/ops/cheap-elementwise-simd-small-n.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_scalar.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_scalar.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_scalar.cpp
+    # Public kernel facade (numkit/ops/kernels.hpp) — stable forwarders over the
+    # backend-split detail loops; the codegen lowering target. Base TU (no SIMD
+    # specialisation of its own; resolves to the linked backend).
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernels.cpp)
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
