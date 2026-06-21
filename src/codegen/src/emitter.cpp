@@ -1296,6 +1296,43 @@ void Emitter::emitAssign(const ASTNode &s)
             types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
+        // Matrix product: C = A * B (both 2-D). C is m x n (A is m x k, B is
+        // k x n), C(i,j) = sum_l A(i,l)*B(l,j), column-major. The shared dim
+        // must agree (runtime guard, MATLAB-like). Native triple loop; a
+        // complex product accumulates in std::complex. (Scalar*X / X*scalar are
+        // elementwise scaling, handled above; matrix*vector needs a 1-D operand
+        // and is not yet lowered.) Native + self-contained.
+        if (isArrayVar(name) && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
+            && arrays_.at(name).is2D && rhs.type == NodeType::BINARY_OP && rhs.strValue == "*"
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo &dst = arrays_.at(name);
+            const ArrayInfo &A   = arrays_.at(rhs.children[0]->strValue);
+            const ArrayInfo &B   = arrays_.at(rhs.children[1]->strValue);
+            if (!A.is2D || !B.is2D)
+                unsupported("matrix product with a non-matrix operand (matrix*vector not yet lowered)");
+            if (name == rhs.children[0]->strValue || name == rhs.children[1]->strValue)
+                unsupported("in-place matrix product (C = C * B)");
+            line("if (" + A.colsVar + " != " + B.rowsVar
+                 + ") throw std::out_of_range(\"numkit: inner matrix dimensions must agree\");");
+            if (dst.isLocal)
+                line(name + ".assign(" + dst.rowsVar + " * " + dst.colsVar + ", "
+                     + zeroLiteral(dst.dtype) + ");");
+            open("for (std::size_t _nk_j = 0; _nk_j < " + dst.colsVar + "; ++_nk_j)");
+            open("for (std::size_t _nk_i = 0; _nk_i < " + dst.rowsVar + "; ++_nk_i)");
+            line(cppScalarType(dst.dtype) + " _nk_acc = " + zeroLiteral(dst.dtype) + ";");
+            open("for (std::size_t _nk_l = 0; _nk_l < " + A.colsVar + "; ++_nk_l)");
+            line("_nk_acc += " + A.dataExpr + "[_nk_i + _nk_l * " + A.rowsVar + "] * "
+                 + B.dataExpr + "[_nk_l + _nk_j * " + B.rowsVar + "];");
+            close();
+            line(dst.dataExpr + "[_nk_i + _nk_j * " + dst.rowsVar + "] = _nk_acc;");
+            close();
+            close();
+            types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+            return;
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and
