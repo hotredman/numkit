@@ -746,16 +746,19 @@ cover it.
   triple loop + shared-dim guard. `A*x` (matrix * col → col) and `r*A` (row *
   matrix → row) → double loop + guard. `r*c` (row * col → scalar) → a reduction
   into a scalar. All accumulate complex in `std::complex`. Deferred: outer
-  product (`col*row` → matrix), `scalar*MATRIX` (needs 2-D elementwise), in-place
-  `C=C*B`.
+  product (`col*row` → matrix), in-place `C=C*B`.
+- **2-D elementwise — native.** A 2-D dest with any number of 2-D array operands
+  (+ scalars) → flat column-major loop over numel; the soundness guard compares
+  BOTH dims (equal numel ≠ equal shape). Covers `scalar*MATRIX`, `A+s`, `A.*B`,
+  `sin(A)`, …. Rank discipline: no implicit 1-D↔2-D broadcast; N-D refused.
 
 **Still later (each its own milestone), simplest first:**
 - `size(scalar-var)` (the no-dim row + `[r,c]` two-output forms are done).
 - merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
   interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
   throws on negative, matching the OLD interpreter — self-consistent until then).
-- 2-D/N-D native elementwise (unlocks `scalar*MATRIX`, `A.*B` for matrices, …);
-  outer product `col*row`.
+- N-D native elementwise (2-D done); outer product `col*row` (runtime-dim 2-D
+  output).
 - interprocedural array RETURN (a compiled callee returning an array — out-param
   threading at the call site).
 - multi-output methods + partial-nargout + `~`-ignored outputs (v1: scalar
