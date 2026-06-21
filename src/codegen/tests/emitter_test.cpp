@@ -261,6 +261,19 @@ TEST(EmitterFn, ElementwiseArrayArithmetic)
     EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));  // self-contained, no bridge
 }
 
+// Native elementwise array MATH: y = sin(x) lowers to a std::sin per-element
+// loop — no bridge, self-contained. (sin/cos/erf/… are all elementwise.)
+TEST(EmitterFn, ElementwiseArrayMathNative)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sin(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;  // no bridge
+    EXPECT_TRUE(contains(s, "std::sin(x[__i])"));   // per-element native call
+    EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));   // self-contained, no runtime
+}
+
 // A matrix op (mtimes `*`, not elementwise `.*`) is NOT lowered as elementwise
 // — without bridging it falls to the boundary (throws), never silently wrong.
 TEST(EmitterFn, MatrixMtimesNotElementwise)
