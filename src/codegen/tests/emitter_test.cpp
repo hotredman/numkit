@@ -389,6 +389,32 @@ TEST(EmitterFn, NDOutputAsOutParam)
     EXPECT_TRUE(contains(s, "nk_rt::indexN_set(y, {y_d0, y_d1, y_d2}"));  // companion dims, mutable ptr
 }
 
+// RUNTIME-dim N-D LOCAL: zeros(m,n,p) with variable dims -> per-dim size_t
+// companion vars (hoisted, set from the args), a flat owned vector sized to
+// their product; indexN / size / numel read the vars (ndims still folds to the
+// literal rank). Closes "full N-D": N-D now lives in every position, const
+// AND runtime dims.
+TEST(EmitterFn, NDRuntimeLocal)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function s = f(m, n, p)\n  A = zeros(m, n, p);\n  A(1,1,1) = 7;\n"
+        "  s = A(1,1,1) + size(A,2) + numel(A);\nend\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    const std::vector<ParamSpec> params = {{"m", InferredType::scalar(ValueType::DOUBLE)},
+                                           {"n", InferredType::scalar(ValueType::DOUBLE)},
+                                           {"p", InferredType::scalar(ValueType::DOUBLE)}};
+    const std::string s = emitFunction(*fn, params, reg).source;
+    EXPECT_TRUE(contains(s, "std::size_t A_d0 = 0, A_d1 = 0, A_d2 = 0;"));        // hoisted vars
+    EXPECT_TRUE(contains(s, "A_d0 = static_cast<std::size_t>(m);"));              // captured from arg
+    EXPECT_TRUE(contains(s, "A.assign(A_d0 * A_d1 * A_d2, 0.0);"));               // sized to product
+    EXPECT_TRUE(contains(s, "nk_rt::indexN_set(A.data(), {A_d0, A_d1, A_d2}"));   // runtime dims
+    EXPECT_TRUE(contains(s, "static_cast<double>(A_d1)"));                        // size(A,2) -> var
+    EXPECT_TRUE(contains(s, "static_cast<double>(A_d0 * A_d1 * A_d2)"));          // numel -> product
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits

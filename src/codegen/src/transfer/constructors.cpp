@@ -37,16 +37,18 @@ InferredType zerosOnesTransfer(const std::vector<ArgInfo> &args)
                  ? Shape::dims(a, b)
                  : Shape::unknown();
     } else {
-        // >= 3 dims: a ranked N-D array. All dims known-constant -> NDims;
-        // any runtime dim -> Unknown (runtime-dim N-D needs dim vars — later).
+        // >= 3 dims: a ranked N-D array of rank = nargs. Each known-constant
+        // dim records its exact size; a runtime dim records 0 (unknown). The
+        // shape stays NDims (ranked) rather than collapsing to Unknown — sound
+        // (it over-approximates an unknown dim), and it lets the emitter
+        // materialise runtime dim vars from the call args (a runtime-dim N-D
+        // local). ndShape canonicalises a fully-known rank-2 back to KnownDims.
         std::vector<std::size_t> dimsv;
-        bool                     allKnown = true;
         for (const auto &arg : args) {
             std::size_t d = 0;
-            if (!arg.constant.asDim(d)) { allKnown = false; break; }
-            dimsv.push_back(d);
+            dimsv.push_back(arg.constant.asDim(d) ? d : 0);
         }
-        sh = allKnown ? Shape::ndShape(std::move(dimsv)) : Shape::unknown();
+        sh = Shape::ndShape(std::move(dimsv));
     }
     return InferredType::concrete(ValueType::DOUBLE, sh);
 }
