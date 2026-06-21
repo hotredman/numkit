@@ -729,13 +729,25 @@ crater). Revisit only if/when `ops` grows raw-buffer transcendental kernels;
 until then the inline loop (small/mid N, self-contained) + Value-bridge (general)
 cover it.
 
+**More DONE (this batch):**
+- **`[r,c] = size(A)`** — native two-output size (r = axis 0; c folds the
+  trailing dims, so `[r,c]=size(rand(2,3,4))` = 2,12). `addMulti("size")` types
+  the two scalars; `dimExpr(ArrayInfo,k)` (extracted, shared with the `s=size`
+  producer + `size(A,dim)`) supplies each axis. v1 = the two-output idiom; other
+  nargout refused (size is variadic, applyMulti is nargout-blind).
+- **Transpose `y = x'` / `x.'` (scalar, 1-D, 2-D; real + complex).** Native,
+  self-contained: a vector flips orientation (element copy); a matrix swaps dims
+  (column-major index swap); ctranspose (`'`) conjugates a complex operand. The
+  `transpose`/`ctranspose` transfer infers the shape (row↔col / dims swap /
+  scalar; N-D → Dynamic). N-D and in-place (`y=y'`) refused.
+
 **Still later (each its own milestone), simplest first:**
-- `[r,c] = size(A)` multi-output form + `size(scalar-var)` (the `s = size(A)`
-  row form is done, B1).
+- `size(scalar-var)` (the no-dim row + `[r,c]` two-output forms are done).
 - merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
   interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
   throws on negative, matching the OLD interpreter — self-consistent until then).
-- 2-D-producing ops beyond `zeros`: transpose, matmul (need shape + emission).
+- `matmul` (`A*B`) — 2-D-producing; `ops::matmulDoubleLoop` exists, or a native
+  triple loop (transpose is now done).
 - interprocedural array RETURN (a compiled callee returning an array — out-param
   threading at the call site).
 - multi-output methods + partial-nargout + `~`-ignored outputs (v1: scalar
