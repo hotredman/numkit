@@ -432,6 +432,39 @@ TEST(EmitterFn, ElementwiseOnNDRefused)
                  std::runtime_error);
 }
 
+// Reserved-companion collision (1-D): a user var `x_len` clashes with the
+// `<base>_len` companion the ABI synthesises for the array param `x`. Refused
+// with a clear message instead of emitting two same-named C++ declarations
+// (a cryptic compile error from generated code). Contract 2: explicit boundary.
+TEST(EmitterFn, CompanionNameCollisionRefused)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn =
+        findFunc("function y = f(x)\n  x_len = 3;\n  y = x(x_len);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(
+        emitFunction(*fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg),
+        std::runtime_error);
+}
+
+// Same check covers a runtime N-D local's `<base>_dN` companions: `A_d0`
+// clashes with the dim var for the 3-D local `A = zeros(m,n,p)`.
+TEST(EmitterFn, CompanionNDDimCollisionRefused)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function s = f(m, n, p)\n  A = zeros(m, n, p);\n  A_d0 = 5;\n  s = A(1,1,1) + A_d0;\nend\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn, {{"m", InferredType::scalar(ValueType::DOUBLE)},
+                                    {"n", InferredType::scalar(ValueType::DOUBLE)},
+                                    {"p", InferredType::scalar(ValueType::DOUBLE)}},
+                              reg),
+                 std::runtime_error);
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits

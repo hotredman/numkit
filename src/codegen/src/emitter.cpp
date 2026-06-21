@@ -1118,9 +1118,15 @@ void Emitter::emitAssign(const ASTNode &s)
                 close();
             }
             // Record the array type so a later `name(k)` infers element-access
-            // (the env, not arrays_, drives inferExpr).
-            types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
-                              ConstVal::unknown()});
+            // (the env, not arrays_, drives inferExpr). An N-D local records its
+            // TRUE N-D shape (inferExpr of the zeros/ones RHS) instead of a 1-D
+            // row-vector stand-in — accurate, no type-lie; arrays_ still drives
+            // indexing/queries either way.
+            if (ai.isND)
+                types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+            else
+                types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
+                                  ConstVal::unknown()});
             return;
         }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
@@ -1773,6 +1779,37 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.dataExpr  = name + ".data()";
             ai.lenVar    = name + ".size()";
             arrays[name] = ai;
+        }
+    }
+
+    // Reserved-companion safety. The ABI synthesises companion vars
+    // (`<base>_len` / `_rows` / `_cols` / `_dN`) for every array param/output
+    // and runtime-dim N-D local. If a user identifier (param or local) equals
+    // one of them, the emitted C++ would carry two same-named declarations — a
+    // cryptic compiler error from generated code. Refuse up front with a clear
+    // message (Contract 2: an explicit boundary, never broken output). The
+    // companion fields that are bare identifiers ARE companions; `.size()`,
+    // `(a * b)` and numeric literals (a local's own dims) are filtered out.
+    {
+        auto isIdent = [](const std::string &s) {
+            auto ok = [](char c, bool first) {
+                return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+                       || (!first && c >= '0' && c <= '9');
+            };
+            if (s.empty() || !ok(s[0], true)) return false;
+            for (char c : s)
+                if (!ok(c, false)) return false;
+            return true;
+        };
+        std::set<std::string> userIds = paramSet;
+        for (const auto &[n, t] : decls) userIds.insert(n);
+        for (const auto &[base, ai] : arrays) {
+            std::vector<std::string> comps = {ai.lenVar, ai.rowsVar, ai.colsVar};
+            comps.insert(comps.end(), ai.ndDims.begin(), ai.ndDims.end());
+            for (const std::string &c : comps)
+                if (isIdent(c) && userIds.count(c))
+                    unsupported("identifier '" + c + "' collides with a reserved ABI companion of "
+                                "array '" + base + "' — rename the variable");
         }
     }
 
