@@ -368,6 +368,27 @@ TEST(EmitterFn, NDShapeQueries)
     EXPECT_TRUE(contains(s, "static_cast<double>(3)"));          // ndims = rank
 }
 
+// N-D OUTPUT: a function returning a rank>=3 array -> a caller-allocated
+// out-param (a MUTABLE pointer + one size_t companion per dim, passed IN).
+// The body zero-fills over the companion product then writes via indexN_set
+// with the COMPANION dims (runtime values) — so a runtime-dim N-D output
+// works too. Mirror of the N-D param ABI, but mutable + void return.
+TEST(EmitterFn, NDOutputAsOutParam)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = f(a)\n  y = zeros(2, 2, 2);\n  y(1,1,1) = a;\n  y(2,2,2) = a * 2;\nend\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s =
+        emitFunction(*fn, {{"a", InferredType::scalar(ValueType::DOUBLE)}}, reg).source;
+    EXPECT_TRUE(contains(s, "void f(double a, double* y, "
+                            "std::size_t y_d0, std::size_t y_d1, std::size_t y_d2"));  // mutable + void
+    EXPECT_TRUE(contains(s, "__i < (y_d0 * y_d1 * y_d2)"));               // zeros() fills the product
+    EXPECT_TRUE(contains(s, "nk_rt::indexN_set(y, {y_d0, y_d1, y_d2}"));  // companion dims, mutable ptr
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits

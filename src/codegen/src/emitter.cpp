@@ -1630,6 +1630,33 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         const InferredType retType = retIt->second;
         if (isUnboxableScalarType(retType)) {
             retCpp = cppScalarType(retType.dtype);
+        } else if (retType.isConcrete() && retType.shape.isNDims()) {
+            // N-D (rank>=3) OUTPUT -> caller-allocated out-param: a MUTABLE
+            // pointer + one size_t companion per dim (column-major), all passed
+            // IN by value. The caller allocates product-of-dims elements and
+            // passes the sizes; the body fills it (indexN_set) and
+            // size/ndims/numel read the companions — so a runtime-dim N-D
+            // output works too. Checked BEFORE isBufferArrayType (which also
+            // matches an N-D shape). The dims are companion VARS (not the
+            // KnownDims literals a local uses) because the caller owns them.
+            arrayReturn = true;
+            retCpp      = "void";
+            ArrayInfo ai;
+            ai.dtype    = retType.dtype;
+            ai.isND     = true;
+            ai.isOutput = true;
+            ai.dataExpr = retName;
+            std::string sig  = cppScalarType(retType.dtype) + "* " + retName;
+            std::string prod;  // total length = product of the companions
+            for (std::size_t d = 0; d < retType.shape.nd.size(); ++d) {
+                const std::string dv = retName + "_d" + std::to_string(d);
+                ai.ndDims.push_back(dv);
+                sig  += ", std::size_t " + dv;
+                prod += (prod.empty() ? "" : " * ") + dv;
+            }
+            ai.lenVar       = "(" + prod + ")";  // drives the zeros/ones fill loop
+            arrays[retName] = ai;
+            sigParams.push_back(sig);
         } else if (isBufferArrayType(retType)) {
             arrayReturn = true;
             retCpp      = "void";

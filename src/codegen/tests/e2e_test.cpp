@@ -1096,6 +1096,44 @@ TEST(CodegenE2E, NDShapeQueriesRunCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 3258.0);
 }
 
+// N-D OUTPUT end-to-end: f returns a 2x2x2 array via a caller-allocated
+// out-param (mutable ptr + dim companions passed IN). The caller allocates 8
+// doubles (pre-seeded with a -1 sentinel), passes dims 2,2,2; the body
+// zero-fills (must clear the sentinel) then writes y(1,1,1)=a (offset 0) and
+// y(2,2,2)=2a (offset 7). Verify both written cells + a zeroed interior.
+TEST(CodegenE2E, NDOutputRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(a)\n  y = zeros(2, 2, 2);\n  y(1,1,1) = a;\n  y(2,2,2) = a * 2;\nend\n",
+        {{"a", InferredType::scalar(ValueType::DOUBLE)}});
+    ASSERT_NE(emitted.source.find("double* y, std::size_t y_d0, std::size_t y_d1, std::size_t y_d2"),
+              std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ndout_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ndout_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double y[8];\n"
+        "  for (int i = 0; i < 8; ++i) y[i] = -1.0;  // sentinel: zeros() must clear it\n"
+        "  " + emitted.name + "(3.0, y, 2, 2, 2);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 8; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 8u);
+    EXPECT_DOUBLE_EQ(got[0], 3.0);  // y(1,1,1) = a       (column-major offset 0)
+    EXPECT_DOUBLE_EQ(got[7], 6.0);  // y(2,2,2) = a * 2   (offset 7)
+    for (int i = 1; i < 7; ++i)
+        EXPECT_DOUBLE_EQ(got[i], 0.0) << "zeros() must clear the interior at i=" << i;
+}
+
 // Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
 // loop — SELF-CONTAINED (no runtime DLL, plain stdlib exe) — and matches
 // std::sin. The win over bridging: no boxing, no runtime dependency.
