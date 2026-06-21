@@ -361,6 +361,41 @@ TEST(EmitterFn, MatrixProduct)
     EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));  // self-contained
 }
 
+// With ops kernels enabled, C = A*B (DOUBLE) lowers to numkit::ops::matmulDouble
+// (the SIMD kernel ops owns) instead of the inline triple loop, and the TU
+// includes the ops facade. Default (no opt-in) stays inline — see MatrixProduct.
+TEST(EmitterFn, MatrixProductViaOpsKernel)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function C = f(A, B)\n  C = A * B;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const InferredType      A = InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3));
+    const InferredType      B = InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 2));
+    const OpsKernelOptions  ops{true};
+    const std::string       s = emitFunction(*fn, {{"A", A}, {"B", B}}, reg, nullptr, {}, ops).source;
+    EXPECT_TRUE(contains(s, "#include <numkit/ops/kernels.hpp>"));
+    EXPECT_TRUE(contains(
+        s, "numkit::ops::matmulDouble(A, B, C, _nk_C_rows, _nk_C_cols, _nk_A_cols);"));
+    EXPECT_TRUE(contains(s, "if (_nk_A_cols != _nk_B_rows)"));  // shared-dim guard kept
+    EXPECT_FALSE(contains(s, "_nk_acc +="));                    // NOT the inline loop
+}
+
+// A COMPLEX matrix product has no ops kernel yet, so even with ops kernels
+// enabled it falls to the inline loop (the deletable fallback covers complex).
+TEST(EmitterFn, MatrixProductComplexFallsToInline)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function C = f(A, B)\n  C = A * B;\nend\n", root);
+    const InferredType     A = InferredType::concrete(ValueType::COMPLEX, Shape::dims(2, 3));
+    const InferredType     B = InferredType::concrete(ValueType::COMPLEX, Shape::dims(3, 2));
+    const OpsKernelOptions ops{true};
+    const std::string      s = emitFunction(*fn, {{"A", A}, {"B", B}}, reg, nullptr, {}, ops).source;
+    EXPECT_FALSE(contains(s, "matmulDouble"));  // no double kernel for complex
+    EXPECT_TRUE(contains(s, "_nk_acc +="));     // inline loop
+}
+
 // Matrix * vector and vector * matrix -> a vector. A*x (2-D * col) is a column
 // vector; r*A (row * 2-D) is a row vector. Native double loop + shared-dim
 // guard, not bridged.

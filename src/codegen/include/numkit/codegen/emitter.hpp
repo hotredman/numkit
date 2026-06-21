@@ -90,13 +90,27 @@ struct BridgeOptions {
     std::string runtimeHeader;  // include path to nk_codegen_rt.h (when enabled)
 };
 
+// Ops-kernel lowering: ops owns the compute kernels; codegen takes a kernel
+// from ops (numkit::ops::, the public facade in <numkit/ops/kernels.hpp>)
+// instead of emitting a naive loop. OPT-IN: when disabled (the default), heavy
+// array ops lower to a self-contained inline loop (the TU stays stdlib-only —
+// existing callers unchanged). When enabled, an op with a matching ops kernel
+// (matmul, …) is emitted as a numkit::ops:: call, the TU #includes the facade,
+// and the artifact links numkit_ops. Correctness is unchanged: the inline loop
+// is the deletable fallback (no-kludge litmus); the kernel only swaps in a
+// faster SIMD implementation.
+struct OpsKernelOptions {
+    bool enabled = false;
+};
+
 // Emit one FUNCTION_DEF as a self-contained C++ TU (RawBuffer ABI, above).
 // Throws std::runtime_error on any construct outside the supported subset.
 EmittedFunction emitFunction(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
                              const TransferRegistry &reg,
                              const ClassRegistry *classes = nullptr,
-                             const BridgeOptions &bridge = {});
+                             const BridgeOptions &bridge = {},
+                             const OpsKernelOptions &opsKernels = {});
 
 // Emit a whole program (build plan §12, brick 1b): the entry function plus
 // every user-function specialisation it transitively calls, monomorphised
@@ -112,7 +126,8 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
                             const std::vector<ParamSpec> &params,
                             const FunctionTable &table, const TransferRegistry &reg,
                             const ClassRegistry *classes = nullptr,
-                            const BridgeOptions &bridge = {});
+                            const BridgeOptions &bridge = {},
+                            const OpsKernelOptions &opsKernels = {});
 
 // Emit the C++ struct for a class (build plan §12, brick 5). The object's
 // storage is the same for value and handle classes — handle-ness changes
