@@ -1066,14 +1066,28 @@ void Emitter::emitAssign(const ASTNode &s)
         if (isArrayVar(name) && !arrays_.at(name).is2D
             && arrays_.at(name).dtype == ValueType::DOUBLE) {
             std::set<std::string> srcArrays;
-            if (collectElementwise(rhs, srcArrays) && srcArrays.size() == 1) {
+            if (collectElementwise(rhs, srcArrays) && !srcArrays.empty()) {
                 const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
                 if (res.type.isConcrete() && !res.type.shape.isScalar()
                     && res.type.dtype == ValueType::DOUBLE) {
                     const ArrayInfo  &ai    = arrays_.at(name);
-                    const ArrayInfo  &src   = arrays_.at(*srcArrays.begin());
-                    const std::string bound = ai.isLocal ? src.lenVar : ai.lenVar;
-                    if (ai.isLocal) line(name + ".resize(" + src.lenVar + ");");
+                    // Loop length: the OUTPUT's caller-sized length, else (a
+                    // local) the first operand's length.
+                    const std::string bound =
+                        ai.isLocal ? arrays_.at(*srcArrays.begin()).lenVar : ai.lenVar;
+                    // SOUNDNESS: every array operand must have that length, or
+                    // the per-element loop would read out of bounds. Guard at
+                    // runtime (MATLAB errors on a size mismatch too).
+                    std::string guard;
+                    for (const std::string &an : srcArrays) {
+                        const std::string &alen = arrays_.at(an).lenVar;
+                        if (alen == bound) continue;  // trivially equal
+                        guard += (guard.empty() ? "" : " || ") + (alen + " != " + bound);
+                    }
+                    if (!guard.empty())
+                        line("if (" + guard
+                             + ") throw std::out_of_range(\"numkit: array dimensions must match\");");
+                    if (ai.isLocal) line(name + ".resize(" + bound + ");");
                     elementCtx_               = "__i";
                     const std::string rhsExpr = emitExpr(rhs);  // whole arrays -> [__i]
                     elementCtx_.clear();

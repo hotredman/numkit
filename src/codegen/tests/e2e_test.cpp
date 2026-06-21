@@ -972,6 +972,41 @@ TEST(CodegenE2E, ElementwiseArrayArithmeticRunsCorrectly)
         EXPECT_DOUBLE_EQ(got[i], double(i + 1) * 2.0 + 1.0) << "at i=" << i;
 }
 
+// MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
+// guard + per-element loop. y[i] = x[i] + w[i]*2.
+TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x, w)\n  y = x + w .* 2;\nend\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"w", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("array dimensions must match"), std::string::npos);  // guard
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_multiewise_e2e.exe").string();
+    const std::string outTxt = (base / "nk_multiewise_e2e_out.txt").string();
+    const std::size_t N       = 10;
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const std::size_t N = 10;\n"
+        "  double x[10], w[10], y[10];\n"
+        "  for (std::size_t i = 0; i < N; ++i) { x[i] = double(i + 1); w[i] = 10.0; }\n"
+        "  f(x, N, w, N, y, N);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (std::size_t i = 0; i < N; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), N);
+    for (std::size_t i = 0; i < N; ++i)
+        EXPECT_DOUBLE_EQ(got[i], double(i + 1) + 20.0) << "at i=" << i;  // x[i] + w[i]*2
+}
+
 // BRIDGED e2e (DESIGN.md §6a brick 4): a program calling a builtin the emitter
 // cannot lower (`sign`) compiles in BRIDGED mode, links the nk_codegen_rt
 // shared lib, RUNS, and matches the interpreter. Proves the C-ABI bridge end
