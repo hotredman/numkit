@@ -163,12 +163,17 @@ namespace {
 constexpr int kMaxFixpoint = 16;  // matches inference.cpp; lattice is shallow
 
 // Per-array metadata for an array parameter or the single output array.
+// 1-D vector orientation. The RawBuffer ABI erases it (a vector is just
+// ptr+len), but the compile-time type knows it — used to fold size(vec, dim).
+enum class VecOrient { Unknown, Row, Col };
+
 struct ArrayInfo {
     ValueType   dtype;
     std::string lenVar;            // 1-D: the length EXPRESSION — `<name>_len`
                                    // for a param/output, `<name>.size()` for a local
     bool        isOutput = false;  // the function's caller-allocated out-param
     bool        is2D     = false;  // a 2-D matrix (column-major storage)
+    VecOrient   orient   = VecOrient::Unknown;  // 1-D only (!is2D && !isND)
     std::string rowsVar, colsVar;  // 2-D: dim companions (`<name>_rows/_cols`)
     bool        isLocal  = false;  // an owned `std::vector` local (not a buffer ptr)
     std::string dataExpr;          // the element-pointer EXPRESSION — `<name>` for a
@@ -193,6 +198,21 @@ bool is2DMatrixType(const InferredType &t)
 bool isUnboxableScalarType(const InferredType &t)
 {
     return t.isConcrete() && t.shape.isScalar() && t.isUnboxableScalar();
+}
+
+// Row/Col orientation of a 1-D buffer from its compile-time shape (Unknown when
+// the shape doesn't pin it down — then size(vec,dim) is not folded).
+VecOrient orientOf(const InferredType &t)
+{
+    switch (t.shape.kind) {
+    case ShapeKind::RowVector: return VecOrient::Row;
+    case ShapeKind::ColVector: return VecOrient::Col;
+    case ShapeKind::KnownDims:
+        if (t.shape.rows == 1) return VecOrient::Row;
+        if (t.shape.cols == 1) return VecOrient::Col;
+        return VecOrient::Unknown;
+    default: return VecOrient::Unknown;
+    }
 }
 
 // A concrete numeric/logical buffer of non-scalar shape (raw-buffer array).
@@ -766,9 +786,11 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
     }
 
     // size(A, dim) with a compile-time literal dim: the dim's size (2-D
-    // rows/cols, N-D the dim, out-of-range -> 1). A 1-D buffer's orientation
-    // is untracked in the RawBuffer ABI, so size(vec,dim) falls through (to a
-    // bridged call or the explicit boundary), not handled here.
+    // rows/cols, N-D the dim, out-of-range -> 1). A 1-D buffer's row/col
+    // orientation is erased by the RawBuffer ABI but recorded from the
+    // compile-time type (ai.orient): a row is 1 x len (size(.,1)=1,
+    // size(.,2)=len), a col is len x 1. Unknown orientation still falls
+    // through (bridge / explicit boundary).
     if (name == "size" && nargs == 2 && call.children[1]->type == NodeType::IDENTIFIER
         && isArrayVar(call.children[1]->strValue)
         && call.children[2]->type == NodeType::NUMBER_LITERAL) {
@@ -782,6 +804,10 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
         if (kok && ai.is2D)
             return "static_cast<double>("
                    + (k == 1 ? ai.rowsVar : k == 2 ? ai.colsVar : std::string("1")) + ")";
+        if (kok && ai.orient == VecOrient::Row)
+            return "static_cast<double>(" + (k == 2 ? ai.lenVar : std::string("1")) + ")";
+        if (kok && ai.orient == VecOrient::Col)
+            return "static_cast<double>(" + (k == 1 ? ai.lenVar : std::string("1")) + ")";
     }
 
     if (nargs == 1)
@@ -1681,6 +1707,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.dtype       = p.type.dtype;
             ai.lenVar      = companion(p.name, "_len");
             ai.dataExpr    = p.name;
+            ai.orient      = orientOf(p.type);
             arrays[p.name] = ai;
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
                                 + ", std::size_t " + ai.lenVar);
@@ -1784,6 +1811,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.lenVar       = companion(retName, "_len");
             ai.isOutput     = true;
             ai.dataExpr     = retName;
+            ai.orient       = orientOf(retType);
             arrays[retName] = ai;
             sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName
                                 + ", std::size_t " + ai.lenVar);
@@ -1857,6 +1885,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.isLocal   = true;
             ai.dataExpr  = name + ".data()";
             ai.lenVar    = name + ".size()";
+            ai.orient    = orientOf(t);
             arrays[name] = ai;
         }
     }
