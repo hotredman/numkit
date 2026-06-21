@@ -1769,6 +1769,38 @@ TEST(CodegenE2E, VectorTimesMatrixRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[1], 32.0);
 }
 
+// Inner / dot product end-to-end: s = r*c, r=[1 2 3] (row), c=[4;5;6] (col) ->
+// 1*4 + 2*5 + 3*6 = 32. A scalar reduction; the function returns the scalar.
+TEST(CodegenE2E, InnerProductRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(r, c)\n  s = r * c;\nend\n",
+        {{"r", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"c", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
+    ASSERT_NE(emitted.source.find("_nk_acc += r[_nk_l] * c[_nk_l];"), std::string::npos);
+    ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_dot_e2e.exe").string();
+    const std::string outTxt = (base / "nk_dot_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r[3] = {1, 2, 3}, c[3] = {4, 5, 6};\n"
+        "  double s = " + emitted.name + "(r, 3, c, 3);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", s);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 32.0);  // 1*4 + 2*5 + 3*6
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)

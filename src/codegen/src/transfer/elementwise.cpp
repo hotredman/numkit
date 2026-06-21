@@ -102,6 +102,9 @@ InferredType mtimesTransfer(const std::vector<ArgInfo> &args)
     // row vector * matrix -> row vector (r is 1 x k, A is k x n -> 1 x n)
     if (a.shape.kind == ShapeKind::RowVector && b.shape.kind == ShapeKind::KnownDims)
         return InferredType::concrete(dt, Shape::rowVector());
+    // row vector * column vector -> scalar (inner / dot product)
+    if (a.shape.kind == ShapeKind::RowVector && b.shape.kind == ShapeKind::ColVector)
+        return InferredType::scalar(dt);
     return InferredType::concrete(dt, Shape::unknown());
 }
 
