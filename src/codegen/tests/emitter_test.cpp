@@ -415,6 +415,23 @@ TEST(EmitterFn, NDRuntimeLocal)
     EXPECT_TRUE(contains(s, "static_cast<double>(A_d0 * A_d1 * A_d2)"));          // numel -> product
 }
 
+// N-D is REFUSED by the 1-D-only elementwise path (explicit boundary, not
+// broken C++). `y = A .* 2` with A 3-D: the flat per-element loop bounds on a
+// lenVar an N-D param doesn't have, and numel-matching is unsound for N-D, so
+// the emitter throws rather than emit malformed/wrong code (Contract 2).
+TEST(EmitterFn, ElementwiseOnNDRefused)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = A .* 2;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn,
+                              {{"A", InferredType::concrete(ValueType::DOUBLE,
+                                                            numkit::codegen::Shape::ndShape({2, 2, 2}))}},
+                              reg),
+                 std::runtime_error);
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits
