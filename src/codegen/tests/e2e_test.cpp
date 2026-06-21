@@ -1593,6 +1593,41 @@ TEST(CodegenE2E, ComplexConjTransposeRunsCorrectly)
     for (int i = 0; i < 4; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
+// 2-D matrix transpose end-to-end: y = A.' swaps the dims, column-major. A is
+// 2x3 stored column-major {1,2,3,4,5,6} = [[1,3,5],[2,4,6]]; A.' is 3x2 =
+// [[1,2],[3,4],[5,6]] stored {1,3,5,2,4,6}. Validates the column-major index
+// swap and the 2-D caller-allocated out-param.
+TEST(CodegenE2E, MatrixTransposeRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(A)\n  y = A.';\nend\n",
+        {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))}});
+    ASSERT_NE(emitted.source.find("[_nk_i + _nk_j * _nk_y_rows] = A[_nk_j + _nk_i * _nk_A_rows];"),
+              std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_mattransp_e2e.exe").string();
+    const std::string outTxt = (base / "nk_mattransp_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[6] = {1, 2, 3, 4, 5, 6};\n"  // 2x3 column-major
+        "  double y[6];\n"
+        "  " + emitted.name + "(A, 2, 3, y, 3, 2);\n"  // A is 2x3, y is 3x2
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 6; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 6u);
+    const double exp[6] = {1, 3, 5, 2, 4, 6};  // (A.') column-major
+    for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)
