@@ -596,6 +596,59 @@ prony(const Value &h, int nb, int na, std::pmr::memory_resource *mr)
     return std::make_tuple(rowVec(b, mr), rowVec(std::vector<double>{1.0}, mr));
 }
 
+// ── stmcb ─────────────────────────────────────────────────────────
+// Steiglitz-McBride iteration: identify B(z)/A(z) (nb zeros, na poles) with
+// approximate impulse response h. Initialise A via Prony, then repeat `niter`
+// times (MATLAB default 5): prefilter the unit impulse and h by 1/A, solve the
+// linear least-squares [E | -G]·[b; a_tail] ≈ g for the new coefficients.
+std::tuple<Value, Value>
+stmcb(const Value &h, int nb, int na, int niter, std::pmr::memory_resource *mr)
+{
+    auto      hv = readVec(h);
+    const int N  = static_cast<int>(hv.size());
+    if (niter < 1) niter = 5;
+
+    // Initialise the denominator estimate via Prony (MATLAB's default `ai`).
+    auto [b0, a0] = prony(h, nb, na, mr);
+    std::vector<double> b = readVec(b0);
+    std::vector<double> a = readVec(a0);
+    b.resize(nb + 1, 0.0);
+    a.resize(na + 1, 0.0);
+    a[0] = 1.0;
+
+    const int           P = nb + 1 + na;   // unknowns: b[0..nb] then a[1..na]
+    std::vector<double> e(N, 0.0), g(N, 0.0);
+    for (int it = 0; it < niter; ++it) {
+        // Prefilter the unit impulse (input) and h (output) by 1/A.
+        for (int n = 0; n < N; ++n) {
+            double    se  = (n == 0) ? 1.0 : 0.0;
+            double    sg  = hv[n];
+            const int lim = std::min(na, n);
+            for (int i = 1; i <= lim; ++i) { se -= a[i] * e[n - i]; sg -= a[i] * g[n - i]; }
+            e[n] = se;
+            g[n] = sg;
+        }
+        // [E | -G]·c ≈ g  (E: e shifted 0..nb, G: g shifted 1..na), normal eqs.
+        auto Mcol = [&](int n, int col) -> double {
+            if (col <= nb) { const int s = col; return (n - s >= 0) ? e[n - s] : 0.0; }
+            const int s = col - nb;             // 1..na
+            return (n - s >= 0) ? -g[n - s] : 0.0;
+        };
+        std::vector<double> MtM(static_cast<size_t>(P) * P, 0.0), Mtg(P, 0.0);
+        for (int n = 0; n < N; ++n)
+            for (int i = 0; i < P; ++i) {
+                const double mi = Mcol(n, i);
+                if (mi == 0.0) continue;
+                Mtg[i] += mi * g[n];
+                for (int j = 0; j < P; ++j) MtM[i * P + j] += mi * Mcol(n, j);
+            }
+        auto c = solveSPD(MtM, Mtg, P);
+        for (int k = 0; k <= nb; ++k) b[k]     = c[k];
+        for (int k = 0; k < na;  ++k) a[k + 1] = c[nb + 1 + k];
+    }
+    return std::make_tuple(rowVec(b, mr), rowVec(a, mr));
+}
+
 // ── corrmtx ───────────────────────────────────────────────────────
 // MATLAB default 'autocorrelation' method: produces the (n+m)×(m+1)
 // data matrix X with X(i, j) = x(i-j+1), zero-padded outside the

@@ -8,6 +8,7 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
 #include <numkit/control/lti/lti.hpp>
+#include <numkit/control/conversion/conversion.hpp>   // minreal
 
 #include <numkit/core/engine.hpp>   // CallContext, ctx.engine->resource()
 #include <numkit/value/error.hpp>
@@ -124,6 +125,16 @@ void ss2ss_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("ss2ss: requires (sys, T)",
                     0, 0, "ss2ss", "", "numkit:ss2ss:nargin");
     outs[0] = ss2ss(args[0], args[1], ctx.engine->resource());
+}
+
+void minreal_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("minreal: requires (sys [, tol])",
+                    0, 0, "minreal", "", "numkit:minreal:nargin");
+    const double tol = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 0.0;
+    outs[0] = minreal(args[0], tol, ctx.engine->resource());
 }
 
 void frdata_reg(Span<const Value> args, size_t nargout, Span<Value> outs,

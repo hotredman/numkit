@@ -1,6 +1,6 @@
 # image.imresize — 'bilinear'/'bicubic' diverge from MATLAB (grid + boundary + antialias)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-18) — pixel-centre map + mirror boundary + antialiasing
 - **Severity:** P2 (wrong values for the non-nearest methods)
 - **Kind:** bug
 - **Found:** 2026-06-04 via DEEP-PROBE (image-method sweep)
@@ -36,13 +36,34 @@ Two compounding differences from MATLAB's `imresize`:
    scales with the reduction factor; numkit does plain interpolation, so the
    interior matches but the edges differ.
 
-## Suggested fix
-Adopt MATLAB's pixel-centre coordinate mapping + edge-replicate boundary for
-the kernel taps, and the antialiasing kernel (triangle for bilinear, cubic
-for bicubic, widened by the scale factor when shrinking). Large — this is the
-known deferred imresize gap. Validate the full output matrix vs MATLAB on
-up- and down-scaling.
+## Fix (2026-06-18)
+Rewrote the 2-D `imresize` interpolation path to MATLAB's separable algorithm
+(reconstructed + validated against MATLAB before porting — the same machinery the
+already-correct `imresize3` uses, kept self-contained in geom.cpp's first anon
+namespace so the 3-D path is untouched):
+1. **Pixel-centre map:** output pixel `o` (1-based) ← input `u = o/scale +
+   0.5·(1 − 1/scale)`.
+2. **Mirror boundary:** out-of-range kernel taps reflect across the edge
+   (`rkMirror`), and taps folding onto the same input sample sum — NOT
+   zero-pad/clamp. (Clamp gave bicubic corner 0.789; mirror gives MATLAB's
+   0.71875.)
+3. **Antialiasing on shrink:** when `scale < 1` the kernel is stretched
+   (`scl = scale`, width `/= scale`) and renormalised — `h_aa(t) = scale·h(scale·t)`.
+4. Kernels: triangle (`bilinear`), Keys a=−0.5 cubic (`bicubic`); **default
+   method is now `bicubic`** (`imresize_reg` was defaulting to `bilinear`; MATLAB
+   defaults to bicubic — this was the downscale-repro mismatch). `nearest`
+   unchanged. Scale form uses the scalar scale in the map; size form uses
+   `outLen/inLen`.
+
+Verified vs MATLAB R2025b (parity `imresize.json` → OK; full matrices):
+bilinear x2 `[[1 1.25 1.75 2];…[3 3.25 3.75 4]]`; bicubic x2 (1,1)=0.71875;
+downscale `[1 2 3 4 5 6]→[1 3]` = `[1.44922 3.5 5.55078]` (bicubic + antialias).
+Guard: `known_bugs_test.cpp` (`ImresizeBilinear`, promoted live); smoke
+`imresize_interp_smoke.m`.
 
 ## References
-- `src/toolboxes/image/src/.../imresize*`
+- `src/toolboxes/image/src/geom/geom.cpp` (`rkBuild`/`rkMirror`/`imresizeKernel`
+  + the two `imresize` overloads),
+  `src/bundle/src/register/image/geom/geom_reg.cpp` (default method → bicubic).
+- `tools/parity/specs/imresize.json`.
 - MATLAB `doc imresize`

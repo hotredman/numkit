@@ -1,0 +1,10 @@
+{
+  "name": "minreal",
+  "namespace": "control",
+  "setup": "",
+  "expr": "[n1,d1]=tfdata(minreal(tf([1 1],[1 2 1])),'v'); s1=numel(d1); e1=n1(end); dc1=d1(end); [n3,~]=tfdata(minreal(tf(2*[1 1],[1 2 1])),'v'); g3=n3(end); [~,d5]=tfdata(minreal(tf([1 0 1],conv([1 0 1],[1 3]))),'v'); k5=d5(end); s5=numel(d5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["s1", "e1", "dc1", "g3", "k5", "s5"],
+  "comment": "Sig: sysr = minreal(sys[, tol]). Minimal realization by pole/zero cancellation. tf/zpk: cancel each pole against the nearest zero within relative tol (default sqrt(eps)), rebuild from surviving roots (poly expansion, real part — conjugate pairs cancel together). SISO ss: ss2tf -> cancel -> tf2ss (order + transfer-function parity, realization not unique). Fingerprint: case (s+1)/(s+1)^2 -> 1/(s+1): numel(den)=2, num(end)=1, den(end)=1; gain 2(s+1)/(s+1)^2 -> num(end)=2; complex (s^2+1)(...)/((s^2+1)(s+3)) -> 1/(s+3): den(end)=3, numel(den)=2. tfdata pads num to den length. Verified vs MATLAB R2025b. Fixes bugs/control/minreal."
+}

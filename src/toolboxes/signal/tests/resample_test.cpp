@@ -126,3 +126,36 @@ TEST_F(ResampleTest, ResampleRational)
     eval("y = resample(x, 3, 2);");
     EXPECT_EQ(eval("y").numel(), 150u);
 }
+
+// MATLAB R2025b parity: exact values for a 3/2 ramp (the bug repro).
+TEST_F(ResampleTest, ResampleRationalValues)
+{
+    eval("y = resample([1 2 3 4 5 6], 3, 2);");
+    EXPECT_EQ(eval("y").numel(), 9u);
+    EXPECT_NEAR(evalScalar("y(1)"), 1.0006061736, 1e-9);
+    EXPECT_NEAR(evalScalar("y(5)"), 3.9409926893, 1e-9);
+    EXPECT_NEAR(evalScalar("y(9)"), 4.2402907078, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(y)"), 31.6965, 1e-3);
+}
+
+// A DC level survives resampling (settled interior ≈ input level).
+TEST_F(ResampleTest, ResamplePreservesDc)
+{
+    eval("y = resample(5 * ones(1, 100), 3, 2);");
+    EXPECT_NEAR(evalScalar("y(75)"), 4.9984845661, 1e-7);
+}
+
+// Column input → column output (orientation preserved).
+TEST_F(ResampleTest, ResampleColumnOrientation)
+{
+    eval("y = resample((1:6)', 3, 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(y,1)")), 9);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(y,2)")), 1);
+}
+
+// GCD reduction: resample(x, 4, 2) == resample(x, 2, 1).
+TEST_F(ResampleTest, ResampleGcdReduction)
+{
+    eval("a = resample([1 2 3 4 5 6], 4, 2); b = resample([1 2 3 4 5 6], 2, 1);");
+    EXPECT_LT(evalScalar("max(abs(a - b))"), 1e-12);
+}

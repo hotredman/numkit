@@ -8,6 +8,8 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
+#include <numkit/math/special/special.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 
 #include "../dsp_helpers.hpp"
 
@@ -63,7 +65,23 @@ periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pm
         winPower += win[i] * win[i];
     }
 
-    fftRadix2(&scratch, buf, 1);
+    // fftRadix2 is power-of-two only. For a non-pow2 nfft, route the windowed,
+    // zero-padded signal through the general fft (Bluestein) — MATLAB uses a
+    // mixed-radix transform, so nfft = N (no padding) is a common, valid call.
+    // bugs/signal/periodogram-nonpow2-nfft. The pow2 path is unchanged.
+    const Complex *spec;
+    Value          Xv;  // owns the non-pow2 spectrum; must outlive the loop below
+    if ((nfft & (nfft - 1)) == 0) {              // power of two
+        fftRadix2(&scratch, buf, 1);
+        spec = buf.data();
+    } else {
+        Value   xwin = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        double *xw   = xwin.doubleDataMut();
+        for (size_t i = 0; i < N; ++i)
+            xw[i] = xd[i] * win[i];
+        Xv   = fft(xwin, static_cast<int>(nfft), /*dim=*/0, mr);
+        spec = Xv.complexData();
+    }
 
     const size_t nOut = nfft / 2 + 1;
     auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
@@ -74,7 +92,7 @@ periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pm
     const double scale = 1.0 / (winPower * fs);
 
     for (size_t i = 0; i < nOut; ++i) {
-        double mag2 = std::norm(buf[i]);
+        double mag2 = std::norm(spec[i]);
         if (i > 0 && i < nfft / 2)
             mag2 *= 2.0;
         Pxx.doubleDataMut()[i] = mag2 * scale;
@@ -84,6 +102,41 @@ periodogram(const Value &x, const Value &window, size_t nfft, double fs, std::pm
     }
 
     return std::make_tuple(std::move(Pxx), std::move(F));
+}
+
+Value
+periodogramConf(const Value &Pxx, double confidenceLevel, bool realInput, bool nfftEven,
+                std::pmr::memory_resource *mr)
+{
+    const size_t  nf = Pxx.numel();
+    const double *p  = Pxx.doubleData();
+
+    const double alpha = 1.0 - confidenceLevel;
+    const double qLo   = 1.0 - alpha / 2.0;   // upper chi-square quantile → lower PSD bound
+    const double qHi   = alpha / 2.0;          // lower chi-square quantile → upper PSD bound
+
+    // Closed-form chi-square inverse CDFs at the two coverage points:
+    //   chi2inv(q, 2) = -2 ln(1-q)            (exponential / 2 DOF)
+    //   chi2inv(q, 1) = (√2 · erfinv(q))²     (folded normal / 1 DOF)
+    const double c2Lo = -2.0 * std::log(1.0 - qLo);
+    const double c2Hi = -2.0 * std::log(1.0 - qHi);
+    const double eLo  = math::erfinv(Value::scalar(qLo, mr)).toScalar();
+    const double eHi  = math::erfinv(Value::scalar(qHi, mr)).toScalar();
+    const double c1Lo = 2.0 * eLo * eLo;
+    const double c1Hi = 2.0 * eHi * eHi;
+
+    // PSD → [lower, upper] multipliers per degrees-of-freedom (Pxx · v / chi2inv).
+    const double r2Lo = 2.0 / c2Lo, r2Hi = 2.0 / c2Hi;   // v = 2 (interior bins)
+    const double r1Lo = 1.0 / c1Lo, r1Hi = 1.0 / c1Hi;   // v = 1 (real DC / Nyquist)
+
+    Value   out = Value::matrix(nf, 2, ValueType::DOUBLE, mr);
+    double *o   = out.doubleDataMut();
+    for (size_t i = 0; i < nf; ++i) {
+        const bool oneDof = realInput && (i == 0 || (nfftEven && i + 1 == nf));
+        o[i]      = p[i] * (oneDof ? r1Lo : r2Lo);   // column 0 — lower bound
+        o[nf + i] = p[i] * (oneDof ? r1Hi : r2Hi);   // column 1 — upper bound
+    }
+    return out;
 }
 
 std::tuple<Value, Value>

@@ -90,8 +90,8 @@ TEST_F(LinalgKnownBug, DISABLED_ComplexMatrixOps)
     EXPECT_NEAR(evalScalar("imag(d)"),  3.0, 1e-10);
 }
 
-// bugs/linalg/funm.md — general matrix function funm(A, fun).
-TEST_F(LinalgKnownBug, DISABLED_Funm)
+// bugs/linalg/funm.md — general matrix function funm(A, fun) (FIXED).
+TEST_F(LinalgKnownBug, Funm)
 {
     eval("F = funm([2 0; 0 3], @exp);");   // MATLAB: diag(e^2, e^3)
     EXPECT_NEAR(evalScalar("F(1,1)"), 7.38905609893065, 1e-9);
@@ -110,8 +110,8 @@ TEST_F(LinalgKnownBug, DISABLED_QzGsvd)
     EXPECT_NEAR(evalScalar("S(2)"), 5.46498570422,  1e-6);
 }
 
-// bugs/linalg/schur-nonsymmetric.md — real Schur form of a non-symmetric matrix.
-TEST_F(LinalgKnownBug, DISABLED_SchurNonsymmetric)
+// bugs/linalg/schur-nonsymmetric.md — real Schur form of a non-symmetric matrix (FIXED).
+TEST_F(LinalgKnownBug, SchurNonsymmetric)
 {
     eval("A = [2 1; 0 3]; [U, T] = schur(A);");
     EXPECT_LT(evalScalar("max(max(abs(U*T*U' - A)))"),    1e-10);  // reconstruction
@@ -119,4 +119,9 @@ TEST_F(LinalgKnownBug, DISABLED_SchurNonsymmetric)
     eval("d = sort(diag(T));");
     EXPECT_NEAR(evalScalar("d(1)"), 2.0, 1e-9);
     EXPECT_NEAR(evalScalar("d(2)"), 3.0, 1e-9);
+    // 4×4 with a complex-conjugate pair: real Schur keeps a 2×2 block, still
+    // reconstructs and stays orthogonal.
+    eval("B = [0 1 0 0; 0 0 0 -1; -1 0 0 0; 0 -1 -1 0]; [V, S] = schur(B);");
+    EXPECT_LT(evalScalar("max(max(abs(V*S*V' - B)))"),    1e-9);
+    EXPECT_LT(evalScalar("max(max(abs(V'*V - eye(4))))"), 1e-9);
 }

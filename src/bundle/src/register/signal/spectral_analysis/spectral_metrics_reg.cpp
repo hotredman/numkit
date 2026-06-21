@@ -39,7 +39,7 @@ void bandpower_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = bandpower(args[0], fs, fr, ctx.engine->resource());
 }
 
-void obw_reg(Span<const Value> args, size_t /*nargout*/,
+void obw_reg(Span<const Value> args, size_t nargout,
              Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
@@ -48,7 +48,11 @@ void obw_reg(Span<const Value> args, size_t /*nargout*/,
     const Value &fs = (args.size() >= 2) ? args[1] : Value::Empty;
     double p = 0.99;
     if (args.size() >= 3 && !args[2].isEmpty()) p = args[2].toScalar();
-    outs[0] = obw(args[0], fs, p, ctx.engine->resource());
+    auto [bw, flo, fhi, pw] = obw(args[0], fs, p, ctx.engine->resource());
+    outs[0] = std::move(bw);
+    if (nargout > 1) outs[1] = std::move(flo);
+    if (nargout > 2) outs[2] = std::move(fhi);
+    if (nargout > 3) outs[3] = std::move(pw);
 }
 
 #define NK_SPEC1_REG(name, fn)                                                  \

@@ -7,6 +7,7 @@
 
 #include <numkit/wavelet/denoise/denoise.hpp>
 #include <numkit/wavelet/dwt/multilevel.hpp>
+#include <numkit/wavelet/dwt/dwt.hpp>     // ddencmp: 1-level dwt noise estimate
 
 // Compute-only TU: Value substrate + Error, no engine. The wthresh /
 // wnoisest / wdenoise builtins (CallContext wrappers) live in
@@ -15,7 +16,9 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <string>
 #include <vector>
 
 namespace numkit::wavelet {
@@ -141,6 +144,84 @@ Value wdenoise(const Value &x, int level, const std::string &wname, std::pmr::me
 
     // 5. Reconstruct.
     return waverec(C, L, w, mr);
+}
+
+Value wentropy(const Value &X, const std::string &type, double param,
+               std::pmr::memory_resource *mr)
+{
+    std::string t = type;
+    std::transform(t.begin(), t.end(), t.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    auto x = vecFromValue(X);
+    const std::size_t n = x.size();
+    double e = 0.0;
+
+    if (t == "shannon") {
+        for (double v : x) { const double s2 = v * v; if (s2 > 0.0) e -= s2 * std::log(s2); }
+    } else if (t == "log energy" || t == "logenergy") {
+        for (double v : x) { const double s2 = v * v; if (s2 > 0.0) e += std::log(s2); }
+    } else if (t == "threshold") {
+        for (double v : x) if (std::fabs(v) > param) e += 1.0;
+    } else if (t == "sure") {
+        e = static_cast<double>(n);
+        const double t2 = param * param;
+        for (double v : x) {
+            if (std::fabs(v) <= param) e -= 2.0;
+            e += std::min(v * v, t2);
+        }
+    } else if (t == "norm") {
+        if (param < 1.0)
+            throw Error("wentropy: 'norm' exponent P must be >= 1",
+                        0, 0, "wentropy", "", "numkit:wentropy:norm");
+        for (double v : x) e += std::pow(std::fabs(v), param);
+    } else {
+        throw Error("wentropy: unknown type '" + type +
+                        "' (shannon / log energy / threshold / sure / norm)",
+                    0, 0, "wentropy", "", "numkit:wentropy:type");
+    }
+    return Value::scalar(e, mr);
+}
+
+DdencmpResult ddencmp(const std::string &opt, const std::string &type,
+                      const Value &x, std::pmr::memory_resource *mr)
+{
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return s;
+    };
+    const std::string o = lower(opt);
+    const std::string t = lower(type);
+
+    if (t == "wp")
+        throw Error("ddencmp: wavelet-packet ('wp') defaults are not yet "
+                    "supported (use 'wv')",
+                    0, 0, "ddencmp", "", "numkit:ddencmp:wp");
+    if (t != "wv")
+        throw Error("ddencmp: type must be 'wv' (wavelet) or 'wp'",
+                    0, 0, "ddencmp", "", "numkit:ddencmp:type");
+
+    // Noise level from the finest-detail coefficients of a 1-level db1 DWT.
+    auto [cA, cD] = dwt(x, "db1", mr);
+    (void)cA;
+    const double med = median_abs(vecFromValue(cD));   // median(|cD1|)
+    const double sigma = med / 0.6745;
+    const double n = static_cast<double>(x.numel());
+
+    DdencmpResult r;
+    if (o == "den") {
+        r.thr = Value::scalar(std::sqrt(2.0 * std::log(n)) * sigma, mr);
+        r.sorh = Value::fromString("s", mr);
+    } else if (o == "cmp") {
+        r.thr = Value::scalar(med, mr);
+        r.sorh = Value::fromString("h", mr);
+    } else {
+        throw Error("ddencmp: option must be 'den' (denoise) or 'cmp' (compress)",
+                    0, 0, "ddencmp", "", "numkit:ddencmp:opt");
+    }
+    r.keepapp = Value::scalar(1.0, mr);
+    return r;
 }
 
 } // namespace numkit::wavelet

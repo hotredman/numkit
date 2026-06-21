@@ -19,26 +19,32 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/wavelet/wentropy-ddencmp.md — wentropy (Shannon).
-TEST_F(WaveletKnownBug, DISABLED_WentropyShannon)
+// bugs/wavelet/wentropy.md — wentropy (Shannon).
+// FIXED 2026-06-19 (closed-form entropy) — promoted live.
+TEST_F(WaveletKnownBug, WentropyShannon)
 {
     EXPECT_NEAR(evalScalar("wentropy([1 2 3 4], 'shannon')"), -69.681618, 1e-4);
 }
 
-// bugs/wavelet/wentropy-ddencmp.md — ddencmp default denoise params.
-TEST_F(WaveletKnownBug, DISABLED_Ddencmp)
+// bugs/wavelet/ddencmp.md — ddencmp default denoise params.
+// FIXED 2026-06-19 (MAD noise estimate + universal threshold) — promoted live.
+TEST_F(WaveletKnownBug, Ddencmp)
 {
     eval("[thr, sorh, keepapp] = ddencmp('den', 'wv', [1 2 3 8 3 2 1 2]);");
     EXPECT_NEAR(evalScalar("thr"), 2.137920, 1e-5);
     EXPECT_DOUBLE_EQ(evalScalar("keepapp"), 1.0);
 }
 
-// bugs/wavelet/dwt-biorthogonal.md — bior2.2 analysis coefficients.
-TEST_F(WaveletKnownBug, DISABLED_DwtBiorthogonal)
+// bugs/wavelet/dwt-biorthogonal.md — bior2.2 analysis coefficients (FIXED).
+TEST_F(WaveletKnownBug, DwtBiorthogonal)
 {
     eval("[a, d] = dwt([1 2 3 4 5 6 7 8], 'bior2.2');");
-    EXPECT_NEAR(evalScalar("a(1)"), 2.651650, 1e-5);
-    EXPECT_NEAR(evalScalar("a(2)"), 1.237437, 1e-5);
+    EXPECT_NEAR(evalScalar("a(1)"), 2.651650429449553, 1e-9);
+    EXPECT_NEAR(evalScalar("a(2)"), 1.237436867076458, 1e-9);
+    // distinct analysis vs synthesis filters: the lowpass synthesis peak.
+    eval("[LoD, HiD, LoR, HiR] = wfilters('bior2.2');");
+    EXPECT_NEAR(evalScalar("LoD(4)"),  1.0606601717798214, 1e-12);
+    EXPECT_NEAR(evalScalar("LoR(3)"),  0.7071067811865476, 1e-12);
 }
 
 // bugs/wavelet/wpdec.md — wavelet packet decomposition exists.
@@ -48,12 +54,19 @@ TEST_F(WaveletKnownBug, DISABLED_WpdecExists)
     EXPECT_NO_THROW(eval("t = wpdec([1 2 3 4 5 6 7 8], 2, 'db1');"));
 }
 
-// bugs/wavelet/wenergy-upcoef.md — energy distribution + coeff reconstruction.
-TEST_F(WaveletKnownBug, DISABLED_WenergyUpcoef)
+// bugs/wavelet/wenergy.md — energy distribution of a decomposition.
+// FIXED 2026-06-19 (band energy percentages) — promoted live.
+TEST_F(WaveletKnownBug, Wenergy)
 {
     eval("[c, l] = wavedec([1 2 3 4 5 6 7 8], 2, 'db1'); [Ea, Ed] = wenergy(c, l);");
     EXPECT_NEAR(evalScalar("Ea"), 95.0980392157, 1e-6);
     EXPECT_NEAR(evalScalar("Ea + sum(Ed)"), 100.0, 1e-6);   // percentages sum to 100
+}
+
+// bugs/wavelet/upcoef.md — single-branch coefficient reconstruction.
+// FIXED 2026-06-19 (synthesis cascade) — promoted live.
+TEST_F(WaveletKnownBug, Upcoef)
+{
     eval("y = upcoef('a', 5, 'db1', 2);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
     EXPECT_NEAR(evalScalar("y(1)"), 2.5, 1e-9);
@@ -68,16 +81,20 @@ TEST_F(WaveletKnownBug, DISABLED_Cwt)
     EXPECT_TRUE(eval("~isreal(cfs)").toBool());                  // complex (Morse)
 }
 
-// bugs/wavelet/wavedec2-family.md — 2-D multilevel decomposition + extractors.
-TEST_F(WaveletKnownBug, DISABLED_Wavedec2Family)
+// bugs/wavelet/wavedec2-family.md — 2-D multilevel decomposition + extractors (FIXED).
+TEST_F(WaveletKnownBug, Wavedec2Family)
 {
     eval("[c, s] = wavedec2(reshape(1:16,4,4), 1, 'db1');");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(c)")), 16);
     EXPECT_NEAR(evalScalar("c(1)"), 7.0, 1e-9);                 // approx coeff
+    EXPECT_EQ(static_cast<int>(evalScalar("s(1,1)")), 2);       // size(cA_1)
     eval("H = detcoef2('h', c, s, 1);");
     EXPECT_NEAR(evalScalar("H(1,1)"), -1.0, 1e-9);
+    eval("V = detcoef2('v', c, s, 1);");
+    EXPECT_NEAR(evalScalar("V(1,1)"), -4.0, 1e-9);
     eval("A = appcoef2(c, s, 'db1', 1);");
     EXPECT_NEAR(evalScalar("A(1,1)"), 7.0, 1e-9);
+    EXPECT_NEAR(evalScalar("A(2,2)"), 27.0, 1e-9);
 }
 
 // bugs/wavelet/centfrq-scal2frq.md — wavelet center frequency + scale mapping.

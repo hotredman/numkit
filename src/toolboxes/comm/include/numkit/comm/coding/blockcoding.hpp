@@ -192,4 +192,22 @@ DecodeResult decode(const Value &code, long long n, long long k,
                     const Value &opt = Value::Empty,
                     std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Syndrome decoding table (coset-leader lookup) from a parity-check
+/// matrix (`t = syndtable(H)`).
+///
+/// For an `(n-k) × n` parity-check matrix `H`, returns the `2^(n-k) × n`
+/// table whose row `s+1` holds the **minimum-weight** error pattern (coset
+/// leader) with syndrome `s = bi2de(mod(H·eᵀ, 2), 'left-msb')` (row 1 of
+/// `H` is the MSB). Error patterns are enumerated by ascending Hamming
+/// weight, and within a weight by lexicographic bit position; the first
+/// pattern reaching each syndrome wins (so among equal-weight leaders the
+/// lowest-position one is chosen).
+///
+/// @param H   Parity-check matrix, `(n-k) × n`, binary.
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `2^(n-k) × n` coset-leader table.
+/// @throws    Error if `H` is empty or `n-k` is impractically large.
+/// @see hammgen, gen2par, decode
+Value syndtable(const Value &H, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::comm

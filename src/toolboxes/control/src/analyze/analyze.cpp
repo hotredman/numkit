@@ -9,6 +9,8 @@
 #include <numkit/control/analyze/analyze.hpp>
 #include <numkit/control/freq/freq.hpp>
 #include <numkit/control/response/response.hpp>
+#include <numkit/control/conversion/conversion.hpp>   // allmargin: open-loop num/den
+#include <numkit/math/poly/polynomials.hpp>            // allmargin: roots for Stable
 
 // Compute-only TU: Value substrate + Error, no engine. The dcgain/margin/
 // stepinfo builtins (CallContext wrappers) live in analyze_reg.cpp.
@@ -17,7 +19,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <limits>
+#include <string>
 #include <vector>
 
 #ifndef M_PI
@@ -125,6 +129,184 @@ MarginResult margin(const Value &sys, std::pmr::memory_resource *mr)
             Value::scalar(Pm,  mr),
             Value::scalar(Wcg, mr),
             Value::scalar(Wcp, mr)};
+}
+
+namespace {
+
+// Open-loop (num, den) of an LTI struct as descending-power coefficient rows.
+std::pair<std::vector<double>, std::vector<double>>
+openLoopNumDen(const Value &sys, std::pmr::memory_resource *mr) {
+    auto coeffs = [](const Value &v) {
+        std::vector<double> c(v.numel());
+        for (size_t i = 0; i < v.numel(); ++i) c[i] = v.elemAsDouble(i);
+        return c;
+    };
+    if (sys.isStruct() && sys.hasField("kind")) {
+        const std::string k = sys.field("kind").toString();
+        if (k == "tf")
+            return {coeffs(sys.field("num")), coeffs(sys.field("den"))};
+        if (k == "zpk") {
+            auto [num, den] = zp2tf(sys.field("z"), sys.field("p"), sys.field("k"), mr);
+            return {coeffs(num), coeffs(den)};
+        }
+        if (k == "ss") {
+            auto [num, den] = ss2tf(sys.field("A"), sys.field("B"),
+                                    sys.field("C"), sys.field("D"), 1, mr);
+            return {coeffs(num), coeffs(den)};
+        }
+    }
+    throw Error("allmargin: expected an LTI struct (tf/zpk/ss)",
+                0, 0, "allmargin", "", "numkit:allmargin:kind");
+}
+
+Value rowFrom(const std::vector<double> &v, std::pmr::memory_resource *mr) {
+    Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < v.size(); ++i) r.doubleDataMut()[i] = v[i];
+    return r;
+}
+
+// Horner evaluation of a descending-power real polynomial at a complex point.
+std::complex<double> polyvalC(const std::vector<double> &c, std::complex<double> x) {
+    std::complex<double> r(0.0, 0.0);
+    for (double a : c) r = r * x + a;
+    return r;
+}
+
+// Exact open-loop frequency response G(jω) = num(jω) / den(jω).
+std::complex<double> evalG(const std::vector<double> &num,
+                           const std::vector<double> &den, double w) {
+    const std::complex<double> jw(0.0, w);
+    const std::complex<double> d = polyvalC(den, jw);
+    if (d == std::complex<double>(0.0, 0.0))
+        return {std::numeric_limits<double>::infinity(), 0.0};
+    return polyvalC(num, jw) / d;
+}
+
+// Bisect a scalar f(ω) for its root in [a,b] (sign change assumed), ~60 iters.
+template <class F>
+double bisectRoot(F f, double a, double b) {
+    double fa = f(a);
+    for (int it = 0; it < 80; ++it) {
+        const double m = 0.5 * (a + b);
+        const double fm = f(m);
+        if (fm == 0.0 || (b - a) <= 1e-13 * (1.0 + b)) return m;
+        if ((fa < 0.0) != (fm < 0.0)) b = m;
+        else { a = m; fa = fm; }
+    }
+    return 0.5 * (a + b);
+}
+
+} // anonymous
+
+Value allmargin(const Value &sys, std::pmr::memory_resource *mr)
+{
+    // Exact open-loop response G(jω) = num(jω)/den(jω) (no bode-grid
+    // interpolation): scan a fine log-frequency grid for sign changes of
+    // |G|−1 (gain crossovers) and Im(G) with Re(G)<0 (phase crossovers),
+    // then bisect each bracket on the exact response.
+    auto [num, den] = openLoopNumDen(sys, mr);
+
+    const double inf = std::numeric_limits<double>::infinity();
+    const double PI = 3.14159265358979323846;
+
+    // Frequency span from the pole/zero magnitudes (±3 decades).
+    double wlo = 1e-3, whi = 1e3;
+    {
+        std::vector<double> mags;
+        auto addRoots = [&](const std::vector<double> &c) {
+            if (c.size() < 2) return;
+            Value rts = numkit::math::roots(rowFrom(c, mr), mr);
+            const size_t n = rts.numel();
+            if (rts.type() == ValueType::COMPLEX) {
+                const std::complex<double> *p = rts.complexData();
+                for (size_t i = 0; i < n; ++i) { double m = std::abs(p[i]); if (m > 1e-9) mags.push_back(m); }
+            } else {
+                for (size_t i = 0; i < n; ++i) { double m = std::abs(rts.elemAsDouble(i)); if (m > 1e-9) mags.push_back(m); }
+            }
+        };
+        addRoots(num);
+        addRoots(den);
+        if (!mags.empty()) {
+            wlo = *std::min_element(mags.begin(), mags.end()) * 1e-3;
+            whi = *std::max_element(mags.begin(), mags.end()) * 1e3;
+        }
+    }
+
+    std::vector<double> gmVal, gmFreq, pmVal, pmFreq, dmVal, dmFreq;
+    const int N = 4000;
+    const double llo = std::log10(wlo), lhi = std::log10(whi);
+    double wPrev = wlo;
+    std::complex<double> gPrev = evalG(num, den, wPrev);
+    for (int i = 1; i <= N; ++i) {
+        const double w = std::pow(10.0, llo + (lhi - llo) * (double)i / N);
+        const std::complex<double> g = evalG(num, den, w);
+
+        // Gain crossover: |G| − 1 changes sign → phase + delay margin.
+        const double a = std::abs(gPrev) - 1.0, b = std::abs(g) - 1.0;
+        if (std::isfinite(a) && std::isfinite(b) && a != 0.0 && (a < 0.0) != (b < 0.0)) {
+            const double wc = bisectRoot(
+                [&](double x) { return std::abs(evalG(num, den, x)) - 1.0; }, wPrev, w);
+            const std::complex<double> gc = evalG(num, den, wc);
+            double PM = std::arg(gc) * 180.0 / PI + 180.0;
+            while (PM > 180.0) PM -= 360.0;
+            while (PM <= -180.0) PM += 360.0;
+            pmVal.push_back(PM);
+            pmFreq.push_back(wc);
+            double pmRad = PM * PI / 180.0;
+            while (pmRad < 0.0) pmRad += 2.0 * PI;
+            dmVal.push_back(wc > 0.0 ? pmRad / wc : inf);
+            dmFreq.push_back(wc);
+        }
+
+        // Phase crossover: Im(G) changes sign and Re(G) < 0 → ∠G = ±180°.
+        const double ia = gPrev.imag(), ib = g.imag();
+        if (std::isfinite(ia) && std::isfinite(ib) && ia != 0.0 && (ia < 0.0) != (ib < 0.0)) {
+            const double wc = bisectRoot(
+                [&](double x) { return evalG(num, den, x).imag(); }, wPrev, w);
+            const std::complex<double> gc = evalG(num, den, wc);
+            if (gc.real() < 0.0) {
+                const double m = std::abs(gc);
+                gmVal.push_back(m > 0.0 ? 1.0 / m : inf);
+                gmFreq.push_back(wc);
+            }
+        }
+        wPrev = w;
+        gPrev = g;
+    }
+
+    // Closed-loop (negative unity feedback) stability: roots(den + num).
+    bool stable = true;
+    {
+        const size_t L = std::max(num.size(), den.size());
+        std::vector<double> cl(L, 0.0);
+        for (size_t i = 0; i < den.size(); ++i) cl[L - den.size() + i] += den[i];
+        for (size_t i = 0; i < num.size(); ++i) cl[L - num.size() + i] += num[i];
+        size_t s0 = 0;
+        while (s0 + 1 < cl.size() && cl[s0] == 0.0) ++s0;
+        cl.erase(cl.begin(), cl.begin() + s0);
+        if (cl.size() >= 2) {
+            Value rts = numkit::math::roots(rowFrom(cl, mr), mr);
+            const size_t n = rts.numel();
+            if (rts.type() == ValueType::COMPLEX) {
+                const std::complex<double> *p = rts.complexData();
+                for (size_t i = 0; i < n; ++i)
+                    if (p[i].real() >= -1e-9) { stable = false; break; }
+            } else {
+                for (size_t i = 0; i < n; ++i)
+                    if (rts.elemAsDouble(i) >= -1e-9) { stable = false; break; }
+            }
+        }
+    }
+
+    Value s = Value::structure(mr);
+    s.field("GainMargin")  = rowFrom(gmVal,  mr);
+    s.field("GMFrequency") = rowFrom(gmFreq, mr);
+    s.field("PhaseMargin") = rowFrom(pmVal,  mr);
+    s.field("PMFrequency") = rowFrom(pmFreq, mr);
+    s.field("DelayMargin") = rowFrom(dmVal,  mr);
+    s.field("DMFrequency") = rowFrom(dmFreq, mr);
+    s.field("Stable")      = Value::logicalScalar(stable, mr);
+    return s;
 }
 
 Value stepinfo(const Value &sys, std::pmr::memory_resource *mr)

@@ -1,0 +1,10 @@
+{
+  "name": "crosscorr",
+  "namespace": "stats",
+  "setup": "y1 = [1 2 3 4]; y2 = [4 3 2 1];",
+  "expr": "[xcf, lags, bounds] = crosscorr(y1, y2, 'NumLags', 2);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["numel(xcf)", "xcf(1)", "xcf(2)", "xcf(3)", "xcf(5)", "lags(1)", "lags(5)", "bounds(1)"],
+  "comment": "Sig: [xcf, lags, bounds] = crosscorr(y1, y2, NumLags, NumSTD). Sample cross-correlation (Econometrics TB): xcf(k) = [(1/N) sum (y1_t-ybar1)(y2_{t+k}-ybar2)] / sqrt(c1(0)*c2(0)) for k=-NumLags..NumLags; zero-lag = sample correlation. Default NumLags = min(20,N-1); bounds = +-NumSTD/sqrt(N), default NumSTD=2. Fixes bugs/stats/autocorr (crosscorr was undefined). Verified vs MATLAB R2025b: xcf=[0.3 -0.25 -1 -0.25 0.3] at lags -2..2 (perfect anti-correlation at lag 0). harness prefers MATLAB."
+}

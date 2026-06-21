@@ -520,6 +520,69 @@ Value bwboundaries(const Value &BW, int conn, Value *Lout, int *Nout, std::pmr::
     return cellCol;
 }
 
+namespace {
+
+// regionprops 'Perimeter' — MATLAB R2025b computePerimeterFromBoundary: trace
+// the region's outer 8-connected boundary (Moore-neighbor) and apply the
+// Vossepoel–Smeulders weighted estimator
+//     perimeter = 0.980·Ne + 1.406·No − 0.091·Nc
+// where Ne = axis steps, No = diagonal steps, Nc = orientation changes
+// ("corners") around the closed boundary. The value is invariant to the trace
+// start/direction, so we start at the region's top-left-most pixel (r0,c0) and
+// go clockwise. Outer boundary only (holes not traced — MATLAB likewise warns
+// Perimeter is meant for hole-free regions). Single-pixel regions return 0.
+double regionPerimeter(const std::vector<int> &L, int H, int W,
+                       int lab, int r0, int c0)
+{
+    static const int Dr8[8] = {-1, -1,  0,  1,  1,  1,  0, -1};
+    static const int Dc8[8] = { 0,  1,  1,  1,  0, -1, -1, -1};
+    auto fg = [&](int r, int c) {
+        return r >= 0 && r < H && c >= 0 && c < W &&
+               L[(size_t)r * (size_t)W + (size_t)c] == lab;
+    };
+    std::vector<int> br, bc;
+    br.reserve(64);
+    bc.reserve(64);
+    br.push_back(r0);
+    bc.push_back(c0);
+    int back_dir = 6, cr = r0, cc = c0;   // back_dir = W (entered from background)
+    const size_t cap = (size_t)H * (size_t)W * 4 + 8;
+    while (br.size() < cap) {
+        bool found = false;
+        for (int k = 0; k < 8; ++k) {
+            const int d = (back_dir + k + 1) % 8;          // clockwise from back_dir+1
+            const int nr = cr + Dr8[d], nc = cc + Dc8[d];
+            if (fg(nr, nc)) {
+                br.push_back(nr);
+                bc.push_back(nc);
+                cr = nr;
+                cc = nc;
+                back_dir = (d + 4) % 8;                    // opposite of the move
+                found = true;
+                break;
+            }
+        }
+        if (!found) break;                                  // isolated pixel
+        if (cr == r0 && cc == c0 && br.size() >= 2) break;  // boundary closed
+    }
+    const size_t n = br.size();
+    if (n < 3) return 0.0;                                  // ≤1 real step → 0
+    const size_t steps = n - 1;
+    auto stepType = [&](size_t i) {                         // 0 horiz, 1 vert, 2 diag
+        const int dr = br[i + 1] - br[i], dc = bc[i + 1] - bc[i];
+        return dr == 0 ? 0 : (dc == 0 ? 1 : 2);
+    };
+    long Ne = 0, No = 0, Nc = 0;
+    for (size_t i = 0; i < steps; ++i) {
+        const int t = stepType(i);
+        if (t == 2) ++No; else ++Ne;
+        if (t != stepType((i + 1) % steps)) ++Nc;           // circular corner count
+    }
+    return 0.980 * (double)Ne + 1.406 * (double)No - 0.091 * (double)Nc;
+}
+
+} // namespace
+
 // ════════════════════════════════════════════════════════════════════
 // regionprops — basic descriptors per labelled region
 // ════════════════════════════════════════════════════════════════════
@@ -574,9 +637,39 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
         }
         return false;
     };
-    // MATLAB: an empty property list returns the BASIC set
+    // Reject unknown / unimplemented property names with a clear error instead
+    // of silently dropping them (the silent drop surfaces later as a confusing
+    // "non-existent field" on the result struct). Properties MATLAB ships but
+    // numkit does not implement yet (Solidity, ConvexArea, EulerNumber,
+    // FilledArea, Circularity, Extrema, ConvexHull, …) land here too. See
+    // bugs/image/regionprops-perimeter.
+    {
+        static const char *kKnown[] = {
+            "all", "basic",
+            "area", "centroid", "boundingbox", "perimeter",
+            "majoraxislength", "minoraxislength", "eccentricity", "orientation",
+            "equivdiameter", "extent", "pixelidxlist", "pixellist",
+            "meanintensity", "maxintensity", "minintensity",
+            "weightedcentroid", "pixelvalues",
+        };
+        for (const auto &q : propsIn) {
+            std::string lc = q;
+            for (char &ch : lc)
+                if (ch >= 'A' && ch <= 'Z') ch = char(ch + 32);
+            bool ok = false;
+            for (const char *k : kKnown)
+                if (lc == k) { ok = true; break; }
+            if (!ok)
+                throw Error("regionprops: property '" + q +
+                                "' is not supported in this revision",
+                            0, 0, "regionprops", "",
+                            "numkit:regionprops:badProperty");
+        }
+    }
+
+    // MATLAB: an empty property list (or 'basic') returns the BASIC set
     // {Area, Centroid, BoundingBox}; 'all' adds every shape measurement.
-    const bool basic   = propsIn.empty();
+    const bool basic   = propsIn.empty() || contains("basic");
     const bool wantAll = contains("all") || contains("All");
     const bool wArea = basic || wantAll || contains("Area");
     const bool wCent = basic || wantAll || contains("Centroid");
@@ -590,6 +683,7 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
     const bool wOrient  = wantAll || contains("Orientation");
     const bool wEquivD  = wantAll || contains("EquivDiameter");
     const bool wExtent  = wantAll || contains("Extent");
+    const bool wPerim   = wantAll || contains("Perimeter");
     const bool wEllipse = wMajor || wMinor || wEcc || wOrient;
     // Per-pixel list fields (column-major linear indices / [x y] list).
     const bool wPixIdx  = wantAll || contains("PixelIdxList");
@@ -610,6 +704,9 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
     const bool needMoments = wEllipse;
     std::vector<long long> area(K + 1, 0);
     std::vector<double> sumX(K + 1, 0.0), sumY(K + 1, 0.0);
+    // First pixel (row-major scan order = top-left-most) per label, the
+    // boundary-trace start for Perimeter.
+    std::vector<int> firstR(K + 1, -1), firstC(K + 1, -1);
     std::vector<double> sumXX(K + 1, 0.0), sumYY(K + 1, 0.0), sumXY(K + 1, 0.0);
     std::vector<int> minX(K + 1, INT_MAX), minY(K + 1, INT_MAX);
     std::vector<int> maxX(K + 1, INT_MIN), maxY(K + 1, INT_MIN);
@@ -622,6 +719,7 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
             const int lab = L[(size_t)r * (size_t)W + (size_t)c];
             if (lab <= 0 || lab > K) continue;
             ++area[(size_t)lab];
+            if (firstR[(size_t)lab] < 0) { firstR[(size_t)lab] = r; firstC[(size_t)lab] = c; }
             sumX[(size_t)lab] += double(c);
             sumY[(size_t)lab] += double(r);
             if (needPixels)
@@ -676,6 +774,13 @@ Value regionprops(const Value &BW_or_L, const std::vector<std::string> &propsIn,
             const double bba = bw * bh;
             el.emplace("Extent",
                        Value::scalar((bba > 0.0) ? N / bba : 0.0, mr));
+        }
+        if (wPerim) {
+            const double per = (area[(size_t)lab] > 0 && firstR[(size_t)lab] >= 0)
+                ? regionPerimeter(L, H, W, lab,
+                                  firstR[(size_t)lab], firstC[(size_t)lab])
+                : 0.0;
+            el.emplace("Perimeter", Value::scalar(per, mr));
         }
         if (wEllipse) {
             // Normalized second central moments with the +1/12 per-pixel

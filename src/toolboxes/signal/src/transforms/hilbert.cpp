@@ -5,6 +5,7 @@
 
 #include <numkit/signal/transforms/hilbert.hpp>
 
+#include <numkit/signal/transforms/fft.hpp>  // general fft/ifft for non-pow2 N
 #include <numkit/math/interp/interp.hpp>     // interp1 (spline)
 #include <numkit/signal/windows/windows.hpp>          // kaiser
 
@@ -32,27 +33,45 @@ namespace {
 ScratchVec<Complex> hilbertBuf(const Value &x, std::pmr::memory_resource *mr)
 {
     const size_t N = x.numel();
-    const size_t fftLen = nextPow2(N);
+    ScratchVec<Complex> buf(N, mr);
+    if (N == 0) return buf;
 
-    auto buf = prepareFFTBuffer(mr, x, N, fftLen);
-    // Forward FFT (dir=-1 selects the exp(-2πi·k/N) twiddles per
-    // dsp_helpers.hpp's fillFftTwiddles convention).
-    fftRadix2(mr, buf, -1);
+    // The analytic signal must be computed at the SIGNAL length N — NOT a
+    // zero-padded power-of-two (that corrupts the spectrum and breaks the
+    // constant-envelope property for non-pow2 N: bugs/signal/hilbert-nonpow2).
+    const bool pow2 = (N & (N - 1)) == 0;
+    if (pow2) {
+        auto tmp = prepareFFTBuffer(mr, x, N, N);   // fftLen = N, no padding
+        fftRadix2(mr, tmp, -1);                       // forward (exp(-2πi·k/N))
+        std::copy(tmp.begin(), tmp.end(), buf.begin());
+    } else {
+        // Non-power-of-two → general (mixed-radix / Bluestein) length-N FFT.
+        Value xcol = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+        double *xd = xcol.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) xd[i] = x.elemAsDouble(i);
+        Value X = fft(xcol, static_cast<int>(N), /*dim=*/0, mr);
+        const Complex *Xc = X.complexData();
+        std::copy(Xc, Xc + N, buf.begin());
+    }
 
-    // Zero negative frequencies, double positive (excluding DC and Nyquist).
-    for (size_t i = 1; i < fftLen / 2; ++i)
-        buf[i] *= 2.0;
-    for (size_t i = fftLen / 2 + 1; i < fftLen; ++i)
-        buf[i] = Complex(0.0, 0.0);
+    // Analytic mask at length N: double the positive frequencies, keep DC
+    // (and the Nyquist bin when N is even), zero the negative frequencies.
+    for (size_t i = 1; i < (N + 1) / 2; ++i) buf[i] *= 2.0;
+    for (size_t i = N / 2 + 1; i < N; ++i) buf[i] = Complex(0.0, 0.0);
 
-    // IFFT via conjugate trick: ifft(X) = conj(fft(conj(X)))/N.
-    for (auto &v : buf)
-        v = std::conj(v);
-    fftRadix2(mr, buf, -1);
-    const double invN = 1.0 / static_cast<double>(fftLen);
-    for (auto &v : buf)
-        v = std::conj(v) * invN;
-
+    if (pow2) {
+        // IFFT via conjugate trick: ifft(X) = conj(fft(conj(X)))/N.
+        for (auto &v : buf) v = std::conj(v);
+        fftRadix2(mr, buf, -1);
+        const double invN = 1.0 / static_cast<double>(N);
+        for (auto &v : buf) v = std::conj(v) * invN;
+    } else {
+        Value Xm = Value::matrix(N, 1, ValueType::COMPLEX, mr);
+        std::copy(buf.begin(), buf.end(), Xm.complexDataMut());
+        Value zt = ifft(Xm, static_cast<int>(N), /*dim=*/0, mr);
+        const Complex *zc = zt.complexData();
+        std::copy(zc, zc + N, buf.begin());
+    }
     return buf;
 }
 

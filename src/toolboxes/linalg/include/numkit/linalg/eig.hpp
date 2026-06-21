@@ -60,9 +60,19 @@ Value hess_H_only(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @brief Schur decomposition for symmetric A (`[U, T] = schur(A)`).
 ///
 /// Equivalent to eigendecomposition: `A = U·T·U'`, `T` diagonal.
-/// General Schur (quasi-triangular T) is deferred.
 std::tuple<Value, Value>
 schur_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Real Schur decomposition for general (nonsymmetric) A
+/// (`[U, T] = schur(A)`).
+///
+/// `A = U·T·Uᵀ` with `U` orthogonal and `T` the real Schur form — upper
+/// quasi-triangular, with 1×1 diagonal blocks for real eigenvalues and 2×2
+/// blocks for complex-conjugate pairs. Hessenberg reduction + Francis
+/// double-shift QR. (The Schur form is not unique; eigenvalues + `U·T·Uᵀ`
+/// are the invariants.)
+std::tuple<Value, Value>
+schur_general(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Sylvester equation for symmetric A and B (`X = sylvester_sym(A, B, C)`).
 ///

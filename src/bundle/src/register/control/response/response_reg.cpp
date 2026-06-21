@@ -48,6 +48,21 @@ void impulse_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
     if (outs.size() >= 3) outs[2] = std::move(xOut);
 }
 
+void initial_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("initial: requires (sys, x0 [, t])",
+                    0, 0, "initial", "", "numkit:initial:nargin");
+    Value tArg = (a.size() >= 3) ? a[2] : Value::matrix(1, 0, ValueType::DOUBLE, c.engine->resource());
+    Value xOut;
+    auto [y, t] = initial_response(a[0], a[1], tArg, c.engine->resource(),
+                                   outs.size() >= 3 ? &xOut : nullptr);
+    if (outs.size() >= 1) outs[0] = std::move(y);
+    if (outs.size() >= 2) outs[1] = std::move(t);
+    if (outs.size() >= 3) outs[2] = std::move(xOut);
+}
+
 void lsim_reg(Span<const Value> a, size_t /*nargout*/, Span<Value> outs,
               CallContext &c)
 {

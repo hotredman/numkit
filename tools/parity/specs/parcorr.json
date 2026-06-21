@@ -1,0 +1,10 @@
+{
+  "name": "parcorr",
+  "namespace": "stats",
+  "setup": "y = [4 3 5 6 4 5 7 6 5 8 7 6 9 8 7 10]';",
+  "expr": "[pacf, lags, bounds] = parcorr(y, 'NumLags', 5);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["numel(pacf)", "pacf(1)", "pacf(2)", "pacf(4)", "pacf(6)", "lags(6)", "bounds(1)"],
+  "comment": "Sig: [pacf, lags, bounds] = parcorr(y, NumLags, NumSTD). Sample partial autocorrelation. Matches MATLAB's DEFAULT parcorr Method (OLS): for lag k fit AR(k) y_t = c + sum phi_j y_{t-j} on t=k+1..N, PACF(k)=phi_k; lag-0=1; bounds = +-NumSTD/sqrt(N), default NumSTD=2. Solved via normal equations (reproduces MATLAB's QR to full precision on well-conditioned lags N-k>=k+1; deeper rank-deficient lags are unstable in both engines). Completes bugs/stats/autocorr (autocorr+crosscorr done earlier). Verified vs MATLAB R2025b on [4 3 5 6 4 5 7 6 5 8 7 6 9 8 7 10]': pacf=[1 0.55 0.241249 1.000776 0.442451 0.677598], bounds=+-0.5. NB MATLAB default is OLS, NOT Durbin-Levinson (its 'yule-walker' option); harness prefers MATLAB."
+}

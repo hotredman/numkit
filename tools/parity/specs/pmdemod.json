@@ -1,0 +1,10 @@
+{
+  "name": "pmdemod",
+  "namespace": "comm",
+  "setup": "fs=100; fc=10; t=(0:fs-1)'/fs; m=cos(2*pi*1*t);",
+  "expr": "yp=pmmod(m,fc,fs,2); mp=pmdemod(yp,fc,fs,2); a=mp(1); b=mp(2); c=mp(50);",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": ["a", "b", "c"],
+  "comment": "Sig: x = pmdemod(y, fc, fs, phasedev[, ini_phase]). Phase demodulator (inverse of pmmod): x = angle(hilbert(y).*exp(-1j*(2*pi*fc*t+ini_phase)))/phasedev. Fingerprint: pmdemod(pmmod(cos(2*pi*t),10,100,2),10,100,2) -> mp(1)=0.9999999905, mp(2)=0.9980267084, mp(50)=-0.9980267084 (recovers the message). Depends on the length-N hilbert (bugs/signal/hilbert-nonpow2 fix). Verified vs MATLAB R2025b. Fixes the pmdemod part of bugs/comm/analog-demodulators."
+}

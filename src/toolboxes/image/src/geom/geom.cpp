@@ -99,6 +99,92 @@ bool methodIsNearest(const std::string &m) {
            m == "near"    || m == "n";
 }
 
+// ── MATLAB-convention separable resampling kernels ──────────────────────
+// Pixel-centre coordinate mapping + antialiasing on shrink + mirror boundary —
+// the same algorithm as imresize3's buildContrib machinery below, kept
+// self-contained here so the (validated) 3-D path is untouched. Matches MATLAB
+// imresize for 'bilinear'/'bicubic', up- and down-scaling. bugs/image/imresize-interp.
+inline double rkTriangle(double x) { x = std::fabs(x); return (x < 1.0) ? (1.0 - x) : 0.0; }
+inline double rkCubic(double x) {
+    const double a = std::fabs(x);
+    if (a < 1.0) return (1.5 * a - 2.5) * a * a + 1.0;
+    if (a < 2.0) return ((-0.5 * a + 2.5) * a - 4.0) * a + 2.0;
+    return 0.0;
+}
+inline int rkMirror(int i, int N) {
+    if (N <= 1) return 0;
+    const int c = 2 * N;
+    int m = ((i % c) + c) % c;
+    if (m >= N) m = c - 1 - m;
+    return m;
+}
+struct RkContrib { int first; std::vector<double> w; };  // first 0-indexed
+
+// Per-output-pixel taps: pixel-centre map u, kernel `k` (total support `kw`),
+// antialiasing stretch when `aa && scale<1`, normalised weights.
+std::vector<RkContrib> rkBuild(size_t outLen, double scale, double (*k)(double),
+                               double kw, bool aa) {
+    double scl = 1.0;
+    if (aa && scale < 1.0) { scl = scale; kw = kw / scale; }
+    const int P = static_cast<int>(std::ceil(kw)) + 2;
+    std::vector<RkContrib> rows(outLen);
+    for (size_t o = 0; o < outLen; ++o) {
+        const double u    = (double(o) + 1.0) / scale + 0.5 * (1.0 - 1.0 / scale);
+        const int    left = static_cast<int>(std::floor(u - kw / 2.0));
+        RkContrib &  r    = rows[o];
+        r.first = left - 1;
+        r.w.assign(P, 0.0);
+        double sum = 0.0;
+        for (int j = 0; j < P; ++j) { const double w = scl * k(scl * (u - double(left + j))); r.w[j] = w; sum += w; }
+        if (sum != 0.0) for (auto &w : r.w) w /= sum;
+    }
+    return rows;
+}
+
+// Separable kernel resize of an H×W×C image to outH×outW×C. `scaleY/scaleX` are
+// the per-axis scales (drives the centre mapping + antialias decision).
+Value imresizeKernel(const Value &A, const Shape &s, size_t outH, size_t outW,
+                     double scaleY, double scaleX, double (*k)(double), double kw,
+                     bool antialias, ValueType t, std::pmr::memory_resource *mr)
+{
+    const int  H = static_cast<int>(s.H), W = static_cast<int>(s.W);
+    const auto cy = rkBuild(outH, scaleY, k, kw, antialias);
+    const auto cx = rkBuild(outW, scaleX, k, kw, antialias);
+    Value B = makeOut(outH, outW, s.C, t, mr);
+    Shape sd{outH, outW, s.C};
+    std::vector<double> tmp(outH * s.W);   // outH × W intermediate (per channel)
+    for (size_t c = 0; c < s.C; ++c) {
+        for (int x = 0; x < W; ++x)            // pass 1: rows  → tmp[outH × W]
+            for (size_t y = 0; y < outH; ++y) {
+                const RkContrib &r = cy[y];
+                double v = 0.0;
+                for (size_t j = 0; j < r.w.size(); ++j)
+                    v += r.w[j] * sample(A, s, rkMirror(r.first + int(j), H), x, c);
+                tmp[y + size_t(x) * outH] = v;
+            }
+        for (size_t x = 0; x < outW; ++x) {    // pass 2: cols  → B[outH × outW]
+            const RkContrib &r = cx[x];
+            for (size_t y = 0; y < outH; ++y) {
+                double v = 0.0;
+                for (size_t j = 0; j < r.w.size(); ++j)
+                    v += r.w[j] * tmp[y + size_t(rkMirror(r.first + int(j), W)) * outH];
+                writePixel(B, sd, y, x, c, v, t);
+            }
+        }
+    }
+    return B;
+}
+
+// Map a method string to (kernel fn, total support). Returns fn=nullptr for nearest.
+bool methodKernel(const std::string &m, double (*&k)(double), double &kw) {
+    if (m == "bilinear" || m == "Bilinear" || m == "linear" || m == "Linear" ||
+        m == "triangle" || m == "Triangle") { k = rkTriangle; kw = 2.0; return true; }
+    if (m == "bicubic"  || m == "Bicubic"  || m == "cubic"  || m == "Cubic") {
+        k = rkCubic; kw = 4.0; return true;
+    }
+    k = rkCubic; kw = 4.0; return true;     // MATLAB default is bicubic
+}
+
 } // anonymous
 
 Value imresize(const Value &A, size_t outH, size_t outW, const std::string &method, std::pmr::memory_resource *mr)
@@ -108,37 +194,33 @@ Value imresize(const Value &A, size_t outH, size_t outW, const std::string &meth
     if (outH == 0 || outW == 0)
         return makeOut(outH, outW, s.C, t, mr);
 
-    // Map output (yo, xo) → source coordinate via the centre-aligned
-    // formula MATLAB / OpenCV use for resampling:
-    //   x_src = (xo + 0.5) * (W / outW) − 0.5
-    const double sx = double(s.W) / double(outW);
-    const double sy = double(s.H) / double(outH);
-    const bool nearest = methodIsNearest(method);
-
-    Value B = makeOut(outH, outW, s.C, t, mr);
-    Shape sd{outH, outW, s.C};
-    for (size_t c = 0; c < s.C; ++c) {
-        for (size_t yo = 0; yo < outH; ++yo) {
-            const double ys = (yo + 0.5) * sy - 0.5;
-            for (size_t xo = 0; xo < outW; ++xo) {
-                const double xs = (xo + 0.5) * sx - 0.5;
-                double v;
-                if (nearest) {
-                    int yi = int(std::floor(ys + 0.5));
-                    int xi = int(std::floor(xs + 0.5));
-                    if (yi < 0) yi = 0;
-                    if (xi < 0) xi = 0;
+    if (methodIsNearest(method)) {
+        // Nearest stays on the centre-aligned map + edge clamp (already correct).
+        const double sx = double(s.W) / double(outW);
+        const double sy = double(s.H) / double(outH);
+        Value B = makeOut(outH, outW, s.C, t, mr);
+        Shape sd{outH, outW, s.C};
+        for (size_t c = 0; c < s.C; ++c)
+            for (size_t yo = 0; yo < outH; ++yo) {
+                const double ys = (yo + 0.5) * sy - 0.5;
+                for (size_t xo = 0; xo < outW; ++xo) {
+                    const double xs = (xo + 0.5) * sx - 0.5;
+                    int yi = int(std::floor(ys + 0.5)), xi = int(std::floor(xs + 0.5));
+                    if (yi < 0) yi = 0; if (xi < 0) xi = 0;
                     if (yi >= int(s.H)) yi = int(s.H) - 1;
                     if (xi >= int(s.W)) xi = int(s.W) - 1;
-                    v = sample(A, s, yi, xi, c);
-                } else {
-                    v = bilinear(A, s, ys, xs, c);
+                    writePixel(B, sd, yo, xo, c, sample(A, s, yi, xi, c), t);
                 }
-                writePixel(B, sd, yo, xo, c, v, t);
             }
-        }
+        return B;
     }
-    return B;
+    // Interpolating methods: MATLAB's pixel-centre map + antialiasing + mirror
+    // boundary (separable). Size form uses per-axis scale outLen/inLen.
+    double (*k)(double); double kw;
+    methodKernel(method, k, kw);
+    return imresizeKernel(A, s, outH, outW,
+                          double(outH) / double(s.H), double(outW) / double(s.W),
+                          k, kw, /*antialias=*/true, t, mr);
 }
 
 Value imresize(const Value &A, double scale, const std::string &method, std::pmr::memory_resource *mr)
@@ -149,7 +231,13 @@ Value imresize(const Value &A, double scale, const std::string &method, std::pmr
                     0, 0, "imresize", "", "numkit:imresize:scale");
     const size_t outH = static_cast<size_t>(std::round(scale * double(s.H)));
     const size_t outW = static_cast<size_t>(std::round(scale * double(s.W)));
-    return imresize(A, outH, outW, method, mr);
+    if (methodIsNearest(method))
+        return imresize(A, outH, outW, method, mr);
+    // Scale form: the centre map uses the scalar `scale` (MATLAB's convention).
+    double (*k)(double); double kw;
+    methodKernel(method, k, kw);
+    return imresizeKernel(A, s, outH, outW, scale, scale, k, kw, /*antialias=*/true,
+                          A.type(), mr);
 }
 
 Value imcrop(const Value &A, double xmin, double ymin, double width, double height, std::pmr::memory_resource *mr)

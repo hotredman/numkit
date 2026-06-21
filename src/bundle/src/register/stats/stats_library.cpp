@@ -57,6 +57,10 @@ void rescale_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zscore_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/tiedrank.cpp
 void tiedrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+// descriptive/sample_corr.cpp
+void autocorr_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void crosscorr_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void parcorr_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/corrcov.cpp
 void corrcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // descriptive/tabulate.cpp
@@ -83,6 +87,11 @@ void nanmin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanvar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanstd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nancov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// distributions/dist_dispatch.cpp — generic name-dispatching wrappers
+void cdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void icdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void random_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // distributions/normal.cpp
 void normpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -374,6 +383,7 @@ void anova1_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void multcompare_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void anova2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kruskalwallis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void friedman_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // regress/regress.cpp
@@ -487,6 +497,9 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "rescale",   &stats::detail::rescale_reg);
     reg("descriptive", "zscore",    &stats::detail::zscore_reg);
     reg("descriptive", "tiedrank",  &stats::detail::tiedrank_reg);
+    reg("descriptive", "autocorr",  &stats::detail::autocorr_reg);
+    reg("descriptive", "crosscorr", &stats::detail::crosscorr_reg);
+    reg("descriptive", "parcorr",   &stats::detail::parcorr_reg);
     reg("descriptive", "corrcov",   &stats::detail::corrcov_reg);
     reg("descriptive", "tabulate",  &stats::detail::tabulate_reg);
     reg("descriptive", "grp2idx",   &stats::detail::grp2idx_reg);
@@ -495,6 +508,10 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "grpstats",  &stats::detail::grpstats_reg);
     reg("descriptive", "nearcorr",  &stats::detail::nearcorr_reg);
 
+    reg("dist", "cdf",      &stats::detail::cdf_reg);
+    reg("dist", "pdf",      &stats::detail::pdf_reg);
+    reg("dist", "icdf",     &stats::detail::icdf_reg);
+    reg("dist", "random",   &stats::detail::random_reg);
     reg("dist", "normpdf",  &stats::detail::normpdf_reg);
     reg("dist", "normcdf",  &stats::detail::normcdf_reg);
     reg("dist", "norminv",  &stats::detail::norminv_reg);
@@ -755,6 +772,7 @@ void StatsLibrary::install(Engine &engine)
     reg("anova", "multcompare",   &stats::detail::multcompare_reg);
     reg("anova", "anova2",        &stats::detail::anova2_reg);
     reg("anova", "kruskalwallis", &stats::detail::kruskalwallis_reg);
+    reg("anova", "friedman",      &stats::detail::friedman_reg);
     reg("anova", "dummyvar",      &stats::detail::dummyvar_reg);
 
     reg("regress", "regress",  &stats::detail::regress_reg);

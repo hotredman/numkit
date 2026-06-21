@@ -79,4 +79,45 @@ TEST_P(LpcParametricTest, PronyInvfreqCorrmtx)
     EXPECT_DOUBLE_EQ(evalScalar("as_(1)"), 1.0);
 }
 
+TEST_P(LpcParametricTest, Stmcb)
+{
+    // bugs/signal/stmcb — Steiglitz-McBride IIR identification.
+    // 0.5^n impulse response -> 1/(1 - 0.5 z^-1): a = [1 -0.5], b ~ [1 0].
+    eval("[b1, a1] = stmcb([1 0.5 0.25 0.125 0.0625], 1, 1);");
+    EXPECT_NEAR(evalScalar("a1(1)"), 1.0,  1e-12);
+    EXPECT_NEAR(evalScalar("a1(2)"), -0.5, 1e-9);
+    EXPECT_NEAR(evalScalar("b1(1)"), 1.0,  1e-9);
+    EXPECT_NEAR(evalScalar("abs(b1(2))"), 0.0, 1e-9);
+
+    // 2nd-order system B=[1 0.3], A=[1 -0.6 0.2] recovered from its impulse
+    // response (MATLAB R2025b: b=[1 0.3], a=[1 -0.6 0.2]).
+    eval("h = filter([1 0.3], [1 -0.6 0.2], [1 zeros(1,29)]);");
+    eval("[b2, a2] = stmcb(h, 1, 2);");
+    EXPECT_NEAR(evalScalar("b2(1)"),  1.0,  1e-7);
+    EXPECT_NEAR(evalScalar("b2(2)"),  0.3,  1e-7);
+    EXPECT_NEAR(evalScalar("a2(2)"), -0.6,  1e-7);
+    EXPECT_NEAR(evalScalar("a2(3)"),  0.2,  1e-7);
+}
+
+TEST_P(LpcParametricTest, PmusicPeig)
+{
+    // bugs/signal/pmusic-peig — MUSIC / eigenvector pseudospectra. Two real
+    // tones at 0.1 and 0.25 cyc/sample -> peaks at 0.6283 and 1.5708 rad
+    // (nearest bins 0.6381, 1.5708). Peak-frequency parity (frequency estimator).
+    eval("nn = 0:63; xt = cos(2*pi*0.1*nn) + cos(2*pi*0.25*nn);");
+    eval("[P, f] = pmusic(xt, 4);");
+    EXPECT_EQ(eval("P").numel(), 129u);            // nfft 256 -> 129 one-sided bins
+    EXPECT_NEAR(evalScalar("f(end)"), M_PI, 1e-9);
+    eval("fa = f(find(P == max(P(f < 1)), 1));");   // low-band peak (0.1 tone)
+    eval("fb = f(find(P == max(P(f > 1 & f < 2)), 1));");  // 0.25 tone
+    EXPECT_NEAR(evalScalar("fa"), 0.6381, 0.03);    // within one bin of the tone
+    EXPECT_NEAR(evalScalar("fb"), 1.5708, 0.03);
+    // peig resolves the same two tones.
+    eval("[Pe, fe] = peig(xt, 4);");
+    eval("ga = fe(find(Pe == max(Pe(fe < 1)), 1));");
+    eval("gb = fe(find(Pe == max(Pe(fe > 1 & fe < 2)), 1));");
+    EXPECT_NEAR(evalScalar("ga"), 0.6381, 0.03);
+    EXPECT_NEAR(evalScalar("gb"), 1.5708, 0.03);
+}
+
 INSTANTIATE_DUAL(LpcParametricTest);

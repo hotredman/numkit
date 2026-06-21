@@ -1,0 +1,10 @@
+{
+  "name": "schur_general",
+  "namespace": "linalg",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10];",
+  "expr": "[U,T] = schur(A); ev = sort(diag(T)); rec = double(max(abs(A(:)-reshape(U*T*U.',[],1)))<1e-9); orth = double(max(abs(reshape(U.'*U-eye(3),[],1)))<1e-9); tri = double((abs(T(2,1))+abs(T(3,1))+abs(T(3,2)))<1e-9);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["ev(1)", "ev(2)", "ev(3)", "rec", "orth", "tri"],
+  "comment": "Sig: [U,T] = schur(A) for a NONSYMMETRIC A. Real Schur form via Hessenberg reduction + Francis double-shift QR + 2x2 block standardization (dlanv2). A=U*T*U', U orthogonal, T quasi-upper-triangular (1x1 real / 2x2 complex-pair blocks). The Schur form is NOT unique, so parity is on the invariants: sorted eigenvalues (diag of T for this real-eigenvalue A), reconstruction (rec=1), orthogonality (orth=1), and upper-triangularity for real eigenvalues (tri=1). Fixes bugs/linalg/schur-nonsymmetric. Verified vs MATLAB R2025b: eig = [-0.905730 0.198062 16.707668]; reconstruction/orthogonality to machine precision. Unblocks care/dare + complex-eig path."
+}

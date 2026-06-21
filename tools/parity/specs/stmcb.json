@@ -1,0 +1,10 @@
+{
+  "name": "stmcb",
+  "namespace": "signal",
+  "setup": "h1 = [1 0.5 0.25 0.125 0.0625]; h2 = filter([1 0.3],[1 -0.6 0.2],[1 zeros(1,29)]);",
+  "expr": "[b1,a1] = stmcb(h1,1,1); [b2,a2] = stmcb(h2,1,2);",
+  "iters": 5,
+  "tol": 1e-7,
+  "fingerprint": ["a1(2)", "b1(1)", "b2(1)", "b2(2)", "a2(2)", "a2(3)"],
+  "comment": "Sig: [b,a] = stmcb(h, nb, na, niter). Steiglitz-McBride IIR identification: B(z)/A(z) with nb zeros, na poles approximating impulse response h. Init A via prony, then niter (default 5) iterations: prefilter unit impulse + h by 1/A, solve LS [E|-G][b;a]~g. Fixes bugs/signal/stmcb (was undefined). Verified vs MATLAB R2025b: stmcb([1 .5 .25 .125 .0625],1,1) -> a=[1 -0.5], b~[1 0]; 2nd-order system B=[1 0.3]/A=[1 -0.6 0.2] recovered exactly from its impulse response. Two-signal form stmcb(y,x,...) and explicit ai init are rejected (not yet supported). harness prefers MATLAB."
+}

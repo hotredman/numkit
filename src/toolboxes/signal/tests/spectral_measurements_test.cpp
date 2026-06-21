@@ -63,6 +63,21 @@ TEST_P(SpectralMeasurementsTest, InstbwEnvspectrum)
     EXPECT_EQ(eval("es").numel(), eval("ef").numel());
 }
 
+// bugs/signal/obw-value-outputs — occupied-bandwidth value + [bw,flo,fhi,power]
+// against MATLAB R2025b (rectangular periodogram, nfft=N, rectangle-rule
+// cumulative power, band edge at the bin upper edge F+df/2).
+TEST_P(SpectralMeasurementsTest, OccupiedBandwidth)
+{
+    eval("fs2 = 1000; tt = (0:fs2-1)/fs2;");
+    eval("xo = sin(2*pi*100*tt) + 0.5*sin(2*pi*200*tt);");
+    eval("[bw, flo, fhi, pw] = obw(xo, fs2);");
+    EXPECT_NEAR(evalScalar("bw"),  100.96875,  1e-4);   // was numkit ~108.77
+    EXPECT_NEAR(evalScalar("flo"),  99.506250, 1e-4);
+    EXPECT_NEAR(evalScalar("fhi"), 200.475000, 1e-4);
+    EXPECT_NEAR(evalScalar("pw"),    0.618750, 1e-6);   // 0.99 * total power
+    EXPECT_NEAR(evalScalar("obw(xo, fs2)"), 100.96875, 1e-4);  // single-output form
+}
+
 TEST_P(SpectralMeasurementsTest, TsaTachorpm)
 {
     // Time-synchronous average of three identical periods returns one period.

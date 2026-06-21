@@ -10,6 +10,7 @@
 
 #include <numkit/signal/spectral_analysis/spectral_metrics.hpp>
 #include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 #include <numkit/signal/transforms/hilbert.hpp>
 #include <numkit/signal/windows/windows.hpp>
 
@@ -17,6 +18,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <complex>
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <cstring>
@@ -214,31 +216,64 @@ Value enbw(const Value &window, const Value &fs, std::pmr::memory_resource *mr)
 
 // ── obw ───────────────────────────────────────────────────────────
 
-Value obw(const Value &x, const Value &fs, double p, std::pmr::memory_resource *mr)
+std::tuple<Value, Value, Value, Value>
+obw(const Value &x, const Value &fs, double p, std::pmr::memory_resource *mr)
 {
     const double fsv = scalarOr(fs, 0.0);
-    auto psd = computePsd(x, fsv, mr);
-    if (psd.F.size() < 2) return Value::scalar(0.0, mr);
-    std::vector<double> cum(psd.F.size(), 0.0);
-    for (size_t i = 1; i < psd.F.size(); ++i) {
-        cum[i] = cum[i - 1]
-               + 0.5 * (psd.Pxx[i - 1] + psd.Pxx[i]) * (psd.F[i] - psd.F[i - 1]);
+    const size_t N = x.numel();
+    auto zeros = [&]() {
+        Value z = Value::scalar(0.0, mr);
+        return std::make_tuple(z, z, z, z);
+    };
+    if (N < 2) return zeros();
+
+    // MATLAB obw uses a rectangular-windowed periodogram at nfft = N (no
+    // zero-padding). numkit's `periodogram` helper is radix-2 only, so compute
+    // the length-N DFT through the general fft (Bluestein for non-pow2 N) and
+    // form the one-sided PSD here: Pxx[k] = (2 if folded)·|X[k]|² / (fs·N),
+    // which obeys Σ Pxx·df = mean(x²) (rectangular window power = N).
+    Value          Xv = fft(x, static_cast<int>(N), /*dim=*/0, mr);
+    const Complex *X  = Xv.complexData();
+    const size_t   nOut = N / 2 + 1;
+    const double   fsHz = (fsv > 0.0) ? fsv : (2.0 * M_PI);  // rad/s when fs omitted
+    const double   df   = fsHz / static_cast<double>(N);
+
+    std::vector<double> P(nOut), F(nOut);
+    for (size_t k = 0; k < nOut; ++k) {
+        double mag2 = std::norm(X[k]);
+        if (k > 0 && 2 * k != N) mag2 *= 2.0;   // one-sided fold (skip DC & Nyquist)
+        P[k] = mag2 / (fsHz * static_cast<double>(N));
+        F[k] = static_cast<double>(k) * df;
     }
+
+    // Rectangle-rule cumulative power (MATLAB obw): cum[k] = Σ_{j≤k} P[j]·df.
+    std::vector<double> cum(nOut, 0.0);
+    cum[0] = P[0] * df;
+    for (size_t i = 1; i < nOut; ++i)
+        cum[i] = cum[i - 1] + P[i] * df;
     const double total = cum.back();
-    if (total <= 0.0) return Value::scalar(0.0, mr);
-    const double pLow = (1.0 - p) * 0.5 * total;
+    if (total <= 0.0) return zeros();
+
+    const double pLow  = (1.0 - p) * 0.5 * total;
     const double pHigh = (1.0 + p) * 0.5 * total;
+    // A band edge sits at the bin's UPPER edge (F + df/2) where the cumulative
+    // power reaches the target — matches MATLAB exactly.
     auto findF = [&](double target) {
-        for (size_t i = 1; i < cum.size(); ++i) {
+        for (size_t i = 1; i < nOut; ++i) {
             if (cum[i] >= target) {
                 const double t = (target - cum[i - 1])
                                / std::max(cum[i] - cum[i - 1], 1e-300);
-                return psd.F[i - 1] + t * (psd.F[i] - psd.F[i - 1]);
+                return F[i - 1] + t * (F[i] - F[i - 1]) + 0.5 * df;
             }
         }
-        return psd.F.back();
+        return F.back() + 0.5 * df;
     };
-    return Value::scalar(findF(pHigh) - findF(pLow), mr);
+    const double flo = findF(pLow);
+    const double fhi = findF(pHigh);
+    return std::make_tuple(Value::scalar(fhi - flo, mr),
+                           Value::scalar(flo, mr),
+                           Value::scalar(fhi, mr),
+                           Value::scalar(p * total, mr));
 }
 
 // ── powerbw ───────────────────────────────────────────────────────

@@ -79,4 +79,53 @@ Value wnoisest(const Value &C, const Value &L, const Value &S,
 Value wdenoise(const Value &x, int level, const std::string &wname,
                std::pmr::memory_resource *mr = nullptr);
 
+/// Entropy of a coefficient vector (`E = wentropy(X, T[, P])`).
+///
+/// Closed-form additive entropy over the elements of `X` (a "cost" used by
+/// wavelet-packet best-tree selection):
+/// - `"shannon"`: `−Σ sᵢ²·log(sᵢ²)` (terms with `sᵢ=0` contribute 0).
+/// - `"log energy"`: `Σ log(sᵢ²)` (nonzero `sᵢ` only).
+/// - `"threshold"` (P = threshold): `#{i : |sᵢ| > P}`.
+/// - `"sure"` (P = threshold): `n − 2·#{i : |sᵢ| ≤ P} + Σ min(sᵢ², P²)`.
+/// - `"norm"` (P = exponent ≥ 1): `Σ |sᵢ|ᴾ`.
+///
+/// @param X      Coefficient vector (any shape; flattened).
+/// @param type   Entropy type (case-insensitive).
+/// @param param  `P` for threshold / sure / norm (ignored otherwise).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Scalar entropy.
+/// @throws       Error on an unknown type or `norm` exponent `< 1`.
+/// @see wthresh, wdenoise
+Value wentropy(const Value &X, const std::string &type, double param = 0.0,
+               std::pmr::memory_resource *mr = nullptr);
+
+/// Default denoising / compression parameters (`[thr, sorh, keepapp] =
+/// ddencmp(opt, type, x)`).
+struct DdencmpResult {
+    Value thr;       ///< Threshold.
+    Value sorh;      ///< Soft (`'s'`) or hard (`'h'`) thresholding.
+    Value keepapp;   ///< Keep approximation flag (always 1).
+};
+
+/// Default threshold / settings for wavelet denoising or compression.
+///
+/// Estimates the noise level from the finest-detail coefficients of a
+/// 1-level `db1` DWT — `σ̂ = median(|cD₁|)/0.6745` — and returns the default
+/// parameters for `opt = "den"` (denoising) or `opt = "cmp"` (compression):
+/// - **den**: `thr = sqrt(2·log(n))·σ̂` (universal threshold), `sorh = 's'`.
+/// - **cmp**: `thr = median(|cD₁|)`, `sorh = 'h'`.
+///
+/// `keepapp = 1` in both cases. Only `type = "wv"` (wavelet) is supported;
+/// `"wp"` (wavelet packet) is not yet implemented.
+///
+/// @param opt   `"den"` (denoise) or `"cmp"` (compress).
+/// @param type  `"wv"` (wavelet); `"wp"` is rejected.
+/// @param x     Input signal.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      `{thr, sorh, keepapp}` (see @ref DdencmpResult).
+/// @throws      Error on an unknown `opt`/`type` or `"wp"`.
+/// @see wentropy, wthresh, wdenoise
+DdencmpResult ddencmp(const std::string &opt, const std::string &type,
+                      const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::wavelet

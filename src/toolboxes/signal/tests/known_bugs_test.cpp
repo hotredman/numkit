@@ -63,12 +63,13 @@ TEST_F(SignalKnownBug, DISABLED_InstfreqTracksChirp)
 // NOTE: dct/idct Type 1/3/4 FIXED — live tests in
 // toolboxes/signal/tests/dct_types_test.cpp.
 
-// bugs/signal/cceps-nd-phase.md — non-2^n phase + 2nd output nd.
-TEST_F(SignalKnownBug, DISABLED_CcepsPhaseAndNd)
+// bugs/signal/cceps-nd-phase.md — non-2^n phase + 2nd output nd (FIXED; live guard).
+TEST_F(SignalKnownBug, CcepsPhaseAndNd)
 {
     eval("[xh, nd] = cceps([1 2 3 4 3 2 1]);");
-    EXPECT_NEAR(evalScalar("xh(2)"), 0.523560, 1e-5);   // numkit currently 3.6689
+    EXPECT_NEAR(evalScalar("xh(2)"), 0.523560, 1e-5);
     EXPECT_NEAR(evalScalar("xh(7)"), 1.222516, 1e-5);
+    EXPECT_DOUBLE_EQ(evalScalar("nd"), -3.0);
 }
 
 // bugs/signal/risetime-falltime-outputs.md — [R,LT,UT] multi-output.
@@ -137,29 +138,56 @@ TEST_F(SignalKnownBug, DISABLED_FreqsScalarIsNPoints)
     EXPECT_EQ(static_cast<int>(evalScalar("numel(h)")), 2);  // numkit currently 1
 }
 
-// bugs/signal/resample-values.md — resample output values wrong (multirate).
-TEST_F(SignalKnownBug, DISABLED_ResampleValues)
+// bugs/signal/resample-values.md — resample output values (FIXED, promoted live).
+TEST_F(SignalKnownBug, ResampleValues)
 {
     eval("y = resample([1 2 3 4 5 6], 3, 2);");
-    EXPECT_NEAR(evalScalar("y(1)"),   1.00061, 1e-4);   // numkit ~0.0045
-    EXPECT_NEAR(evalScalar("sum(y)"), 31.6965, 1e-3);   // numkit ~10.87
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 9);     // ceil(6*3/2)
+    EXPECT_NEAR(evalScalar("y(1)"),   1.0006061736, 1e-9);
+    EXPECT_NEAR(evalScalar("y(5)"),   3.9409926893, 1e-9);
+    EXPECT_NEAR(evalScalar("y(9)"),   4.2402907078, 1e-9);
+    EXPECT_NEAR(evalScalar("sum(y)"), 31.6965, 1e-3);
 }
 
-// bugs/signal/obw-value-outputs.md — wrong value + missing [bw,flo,fhi,power].
-TEST_F(SignalKnownBug, DISABLED_ObwValueAndOutputs)
+// bugs/signal/obw-value-outputs.md — value + [bw,flo,fhi,power] (FIXED).
+TEST_F(SignalKnownBug, ObwValueAndOutputs)
 {
     eval("fs=1000; t=(0:fs-1)/fs; x=sin(2*pi*100*t)+0.5*sin(2*pi*200*t);");
-    EXPECT_NEAR(evalScalar("obw(x,fs)"), 100.9688, 1e-2);   // numkit ~108.77
-    eval("[bw,flo,fhi,p]=obw(x,fs);");                       // currently throws
-    EXPECT_NEAR(evalScalar("flo"), 99.5062, 1e-2);
-    EXPECT_NEAR(evalScalar("fhi"), 200.4750, 1e-2);
+    EXPECT_NEAR(evalScalar("obw(x,fs)"), 100.96875, 1e-4);   // was numkit ~108.77
+    eval("[bw,flo,fhi,p]=obw(x,fs);");                        // 4 outputs, was a throw
+    EXPECT_NEAR(evalScalar("bw"),  100.96875,  1e-4);
+    EXPECT_NEAR(evalScalar("flo"),  99.506250, 1e-4);
+    EXPECT_NEAR(evalScalar("fhi"), 200.475000, 1e-4);
+    EXPECT_NEAR(evalScalar("p"),     0.618750, 1e-6);
 }
 
-// bugs/signal/periodogram-pxxc.md — confidence-interval 3rd output.
-TEST_F(SignalKnownBug, DISABLED_PeriodogramPxxc)
+// bugs/signal/periodogram-pxxc.md — confidence-interval 3rd output (FIXED).
+TEST_F(SignalKnownBug, PeriodogramPxxc)
 {
     eval("[pxx,f,pxxc]=periodogram([1 2 3 4 5 6 7 8],[],[],1,'ConfidenceLevel',0.95);");
     EXPECT_EQ(static_cast<int>(evalScalar("size(pxxc,2)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(pxxc,1)")),
+              static_cast<int>(evalScalar("numel(pxx)")));
+    // DC bin (real, 1 DOF): lower-bound ratio = 1/chi2inv(0.975,1) = 0.19905;
+    // interior bins (2 DOF): 2/chi2inv(0.975,2) = 0.27108. Default nfft=256 is
+    // even, so the Nyquist bin (pxx(end)) is also 1 DOF.
+    EXPECT_NEAR(evalScalar("pxxc(1,1)/pxx(1)"),     0.1990490952, 1e-9);
+    EXPECT_NEAR(evalScalar("pxxc(2,1)/pxx(2)"),     0.2710850307, 1e-9);
+    EXPECT_NEAR(evalScalar("pxxc(end,1)/pxx(end)"), 0.1990490952, 1e-9);
+}
+
+// bugs/signal/periodogram-nonpow2-nfft.md — non-pow2 nfft via Bluestein (FIXED).
+TEST_F(SignalKnownBug, PeriodogramNonPow2Nfft)
+{
+    eval("fs=1000; t=(0:fs-1)/fs; x=sin(2*pi*100*t)+0.5*sin(2*pi*200*t);");
+    eval("[P,F]=periodogram(x,[],1000,fs);");   // nfft=1000 (non-power-of-two)
+    EXPECT_EQ(eval("P").numel(), 501u);
+    eval("[~,ix]=max(P);");
+    EXPECT_NEAR(evalScalar("F(ix)"), 100.0,  1e-9);   // peak at the 100 Hz tone (was ~256)
+    EXPECT_NEAR(evalScalar("P(101)"), 0.5,   1e-9);   // f=100
+    EXPECT_NEAR(evalScalar("P(201)"), 0.125, 1e-9);   // f=200
+    // Parseval: sum(P)*df = mean(x^2) = 0.625 (was ~21.5).
+    EXPECT_NEAR(evalScalar("sum(P)*(F(2)-F(1))"), 0.625, 1e-9);
 }
 
 // bugs/builtin/complex-input-unsupported.md — conv/filter on complex input.

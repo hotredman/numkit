@@ -1,0 +1,10 @@
+{
+  "name": "regionprops_perimeter",
+  "namespace": "image",
+  "setup": "a = regionprops(logical(ones(3,3)),'Perimeter'); b = regionprops(logical(ones(4,4)),'Perimeter'); c = regionprops(logical([0 1 0;1 1 1;0 1 0]),'Perimeter'); d = regionprops(logical(eye(4)),'Perimeter');",
+  "expr": "p1 = a.Perimeter; p2 = b.Perimeter; p3 = c.Perimeter; p4 = d.Perimeter;",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["p1", "p2", "p3", "p4"],
+  "comment": "regionprops 'Perimeter' (bugs/image/regionprops-perimeter): outer 8-connected boundary trace + MATLAB's Vossepoel-Smeulders estimator 0.980*Ne + 1.406*No - 0.091*Nc. Expected vs MATLAB R2025b: 3x3 solid=7.476, 4x4 solid=11.396, plus=5.624, eye(4) diagonal=8.436. Previously the property was silently dropped (returned a struct lacking the field). NOTE: the parity harness reports N/A for regionprops (pre-existing — same class as histcounts; MATLAB runs regionprops fine standalone). Parity confirmed by a DIRECT MATLAB R2025b run: numkit matches all four values exactly (7.476 / 11.396 / 5.624 / 8.436). namespace=image."
+}

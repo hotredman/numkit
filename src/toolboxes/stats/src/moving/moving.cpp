@@ -111,6 +111,225 @@ static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
     return out;
 }
 
+// Savitzky-Golay projection matrix B = A·(A'A)⁻¹·A' (F×F, row-major), where A
+// is the Vandermonde of [-m..m] to degree `deg`. Row m is the steady-state
+// smoothing kernel; the boundary rows handle the F-point edge windows. Matches
+// MATLAB sgolay/sgolayfilt exactly.
+static void buildSGMatrix(int F, int deg, std::vector<double> &B)
+{
+    const int p1 = deg + 1;
+    const int m  = (F - 1) / 2;
+    std::vector<double> AtA(static_cast<size_t>(p1) * p1, 0.0);
+    for (int a = 0; a < p1; ++a)
+        for (int b = 0; b < p1; ++b) {
+            double s = 0.0;
+            for (int i = 0; i < F; ++i) s += std::pow(static_cast<double>(i - m), a + b);
+            AtA[a * p1 + b] = s;
+        }
+    // Invert AtA via Gauss-Jordan on [AtA | I].
+    const int W = 2 * p1;
+    std::vector<double> aug(static_cast<size_t>(p1) * W, 0.0);
+    for (int i = 0; i < p1; ++i) { for (int j = 0; j < p1; ++j) aug[i * W + j] = AtA[i * p1 + j]; aug[i * W + p1 + i] = 1.0; }
+    for (int col = 0; col < p1; ++col) {
+        int piv = col; double best = std::fabs(aug[col * W + col]);
+        for (int r = col + 1; r < p1; ++r) { double v = std::fabs(aug[r * W + col]); if (v > best) { best = v; piv = r; } }
+        if (piv != col) for (int j = 0; j < W; ++j) std::swap(aug[col * W + j], aug[piv * W + j]);
+        const double d = aug[col * W + col];
+        for (int j = 0; j < W; ++j) aug[col * W + j] /= d;
+        for (int r = 0; r < p1; ++r) {
+            if (r == col) continue;
+            const double f = aug[r * W + col];
+            if (f == 0.0) continue;
+            for (int j = 0; j < W; ++j) aug[r * W + j] -= f * aug[col * W + j];
+        }
+    }
+    B.assign(static_cast<size_t>(F) * F, 0.0);
+    for (int i = 0; i < F; ++i)
+        for (int j = 0; j < F; ++j) {
+            double s = 0.0;
+            for (int a = 0; a < p1; ++a) {
+                const double ia = std::pow(static_cast<double>(i - m), a);
+                for (int b = 0; b < p1; ++b)
+                    s += ia * aug[a * W + p1 + b] * std::pow(static_cast<double>(j - m), b);
+            }
+            B[static_cast<size_t>(i) * F + j] = s;
+        }
+}
+
+// Apply the SG projection over one slice (stride `step`): interior samples use
+// the centre row; the first/last m samples use the boundary rows of the F-point
+// edge window. Matches MATLAB sgolayfilt's edge handling.
+static void sgolaySlice(const double *src, size_t n, ptrdiff_t step, double *dst,
+                        const std::vector<double> &B, int F)
+{
+    const int N = static_cast<int>(n);
+    const int m = (F - 1) / 2;
+    for (int nn = 0; nn < N; ++nn) {
+        int row, base;
+        if (nn < m)            { row = nn;            base = 0;     }   // leading edge
+        else if (nn >= N - m)  { row = nn - (N - F);  base = N - F; }   // trailing edge
+        else                   { row = m;             base = nn - m; }  // interior
+        double s = 0.0;
+        for (int j = 0; j < F; ++j) s += B[static_cast<size_t>(row) * F + j] * src[static_cast<ptrdiff_t>(base + j) * step];
+        dst[static_cast<ptrdiff_t>(nn) * step] = s;
+    }
+}
+
+// Savitzky-Golay smoothing for smoothdata 'sgolay' (degree 2). Walks slices
+// along `dim`; reduces the window to fit short slices.
+static Value smoothSGDim(const Value &x, int F, int deg, int dim, std::pmr::memory_resource *mr)
+{
+    if (x.isEmpty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
+
+    auto          out = createLike(x, ValueType::DOUBLE, mr);
+    double *      dst = out.doubleDataMut();
+    const double *src = x.doubleData();
+    const auto &  d   = x.dims();
+
+    const size_t sliceLen = d.isVector() ? x.numel()
+                                         : (dim == 2 ? d.cols() : (dim == 3 ? (d.is3D() ? d.pages() : 1) : d.rows()));
+    int Fe = F;
+    if (Fe > static_cast<int>(sliceLen)) Fe = static_cast<int>(sliceLen);
+    if (Fe % 2 == 0) --Fe;                       // SG window must be odd
+    if (Fe < deg + 1) Fe = deg + 1 | 1;          // need > degree (odd)
+    if (Fe < 1) Fe = 1;
+    std::vector<double> B;
+    if (Fe >= deg + 1) buildSGMatrix(Fe, deg, B);
+
+    auto perSlice = [&](const double *s, size_t nlen, ptrdiff_t step, double *o) {
+        if (Fe < deg + 1 || nlen < static_cast<size_t>(Fe)) {
+            for (size_t i = 0; i < nlen; ++i) o[i * step] = s[i * step];  // too short → passthrough
+            return;
+        }
+        sgolaySlice(s, nlen, step, o, B, Fe);
+    };
+
+    if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
+    const size_t R = d.rows(), C = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1, pg = R * C;
+    if (dim == 1) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t c = 0; c < C; ++c)
+                perSlice(src + p * pg + c * R, R, 1, dst + p * pg + c * R);
+    } else if (dim == 2) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + p * pg + r, C, static_cast<ptrdiff_t>(R), dst + p * pg + r);
+    } else if (dim == 3 && d.is3D()) {
+        for (size_t c = 0; c < C; ++c)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + c * R + r, P, static_cast<ptrdiff_t>(pg), dst + c * R + r);
+    } else {
+        std::copy(src, src + x.numel(), dst);
+    }
+    return out;
+}
+
+// Local tricube-weighted polynomial regression over one slice for smoothdata
+// 'lowess' (deg 1) / 'loess' (deg 2). For each sample the F-point window is
+// shifted to stay in range; weights are tricube of the in-window distance
+// (window edges → weight 0); the fitted value is the constant term (the fit at
+// the query point). Matches MATLAB exactly. Rank-deficient windows fall back to
+// the weighted mean. P = deg+1 ≤ 3.
+static void localRegressSlice(const double *src, size_t n, ptrdiff_t step, double *dst,
+                              int F, int deg)
+{
+    const int N = static_cast<int>(n);
+    const int m = (F - 1) / 2;
+    const int P = deg + 1;
+    for (int i = 0; i < N; ++i) {
+        int lo = i - m;
+        if (lo < 0)      lo = 0;
+        if (lo > N - F)  lo = N - F;
+        double dmax = 0.0;
+        for (int j = lo; j < lo + F; ++j) { const double d = std::fabs(j - i); if (d > dmax) dmax = d; }
+        if (dmax == 0.0) dmax = 1.0;
+
+        double AtA[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+        double Atb[3] = {0, 0, 0};
+        for (int j = lo; j < lo + F; ++j) {
+            double u = std::fabs(j - i) / dmax;
+            if (u > 1.0) u = 1.0;
+            const double t1 = 1.0 - u * u * u;
+            const double w  = t1 * t1 * t1;             // tricube
+            if (w == 0.0) continue;
+            double basis[3];
+            basis[0] = 1.0;
+            for (int p = 1; p < P; ++p) basis[p] = basis[p - 1] * (j - i);
+            const double yj = src[static_cast<ptrdiff_t>(j) * step];
+            for (int a = 0; a < P; ++a) {
+                Atb[a] += w * basis[a] * yj;
+                for (int b = 0; b < P; ++b) AtA[a * P + b] += w * basis[a] * basis[b];
+            }
+        }
+        // Solve the P×P system; the value is x[0]. Gaussian elimination with a
+        // pivot threshold; on rank-deficiency fall back to the weighted mean.
+        double M[9], b[3], val;
+        for (int t = 0; t < P * P; ++t) M[t] = AtA[t];
+        for (int t = 0; t < P; ++t)     b[t] = Atb[t];
+        bool ok = true;
+        for (int col = 0; col < P && ok; ++col) {
+            int piv = col; double best = std::fabs(M[col * P + col]);
+            for (int r = col + 1; r < P; ++r) { const double v = std::fabs(M[r * P + col]); if (v > best) { best = v; piv = r; } }
+            if (best < 1e-12) { ok = false; break; }
+            if (piv != col) { for (int j = 0; j < P; ++j) std::swap(M[col * P + j], M[piv * P + j]); std::swap(b[col], b[piv]); }
+            const double d = M[col * P + col];
+            for (int j = 0; j < P; ++j) M[col * P + j] /= d;
+            b[col] /= d;
+            for (int r = 0; r < P; ++r) { if (r == col) continue; const double f = M[r * P + col]; for (int j = 0; j < P; ++j) M[r * P + j] -= f * M[col * P + j]; b[r] -= f * b[col]; }
+        }
+        val = ok ? b[0] : (AtA[0] > 0.0 ? Atb[0] / AtA[0] : src[static_cast<ptrdiff_t>(i) * step]);
+        dst[static_cast<ptrdiff_t>(i) * step] = val;
+    }
+}
+
+// smoothdata 'lowess'/'loess' driver — walks slices along `dim`.
+static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, std::pmr::memory_resource *mr)
+{
+    if (x.isEmpty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
+
+    auto          out = createLike(x, ValueType::DOUBLE, mr);
+    double *      dst = out.doubleDataMut();
+    const double *src = x.doubleData();
+    const auto &  d   = x.dims();
+
+    const size_t sliceLen = d.isVector() ? x.numel()
+                                         : (dim == 2 ? d.cols() : (dim == 3 ? (d.is3D() ? d.pages() : 1) : d.rows()));
+    int Fe = F;
+    if (Fe > static_cast<int>(sliceLen)) Fe = static_cast<int>(sliceLen);
+    if (Fe < 1) Fe = 1;
+
+    auto perSlice = [&](const double *s, size_t nlen, ptrdiff_t step, double *o) {
+        if (nlen < static_cast<size_t>(Fe) || Fe < 2) {
+            for (size_t i = 0; i < nlen; ++i) o[i * step] = s[i * step];
+            return;
+        }
+        localRegressSlice(s, nlen, step, o, Fe, deg);
+    };
+
+    if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
+    const size_t R = d.rows(), C = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1, pg = R * C;
+    if (dim == 1) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t c = 0; c < C; ++c)
+                perSlice(src + p * pg + c * R, R, 1, dst + p * pg + c * R);
+    } else if (dim == 2) {
+        for (size_t p = 0; p < P; ++p)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + p * pg + r, C, static_cast<ptrdiff_t>(R), dst + p * pg + r);
+    } else if (dim == 3 && d.is3D()) {
+        for (size_t c = 0; c < C; ++c)
+            for (size_t r = 0; r < R; ++r)
+                perSlice(src + c * R + r, P, static_cast<ptrdiff_t>(pg), dst + c * R + r);
+    } else {
+        std::copy(src, src + x.numel(), dst);
+    }
+    return out;
+}
+
 // ── smoothdata ────────────────────────────────────────────────────────
 Value smoothdata(const Value &x, const std::string &method, int k, int dim, std::pmr::memory_resource *mr)
 {
@@ -147,8 +366,23 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
         const double sigma = (k > 0) ? static_cast<double>(k) / 5.0 : 0.2;
         return smoothGaussianDim(x, w, sigma, d, opt, mr);
     }
+    if (m == "sgolay") {
+        // Savitzky-Golay (degree 2). Matches MATLAB exactly for an explicit odd
+        // window; the auto default window is approximate (MATLAB's is a
+        // data-dependent heuristic that this shared k-default doesn't replicate).
+        const int d = resolveDim(x, dim, "smoothdata");
+        return smoothSGDim(x, k, /*deg=*/2, d, mr);
+    }
+    if (m == "lowess" || m == "loess") {
+        // Local tricube-weighted regression — linear (lowess) / quadratic
+        // (loess). Matches MATLAB exactly for an explicit window; auto default
+        // window is approximate (same data-dependent-heuristic caveat as sgolay).
+        const int d = resolveDim(x, dim, "smoothdata");
+        return smoothLocalRegDim(x, k, m == "loess" ? 2 : 1, d, mr);
+    }
     throw Error("smoothdata: method '" + method + "' not supported "
-                 "(supported: 'movmean', 'movmedian', 'gaussian')",
+                 "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
+                 "'lowess', 'loess')",
                  0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
 }
 

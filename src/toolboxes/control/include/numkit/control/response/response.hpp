@@ -80,4 +80,24 @@ Value lsim(const Value &sys, const Value &u, const Value &t,
            const Value &x0,
            std::pmr::memory_resource *mr = nullptr, Value *xOut = nullptr);
 
+/// Initial-condition response (`[y, t] = initial(sys, x0, tArg)`).
+///
+/// Time response of `sys` to the initial state `x0` with zero input —
+/// the same integrator as @ref step_response / @ref impulse_response run
+/// with `u ≡ 0` and `x(0) = x0`, output `y = C·x`. The time argument
+/// `tArg` follows the same semantics as @ref step_response (`Value::Empty`
+/// → auto grid from the system poles; scalar → final time; vector →
+/// explicit grid). The optional state trajectory is returned via `xOut`.
+///
+/// @param sys   LTI struct (tf / zpk / ss).
+/// @param x0    Initial state (length = number of states).
+/// @param tArg  Time argument (Empty / scalar tFinal / explicit grid).
+/// @param mr    Memory resource (nullptr → process default).
+/// @param xOut  Optional state-trajectory output (one row per sample).
+/// @return      `(y, t)`; bind via `auto [y, t] = initial_response(sys, x0, tArg);`.
+/// @see step_response, impulse_response, lsim
+std::pair<Value, Value>
+initial_response(const Value &sys, const Value &x0, const Value &tArg,
+                 std::pmr::memory_resource *mr = nullptr, Value *xOut = nullptr);
+
 } // namespace numkit::control

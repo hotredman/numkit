@@ -18,8 +18,8 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-// bugs/image/regionprops-perimeter.md — Perimeter currently silently dropped.
-TEST_F(ImageKnownBug, DISABLED_RegionpropsPerimeter)
+// bugs/image/regionprops-perimeter.md — Perimeter implemented (FIXED; live guard).
+TEST_F(ImageKnownBug, RegionpropsPerimeter)
 {
     eval("s = regionprops(logical(ones(3,3)), 'Perimeter'); pm = s.Perimeter;");
     EXPECT_NEAR(evalScalar("pm"), 7.476000, 1e-4);
@@ -43,21 +43,34 @@ TEST_F(ImageKnownBug, DISABLED_ImfindcirclesExists)
               static_cast<int>(evalScalar("numel(r)")));   // one center per radius
 }
 
-// bugs/image/imresize-interp.md — bilinear/bicubic grid + boundary + antialias.
-TEST_F(ImageKnownBug, DISABLED_ImresizeBilinear)
+// bugs/image/imresize-interp.md — bilinear/bicubic grid + boundary + antialias (FIXED).
+TEST_F(ImageKnownBug, ImresizeBilinear)
 {
+    // bilinear upscale x2 — pixel-centre map + mirror boundary (was 0.5625, ...).
     eval("r = imresize([1 2; 3 4], 2, 'bilinear');");
-    EXPECT_NEAR(evalScalar("r(1,1)"), 1.0,  1e-4);   // numkit 0.5625
-    EXPECT_NEAR(evalScalar("r(1,2)"), 1.25, 1e-4);   // numkit 0.9375
-    EXPECT_NEAR(evalScalar("r(4,4)"), 4.0,  1e-4);   // numkit 2.25
+    EXPECT_NEAR(evalScalar("r(1,1)"), 1.0,  1e-9);
+    EXPECT_NEAR(evalScalar("r(1,2)"), 1.25, 1e-9);
+    EXPECT_NEAR(evalScalar("r(4,4)"), 4.0,  1e-9);
+    // bicubic upscale x2 (was 0.5625).
+    eval("c = imresize([1 2; 3 4], 2, 'bicubic');");
+    EXPECT_NEAR(evalScalar("c(1,1)"), 0.71875, 1e-7);
+    // downscale with the default method (bicubic) + antialiasing.
+    eval("d = imresize([1 2 3 4 5 6], [1 3]);");
+    EXPECT_NEAR(evalScalar("d(1)"), 1.44922, 1e-4);
+    EXPECT_NEAR(evalScalar("d(2)"), 3.5,     1e-9);
+    EXPECT_NEAR(evalScalar("d(3)"), 5.55078, 1e-4);
 }
 
-// bugs/image/corner.md — corner-point detection (cornermetric exists, corner doesn't).
-TEST_F(ImageKnownBug, DISABLED_Corner)
+// bugs/image/corner.md — corner-point detection (FIXED; built on cornermetric).
+TEST_F(ImageKnownBug, Corner)
 {
     eval("I = zeros(20,20); I(6:15,6:15) = 1; C = corner(I);");
     EXPECT_EQ(static_cast<int>(evalScalar("size(C,2)")), 2);   // [x y] coords
-    EXPECT_GE(static_cast<int>(evalScalar("size(C,1)")), 4);   // 4 block corners
+    EXPECT_EQ(static_cast<int>(evalScalar("size(C,1)")), 4);   // 4 block corners
+    EXPECT_EQ(static_cast<int>(evalScalar("C(1,1)")), 6);      // first corner [6 6]
+    EXPECT_EQ(static_cast<int>(evalScalar("C(1,2)")), 6);
+    EXPECT_EQ(static_cast<int>(evalScalar("C(4,1)")), 15);     // last corner [15 15]
+    EXPECT_EQ(static_cast<int>(evalScalar("C(4,2)")), 15);
 }
 
 // bugs/image/adapthisteq-mapping.md — CLAHE brightness regression FIXED

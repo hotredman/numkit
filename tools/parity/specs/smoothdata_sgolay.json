@@ -1,0 +1,10 @@
+{
+  "name": "smoothdata_sgolay",
+  "namespace": "stats",
+  "setup": "x = [1 5 2 8 3 9 4 7 2 6 1 8];",
+  "expr": "z = smoothdata(x, 'sgolay', 5); z7 = smoothdata(x, 'sgolay', 7);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["numel(z)", "z(1)", "z(4)", "z(7)", "z(12)", "z7(1)", "z7(6)", "z7(12)"],
+  "comment": "Sig: smoothdata(x, 'sgolay', window). Savitzky-Golay smoothing (degree 2) via the projection matrix B = A*(A'A)^-1*A' (interior = centre row, edges = boundary rows) — matches MATLAB sgolayfilt/smoothdata exactly for an explicit ODD window. Fixes bugs/stats/smoothdata-methods (sgolay stub threw). NB the AUTO default window is NOT parity-tested: MATLAB's default is a data-dependent heuristic (window varied 2..6 for the same N=12 depending on the data) that numkit's shared k-default only approximates; the explicit-window form (validated here) is exact. lowess/loess still throw (separate local-regression work). Verified vs MATLAB R2025b: w=5 -> [1.1143 3.7429 5.0857 4.4 ...], w=7 -> [1.3333 ... 6.4762]."
+}

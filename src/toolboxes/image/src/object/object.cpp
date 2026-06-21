@@ -838,6 +838,115 @@ Value cornermetric(const Value &I, const std::string &method,
     return out;
 }
 
+// ── corner (peak detection on the cornermetric) ────────────────────
+//
+// MATLAB R2025b corner.m: compute the cornermetric, keep its local
+// maxima above QualityLevel·max(metric), take each connected peak's
+// centroid, sort by strength (descending), and return up to N integer
+// [x y] = [col row] coordinates. Built on the shipped cornermetric; the
+// border is excluded naturally (the metric there is ≤ 0 < threshold).
+Value corner(const Value &I, const std::string &method, int maxN,
+             double quality_level, double sensitivity,
+             const Value &filter_coef, std::pmr::memory_resource *mr)
+{
+    Value Cm = cornermetric(I, method, sensitivity, filter_coef, mr);
+    const std::size_t M = Cm.dims().rows();
+    const std::size_t N = Cm.dims().cols();
+    const std::size_t MN = M * N;
+
+    auto emptyOut = [&]() { return Value::matrix(0, 2, ValueType::DOUBLE, mr); };
+    if (MN == 0) return emptyOut();
+    const double *m = Cm.doubleData();
+
+    double mx = m[0];
+    for (std::size_t i = 1; i < MN; ++i) if (m[i] > mx) mx = m[i];
+    if (!(mx > 0.0)) return emptyOut();
+    const double thr = quality_level * mx;
+
+    ScratchArena arena(mr);
+    auto at = [&](std::size_t r, std::size_t c) -> double { return m[c * M + r]; };
+
+    // Local-maximum mask: strictly above threshold AND ≥ every in-bounds
+    // 8-neighbor.
+    ScratchVec<uint8_t> isMax(MN, &arena);
+    for (std::size_t i = 0; i < MN; ++i) isMax[i] = 0;
+    for (std::size_t c = 0; c < N; ++c) {
+        for (std::size_t r = 0; r < M; ++r) {
+            const double v = at(r, c);
+            if (!(v > thr)) continue;
+            bool peak = true;
+            for (int dc = -1; dc <= 1 && peak; ++dc)
+                for (int dr = -1; dr <= 1 && peak; ++dr) {
+                    if (dr == 0 && dc == 0) continue;
+                    const long long rr = (long long)r + dr, cc = (long long)c + dc;
+                    if (rr < 0 || cc < 0 || rr >= (long long)M || cc >= (long long)N)
+                        continue;
+                    if (at((std::size_t)rr, (std::size_t)cc) > v) peak = false;
+                }
+            if (peak) isMax[c * M + r] = 1;
+        }
+    }
+
+    // Connected components (8-conn), discovered in column-major order so
+    // equal-strength peaks tie-break by ascending linear index (matching
+    // MATLAB's find() order). Each component → centroid + peak strength.
+    // `key` quantises the strength to ~1e-9·max so that ULP-level noise
+    // (numkit's cornermetric matches MATLAB only to ~1e-8, and is not
+    // bit-exactly symmetric at symmetric corners) collapses to a single
+    // value — MATLAB's metric IS bit-exact there, so its equal-strength
+    // corners keep find() order under the strength sort; quantising lets
+    // ours do the same while still ordering genuinely distinct strengths.
+    const double quantum = mx * 1e-9;
+    struct Peak { double row, col, val; long long key; };
+    ScratchVec<Peak> peaks(0, &arena);
+    ScratchVec<uint8_t> seen(MN, &arena);
+    for (std::size_t i = 0; i < MN; ++i) seen[i] = 0;
+    ScratchVec<std::size_t> stack(0, &arena);
+    for (std::size_t idx = 0; idx < MN; ++idx) {
+        if (!isMax[idx] || seen[idx]) continue;
+        double sumR = 0, sumC = 0, best = m[idx];
+        std::size_t cnt = 0;
+        stack.clear();
+        stack.push_back(idx);
+        seen[idx] = 1;
+        while (!stack.empty()) {
+            const std::size_t p = stack.back(); stack.pop_back();
+            const std::size_t pr = p % M, pc = p / M;
+            sumR += (double)pr; sumC += (double)pc; ++cnt;
+            if (m[p] > best) best = m[p];
+            for (int dc = -1; dc <= 1; ++dc)
+                for (int dr = -1; dr <= 1; ++dr) {
+                    if (dr == 0 && dc == 0) continue;
+                    const long long rr = (long long)pr + dr, cc = (long long)pc + dc;
+                    if (rr < 0 || cc < 0 || rr >= (long long)M || cc >= (long long)N)
+                        continue;
+                    const std::size_t q = (std::size_t)cc * M + (std::size_t)rr;
+                    if (isMax[q] && !seen[q]) { seen[q] = 1; stack.push_back(q); }
+                }
+        }
+        peaks.push_back({ sumR / (double)cnt, sumC / (double)cnt, best,
+                          std::llround(best / quantum) });
+    }
+
+    // Stable sort by quantised strength descending (ties keep column-major
+    // order — MATLAB's find() order over equal-strength corners).
+    std::stable_sort(peaks.begin(), peaks.end(),
+                     [](const Peak &a, const Peak &b) { return a.key > b.key; });
+
+    std::size_t K = peaks.size();
+    if (maxN >= 0 && (std::size_t)maxN < K) K = (std::size_t)maxN;
+
+    // Output K×2: column 0 = x (col), column 1 = y (row), 1-indexed,
+    // centroid rounded half-away-from-zero (MATLAB round).
+    Value out = Value::matrix(K, 2, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t i = 0; i < K; ++i) {
+        od[i]     = (double)(std::llround(peaks[i].col) + 1);   // x
+        od[K + i] = (double)(std::llround(peaks[i].row) + 1);   // y
+    }
+    return out;
+}
+
 // ── hough (Standard Hough Transform) ───────────────────────────────
 //
 // MATLAB R2025b hough.m algorithm:
