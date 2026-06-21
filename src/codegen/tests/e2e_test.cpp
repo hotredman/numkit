@@ -1204,6 +1204,38 @@ TEST(CodegenE2E, OneDSizeOrientationRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 105.0);  // size(x,1)=1 *100 + size(x,2)=5
 }
 
+// `s = size(A)` (no-dim row) end-to-end: s is a 1x2 LOCAL filled with [1, len],
+// then indexed. f(x): s = size(x); r = s(1)*1000 + s(2). x of length 5 ->
+// s=[1 5] -> r = 1*1000 + 5 = 1005. Proves the array-result producer + that the
+// produced row indexes correctly.
+TEST(CodegenE2E, SizeNoDimRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n  s = size(x);\n  r = s(1) * 1000 + s(2);\nend\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("s.assign(2, 0.0)"), std::string::npos);  // 1x2 row local
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_sizenodim_e2e.exe").string();
+    const std::string outTxt = (base / "nk_sizenodim_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {10, 20, 30, 40, 50};\n"
+        "  double r = " + emitted.name + "(x, 5);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1005.0);  // [1 5] -> 1*1000 + 5
+}
+
 // RUNTIME-dim N-D LOCAL end-to-end: A = zeros(m,n,p) with the dims passed in as
 // args. f(2,3,4): A is 2x3x4 (NOT a cube — proves per-axis strides), A(1,1,1)=7
 // (offset 0), A(2,2,2)=9 (column-major offset 1 + 2*1 + (2*3)*1 = 9). Then

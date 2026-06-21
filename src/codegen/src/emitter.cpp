@@ -1183,6 +1183,35 @@ void Emitter::emitAssign(const ASTNode &s)
                                   ConstVal::unknown()});
             return;
         }
+        // `s = size(A)` (no dim): fill a 1 x rank row with A's per-axis sizes.
+        // rank is compile-time (2 for a scalar/vector/matrix; the array's rank
+        // for N-D). Native + self-contained — the first array-RESULT-from-a-
+        // builtin producer beyond zeros/ones. BEFORE the bridged path, so it
+        // lowers natively instead of boxing into numkit::size.
+        if (isArrayVar(name) && !arrays_.at(name).is2D && !arrays_.at(name).isND
+            && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "size"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo  &sai  = arrays_.at(name);
+            const ArrayInfo  &aai  = arrays_.at(rhs.children[1]->strValue);
+            const std::size_t rank = aai.isND ? aai.ndDims.size() : 2;
+            // The k-th dimension of A: N-D companion / 2-D rows,cols / 1-D orient.
+            auto nthDim = [](const ArrayInfo &a, std::size_t k) -> std::string {
+                if (a.isND) return k < a.ndDims.size() ? a.ndDims[k] : std::string("1");
+                if (a.is2D) return k == 0 ? a.rowsVar : k == 1 ? a.colsVar : std::string("1");
+                if (a.orient == VecOrient::Row) return k == 1 ? a.lenVar : std::string("1");
+                if (a.orient == VecOrient::Col) return k == 0 ? a.lenVar : std::string("1");
+                return std::string("1");
+            };
+            if (sai.isLocal) line(name + ".assign(" + std::to_string(rank) + ", 0.0);");
+            for (std::size_t k = 0; k < rank; ++k)
+                line(sai.dataExpr + "[" + std::to_string(k) + "] = static_cast<double>("
+                     + nthDim(aai, k) + ");");
+            types_.set(name, {InferredType::concrete(sai.dtype, Shape::rowVector()),
+                              ConstVal::unknown()});
+            return;
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and

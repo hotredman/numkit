@@ -428,6 +428,37 @@ TEST(EmitterFn, OneDSizeOrientation)
     EXPECT_TRUE(contains(col, "(static_cast<double>(_nk_x_len) * 100.0) + static_cast<double>(1)"));
 }
 
+// `s = size(A)` (no dim) -> a 1 x rank row filled with A's per-axis sizes,
+// native (no bridge). 1-D row: [1, len]; 2-D: [rows, cols]; N-D: [d0, d1, ...].
+TEST(EmitterFn, SizeNoDimRowVector)
+{
+    const auto reg = stdReg();
+    {  // 1-D row operand -> [1, len]   (s is the output: written directly)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function s = f(x)\n  s = size(x);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
+        EXPECT_TRUE(contains(s, "s[0] = static_cast<double>(1);"));
+        EXPECT_TRUE(contains(s, "s[1] = static_cast<double>(_nk_x_len);"));
+    }
+    {  // 2-D operand -> [rows, cols]
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function s = f(A)\n  s = size(A);\nend\n", root);
+        const InferredType     mat = InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 4));
+        const std::string      s   = emitFunction(*fn, {{"A", mat}}, reg).source;
+        EXPECT_TRUE(contains(s, "s[0] = static_cast<double>(_nk_A_rows);"));
+        EXPECT_TRUE(contains(s, "s[1] = static_cast<double>(_nk_A_cols);"));
+    }
+    {  // N-D operand -> [d0, d1, d2]
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function s = f(A)\n  s = size(A);\nend\n", root);
+        const InferredType     nd =
+            InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 3, 4}));
+        const std::string s = emitFunction(*fn, {{"A", nd}}, reg).source;
+        EXPECT_TRUE(contains(s, "s[2] = static_cast<double>(_nk_A_d2);"));  // 3rd axis
+    }
+}
+
 // RUNTIME-dim N-D LOCAL: zeros(m,n,p) with variable dims -> per-dim size_t
 // companion vars (hoisted, set from the args), a flat owned vector sized to
 // their product; indexN / size / numel read the vars (ndims still folds to the
