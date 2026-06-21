@@ -697,6 +697,22 @@ table.
   2-D / N-D all return).
 - **1-D `size(vec,dim)`** folded via a tracked `VecOrient` (the RawBuffer ABI
   erases row/col; the compile-time type supplies it).
+- **Vectorisation: `__restrict` on the output pointer** (A1) — the one aliasing
+  fact the C++ compiler needs to auto-vectorise the elementwise/fill loops; the
+  output is a distinct caller buffer (ABI precondition). Inputs stay
+  un-restricted (read-only aliasing `f(v,v)` safe).
+
+**Perf decision — direct `ops::` SIMD-kernel lowering tier: DEFERRED (measured).**
+Considered calling raw-buffer `ops::` kernels (e.g. `timesLoop`) instead of the
+inline loop. Measurement (A2) found it net-negative *today*: (1) `ops` exposes
+no raw-buffer TRANSCENDENTAL kernels (no `sinLoop`/`expLoop` — vectorised
+transcendentals live only behind the Value path / VM fusion), so the one case an
+ops-call could win has nothing to call directly; (2) for ARITHMETIC the
+`__restrict` auto-vectorised loop already matches the SIMD kernel, and a kernel
+call adds `HWY_DYNAMIC_DISPATCH` indirect-call overhead (the documented small-N
+crater). Revisit only if/when `ops` grows raw-buffer transcendental kernels;
+until then the inline loop (small/mid N, self-contained) + Value-bridge (general)
+cover it.
 
 **Still later (each its own milestone), simplest first:**
 - `size(A)` no-dim (1×ndims row) — needs array-result-from-builtin, or the
