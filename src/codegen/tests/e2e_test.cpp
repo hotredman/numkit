@@ -972,6 +972,37 @@ TEST(CodegenE2E, ElementwiseArrayArithmeticRunsCorrectly)
         EXPECT_DOUBLE_EQ(got[i], double(i + 1) * 2.0 + 1.0) << "at i=" << i;
 }
 
+// 2-D matrix WRITE end-to-end: a mutable 2-D local (compile-time dims),
+// element writes + reads, column-major. Self-contained. s = 5+7+9 = 21.
+TEST(CodegenE2E, Matrix2DLocalWriteRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f()\n  A = zeros(3, 3);\n  A(1,1) = 5;\n  A(2,2) = 7;\n  A(3,3) = 9;\n"
+        "  s = A(1,1) + A(2,2) + A(3,3);\nend\n",
+        {});
+    ASSERT_NE(emitted.source.find("std::vector<double> A;"), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk_rt::index2_set(A.data(), 3, 3"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_mat2dwrite_e2e.exe").string();
+    const std::string outTxt = (base / "nk_mat2dwrite_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "();\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 21.0);  // 5 + 7 + 9
+}
+
 // Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
 // loop — SELF-CONTAINED (no runtime DLL, plain stdlib exe) — and matches
 // std::sin. The win over bridging: no boxing, no runtime dependency.

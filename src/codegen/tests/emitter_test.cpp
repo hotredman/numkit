@@ -285,6 +285,23 @@ TEST(EmitterFn, MatrixMtimesNotElementwise)
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleRow}}, reg), std::runtime_error);
 }
 
+// 2-D matrix WRITE to a mutable local: A = zeros(3,3); A(i,j) = v. Compile-time
+// dims (KnownDims), flat owned vector, column-major index2_set. Self-contained.
+TEST(EmitterFn, Matrix2DLocalWrite)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function s = f()\n  A = zeros(3, 3);\n  A(1,1) = 5;\n  A(2,2) = 7;\n"
+        "  s = A(1,1) + A(2,2);\nend\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {}, reg).source;
+    EXPECT_TRUE(contains(s, "std::vector<double> A;"));             // flat 2-D local storage
+    EXPECT_TRUE(contains(s, "nk_rt::index2_set(A.data(), 3, 3"));   // column-major write
+    EXPECT_TRUE(contains(s, "nk_rt::index2(A.data(), 3, 3"));       // column-major read
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits
