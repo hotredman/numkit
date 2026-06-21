@@ -704,6 +704,18 @@ table.
 - **`s = size(A)` no-dim** (B1) — a 1 x rank row filled with A's per-axis sizes
   (N-D companion / 2-D rows,cols / 1-D orientation). First array-result-from-a-
   builtin producer beyond zeros/ones; native, self-contained.
+- **Complex pipeline (CX1-CX5), end-to-end:** `std::complex<double>` as a first-
+  class scalar/array dtype. Scalar accessors (real/imag/angle/conj → std::real/
+  imag/arg/conj, real-identity on real input); 1-D + 2-D + N-D complex arrays
+  (the buffer ABI is dtype-agnostic — `std::complex<double>*` + the same
+  companions); complex elementwise (the inline loops are already type-generic);
+  and **complex bridged results** — `y = fft(x)` boxes a real input, runs fft in
+  the runtime, and unboxes the complex result into a `std::complex<double>`
+  out-param via `nk_box_complex_array`/`bridge_into_cx` (interleaved re,im
+  C-ABI). fftTransfer infers 1-arg fft/ifft → COMPLEX shape-preserving;
+  multi-arg (padded/dim) forms stay Dynamic so the runtime owns them. 2-D/N-D
+  and complex-scalar bridged *args* are still refused (Contract 2 → Dynamic,
+  never UB).
 
 **Perf decision — direct `ops::` SIMD-kernel lowering tier: DEFERRED (measured).**
 Considered calling raw-buffer `ops::` kernels (e.g. `timesLoop`) instead of the
@@ -734,6 +746,7 @@ cover it.
   coverage unlock: operands of unknown type boxed to `Value`, arithmetic
   dispatched to the runtime, turning most "unsupported" into a bridged path.
 - multi-output bridged calls; object boxing across the bridge; zero-copy array
-  views; complex/string/cell/struct pipelines; recursion precision
+  views; string/cell/struct pipelines (complex is done, CX1-CX5); 2-D/N-D
+  elementwise (native, beyond bridged); recursion precision
   (Bottom-fixpoint; Dynamic is sound today); multi-engine embedding; plugin
   unload (needs core `Engine::unregisterFunction`); WASM plugins.
