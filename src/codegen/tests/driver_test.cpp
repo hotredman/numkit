@@ -53,7 +53,7 @@ TEST(Driver, TranspileNamedEntryWithArrayArg)
         "  for k = 1:n\n    y(k) = b0 * x(k);\n  end\nend\n",
         "biquad", driver::parseTypeSpec("double[], double"));
     EXPECT_NE(em.source.find("biquad"), std::string::npos);
-    EXPECT_NE(em.signature.find("const double* x, std::size_t x_len"), std::string::npos);
+    EXPECT_NE(em.signature.find("const double* x, std::size_t _nk_x_len"), std::string::npos);
 }
 
 TEST(Driver, ArityMismatchThrows)

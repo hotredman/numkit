@@ -254,7 +254,7 @@ TEST(CodegenE2E, CheckedIndexPathRunsCorrectly)
 
 // SOUNDNESS e2e: the loop bound is reassigned (`n = numel(x); n = 3;`) so
 // the loop must run 3 times, NOT numel(x)=8. The output buffer is sized 3.
-// If the stale numel fact wrongly promoted the loop to `k < x_len` (=8) it
+// If the stale numel fact wrongly promoted the loop to `k < _nk_x_len` (=8) it
 // would write y[0..7] out of bounds. Correct emission runs k=1..3 only.
 TEST(CodegenE2E, ReassignedBoundComputesCorrectly)
 {
@@ -290,7 +290,7 @@ TEST(CodegenE2E, ReassignedBoundComputesCorrectly)
         "int main() {\n"
         "  double x[8]; double y[3];\n"
         "  for (std::size_t i = 0; i < 8; ++i) x[i] = std::sin(0.01 * double(i + 1));\n"
-        "  f(x, 8, y, 3);\n"  // x_len=8, y_len=3; loop must run 3 (n), not 8
+        "  f(x, 8, y, 3);\n"  // _nk_x_len=8, _nk_y_len=3; loop must run 3 (n), not 8
         "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
         "  if (!g) return 2;\n"
         "  for (std::size_t i = 0; i < 3; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
@@ -495,7 +495,7 @@ TEST(CodegenE2E, Matrix2DRead)
     const EmittedFunction emitted = emitProgram(
         *ft.find("tr"), {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 3))}},
         ft, reg);
-    ASSERT_TRUE(emitted.source.find("std::size_t A_rows, std::size_t A_cols")
+    ASSERT_TRUE(emitted.source.find("std::size_t _nk_A_rows, std::size_t _nk_A_cols")
                 != std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
@@ -1043,7 +1043,7 @@ TEST(CodegenE2E, NDParamReadRunsCorrectly)
     const EmittedFunction emitted = transpile(
         "function s = f(A)\n  s = A(1,1,1) + A(2,2,2) + size(A,2);\nend\n",
         {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::ndShape({2, 2, 2}))}});
-    ASSERT_NE(emitted.source.find("std::size_t A_d0, std::size_t A_d1, std::size_t A_d2"),
+    ASSERT_NE(emitted.source.find("std::size_t _nk_A_d0, std::size_t _nk_A_d1, std::size_t _nk_A_d2"),
               std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
@@ -1109,7 +1109,7 @@ TEST(CodegenE2E, NDOutputRunsCorrectly)
     const EmittedFunction emitted = transpile(
         "function y = f(a)\n  y = zeros(2, 2, 2);\n  y(1,1,1) = a;\n  y(2,2,2) = a * 2;\nend\n",
         {{"a", InferredType::scalar(ValueType::DOUBLE)}});
-    ASSERT_NE(emitted.source.find("double* y, std::size_t y_d0, std::size_t y_d1, std::size_t y_d2"),
+    ASSERT_NE(emitted.source.find("double* y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
               std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
@@ -1150,7 +1150,7 @@ TEST(CodegenE2E, NDRuntimeLocalRunsCorrectly)
         {{"m", InferredType::scalar(ValueType::DOUBLE)},
          {"n", InferredType::scalar(ValueType::DOUBLE)},
          {"p", InferredType::scalar(ValueType::DOUBLE)}});
-    ASSERT_NE(emitted.source.find("A.assign(A_d0 * A_d1 * A_d2"), std::string::npos);  // runtime size
+    ASSERT_NE(emitted.source.find("A.assign(_nk_A_d0 * _nk_A_d1 * _nk_A_d2"), std::string::npos);  // runtime size
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
     std::filesystem::create_directories(base);
@@ -1183,7 +1183,7 @@ TEST(CodegenE2E, NDRuntimeOutputRunsCorrectly)
         "function y = f(m, n)\n  y = zeros(m, n, 2);\n  y(1,1,1) = 5;\n  y(m,n,2) = 8;\nend\n",
         {{"m", InferredType::scalar(ValueType::DOUBLE)},
          {"n", InferredType::scalar(ValueType::DOUBLE)}});
-    ASSERT_NE(emitted.source.find("double* y, std::size_t y_d0, std::size_t y_d1, std::size_t y_d2"),
+    ASSERT_NE(emitted.source.find("double* y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
               std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";

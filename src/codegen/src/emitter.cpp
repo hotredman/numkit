@@ -516,6 +516,18 @@ std::string mangle(const std::string &base, const std::vector<InferredType> &arg
     return m;
 }
 
+// A reserved-companion variable name (`_nk_<escaped-base><suffix>`) for an
+// array's length / dim sizes (suffix = "_len" / "_rows" / "_cols" / "_d0"...).
+// The `_nk_` prefix lives in the underscore namespace a MATLAB identifier can
+// never enter, so it cannot collide with a user variable — yet it is a
+// CONFORMING block-scope name: a leading underscore is reserved only for the
+// GLOBAL namespace ([lex.name]), and companions are always params/locals. The
+// base is escaped so a name like `x_` cannot form a reserved "__".
+std::string companion(const std::string &base, const std::string &suffix)
+{
+    return "_nk_" + escapeBase(base) + suffix;
+}
+
 std::vector<ArgInfo> toArgInfos(const std::vector<InferredType> &types)
 {
     std::vector<ArgInfo> out;
@@ -1131,8 +1143,8 @@ void Emitter::emitAssign(const ASTNode &s)
                 if (numel.empty()) numel = "0";
                 line(name + ".assign(" + numel + ", " + fill + ");");
             } else {
-                open("for (std::size_t __i = 0; __i < " + ai.lenVar + "; ++__i)");
-                line(ai.dataExpr + "[__i] = " + fill + ";");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + ai.lenVar + "; ++_nk_i)");
+                line(ai.dataExpr + "[_nk_i] = " + fill + ";");
                 close();
             }
             // Record the array type so a later `name(k)` infers element-access
@@ -1189,8 +1201,8 @@ void Emitter::emitAssign(const ASTNode &s)
                     line(fn + callee + "\", nullptr, 0" + dest);
                 } else {
                     open("");  // a fresh scope for the temporary arg array
-                    line("nk_val __nk_args[] = { " + boxed + " };");
-                    line(fn + callee + "\", __nk_args, " + std::to_string(nargs) + dest);
+                    line("nk_val _nk_args[] = { " + boxed + " };");
+                    line(fn + callee + "\", _nk_args, " + std::to_string(nargs) + dest);
                     close();
                 }
                 types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
@@ -1237,11 +1249,11 @@ void Emitter::emitAssign(const ASTNode &s)
                         line("if (" + guard
                              + ") throw std::out_of_range(\"numkit: array dimensions must match\");");
                     if (ai.isLocal) line(name + ".resize(" + bound + ");");
-                    elementCtx_               = "__i";
-                    const std::string rhsExpr = emitExpr(rhs);  // whole arrays -> [__i]
+                    elementCtx_               = "_nk_i";
+                    const std::string rhsExpr = emitExpr(rhs);  // whole arrays -> [_nk_i]
                     elementCtx_.clear();
-                    open("for (std::size_t __i = 0; __i < " + bound + "; ++__i)");
-                    line(ai.dataExpr + "[__i] = " + rhsExpr + ";");
+                    open("for (std::size_t _nk_i = 0; _nk_i < " + bound + "; ++_nk_i)");
+                    line(ai.dataExpr + "[_nk_i] = " + rhsExpr + ";");
                     close();
                     types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
                                       ConstVal::unknown()});
@@ -1536,10 +1548,10 @@ const char *kPrelude =
     "                          std::initializer_list<double> subs) {\n"
     "    const std::size_t* d = dims.begin(); const double* s = subs.begin();\n"
     "    std::size_t off = 0, stride = 1;\n"
-    "    for (std::size_t __a = 0; __a < dims.size(); ++__a) {\n"
-    "        const std::size_t ik = static_cast<std::size_t>(s[__a]);\n"
-    "        if (s[__a] < 1.0 || ik > d[__a]) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
-    "        off += (ik - 1) * stride; stride *= d[__a];\n"
+    "    for (std::size_t _nk_a = 0; _nk_a < dims.size(); ++_nk_a) {\n"
+    "        const std::size_t ik = static_cast<std::size_t>(s[_nk_a]);\n"
+    "        if (s[_nk_a] < 1.0 || ik > d[_nk_a]) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
+    "        off += (ik - 1) * stride; stride *= d[_nk_a];\n"
     "    }\n"
     "    return off;\n"
     "}\n"
@@ -1630,8 +1642,8 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ArrayInfo ai;
             ai.dtype    = p.type.dtype;
             ai.is2D     = true;
-            ai.rowsVar  = p.name + "_rows";
-            ai.colsVar  = p.name + "_cols";
+            ai.rowsVar  = companion(p.name, "_rows");
+            ai.colsVar  = companion(p.name, "_cols");
             ai.dataExpr = p.name;
             arrays[p.name] = ai;
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
@@ -1647,7 +1659,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.dataExpr = p.name;
             std::string sig = "const " + cppScalarType(p.type.dtype) + "* " + p.name;
             for (std::size_t d = 0; d < p.type.shape.nd.size(); ++d) {
-                const std::string dv = p.name + "_d" + std::to_string(d);
+                const std::string dv = companion(p.name, "_d" + std::to_string(d));
                 ai.ndDims.push_back(dv);
                 sig += ", std::size_t " + dv;
             }
@@ -1656,7 +1668,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         } else if (isBufferArrayType(p.type)) {
             ArrayInfo ai;
             ai.dtype       = p.type.dtype;
-            ai.lenVar      = p.name + "_len";
+            ai.lenVar      = companion(p.name, "_len");
             ai.dataExpr    = p.name;
             arrays[p.name] = ai;
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
@@ -1707,7 +1719,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             std::string sig  = cppScalarType(retType.dtype) + "* " + retName;
             std::string prod;  // total length = product of the companions
             for (std::size_t d = 0; d < retType.shape.nd.size(); ++d) {
-                const std::string dv = retName + "_d" + std::to_string(d);
+                const std::string dv = companion(retName, "_d" + std::to_string(d));
                 ai.ndDims.push_back(dv);
                 sig  += ", std::size_t " + dv;
                 prod += (prod.empty() ? "" : " * ") + dv;
@@ -1720,7 +1732,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             retCpp      = "void";
             ArrayInfo ai;
             ai.dtype        = retType.dtype;
-            ai.lenVar       = retName + "_len";
+            ai.lenVar       = companion(retName, "_len");
             ai.isOutput     = true;
             ai.dataExpr     = retName;
             arrays[retName] = ai;
@@ -1787,7 +1799,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
                 // fn entry and set from the zeros/ones args at the assignment.
                 ai.ndRuntimeLocal = true;
                 for (std::size_t d = 0; d < t.shape.nd.size(); ++d)
-                    ai.ndDims.push_back(name + "_d" + std::to_string(d));
+                    ai.ndDims.push_back(companion(name, "_d" + std::to_string(d)));
             }
             arrays[name] = ai;
         } else if (isBufferArrayType(t)) {
@@ -1800,36 +1812,10 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         }
     }
 
-    // Reserved-companion safety. The ABI synthesises companion vars
-    // (`<base>_len` / `_rows` / `_cols` / `_dN`) for every array param/output
-    // and runtime-dim N-D local. If a user identifier (param or local) equals
-    // one of them, the emitted C++ would carry two same-named declarations — a
-    // cryptic compiler error from generated code. Refuse up front with a clear
-    // message (Contract 2: an explicit boundary, never broken output). The
-    // companion fields that are bare identifiers ARE companions; `.size()`,
-    // `(a * b)` and numeric literals (a local's own dims) are filtered out.
-    {
-        auto isIdent = [](const std::string &s) {
-            auto ok = [](char c, bool first) {
-                return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
-                       || (!first && c >= '0' && c <= '9');
-            };
-            if (s.empty() || !ok(s[0], true)) return false;
-            for (char c : s)
-                if (!ok(c, false)) return false;
-            return true;
-        };
-        std::set<std::string> userIds = paramSet;
-        for (const auto &[n, t] : decls) userIds.insert(n);
-        for (const auto &[base, ai] : arrays) {
-            std::vector<std::string> comps = {ai.lenVar, ai.rowsVar, ai.colsVar};
-            comps.insert(comps.end(), ai.ndDims.begin(), ai.ndDims.end());
-            for (const std::string &c : comps)
-                if (isIdent(c) && userIds.count(c))
-                    unsupported("identifier '" + c + "' collides with a reserved ABI companion of "
-                                "array '" + base + "' — rename the variable");
-        }
-    }
+    // (No companion-collision check needed: companion names carry the `_nk_`
+    // prefix, and a MATLAB identifier can never begin with '_', so a synthesised
+    // companion can never equal a user variable — the collision is structurally
+    // impossible rather than detected.)
 
     const std::string symbol = cppName.empty() ? funcDef.strValue : cppName;
     std::string       sig    = retCpp + " " + symbol + "(";
