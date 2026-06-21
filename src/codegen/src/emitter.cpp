@@ -475,6 +475,10 @@ std::string typeCode(const InferredType &t)
     case ShapeKind::KnownDims:
         c += "m" + std::to_string(t.shape.rows) + "x" + std::to_string(t.shape.cols);
         break;
+    case ShapeKind::NDims:
+        c += "n";  // ranked: rank + each dim (0 = unknown), distinct per shape
+        for (std::size_t d : t.shape.nd) c += std::to_string(d) + "_";
+        break;
     case ShapeKind::Unknown:   c += "u"; break;
     }
     return c;

@@ -32,6 +32,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace numkit::codegen {
 
@@ -45,28 +46,45 @@ enum class ShapeKind : std::uint8_t {
     Scalar,     // 1 x 1
     RowVector,  // 1 x N, N not statically known (e.g. 1:N, runtime linspace)
     ColVector,  // N x 1, N not statically known
-    KnownDims,  // concrete rows x cols
+    KnownDims,  // concrete rows x cols (rank 2, both dims compile-time)
+    NDims,      // ranked: rank = nd.size(); each nd[k] is the dim size, 0 = runtime-unknown.
+                // Used for rank >= 3 (true N-D) AND a rank-2 matrix with a runtime dim.
+                // A fully-known rank-2 canonicalises to KnownDims (see ndShape).
 };
 
 struct Shape {
-    ShapeKind   kind = ShapeKind::Unknown;
-    std::size_t rows = 0;   // meaningful only when kind == KnownDims
-    std::size_t cols = 0;
+    ShapeKind                kind = ShapeKind::Unknown;
+    std::size_t              rows = 0;  // meaningful only when kind == KnownDims
+    std::size_t              cols = 0;
+    std::vector<std::size_t> nd;        // meaningful only when kind == NDims (0 = unknown dim)
 
-    static Shape unknown()   { return {ShapeKind::Unknown, 0, 0}; }
-    static Shape scalar()    { return {ShapeKind::Scalar, 1, 1}; }
-    static Shape rowVector() { return {ShapeKind::RowVector, 0, 0}; }
-    static Shape colVector() { return {ShapeKind::ColVector, 0, 0}; }
+    static Shape unknown()   { return {ShapeKind::Unknown, 0, 0, {}}; }
+    static Shape scalar()    { return {ShapeKind::Scalar, 1, 1, {}}; }
+    static Shape rowVector() { return {ShapeKind::RowVector, 0, 0, {}}; }
+    static Shape colVector() { return {ShapeKind::ColVector, 0, 0, {}}; }
     // A 1x1 KnownDims is canonicalised to Scalar so the two never alias.
     static Shape dims(std::size_t r, std::size_t c)
     {
         if (r == 1 && c == 1) return scalar();
-        return {ShapeKind::KnownDims, r, c};
+        return {ShapeKind::KnownDims, r, c, {}};
+    }
+    // A ranked shape (column-major). A fully-known rank-2 collapses to
+    // KnownDims so static matrices keep their existing single representation;
+    // everything else (rank >= 3, or a rank-2 with a runtime dim) is NDims.
+    static Shape ndShape(std::vector<std::size_t> d)
+    {
+        if (d.size() == 2 && d[0] >= 1 && d[1] >= 1) return dims(d[0], d[1]);
+        Shape s;
+        s.kind = ShapeKind::NDims;
+        s.nd   = std::move(d);
+        return s;
     }
 
-    bool isScalar() const { return kind == ShapeKind::Scalar; }
-    bool operator==(const Shape &o) const;
-    bool operator!=(const Shape &o) const { return !(*this == o); }
+    bool        isScalar() const { return kind == ShapeKind::Scalar; }
+    bool        isNDims() const { return kind == ShapeKind::NDims; }
+    std::size_t ndRank() const { return kind == ShapeKind::NDims ? nd.size() : 0; }
+    bool        operator==(const Shape &o) const;
+    bool        operator!=(const Shape &o) const { return !(*this == o); }
 };
 
 // Least upper bound of two shapes (used at control-flow merges).

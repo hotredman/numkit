@@ -113,6 +113,35 @@ TEST(TypeLattice, JoinCommutative)
     EXPECT_EQ(join(a, c), join(c, a));
 }
 
+// ── N-D ranked shapes (brick N1) ──
+TEST(TypeLattice, NDimsRankAndCanonicalisation)
+{
+    const Shape s = Shape::ndShape({2, 3, 4});
+    EXPECT_EQ(s.kind, ShapeKind::NDims);
+    EXPECT_TRUE(s.isNDims());
+    EXPECT_EQ(s.ndRank(), 3u);
+    // A fully-known rank-2 collapses to the existing KnownDims representation.
+    EXPECT_EQ(Shape::ndShape({3, 5}).kind, ShapeKind::KnownDims);
+    EXPECT_EQ(Shape::ndShape({3, 5}), Shape::dims(3, 5));
+    EXPECT_EQ(Shape::ndShape({1, 1}).kind, ShapeKind::Scalar);
+    // A rank-2 with a runtime (unknown) dim stays NDims.
+    EXPECT_EQ(Shape::ndShape({0, 5}).kind, ShapeKind::NDims);
+}
+
+TEST(TypeLattice, NDimsEqualityAndJoin)
+{
+    using S = Shape;
+    EXPECT_EQ(S::ndShape({2, 3, 4}), S::ndShape({2, 3, 4}));
+    EXPECT_NE(S::ndShape({2, 3, 4}), S::ndShape({2, 3, 5}));
+    EXPECT_EQ(joinShape(S::ndShape({2, 3, 4}), S::ndShape({2, 3, 4})), S::ndShape({2, 3, 4}));
+    // one dim differs -> that dim becomes unknown (0), same rank
+    const Shape j = joinShape(S::ndShape({2, 3, 4}), S::ndShape({2, 9, 4}));
+    ASSERT_TRUE(j.isNDims());
+    EXPECT_EQ(j.nd, (std::vector<std::size_t>{2, 0, 4}));
+    // different rank (rank-3 NDims vs rank-2 KnownDims) -> Unknown
+    EXPECT_EQ(joinShape(S::ndShape({2, 3, 4}), S::ndShape({2, 3})).kind, ShapeKind::Unknown);
+}
+
 // ── ConstVal (the SCCP facet that drives shape-from-value) ────────────
 
 // A known non-negative integer constant reads out as an array dimension;
