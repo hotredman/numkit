@@ -1489,35 +1489,46 @@ void Emitter::emitAssign(const ASTNode &s)
                 // buffer). Rank discipline: every array operand must match the
                 // dest's rank — no implicit 1-D<->2-D broadcast, and N-D
                 // refused (an N-D PARAM has no flat numel here, and shapes —
-                // not just numel — would have to agree). A 2-D dest is v1
-                // limited to ONE array operand (scalar broadcast), so no
-                // cross-operand per-dim agreement is needed; multi-operand 2-D
-                // (A.*B) is deferred. Explicit boundary, never wrong code.
+                // not just numel — would have to agree). 1-D and 2-D both allow
+                // multiple array operands; the soundness guard below enforces
+                // matching shapes (per-dim for 2-D). Explicit boundary, never
+                // wrong code.
                 bool anyND = false, rankMismatch = false;
                 for (const std::string &an : srcArrays) {
                     const ArrayInfo &sa = arrays_.at(an);
                     if (sa.isND) anyND = true;
                     if (sa.is2D != dst2D) rankMismatch = true;
                 }
-                const bool          twoDok = !dst2D || srcArrays.size() == 1;
-                const AbstractValue res    = inferExpr(rhs, types_, reg_, classes_);
-                if (!anyND && !rankMismatch && twoDok && res.type.isConcrete()
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (!anyND && !rankMismatch && res.type.isConcrete()
                     && !res.type.shape.isScalar()
                     && (res.type.dtype == ValueType::DOUBLE
                         || res.type.dtype == ValueType::COMPLEX)) {
-                    const ArrayInfo  &ai    = arrays_.at(name);
-                    // Loop length: the OUTPUT's caller-sized numel, else (a
-                    // local) the first operand's numel.
-                    const std::string bound =
-                        ai.isLocal ? arrays_.at(*srcArrays.begin()).lenVar : ai.lenVar;
-                    // SOUNDNESS: every array operand must have that numel, or
-                    // the per-element loop would read out of bounds. Guard at
-                    // runtime (MATLAB errors on a size mismatch too).
-                    std::string guard;
-                    for (const std::string &an : srcArrays) {
-                        const std::string &alen = arrays_.at(an).lenVar;
-                        if (alen == bound) continue;  // trivially equal
-                        guard += (guard.empty() ? "" : " || ") + (alen + " != " + bound);
+                    const ArrayInfo &ai = arrays_.at(name);
+                    // Loop count = numel; the per-element loop is flat
+                    // (column-major, so elementwise is rank-agnostic). SOUNDNESS
+                    // guard = every array operand agrees with a reference shape
+                    // (the OUTPUT's own dims, else the first operand's). 1-D
+                    // compares numel; 2-D compares BOTH dims (equal numel is not
+                    // equal shape — 2x3 vs 3x2). MATLAB errors on a mismatch too.
+                    std::string bound, guard;
+                    if (dst2D) {
+                        const ArrayInfo &ref = ai.isLocal ? arrays_.at(*srcArrays.begin()) : ai;
+                        bound = "(" + ref.rowsVar + " * " + ref.colsVar + ")";
+                        for (const std::string &an : srcArrays) {
+                            const ArrayInfo &sa = arrays_.at(an);
+                            if (sa.rowsVar == ref.rowsVar && sa.colsVar == ref.colsVar) continue;
+                            guard += (guard.empty() ? "" : " || ")
+                                     + ("(" + sa.rowsVar + " != " + ref.rowsVar + " || "
+                                        + sa.colsVar + " != " + ref.colsVar + ")");
+                        }
+                    } else {
+                        bound = ai.isLocal ? arrays_.at(*srcArrays.begin()).lenVar : ai.lenVar;
+                        for (const std::string &an : srcArrays) {
+                            const std::string &alen = arrays_.at(an).lenVar;
+                            if (alen == bound) continue;  // trivially equal
+                            guard += (guard.empty() ? "" : " || ") + (alen + " != " + bound);
+                        }
                     }
                     if (!guard.empty())
                         line("if (" + guard

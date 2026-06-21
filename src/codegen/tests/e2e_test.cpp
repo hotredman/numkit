@@ -1039,6 +1039,41 @@ TEST(CodegenE2E, Elementwise2DRunsCorrectly)
     for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
+// Two-matrix 2-D elementwise end-to-end: B = A + C (per-dim shape guard, flat
+// column-major loop). A={1..6}, C={10,20,30,40,50,60} -> B={11,22,33,44,55,66}.
+TEST(CodegenE2E, Elementwise2DTwoMatrixRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function B = f(A, C)\n  B = A + C;\nend\n",
+        {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))},
+         {"C", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))}});
+    ASSERT_NE(emitted.source.find("B[_nk_i] = (A[_nk_i] + C[_nk_i]);"), std::string::npos);
+    ASSERT_NE(emitted.source.find("_nk_A_rows != _nk_B_rows"), std::string::npos);  // per-dim guard
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ewise2d2_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ewise2d2_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[6] = {1, 2, 3, 4, 5, 6};\n"
+        "  double C[6] = {10, 20, 30, 40, 50, 60};\n"
+        "  double B[6];\n"
+        "  " + emitted.name + "(A, 2, 3, C, 2, 3, B, 2, 3);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 6; ++i) std::fprintf(g, \"%.17g\\n\", B[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 6u);
+    const double exp[6] = {11, 22, 33, 44, 55, 66};  // A + C
+    for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
 // 2-D matrix WRITE end-to-end: a mutable 2-D local (compile-time dims),
 // element writes + reads, column-major. Self-contained. s = 5+7+9 = 21.
 TEST(CodegenE2E, Matrix2DLocalWriteRunsCorrectly)
