@@ -751,8 +751,28 @@ cover it.
   (+ scalars) → flat column-major loop over numel; the soundness guard compares
   BOTH dims (equal numel ≠ equal shape). Covers `scalar*MATRIX`, `A+s`, `A.*B`,
   `sin(A)`, …. Rank discipline: no implicit 1-D↔2-D broadcast; N-D refused.
+- **Ops-kernel lowering tier (`ops` owns the kernels; codegen takes them).**
+  OPT-IN `OpsKernelOptions` (parallel to `BridgeOptions`): a heavy array op with
+  a matching `numkit::ops::` kernel emits that call + links the `nk_ops_kernels`
+  SHARED facade (one import lib + DLL, modeled on `nk_codegen_rt`); the inline
+  loop stays the self-contained default + the deletable fallback (litmus). The
+  public facade is `numkit/ops/kernels.hpp` (`NK_OPS_API`). Routed: **matmul**
+  (`matmulDouble` SIMD MulAdd / `matmulComplex` portable), **elementwise binary**
+  (`plus/minus/times/rdivideDouble`), **transcendentals** (`sin/cos/tan/atan/
+  sinh/cosh/tanh/exp/asinh/expm1Double` → the existing SIMD `fusedTransAffine`).
+  Transcendentals are the real win (inline `std::sin` doesn't auto-vectorise on
+  MSVC); cheap arithmetic ≈ inline (A3) so it's pure consistency there. **fft is
+  NOT an ops kernel** — it's a 1149-line Value/pmr-coupled signal-toolbox
+  algorithm (Bluestein, twiddles, dim handling) built on the ops butterflies, so
+  it correctly stays on the Value-bridge (which calls the canonical impl; boxing
+  amortized over O(n log n)). "No-bridge fft" would need duplicating that into
+  `ops` (kludge/drift) or a separate signal-toolbox facade — deferred as a
+  user-decision, not auto-done.
 
 **Still later (each its own milestone), simplest first:**
+- no-bridge fft (#4): only via a signal-toolbox raw-buffer facade wrapping
+  `fftAlongDim` (NOT by duplicating it into `ops`) — modest benefit over the
+  working bridge; a user-decision.
 - `size(scalar-var)` (the no-dim row + `[r,c]` two-output forms are done).
 - merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
   interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
