@@ -695,6 +695,23 @@ const char *unaryMathStd(const std::string &name)
     return it == kMap.end() ? nullptr : it->second;
 }
 
+// MATLAB unary-math name -> the numkit::ops:: SIMD transcendental facade entry
+// (kernels.hpp), for the opt-in ops-kernel tier. Restricted to the real-total
+// transcendentals fusedTransAffine handles (no complex-domain decline) that the
+// codegen also lowers inline — so routing here is a faithful, faster swap
+// (inline std::<fn> does not auto-vectorise on MSVC). floor/ceil/round/abs/fix/
+// erf/erfc are NOT here (cheap or no SIMD kernel) -> they stay inline.
+const char *opsTranscendentalFn(const std::string &name)
+{
+    static const std::unordered_map<std::string, const char *> kMap = {
+        {"sin", "sinDouble"},     {"cos", "cosDouble"},   {"tan", "tanDouble"},
+        {"atan", "atanDouble"},   {"sinh", "sinhDouble"}, {"cosh", "coshDouble"},
+        {"tanh", "tanhDouble"},   {"exp", "expDouble"},   {"asinh", "asinhDouble"},
+        {"expm1", "expm1Double"}};
+    const auto it = kMap.find(name);
+    return it == kMap.end() ? nullptr : it->second;
+}
+
 // MATLAB binary-math name -> std:: name. Total on ℝ², typed scalar->scalar by
 // realBinaryMathTransfer (complex/array -> Dynamic, so this only fires for a
 // real scalar result).
@@ -1563,23 +1580,35 @@ void Emitter::emitAssign(const ASTNode &s)
                     // has no matching kernel -> the inline fill loop (which is
                     // also the self-contained default when ops kernels are off,
                     // and already auto-vectorises cheap arithmetic — A3).
-                    const char *opsFn = nullptr;
-                    if (opsKernels_ && ai.dtype == ValueType::DOUBLE
-                        && rhs.type == NodeType::BINARY_OP && rhs.children.size() == 2
-                        && rhs.children[0]->type == NodeType::IDENTIFIER
-                        && isArrayVar(rhs.children[0]->strValue)
-                        && rhs.children[1]->type == NodeType::IDENTIFIER
-                        && isArrayVar(rhs.children[1]->strValue)) {
-                        const std::string &op = rhs.strValue;
-                        opsFn = op == "+"    ? "plusDouble"
-                                : op == "-"  ? "minusDouble"
-                                : op == ".*" ? "timesDouble"
-                                : op == "./" ? "rdivideDouble"
-                                             : nullptr;
+                    const char *opsFn     = nullptr;  // binary: a OP b
+                    const char *opsMathFn = nullptr;  // unary transcendental: fn(x)
+                    if (opsKernels_ && ai.dtype == ValueType::DOUBLE) {
+                        if (rhs.type == NodeType::BINARY_OP && rhs.children.size() == 2
+                            && rhs.children[0]->type == NodeType::IDENTIFIER
+                            && isArrayVar(rhs.children[0]->strValue)
+                            && rhs.children[1]->type == NodeType::IDENTIFIER
+                            && isArrayVar(rhs.children[1]->strValue)) {
+                            const std::string &op = rhs.strValue;
+                            opsFn = op == "+"    ? "plusDouble"
+                                    : op == "-"  ? "minusDouble"
+                                    : op == ".*" ? "timesDouble"
+                                    : op == "./" ? "rdivideDouble"
+                                                 : nullptr;
+                        } else if (rhs.type == NodeType::CALL && rhs.children.size() == 2
+                                   && rhs.children[0]->type == NodeType::IDENTIFIER
+                                   && rhs.children[1]->type == NodeType::IDENTIFIER
+                                   && isArrayVar(rhs.children[1]->strValue)) {
+                            // fn(x): a single transcendental over a whole array.
+                            opsMathFn = opsTranscendentalFn(rhs.children[0]->strValue);
+                        }
                     }
                     if (opsFn) {
                         line("numkit::ops::" + std::string(opsFn) + "("
                              + arrays_.at(rhs.children[0]->strValue).dataExpr + ", "
+                             + arrays_.at(rhs.children[1]->strValue).dataExpr + ", " + ai.dataExpr
+                             + ", " + bound + ");");
+                    } else if (opsMathFn) {
+                        line("numkit::ops::" + std::string(opsMathFn) + "("
                              + arrays_.at(rhs.children[1]->strValue).dataExpr + ", " + ai.dataExpr
                              + ", " + bound + ");");
                     } else {

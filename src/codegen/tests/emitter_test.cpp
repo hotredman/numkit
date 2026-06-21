@@ -435,6 +435,45 @@ TEST(EmitterFn, ElementwiseBinaryViaOpsKernel)
     }
 }
 
+// With ops kernels enabled, a single transcendental over a whole DOUBLE array
+// (y = sin(x)) lowers to the SIMD ops kernel (a genuine speedup — inline
+// std::sin does not auto-vectorise). Default stays inline; functions with no
+// SIMD transcendental kernel (floor) stay inline either way.
+TEST(EmitterFn, TranscendentalViaOpsKernel)
+{
+    const auto             reg = stdReg();
+    const InferredType     row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+    const OpsKernelOptions ops{true};
+    {  // sin(x) + ops -> ops::sinDouble
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sin(x);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"x", row}}, reg, nullptr, {}, ops).source;
+        EXPECT_TRUE(contains(s, "numkit::ops::sinDouble(x, y, "));
+        EXPECT_FALSE(contains(s, "std::sin"));
+    }
+    {  // exp(x) + ops -> ops::expDouble
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = exp(x);\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"x", row}}, reg, nullptr, {}, ops).source;
+        EXPECT_TRUE(contains(s, "numkit::ops::expDouble(x, y, "));
+    }
+    {  // default (ops off) -> inline std::sin
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sin(x);\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"x", row}}, reg).source;
+        EXPECT_FALSE(contains(s, "numkit::ops::"));
+        EXPECT_TRUE(contains(s, "std::sin(x[_nk_i])"));
+    }
+    {  // floor(x): no SIMD transcendental kernel -> inline even with ops on
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = floor(x);\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"x", row}}, reg, nullptr, {}, ops).source;
+        EXPECT_FALSE(contains(s, "numkit::ops::"));
+        EXPECT_TRUE(contains(s, "std::floor(x[_nk_i])"));
+    }
+}
+
 // Matrix * vector and vector * matrix -> a vector. A*x (2-D * col) is a column
 // vector; r*A (row * 2-D) is a row vector. Native double loop + shared-dim
 // guard, not bridged.
