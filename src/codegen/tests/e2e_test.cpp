@@ -636,7 +636,7 @@ TEST(CodegenE2E, HandleVoidMutator)
     const int id = creg.idOf("Box");
     const EmittedFunction emitted =
         emitProgram(*ft.find("run"), {{"b", InferredType::object(id)}}, ft, reg, &creg);
-    ASSERT_TRUE(emitted.source.find("void Box__setv") != std::string::npos)
+    ASSERT_TRUE(emitted.source.find("void Box_0_0setv") != std::string::npos)
         << "void mutator should emit a void specialisation";
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
@@ -687,7 +687,7 @@ TEST(CodegenE2E, ExplicitConstructor)
     registerClassConstructors(reg, creg);
 
     const EmittedFunction emitted = emitProgram(*ft.find("demo"), {}, ft, reg, &creg);
-    ASSERT_TRUE(emitted.source.find("Rect__ctor") != std::string::npos)
+    ASSERT_TRUE(emitted.source.find("Rect_0_0ctor") != std::string::npos)
         << "expected an explicit constructor specialisation";
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";

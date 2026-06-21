@@ -728,8 +728,8 @@ TEST(EmitterFn, MultiOutputEmission)
     const std::string &s = out.source;
 
     // multi-output -> void + reference out-params
-    EXPECT_TRUE(contains(s, "void two__d(double x, double& a, double& b)"));
-    EXPECT_TRUE(contains(s, "two__d(x, p, q);"));   // targets appended as out-args
+    EXPECT_TRUE(contains(s, "void two_1d(double x, double& a, double& b)"));
+    EXPECT_TRUE(contains(s, "two_1d(x, p, q);"));   // targets appended as out-args
     EXPECT_TRUE(contains(s, "double p = 0.0;"));    // targets hoisted in the caller
     EXPECT_TRUE(contains(s, "double q = 0.0;"));
 }
@@ -813,11 +813,11 @@ TEST(EmitterFn, MethodCallEmission)
         emitProgram(*ft.find("run"), {{"p", InferredType::object(id)}}, ft, reg, &creg);
     const std::string &s = out.source;
 
-    EXPECT_EQ(out.name, "run__o0");
+    EXPECT_EQ(out.name, "run_1o0");
     EXPECT_TRUE(contains(s, "struct Rect {"));
-    EXPECT_TRUE(contains(s, "double Rect__area__o0(Rect obj)"));  // method specialisation
+    EXPECT_TRUE(contains(s, "double Rect_0_0area_1o0(Rect obj)"));  // method specialisation
     EXPECT_TRUE(contains(s, "a = (obj.w * obj.h);"));            // field reads in the body
-    EXPECT_TRUE(contains(s, "Rect__area__o0(p)"));               // call site (self = p)
+    EXPECT_TRUE(contains(s, "Rect_0_0area_1o0(p)"));               // call site (self = p)
 }
 
 // ── engine 1b: interprocedural call emission ──────────────────────────
@@ -841,13 +841,13 @@ TEST(EmitterFn, InterproceduralProgram)
     const EmittedFunction out = emitProgram(*f, {{"x", kDoubleScalar}}, table, reg);
     const std::string    &s   = out.source;
 
-    EXPECT_EQ(out.name, "f__d");                              // mangled entry symbol
-    EXPECT_TRUE(contains(s, "double f__d(double x);"));       // forward decls
-    EXPECT_TRUE(contains(s, "double g__d(double x);"));
-    EXPECT_TRUE(contains(s, "double f__d(double x) {"));      // definitions
-    EXPECT_TRUE(contains(s, "double g__d(double x) {"));
-    EXPECT_TRUE(contains(s, "g__d(x)"));                      // f calls the specialisation
-    EXPECT_TRUE(contains(s, "y = (g__d(x) + 1.0);"));
+    EXPECT_EQ(out.name, "f_1d");                              // mangled entry symbol
+    EXPECT_TRUE(contains(s, "double f_1d(double x);"));       // forward decls
+    EXPECT_TRUE(contains(s, "double g_1d(double x);"));
+    EXPECT_TRUE(contains(s, "double f_1d(double x) {"));      // definitions
+    EXPECT_TRUE(contains(s, "double g_1d(double x) {"));
+    EXPECT_TRUE(contains(s, "g_1d(x)"));                      // f calls the specialisation
+    EXPECT_TRUE(contains(s, "y = (g_1d(x) + 1.0);"));
 }
 
 // An array variable passed across an interprocedural call (boundary #3) is
@@ -868,8 +868,8 @@ TEST(EmitterFn, InterproceduralArrayArgPassed)
     registerUserFunctions(reg, table);
 
     const EmittedFunction out = emitProgram(*table.find("f"), {{"v", kDoubleRow}}, table, reg);
-    EXPECT_TRUE(contains(out.source, "g__dr(v, v_len)"));            // ptr + len at the call site
-    EXPECT_TRUE(contains(out.source, "double g__dr(const double* v, std::size_t v_len)"));
+    EXPECT_TRUE(contains(out.source, "g_1dr(v, v_len)"));            // ptr + len at the call site
+    EXPECT_TRUE(contains(out.source, "double g_1dr(const double* v, std::size_t v_len)"));
 }
 
 // A construct that infers to Dynamic (eval) cannot be typed -> the output

@@ -42,7 +42,7 @@ TEST(Driver, TranspileSoleScalarFunction)
 {
     const EmittedFunction em = driver::transpileSource(
         "function y = f(a, b)\n  y = a + b;\nend\n", "", driver::parseTypeSpec("double, double"));
-    EXPECT_EQ(em.signature, "double f__d__d(double a, double b)");  // mangled program entry
+    EXPECT_EQ(em.signature, "double f_1d_1d(double a, double b)");  // mangled program entry
     EXPECT_NE(em.source.find("return y;"), std::string::npos);
 }
 
@@ -71,7 +71,7 @@ TEST(Driver, MultiFunctionRequiresExplicitEntry)
                  std::runtime_error);
     // ...but naming one works.
     const EmittedFunction em = driver::transpileSource(src, "g", driver::parseTypeSpec("double"));
-    EXPECT_NE(em.source.find("g__d"), std::string::npos);
+    EXPECT_NE(em.source.find("g_1d"), std::string::npos);
 }
 
 TEST(Driver, UnknownEntryThrows)

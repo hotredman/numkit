@@ -482,19 +482,37 @@ std::string typeCode(const InferredType &t)
         c += "m" + std::to_string(t.shape.rows) + "x" + std::to_string(t.shape.cols);
         break;
     case ShapeKind::NDims:
-        c += "n";  // ranked: rank + each dim (0 = unknown), distinct per shape
-        for (std::size_t d : t.shape.nd) c += std::to_string(d) + "_";
+        c += "n";  // ranked: rank + each dim (0 = unknown); 'x'-joined, NO '_'
+        for (std::size_t d : t.shape.nd) c += std::to_string(d) + "x";  // '_'-free: mangle stays __-free
         break;
     case ShapeKind::Unknown:   c += "u"; break;
     }
     return c;
 }
 
+// Escape a base name so the mangle is injective AND free of "__" (which the
+// C++ standard reserves to the implementation, [lex.name]): each '_' in the
+// base becomes "_0", and argument segments are introduced by the "_1"
+// separator — which escaping guarantees the base can never itself produce.
+// typeCode is '_'-free, so every '_' in a mangled symbol is immediately
+// followed by a digit (0/1): no "__" can ever form. The symbol also starts
+// with the base's (letter) first char, so it is a conforming global identifier
+// (no leading underscore). Distinct (base, args) -> distinct symbol.
+std::string escapeBase(const std::string &base)
+{
+    std::string e;
+    for (char ch : base) {
+        e += ch;
+        if (ch == '_') e += '0';
+    }
+    return e;
+}
+
 std::string mangle(const std::string &base, const std::vector<InferredType> &args)
 {
-    if (args.empty()) return base + "__v";
-    std::string m = base;
-    for (const auto &a : args) m += "__" + typeCode(a);
+    std::string m = escapeBase(base);
+    if (args.empty()) return m + "_1v";
+    for (const auto &a : args) m += "_1" + typeCode(a);
     return m;
 }
 
