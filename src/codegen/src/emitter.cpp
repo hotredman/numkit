@@ -928,10 +928,17 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
     const AbstractValue rhsAV = inferExpr(rhs, types_, reg_, classes_);
 
     const IndexPlan plan = planIndexWrite(arrayValue(base), idx, rhsAV);
-    if (plan.form == IndexForm::Subscript2D)
-        // A matrix is a read-only param in v1; writing A(i,j) needs a
-        // mutable 2-D (output/local), a later step.
-        unsupported("2-D matrix write A(i,j) = rhs is not yet supported (v1)");
+    if (plan.form == IndexForm::Subscript2D) {
+        // A 2-D PARAM is read-only (const T*); a mutable 2-D (a local or the
+        // output) is writable via column-major index2_set.
+        if (!ai.is2D) unsupported("A(i,j) on a non-matrix '" + base + "'");
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("2-D write to a read-only matrix parameter '" + base + "'");
+        line("nk_rt::index2_set(" + ptr + ", " + ai.rowsVar + ", " + ai.colsVar + ", "
+             + emitExpr(*lhsCall.children[1]) + ", " + emitExpr(*lhsCall.children[2]) + ", "
+             + emitExpr(rhs) + ");");
+        return;
+    }
     if (plan.form != IndexForm::LinearScalar || ai.is2D)
         unsupported("index write form for '" + base
                     + "' (a 1-D scalar store, or A(i,j) on a matrix)");
@@ -999,7 +1006,8 @@ void Emitter::emitAssign(const ASTNode &s)
         // The OUTPUT out-param (caller-sized) becomes a fill loop over its
         // length; an owned-vector LOCAL is `a.assign(numel, fill)` (numel =
         // product of the size args).
-        if (isArrayVar(name) && !arrays_.at(name).is2D
+        if (isArrayVar(name)
+            && (arrays_.at(name).isLocal || !arrays_.at(name).is2D)  // a local may be 2-D
             && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
             && rhs.type == NodeType::CALL && !rhs.children.empty()
             && rhs.children[0]->type == NodeType::IDENTIFIER
@@ -1392,6 +1400,13 @@ const char *kPrelude =
     "        throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
     "    return a[(j - 1) * rows + (i - 1)];\n"
     "}\n"
+    "template <class T>\n"  // A(i,j) = v write, column-major (mutable 2-D: local/output)
+    "inline void index2_set(T* a, std::size_t rows, std::size_t cols, double i1, double j1, T v) {\n"
+    "    const std::size_t i = static_cast<std::size_t>(i1), j = static_cast<std::size_t>(j1);\n"
+    "    if (i1 < 1.0 || i > rows || j1 < 1.0 || j > cols)\n"
+    "        throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    a[(j - 1) * rows + (i - 1)] = v;\n"
+    "}\n"
     "} // namespace nk_rt\n";
 
 // The bridged-emission addendum (DESIGN.md §6a): the runtime C-ABI header +
@@ -1552,7 +1567,21 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     // (A 2-D array local is not yet supported — it falls to the hoist below.)
     for (const auto &[name, t] : decls) {
         if (paramSet.count(name) || arrays.count(name)) continue;  // params + the output
-        if (isBufferArrayType(t)) {
+        // 2-D first: a matrix also satisfies isBufferArrayType (as in the
+        // parameter loop), so it must be classified before the 1-D case.
+        if (is2DMatrixType(t)) {
+            // A 2-D matrix local — flat owned vector + compile-time KnownDims.
+            // (Runtime-dim 2-D locals need size()/2-D-zeros-with-vars — later.)
+            ArrayInfo ai;
+            ai.dtype     = t.dtype;
+            ai.isLocal   = true;
+            ai.is2D      = true;
+            ai.dataExpr  = name + ".data()";
+            ai.lenVar    = name + ".size()";
+            ai.rowsVar   = std::to_string(t.shape.rows);
+            ai.colsVar   = std::to_string(t.shape.cols);
+            arrays[name] = ai;
+        } else if (isBufferArrayType(t)) {
             ArrayInfo ai;
             ai.dtype     = t.dtype;
             ai.isLocal   = true;

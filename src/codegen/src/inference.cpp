@@ -312,10 +312,16 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 recordDecl(declOut, base, cur.type);
             } else if (cur.type.isConcrete() && rhs.type.isConcrete()
                        && cur.type.dtype == rhs.type.dtype) {
-                // Indexed assign x(i)=rhs: base keeps its dtype; shape may
-                // grow -> Unknown.
-                env.set(base, {InferredType::concrete(cur.type.dtype, Shape::unknown()),
-                               ConstVal::unknown()});
+                // Indexed assign x(i)=rhs: base keeps its dtype. A 1-D x(i)=v
+                // may grow the vector -> Unknown shape. A 2-D subscript
+                // A(i,j)=v on a KnownDims matrix does NOT change its dims (the
+                // codegen is fixed-size — an out-of-range write throws, never
+                // grows), so its 2-D shape is preserved.
+                const std::size_t nidx   = lhs.children.size() - 1;
+                const bool        keep2D = nidx == 2
+                                    && cur.type.shape.kind == ShapeKind::KnownDims;
+                const Shape sh = keep2D ? cur.type.shape : Shape::unknown();
+                env.set(base, {InferredType::concrete(cur.type.dtype, sh), ConstVal::unknown()});
                 recordDecl(declOut, base, env.get(base).type);
             } else {
                 // Differing dtype / unknown base or rhs -> conservative.
