@@ -966,8 +966,23 @@ bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays
     case NodeType::UNARY_OP:
         return (e.strValue == "-" || e.strValue == "+") && e.children.size() == 1
                && collectElementwise(*e.children[0], arrays);
+    case NodeType::CALL: {
+        // An ELEMENTWISE-math call (sin/cos/erf/atan2/…) over elementwise args
+        // is itself elementwise — sin(x)[i] == std::sin(x[i]). An index `x(k)`
+        // (callee is an array var) or any other call is not.
+        if (e.children.empty() || e.children[0]->type != NodeType::IDENTIFIER) return false;
+        const std::string &callee = e.children[0]->strValue;
+        if (isArrayVar(callee)) return false;  // x(k) indexing -> not pure elementwise
+        const std::size_t nargs = e.children.size() - 1;
+        const bool isMath = (nargs == 1 && unaryMathStd(callee) != nullptr)
+                            || (nargs == 2 && binaryMathStd(callee) != nullptr);
+        if (!isMath) return false;
+        for (std::size_t i = 1; i < e.children.size(); ++i)
+            if (!collectElementwise(*e.children[i], arrays)) return false;
+        return true;
+    }
     default:
-        return false;  // calls / indexing / fields -> not a pure elementwise expr
+        return false;  // indexing / fields / non-math calls -> not pure elementwise
     }
 }
 
@@ -1020,7 +1035,11 @@ void Emitter::emitAssign(const ASTNode &s)
             && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
             && arrays_.at(name).dtype == ValueType::DOUBLE
             && rhs.type == NodeType::CALL && !rhs.children.empty()
-            && rhs.children[0]->type == NodeType::IDENTIFIER) {
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            // An elementwise-math call (sin/erf/…) lowers NATIVELY below — only
+            // bridge a call the emitter cannot lower (sort, fft, …).
+            && unaryMathStd(rhs.children[0]->strValue) == nullptr
+            && binaryMathStd(rhs.children[0]->strValue) == nullptr) {
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
                 && res.type.dtype == ValueType::DOUBLE) {

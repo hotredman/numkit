@@ -972,6 +972,42 @@ TEST(CodegenE2E, ElementwiseArrayArithmeticRunsCorrectly)
         EXPECT_DOUBLE_EQ(got[i], double(i + 1) * 2.0 + 1.0) << "at i=" << i;
 }
 
+// Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
+// loop — SELF-CONTAINED (no runtime DLL, plain stdlib exe) — and matches
+// std::sin. The win over bridging: no boxing, no runtime dependency.
+TEST(CodegenE2E, ElementwiseArrayMathRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x)\n  y = sin(x);\nend\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("std::sin("), std::string::npos);
+    ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained!
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ewise_math_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ewise_math_e2e_out.txt").string();
+    const std::size_t N       = 8;
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const std::size_t N = 8;\n"
+        "  double x[8], y[8];\n"
+        "  for (std::size_t i = 0; i < N; ++i) x[i] = 0.3 * double(i + 1);\n"
+        "  f(x, N, y, N);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (std::size_t i = 0; i < N; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);  // no rt link
+    ASSERT_EQ(got.size(), N);
+    for (std::size_t i = 0; i < N; ++i)
+        EXPECT_NEAR(got[i], std::sin(0.3 * double(i + 1)), 1e-12) << "at i=" << i;
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)
@@ -1086,11 +1122,11 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[2], 1.0);
 }
 
-// BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sin(x). The emitter
-// cannot lower a whole-array elementwise call, but inference proves the result
-// an array, so it bridges — box the array arg -> nk_call -> unbox into the
-// caller-allocated output buffer. Compiles bridged, links, runs, matches the
-// interpreter (std::sin elementwise).
+// BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sign(x). `sign` is
+// typed as an array (realMathUnaryTransfer) but has no std form, so it CANNOT
+// lower natively — it bridges: box the array arg -> nk_call -> unbox into the
+// caller-allocated output buffer. (sin/cos/erf/… now lower natively, see
+// ElementwiseArrayMath; sign stays the bridged-array demo.)
 TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
 {
     if (!aot::available())
@@ -1098,7 +1134,7 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = sin(x);\nend\n");
+    numkit::Lexer          lex("function y = f(x)\n  y = sign(x);\nend\n");
     numkit::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
     const numkit::ASTNode *fn   = nullptr;
@@ -1112,7 +1148,7 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
     const EmittedFunction emitted = emitFunction(
         *fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg, nullptr,
         bridge);
-    ASSERT_NE(emitted.source.find("nk_rt::bridge_into(\"sin\""), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk_rt::bridge_into(\"sign\""), std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
     std::filesystem::create_directories(base);
@@ -1128,7 +1164,7 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
         "int main() {\n"
         "  const std::size_t N = 8;\n"
         "  double x[8], y[8];\n"
-        "  for (std::size_t i = 0; i < N; ++i) x[i] = 0.3 * double(i + 1);\n"
+        "  for (std::size_t i = 0; i < N; ++i) x[i] = double(i) - 4.0;\n"  // mixed sign
         "  f(x, N, y, N);\n"
         "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
         "  if (!g) return 2;\n"
@@ -1155,11 +1191,14 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), N);
-    for (std::size_t i = 0; i < N; ++i)
-        EXPECT_NEAR(got[i], std::sin(0.3 * double(i + 1)), 1e-12) << "at i=" << i;
+    for (std::size_t i = 0; i < N; ++i) {
+        const double xv  = double(i) - 4.0;
+        const double ref = (xv > 0.0) - (xv < 0.0);  // sign(x)
+        EXPECT_DOUBLE_EQ(got[i], ref) << "at i=" << i;
+    }
 }
 
-// Bridged array LOCAL: `z = sin(x)` fills an owned-vector local (resized to
+// Bridged array LOCAL: `z = sign(x)` fills an owned-vector local (resized to
 // the result's numel via bridge_to_vec), then z is read element-wise. The
 // payoff of array locals + bridging: a general intermediate array expression.
 TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
@@ -1169,7 +1208,7 @@ TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  n = numel(x);\n  z = sin(x);\n"
+    numkit::Lexer          lex("function y = f(x)\n  n = numel(x);\n  z = sign(x);\n"
                                "  y = zeros(1, n);\n  for k = 1:n\n    y(k) = z(k) * 2;\n  end\nend\n");
     numkit::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
@@ -1185,7 +1224,7 @@ TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
         *fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg, nullptr,
         bridge);
     ASSERT_NE(emitted.source.find("std::vector<double> z;"), std::string::npos);   // owned local
-    ASSERT_NE(emitted.source.find("nk_rt::bridge_to_vec(\"sin\""), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk_rt::bridge_to_vec(\"sign\""), std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
     std::filesystem::create_directories(base);
@@ -1200,7 +1239,7 @@ TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
         "int main() {\n"
         "  const std::size_t N = 8;\n"
         "  double x[8], y[8];\n"
-        "  for (std::size_t i = 0; i < N; ++i) x[i] = 0.3 * double(i + 1);\n"
+        "  for (std::size_t i = 0; i < N; ++i) x[i] = double(i) - 4.0;\n"  // mixed sign
         "  f(x, N, y, N);\n"
         "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
         "  if (!g) return 2;\n"
@@ -1227,6 +1266,9 @@ TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), N);
-    for (std::size_t i = 0; i < N; ++i)
-        EXPECT_NEAR(got[i], std::sin(0.3 * double(i + 1)) * 2.0, 1e-12) << "at i=" << i;
+    for (std::size_t i = 0; i < N; ++i) {
+        const double xv  = double(i) - 4.0;
+        const double ref = ((xv > 0.0) - (xv < 0.0)) * 2.0;  // sign(x) * 2
+        EXPECT_DOUBLE_EQ(got[i], ref) << "at i=" << i;
+    }
 }
