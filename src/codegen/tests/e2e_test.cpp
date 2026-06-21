@@ -1033,6 +1033,36 @@ TEST(CodegenE2E, NDArrayLocalWriteRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 17.0);  // 5 + 9 + 3
 }
 
+// N-D shape queries end-to-end: ndims / size(A,k) / numel on a 3-D array.
+// s = ndims*1000 + size1*100 + size2*10 + size3 + numel.
+TEST(CodegenE2E, NDShapeQueriesRunCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f()\n  A = zeros(2, 3, 4);\n"
+        "  s = ndims(A) * 1000 + size(A,1) * 100 + size(A,2) * 10 + size(A,3) + numel(A);\nend\n",
+        {});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ndshape_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ndshape_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "();\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    // ndims=3, size=(2,3,4), numel=24 -> 3000 + 200 + 30 + 4 + 24
+    EXPECT_DOUBLE_EQ(got[0], 3258.0);
+}
+
 // Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
 // loop — SELF-CONTAINED (no runtime DLL, plain stdlib exe) — and matches
 // std::sin. The win over bridging: no boxing, no runtime dependency.

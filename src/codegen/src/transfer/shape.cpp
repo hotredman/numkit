@@ -14,10 +14,17 @@ namespace numkit::codegen {
 
 namespace {
 
-// numel / length: always a scalar double count.
+// numel / length / ndims: always a scalar double count.
 InferredType countTransfer(const std::vector<ArgInfo> & /*args*/)
 {
     return InferredType::scalar(ValueType::DOUBLE);
+}
+
+// size(A, dim) -> a scalar double (one dimension). size(A) (no dim) -> a
+// 1xNdims row vector — deferred (-> Dynamic, the sound fallback).
+InferredType sizeTransfer(const std::vector<ArgInfo> &args)
+{
+    return args.size() == 2 ? InferredType::scalar(ValueType::DOUBLE) : InferredType::dynamic();
 }
 
 } // namespace
@@ -26,6 +33,8 @@ void registerShapeTransfers(TransferRegistry &reg)
 {
     reg.add("numel", countTransfer);
     reg.add("length", countTransfer);
+    reg.add("ndims", countTransfer);
+    reg.add("size", sizeTransfer);
 }
 
 } // namespace numkit::codegen

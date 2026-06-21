@@ -696,18 +696,48 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
 {
     const std::size_t nargs = call.children.size() - 1;
 
-    // numel / length of an array variable. 1-D: the length companion.
-    // 2-D: numel = rows*cols; length = max(rows,cols) (MATLAB).
-    if ((name == "numel" || name == "length") && nargs == 1
+    // numel / length / ndims of an array variable. 1-D: the length companion.
+    // 2-D: numel = rows*cols; length = max(rows,cols). N-D: product / max of dims.
+    if ((name == "numel" || name == "length" || name == "ndims") && nargs == 1
         && call.children[1]->type == NodeType::IDENTIFIER
         && isArrayVar(call.children[1]->strValue)) {
         const ArrayInfo &ai = arrays_.at(call.children[1]->strValue);
+        if (name == "ndims")  // MATLAB: vectors/matrices are 2-D; N-D reports its rank
+            return "static_cast<double>(" + std::to_string(ai.isND ? ai.ndDims.size() : std::size_t{2})
+                   + ")";
+        if (ai.isND) {
+            std::string e = ai.ndDims[0];
+            for (std::size_t i = 1; i < ai.ndDims.size(); ++i)
+                e = name == "numel" ? (e + " * " + ai.ndDims[i])
+                                    : ("(" + e + " > " + ai.ndDims[i] + " ? " + e + " : "
+                                       + ai.ndDims[i] + ")");  // length = max dim
+            return "static_cast<double>(" + e + ")";
+        }
         if (!ai.is2D)
             return "static_cast<double>(" + ai.lenVar + ")";
         if (name == "numel")
             return "static_cast<double>(" + ai.rowsVar + " * " + ai.colsVar + ")";
         return "static_cast<double>(" + ai.rowsVar + " > " + ai.colsVar + " ? " + ai.rowsVar
                + " : " + ai.colsVar + ")";  // length = max(rows, cols)
+    }
+
+    // size(A, dim) with a compile-time literal dim: the dim's size (2-D
+    // rows/cols, N-D the dim, out-of-range -> 1). A 1-D buffer's orientation
+    // is untracked in the RawBuffer ABI, so size(vec,dim) falls through (to a
+    // bridged call or the explicit boundary), not handled here.
+    if (name == "size" && nargs == 2 && call.children[1]->type == NodeType::IDENTIFIER
+        && isArrayVar(call.children[1]->strValue)
+        && call.children[2]->type == NodeType::NUMBER_LITERAL) {
+        const ArrayInfo &ai = arrays_.at(call.children[1]->strValue);
+        const double     kd = call.children[2]->numValue;
+        const auto       k  = static_cast<std::size_t>(kd);
+        const bool       kok = kd >= 1.0 && static_cast<double>(k) == kd;
+        if (kok && ai.isND)
+            return "static_cast<double>("
+                   + (k <= ai.ndDims.size() ? ai.ndDims[k - 1] : std::string("1")) + ")";
+        if (kok && ai.is2D)
+            return "static_cast<double>("
+                   + (k == 1 ? ai.rowsVar : k == 2 ? ai.colsVar : std::string("1")) + ")";
     }
 
     if (nargs == 1)
