@@ -1772,7 +1772,13 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.isND     = true;
             ai.isOutput = true;
             ai.dataExpr = retName;
-            std::string sig  = cppScalarType(retType.dtype) + "* " + retName;
+            // `__restrict` on the OUTPUT pointer: it does not alias any input
+            // (the caller allocates the output buffer distinctly — a documented
+            // ABI precondition). This is the one aliasing fact the compiler needs
+            // to auto-vectorize the fill/elementwise loops (write↔read overlap is
+            // the blocker). Inputs stay un-restricted, so passing the same array
+            // for two read-only inputs (f(v,v)) remains safe.
+            std::string sig  = cppScalarType(retType.dtype) + "* __restrict " + retName;
             std::string prod;  // total length = product of the companions
             for (std::size_t d = 0; d < retType.shape.nd.size(); ++d) {
                 const std::string dv = companion(retName, "_d" + std::to_string(d));
@@ -1801,8 +1807,8 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.colsVar  = companion(retName, "_cols");
             ai.lenVar   = "(" + ai.rowsVar + " * " + ai.colsVar + ")";  // zeros/ones fill bound
             arrays[retName] = ai;
-            sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName + ", std::size_t "
-                                + ai.rowsVar + ", std::size_t " + ai.colsVar);
+            sigParams.push_back(cppScalarType(retType.dtype) + "* __restrict " + retName
+                                + ", std::size_t " + ai.rowsVar + ", std::size_t " + ai.colsVar);
         } else if (isBufferArrayType(retType)) {
             arrayReturn = true;
             retCpp      = "void";
@@ -1813,7 +1819,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.dataExpr     = retName;
             ai.orient       = orientOf(retType);
             arrays[retName] = ai;
-            sigParams.push_back(cppScalarType(retType.dtype) + "* " + retName
+            sigParams.push_back(cppScalarType(retType.dtype) + "* __restrict " + retName
                                 + ", std::size_t " + ai.lenVar);
         } else if (retType.isObject()) {
             // returned BY VALUE (value class) / handle wrapper — not an

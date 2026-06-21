@@ -383,7 +383,7 @@ TEST(EmitterFn, NDOutputAsOutParam)
     ASSERT_NE(fn, nullptr);
     const std::string s =
         emitFunction(*fn, {{"a", InferredType::scalar(ValueType::DOUBLE)}}, reg).source;
-    EXPECT_TRUE(contains(s, "void f(double a, double* y, "
+    EXPECT_TRUE(contains(s, "void f(double a, double* __restrict y, "
                             "std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"));  // mutable + void
     EXPECT_TRUE(contains(s, "_nk_i < (_nk_y_d0 * _nk_y_d1 * _nk_y_d2)"));               // zeros() fills the product
     EXPECT_TRUE(contains(s, "nk_rt::indexN_set(y, {_nk_y_d0, _nk_y_d1, _nk_y_d2}"));  // companion dims, mutable ptr
@@ -401,7 +401,7 @@ TEST(EmitterFn, Matrix2DOutputAsOutParam)
         "function M = f(a)\n  M = zeros(2, 3);\n  M(1,1) = a;\n  M(2,3) = a * 2;\nend\n", root);
     ASSERT_NE(fn, nullptr);
     const std::string s = emitFunction(*fn, {{"a", kDoubleScalar}}, reg).source;
-    EXPECT_TRUE(contains(s, "void f(double a, double* M, "
+    EXPECT_TRUE(contains(s, "void f(double a, double* __restrict M, "
                             "std::size_t _nk_M_rows, std::size_t _nk_M_cols"));  // mutable + void
     EXPECT_TRUE(contains(s, "_nk_i < (_nk_M_rows * _nk_M_cols)"));               // zeros() fill bound
     EXPECT_TRUE(contains(s, "nk_rt::index2_set(M, _nk_M_rows, _nk_M_cols"));     // column-major write
@@ -586,7 +586,7 @@ TEST(EmitterFn, BiquadFullFunction)
     // out-param; scalars unboxed; void return.
     EXPECT_EQ(out.signature,
               "void biquad(const double* x, std::size_t _nk_x_len, double b0, "
-              "double b1, double b2, double a1, double a2, double* y, "
+              "double b1, double b2, double a1, double a2, double* __restrict y, "
               "std::size_t _nk_y_len)");
 
     // hoisted scalar locals (k is the promoted counter -> declared in the
