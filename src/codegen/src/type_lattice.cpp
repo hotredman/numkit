@@ -13,18 +13,26 @@ bool Shape::operator==(const Shape &o) const
 {
     if (kind != o.kind) return false;
     if (kind == ShapeKind::KnownDims) return rows == o.rows && cols == o.cols;
+    if (kind == ShapeKind::NDims) return nd == o.nd;
     return true;  // Unknown == Unknown, Scalar == Scalar
 }
 
 Shape joinShape(const Shape &a, const Shape &b)
 {
     // Equal shapes (incl. Unknown==Unknown, Scalar==Scalar, matching
-    // KnownDims) are their own LUB. Any disagreement we cannot prove
-    // away — Scalar vs KnownDims, or two different KnownDims — collapses
-    // to Unknown: the shape is no longer statically fixed at this point.
-    // (When symbolic dims / ranks are added later, this is where the
-    //  richer join logic slots in; today it is intentionally coarse.)
+    // KnownDims / NDims) are their own LUB.
     if (a == b) return a;
+    // Two NDims of the SAME rank join per dimension: a dimension both agree
+    // on is kept, any disagreement becomes unknown (0). Rank disagreement, or
+    // NDims vs a different kind, we cannot prove away -> Unknown.
+    if (a.kind == ShapeKind::NDims && b.kind == ShapeKind::NDims
+        && a.nd.size() == b.nd.size()) {
+        std::vector<std::size_t> d(a.nd.size());
+        for (std::size_t i = 0; i < d.size(); ++i) d[i] = (a.nd[i] == b.nd[i]) ? a.nd[i] : 0;
+        return Shape::ndShape(std::move(d));
+    }
+    // Any other disagreement (Scalar vs KnownDims, two different KnownDims,
+    // mixed rank/kind) collapses to Unknown — no longer statically fixed.
     return Shape::unknown();
 }
 
@@ -101,6 +109,14 @@ std::string InferredType::str() const
                 case ShapeKind::RowVector: os << " 1x?"; break;
                 case ShapeKind::ColVector: os << " ?x1"; break;
                 case ShapeKind::KnownDims: os << ' ' << shape.rows << 'x' << shape.cols; break;
+                case ShapeKind::NDims:
+                    os << ' ';
+                    for (std::size_t i = 0; i < shape.nd.size(); ++i) {
+                        if (i) os << 'x';
+                        if (shape.nd[i] == 0) os << '?';
+                        else os << shape.nd[i];
+                    }
+                    break;
                 case ShapeKind::Unknown:   os << " [?]"; break;
             }
             return os.str();
