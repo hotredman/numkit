@@ -361,6 +361,33 @@ TEST(EmitterFn, MatrixProduct)
     EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));  // self-contained
 }
 
+// Matrix * vector and vector * matrix -> a vector. A*x (2-D * col) is a column
+// vector; r*A (row * 2-D) is a row vector. Native double loop + shared-dim
+// guard, not bridged.
+TEST(EmitterFn, MatrixVectorProduct)
+{
+    const auto reg = stdReg();
+    {  // A * x  (matrix * column vector -> column vector)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A, x)\n  y = A * x;\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const InferredType A = InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3));
+        const InferredType x = InferredType::concrete(ValueType::DOUBLE, Shape::colVector());
+        const std::string  s = emitFunction(*fn, {{"A", A}, {"x", x}}, reg).source;
+        EXPECT_TRUE(contains(s, "if (_nk_A_cols != _nk_x_len)"));  // inner-dim guard
+        EXPECT_TRUE(contains(s, "_nk_acc += A[_nk_i + _nk_l * _nk_A_rows] * x[_nk_l];"));
+    }
+    {  // r * A  (row vector * matrix -> row vector)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(r, A)\n  y = r * A;\nend\n", root);
+        const InferredType     r = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+        const InferredType     A = InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 2));
+        const std::string      s = emitFunction(*fn, {{"r", r}, {"A", A}}, reg).source;
+        EXPECT_TRUE(contains(s, "if (_nk_r_len != _nk_A_rows)"));  // inner-dim guard
+        EXPECT_TRUE(contains(s, "_nk_acc += r[_nk_l] * A[_nk_l + _nk_j * _nk_A_rows];"));
+    }
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

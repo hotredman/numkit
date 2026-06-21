@@ -1333,6 +1333,56 @@ void Emitter::emitAssign(const ASTNode &s)
             types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
+        // Matrix * vector / vector * matrix -> a vector. A*x (A m x k, x k x 1)
+        // -> y m x 1: y[i] = sum_l A[i+l*Arows]*x[l]. r*A (r 1 x k, A k x n)
+        // -> y 1 x n: y[j] = sum_l r[l]*A[l+j*Arows]. Native double loop +
+        // shared-dim guard. (vector*vector inner/outer products not yet
+        // lowered.) Self-contained.
+        if (isArrayVar(name) && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
+            && !arrays_.at(name).is2D && !arrays_.at(name).isND
+            && rhs.type == NodeType::BINARY_OP && rhs.strValue == "*"
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo &dst = arrays_.at(name);
+            const ArrayInfo &L   = arrays_.at(rhs.children[0]->strValue);
+            const ArrayInfo &R   = arrays_.at(rhs.children[1]->strValue);
+            if (name == rhs.children[0]->strValue || name == rhs.children[1]->strValue)
+                unsupported("in-place matrix*vector (y = y * x)");
+            if (L.isND || R.isND) unsupported("N-D operand in matrix*vector");
+            const std::string ty  = cppScalarType(dst.dtype);
+            const std::string zer = zeroLiteral(dst.dtype);
+            if (L.is2D && !R.is2D) {  // A * x -> column vector
+                line("if (" + L.colsVar + " != " + R.lenVar + ") throw std::out_of_range(\""
+                     "numkit: inner matrix dimensions must agree\");");
+                if (dst.isLocal) line(name + ".resize(" + L.rowsVar + ");");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + L.rowsVar + "; ++_nk_i)");
+                line(ty + " _nk_acc = " + zer + ";");
+                open("for (std::size_t _nk_l = 0; _nk_l < " + L.colsVar + "; ++_nk_l)");
+                line("_nk_acc += " + L.dataExpr + "[_nk_i + _nk_l * " + L.rowsVar + "] * "
+                     + R.dataExpr + "[_nk_l];");
+                close();
+                line(dst.dataExpr + "[_nk_i] = _nk_acc;");
+                close();
+            } else if (!L.is2D && R.is2D) {  // r * A -> row vector
+                line("if (" + L.lenVar + " != " + R.rowsVar + ") throw std::out_of_range(\""
+                     "numkit: inner matrix dimensions must agree\");");
+                if (dst.isLocal) line(name + ".resize(" + R.colsVar + ");");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + R.colsVar + "; ++_nk_j)");
+                line(ty + " _nk_acc = " + zer + ";");
+                open("for (std::size_t _nk_l = 0; _nk_l < " + R.rowsVar + "; ++_nk_l)");
+                line("_nk_acc += " + L.dataExpr + "[_nk_l] * " + R.dataExpr + "[_nk_l + _nk_j * "
+                     + R.rowsVar + "];");
+                close();
+                line(dst.dataExpr + "[_nk_j] = _nk_acc;");
+                close();
+            } else {
+                unsupported("vector*vector product (inner/outer not yet lowered)");
+            }
+            types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+            return;
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and

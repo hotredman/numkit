@@ -1699,6 +1699,76 @@ TEST(CodegenE2E, MatrixProductRunsCorrectly)
     for (int i = 0; i < 4; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
+// Matrix * column vector end-to-end: y = A*x. A (2x3) col-major {1,2,3,4,5,6} =
+// [[1,3,5],[2,4,6]]; x = [1;2;3]; y = A*x = [22;28].
+TEST(CodegenE2E, MatrixTimesVectorRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(A, x)\n  y = A * x;\nend\n",
+        {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))},
+         {"x", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
+    ASSERT_NE(emitted.source.find("_nk_acc += A[_nk_i + _nk_l * _nk_A_rows] * x[_nk_l];"),
+              std::string::npos);
+    ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_matvec_e2e.exe").string();
+    const std::string outTxt = (base / "nk_matvec_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[6] = {1, 2, 3, 4, 5, 6};\n"  // 2x3 col-major
+        "  double x[3] = {1, 2, 3}, y[2];\n"
+        "  " + emitted.name + "(A, 2, 3, x, 3, y, 2);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 2; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 22.0);
+    EXPECT_DOUBLE_EQ(got[1], 28.0);
+}
+
+// Row vector * matrix end-to-end: y = r*A. r = [1 2 3]; A (3x2) col-major
+// {1,2,3,4,5,6} = [[1,4],[2,5],[3,6]]; y = r*A = [14 32].
+TEST(CodegenE2E, VectorTimesMatrixRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(r, A)\n  y = r * A;\nend\n",
+        {{"r", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 2))}});
+    ASSERT_NE(emitted.source.find("_nk_acc += r[_nk_l] * A[_nk_l + _nk_j * _nk_A_rows];"),
+              std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_vecmat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_vecmat_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r[3] = {1, 2, 3};\n"
+        "  double A[6] = {1, 2, 3, 4, 5, 6};\n"  // 3x2 col-major
+        "  double y[2];\n"
+        "  " + emitted.name + "(r, 3, A, 3, 2, y, 2);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 2; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 14.0);
+    EXPECT_DOUBLE_EQ(got[1], 32.0);
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)
