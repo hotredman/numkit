@@ -517,6 +517,23 @@ TEST(EmitterFn, InnerProduct)
     EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));                   // self-contained
 }
 
+// Outer product: y = c * r (col * row) -> an m x n matrix (runtime dims),
+// column-major y[i + j*m] = c[i]*r[j]. Completes the * operator. An OUTPUT y
+// guards its caller-passed dims against the operand lengths.
+TEST(EmitterFn, OuterProduct)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(c, r)\n  y = c * r;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const InferredType col = InferredType::concrete(ValueType::DOUBLE, Shape::colVector());
+    const InferredType row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+    const std::string  s   = emitFunction(*fn, {{"c", col}, {"r", row}}, reg).source;
+    EXPECT_TRUE(contains(s, "y[_nk_i + _nk_j * _nk_y_d0] = c[_nk_i] * r[_nk_j];"));
+    EXPECT_TRUE(contains(s, "_nk_y_d0 != _nk_c_len"));  // output-dim guard
+    EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));       // self-contained
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

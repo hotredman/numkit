@@ -1417,8 +1417,47 @@ void Emitter::emitAssign(const ASTNode &s)
                 line(dst.dataExpr + "[_nk_j] = _nk_acc;");
                 close();
             } else {
-                unsupported("vector*vector outer product (not yet lowered)");
+                unsupported("vector*vector with a vector result (use the outer-product path)");
             }
+            types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+            return;
+        }
+        // Outer product: y = c * r (c m x 1, r 1 x n) -> y m x n, column-major
+        // y[i + j*m] = c[i]*r[j]. The dims are the vector lengths (runtime), so y
+        // is a runtime-dim rank-2 array. A LOCAL sets its dim vars from the
+        // operand lengths + sizes its vector; an OUTPUT guards its caller-passed
+        // dims. Complex accumulates in std::complex. Native + self-contained.
+        if (isArrayVar(name) && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
+            && arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2
+            && rhs.type == NodeType::BINARY_OP && rhs.strValue == "*"
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo &dst = arrays_.at(name);
+            const ArrayInfo &c   = arrays_.at(rhs.children[0]->strValue);
+            const ArrayInfo &r   = arrays_.at(rhs.children[1]->strValue);
+            if (c.is2D || c.isND || r.is2D || r.isND)
+                unsupported("outer product over a non-vector operand");
+            if (name == rhs.children[0]->strValue || name == rhs.children[1]->strValue)
+                unsupported("in-place outer product");
+            const std::string &d0 = dst.ndDims[0];  // rows = length(c)
+            const std::string &d1 = dst.ndDims[1];  // cols = length(r)
+            if (dst.ndRuntimeLocal) {
+                line(d0 + " = " + c.lenVar + ";");
+                line(d1 + " = " + r.lenVar + ";");
+                line(name + ".assign(" + d0 + " * " + d1 + ", " + zeroLiteral(dst.dtype) + ");");
+            } else {  // OUTPUT: caller-allocated + caller-passed dims; guard agreement
+                line("if (" + d0 + " != " + c.lenVar + " || " + d1 + " != " + r.lenVar
+                     + ") throw std::out_of_range(\"numkit: outer product output dimensions "
+                       "must agree\");");
+            }
+            open("for (std::size_t _nk_j = 0; _nk_j < " + d1 + "; ++_nk_j)");
+            open("for (std::size_t _nk_i = 0; _nk_i < " + d0 + "; ++_nk_i)");
+            line(dst.dataExpr + "[_nk_i + _nk_j * " + d0 + "] = " + c.dataExpr + "[_nk_i] * "
+                 + r.dataExpr + "[_nk_j];");
+            close();
+            close();
             types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
