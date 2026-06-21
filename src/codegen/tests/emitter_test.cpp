@@ -414,6 +414,35 @@ TEST(EmitterFn, MatrixMtimesNotElementwise)
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleRow}}, reg), std::runtime_error);
 }
 
+// `*` / `/` with a scalar operand are elementwise SCALING (s*X == s.*X,
+// X/s == X./s), lowered as a per-element loop — not a matrix product. Only the
+// scalar-scaling cases qualify; matrix*matrix (above) still falls to the
+// boundary.
+TEST(EmitterFn, ScalarScalingViaMtimesMrdivide)
+{
+    const auto reg = stdReg();
+    {  // 2 * v  (scalar on the left)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(v)\n  y = 2 * v;\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"v", kDoubleRow}}, reg).source;
+        EXPECT_TRUE(contains(s, "(2.0 * v[_nk_i])"));
+        EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));  // self-contained
+    }
+    {  // v * 2  (scalar on the right)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(v)\n  y = v * 2;\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"v", kDoubleRow}}, reg).source;
+        EXPECT_TRUE(contains(s, "(v[_nk_i] * 2.0)"));
+    }
+    {  // v / 2  (denominator scalar)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(v)\n  y = v / 2;\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"v", kDoubleRow}}, reg).source;
+        EXPECT_TRUE(contains(s, "(v[_nk_i] / 2.0)"));
+    }
+}
+
 // 2-D matrix WRITE to a mutable local: A = zeros(3,3); A(i,j) = v. Compile-time
 // dims (KnownDims), flat owned vector, column-major index2_set. Self-contained.
 TEST(EmitterFn, Matrix2DLocalWrite)
