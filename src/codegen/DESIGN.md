@@ -533,6 +533,27 @@ compiler. **Verification gate:** differential VALUE testing
 (compile + run + diff vs the interpreter) + fuzz the index grammar; a
 debug assert is never the release-correctness mechanism.
 
+**RawBuffer ABI invariants (intentional, documented).** A few call-contract
+points are deliberate divergences from MATLAB, consistent with the
+performance-first "minimal validation" stance — the same stance under which an
+out-of-bounds index throws `std::out_of_range` rather than auto-growing (the
+buffer cannot grow):
+- **Reserved companion names.** Every array param/output and runtime-dim N-D
+  local synthesises companion vars `<base>_len` / `_rows` / `_cols` / `_dN`. A
+  user identifier equal to one of these would yield two same-named C++
+  declarations, so the emitter DETECTS the clash and refuses with a clear
+  message (Contract 2 boundary) rather than emit code the C++ compiler rejects.
+  (A future enhancement could auto-disambiguate instead of refusing.)
+- **Size args.** `zeros`/`ones` dimension args must be non-negative integers.
+  Codegen does NOT clamp: a negative runtime dim casts to a huge `size_t` and
+  the allocation throws (`std::length_error`/`std::bad_alloc`) — an exception on
+  contract violation, never silent corruption, but it does not reproduce
+  MATLAB's negative→empty / non-integer→error semantics. Matching those exactly
+  is a separate, opt-in size-validation feature.
+- **Caller pre-sizes outputs.** An array out-param is caller-allocated; the
+  caller passes companions matching the buffer it allocated (as for a 1-D
+  `y = zeros(1,n)` output, and for const/runtime N-D outputs).
+
 ## 11. Build plan
 
 1. **Soundness foundation** ✅ — Contract 1 documented;
