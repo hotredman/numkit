@@ -972,6 +972,8 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
 
     // Rank-N (N>=3) write A(i,j,k,...) = v -> column-major nk_rt::indexN_set.
     if (ai.isND) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("N-D write to a read-only matrix parameter '" + base + "'");
         if (lhsCall.children.size() - 1 != ai.ndDims.size())
             unsupported("N-D index arity for '" + base + "' (expected "
                         + std::to_string(ai.ndDims.size()) + " subscripts)");
@@ -1576,6 +1578,23 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             arrays[p.name] = ai;
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
                                 + ", std::size_t " + ai.rowsVar + ", std::size_t " + ai.colsVar);
+        } else if (p.type.isConcrete() && p.type.shape.isNDims()) {
+            // N-D (rank>=3) param -> pointer + one size_t companion per dim
+            // (column-major). Checked BEFORE isBufferArrayType, which also
+            // matches an N-D shape. Companions carry the dims, so a runtime-dim
+            // N-D param works too (the caller passes the sizes). Read-only.
+            ArrayInfo ai;
+            ai.dtype    = p.type.dtype;
+            ai.isND     = true;
+            ai.dataExpr = p.name;
+            std::string sig = "const " + cppScalarType(p.type.dtype) + "* " + p.name;
+            for (std::size_t d = 0; d < p.type.shape.nd.size(); ++d) {
+                const std::string dv = p.name + "_d" + std::to_string(d);
+                ai.ndDims.push_back(dv);
+                sig += ", std::size_t " + dv;
+            }
+            arrays[p.name] = ai;
+            sigParams.push_back(sig);
         } else if (isBufferArrayType(p.type)) {
             ArrayInfo ai;
             ai.dtype       = p.type.dtype;

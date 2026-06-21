@@ -1033,6 +1033,39 @@ TEST(CodegenE2E, NDArrayLocalWriteRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 17.0);  // 5 + 9 + 3
 }
 
+// N-D PARAM end-to-end: a 3-D array passed in (ptr + dim companions),
+// read column-major. s = A(1,1,1) + A(2,2,2) + size(A,2).
+TEST(CodegenE2E, NDParamReadRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(A)\n  s = A(1,1,1) + A(2,2,2) + size(A,2);\nend\n",
+        {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::ndShape({2, 2, 2}))}});
+    ASSERT_NE(emitted.source.find("std::size_t A_d0, std::size_t A_d1, std::size_t A_d2"),
+              std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ndparam_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ndparam_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[8] = {0,0,0,0,0,0,0,0};\n"
+        "  A[0] = 10.0;  // A(1,1,1) column-major offset 0\n"
+        "  A[7] = 99.0;  // A(2,2,2) offset 1 + 2*(1 + 2*1) = 7\n"
+        "  double r = " + emitted.name + "(A, 2, 2, 2);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0 + 99.0 + 2.0);  // A(1,1,1) + A(2,2,2) + size(A,2)
+}
+
 // N-D shape queries end-to-end: ndims / size(A,k) / numel on a 3-D array.
 // s = ndims*1000 + size1*100 + size2*10 + size3 + numel.
 TEST(CodegenE2E, NDShapeQueriesRunCorrectly)
