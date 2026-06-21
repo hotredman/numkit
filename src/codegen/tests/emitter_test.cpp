@@ -302,6 +302,23 @@ TEST(EmitterFn, Matrix2DLocalWrite)
     EXPECT_TRUE(contains(s, "nk_rt::index2(A.data(), 3, 3"));       // column-major read
 }
 
+// N-D (rank>=3) matrix local: A = zeros(2,2,2); A(i,j,k) read/write. Flat owned
+// vector + compile-time dims, column-major nk_rt::indexN / indexN_set.
+TEST(EmitterFn, NDArrayLocalWrite)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function s = f()\n  A = zeros(2, 2, 2);\n  A(1,1,1) = 5;\n  A(2,2,2) = 9;\n"
+        "  s = A(1,1,1) + A(2,2,2);\nend\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {}, reg).source;
+    EXPECT_TRUE(contains(s, "std::vector<double> A;"));               // flat N-D storage
+    EXPECT_TRUE(contains(s, "nk_rt::indexN_set(A.data(), {2, 2, 2}"));  // column-major write
+    EXPECT_TRUE(contains(s, "nk_rt::indexN(A.data(), {2, 2, 2}"));      // column-major read
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits

@@ -320,7 +320,10 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 const std::size_t nidx   = lhs.children.size() - 1;
                 const bool        keep2D = nidx == 2
                                     && cur.type.shape.kind == ShapeKind::KnownDims;
-                const Shape sh = keep2D ? cur.type.shape : Shape::unknown();
+                // A rank-N subscript write on a ranked matrix likewise keeps
+                // its dims (fixed-size; out-of-range throws, never grows).
+                const bool keepND = cur.type.shape.isNDims() && nidx == cur.type.shape.ndRank();
+                const Shape sh = (keep2D || keepND) ? cur.type.shape : Shape::unknown();
                 env.set(base, {InferredType::concrete(cur.type.dtype, sh), ConstVal::unknown()});
                 recordDecl(declOut, base, env.get(base).type);
             } else {

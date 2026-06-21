@@ -37,7 +37,16 @@ InferredType zerosOnesTransfer(const std::vector<ArgInfo> &args)
                  ? Shape::dims(a, b)
                  : Shape::unknown();
     } else {
-        sh = Shape::unknown();  // N-D beyond MVP
+        // >= 3 dims: a ranked N-D array. All dims known-constant -> NDims;
+        // any runtime dim -> Unknown (runtime-dim N-D needs dim vars — later).
+        std::vector<std::size_t> dimsv;
+        bool                     allKnown = true;
+        for (const auto &arg : args) {
+            std::size_t d = 0;
+            if (!arg.constant.asDim(d)) { allKnown = false; break; }
+            dimsv.push_back(d);
+        }
+        sh = allKnown ? Shape::ndShape(std::move(dimsv)) : Shape::unknown();
     }
     return InferredType::concrete(ValueType::DOUBLE, sh);
 }
