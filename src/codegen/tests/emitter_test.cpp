@@ -319,6 +319,24 @@ TEST(EmitterFn, NDArrayLocalWrite)
     EXPECT_TRUE(contains(s, "nk_rt::indexN(A.data(), {2, 2, 2}"));      // column-major read
 }
 
+// N-D shape queries: size(A,k) (literal k) / ndims(A) / numel(A) on an N-D
+// array fold to compile-time constants.
+TEST(EmitterFn, NDShapeQueries)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function s = f()\n  A = zeros(2, 3, 4);\n"
+        "  s = size(A,1) + size(A,3) + numel(A) + ndims(A);\nend\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {}, reg).source;
+    EXPECT_TRUE(contains(s, "static_cast<double>(2)"));          // size(A,1)
+    EXPECT_TRUE(contains(s, "static_cast<double>(4)"));          // size(A,3)
+    EXPECT_TRUE(contains(s, "static_cast<double>(2 * 3 * 4)"));  // numel = product of dims
+    EXPECT_TRUE(contains(s, "static_cast<double>(3)"));          // ndims = rank
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits
