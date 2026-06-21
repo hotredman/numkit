@@ -319,6 +319,37 @@ TEST(EmitterFn, NDArrayLocalWrite)
     EXPECT_TRUE(contains(s, "nk_rt::indexN(A.data(), {2, 2, 2}"));      // column-major read
 }
 
+// N-D PARAM: pointer + one size_t companion per dim; read-only, column-major.
+TEST(EmitterFn, NDParamReadOnly)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn =
+        findFunc("function s = f(A)\n  s = A(1,1,1) + size(A,2);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(
+        *fn, {{"A", InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 2, 2}))}},
+        reg).source;
+    EXPECT_TRUE(contains(s, "const double* A, std::size_t A_d0, std::size_t A_d1, std::size_t A_d2"));
+    EXPECT_TRUE(contains(s, "nk_rt::indexN(A, {A_d0, A_d1, A_d2}"));  // companions as dims
+    EXPECT_TRUE(contains(s, "static_cast<double>(A_d1)"));            // size(A,2) -> companion
+}
+
+// Writing an N-D param (const T*) is refused — the explicit boundary.
+TEST(EmitterFn, NDParamWriteRefused)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn =
+        findFunc("function s = f(A)\n  A(1,1,1) = 5;\n  s = A(1,1,1);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn,
+                              {{"A", InferredType::concrete(ValueType::DOUBLE,
+                                                            numkit::codegen::Shape::ndShape({2, 2, 2}))}},
+                              reg),
+                 std::runtime_error);
+}
+
 // N-D shape queries: size(A,k) (literal k) / ndims(A) / numel(A) on an N-D
 // array fold to compile-time constants.
 TEST(EmitterFn, NDShapeQueries)
