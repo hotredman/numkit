@@ -701,6 +701,9 @@ table.
   fact the C++ compiler needs to auto-vectorise the elementwise/fill loops; the
   output is a distinct caller buffer (ABI precondition). Inputs stay
   un-restricted (read-only aliasing `f(v,v)` safe).
+- **`s = size(A)` no-dim** (B1) — a 1 x rank row filled with A's per-axis sizes
+  (N-D companion / 2-D rows,cols / 1-D orientation). First array-result-from-a-
+  builtin producer beyond zeros/ones; native, self-contained.
 
 **Perf decision — direct `ops::` SIMD-kernel lowering tier: DEFERRED (measured).**
 Considered calling raw-buffer `ops::` kernels (e.g. `timesLoop`) instead of the
@@ -715,8 +718,8 @@ until then the inline loop (small/mid N, self-contained) + Value-bridge (general
 cover it.
 
 **Still later (each its own milestone), simplest first:**
-- `size(A)` no-dim (1×ndims row) — needs array-result-from-builtin, or the
-  `[r,c] = size(A)` multi-output form.
+- `[r,c] = size(A)` multi-output form + `size(scalar-var)` (the `s = size(A)`
+  row form is done, B1).
 - merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
   interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
   throws on negative, matching the OLD interpreter — self-consistent until then).
