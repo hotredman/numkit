@@ -1378,10 +1378,37 @@ void Emitter::emitAssign(const ASTNode &s)
                 line(dst.dataExpr + "[_nk_j] = _nk_acc;");
                 close();
             } else {
-                unsupported("vector*vector product (inner/outer not yet lowered)");
+                unsupported("vector*vector outer product (not yet lowered)");
             }
             types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
+        }
+        // Inner / dot product: s = r * c (r 1 x k, c k x 1) = sum_l r[l]*c[l].
+        // The result is a SCALAR (s is not an array), so this is a reduction
+        // loop into a scalar, not an array producer — placed where the scalar
+        // LHS is handled. A complex product accumulates in std::complex.
+        if (!isArrayVar(name) && rhs.type == NodeType::BINARY_OP && rhs.strValue == "*"
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && res.type.shape.isScalar()) {
+                const ArrayInfo &L = arrays_.at(rhs.children[0]->strValue);
+                const ArrayInfo &R = arrays_.at(rhs.children[1]->strValue);
+                if (L.is2D || R.is2D || L.isND || R.isND)
+                    unsupported("inner product over a non-vector operand");
+                line("if (" + L.lenVar + " != " + R.lenVar + ") throw std::out_of_range(\""
+                     "numkit: inner matrix dimensions must agree\");");
+                line(cppScalarType(res.type.dtype) + " _nk_acc = "
+                     + zeroLiteral(res.type.dtype) + ";");
+                open("for (std::size_t _nk_l = 0; _nk_l < " + L.lenVar + "; ++_nk_l)");
+                line("_nk_acc += " + L.dataExpr + "[_nk_l] * " + R.dataExpr + "[_nk_l];");
+                close();
+                line(name + " = _nk_acc;");
+                types_.set(name, res);
+                return;
+            }
         }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box

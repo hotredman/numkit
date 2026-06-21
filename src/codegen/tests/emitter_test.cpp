@@ -388,6 +388,22 @@ TEST(EmitterFn, MatrixVectorProduct)
     }
 }
 
+// Inner / dot product: s = r * c (row * column) -> a scalar reduction loop.
+TEST(EmitterFn, InnerProduct)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function s = f(r, c)\n  s = r * c;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const InferredType r = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+    const InferredType c = InferredType::concrete(ValueType::DOUBLE, Shape::colVector());
+    const std::string  s = emitFunction(*fn, {{"r", r}, {"c", c}}, reg).source;
+    EXPECT_TRUE(contains(s, "if (_nk_r_len != _nk_c_len)"));        // shared-dim guard
+    EXPECT_TRUE(contains(s, "_nk_acc += r[_nk_l] * c[_nk_l];"));   // reduction
+    EXPECT_TRUE(contains(s, "s = _nk_acc;"));                       // scalar result
+    EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));                   // self-contained
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {
