@@ -16,4 +16,11 @@
 #define NK_RT_IMPORT_LIB "@NK_RT_IMPORT_LIB@"
 #define NK_RT_SHARED_DLL "@NK_RT_SHARED_DLL@"
 
+/* The nk_ops_kernels shared lib (ops-kernel lowering tier): the ops include dir
+ * (so a generated TU resolves <numkit/ops/kernels.hpp>), the import lib to LINK
+ * an ops-using artifact against, and the DLL to copy beside it (CodegenOpsKernel). */
+#define NK_OPS_INCLUDE_DIR "@NK_OPS_INCLUDE_DIR@"
+#define NK_OPS_IMPORT_LIB  "@NK_OPS_IMPORT_LIB@"
+#define NK_OPS_SHARED_DLL  "@NK_OPS_SHARED_DLL@"
+
 #endif
