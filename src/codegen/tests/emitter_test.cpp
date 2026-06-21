@@ -484,10 +484,18 @@ TEST(EmitterFn, Elementwise2DScalarBroadcast)
         const std::string      s  = emitFunction(*fn, {{"A", mat}}, reg).source;
         EXPECT_TRUE(contains(s, "B[_nk_i] = std::sin(A[_nk_i]);"));
     }
-    {  // A + C (two 2-D operands) -> NOT lowered in v1: refused, never wrong
+    {  // A + C (two 2-D operands) -> flat loop + a per-dim (rows AND cols) guard
         numkit::ASTNodePtr     root;
         const numkit::ASTNode *fn = findFunc("function B = f(A, C)\n  B = A + C;\nend\n", root);
-        EXPECT_THROW(emitFunction(*fn, {{"A", mat}, {"C", mat}}, reg), std::runtime_error);
+        const std::string      s  = emitFunction(*fn, {{"A", mat}, {"C", mat}}, reg).source;
+        EXPECT_TRUE(contains(s, "B[_nk_i] = (A[_nk_i] + C[_nk_i]);"));
+        EXPECT_TRUE(contains(s, "_nk_A_rows != _nk_B_rows"));   // operand A checked vs dest
+        EXPECT_TRUE(contains(s, "_nk_C_cols != _nk_B_cols"));   // operand C checked vs dest
+    }
+    {  // mixed rank (matrix + vector) is refused — no implicit broadcast
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function B = f(A, v)\n  B = A + v;\nend\n", root);
+        EXPECT_THROW(emitFunction(*fn, {{"A", mat}, {"v", kDoubleRow}}, reg), std::runtime_error);
     }
 }
 
