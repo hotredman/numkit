@@ -58,4 +58,22 @@ NK_OPS_API void minusDouble  (const double *a, const double *b, double *out, std
 NK_OPS_API void timesDouble  (const double *a, const double *b, double *out, std::size_t n);
 NK_OPS_API void rdivideDouble(const double *a, const double *b, double *out, std::size_t n);
 
+// Element-wise transcendentals over a DOUBLE buffer: out[i] = fn(x[i]), n
+// elements. Forward to the SIMD fusedTransAffine kernel (scale=1, offset=0) —
+// the SAME vectorised path the runtime's expression fusion uses, so the result
+// matches the interpreter. A plain std::<fn> inline loop does NOT auto-vectorise
+// on MSVC, so these are a genuine speedup (unlike the cheap-arithmetic ops). The
+// set is the real-total transcendentals (no complex-domain decline): the
+// codegen lowers exactly these inline today and routes them here when opt-in.
+NK_OPS_API void sinDouble  (const double *x, double *out, std::size_t n);
+NK_OPS_API void cosDouble  (const double *x, double *out, std::size_t n);
+NK_OPS_API void tanDouble  (const double *x, double *out, std::size_t n);
+NK_OPS_API void atanDouble (const double *x, double *out, std::size_t n);
+NK_OPS_API void sinhDouble (const double *x, double *out, std::size_t n);
+NK_OPS_API void coshDouble (const double *x, double *out, std::size_t n);
+NK_OPS_API void tanhDouble (const double *x, double *out, std::size_t n);
+NK_OPS_API void expDouble  (const double *x, double *out, std::size_t n);
+NK_OPS_API void asinhDouble(const double *x, double *out, std::size_t n);
+NK_OPS_API void expm1Double(const double *x, double *out, std::size_t n);
+
 } // namespace numkit::ops
