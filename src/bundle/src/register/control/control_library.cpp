@@ -25,6 +25,7 @@ void filt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void frd_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void frdata_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ss2ss_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void minreal_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 // props/props.cpp
 void isct_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isdt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -45,6 +46,7 @@ void feedback_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // response/response.cpp
 void step_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void impulse_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void initial_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lsim_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // freq/freq.cpp
 void evalfr_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -56,18 +58,27 @@ void rlocus_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dcgain_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void margin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void stepinfo_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hinfnorm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void allmargin_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 // discretize/discretize.cpp
 void c2d_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void d2c_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // state/state.cpp
 void ctrb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void obsv_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gram_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void covar_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // state/place.cpp
 void acker_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void place_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // lyapunov/lyapunov.cpp
 void lyap_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dlyap_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+// riccati/riccati.cpp
+void care_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dare_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lqr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dlqr_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in toolboxes/builtin and toolboxes/signal — we don't shadow them here.)
 } // namespace numkit::control::detail
@@ -94,7 +105,8 @@ void ControlLibrary::install(Engine &engine)
     reg("lti", "frd",     &control::detail::frd_reg);
     reg("lti", "frdata",  &control::detail::frdata_reg);
 
-    reg("convert", "ss2ss", &control::detail::ss2ss_reg);
+    reg("convert", "ss2ss",   &control::detail::ss2ss_reg);
+    reg("convert", "minreal", &control::detail::minreal_reg);
 
     reg("props", "isct",     &control::detail::isct_reg);
     reg("props", "isdt",     &control::detail::isdt_reg);
@@ -118,6 +130,7 @@ void ControlLibrary::install(Engine &engine)
 
     reg("response", "step",     &control::detail::step_reg);
     reg("response", "impulse",  &control::detail::impulse_reg);
+    reg("response", "initial",  &control::detail::initial_reg);
     reg("response", "lsim",     &control::detail::lsim_reg);
     reg("response", "evalfr",   &control::detail::evalfr_reg);
     reg("response", "freqresp", &control::detail::freqresp_reg);
@@ -128,17 +141,26 @@ void ControlLibrary::install(Engine &engine)
     reg("analyze", "dcgain",   &control::detail::dcgain_reg);
     reg("analyze", "margin",   &control::detail::margin_reg);
     reg("analyze", "stepinfo", &control::detail::stepinfo_reg);
+    reg("analyze", "hinfnorm", &control::detail::hinfnorm_reg);
+    reg("analyze", "allmargin", &control::detail::allmargin_reg);
 
     reg("discretize", "c2d", &control::detail::c2d_reg);
     reg("discretize", "d2c", &control::detail::d2c_reg);
 
     reg("state", "ctrb",  &control::detail::ctrb_reg);
     reg("state", "obsv",  &control::detail::obsv_reg);
+    reg("state", "gram",  &control::detail::gram_reg);
+    reg("state", "covar", &control::detail::covar_reg);
     reg("state", "acker", &control::detail::acker_reg);
     reg("state", "place", &control::detail::place_reg);
 
     reg("lyap", "lyap",  &control::detail::lyap_reg);
     reg("lyap", "dlyap", &control::detail::dlyap_reg);
+
+    reg("riccati", "care", &control::detail::care_reg);
+    reg("riccati", "dare", &control::detail::dare_reg);
+    reg("riccati", "lqr",  &control::detail::lqr_reg);
+    reg("riccati", "dlqr", &control::detail::dlqr_reg);
 }
 
 } // namespace numkit

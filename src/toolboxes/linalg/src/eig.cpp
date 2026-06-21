@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -424,6 +425,178 @@ schur_sym(const Value &A, std::pmr::memory_resource *mr)
 {
     // For symmetric A, Schur decomposition is the same as eig.
     return eig_symmetric(A, mr);
+}
+
+namespace {
+
+// Francis double-shift QR on an upper-Hessenberg H (n×n, column-major), with
+// the orthogonal accumulator Z (pre-seeded with the Hessenberg transform P).
+// On exit H is the real (quasi-upper-triangular) Schur form T — 1×1 blocks for
+// real eigenvalues, 2×2 blocks for complex-conjugate pairs — and A == Z·T·Zᵀ.
+// Classical bulge-chasing implicit double-shift QR (Golub & Van Loan §7.5).
+void francisSchur(double *H, double *Z, std::size_t n)
+{
+    if (n < 3) return;   // ≤2×2 is already (quasi-)triangular
+    auto h = [&](std::size_t i, std::size_t j) -> double & { return H[i + j * n]; };
+    auto z = [&](std::size_t i, std::size_t j) -> double & { return Z[i + j * n]; };
+    const double eps = std::numeric_limits<double>::epsilon();
+    const int    N   = static_cast<int>(n);
+
+    int p = N - 1;          // bottom of the active (un-deflated) block
+    int iter = 0;
+    while (p >= 0) {
+        // Deflation: smallest l so the active block is H[l..p, l..p].
+        int l = p;
+        while (l > 0) {
+            double s = std::fabs(h(l - 1, l - 1)) + std::fabs(h(l, l));
+            if (s == 0.0) s = 1.0;
+            if (std::fabs(h(l, l - 1)) <= eps * s) { h(l, l - 1) = 0.0; break; }
+            --l;
+        }
+        if (l == p)       { p -= 1; iter = 0; continue; }   // 1×1 converged
+        if (l == p - 1)   { p -= 2; iter = 0; continue; }   // 2×2 converged
+        if (++iter > 200) break;                             // give up (non-convergence)
+
+        // Double shift from the trailing 2×2: trace s, determinant t.
+        double s = h(p - 1, p - 1) + h(p, p);
+        double t = h(p - 1, p - 1) * h(p, p) - h(p - 1, p) * h(p, p - 1);
+        if (iter % 30 == 0) {           // exceptional shift to break cycles
+            const double e = std::fabs(h(p, p - 1)) + std::fabs(h(p - 1, p - 2));
+            s = 1.5 * e;
+            t = e * e;
+        }
+        // First column of (H² − sH + tI) on the active block — bulge seed.
+        double x = h(l, l) * h(l, l) + h(l, l + 1) * h(l + 1, l) - s * h(l, l) + t;
+        double y = h(l + 1, l) * (h(l, l) + h(l + 1, l + 1) - s);
+        double w = (l + 2 <= p) ? h(l + 1, l) * h(l + 2, l + 1) : 0.0;
+
+        for (int k = l; k <= p - 1; ++k) {
+            const int r = (k <= p - 2) ? 3 : 2;     // reflector size (3 mid-chase, 2 at the end)
+            // Householder that zeroes (y[,w]) below x.
+            double scale = std::fabs(x) + std::fabs(y) + (r == 3 ? std::fabs(w) : 0.0);
+            if (scale == 0.0) continue;
+            double xs = x / scale, ys = y / scale, ws = (r == 3 ? w / scale : 0.0);
+            double alpha = std::sqrt(xs * xs + ys * ys + ws * ws);
+            if (xs < 0.0) alpha = -alpha;
+            double v0 = xs + alpha, v1 = ys, v2 = ws;
+            const double vnorm2 = v0 * v0 + v1 * v1 + v2 * v2;
+            if (vnorm2 == 0.0) continue;
+            const double tau = 2.0 / vnorm2;
+
+            const int col0 = (k > l) ? k - 1 : l;   // first affected column
+            // Left-apply Hᵤ to rows k..k+r-1 of H (cols col0..N-1).
+            for (int j = col0; j < N; ++j) {
+                double d = v0 * h(k, j) + v1 * h(k + 1, j) + (r == 3 ? v2 * h(k + 2, j) : 0.0);
+                d *= tau;
+                h(k, j)     -= d * v0;
+                h(k + 1, j) -= d * v1;
+                if (r == 3) h(k + 2, j) -= d * v2;
+            }
+            // Right-apply Hᵤ to cols k..k+r-1 of H (rows 0..min(k+r,p)).
+            const int rowEnd = std::min(k + r, p);
+            for (int i = 0; i <= rowEnd; ++i) {
+                double d = v0 * h(i, k) + v1 * h(i, k + 1) + (r == 3 ? v2 * h(i, k + 2) : 0.0);
+                d *= tau;
+                h(i, k)     -= d * v0;
+                h(i, k + 1) -= d * v1;
+                if (r == 3) h(i, k + 2) -= d * v2;
+            }
+            // Accumulate into Z (cols k..k+r-1, all rows).
+            for (int i = 0; i < N; ++i) {
+                double d = v0 * z(i, k) + v1 * z(i, k + 1) + (r == 3 ? v2 * z(i, k + 2) : 0.0);
+                d *= tau;
+                z(i, k)     -= d * v0;
+                z(i, k + 1) -= d * v1;
+                if (r == 3) z(i, k + 2) -= d * v2;
+            }
+            // Next bulge element.
+            x = h(k + 1, k);
+            y = h(k + 2, k);
+            w = (k + 3 <= p) ? h(k + 3, k) : 0.0;
+        }
+    }
+    // Zero the numerical dust strictly below the quasi-triangular structure.
+    for (int j = 0; j + 2 < N; ++j)
+        for (int i = j + 2; i < N; ++i)
+            h(static_cast<std::size_t>(i), static_cast<std::size_t>(j)) = 0.0;
+}
+
+// Standardize every 2×2 diagonal block of the (quasi-triangular) Schur form:
+// a block with REAL eigenvalues is triangularized (subdiagonal → 0) via a Givens
+// similarity (accumulated into Z); a complex-conjugate pair is left as a valid
+// 2×2 block. LAPACK dlanv2 logic. Also covers the n==2 input that francisSchur
+// skips. H/Z column-major, n×n.
+void standardizeSchur2x2(double *H, double *Z, std::size_t n)
+{
+    if (n < 2) return;
+    auto h = [&](std::size_t i, std::size_t j) -> double & { return H[i + j * n]; };
+    auto z = [&](std::size_t i, std::size_t j) -> double & { return Z[i + j * n]; };
+    const int N = static_cast<int>(n);
+
+    for (int k = 0; k + 1 < N; ++k) {
+        if (k + 1 < N && h(k + 1, k) == 0.0) continue;      // 1×1 block
+        if (k + 2 < N && h(k + 2, k + 1) != 0.0) continue;  // part of a larger active region (shouldn't happen post-QR)
+
+        double a = h(k, k), b = h(k, k + 1), c = h(k + 1, k), d = h(k + 1, k + 1);
+        if (c == 0.0) continue;
+
+        double cs = 1.0, sn = 0.0;
+        const double p = 0.5 * (a - d);
+        const double bcmax = std::max(std::fabs(b), std::fabs(c));
+        const double bcmis = std::min(std::fabs(b), std::fabs(c)) *
+                             (b >= 0.0 ? 1.0 : -1.0) * (c >= 0.0 ? 1.0 : -1.0);
+        const double scale = std::max(std::fabs(p), bcmax);
+        double zz = (p / scale) * p + (bcmax / scale) * bcmis;
+
+        if (zz >= 0.0) {
+            // Real eigenvalues → triangularize.
+            double zr = p + (p >= 0.0 ? 1.0 : -1.0) * std::sqrt(scale) * std::sqrt(zz);
+            a = d + zr;
+            d -= (bcmax / zr) * bcmis;
+            const double tau = std::hypot(c, zr);
+            cs = zr / tau;
+            sn = c / tau;
+            b = b - c;
+            c = 0.0;
+            h(k, k) = a; h(k, k + 1) = b; h(k + 1, k) = 0.0; h(k + 1, k + 1) = d;
+            // Apply the rotation G = [cs sn; -sn cs] as a similarity to the rest.
+            for (int j = k + 2; j < N; ++j) {       // rows k,k+1 (cols right of the block)
+                const double t1 = h(k, j), t2 = h(k + 1, j);
+                h(k, j)     =  cs * t1 + sn * t2;
+                h(k + 1, j) = -sn * t1 + cs * t2;
+            }
+            for (int i = 0; i < k; ++i) {           // cols k,k+1 (rows above the block)
+                const double t1 = h(i, k), t2 = h(i, k + 1);
+                h(i, k)     =  cs * t1 + sn * t2;
+                h(i, k + 1) = -sn * t1 + cs * t2;
+            }
+            for (int i = 0; i < N; ++i) {           // accumulate into Z
+                const double t1 = z(i, k), t2 = z(i, k + 1);
+                z(i, k)     =  cs * t1 + sn * t2;
+                z(i, k + 1) = -sn * t1 + cs * t2;
+            }
+        }
+        // Complex pair (zz<0): leave the 2×2 block as the real Schur form.
+        ++k;   // skip the partner row
+    }
+}
+
+} // anonymous namespace
+
+// General (nonsymmetric) real Schur: A = U·T·Uᵀ, U orthogonal, T quasi-upper-
+// triangular. Hessenberg reduction + Francis double-shift QR.
+std::tuple<Value, Value>
+schur_general(const Value &A, std::pmr::memory_resource *mr)
+{
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    auto U = Value::matrix(n, n, ValueType::DOUBLE, mr);   // Schur vectors (== P·Q)
+    auto T = Value::matrix(n, n, ValueType::DOUBLE, mr);   // real Schur form
+    if (n == 0) return std::make_tuple(std::move(U), std::move(T));
+    std::copy(A.doubleData(), A.doubleData() + n * n, T.doubleDataMut());
+    hessReduceInplace(T.doubleDataMut(), n, U.doubleDataMut(), mr);
+    francisSchur(T.doubleDataMut(), U.doubleDataMut(), n);
+    standardizeSchur2x2(T.doubleDataMut(), U.doubleDataMut(), n);
+    return std::make_tuple(std::move(U), std::move(T));
 }
 
 Value sylvester_sym(const Value &A, const Value &B, const Value &C,

@@ -42,6 +42,27 @@ TEST_F(CcepsTest, MatchesMatlabOnRange1To8)
     EXPECT_NEAR(evalScalar("y(8)"),  0.904489,   1e-6);
 }
 
+// Non-power-of-two: the rcunwrap linear-phase removal (bugs/signal/cceps-nd-phase).
+// Pre-fix the phase-dependent samples past DC were garbage.
+TEST_F(CcepsTest, NonPowerOfTwoPhaseMatchesMatlab)
+{
+    eval("y = cceps([1 2 3 4 3 2 1]);");   // n = 7, MATLAB R2025b values
+    const double expected[7] = {0.396084, 0.523560, 0.383457,
+                                -0.240870, -0.164044, 0.651886, 1.222516};
+    for (int i = 1; i <= 7; ++i)
+        EXPECT_NEAR(evalScalar("y(" + std::to_string(i) + ")"),
+                    expected[i - 1], 1e-5);
+}
+
+// Second output nd = samples of (circular) delay removed by rcunwrap.
+TEST_F(CcepsTest, NdSecondOutput)
+{
+    eval("[xh1, nd1] = cceps((1:8)');");
+    EXPECT_DOUBLE_EQ(evalScalar("nd1"), 1.0);    // MATLAB R2025b: 1
+    eval("[xh2, nd2] = cceps([1 2 3 4 3 2 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("nd2"), -3.0);   // MATLAB R2025b: -3
+}
+
 // ─── regression: output is NOT time-reversed ────────────────────────
 
 TEST_F(CcepsTest, OutputNotTimeReversedRegression)
@@ -69,18 +90,16 @@ TEST_F(CcepsTest, DCBinUnaffectedByFix)
 
 TEST_F(CcepsTest, IccepsRoundTripPreservesShape)
 {
+    // icceps(cceps(x)) recovers x up to the circular shift that cceps's `nd`
+    // removed: for (1:8)' (nd = 1) MATLAB R2025b returns [8 1 2 3 4 5 6 7].
+    // numkit matches it exactly (a true inverse modulo the nd shift); the
+    // round-trip carries floating error so EXPECT_NEAR, not _EQ.
     eval("x = (1:8)'; c = cceps(x); y = icceps(c);");
-    // numel + finite + same sample stats (bit-identical to MATLAB):
-    //   length 8, max == 8, min == 1, sum == 36.
     EXPECT_DOUBLE_EQ(evalScalar("numel(y)"), 8.0);
-    EXPECT_DOUBLE_EQ(evalScalar("max(y)"),    8.0);
-    EXPECT_DOUBLE_EQ(evalScalar("min(y)"),    1.0);
-    EXPECT_DOUBLE_EQ(evalScalar("sum(y)"),   36.0);
-    for (int i = 1; i <= 8; ++i) {
-        const std::string e = "y(" + std::to_string(i) + ")";
-        EXPECT_FALSE(std::isnan(evalScalar(e)));
-        EXPECT_FALSE(std::isinf(evalScalar(e)));
-    }
+    const double expected[8] = {8, 1, 2, 3, 4, 5, 6, 7};
+    for (int i = 1; i <= 8; ++i)
+        EXPECT_NEAR(evalScalar("y(" + std::to_string(i) + ")"),
+                    expected[i - 1], 1e-9);
 }
 
 // ─── length preservation across a range of input sizes ──────────────

@@ -1,0 +1,10 @@
+{
+  "name": "bior",
+  "namespace": "wavelet",
+  "setup": "x = [1 2 3 4 5 6 7 8];",
+  "expr": "[a22, d22] = dwt(x, 'bior2.2'); [a44, d44] = dwt(x, 'bior4.4'); [ar, dr] = dwt(x, 'rbio3.3'); [LoD, HiD, LoR, HiR] = wfilters('bior2.2'); [C, L] = wavedec(x, 2, 'bior2.2'); ld4 = LoD(4); hr4 = HiR(4); c1 = C(1); l1 = L(1);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": ["a22(1)", "a22(2)", "d22(1)", "a44(1)", "d44(2)", "ar(1)", "dr(1)", "ld4", "hr4", "c1", "l1"],
+  "comment": "Sig: [LoD,HiD,LoR,HiR]=wfilters('biorNr.Nd'|'rbioNr.Nd'); dwt/idwt/wavedec/waverec accept the names. Biorthogonal (Cohen-Daubechies-Feauveau spline) and reverse-biorthogonal families: distinct analysis/synthesis filter pairs (Lo_D/Hi_D != Lo_R/Hi_R), tabulated in filter/biorfilt.cpp and threaded through the existing transform machinery. All 15 bior + 15 rbio families verified bit-exact vs MATLAB R2025b wfilters (worst abs diff 0). Fingerprint covers bior2.2/bior4.4/rbio3.3 dwt coefficients + wfilters bior2.2 Lo_D(4)=1.06066/Hi_R(4)=-1.06066 + wavedec C(1)=2.03125, L(1)=5. Fixes bugs/wavelet/dwt-biorthogonal."
+}

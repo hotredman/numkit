@@ -30,6 +30,7 @@ using ::numkit::math::gradient;     using ::numkit::math::gradient2;
 using ::numkit::math::del2;         using ::numkit::math::cumtrapz;
 using ::numkit::math::cumtrapzDim;
 using ::numkit::math::integral;     using ::numkit::math::trapz;
+using ::numkit::math::integral2;    using ::numkit::math::integral3;
 using ::numkit::math::detail::gradientND;
 using ::numkit::math::detail::toDoubleCopy;
 using ::numkit::math::detail::cumtrapzMatrixRows;
@@ -221,6 +222,106 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
             ou[i] = std::move(r[i]);
     };
     outs[0] = integral(cb, a, b, absTol, ctx.engine->resource());
+}
+
+static double integral2AbsTol(Span<const Value> args, size_t firstOpt)
+{
+    double absTol = 1e-10;
+    for (size_t i = firstOpt; i + 1 < args.size(); i += 2) {
+        std::string key = args[i].toString();
+        for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (key == "abstol") absTol = args[i + 1].toScalar();
+    }
+    return absTol;
+}
+
+void integral2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 5)
+        throw Error("integral2: requires (fn, a, b, c, d)",
+                     0, 0, "integral2", "", "numkit:integral2:nargin");
+    if (!args[0].isFuncHandle())
+        throw Error("integral2: 1st argument must be a function handle",
+                     0, 0, "integral2", "", "numkit:integral2:fnType");
+    const double a = args[1].toScalar(), b = args[2].toScalar();
+    const double c = args[3].toScalar(), d = args[4].toScalar();
+    const double absTol = integral2AbsTol(args, 5);
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = integral2(cb, a, b, c, d, absTol, ctx.engine->resource());
+}
+
+void integral3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 7)
+        throw Error("integral3: requires (fn, a, b, c, d, e, f)",
+                     0, 0, "integral3", "", "numkit:integral3:nargin");
+    if (!args[0].isFuncHandle())
+        throw Error("integral3: 1st argument must be a function handle",
+                     0, 0, "integral3", "", "numkit:integral3:fnType");
+    const double a = args[1].toScalar(), b = args[2].toScalar();
+    const double c = args[3].toScalar(), d = args[4].toScalar();
+    const double e = args[5].toScalar(), f = args[6].toScalar();
+    const double absTol = integral2AbsTol(args, 7);
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = integral3(cb, a, b, c, d, e, f, absTol, ctx.engine->resource());
+}
+
+// quadgk = adaptive Gauss-Kronrod 1-D quadrature = the existing `integral`.
+// [q, errbnd] = quadgk(...); we return q and the requested tolerance as a
+// (conservative) error-bound placeholder.
+void quadgk_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("quadgk: requires (fn, a, b)",
+                     0, 0, "quadgk", "", "numkit:quadgk:nargin");
+    if (!args[0].isFuncHandle())
+        throw Error("quadgk: 1st argument must be a function handle",
+                     0, 0, "quadgk", "", "numkit:quadgk:fnType");
+    const double a = args[1].toScalar(), b = args[2].toScalar();
+    const double absTol = integral2AbsTol(args, 3);
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = integral(cb, a, b, absTol, ctx.engine->resource());
+    if (outs.size() >= 2) outs[1] = Value::scalar(absTol, ctx.engine->resource());
+}
+
+// quad2d = the older name for a rectangular double integral = integral2.
+void quad2d_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 5)
+        throw Error("quad2d: requires (fn, a, b, c, d)",
+                     0, 0, "quad2d", "", "numkit:quad2d:nargin");
+    if (!args[0].isFuncHandle())
+        throw Error("quad2d: 1st argument must be a function handle",
+                     0, 0, "quad2d", "", "numkit:quad2d:fnType");
+    const double a = args[1].toScalar(), b = args[2].toScalar();
+    const double c = args[3].toScalar(), d = args[4].toScalar();
+    const double absTol = integral2AbsTol(args, 5);
+    auto handle = args[0];
+    auto cb = [&ctx, &handle](Span<const Value> ar, Span<Value> ou,
+                               std::pmr::memory_resource * /*mr*/) {
+        auto r = ctx.engine->callFunctionHandleMulti(handle, ar, ou.size());
+        for (size_t i = 0; i < ou.size() && i < r.size(); ++i)
+            ou[i] = std::move(r[i]);
+    };
+    outs[0] = integral2(cb, a, b, c, d, absTol, ctx.engine->resource());
 }
 
 void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

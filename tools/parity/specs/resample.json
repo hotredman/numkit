@@ -1,12 +1,10 @@
 {
   "name": "resample",
   "namespace": "signal",
-  "setup": "",
-  "expr": "y = resample([1 2 3 4 5 6 7 8], 1, 2); r1 = double(numel(y));",
+  "setup": "x = [1 2 3 4 5 6]; n = 0:49; s = sin(2*pi*0.05*n);",
+  "expr": "y = resample(x, 3, 2); y1 = y(1); y5 = y(5); y9 = y(9); sy = sum(y); ny = numel(y); u = resample(x, 2, 1); su = sum(u); nu = numel(u); dn = resample([1 2 3 4 5 6 7 8], 1, 2); sd = sum(dn); ys = resample(s, 3, 2); ys20 = ys(20); ys40 = ys(40);",
   "iters": 5,
-  "tol": 1e-06,
-  "fingerprint": [
-    "r1"
-  ],
-  "comment": "Sig: r = resample(...). Spec-extension batch 2026-05-09 (signal namespace)."
+  "tol": 1e-09,
+  "fingerprint": ["y1", "y5", "y9", "sy", "ny", "su", "nu", "sd", "ys20", "ys40"],
+  "comment": "Sig: y = resample(x, p, q). Rational-factor resampling at the MATLAB algorithm: a Kaiser(beta=5)-windowed least-squares anti-alias FIR h = p*firls(2*N*max(p,q),[0 2fc 2fc 1],[1 1 0 0]).*kaiser / sum (N=10, fc=1/(2*max(p,q)), normalised so sum(h)=p), applied via the polyphase upfirdn, group-delay compensated (delay=floor(Lhalf2/q), Lhalf2=(L-1)/2+nz, nz=q-mod(Lhalf,q)) and trimmed to ceil(Lx*p/q). GCD-reduces p/q first. Reuses the shipped firls/kaiser/upfirdn (all bit-exact w/ MATLAB) so the output matches MATLAB R2025b exactly. Was a P1 bug (old windowed-sinc design produced garbage: sum 10.87, ramped from ~0). Fingerprint: 3/2 ramp y=[1.00061 ... 4.24029] sum=31.6965 len=9, 2/1 upsample, 1/2 downsample, sine 3/2. Fixes bugs/signal/resample-values. (Strengthened from the old length-only spec which passed despite wrong values.)"
 }

@@ -26,6 +26,12 @@ namespace numkit::optim {
 // embedder path).
 void registerFzeroM(Engine &engine);
 void registerFminsearchM(Engine &engine);
+void registerFsolveM(Engine &engine);       // fsolve_reg.cpp
+void registerLsqnonlinM(Engine &engine);    // lsqnonlin_reg.cpp
+void registerFminuncM(Engine &engine);      // fminunc_reg.cpp
+void registerQuadprogM(Engine &engine);     // quadprog_reg.cpp
+void registerLinprogM(Engine &engine);      // linprog_reg.cpp
+void registerFminconM(Engine &engine);      // fmincon_reg.cpp
 } // namespace numkit::optim
 
 namespace numkit {
@@ -40,6 +46,24 @@ void OptimLibrary::install(Engine &engine)
     // fminsearch is an embedded `.m` wrapper (pausable objective); shadows the
     // C++ external on both backends. The `Value fminsearch(...)` API is retained.
     optim::registerFminsearchM(engine);
+    // fsolve — embedded `.m` Levenberg-Marquardt nonlinear system solver
+    // (pausable objective; solution-parity with MATLAB).
+    optim::registerFsolveM(engine);
+    // lsqnonlin / lsqcurvefit — embedded `.m` nonlinear least squares (LM;
+    // pausable residual; solution-parity with MATLAB).
+    optim::registerLsqnonlinM(engine);
+    // fminunc — embedded `.m` BFGS unconstrained minimizer (pausable
+    // objective; solution-parity with MATLAB).
+    optim::registerFminuncM(engine);
+    // quadprog — embedded `.m` primal active-set quadratic program
+    // (strictly-convex H; solution-parity with MATLAB).
+    optim::registerQuadprogM(engine);
+    // linprog — embedded `.m` linear program via proximal regularization
+    // over quadprog (exact vertex for unique optima).
+    optim::registerLinprogM(engine);
+    // fmincon — embedded `.m` SQP (quadprog QP subproblem; pausable
+    // objective + nonlcon). Solution-parity with MATLAB.
+    optim::registerFminconM(engine);
 }
 
 } // namespace numkit

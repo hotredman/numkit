@@ -51,11 +51,16 @@ string compare). Guards: `src/bundle/tests/builtins_test.cpp` (`Func2Str`, both
 engines) + `src/bundle/tests/known_bugs_test.cpp` (`Func2StrAnonymous`, promoted
 live).
 
-**Known limitation:** a VM closure that *captures* variables (`@(x) x + a`) is
-represented as a cell `{handle, caps}`, on which `func2str` still throws (it was
-never a function handle there — a pre-existing VM-representation gap, separate
-from this fix). TreeWalker captures via a closure env and returns a plain handle,
-so `func2str` works there. Capture-free anon handles work on both engines.
+## Captured-variable closures (follow-up, 2026-06-18)
+Initially `func2str` still threw on a VM closure that *captures* variables
+(`@(x) x + a`): the VM packs that as a cell `{handle, caps}`, which is not a
+function-handle Value. Fixed by unwrapping it in `func2str` — if the argument is
+a cell whose first element is a function handle (exactly the closure convention
+`Engine::callFunctionHandleMulti` uses to make it callable), `func2str` reads the
+inner handle's source. So `func2str(@(x) x + a)` → `'@(x)x+a'` (keeps the
+captured NAME, like MATLAB) on BOTH engines now. TreeWalker already returned a
+plain handle, so the unwrap is a no-op there. Parity spec covers a capture case;
+gtest `Func2Str` asserts it on TW + VM.
 
 ## References
 - `src/core/src/parser.cpp` (`reconstructAnonSource`, `parseAnonFunc`),

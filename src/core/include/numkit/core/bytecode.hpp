@@ -74,6 +74,12 @@ enum class OpCode : uint8_t {
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)
     CALL_INDIRECT, // dst, fhReg, base, nargs         R[dst] = R[fhReg](R[base..base+nargs-1])
+    // [a,b,…] = R[fhReg](R[base..]): multi-output indirect (handle-variable)
+    // call. a=outBase, b=fhReg, c=argBase, d=nargs, e=nout. Mirrors
+    // CALL_INDIRECT's handle resolution + CALL_MULTI's nout frame-push so a
+    // stored function handle can return several outputs (e.g. fmincon nonlcon
+    // `[c, ceq] = nonlcon(x)`).
+    CALL_INDIRECT_MULTI,
     // Fused element-wise idiom (VM fusion). a=dst, b=operandBase, c=nOps,
     // d=ruleIdx (into engine.fusionRules()), e=skip. Gather R[base..base+nOps)
     // → rule.execute; on success R[dst]=result and skip the `e` following
@@ -171,6 +177,12 @@ enum class OpCode : uint8_t {
     RET,       // reg                    return R[reg]
     RET_MULTI, // base, count            return R[base..base+count-1]
     RET_EMPTY, //                        return empty
+    // varargout return: a=fixedBase, b=numFixed, c=varargoutReg. Returns the
+    // numFixed leading fixed outputs (R[fixedBase..]) followed by the elements
+    // of the varargout cell R[varargoutReg] — a DYNAMIC return count
+    // (numFixed + numel(cell)), so a `function varargout = f(...)` can return
+    // however many values the caller's nargout asks for.
+    RET_VARARGOUT,
     BREAK,     // [reserved] compiler uses JMP + NOP(flag) instead
     CONTINUE,  // [reserved] compiler uses JMP + NOP(flag) instead
 

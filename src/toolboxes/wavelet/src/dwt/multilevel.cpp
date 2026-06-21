@@ -229,4 +229,91 @@ Value detcoef(const Value &C, const Value &L, int level,
     return rowFromVec(out, mr);
 }
 
+WenergyResult wenergy(const Value &C, const Value &L,
+                      std::pmr::memory_resource *mr)
+{
+    auto Cv = vecFromValue(C);
+    auto Lv = vecFromValue(L);
+    if (Lv.size() < 3)
+        throw Error("wenergy: L must have at least 3 entries (a + 1 detail + length)",
+                    0, 0, "wenergy", "", "numkit:wenergy:L");
+    const size_t nLev = Lv.size() - 2;   // number of detail levels
+
+    auto energy = [&](size_t off, size_t len) {
+        double s = 0.0;
+        for (size_t i = off; i < off + len && i < Cv.size(); ++i) s += Cv[i] * Cv[i];
+        return s;
+    };
+
+    double total = 0.0;
+    for (double c : Cv) total += c * c;
+    const double scale = (total > 0.0) ? 100.0 / total : 0.0;
+
+    // Approximation band = first L(0) coefficients.
+    const size_t aLen = static_cast<size_t>(Lv[0]);
+    Value Ea = Value::scalar(energy(0, aLen) * scale, mr);
+
+    // C packs details coarsest-first (cD_N … cD_1 at L(1) … L(nLev)); MATLAB's
+    // Ed is ordered finest-first (level 1 … level N), so store reversed.
+    std::vector<double> Ed(nLev, 0.0);
+    size_t off = aLen;
+    for (size_t k = 0; k < nLev; ++k) {
+        const size_t len = static_cast<size_t>(Lv[1 + k]);   // band cD_{N-k} = level (N-k)
+        Ed[nLev - 1 - k] = energy(off, len) * scale;
+        off += len;
+    }
+
+    WenergyResult out;
+    out.Ea = std::move(Ea);
+    out.Ed = rowFromVec(Ed, mr);
+    return out;
+}
+
+namespace {
+// Full convolution y[n] = Σ_k a[k]·b[n−k], length |a|+|b|−1.
+std::vector<double> convFull(const std::vector<double> &a,
+                             const std::vector<double> &b) {
+    if (a.empty() || b.empty()) return {};
+    std::vector<double> c(a.size() + b.size() - 1, 0.0);
+    for (size_t i = 0; i < a.size(); ++i)
+        for (size_t j = 0; j < b.size(); ++j)
+            c[i + j] += a[i] * b[j];
+    return c;
+}
+} // anonymous
+
+Value upcoef(const std::string &type, const Value &X, const std::string &wname,
+             int n, long long len, std::pmr::memory_resource *mr)
+{
+    if (type != "a" && type != "d")
+        throw Error("upcoef: type must be 'a' (approximation) or 'd' (detail)",
+                    0, 0, "upcoef", "", "numkit:upcoef:type");
+    if (n < 0)
+        throw Error("upcoef: N must be >= 0",
+                    0, 0, "upcoef", "", "numkit:upcoef:N");
+
+    auto fb = wavelet_filters(wname);
+    auto y = vecFromValue(X);
+    const bool detail = (type == "d");
+
+    for (int i = 0; i < n; ++i) {
+        // First level of a detail branch uses the highpass; all else lowpass.
+        const std::vector<double> &F = (i == 0 && detail) ? fb.Hi_R : fb.Lo_R;
+        std::vector<double> up;
+        if (!y.empty()) {
+            up.assign(2 * y.size() - 1, 0.0);          // [y0, 0, y1, 0, …, y_{n-1}]
+            for (size_t k = 0; k < y.size(); ++k) up[2 * k] = y[k];
+        }
+        y = convFull(up, F);
+    }
+
+    // Optional: keep the central `len` samples (MATLAB wkeep convention).
+    if (len >= 0 && static_cast<size_t>(len) < y.size()) {
+        const size_t start = (y.size() - static_cast<size_t>(len)) / 2;
+        y = std::vector<double>(y.begin() + start,
+                                y.begin() + start + static_cast<size_t>(len));
+    }
+    return rowFromVec(y, mr);
+}
+
 } // namespace numkit::wavelet

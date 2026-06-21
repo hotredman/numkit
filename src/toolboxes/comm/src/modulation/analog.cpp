@@ -10,6 +10,8 @@
 #include <numkit/comm/modulation/analog.hpp>
 
 #include <numkit/signal/transforms/hilbert.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>     // butter
+#include <numkit/signal/digital_filtering/filter.hpp>        // filtfilt
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -277,6 +279,69 @@ Value mskmod(const Value &x, int nSamp, double ini_phase,
     return out;
 }
 
+// ── mskdemod (differential variant) ────────────────────────────────
+// Coherent inverse of mskmod. Each bit is the sign of the symbol's
+// accumulated phase increment: bit_k = (Σ angle(y[n]·conj(y[n-1])) > 0)
+// over the within-symbol sample pairs n = k·nSamp+1 … (k+1)·nSamp−1.
+// Using phase *increments* makes the decision invariant to a constant
+// phase rotation (and robust to noise), so ini_phase only feeds the
+// returned final-phase state. Matches MATLAB R2025b mskdemod (default
+// 'diff'); the non-differential path is deferred, as for mskmod.
+Value mskdemod(const Value &y, int nSamp, double ini_phase,
+               double *phase_out, std::pmr::memory_resource *mr)
+{
+    if (nSamp <= 0)
+        throw Error("mskdemod: nSamp must be a positive integer",
+                    0, 0, "mskdemod", "", "numkit:mskdemod:nSamp");
+
+    const auto &d = y.dims();
+    size_t H = d.rows();
+    size_t W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) std::swap(H, W);   // a row is one channel of length H
+
+    if (H == 0 || H % static_cast<size_t>(nSamp) != 0)
+        throw Error("mskdemod: signal length must be a positive multiple of nSamp",
+                    0, 0, "mskdemod", "", "numkit:mskdemod:length");
+    const size_t N = H / static_cast<size_t>(nSamp);   // symbols per channel
+    const bool cplx = y.isComplex();
+
+    Value out = Value::matrix(N, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+
+    auto getC = [&](size_t col, size_t row) -> Cd {
+        const size_t idx = was_row ? row : (col * H + row);
+        return cplx ? y.complexData()[idx] : Cd(y.elemAsDouble(idx), 0.0);
+    };
+
+    double lastPhase = ini_phase;
+    for (size_t c = 0; c < W; ++c) {
+        long long cumSum = 0;
+        for (size_t k = 0; k < N; ++k) {
+            const size_t start = k * static_cast<size_t>(nSamp);
+            double acc = 0.0;
+            for (size_t n = start + 1; n < start + static_cast<size_t>(nSamp); ++n) {
+                const Cd p = getC(c, n) * std::conj(getC(c, n - 1));
+                acc += std::atan2(p.imag(), p.real());
+            }
+            const int bit = (acc > 0.0) ? 1 : 0;
+            o[c * N + k] = static_cast<double>(bit);
+            cumSum += (2 * bit - 1);
+        }
+        double ph = std::fmod(ini_phase + (M_PI * 0.5) * (double)cumSum, 2.0 * M_PI);
+        if (ph < 0.0) ph += 2.0 * M_PI;
+        lastPhase = ph;
+    }
+    if (phase_out) *phase_out = lastPhase;
+
+    if (was_row) {
+        Value row = Value::matrix(1, N, ValueType::DOUBLE, mr);
+        std::copy(o, o + N, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
 // ── ssbmod ─────────────────────────────────────────────────────────
 // Single-sideband modulation — closed-form definition (Haykin, "Communication Systems"):
 //   t = (0:1/Fs:(N-1)/Fs)'
@@ -344,6 +409,160 @@ Value ssbmod(const Value &x, double fc, double fs, double ini_phase,
         return row;
     }
     return out;
+}
+
+Value pmdemod(const Value &y, double fc, double fs, double phasedev,
+              double ini_phase, std::pmr::memory_resource *mr)
+{
+    if (!(fs > 0.0))
+        throw Error("pmdemod: Fs must be positive", 0, 0, "pmdemod", "", "numkit:pmdemod:Fs");
+    if (!(fc > 0.0))
+        throw Error("pmdemod: Fc must be positive", 0, 0, "pmdemod", "", "numkit:pmdemod:Fc");
+    if (fs < 2.0 * fc)
+        throw Error("pmdemod: Fs must be >= 2*Fc", 0, 0, "pmdemod", "", "numkit:pmdemod:FsLessThan2Fc");
+    if (!(phasedev > 0.0))
+        throw Error("pmdemod: phasedev must be positive", 0, 0, "pmdemod", "", "numkit:pmdemod:InvalidPhaseDev");
+
+    const auto &d = y.dims();
+    size_t H = d.rows(), W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) std::swap(H, W);
+
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    const double twoPiFc = 2.0 * M_PI * fc;
+    const double inv_fs = 1.0 / fs;
+
+    for (size_t c = 0; c < W; ++c) {
+        Value col_in = Value::matrix(H, 1, ValueType::DOUBLE, mr);
+        double *cp = col_in.doubleDataMut();
+        for (size_t r = 0; r < H; ++r)
+            cp[r] = was_row ? y.elemAsDouble(r) : y.elemAsDouble(c * H + r);
+        Value analytic = numkit::signal::hilbert(col_in, mr);
+        const auto *z = analytic.complexData();
+        for (size_t r = 0; r < H; ++r) {
+            const double ang = twoPiFc * (static_cast<double>(r) * inv_fs) + ini_phase;
+            const double ca = std::cos(ang), sa = std::sin(ang);
+            const double re = z[r].real(), im = z[r].imag();
+            // angle(z·exp(-j·ang))
+            o[c * H + r] = std::atan2(im * ca - re * sa, re * ca + im * sa) / phasedev;
+        }
+    }
+    if (was_row) {
+        Value row = Value::matrix(1, H, ValueType::DOUBLE, mr);
+        std::copy(o, o + H, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
+Value fmdemod(const Value &y, double fc, double fs, double freqdev,
+              double ini_phase, std::pmr::memory_resource *mr)
+{
+    if (!(fs > 0.0))
+        throw Error("fmdemod: Fs must be positive", 0, 0, "fmdemod", "", "numkit:fmdemod:Fs");
+    if (!(fc > 0.0))
+        throw Error("fmdemod: Fc must be positive", 0, 0, "fmdemod", "", "numkit:fmdemod:Fc");
+    if (fs < 2.0 * fc)
+        throw Error("fmdemod: Fs must be >= 2*Fc", 0, 0, "fmdemod", "", "numkit:fmdemod:FsLessThan2Fc");
+    if (!(freqdev > 0.0))
+        throw Error("fmdemod: freqdev must be positive", 0, 0, "fmdemod", "", "numkit:fmdemod:InvalidFreqDev");
+
+    const auto &d = y.dims();
+    size_t H = d.rows(), W = d.cols();
+    const bool was_row = (H == 1 && W >= 1);
+    if (was_row) std::swap(H, W);
+
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    const double twoPiFc = 2.0 * M_PI * fc;
+    const double inv_fs = 1.0 / fs;
+    const double scale = fs / (2.0 * M_PI * freqdev);
+
+    std::vector<double> ph(H);
+    for (size_t c = 0; c < W; ++c) {
+        Value col_in = Value::matrix(H, 1, ValueType::DOUBLE, mr);
+        double *cp = col_in.doubleDataMut();
+        for (size_t r = 0; r < H; ++r)
+            cp[r] = was_row ? y.elemAsDouble(r) : y.elemAsDouble(c * H + r);
+        Value analytic = numkit::signal::hilbert(col_in, mr);
+        const auto *z = analytic.complexData();
+        for (size_t r = 0; r < H; ++r) {
+            const double ang = twoPiFc * (static_cast<double>(r) * inv_fs) + ini_phase;
+            const double ca = std::cos(ang), sa = std::sin(ang);
+            const double re = z[r].real(), im = z[r].imag();
+            ph[r] = std::atan2(im * ca - re * sa, re * ca + im * sa);
+        }
+        // x = [0, diff(unwrap(ph))] · fs/(2π·freqdev)
+        if (H > 0) o[c * H + 0] = 0.0;
+        for (size_t r = 1; r < H; ++r) {
+            double dlt = ph[r] - ph[r - 1];
+            dlt -= 2.0 * M_PI * std::round(dlt / (2.0 * M_PI));   // wrap to [-π, π]
+            o[c * H + r] = dlt * scale;
+        }
+    }
+    if (was_row) {
+        Value row = Value::matrix(1, H, ValueType::DOUBLE, mr);
+        std::copy(o, o + H, row.doubleDataMut());
+        return row;
+    }
+    return out;
+}
+
+namespace {
+// Coherent (synchronous) detection shared by amdemod / ssbdemod:
+//   2 · filtfilt(butter(5, fc·2/fs), y · cos(2π·fc·t + ini_phase)).
+Value coherentDetect(const Value &y, double fc, double fs, double ini_phase,
+                     std::pmr::memory_resource *mr)
+{
+    const auto &d = y.dims();
+    const size_t N = y.numel();
+    Value yc = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *yo = yc.doubleDataMut();
+    const double twoPiFc = 2.0 * M_PI * fc;
+    const double inv_fs = 1.0 / fs;
+    for (size_t i = 0; i < N; ++i)   // flat sample order: sample i → t = i/fs
+        yo[i] = y.elemAsDouble(i) * std::cos(twoPiFc * (static_cast<double>(i) * inv_fs) + ini_phase);
+
+    auto [b, a] = numkit::signal::butter(5, fc * 2.0 / fs, "low", mr);
+    Value z = numkit::signal::filtfilt(b, a, yc, mr);
+
+    Value out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    double *oo = out.doubleDataMut();
+    const double *zd = z.doubleData();
+    for (size_t i = 0; i < N; ++i) oo[i] = 2.0 * zd[i];
+    return out;
+}
+
+void checkCarrier(double fc, double fs, const char *fn)
+{
+    if (!(fs > 0.0))
+        throw Error(std::string(fn) + ": Fs must be positive", 0, 0, fn, "", "numkit:demod:Fs");
+    if (!(fc > 0.0))
+        throw Error(std::string(fn) + ": Fc must be positive", 0, 0, fn, "", "numkit:demod:Fc");
+    if (fs < 2.0 * fc)
+        throw Error(std::string(fn) + ": Fs must be >= 2*Fc", 0, 0, fn, "", "numkit:demod:FsLessThan2Fc");
+}
+} // anonymous
+
+Value amdemod(const Value &y, double fc, double fs, double ini_phase,
+              double carr_amp, std::pmr::memory_resource *mr)
+{
+    checkCarrier(fc, fs, "amdemod");
+    Value z = coherentDetect(y, fc, fs, ini_phase, mr);
+    if (carr_amp != 0.0) {
+        double *zd = z.doubleDataMut();
+        const size_t N = z.numel();
+        for (size_t i = 0; i < N; ++i) zd[i] -= carr_amp;
+    }
+    return z;
+}
+
+Value ssbdemod(const Value &y, double fc, double fs, double ini_phase,
+               std::pmr::memory_resource *mr)
+{
+    checkCarrier(fc, fs, "ssbdemod");
+    return coherentDetect(y, fc, fs, ini_phase, mr);
 }
 
 } // namespace numkit::comm

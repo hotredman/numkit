@@ -198,6 +198,21 @@ TEST_F(ImageBatch3Test, RegionpropsShapeDescriptors)
     EXPECT_NEAR(evalScalar("s1.Eccentricity"),    0.7453559925, 1e-9);
     EXPECT_NEAR(evalScalar("s1.Orientation"),     90.0,         1e-9);
 
+    // Perimeter — boundary Vossepoel-Smeulders estimator (0.980·Ne + 1.406·No
+    // − 0.091·Nc), matching MATLAB R2025b. bugs/image/regionprops-perimeter.
+    eval("sp1 = regionprops(logical(ones(3,3)), 'Perimeter');");
+    EXPECT_NEAR(evalScalar("sp1.Perimeter"), 7.476, 1e-4);
+    eval("sp2 = regionprops(logical(ones(4,4)), 'Perimeter');");
+    EXPECT_NEAR(evalScalar("sp2.Perimeter"), 11.396, 1e-4);
+    eval("sp3 = regionprops(logical([0 1 0;1 1 1;0 1 0]), 'Perimeter');");
+    EXPECT_NEAR(evalScalar("sp3.Perimeter"), 5.624, 1e-4);
+    eval("sp4 = regionprops(logical(eye(4)), 'Perimeter');");
+    EXPECT_NEAR(evalScalar("sp4.Perimeter"), 8.436, 1e-4);
+    // An unknown / unimplemented property now errors loudly instead of being
+    // silently dropped (which surfaced later as a confusing field-access error).
+    EXPECT_THROW(eval("regionprops(logical(ones(3,3)), 'Solidity');"),
+                 std::runtime_error);
+
     // Diagonal '\' blob: negative orientation (image rows increase down).
     eval("BW2 = false(7,7); BW2(2,2)=true; BW2(3,2)=true; BW2(3,3)=true; "
          "BW2(4,3)=true; BW2(4,4)=true; BW2(5,4)=true;");

@@ -56,5 +56,28 @@ void wdenoise_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = wdenoise(args[0], level, wname, ctx.engine->resource());
 }
 
+void wentropy_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                  CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("wentropy: requires (X, T [, P])",
+                    0, 0, "wentropy", "", "numkit:wentropy:nargin");
+    const double param = (args.size() >= 3) ? args[2].toScalar() : 0.0;
+    outs[0] = wentropy(args[0], argString(args[1]), param, ctx.engine->resource());
+}
+
+void ddencmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ddencmp: requires (opt, type, x)",
+                    0, 0, "ddencmp", "", "numkit:ddencmp:nargin");
+    auto r = ddencmp(argString(args[0]), argString(args[1]), args[2],
+                     ctx.engine->resource());
+    if (outs.size() >= 1) outs[0] = std::move(r.thr);
+    if (outs.size() >= 2) outs[1] = std::move(r.sorh);
+    if (outs.size() >= 3) outs[2] = std::move(r.keepapp);
+}
+
 } // namespace detail
 } // namespace numkit::wavelet

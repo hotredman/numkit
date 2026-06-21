@@ -1,9 +1,11 @@
 set(WAVELETLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/wfilters.cpp      # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/biorfilt.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/qmf.cpp           # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/families.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt.cpp           # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/multilevel.cpp   # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/dwt/multilevel2.cpp  # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt2.cpp          # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dyad.cpp          # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/wkeep_wextend.cpp     # compute (engine-free)

@@ -1,0 +1,10 @@
+{
+  "name": "smoothdata_lowess",
+  "namespace": "stats",
+  "setup": "x = [1 5 2 8 3 9 4 7 2 6 1 8];",
+  "expr": "yl = smoothdata(x,'lowess',5); yo = smoothdata(x,'loess',5); yl7 = smoothdata(x,'lowess',7);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["numel(yl)", "yl(1)", "yl(3)", "yl(12)", "yo(1)", "yo(3)", "yo(11)", "yl7(1)", "yl7(6)"],
+  "comment": "Sig: smoothdata(x,'lowess'|'loess',window). Local tricube-weighted regression: lowess = linear, loess = quadratic. For each sample the window is the F nearest points (shifted to stay in range), tricube weights of the in-window distance (window edges -> weight 0), fit + evaluate at the query point. Matches MATLAB exactly for an explicit window (auto default window is the same data-dependent-heuristic approximation as sgolay). Completes bugs/stats/smoothdata-methods. Verified vs MATLAB R2025b: lowess w5 = [1.7113 3.0349 4.5768 ...], loess w5 = [1.5509 2.9192 2 8 ...] (loess interior is the input unchanged -- a 3-point quadratic fit interpolates the centre)."
+}

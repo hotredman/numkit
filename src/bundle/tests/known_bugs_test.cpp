@@ -40,6 +40,51 @@ TEST_F(BuiltinKnownBug, HistcountsNbins)
     EXPECT_DOUBLE_EQ(evalScalar("N(3)"), 3.0);
 }
 
+// bugs/lang/multi-output-handle-call.md — [a,b]=h(x) for a handle variable
+// (FIXED 2026-06-19 via CALL_INDIRECT_MULTI; live guard). Named + user-fn
+// handles now dispatch a multi-output indirect call.
+TEST_F(BuiltinKnownBug, MultiOutputHandleCall)
+{
+    eval("h = @size; [r, c] = h(ones(2, 3));");
+    EXPECT_DOUBLE_EQ(evalScalar("r"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c"), 3.0);
+}
+
+// bugs/lang/anonymous-multi-output.md — varargout (dynamic-count returns)
+// (FIXED core 2026-06-19 via RET_VARARGOUT; live guard). nargout drives the
+// returned count; fixed + varargout mix; single-output.
+TEST_F(BuiltinKnownBug, Varargout)
+{
+    eval("clear; function varargout = gen(n)\n"
+         "  for k = 1:nargout, varargout{k} = k*10; end\n"
+         "end\n"
+         "[a, b, c] = gen(0);");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c"), 30.0);
+    eval("function [first, varargout] = mixed(v)\n"
+         "  first = v; varargout{1} = v*2; varargout{2} = v*3;\n"
+         "end\n"
+         "[p, q, r] = mixed(5);");
+    EXPECT_DOUBLE_EQ(evalScalar("p"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r"), 15.0);
+}
+
+// bugs/lang/anonymous-multi-output.md — an anonymous call-body function now
+// forwards nargout to its body (FIXED 2026-06-19; live guard). MATLAB: a=6,b=4.
+TEST_F(BuiltinKnownBug, AnonymousMultiOutput)
+{
+    eval("h = @(x) deal(x+1, x-1); [a, b] = h(5);");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("b"), 4.0);
+    // single-output still works, and captures forward too.
+    EXPECT_DOUBLE_EQ(evalScalar("h(5)"), 6.0);
+    eval("k = 100; m = @(x) deal(x+k, x-k); [p, q] = m(5);");
+    EXPECT_DOUBLE_EQ(evalScalar("p"), 105.0);
+    EXPECT_DOUBLE_EQ(evalScalar("q"), -95.0);
+}
+
 // bugs/builtin/unique-last.md — sorted-order 'last' FIXED; live tests in
 // toolboxes/builtin/tests/unique_last_test.cpp. Remaining sub-gap: 'stable'+'last'
 // ORDERING (MATLAB orders unique values by their last occurrence).
@@ -121,7 +166,8 @@ TEST_F(BuiltinKnownBug, Gradient3D)
 // toolboxes/builtin/tests/complex_promotion_arrays_test.cpp.
 
 // bugs/builtin/numerical-integration-nd.md — quadgk/integral2/integral3/quad2d.
-TEST_F(BuiltinKnownBug, DISABLED_NumericalIntegrationND)
+// FIXED 2026-06-19 (nested adaptive integral) — promoted live.
+TEST_F(BuiltinKnownBug, NumericalIntegrationND)
 {
     EXPECT_NEAR(evalScalar("quadgk(@(x)exp(-x.^2),0,1)"), 0.746824132812427, 1e-9);
     EXPECT_NEAR(evalScalar("integral2(@(x,y)x.*y,0,1,0,1)"), 0.25, 1e-9);

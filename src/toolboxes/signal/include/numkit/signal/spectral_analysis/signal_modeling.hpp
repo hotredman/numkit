@@ -264,6 +264,27 @@ prony(const Value &                h,
       int                          na,
       std::pmr::memory_resource *  mr = nullptr);
 
+/// Steiglitz–McBride IIR identification (`[b, a] = stmcb(h, nb, na, niter)`).
+///
+/// Finds `B(z)/A(z)` with `nb` zeros and `na` poles whose impulse response
+/// approximates `h`. Initialises `A` via @ref prony, then runs `niter`
+/// (default 5) Steiglitz–McBride iterations: prefilter the unit impulse and
+/// `h` by `1/A`, then re-solve the linear least-squares `[E | -G]·[b; a] ≈ g`.
+///
+/// @param h      Impulse response (real 1-D).
+/// @param nb     Numerator order (`B` has `nb+1` coefficients).
+/// @param na     Denominator order (`A` has `na+1` coefficients, `a(1)=1`).
+/// @param niter  Iterations (`< 1` → MATLAB default 5).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Tuple `(b, a)` row vectors.
+/// @see prony, levinson, lpc
+std::tuple<Value, Value>
+stmcb(const Value &                h,
+      int                          nb,
+      int                          na,
+      int                          niter = 5,
+      std::pmr::memory_resource *  mr = nullptr);
+
 /// Generate the autocorrelation data matrix.
 ///
 /// Returns the `(n+m) × (m+1)` matrix X such that X'·X is the biased
@@ -277,6 +298,50 @@ prony(const Value &                h,
 Value corrmtx(const Value &                x,
               int                          m,
               std::pmr::memory_resource *  mr = nullptr);
+
+/// MUSIC pseudospectrum (`[P, F] = pmusic(x, p, nfft, fs)`).
+///
+/// Builds the correlation matrix `R = X'·X` (order `2p`, via @ref corrmtx),
+/// eigendecomposes it, takes the smallest `p` eigenvectors as the noise
+/// subspace, and evaluates `P(ω) = 1 / Σ_{noise} |e(ω)'·v_k|²` over a one-sided
+/// grid of `nfft/2+1` frequencies on `[0, fs/2]`.
+///
+/// Matches MATLAB on the **peak frequencies** (the estimator's purpose). The
+/// absolute pseudospectrum is scale-arbitrary and eigendecomposition-sensitive
+/// (peaks are `1/near-zero`), so it is not bit-matched to MATLAB.
+///
+/// @param x     Real 1-D signal.
+/// @param p     Signal-subspace dimension (≈ number of complex exponentials).
+/// @param nfft  Frequency points: `nfft/2+1` one-sided (default 256 → 129).
+/// @param fs    Sample rate; default `2π` → frequencies in `[0, π]` rad/sample.
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(P, F)` column vectors.
+/// @see peig, corrmtx, pwelch
+std::tuple<Value, Value>
+pmusic(const Value &                x,
+       int                          p,
+       int                          nfft = 256,
+       double                       fs   = 2.0 * 3.14159265358979323846,
+       std::pmr::memory_resource *  mr   = nullptr);
+
+/// Eigenvector pseudospectrum (`[P, F] = peig(x, p, nfft, fs)`).
+///
+/// As @ref pmusic, but weights each noise term by `1/λ_k`:
+/// `P(ω) = 1 / Σ_{noise} |e(ω)'·v_k|² / λ_k`. Same peak-frequency parity caveat.
+///
+/// @param x     Real 1-D signal.
+/// @param p     Signal-subspace dimension.
+/// @param nfft  Frequency points (default 256).
+/// @param fs    Sample rate (default `2π`).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      Tuple `(P, F)` column vectors.
+/// @see pmusic
+std::tuple<Value, Value>
+peig(const Value &                x,
+     int                          p,
+     int                          nfft = 256,
+     double                       fs   = 2.0 * 3.14159265358979323846,
+     std::pmr::memory_resource *  mr   = nullptr);
 
 // ─────────────────────────────────────────────────────────────────────
 // LSF ↔ AR poly

@@ -38,6 +38,35 @@ periodogram(const Value &                x,
             double                       fs = 2.0 * 3.14159265358979323846,
             std::pmr::memory_resource *  mr = nullptr);
 
+/// Chi-square confidence interval for a periodogram PSD estimate.
+///
+/// Given a one-sided periodogram `Pxx` (as returned by `periodogram`), returns
+/// the `confidenceLevel`-coverage interval as an `nf × 2` matrix (column 1 =
+/// lower bound, column 2 = upper). Each PSD bin is chi-square distributed with
+/// `v` degrees of freedom: the general (folded) interior bins carry `v = 2`,
+/// while the purely-real DC bin and — when `nfftEven` — the Nyquist bin carry
+/// `v = 1`. The interval is
+/// \f$ \hat{P}_{xx} \cdot v \big/ \chi^2_{v}([1-\alpha/2,\ \alpha/2]) \f$ with
+/// \f$ \alpha = 1 - \text{confidenceLevel} \f$, using the closed forms
+/// `chi2inv(q,2) = -2 ln(1-q)` and `chi2inv(q,1) = (√2·erfinv(q))²`.
+///
+/// @param Pxx              One-sided PSD column vector from `periodogram`.
+/// @param confidenceLevel  Coverage in `(0, 1)` (MATLAB default `0.95`).
+/// @param realInput        `true` if the analysed signal was real (DC/Nyquist
+///                         bins then carry 1 DOF); `false` → every bin 2 DOF.
+/// @param nfftEven         `true` if the transform length was even (a Nyquist
+///                         bin then sits at `Pxx(end)`).
+/// @param mr               Memory resource (nullptr → process default).
+/// @return                 `nf × 2` matrix `[lower, upper]`.
+///
+/// @see periodogram
+Value
+periodogramConf(const Value &                Pxx,
+                double                       confidenceLevel,
+                bool                         realInput,
+                bool                         nfftEven,
+                std::pmr::memory_resource *  mr = nullptr);
+
 /// Welch's averaged, modified periodogram PSD estimate.
 ///
 /// Slides a window over `x` with `noverlap` samples of overlap,

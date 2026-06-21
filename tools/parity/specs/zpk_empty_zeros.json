@@ -1,0 +1,10 @@
+{
+  "name": "zpk_empty_zeros",
+  "namespace": "control",
+  "setup": "",
+  "expr": "[n1,d1] = tfdata(zpk([],[-1 -2],2),'v'); a = n1(end); na = numel(n1); [n2,d2] = tfdata(zpk(-5,[-1 -2 -3],1),'v'); b = n2(end); c = n2(end-1);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["a", "na", "b", "c"],
+  "comment": "Sig: zpk -> tf via zp2tf. Regression for bugs/control/zpk-empty-zeros: zpk([],poles,k) (no finite zeros) must keep the gain k. zpk([],[-1 -2],2)=2/((s+1)(s+2)) -> num last coeff a=2 (was 0 before the fix — math::poly([]) returned empty, collapsing num and dropping k), numel(num)=3. Non-empty-zero case unaffected: zpk(-5,[-1 -2 -3],1)=(s+5)/(...) -> num=[0 0 1 5], n2(end)=5, n2(end-1)=1. Verified vs MATLAB R2025b. Fixes bugs/control/zpk-empty-zeros."
+}

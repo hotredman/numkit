@@ -1,35 +1,33 @@
-# optim.fmincon / linprog / quadprog / fminunc — missing
+# optim constrained/gradient solvers — cluster (all split out + FIXED)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-19) — the whole cluster is implemented; each
+  function now has its own file:
+  - [fminunc.md](fminunc.md) — unconstrained BFGS minimizer
+  - [quadprog.md](quadprog.md) — quadratic program (active-set)
+  - [linprog.md](linprog.md) — linear program (proximal-QP)
+  - [fmincon.md](fmincon.md) — constrained minimization (SQP over quadprog)
 - **Severity:** P2 (missing functions)
 - **Kind:** missing-fn
 - **Found:** 2026-06 via DEEP-PROBE
 
-## Symptom
-The constrained / gradient optimizers are not registered: `fmincon`
-(nonlinear constrained), `linprog` (linear program), `quadprog` (quadratic
-program), `fminunc` (unconstrained gradient).
+## Summary
+This file was the cluster index for the four constrained / gradient
+optimizers `fminunc` / `quadprog` / `linprog` / `fmincon`. All four landed
+2026-06-19 as embedded-`.m` solvers built around the shipped `fzero` /
+`fminsearch` pattern and a new `quadprog` active-set QP (which `linprog` and
+`fmincon` both reuse). See the per-function files above for the algorithm,
+parity, and any scope notes (notably: `linprog` returns the min-norm point on
+a degenerate optimal face rather than MATLAB's vertex; `fmincon` defers
+nonlinear constraints pending VM multi-output-handle support —
+[bugs/lang/multi-output-handle-call](../lang/multi-output-handle-call.md)).
 
-## Repro
+## Repro (all now resolved)
 ```matlab
-fmincon(@(x) x(1)^2+x(2)^2, [1 1], [],[],[],[], [0 0],[2 2])  % undefined
-linprog([1 1], [-1 0], [-1])                                   % undefined
-quadprog(eye(2), [-1 -1])                                      % undefined
-fminunc(@(x) (x-3)^2, 0)                                       % undefined
+fminunc(@(x) (x-3)^2, 0)                                       % 3
+quadprog(eye(2), [-1 -1])                                      % [1; 1]
+linprog([1 1], [-1 0; 0 -1], [-1; -1])                         % [1; 1]
+fmincon(@(x) x(1)^2+x(2)^2, [1 1], [],[],[],[], [0 0],[2 2])   % [0; 0]
 ```
-
-## Root cause
-Not implemented. (`fminsearch` / `fminbnd` / `fzero` / `lsqnonneg` exist.)
-
-## Suggested fix
-Substantial — these need real QP/LP/SQP machinery:
-- `quadprog`: active-set or interior-point QP.
-- `linprog`: simplex or interior-point LP.
-- `fminunc`: BFGS/trust-region with FD gradient.
-- `fmincon`: SQP/interior-point over `fminunc` + constraint handling.
-Large; likely several separate items. File here as a known cluster; tackle
-`fminunc` first (smallest), then `quadprog`/`linprog`, then `fmincon`.
-Verify against MATLAB on small textbook problems.
 
 ## References
 - new files under `src/toolboxes/optim/src/...`

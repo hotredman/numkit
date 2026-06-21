@@ -30,6 +30,15 @@ void gen2par_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = gen2par(args[0], ctx.engine->resource());
 }
 
+void syndtable_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("syndtable: requires a parity-check matrix H",
+                    0, 0, "syndtable", "", "numkit:syndtable:nargin");
+    outs[0] = syndtable(args[0], ctx.engine->resource());
+}
+
 void hammgen_reg(Span<const Value> args, size_t nargout,
                  Span<Value> outs, CallContext &ctx)
 {

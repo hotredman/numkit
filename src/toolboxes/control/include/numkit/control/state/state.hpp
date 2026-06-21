@@ -68,4 +68,48 @@ Value obsv_AC(const Value &A, const Value &C,
 /// @see obsv_AC
 Value obsv_sys(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
+/// Controllability / observability gramian (`W = gram(sys, type)`).
+///
+/// Solves the appropriate Lyapunov equation for the LTI system `sys`:
+/// - `type = "c"`: controllability gramian, @f$ A W_c + W_c A^{T} + B B^{T}
+///   = 0 @f$ (discrete: Stein equation via @ref dlyap).
+/// - `type = "o"`: observability gramian, @f$ A^{T} W_o + W_o A + C^{T} C
+///   = 0 @f$.
+///
+/// Continuous vs discrete is taken from the system's sample time (`Ts`).
+///
+/// @param sys   LTI struct (ss / tf / zpk — converted to state space).
+/// @param type  `"c"` (controllability) or `"o"` (observability).
+/// @param mr    Memory resource (nullptr → process default).
+/// @return      n×n gramian (symmetric positive-semidefinite for a stable sys).
+/// @throws      Error on a non-LTI input or an unknown `type`.
+/// @see lyap, dlyap, ctrb_sys, obsv_sys
+Value gram(const Value &sys, const std::string &type,
+           std::pmr::memory_resource *mr = nullptr);
+
+/// Output and state covariance of an LTI system driven by white noise.
+struct CovarResult {
+    Value P;   ///< Steady-state output covariance.
+    Value Q;   ///< Steady-state state covariance.
+};
+
+/// Steady-state covariance under white-noise excitation (`[P, Q] = covar(sys, W)`).
+///
+/// For an LTI system driven by white noise of intensity `W`, solves the
+/// gramian Lyapunov equation for the state covariance `Q` and projects it
+/// to the output covariance `P`:
+/// - **continuous**: `A Q + Q Aᵀ + B W Bᵀ = 0` (via @ref lyap), `P = C Q Cᵀ`
+///   (infinite if `D ≠ 0` — white noise through a direct feedthrough).
+/// - **discrete**: `A Q Aᵀ − Q + B W Bᵀ = 0` (via @ref dlyap),
+///   `P = C Q Cᵀ + D W Dᵀ`.
+///
+/// @param sys  LTI struct (ss / tf / zpk — converted to state space).
+/// @param W    Noise intensity (scalar → `W·I`, or an m×m matrix).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     `{P, Q}` (see @ref CovarResult).
+/// @throws     Error on a non-LTI input or a shape mismatch.
+/// @see gram, lyap, dlyap
+CovarResult covar(const Value &sys, const Value &W,
+                  std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::control

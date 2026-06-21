@@ -71,6 +71,57 @@ void fmmod_reg(Span<const Value> args, size_t /*nargout*/,
                     ctx.engine->resource());
 }
 
+void pmdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("pmdemod: requires (y, Fc, Fs, phasedev [, ini_phase])",
+                    0, 0, "pmdemod", "", "numkit:pmdemod:nargin");
+    double ini_phase = 0.0;
+    if (args.size() >= 5 && !args[4].isEmpty())
+        ini_phase = args[4].toScalar();
+    outs[0] = pmdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                      args[3].toScalar(), ini_phase, ctx.engine->resource());
+}
+
+void fmdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("fmdemod: requires (y, Fc, Fs, freqdev [, ini_phase])",
+                    0, 0, "fmdemod", "", "numkit:fmdemod:nargin");
+    double ini_phase = 0.0;
+    if (args.size() >= 5 && !args[4].isEmpty())
+        ini_phase = args[4].toScalar();
+    outs[0] = fmdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                      args[3].toScalar(), ini_phase, ctx.engine->resource());
+}
+
+void amdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("amdemod: requires (y, Fc, Fs [, ini_phase [, carramp]])",
+                    0, 0, "amdemod", "", "numkit:amdemod:nargin");
+    double ini_phase = 0.0, carr_amp = 0.0;
+    if (args.size() >= 4 && !args[3].isEmpty()) ini_phase = args[3].toScalar();
+    if (args.size() >= 5 && !args[4].isEmpty()) carr_amp = args[4].toScalar();
+    outs[0] = amdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                      ini_phase, carr_amp, ctx.engine->resource());
+}
+
+void ssbdemod_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ssbdemod: requires (y, Fc, Fs [, ini_phase])",
+                    0, 0, "ssbdemod", "", "numkit:ssbdemod:nargin");
+    double ini_phase = 0.0;
+    if (args.size() >= 4 && !args[3].isEmpty()) ini_phase = args[3].toScalar();
+    outs[0] = ssbdemod(args[0], args[1].toScalar(), args[2].toScalar(),
+                       ini_phase, ctx.engine->resource());
+}
+
 void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {
@@ -82,6 +133,39 @@ void mskmod_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 3 && !args[2].isEmpty())
         ini_phase = args[2].toScalar();
     outs[0] = mskmod(args[0], nSamp, ini_phase, ctx.engine->resource());
+}
+
+void mskdemod_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mskdemod: requires (y, nSamp [, dataenc [, ini_phase]])",
+                    0, 0, "mskdemod", "", "numkit:mskdemod:nargin");
+    const int nSamp = static_cast<int>(args[1].toScalar());
+    double ini_phase = 0.0;
+    size_t i = 2;
+    if (i < args.size() && (args[i].isChar() || args[i].isString())) {
+        std::string enc = args[i].toString();
+        std::string elo;
+        for (char ch : enc) elo += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (elo == "nondiff")
+            throw Error("mskdemod: 'nondiff' encoding is not supported "
+                        "(differential 'diff' only — matches the mskmod gap)",
+                        0, 0, "mskdemod", "", "numkit:mskdemod:nondiff");
+        if (elo != "diff")
+            throw Error("mskdemod: dataenc must be 'diff' or 'nondiff'",
+                        0, 0, "mskdemod", "", "numkit:mskdemod:dataenc");
+        ++i;
+    }
+    if (i < args.size() && !args[i].isEmpty())
+        ini_phase = args[i].toScalar();
+
+    double phaseOut = 0.0;
+    outs[0] = mskdemod(args[0], nSamp, ini_phase,
+                       nargout >= 2 ? &phaseOut : nullptr,
+                       ctx.engine->resource());
+    if (outs.size() >= 2)
+        outs[1] = Value::scalar(phaseOut, ctx.engine->resource());
 }
 
 void ssbmod_reg(Span<const Value> args, size_t /*nargout*/,

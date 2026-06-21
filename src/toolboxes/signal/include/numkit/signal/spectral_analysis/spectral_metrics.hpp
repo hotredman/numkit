@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory_resource>
+#include <tuple>
 #include <numkit/value/value.hpp>
 
 namespace numkit::signal {
@@ -74,19 +75,26 @@ Value enbw(const Value &window, const Value &fs = Value::Empty,
            std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Occupied bandwidth at fraction `p` of total power
-/// (`bw = obw(x, fs, p)`).
+/// (`[bw, flo, fhi, power] = obw(x, fs, p)`).
 ///
-/// Bandwidth (Hz or rad/s) of the smallest contiguous frequency
-/// interval containing at least fraction `p` of total power.
+/// Bandwidth (Hz or rad/s) of the contiguous frequency band that holds
+/// fraction `p` (default 0.99) of the total power, centred so that the
+/// `(1-p)/2` tail lies on each side. Matches MATLAB `obw`: the PSD is a
+/// rectangular-windowed periodogram with `nfft = numel(x)` (no zero-pad),
+/// the cumulative power is the rectangle rule `Σ P·df`, and a band edge is
+/// the frequency (at the bin's upper edge `F + df/2`) where the cumulative
+/// reaches `(1∓p)/2` of the total.
 ///
 /// @param x   Real 1-D signal.
 /// @param fs  Sample rate or `Value::Empty`.
 /// @param p   Power fraction (default 0.99).
 /// @param mr  Memory resource (nullptr → process default).
-/// @return    Scalar bandwidth.
-Value obw(const Value &x, const Value &fs = Value::Empty,
-          double p = 0.99,
-          std::pmr::memory_resource *mr = nullptr);
+/// @return    Tuple `(bw, flo, fhi, power)`: bandwidth, lower/upper band
+///            edges, and the in-band power (`p · total`).
+std::tuple<Value, Value, Value, Value>
+obw(const Value &x, const Value &fs = Value::Empty,
+    double p = 0.99,
+    std::pmr::memory_resource *mr = nullptr);
 
 /// @brief 3-dB power bandwidth around the dominant peak.
 ///

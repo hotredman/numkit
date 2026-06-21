@@ -481,10 +481,17 @@ Value vecToRow(const std::vector<double> &v, std::pmr::memory_resource *mr) {
 
 FilterBank wavelet_filters(const std::string &name) {
     const Spec *s = findSpec(name);
-    if (!s)
+    if (!s) {
+        // Biorthogonal / reverse-biorthogonal families have distinct
+        // analysis/synthesis pairs and are tabulated directly (biorfilt.cpp).
+        FilterBank bfb;
+        if (bior_filterbank(name, bfb))
+            return bfb;
         throw Error("wfilters: unsupported wavelet name '" + name +
-                    "' (try haar, db1..db10, sym2..sym10, coif1..coif5)",
+                    "' (try haar, db1..db10, sym2..sym10, coif1..coif5, "
+                    "bior1.1..bior6.8, rbio1.1..rbio6.8)",
                     0, 0, "wfilters", "", "numkit:wfilters:name");
+    }
     const int N = s->len;
 
     // 2026-05-08 wavelet/wfilters fix: previously the stored

@@ -992,6 +992,41 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         tempReg();
 
     const std::string &funcName = callNode->children[0]->strValue;
+
+    // If the callee names a known local / workspace variable holding a
+    // callable, this is a multi-output INDIRECT (handle) call —
+    // `[a,b] = h(x)` for a stored handle. Mirror the single-output
+    // CALL_INDIRECT gate in compileCall and emit CALL_INDIRECT_MULTI, so the
+    // VM dispatches on the handle value instead of resolving `funcName` as a
+    // function name (which would fail). Enables e.g. fmincon's nonlcon.
+    bool calleeIsVar = (varRegisters_.find(funcName) != varRegisters_.end());
+    if (!calleeIsVar && isTopLevel_ && !engine_.isReservedName(funcName)) {
+        Value *existing = engine_.getVariable(funcName);
+        if (existing && !existing->isUnset() && !existing->isDeleted()) {
+            const bool isCallable =
+                existing->isFuncHandle()
+                || (existing->isCell() && existing->numel() >= 1
+                    && existing->cellAt(0).isFuncHandle());
+            if (isCallable
+                || (!engine_.isKnownLeafName(funcName) && !engine_.hasFunction(funcName)))
+                calleeIsVar = true;
+        }
+    }
+    if (calleeIsVar) {
+        uint8_t fhReg = varRegLookup(funcName);
+        size_t callIdx = chunk_.code.size();
+        // CALL_INDIRECT_MULTI: a=outBase, b=fhReg, c=argBase, d=nargs, e=nout
+        emit(Instruction::make_abcde(OpCode::CALL_INDIRECT_MULTI,
+                                     outBase, fhReg, argBase,
+                                     static_cast<int16_t>(argRegs.size()),
+                                     static_cast<uint8_t>(nout)));
+        recordCallArgNames(callNode, callIdx);
+        distribute(outBase);
+        if (complex)
+            return nout ? outBase : 0;
+        return outRegs.empty() ? 0 : outRegs[0];
+    }
+
     int16_t funcIdx = addStringConstant(funcName);
 
     // CALL_MULTI: a=outBase, d=funcIdx, b=argBase, c=nargs, e=nout
@@ -3326,16 +3361,63 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     auto funcNode = makeNode(NodeType::FUNCTION_DEF);
     funcNode->strValue = anonName;
     funcNode->paramNames = node->paramNames;
-    funcNode->returnNames = {"__result__"};
+    // When the body is a named-function call `@(p) g(...)`, lower it to a
+    // varargout function that forwards the call-site nargout to the body via
+    // the `__nk_fwd_call__` helper — `varargout = __nk_fwd_call__(nargout,
+    // 'g', args...)` — so `[a,b] = (@(x) deal(x+1,x-1))(5)` returns both
+    // values (anonymous multi-output / nargout forwarding). Non-call bodies
+    // (e.g. `@(x) x+1`) keep the single-output `__result__ = expr` fast path.
+    const ASTNode *bodyExpr = node->children[0].get();
+    bool forwardVarargout =
+        bodyExpr->type == NodeType::CALL
+        && !bodyExpr->children.empty()
+        && bodyExpr->children[0]->type == NodeType::IDENTIFIER
+        && bodyExpr->children[0]->strValue != "__nk_fwd_call__";
+    if (forwardVarargout) {
+        // Only forward when the callee is a GLOBAL function name (e.g. deal),
+        // not a parameter or a captured handle variable — `@(x) f(x)` /
+        // `@(x) g(h(x))` where f/g/h are handles must NOT be lowered to a
+        // name-string call (that would resolve a function named "f", not the
+        // handle). Those keep the single-output `__result__ = expr` path.
+        const std::string &callee = bodyExpr->children[0]->strValue;
+        bool calleeIsVar =
+            varRegisters_.find(callee) != varRegisters_.end();
+        for (const auto &p : node->paramNames)
+            if (p == callee) { calleeIsVar = true; break; }
+        if (calleeIsVar)
+            forwardVarargout = false;
+    }
 
-    // Body: __result__ = expr
     auto bodyBlock = makeNode(NodeType::BLOCK);
     auto assignNode = makeNode(NodeType::ASSIGN);
     assignNode->suppressOutput = true;
-    auto resultId = makeNode(NodeType::IDENTIFIER);
-    resultId->strValue = "__result__";
-    assignNode->children.push_back(std::move(resultId));
-    assignNode->children.push_back(cloneNode(node->children[0].get()));
+
+    if (forwardVarargout) {
+        funcNode->returnNames = {"varargout"};
+        auto vaId = makeNode(NodeType::IDENTIFIER);
+        vaId->strValue = "varargout";
+        assignNode->children.push_back(std::move(vaId));
+        // RHS: __nk_fwd_call__(nargout, 'g', args...)
+        auto fwdCall = makeNode(NodeType::CALL);
+        auto fwdId = makeNode(NodeType::IDENTIFIER);
+        fwdId->strValue = "__nk_fwd_call__";
+        fwdCall->children.push_back(std::move(fwdId));
+        auto nargoutId = makeNode(NodeType::IDENTIFIER);
+        nargoutId->strValue = "nargout";
+        fwdCall->children.push_back(std::move(nargoutId));
+        auto fnameStr = makeNode(NodeType::STRING_LITERAL);
+        fnameStr->strValue = bodyExpr->children[0]->strValue;
+        fwdCall->children.push_back(std::move(fnameStr));
+        for (size_t i = 1; i < bodyExpr->children.size(); ++i)
+            fwdCall->children.push_back(cloneNode(bodyExpr->children[i].get()));
+        assignNode->children.push_back(std::move(fwdCall));
+    } else {
+        funcNode->returnNames = {"__result__"};
+        auto resultId = makeNode(NodeType::IDENTIFIER);
+        resultId->strValue = "__result__";
+        assignNode->children.push_back(std::move(resultId));
+        assignNode->children.push_back(cloneNode(node->children[0].get()));
+    }
     bodyBlock->children.push_back(std::move(assignNode));
     funcNode->children.push_back(std::move(bodyBlock));
 
@@ -3369,7 +3451,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
         UserFunction uf;
         uf.name = anonName;
         uf.params = funcNode->paramNames;
-        uf.returns = {"__result__"};
+        uf.returns = funcNode->returnNames;   // {"__result__"} or {"varargout"}
         uf.body = std::shared_ptr<const ASTNode>(cloneNode(funcNode->children[0].get()));
         uf.closureEnv = nullptr;
         engine_.adoptUserFunction(anonName, std::move(uf));
@@ -3683,7 +3765,14 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
         currentLoc_ = {static_cast<uint16_t>(funcDef->endLine), 1};
 
     // Emit return: collect return values
-    if (funcDef->returnNames.size() == 1) {
+    const auto &rnames = funcDef->returnNames;
+    const bool hasVarargout = !rnames.empty() && rnames.back() == "varargout";
+    if (hasVarargout) {
+        // varargout return: gather the fixed leading outputs into consecutive
+        // slots, then RET_VARARGOUT expands the varargout cell after them
+        // (dynamic count). See compileReturn for the explicit-`return` mirror.
+        emitVarargoutReturn();
+    } else if (rnames.size() == 1) {
         uint8_t retReg = varRegLookup(funcDef->returnNames[0]);
         emitA(OpCode::RET, retReg);
     } else if (funcDef->returnNames.empty()) {
@@ -3734,8 +3823,34 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     return result;
 }
 
+void Compiler::emitVarargoutReturn()
+{
+    // chunk_.returnNames.back() == "varargout". Gather the fixed leading
+    // outputs into consecutive slots, then RET_VARARGOUT expands the
+    // varargout cell after them (dynamic count).
+    const auto &rns = chunk_.returnNames;
+    const size_t numFixed = rns.size() - 1;
+    uint8_t vaReg = varRegLookup("varargout");
+    uint8_t fixedBase = 0;
+    if (numFixed > 0) {
+        fixedBase = static_cast<uint8_t>(nextReg_);
+        for (size_t i = 0; i < numFixed; ++i) {
+            uint8_t slot = tempReg();
+            uint8_t r = varRegLookup(rns[i]);
+            if (r != slot)
+                emitAB(OpCode::MOVE, slot, r);
+        }
+    }
+    emit(Instruction::make_abcde(OpCode::RET_VARARGOUT, fixedBase,
+                                 static_cast<int16_t>(numFixed), vaReg, 0, 0));
+}
+
 uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
 {
+    if (!chunk_.returnNames.empty() && chunk_.returnNames.back() == "varargout") {
+        emitVarargoutReturn();
+        return 0;
+    }
     if (chunk_.returnNames.size() <= 1) {
         if (!chunk_.returnNames.empty()) {
             uint8_t retReg = varRegLookup(chunk_.returnNames[0]);

@@ -1,0 +1,10 @@
+{
+  "name": "dist_dispatchers",
+  "namespace": "stats",
+  "setup": "x = 1;",
+  "expr": "c1=cdf('Normal',1,0,1); c2=cdf('Gamma',2,3,1); c3=cdf('T',1,5); p1=pdf('Poisson',2,3); p2=pdf('Binomial',2,5,0.3); p3=pdf('Beta',0.5,2,3); i1=icdf('Normal',0.975,0,1); i2=icdf('Chisquare',0.95,3);",
+  "iters": 5,
+  "tol": 1e-8,
+  "fingerprint": ["c1", "c2", "c3", "p1", "p2", "p3", "i1", "i2"],
+  "comment": "Sig: cdf/pdf/icdf/random(distName, params...). Generic distribution dispatchers — map the distribution name (case-insensitive + aliases) to the per-family builtin (<fam>cdf/pdf/inv/rnd) and forward args. icdf->inv, random->rnd. Fixes bugs/stats/distribution-dispatchers (cdf/pdf/icdf/random were undefined). Verified vs MATLAB R2025b: cdf('Normal',1,0,1)=0.84134, cdf('Gamma',2,3,1)=0.32332, pdf('Poisson',2,3)=0.22404, pdf('Binomial',2,5,0.3)=0.3087, icdf('Normal',0.975,0,1)=1.95996, icdf('Chisquare',0.95,3)=7.81473. random() not value-checked (RNG); size verified in gtest. The per-family math is pre-existing + parity-validated; this is name-dispatch glue."
+}

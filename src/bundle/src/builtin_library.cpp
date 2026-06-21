@@ -147,6 +147,10 @@ void polyval_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void trapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // fzero / fminbnd / fminsearch moved to toolboxes/optim (see OptimLibrary::install)
 void integral_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void integral2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void integral3_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void quadgk_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void quad2d_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void gk15_nodes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void roots_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -915,6 +919,12 @@ void BuiltinLibrary::install(Engine &engine)
     // VM_CALLBACKS_PLAN.md); __gk15_nodes is its C++ node/weight primitive.
     engine.registerFunction("__gk15_nodes", &builtin::detail::gk15_nodes_reg);
     builtin::registerIntegralM(engine);
+    // integral2 / integral3 nest the C++ adaptive integral (synchronous API);
+    // quadgk = the 1-D integral, quad2d = the older name for integral2.
+    engine.registerFunction("integral2", &builtin::detail::integral2_reg);
+    engine.registerFunction("integral3", &builtin::detail::integral3_reg);
+    engine.registerFunction("quadgk",    &builtin::detail::quadgk_reg);
+    engine.registerFunction("quad2d",    &builtin::detail::quad2d_reg);
     engine.registerFunction("roots",     &builtin::detail::roots_reg);
     engine.registerFunction("polyder",   &builtin::detail::polyder_reg);
     engine.registerFunction("polyint",   &builtin::detail::polyint_reg);
@@ -1675,6 +1685,49 @@ void BuiltinLibrary::install(Engine &engine)
     // handle or multi-output falls back to the synchronous feval above.
     engine.registerCallbackBuiltin(
         "feval", std::make_shared<builtin::detail::FevalCallbackBuiltin>());
+
+    // __nk_fwd_call__(n, fname, args...) — internal helper for anonymous
+    // multi-output forwarding: call `fname` with nargout = n and return the
+    // n results packed into a 1×n cell. The compiler lowers a multi-output
+    // anonymous body `@(p) g(...)` to `varargout = __nk_fwd_call__(nargout,
+    // 'g', ...)`, so the varargout cell expands to as many outputs as the
+    // caller's nargout asked for (anonymous nargout forwarding).
+    engine.registerFunction(
+        "__nk_fwd_call__",
+        [](Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+           CallContext &ctx) {
+            if (args.size() < 2)
+                throw std::runtime_error(
+                    "__nk_fwd_call__: requires (n, fname, args...)");
+            long long nll = static_cast<long long>(args[0].toScalar());
+            size_t n = (nll > 0) ? static_cast<size_t>(nll) : 1;
+            Span<const Value> callArgs(args.data() + 2, args.size() - 2);
+            std::vector<Value> rs;
+            // Resolve the callee the SAME way a direct call does — `findExternal`
+            // is import/namespace-aware, so toolbox functions (e.g. compat.median
+            // via `import compat.*`) resolve here exactly as `median(...)` would.
+            // Only fall back to the handle path for user / anonymous functions.
+            bool done = false;
+            if (args[1].isChar() || args[1].isString()) {
+                const std::string fname = args[1].toString();
+                if (const ExternalFunc *ef = ctx.engine->findExternal(fname, ctx.env)) {
+                    rs.assign(n, Value());
+                    (*ef)(callArgs, n, Span<Value>(rs.data(), n), ctx);
+                    done = true;
+                }
+            }
+            if (!done) {
+                Value handle = args[1].isFuncHandle()
+                                   ? args[1]
+                                   : Value::funcHandle(args[1].toString(),
+                                                       ctx.engine->resource());
+                rs = ctx.engine->callFunctionHandleMulti(handle, callArgs, n, ctx.env);
+            }
+            Value cell = Value::cell(1, n, ctx.engine->resource());
+            for (size_t i = 0; i < n && i < rs.size(); ++i)
+                cell.cellAt(i) = std::move(rs[i]);
+            outs[0] = std::move(cell);
+        });
 
     // str2func / func2str moved to the runtime layer
     // (runtime/src/function_handles.cpp, registerFunctionHandles) — they

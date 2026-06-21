@@ -52,7 +52,7 @@ void imresize_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("imresize: requires (A, scale_or_size [, method])",
                     0, 0, "imresize", "", "numkit:imresize:nargin");
     auto *mr = ctx.engine->resource();
-    std::string method = "bilinear";
+    std::string method = "bicubic";   // MATLAB default
     if (args.size() >= 3 && !args[2].isEmpty()) method = argString(args[2]);
     if (args[1].numel() == 1) {
         outs[0] = imresize(args[0], args[1].toScalar(), method, mr);

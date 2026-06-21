@@ -1,0 +1,10 @@
+{
+  "name": "pmusic_peig",
+  "namespace": "signal",
+  "setup": "n=0:63; x=cos(2*pi*0.1*n)+cos(2*pi*0.25*n);",
+  "expr": "[P,f]=pmusic(x,4); fa=f(find(P==max(P(f<1)),1)); fb=f(find(P==max(P(f>1&f<2)),1)); [Pe,fe]=peig(x,4); ga=fe(find(Pe==max(Pe(fe<1)),1)); n2=numel(P);",
+  "iters": 5,
+  "tol": 1e-6,
+  "fingerprint": ["n2", "f(end)", "fa", "fb", "ga"],
+  "comment": "Sig: [P,f]=pmusic(x,p,nfft,fs) / peig(...). MUSIC + eigenvector subspace pseudospectra: R=X'X (order 2p via corrmtx) -> eig -> noise subspace (smallest p eigvecs) -> P(w)=1/sum|e'vk|^2 (pmusic) or weighted 1/lambda_k (peig). PEAK-FREQUENCY parity only (this is a frequency estimator): the absolute pseudospectrum is scale-arbitrary + eigendecomposition-sensitive (peaks are 1/near-zero) so it is NOT bit-matched to MATLAB; the fingerprints are the detected peak FREQUENCIES + grid shape. Fixes bugs/signal/pmusic-peig (were undefined). Verified vs MATLAB R2025b: two-tone cos(2pi*0.1 n)+cos(2pi*0.25 n) -> peaks at 0.6381 and 1.5708 rad/sample for both pmusic and peig; 129 one-sided bins on [0,pi]."
+}

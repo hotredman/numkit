@@ -30,6 +30,23 @@ just `centfrq(wname) / (a·Δ)`.
   `centfrq` exists. Verify `centfrq('db4')==5/7` and the scale mapping vs
   MATLAB.
 
+## ⚠️ Probe finding (2026-06-19) — needs a correct wavefun cascade
+A naive reconstruction (FFT-peak of the wavelet function) does **not** match
+MATLAB on any wavelet: orthogonal wavelets need the wavelet function `psi`
+built by the **two-scale cascade** from the reconstruction filters
+(`wfilters`/`dbwavf` are shipped, but numkit has **no `wavefun`/cascade**
+yet); a hand cascade gave a near-Nyquist peak (wrong) — the upsample +
+normalization details matter. The analytic cases were also off (numkit's
+`morlet`→0.75 / `mexihat`→0.20 vs MATLAB 0.8125 / 0.25), so MATLAB's
+specific grid/discretization is load-bearing. Reference values are clean
+rationals (db4 5/7, db2 2/3, coif2 8/11; support = 2N−1) = `peak_bin /
+support`, but reproducing the integer `peak_bin` needs the correct `psi`.
+**Blocker:** implement a `wavefun` cascade (orthogonal `psi` from the
+filters) first, then `centfrq = (peak_bin−1)/T` (with FFT-fold),
+`scal2frq = centfrq/(a·Δ)`. MATLAB `centfrq.m` source must NOT be read
+(IP) — reconstruct from behavior + wavelet theory.
+
 ## References
 - new file under `src/toolboxes/wavelet/src/...`; reuse the wavelet shape functions
+- blocked on: a `wavefun` cascade (orthogonal `psi` from `wfilters`)
 - MATLAB `doc centfrq`, `doc scal2frq`

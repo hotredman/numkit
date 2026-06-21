@@ -96,12 +96,16 @@ std::pair<Value, Value> rcepsMinPhase(const Value &x,
 /// Unlike `rceps`, preserves both magnitude and phase information,
 /// enabling exact inversion via `icceps`.
 ///
-/// @param x   Real input vector.
-/// @param mr  Memory resource (nullptr → process default).
+/// @param x     Real input vector.
+/// @param mr    Memory resource (nullptr → process default).
+/// @param ndOut If non-null, receives `nd` — the integer (circular) delay
+///              removed by the rcunwrap linear-phase term, i.e. the 2nd output
+///              of MATLAB `[xhat, nd] = cceps(x)`.
 /// @return    Same-length DOUBLE vector.
 ///
 /// @see icceps, rceps
-Value cceps(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value cceps(const Value &x, std::pmr::memory_resource *mr = nullptr,
+            double *ndOut = nullptr);
 
 /// Inverse complex cepstrum: `real(ifft(exp(fft(c))))`.
 ///

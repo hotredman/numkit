@@ -1565,6 +1565,11 @@ TEST_P(BuiltinTest, Func2Str)
     // str2func(func2str(h)) round-trips for anonymous handles.
     eval("e = func2str(str2func('@(x) x.^2 - 3'));");
     EXPECT_EQ(getVarPtr("e")->toString(), "@(x)x.^2-3");
+    // Captures a variable: the VM packs this as a closure cell {handle, capture}
+    // — func2str unwraps it (TreeWalker returns a plain handle). The source keeps
+    // the captured NAME, matching MATLAB.
+    eval("aa = 5; g = func2str(@(x) x + aa);");
+    EXPECT_EQ(getVarPtr("g")->toString(), "@(x)x+aa");
 }
 
 // ── shiftdim — Pack 12 ────────────────────────────────────────

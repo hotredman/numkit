@@ -1,0 +1,10 @@
+{
+  "name": "hilbert_nonpow2",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "z6=hilbert([1:6]'); i2=imag(z6(2)); i1=imag(z6(1)); n=(0:99)'; x=cos(2*pi*5*n/100); e=abs(hilbert(x)); emax=max(abs(e-1)); z100=hilbert((1:100)'); a1=abs(z100(1));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["i1", "i2", "emax", "a1"],
+  "comment": "Regression for bugs/signal/hilbert-nonpow2: hilbert() must transform at the signal length N, not a zero-padded nextPow2 (which corrupted the analytic signal for non-pow2 N). Fingerprint: hilbert([1:6]') imag(1)=2.3094010768, imag(2)=-1.1547005384; constant-envelope tone at L=100 -> max||hilbert|-1| ~ 0 (was ~0.25); ramp (1:100) -> |z(1)|=128.524726 (edge effect, matches MATLAB). Fix routes non-pow2 through the general fft/ifft; pow2 path unchanged. Verified vs MATLAB R2025b."
+}

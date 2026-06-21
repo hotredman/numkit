@@ -148,4 +148,51 @@ Value wrcoef(const std::string &type, const Value &c, const Value &l,
              const std::string &wname, int n,
              std::pmr::memory_resource *mr = nullptr);
 
+/// Energy distribution of a wavelet decomposition.
+struct WenergyResult {
+    Value Ea;   ///< Percent of energy in the approximation (scalar).
+    Value Ed;   ///< Percent of energy in each detail band (row, level N→1).
+};
+
+/// Percentage of energy in the approximation and detail bands
+/// (`[Ea, Ed] = wenergy(C, L)`).
+///
+/// For a 1-D wavelet decomposition `(C, L)` (from @ref wavedec), returns the
+/// energy of the approximation band as a percentage of the total
+/// (`Ea = 100·‖cA_N‖² / ‖C‖²`) and the per-level detail percentages
+/// `Ed(i) = 100·‖cD‖² / ‖C‖²` ordered as `C` packs them (coarsest level `N`
+/// first, finest level `1` last). `Ea + sum(Ed) = 100`.
+///
+/// @param C   Coefficient row from @ref wavedec.
+/// @param L   Bookkeeping row (`length(L) − 2` detail levels).
+/// @param mr  Memory resource (nullptr → process default).
+/// @return    `{Ea, Ed}` (see @ref WenergyResult).
+/// @throws    Error if `C` / `L` are inconsistent.
+/// @see wavedec, detcoef, appcoef
+WenergyResult wenergy(const Value &C, const Value &L,
+                      std::pmr::memory_resource *mr = nullptr);
+
+/// Direct reconstruction of a single coefficient branch (`Y = upcoef(O, X,
+/// wname, N[, L])`).
+///
+/// Reconstructs the approximation (`O = "a"`) or detail (`O = "d"`)
+/// coefficient vector `X` up `N` levels through the synthesis filter bank:
+/// each level interleaves zeros (`[x0, 0, x1, 0, …]`) and convolves with the
+/// reconstruction lowpass `Lo_R` — except the first level for `O = "d"`,
+/// which uses the highpass `Hi_R`. No idwt-style trimming: a level grows the
+/// length to `2·n − 1 + |F| − 1`. The optional `L` keeps the central `L`
+/// samples of the result.
+///
+/// @param type   `"a"` (approximation) or `"d"` (detail).
+/// @param X      Coefficient row to reconstruct.
+/// @param wname  Wavelet name.
+/// @param n      Number of reconstruction levels (`≥ 0`; `n = 0` returns `X`).
+/// @param len    Central length to keep (`< 0` → full result, no trim).
+/// @param mr     Memory resource (nullptr → process default).
+/// @return       Reconstructed row vector.
+/// @throws       Error on a bad `type`, negative `n`, or unknown wavelet.
+/// @see wrcoef, waverec, detcoef
+Value upcoef(const std::string &type, const Value &X, const std::string &wname,
+             int n, long long len = -1, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::wavelet

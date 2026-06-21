@@ -63,6 +63,44 @@ TEST_F(SpectralTest, PeriodogramWithWindow)
     EXPECT_EQ(eval("Pxx").numel(), 129u);  // nfft default 256 -> 129 bins
 }
 
+// bugs/signal/periodogram-pxxc.md — chi-square confidence interval (3rd output).
+// Reference values from MATLAB R2025b:
+//   [pxx,f,pxxc] = periodogram((1:8)', rectwin(8), 8, 1, 'ConfidenceLevel', 0.95)
+// Each PSD bin ~ chi-square with v DOF: interior bins v=2, the real DC and
+// (even nfft) Nyquist bins v=1. pxxc = pxx .* v ./ chi2inv([1-a/2, a/2], v).
+TEST_F(SpectralTest, PeriodogramConfidenceIntervalValues)
+{
+    eval("[pxx, f, pxxc] = periodogram((1:8)', rectwin(8), 8, 1, 'ConfidenceLevel', 0.95);");
+    EXPECT_EQ(eval("pxx").numel(), 5u);
+    ASSERT_EQ(static_cast<int>(evalScalar("size(pxxc,1)")), 5);
+    ASSERT_EQ(static_cast<int>(evalScalar("size(pxxc,2)")), 2);
+
+    // Base PSD (confirms the reference setup matches MATLAB).
+    EXPECT_NEAR(evalScalar("pxx(1)"), 162.0,         1e-9);
+    EXPECT_NEAR(evalScalar("pxx(2)"),  27.313708499, 1e-7);
+
+    // Lower bounds — bins 1,5 (DC, Nyquist) 1 DOF; bins 2,3,4 interior 2 DOF.
+    EXPECT_NEAR(evalScalar("pxxc(1,1)"), 32.2459534233,  1e-7);
+    EXPECT_NEAR(evalScalar("pxxc(2,1)"),  7.40433750648, 1e-8);
+    EXPECT_NEAR(evalScalar("pxxc(3,1)"),  2.16868024545, 1e-8);
+    EXPECT_NEAR(evalScalar("pxxc(5,1)"),  0.398098190411, 1e-9);
+    // Upper bounds.
+    EXPECT_NEAR(evalScalar("pxxc(1,2)"), 164957.839695,  1e-3);
+    EXPECT_NEAR(evalScalar("pxxc(2,2)"),   1078.83385939, 1e-5);
+    EXPECT_NEAR(evalScalar("pxxc(5,2)"),   2036.51653944, 1e-5);
+}
+
+TEST_F(SpectralTest, PeriodogramConfidenceDefaultLevel)
+{
+    // No 'ConfidenceLevel' name-value → MATLAB default 0.95; pxxc still emitted
+    // once a 3rd output is requested.
+    eval("[pxx, f, pxxc] = periodogram((1:8)', rectwin(8), 8, 1);");
+    ASSERT_EQ(static_cast<int>(evalScalar("size(pxxc,2)")), 2);
+    EXPECT_NEAR(evalScalar("pxxc(2,1)"), 7.40433750648, 1e-8);
+    // Interior lower-bound ratio == 2/chi2inv(0.975,2).
+    EXPECT_NEAR(evalScalar("pxxc(3,1)/pxx(3)"), 0.2710850307, 1e-9);
+}
+
 // ============================================================
 // pwelch
 // ============================================================

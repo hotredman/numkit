@@ -1,0 +1,10 @@
+{
+  "name": "fmdemod",
+  "namespace": "comm",
+  "setup": "fs=100; fc=10; t=(0:fs-1)'/fs; m=cos(2*pi*1*t);",
+  "expr": "yf=fmmod(m,fc,fs,5); mf=fmdemod(yf,fc,fs,5); a=mf(2); b=mf(3); c=mf(50);",
+  "iters": 5,
+  "tol": 1e-08,
+  "fingerprint": ["a", "b", "c"],
+  "comment": "Sig: x = fmdemod(y, fc, fs, freqdev[, ini_phase]). Frequency demodulator (inverse of fmmod): x = [0; diff(unwrap(angle(hilbert(y).*exp(-1j*(2*pi*fc*t+ini_phase)))))]*fs/(2*pi*freqdev). Fingerprint: fmdemod(fmmod(cos(2*pi*t),10,100,5),10,100,5) -> mf(2)=0.9977423314, mf(3)=0.9918940853, mf(50)=-0.9976932393. Depends on the length-N hilbert (bugs/signal/hilbert-nonpow2 fix). Verified vs MATLAB R2025b. Fixes the fmdemod part of bugs/comm/analog-demodulators."
+}

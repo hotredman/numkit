@@ -121,4 +121,25 @@ ss2tf(const Value &A, const Value &B,
       const Value &C, const Value &D, int iu,
       std::pmr::memory_resource *mr = nullptr);
 
+/// Minimal realization — cancel pole/zero pairs (`sysr = minreal(sys, tol)`).
+///
+/// Removes common factors of a model to produce a minimal (controllable +
+/// observable) realization:
+/// - **tf / zpk**: cancel each pole against a zero within relative
+///   tolerance `tol` (default `sqrt(eps)`), rebuilt from the surviving
+///   roots — returns a `tf`.
+/// - **ss** (SISO): the same cancellation on `ss2tf(sys)`, re-realized via
+///   `tf2ss` — returns an `ss` of the reduced order. The realization is not
+///   unique, so it matches MATLAB on order + transfer function, not the
+///   exact `A,B,C,D`.
+///
+/// @param sys  LTI struct (tf / zpk / ss).
+/// @param tol  Relative pole/zero cancellation tolerance (≤0 → `sqrt(eps)`).
+/// @param mr   Memory resource (nullptr → process default).
+/// @return     Reduced LTI struct (tf for tf/zpk input, ss for ss input).
+/// @throws     Error on a non-LTI input or a MIMO state-space.
+/// @see tf2ss, ss2tf, tf2zp
+Value minreal(const Value &sys, double tol = 0.0,
+              std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::control

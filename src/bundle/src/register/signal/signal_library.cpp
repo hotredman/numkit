@@ -92,6 +92,8 @@ void interp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void intfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fftfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void pmusic_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void peig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -256,6 +258,7 @@ void rc2lar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void arcov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void armcov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void prony_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void stmcb_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void corrmtx_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poly2lsf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lsf2poly_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -423,6 +426,8 @@ void SignalLibrary::install(Engine &engine)
 
     // ── Spectral analysis (pwelch / periodogram) ───────────────────────
     reg("spectral_analysis", "periodogram", &signal::detail::periodogram_reg);
+    reg("spectral_analysis", "pmusic",      &signal::detail::pmusic_reg);
+    reg("spectral_analysis", "peig",        &signal::detail::peig_reg);
     reg("spectral_analysis", "pwelch",      &signal::detail::pwelch_reg);
     reg("spectral_analysis", "cpsd",        &signal::detail::cpsd_reg);
     reg("spectral_analysis", "mscohere",    &signal::detail::mscohere_reg);
@@ -543,6 +548,7 @@ void SignalLibrary::install(Engine &engine)
     reg("parametric", "arcov",     &signal::detail::arcov_reg);
     reg("parametric", "armcov",    &signal::detail::armcov_reg);
     reg("parametric", "prony",     &signal::detail::prony_reg);
+    reg("parametric", "stmcb",     &signal::detail::stmcb_reg);
     reg("parametric", "corrmtx",   &signal::detail::corrmtx_reg);
     reg("parametric", "poly2lsf",  &signal::detail::poly2lsf_reg);
     reg("parametric", "lsf2poly",  &signal::detail::lsf2poly_reg);

@@ -1,0 +1,10 @@
+{
+  "name": "lqr",
+  "namespace": "control",
+  "setup": "A = [0 1; 0 0]; B = [0; 1]; Q = eye(2); R = 1;",
+  "expr": "[K,S,P] = lqr(A,B,Q,R); k1 = K(1); k2 = K(2); s11 = S(1,1); rp = max(real(P));",
+  "iters": 5,
+  "tol": 1e-09,
+  "fingerprint": ["k1", "k2", "s11", "rp"],
+  "comment": "Sig: [K,S,P] = lqr(A,B,Q[,R]). Continuous LQR — a thin wrapper on care: K = optimal gain (= care's G = R^-1B'X), S = Riccati solution (= care's X), P = closed-loop poles (= care's L). Fingerprint = K(1), K(2), S(1,1), max real part of poles. Verified vs MATLAB R2025b: K=[1, sqrt(3)], S(1,1)=sqrt(3), poles -0.866+-0.5i. (A,B,Q[,R]) signature only; cross-term N and lqr(sys,...) form deferred. Fixes bugs/control/lqr-hinfnorm (lqr part)."
+}

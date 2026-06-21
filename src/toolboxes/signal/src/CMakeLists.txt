@@ -48,6 +48,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/periodogram_pwelch.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/spectral_metrics.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/signal_modeling.cpp # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/pseudospectrum.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/ar.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/analog_filters.cpp # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/iir_designs.cpp # compute (engine-free)

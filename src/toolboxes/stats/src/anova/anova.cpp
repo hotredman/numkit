@@ -227,6 +227,59 @@ kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
                            Value::scalar(sumR2_n, mr));
 }
 
+std::tuple<Value, Value, Value>
+friedman(const Value &x, int reps, std::pmr::memory_resource *mr)
+{
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const size_t nrows = x.dims().rows();
+    const size_t k     = x.dims().cols();
+    const size_t R     = (reps >= 1) ? static_cast<size_t>(reps) : 1;   // replicates per cell
+    if (k < 2 || nrows < 2 || R == 0 || (nrows % R) != 0)
+        return std::make_tuple(Value::scalar(nan, mr), Value::scalar(nan, mr),
+                               Value::scalar(0.0, mr));
+    const size_t n = nrows / R;   // blocks (rows of the Friedman layout)
+
+    // Cell value (block b, treatment col c): mean over the R replicate rows.
+    auto cell = [&](size_t b, size_t c) {
+        double s = 0.0;
+        for (size_t r = 0; r < R; ++r)
+            s += x.elemAsDouble(c * nrows + (b * R + r));   // column-major
+        return s / static_cast<double>(R);
+    };
+
+    std::vector<double> Rj(k, 0.0);      // column rank sums
+    double              tieTerm = 0.0;   // Σ (t³ − t) over every tie group in every block
+    std::vector<double> row(k), rank(k);
+    std::vector<size_t> ord(k);
+    for (size_t b = 0; b < n; ++b) {
+        for (size_t c = 0; c < k; ++c) { row[c] = cell(b, c); ord[c] = c; }
+        std::sort(ord.begin(), ord.end(), [&](size_t a, size_t bb) { return row[a] < row[bb]; });
+        size_t i = 0;                    // mid-ranks within the block
+        while (i < k) {
+            size_t j = i + 1;
+            while (j < k && row[ord[j]] == row[ord[i]]) ++j;
+            const double avg = static_cast<double>(i + j + 1) / 2.0;
+            for (size_t t = i; t < j; ++t) rank[ord[t]] = avg;
+            const double tg = static_cast<double>(j - i);
+            if (tg > 1.0) tieTerm += tg * tg * tg - tg;
+            i = j;
+        }
+        for (size_t c = 0; c < k; ++c) Rj[c] += rank[c];
+    }
+
+    const double nd = static_cast<double>(n), kd = static_cast<double>(k);
+    double sumRj2 = 0.0;
+    for (double v : Rj) sumRj2 += v * v;
+    double Q = 12.0 / (nd * kd * (kd + 1.0)) * sumRj2 - 3.0 * nd * (kd + 1.0);
+    const double C = 1.0 - tieTerm / (nd * (kd * kd * kd - kd));   // tie correction
+    if (C > 0.0) Q /= C;
+
+    const double df = kd - 1.0;
+    Value        Qv = Value::scalar(Q, mr);
+    const double p  = std::max(0.0, 1.0 - chi2cdf(Qv, df, mr).toScalar());
+    return std::make_tuple(Value::scalar(p, mr), Value::scalar(Q, mr), Value::scalar(df, mr));
+}
+
 Value dummyvar(const Value &group, std::pmr::memory_resource *mr)
 {
     const size_t N = group.numel();
