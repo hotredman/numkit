@@ -1233,7 +1233,8 @@ void Emitter::emitAssign(const ASTNode &s)
         if (bridge_ && isArrayVar(name) && !arrays_.at(name).is2D
             && !arrays_.at(name).isND  // 1-D dest only; an N-D bridge needs dim handling
             && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
-            && arrays_.at(name).dtype == ValueType::DOUBLE
+            && (arrays_.at(name).dtype == ValueType::DOUBLE
+                || arrays_.at(name).dtype == ValueType::COMPLEX)
             && rhs.type == NodeType::CALL && !rhs.children.empty()
             && rhs.children[0]->type == NodeType::IDENTIFIER
             // An elementwise-math call (sin/erf/…) lowers NATIVELY below — only
@@ -1242,7 +1243,8 @@ void Emitter::emitAssign(const ASTNode &s)
             && binaryMathStd(rhs.children[0]->strValue) == nullptr) {
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
-                && res.type.dtype == ValueType::DOUBLE) {
+                && (res.type.dtype == ValueType::DOUBLE
+                    || res.type.dtype == ValueType::COMPLEX)) {
                 const ArrayInfo  &ai     = arrays_.at(name);
                 const std::string callee = rhs.children[0]->strValue;
                 const std::size_t nargs  = rhs.children.size() - 1;
@@ -1252,16 +1254,26 @@ void Emitter::emitAssign(const ASTNode &s)
                     if (i > 1) boxed += ", ";
                     if (arg.type == NodeType::IDENTIFIER && isArrayVar(arg.strValue)) {
                         const ArrayInfo &aai = arrays_.at(arg.strValue);
-                        if (aai.is2D) unsupported("bridged call: 2-D array argument (v1)");
-                        boxed += "nk_box_array(" + aai.dataExpr + ", " + aai.lenVar + ")";
+                        if (aai.is2D || aai.isND)
+                            unsupported("bridged call: 2-D/N-D array argument (v1)");
+                        // a complex array boxes via the interleaved-re,im C ABI
+                        boxed += aai.dtype == ValueType::COMPLEX
+                                     ? ("nk_box_complex_array(reinterpret_cast<const double*>("
+                                        + aai.dataExpr + "), " + aai.lenVar + ")")
+                                     : ("nk_box_array(" + aai.dataExpr + ", " + aai.lenVar + ")");
                     } else {
+                        if (inferExpr(arg, types_, reg_, classes_).type.dtype == ValueType::COMPLEX)
+                            unsupported("bridged call: complex scalar argument (v1)");
                         boxed += "nk_box_scalar(" + emitExpr(arg) + ")";
                     }
                 }
                 // A LOCAL resizes its owned vector (bridge_to_vec); the OUTPUT
-                // fills its fixed, caller-sized out-param (bridge_into).
-                const std::string fn   = ai.isLocal ? "nk_rt::bridge_to_vec(\""
-                                                     : "nk_rt::bridge_into(\"";
+                // fills its fixed, caller-sized out-param (bridge_into). A COMPLEX
+                // result routes to the _cx variants (complex unbox).
+                const bool        cx   = res.type.dtype == ValueType::COMPLEX;
+                const std::string fn   =
+                    ai.isLocal ? (cx ? "nk_rt::bridge_to_vec_cx(\"" : "nk_rt::bridge_to_vec(\"")
+                               : (cx ? "nk_rt::bridge_into_cx(\"" : "nk_rt::bridge_into(\"");
                 const std::string dest = ai.isLocal ? (", " + name + ");")
                                                     : (", " + name + ", " + ai.lenVar + ");");
                 if (nargs == 0) {
@@ -1652,6 +1664,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
 {
     return "#include \"" + runtimeHeader + "\"\n"
            "#include <initializer_list>\n"
+           "#include <complex>\n"
            "#include <vector>\n"
            "namespace nk_rt {\n"
            "// Box scalar args, call the runtime, unbox a scalar result; leak-free,\n"
@@ -1687,6 +1700,27 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    if (!r || err.code) { nk_release(r);\n"
            "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
            "    out.resize(nk_numel(r)); nk_unbox_array(r, out.data(), out.size()); nk_release(r);\n"
+           "}\n"
+           "// Complex-result variants: unbox a complex array result via the\n"
+           "// interleaved-re,im C ABI (reinterpret the std::complex buffer).\n"
+           "inline void bridge_into_cx(const char* name, nk_val* args, std::size_t nargs,\n"
+           "                           std::complex<double>* out, std::size_t out_len) {\n"
+           "    nk_error err; err.code = 0;\n"
+           "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
+           "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
+           "    if (!r || err.code) { nk_release(r);\n"
+           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "    nk_unbox_complex_array(r, reinterpret_cast<double*>(out), out_len); nk_release(r);\n"
+           "}\n"
+           "inline void bridge_to_vec_cx(const char* name, nk_val* args, std::size_t nargs,\n"
+           "                             std::vector<std::complex<double>>& out) {\n"
+           "    nk_error err; err.code = 0;\n"
+           "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
+           "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
+           "    if (!r || err.code) { nk_release(r);\n"
+           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "    out.resize(nk_numel(r));\n"
+           "    nk_unbox_complex_array(r, reinterpret_cast<double*>(out.data()), out.size()); nk_release(r);\n"
            "}\n"
            "} // namespace nk_rt\n";
 }

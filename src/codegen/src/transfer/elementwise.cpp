@@ -259,6 +259,21 @@ InferredType realPartTransfer(const std::vector<ArgInfo> &args)
     return InferredType::concrete(dt, args[0].type.shape);
 }
 
+// fft / ifft — a complex transform; the 1-arg form preserves shape (fft of a
+// 1xN vector is a 1xN COMPLEX vector). The emitter has no native form, so the
+// call BRIDGES to numkit::fft; this transfer only fixes the result type +
+// shape (Contract 1). A real (or zero-imag) ifft result is fine — the complex
+// unbox handles a narrowed-to-real result (imag 0). The (x, N) form and the
+// matrix-along-dim forms are deferred (-> Dynamic, the sound fallback).
+InferredType fftTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    const ValueType dt = args[0].type.dtype;
+    if (dt != ValueType::DOUBLE && dt != ValueType::SINGLE && dt != ValueType::COMPLEX)
+        return InferredType::dynamic();
+    return InferredType::concrete(ValueType::COMPLEX, args[0].type.shape);
+}
+
 } // namespace
 
 void registerElementwiseTransfers(TransferRegistry &reg)
@@ -292,6 +307,8 @@ void registerElementwiseTransfers(TransferRegistry &reg)
     reg.add("conj", conjTransfer);                       // complex->complex, real->real
     for (const char *n : {"real", "imag", "angle"})      // complex->real (DOUBLE)
         reg.add(n, realPartTransfer);
+    for (const char *n : {"fft", "ifft"})                // complex transform (1-arg, bridged)
+        reg.add(n, fftTransfer);
     // real-only elementwise math (no std complex overload)
     for (const char *n : {"asinh", "erf", "erfc", "expm1"})
         reg.add(n, realOnlyMathUnaryTransfer);
