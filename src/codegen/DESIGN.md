@@ -550,8 +550,17 @@ buffer cannot grow):
   is letter-led, so conforming at global scope too. (2) **No collision:** a
   MATLAB identifier can never begin with `_`, so a `_nk_*` name can never equal a
   user variable — the companion-vs-user clash is *structurally impossible*, no
-  detection needed. The mangle base is escaped (`_`→`_0`) so even a user name
-  like `x_` cannot form a reserved `__`.
+  detection needed. The mangle base is escaped (`_`→`_0`) so even a function
+  name like `a__b` mangles `__`-free.
+- **User variable names with `__` are refused.** A user variable / parameter is
+  emitted VERBATIM (synthesised names escape `__`, but user names stay readable
+  as-is), and `__` anywhere is reserved ([lex.name]). A leading `_`+uppercase is
+  impossible (a MATLAB identifier cannot begin with `_`), so `__` is the only
+  reserved shape a user name can take — the emitter scans params + locals at
+  function entry and refuses any name containing `__` with a clear message
+  (rename it). A single or trailing `_` (`x_`, `a_b`) is legal and untouched.
+  Fully accepting `__` names would require escaping every user identifier on
+  emission, which would destroy the readable-output property — out of scope.
 - **Size args.** `zeros`/`ones` dimension args must be non-negative integers.
   Codegen does NOT clamp: a negative runtime dim casts to a huge `size_t` and
   the allocation throws (`std::length_error`/`std::bad_alloc`) — an exception on
