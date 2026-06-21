@@ -1109,7 +1109,7 @@ TEST(CodegenE2E, NDOutputRunsCorrectly)
     const EmittedFunction emitted = transpile(
         "function y = f(a)\n  y = zeros(2, 2, 2);\n  y(1,1,1) = a;\n  y(2,2,2) = a * 2;\nend\n",
         {{"a", InferredType::scalar(ValueType::DOUBLE)}});
-    ASSERT_NE(emitted.source.find("double* y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
+    ASSERT_NE(emitted.source.find("double* __restrict y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
               std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
@@ -1146,7 +1146,7 @@ TEST(CodegenE2E, Matrix2DOutputRunsCorrectly)
     const EmittedFunction emitted = transpile(
         "function M = f(a)\n  M = zeros(2, 3);\n  M(1,1) = a;\n  M(2,3) = a * 2;\nend\n",
         {{"a", InferredType::scalar(ValueType::DOUBLE)}});
-    ASSERT_NE(emitted.source.find("double* M, std::size_t _nk_M_rows, std::size_t _nk_M_cols"),
+    ASSERT_NE(emitted.source.find("double* __restrict M, std::size_t _nk_M_rows, std::size_t _nk_M_cols"),
               std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
@@ -1253,7 +1253,7 @@ TEST(CodegenE2E, NDRuntimeOutputRunsCorrectly)
         "function y = f(m, n)\n  y = zeros(m, n, 2);\n  y(1,1,1) = 5;\n  y(m,n,2) = 8;\nend\n",
         {{"m", InferredType::scalar(ValueType::DOUBLE)},
          {"n", InferredType::scalar(ValueType::DOUBLE)}});
-    ASSERT_NE(emitted.source.find("double* y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
+    ASSERT_NE(emitted.source.find("double* __restrict y, std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"),
               std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
