@@ -248,7 +248,7 @@ TEST(EmitterFn, ArrayLocalOwnedVector)
 }
 
 // Elementwise array ARITHMETIC: y = x .* 2 + 1 -> a per-element fill loop
-// (whole arrays index at __i). Self-contained, no bridge.
+// (whole arrays index at _nk_i). Self-contained, no bridge.
 TEST(EmitterFn, ElementwiseArrayArithmetic)
 {
     const auto             reg = stdReg();
@@ -256,8 +256,8 @@ TEST(EmitterFn, ElementwiseArrayArithmetic)
     const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x .* 2 + 1;\nend\n", root);
     ASSERT_NE(fn, nullptr);
     const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
-    EXPECT_TRUE(contains(s, "x[__i]"));    // whole array -> current element
-    EXPECT_TRUE(contains(s, "[__i] = "));  // elementwise fill loop store
+    EXPECT_TRUE(contains(s, "x[_nk_i]"));    // whole array -> current element
+    EXPECT_TRUE(contains(s, "[_nk_i] = "));  // elementwise fill loop store
     EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));  // self-contained, no bridge
 }
 
@@ -270,7 +270,7 @@ TEST(EmitterFn, ElementwiseArrayMathNative)
     const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sin(x);\nend\n", root);
     ASSERT_NE(fn, nullptr);
     const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;  // no bridge
-    EXPECT_TRUE(contains(s, "std::sin(x[__i])"));   // per-element native call
+    EXPECT_TRUE(contains(s, "std::sin(x[_nk_i])"));   // per-element native call
     EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));   // self-contained, no runtime
 }
 
@@ -330,9 +330,9 @@ TEST(EmitterFn, NDParamReadOnly)
     const std::string s = emitFunction(
         *fn, {{"A", InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 2, 2}))}},
         reg).source;
-    EXPECT_TRUE(contains(s, "const double* A, std::size_t A_d0, std::size_t A_d1, std::size_t A_d2"));
-    EXPECT_TRUE(contains(s, "nk_rt::indexN(A, {A_d0, A_d1, A_d2}"));  // companions as dims
-    EXPECT_TRUE(contains(s, "static_cast<double>(A_d1)"));            // size(A,2) -> companion
+    EXPECT_TRUE(contains(s, "const double* A, std::size_t _nk_A_d0, std::size_t _nk_A_d1, std::size_t _nk_A_d2"));
+    EXPECT_TRUE(contains(s, "nk_rt::indexN(A, {_nk_A_d0, _nk_A_d1, _nk_A_d2}"));  // companions as dims
+    EXPECT_TRUE(contains(s, "static_cast<double>(_nk_A_d1)"));            // size(A,2) -> companion
 }
 
 // Writing an N-D param (const T*) is refused — the explicit boundary.
@@ -384,9 +384,9 @@ TEST(EmitterFn, NDOutputAsOutParam)
     const std::string s =
         emitFunction(*fn, {{"a", InferredType::scalar(ValueType::DOUBLE)}}, reg).source;
     EXPECT_TRUE(contains(s, "void f(double a, double* y, "
-                            "std::size_t y_d0, std::size_t y_d1, std::size_t y_d2"));  // mutable + void
-    EXPECT_TRUE(contains(s, "__i < (y_d0 * y_d1 * y_d2)"));               // zeros() fills the product
-    EXPECT_TRUE(contains(s, "nk_rt::indexN_set(y, {y_d0, y_d1, y_d2}"));  // companion dims, mutable ptr
+                            "std::size_t _nk_y_d0, std::size_t _nk_y_d1, std::size_t _nk_y_d2"));  // mutable + void
+    EXPECT_TRUE(contains(s, "_nk_i < (_nk_y_d0 * _nk_y_d1 * _nk_y_d2)"));               // zeros() fills the product
+    EXPECT_TRUE(contains(s, "nk_rt::indexN_set(y, {_nk_y_d0, _nk_y_d1, _nk_y_d2}"));  // companion dims, mutable ptr
 }
 
 // RUNTIME-dim N-D LOCAL: zeros(m,n,p) with variable dims -> per-dim size_t
@@ -407,12 +407,12 @@ TEST(EmitterFn, NDRuntimeLocal)
                                            {"n", InferredType::scalar(ValueType::DOUBLE)},
                                            {"p", InferredType::scalar(ValueType::DOUBLE)}};
     const std::string s = emitFunction(*fn, params, reg).source;
-    EXPECT_TRUE(contains(s, "std::size_t A_d0 = 0, A_d1 = 0, A_d2 = 0;"));        // hoisted vars
-    EXPECT_TRUE(contains(s, "A_d0 = static_cast<std::size_t>(m);"));              // captured from arg
-    EXPECT_TRUE(contains(s, "A.assign(A_d0 * A_d1 * A_d2, 0.0);"));               // sized to product
-    EXPECT_TRUE(contains(s, "nk_rt::indexN_set(A.data(), {A_d0, A_d1, A_d2}"));   // runtime dims
-    EXPECT_TRUE(contains(s, "static_cast<double>(A_d1)"));                        // size(A,2) -> var
-    EXPECT_TRUE(contains(s, "static_cast<double>(A_d0 * A_d1 * A_d2)"));          // numel -> product
+    EXPECT_TRUE(contains(s, "std::size_t _nk_A_d0 = 0, _nk_A_d1 = 0, _nk_A_d2 = 0;"));        // hoisted vars
+    EXPECT_TRUE(contains(s, "_nk_A_d0 = static_cast<std::size_t>(m);"));              // captured from arg
+    EXPECT_TRUE(contains(s, "A.assign(_nk_A_d0 * _nk_A_d1 * _nk_A_d2, 0.0);"));               // sized to product
+    EXPECT_TRUE(contains(s, "nk_rt::indexN_set(A.data(), {_nk_A_d0, _nk_A_d1, _nk_A_d2}"));   // runtime dims
+    EXPECT_TRUE(contains(s, "static_cast<double>(_nk_A_d1)"));                        // size(A,2) -> var
+    EXPECT_TRUE(contains(s, "static_cast<double>(_nk_A_d0 * _nk_A_d1 * _nk_A_d2)"));          // numel -> product
 }
 
 // N-D is REFUSED by the 1-D-only elementwise path (explicit boundary, not
@@ -432,37 +432,24 @@ TEST(EmitterFn, ElementwiseOnNDRefused)
                  std::runtime_error);
 }
 
-// Reserved-companion collision (1-D): a user var `x_len` clashes with the
-// `<base>_len` companion the ABI synthesises for the array param `x`. Refused
-// with a clear message instead of emitting two same-named C++ declarations
-// (a cryptic compile error from generated code). Contract 2: explicit boundary.
-TEST(EmitterFn, CompanionNameCollisionRefused)
+// Reserved-companion coexistence: a user var named `x_len` no longer clashes
+// with the length companion of array param `x`. The companion is `_nk_x_len`
+// (the `_nk_` prefix lives in the underscore namespace a MATLAB identifier can
+// never enter), so both names coexist in the emitted C++ — this valid MATLAB
+// that the emitter once had to refuse now compiles. The collision is
+// structurally impossible, so there is no check to test.
+TEST(EmitterFn, CompanionDoesNotClashWithUserVar)
 {
     const auto             reg = stdReg();
     numkit::ASTNodePtr     root;
     const numkit::ASTNode *fn =
         findFunc("function y = f(x)\n  x_len = 3;\n  y = x(x_len);\nend\n", root);
     ASSERT_NE(fn, nullptr);
-    EXPECT_THROW(
-        emitFunction(*fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg),
-        std::runtime_error);
-}
-
-// Same check covers a runtime N-D local's `<base>_dN` companions: `A_d0`
-// clashes with the dim var for the 3-D local `A = zeros(m,n,p)`.
-TEST(EmitterFn, CompanionNDDimCollisionRefused)
-{
-    const auto             reg = stdReg();
-    numkit::ASTNodePtr     root;
-    const numkit::ASTNode *fn = findFunc(
-        "function s = f(m, n, p)\n  A = zeros(m, n, p);\n  A_d0 = 5;\n  s = A(1,1,1) + A_d0;\nend\n",
-        root);
-    ASSERT_NE(fn, nullptr);
-    EXPECT_THROW(emitFunction(*fn, {{"m", InferredType::scalar(ValueType::DOUBLE)},
-                                    {"n", InferredType::scalar(ValueType::DOUBLE)},
-                                    {"p", InferredType::scalar(ValueType::DOUBLE)}},
-                              reg),
-                 std::runtime_error);
+    const std::string s =
+        emitFunction(*fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg)
+            .source;
+    EXPECT_TRUE(contains(s, "std::size_t _nk_x_len"));  // length companion (prefixed)
+    EXPECT_TRUE(contains(s, "double x_len"));           // the user var — coexists, no clash
 }
 
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
@@ -532,18 +519,18 @@ TEST(EmitterFn, BiquadFullFunction)
     // RawBuffer ABI signature: array param -> ptr + len; output -> trailing
     // out-param; scalars unboxed; void return.
     EXPECT_EQ(out.signature,
-              "void biquad(const double* x, std::size_t x_len, double b0, "
+              "void biquad(const double* x, std::size_t _nk_x_len, double b0, "
               "double b1, double b2, double a1, double a2, double* y, "
-              "std::size_t y_len)");
+              "std::size_t _nk_y_len)");
 
     // hoisted scalar locals (k is the promoted counter -> declared in the
     // for, not hoisted; see brick 6 below)
     for (const char *v : {"n", "x1", "x2", "xn", "y1", "y2", "yn"})
         EXPECT_TRUE(contains(s, std::string("double ") + v + " = 0.0;")) << v;
 
-    EXPECT_TRUE(contains(s, "n = static_cast<double>(x_len);"));        // numel(x)
-    EXPECT_TRUE(contains(s, "for (std::size_t __i = 0; __i < y_len; ++__i)"));  // y = zeros(1,n)
-    EXPECT_TRUE(contains(s, "y[__i] = 0.0;"));
+    EXPECT_TRUE(contains(s, "n = static_cast<double>(_nk_x_len);"));        // numel(x)
+    EXPECT_TRUE(contains(s, "for (std::size_t _nk_i = 0; _nk_i < _nk_y_len; ++_nk_i)"));  // y = zeros(1,n)
+    EXPECT_TRUE(contains(s, "y[_nk_i] = 0.0;"));
     EXPECT_TRUE(contains(
         s, "yn = (((((b0 * xn) + (b1 * x1)) + (b2 * x2)) - (a1 * y1)) - (a2 * y2));"));
     EXPECT_TRUE(contains(s, "x2 = x1;"));
@@ -566,7 +553,7 @@ TEST(EmitterFn, BiquadPromotedLoop)
         params.push_back({p, kDoubleScalar});
     const std::string s = emitFunction(*fn, params, reg).source;
 
-    EXPECT_TRUE(contains(s, "for (std::size_t k = 0; k < x_len; ++k)"));
+    EXPECT_TRUE(contains(s, "for (std::size_t k = 0; k < _nk_x_len; ++k)"));
     EXPECT_TRUE(contains(s, "xn = x[k];"));
     EXPECT_TRUE(contains(s, "y[k] = yn;"));
     // the optimisation fired: no checked access, no double loop var
@@ -592,8 +579,8 @@ TEST(EmitterFn, NonPromotableLoopFallsBack)
     const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
     EXPECT_TRUE(contains(s, "double k = 0.0;"));                 // hoisted double loop var
     EXPECT_TRUE(contains(s, "for (k = 1.0; k <= n; k += 1.0)"));  // checked counted loop
-    EXPECT_TRUE(contains(s, "nk_rt::index(x, x_len, k)"));        // checked read
-    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, y_len, k,"));    // checked write
+    EXPECT_TRUE(contains(s, "nk_rt::index(x, _nk_x_len, k)"));        // checked read
+    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, _nk_y_len, k,"));    // checked write
     EXPECT_FALSE(contains(s, "for (std::size_t k = 0;"));        // NOT promoted
 }
 
@@ -616,7 +603,7 @@ TEST(EmitterFn, ReassignedBoundNotPromoted)
     const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
     EXPECT_FALSE(contains(s, "for (std::size_t k = 0;"));         // NOT promoted (stale fact)
     EXPECT_TRUE(contains(s, "for (k = 1.0; k <= n; k += 1.0)"));   // checked form, bound n
-    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, y_len, k,"));
+    EXPECT_TRUE(contains(s, "nk_rt::index_set(y, _nk_y_len, k,"));
 }
 
 // ── 3c: control flow ──────────────────────────────────────────────────
@@ -703,9 +690,9 @@ TEST(EmitterFn, Matrix2DIndexEmission)
         *fn, {{"A", InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::dims(3, 3))}},
         reg).source;
 
-    EXPECT_TRUE(contains(s, "const double* A, std::size_t A_rows, std::size_t A_cols"));
-    EXPECT_TRUE(contains(s, "nk_rt::index2(A, A_rows, A_cols, 1.0, 1.0)"));
-    EXPECT_TRUE(contains(s, "nk_rt::index2(A, A_rows, A_cols, 3.0, 2.0)"));
+    EXPECT_TRUE(contains(s, "const double* A, std::size_t _nk_A_rows, std::size_t _nk_A_cols"));
+    EXPECT_TRUE(contains(s, "nk_rt::index2(A, _nk_A_rows, _nk_A_cols, 1.0, 1.0)"));
+    EXPECT_TRUE(contains(s, "nk_rt::index2(A, _nk_A_rows, _nk_A_cols, 3.0, 2.0)"));
 }
 
 // ── boundary #2b: multi-output emission ───────────────────────────────
@@ -868,8 +855,8 @@ TEST(EmitterFn, InterproceduralArrayArgPassed)
     registerUserFunctions(reg, table);
 
     const EmittedFunction out = emitProgram(*table.find("f"), {{"v", kDoubleRow}}, table, reg);
-    EXPECT_TRUE(contains(out.source, "g_1dr(v, v_len)"));            // ptr + len at the call site
-    EXPECT_TRUE(contains(out.source, "double g_1dr(const double* v, std::size_t v_len)"));
+    EXPECT_TRUE(contains(out.source, "g_1dr(v, _nk_v_len)"));            // ptr + len at the call site
+    EXPECT_TRUE(contains(out.source, "double g_1dr(const double* v, std::size_t _nk_v_len)"));
 }
 
 // A construct that infers to Dynamic (eval) cannot be typed -> the output
