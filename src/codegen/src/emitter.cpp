@@ -1529,10 +1529,9 @@ void Emitter::emitAssign(const ASTNode &s)
                 // buffer). Rank discipline: every array operand must match the
                 // dest's rank (and, for N-D, its rank count) — no implicit
                 // broadcast. The soundness guard below enforces matching shapes
-                // (per-dim for 2-D). N-D is v1-limited to a SINGLE array operand
-                // (numel bound, no cross-operand agreement needed); multi-operand
-                // N-D needs a per-axis guard and is deferred. Explicit boundary,
-                // never wrong code.
+                // PER AXIS (rows/cols for 2-D, every dim for N-D — equal numel is
+                // not equal shape); 1-D compares numel. Any number of array
+                // operands at each rank. Explicit boundary, never wrong code.
                 bool rankMismatch = false;
                 for (const std::string &an : srcArrays) {
                     const ArrayInfo &sa = arrays_.at(an);
@@ -1540,9 +1539,8 @@ void Emitter::emitAssign(const ASTNode &s)
                         || (dstND && sa.ndDims.size() != arrays_.at(name).ndDims.size()))
                         rankMismatch = true;
                 }
-                const bool          ndMulti = dstND && srcArrays.size() != 1;
-                const AbstractValue res     = inferExpr(rhs, types_, reg_, classes_);
-                if (!rankMismatch && !ndMulti && res.type.isConcrete()
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (!rankMismatch && res.type.isConcrete()
                     && !res.type.shape.isScalar()
                     && (res.type.dtype == ValueType::DOUBLE
                         || res.type.dtype == ValueType::COMPLEX)) {
@@ -1563,6 +1561,24 @@ void Emitter::emitAssign(const ASTNode &s)
                             guard += (guard.empty() ? "" : " || ")
                                      + ("(" + sa.rowsVar + " != " + ref.rowsVar + " || "
                                         + sa.colsVar + " != " + ref.colsVar + ")");
+                        }
+                    } else if (dstND) {
+                        // N-D: numel = product of the per-axis dims; the guard
+                        // compares EVERY axis (equal numel is not equal shape —
+                        // 2x3x4 vs 4x3x2). ref = the OUTPUT's dims, else the first
+                        // operand's. Same-rank is already enforced above.
+                        const ArrayInfo &ref = ai.isLocal ? arrays_.at(*srcArrays.begin()) : ai;
+                        std::string      prod;
+                        for (const std::string &d : ref.ndDims)
+                            prod += (prod.empty() ? "" : " * ") + d;
+                        bound = "(" + prod + ")";
+                        for (const std::string &an : srcArrays) {
+                            const ArrayInfo &sa = arrays_.at(an);
+                            for (std::size_t k = 0; k < ref.ndDims.size(); ++k) {
+                                if (sa.ndDims[k] == ref.ndDims[k]) continue;
+                                guard += (guard.empty() ? "" : " || ")
+                                         + (sa.ndDims[k] + " != " + ref.ndDims[k]);
+                            }
                         }
                     } else {
                         bound = ai.isLocal ? arrays_.at(*srcArrays.begin()).lenVar : ai.lenVar;

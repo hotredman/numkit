@@ -1106,6 +1106,39 @@ TEST(CodegenE2E, ElementwiseNDRunsCorrectly)
     for (int i = 0; i < 24; ++i) EXPECT_DOUBLE_EQ(got[i], 2.0 * i + 1.0) << "at " << i;
 }
 
+// Multi-operand N-D elementwise end-to-end: B = A + C over a rank-3 2x3x4
+// array (per-axis shape guard + flat numel loop). A[i]=i, C[i]=10i -> B[i]=11i.
+TEST(CodegenE2E, ElementwiseNDMultiOperandRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const InferredType nd =
+        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 3, 4}));
+    const EmittedFunction emitted =
+        transpile("function B = f(A, C)\n  B = A + C;\nend\n", {{"A", nd}, {"C", nd}});
+    ASSERT_NE(emitted.source.find("B[_nk_i] = (A[_nk_i] + C[_nk_i]);"), std::string::npos);
+    ASSERT_NE(emitted.source.find("_nk_A_d0 != _nk_B_d0"), std::string::npos);  // per-axis guard
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ewisendmul_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ewisendmul_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[24], C[24], B[24];\n"
+        "  for (int i = 0; i < 24; ++i) { A[i] = double(i); C[i] = 10.0 * i; }\n"
+        "  f(A, 2, 3, 4, C, 2, 3, 4, B, 2, 3, 4);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 24; ++i) std::fprintf(g, \"%.17g\\n\", B[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 24u);
+    for (int i = 0; i < 24; ++i) EXPECT_DOUBLE_EQ(got[i], 11.0 * i) << "at " << i;
+}
+
 // 2-D matrix WRITE end-to-end: a mutable 2-D local (compile-time dims),
 // element writes + reads, column-major. Self-contained. s = 5+7+9 = 21.
 TEST(CodegenE2E, Matrix2DLocalWriteRunsCorrectly)
