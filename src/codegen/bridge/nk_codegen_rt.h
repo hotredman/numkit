@@ -73,6 +73,11 @@ NK_RT_API size_t nk_numel(nk_val v);
 /* Free an owned handle. */
 NK_RT_API void nk_release(nk_val v);
 
+/* The number of owned handles currently outstanding (created by a box / eval /
+ * call entry, not yet nk_release'd). For leak testing: snapshot it around a
+ * sequence and assert it returns to baseline. */
+NK_RT_API long long nk_debug_live_handles(void);
+
 /* ---- Plugin / extension ABI (DESIGN.md §6b) -------------------------------
  *
  * A plugin PROVIDES functions with this signature — the mirror image of

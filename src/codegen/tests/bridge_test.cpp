@@ -289,3 +289,49 @@ TEST(Embed, EvalCallsPluginFunction)
     EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 15.0);  // 5 * 3
     nk_release(r);
 }
+
+// ---- handle-balance leak check (DESIGN.md §6a) -----------------------------
+// Every box/call/eval result must be released; nk_debug_live_handles returns
+// to baseline. The PORTABLE leak check for the bridge's own handle lifecycle
+// (MSVC's ASan has no LeakSanitizer). Covers the multi-output extra-release
+// path (a regression there would leave the counter > baseline) and errors.
+TEST(Leak, HandleBalanceAcrossPaths)
+{
+    const long long base = nk_debug_live_handles();
+
+    {  // box + release
+        nk_val x = nk_box_scalar(2.0);
+        nk_release(x);
+    }
+    {  // single-output call
+        nk_val a = nk_box_scalar(0.0);
+        nk_val r = nk_call("sin", &a, 1, 1, nullptr, nullptr);
+        nk_release(a);
+        nk_release(r);
+    }
+    {  // multi-output call — exercises the adapter's extra-output release path
+        ASSERT_EQ(nk_register_fn("nk_bal_divmod", nk_test_divmod), 0);
+        nk_val   args[2] = {nk_box_scalar(17.0), nk_box_scalar(5.0)};
+        nk_val   extra[1] = {nullptr};
+        nk_val   q        = nk_call("nk_bal_divmod", args, 2, 2, extra, nullptr);
+        nk_release(args[0]);
+        nk_release(args[1]);
+        nk_release(q);
+        nk_release(extra[0]);
+    }
+    {  // eval
+        nk_val e = nk_eval("3 + 4", nullptr);
+        nk_release(e);
+    }
+    {  // a failed call creates no net handle (release(null) is a no-op)
+        nk_val   a = nk_box_scalar(1.0);
+        nk_error err;
+        err.code = 0;
+        nk_val r = nk_call("a_fn_that_does_not_exist_zzz", &a, 1, 1, nullptr, &err);
+        EXPECT_EQ(r, nullptr);
+        nk_release(a);
+        nk_release(r);
+    }
+
+    EXPECT_EQ(nk_debug_live_handles(), base) << "bridge leaked nk_val handles";
+}
