@@ -1242,6 +1242,42 @@ TEST(CodegenE2E, CompanionUserVarCoexistRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 50.0);  // x(numel(x)) = x(5)
 }
 
+// Negative array dimension (caveat #2): `zeros(1, n)` with n<0. The dim
+// conversion is guarded by nk_rt::dim, which throws BEFORE the float->size_t
+// cast (that cast would be UB for a negative value). f(3) -> numel 3; f(-1)
+// throws — matching the interpreter, which also errors on a negative dim
+// (rather than silently UB-allocating). Not MATLAB's clamp-to-0: codegen's
+// contract is to match the interpreter.
+TEST(CodegenE2E, NegativeDimThrowsNotUB)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(n)\n  A = zeros(1, n);\n  s = numel(A);\nend\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+    ASSERT_NE(emitted.source.find("nk_rt::dim("), std::string::npos);  // guarded conversion, no UB cast
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_negdim_e2e.exe").string();
+    const std::string outTxt = (base / "nk_negdim_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double pos = " + emitted.name + "(3.0);\n"        // 1x3 -> numel 3
+        "  int threw = 0;\n"
+        "  try { " + emitted.name + "(-1.0); } catch (...) { threw = 1; }\n"  // negative -> throws
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n%d\\n\", pos, threw);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 3.0);  // numel(zeros(1,3))
+    EXPECT_DOUBLE_EQ(got[1], 1.0);  // negative dim threw (not UB)
+}
+
 // Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
 // loop — SELF-CONTAINED (no runtime DLL, plain stdlib exe) — and matches
 // std::sin. The win over bridging: no boxing, no runtime dependency.

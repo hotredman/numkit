@@ -561,12 +561,19 @@ buffer cannot grow):
   (rename it). A single or trailing `_` (`x_`, `a_b`) is legal and untouched.
   Fully accepting `__` names would require escaping every user identifier on
   emission, which would destroy the readable-output property — out of scope.
-- **Size args.** `zeros`/`ones` dimension args must be non-negative integers.
-  Codegen does NOT clamp: a negative runtime dim casts to a huge `size_t` and
-  the allocation throws (`std::length_error`/`std::bad_alloc`) — an exception on
-  contract violation, never silent corruption, but it does not reproduce
-  MATLAB's negative→empty / non-integer→error semantics. Matching those exactly
-  is a separate, opt-in size-validation feature.
+- **Size args / index conversion are UB-free.** Converting a *negative* `double`
+  to `size_t` is UB ([conv.fpint]). Every `double`→`size_t` site guards against
+  it: `zeros`/`ones` dims go through `nk_rt::dim()` (throws on negative *before*
+  the cast), and every index helper (`index`/`index2`/`nd_off`/…) checks
+  `< 1.0` *before* the cast. So a negative dim or index is a clean, deliberate
+  `std::out_of_range`, never UB. This matches the **interpreter**, which also
+  errors on a negative dim/index (codegen's contract is the interpreter, not
+  MATLAB directly). A fractional dim truncates toward zero, as the interpreter
+  does. NOTE: both numkit layers diverge from MATLAB here — MATLAB clamps a
+  negative dim to 0 (`zeros(-1,3)`→`0×3`) and errors on a fractional dim; numkit
+  (interpreter + codegen) errors on negative and truncates fractional. That is
+  an *interpreter-level* gap (the interpreter bad-allocs on negative — arguably a
+  core bug), tracked separately; codegen faithfully matches the interpreter.
 - **Caller pre-sizes outputs.** An array out-param is caller-allocated; the
   caller passes companions matching the buffer it allocated (as for a 1-D
   `y = zeros(1,n)` output, and for const/runtime N-D outputs).

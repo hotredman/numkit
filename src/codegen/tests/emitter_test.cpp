@@ -408,7 +408,7 @@ TEST(EmitterFn, NDRuntimeLocal)
                                            {"p", InferredType::scalar(ValueType::DOUBLE)}};
     const std::string s = emitFunction(*fn, params, reg).source;
     EXPECT_TRUE(contains(s, "std::size_t _nk_A_d0 = 0, _nk_A_d1 = 0, _nk_A_d2 = 0;"));        // hoisted vars
-    EXPECT_TRUE(contains(s, "_nk_A_d0 = static_cast<std::size_t>(m);"));              // captured from arg
+    EXPECT_TRUE(contains(s, "_nk_A_d0 = nk_rt::dim(m);"));                            // captured (guarded)
     EXPECT_TRUE(contains(s, "A.assign(_nk_A_d0 * _nk_A_d1 * _nk_A_d2, 0.0);"));               // sized to product
     EXPECT_TRUE(contains(s, "nk_rt::indexN_set(A.data(), {_nk_A_d0, _nk_A_d1, _nk_A_d2}"));   // runtime dims
     EXPECT_TRUE(contains(s, "static_cast<double>(_nk_A_d1)"));                        // size(A,2) -> var
