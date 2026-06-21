@@ -1517,29 +1517,32 @@ void Emitter::emitAssign(const ASTNode &s)
         // operand (no length-mismatch, no matrix semantics) and an
         // inference-proven array result. Emit a fill loop; a LOCAL is resized
         // to the operand's length, the OUTPUT uses its caller-sized length.
-        if (isArrayVar(name) && !arrays_.at(name).isND
+        if (isArrayVar(name)
             && (arrays_.at(name).dtype == ValueType::DOUBLE
                 || arrays_.at(name).dtype == ValueType::COMPLEX)) {
             std::set<std::string> srcArrays;
             if (collectElementwise(rhs, srcArrays) && !srcArrays.empty()) {
                 const bool dst2D = arrays_.at(name).is2D;
+                const bool dstND = arrays_.at(name).isND;
                 // The flat per-element loop bounds on numel (column-major
                 // storage, so elementwise is rank-agnostic over the flat
                 // buffer). Rank discipline: every array operand must match the
-                // dest's rank — no implicit 1-D<->2-D broadcast, and N-D
-                // refused (an N-D PARAM has no flat numel here, and shapes —
-                // not just numel — would have to agree). 1-D and 2-D both allow
-                // multiple array operands; the soundness guard below enforces
-                // matching shapes (per-dim for 2-D). Explicit boundary, never
-                // wrong code.
-                bool anyND = false, rankMismatch = false;
+                // dest's rank (and, for N-D, its rank count) — no implicit
+                // broadcast. The soundness guard below enforces matching shapes
+                // (per-dim for 2-D). N-D is v1-limited to a SINGLE array operand
+                // (numel bound, no cross-operand agreement needed); multi-operand
+                // N-D needs a per-axis guard and is deferred. Explicit boundary,
+                // never wrong code.
+                bool rankMismatch = false;
                 for (const std::string &an : srcArrays) {
                     const ArrayInfo &sa = arrays_.at(an);
-                    if (sa.isND) anyND = true;
-                    if (sa.is2D != dst2D) rankMismatch = true;
+                    if (sa.is2D != dst2D || sa.isND != dstND
+                        || (dstND && sa.ndDims.size() != arrays_.at(name).ndDims.size()))
+                        rankMismatch = true;
                 }
-                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
-                if (!anyND && !rankMismatch && res.type.isConcrete()
+                const bool          ndMulti = dstND && srcArrays.size() != 1;
+                const AbstractValue res     = inferExpr(rhs, types_, reg_, classes_);
+                if (!rankMismatch && !ndMulti && res.type.isConcrete()
                     && !res.type.shape.isScalar()
                     && (res.type.dtype == ValueType::DOUBLE
                         || res.type.dtype == ValueType::COMPLEX)) {
@@ -1619,9 +1622,9 @@ void Emitter::emitAssign(const ASTNode &s)
                         line(ai.dataExpr + "[_nk_i] = " + rhsExpr + ";");
                         close();
                     }
-                    // A 2-D dest keeps its true dims (res); a 1-D dest a row
-                    // stand-in (arrays_ drives indexing/queries either way).
-                    if (dst2D)
+                    // A 2-D / N-D dest keeps its true dims (res); a 1-D dest a
+                    // row stand-in (arrays_ drives indexing/queries either way).
+                    if (dst2D || dstND)
                         types_.set(name, res);
                     else
                         types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
@@ -2095,11 +2098,14 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.isND     = true;
             ai.dataExpr = p.name;
             std::string sig = "const " + cppScalarType(p.type.dtype) + "* " + p.name;
+            std::string prod;  // numel = product of the dim companions (elementwise)
             for (std::size_t d = 0; d < p.type.shape.nd.size(); ++d) {
                 const std::string dv = companion(p.name, "_d" + std::to_string(d));
                 ai.ndDims.push_back(dv);
                 sig += ", std::size_t " + dv;
+                prod += (prod.empty() ? "" : " * ") + dv;
             }
+            ai.lenVar       = "(" + prod + ")";
             arrays[p.name] = ai;
             sigParams.push_back(sig);
         } else if (isBufferArrayType(p.type)) {
