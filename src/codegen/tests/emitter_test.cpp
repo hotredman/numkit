@@ -612,10 +612,11 @@ TEST(EmitterFn, Elementwise2DScalarBroadcast)
     }
 }
 
-// N-D elementwise (v1: a SINGLE array operand). A rank-3 dest + one rank-3 array
-// operand (+ scalars / a transcendental) -> flat numel loop / ops kernel.
-// Multi-operand N-D is refused (needs a per-axis guard). Mixed rank refused.
-TEST(EmitterFn, ElementwiseNDSingleOperand)
+// N-D elementwise, all ranks. A rank-3 dest + rank-3 array operands (+ scalars /
+// a transcendental): single operand (2*A, sin(A)) or multiple (A+C) -> flat
+// numel loop / ops kernel; multi-operand carries a PER-AXIS shape guard. Mixed
+// rank is refused (no implicit broadcast).
+TEST(EmitterFn, ElementwiseND)
 {
     const auto         reg = stdReg();
     const InferredType nd =
@@ -626,7 +627,8 @@ TEST(EmitterFn, ElementwiseNDSingleOperand)
         ASSERT_NE(fn, nullptr);
         const std::string s = emitFunction(*fn, {{"A", nd}}, reg).source;
         EXPECT_TRUE(contains(s, "B[_nk_i] = (2.0 * A[_nk_i]);"));
-        EXPECT_TRUE(contains(s, "_nk_A_d0 * _nk_A_d1 * _nk_A_d2"));  // numel guard vs A's dims
+        EXPECT_TRUE(contains(s, "_nk_A_d0 != _nk_B_d0"));                  // per-axis guard vs dest
+        EXPECT_TRUE(contains(s, "_nk_B_d0 * _nk_B_d1 * _nk_B_d2"));        // numel bound = dest dims
     }
     {  // B = sin(A) over 3-D + ops -> ops::sinDouble over numel
         const OpsKernelOptions ops{true};
@@ -635,10 +637,18 @@ TEST(EmitterFn, ElementwiseNDSingleOperand)
         const std::string s = emitFunction(*fn, {{"A", nd}}, reg, nullptr, {}, ops).source;
         EXPECT_TRUE(contains(s, "numkit::ops::sinDouble(A, B, "));
     }
-    {  // B = A + C (two 3-D operands) -> refused (multi-operand N-D); falls through
+    {  // B = A + C (two 3-D operands) -> flat loop + a PER-AXIS guard (every dim)
         numkit::ASTNodePtr     root;
         const numkit::ASTNode *fn = findFunc("function B = f(A, C)\n  B = A + C;\nend\n", root);
-        EXPECT_THROW(emitFunction(*fn, {{"A", nd}, {"C", nd}}, reg), std::runtime_error);
+        const std::string s = emitFunction(*fn, {{"A", nd}, {"C", nd}}, reg).source;
+        EXPECT_TRUE(contains(s, "B[_nk_i] = (A[_nk_i] + C[_nk_i]);"));
+        EXPECT_TRUE(contains(s, "_nk_A_d2 != _nk_B_d2"));  // operand A checked vs dest, axis 2
+        EXPECT_TRUE(contains(s, "_nk_C_d0 != _nk_B_d0"));  // operand C checked vs dest, axis 0
+    }
+    {  // mixed rank (3-D + 1-D vector) refused — no implicit broadcast
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function B = f(A, v)\n  B = A + v;\nend\n", root);
+        EXPECT_THROW(emitFunction(*fn, {{"A", nd}, {"v", kDoubleRow}}, reg), std::runtime_error);
     }
 }
 
@@ -918,28 +928,6 @@ TEST(EmitterFn, NDRuntimeLocal)
     EXPECT_TRUE(contains(s, "static_cast<double>(_nk_A_d0 * _nk_A_d1 * _nk_A_d2)"));          // numel -> product
 }
 
-// N-D single-operand elementwise now LOWERS (the boundary moved): `y = A .* 2`
-// with A 3-D is a scalar broadcast over one array operand -> a flat numel loop
-// (the N-D param now carries a product-of-dims lenVar). Multi-operand N-D
-// (A + C) is still refused — it needs a per-axis shape guard (Contract 2).
-TEST(EmitterFn, ElementwiseNDSingleLowersMultiRefused)
-{
-    const auto         reg = stdReg();
-    const InferredType nd =
-        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 2, 2}));
-    {  // single operand -> flat numel loop, no throw
-        numkit::ASTNodePtr     root;
-        const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = A .* 2;\nend\n", root);
-        ASSERT_NE(fn, nullptr);
-        const std::string s = emitFunction(*fn, {{"A", nd}}, reg).source;
-        EXPECT_TRUE(contains(s, "y[_nk_i] = (A[_nk_i] * 2.0);"));
-    }
-    {  // two N-D operands -> still refused
-        numkit::ASTNodePtr     root;
-        const numkit::ASTNode *fn = findFunc("function y = f(A, C)\n  y = A .* C;\nend\n", root);
-        EXPECT_THROW(emitFunction(*fn, {{"A", nd}, {"C", nd}}, reg), std::runtime_error);
-    }
-}
 
 // Reserved-companion coexistence: a user var named `x_len` no longer clashes
 // with the length companion of array param `x`. The companion is `_nk_x_len`
