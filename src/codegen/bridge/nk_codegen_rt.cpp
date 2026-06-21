@@ -13,6 +13,7 @@
 #include <numkit/value/value_type.hpp>
 
 #include <atomic>
+#include <complex>
 #include <cstdio>
 #include <exception>
 #include <limits>
@@ -118,6 +119,19 @@ nk_val nk_box_array(const double *p, size_t len)
     }
 }
 
+nk_val nk_box_complex_array(const double *p, size_t len)
+{
+    if (!p && len != 0) return nullptr;  // p: interleaved re,im (2*len doubles)
+    try {
+        Value                 m = Value::complexMatrix(1, len, nullptr);
+        std::complex<double> *d = m.complexDataMut();
+        for (size_t i = 0; i < len; ++i) d[i] = std::complex<double>(p[2 * i], p[2 * i + 1]);
+        return make(std::move(m));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 nk_val nk_eval(const char *code, nk_error *err)
 {
     if (err) { err->code = 0; err->message[0] = '\0'; }
@@ -181,6 +195,29 @@ void nk_unbox_array(nk_val v, double *out, size_t len)
         const double *d   = val->doubleData();
         const size_t  nm  = val->numel();
         for (size_t i = 0; i < len && i < nm; ++i) out[i] = d[i];
+    } catch (...) {
+        // leave `out` as the caller initialised it
+    }
+}
+
+void nk_unbox_complex_array(nk_val v, double *out, size_t len)
+{
+    try {
+        const Value *val = unwrap(v);
+        const size_t nm  = val->numel();
+        if (val->isComplex()) {  // out: interleaved re,im (2*len doubles)
+            const std::complex<double> *d = val->complexData();
+            for (size_t i = 0; i < len && i < nm; ++i) {
+                out[2 * i]     = d[i].real();
+                out[2 * i + 1] = d[i].imag();
+            }
+        } else {  // a real result (numkit narrowed a zero-imag complex) -> imag 0
+            const double *d = val->doubleData();
+            for (size_t i = 0; i < len && i < nm; ++i) {
+                out[2 * i]     = d[i];
+                out[2 * i + 1] = 0.0;
+            }
+        }
     } catch (...) {
         // leave `out` as the caller initialised it
     }

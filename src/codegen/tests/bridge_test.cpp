@@ -59,6 +59,38 @@ TEST(Bridge, ArrayBuiltinSortRoundTrip)
     nk_release(s);
 }
 
+// CX4a: complex array box/unbox round-trip (interleaved re,im). Also drives a
+// bridged complex builtin (fft) so a complex RESULT is unboxed via the new
+// path. (The codegen complex bridge, CX4b, builds on these C-ABI primitives.)
+TEST(Bridge, ComplexArrayRoundTrip)
+{
+    const double in[6] = {1, 2, 3, 4, 5, 6};  // 1+2i, 3+4i, 5+6i
+    nk_val       a     = nk_box_complex_array(in, 3);
+    ASSERT_NE(a, nullptr);
+    ASSERT_EQ(nk_numel(a), 3u);
+    double out[6] = {0, 0, 0, 0, 0, 0};
+    nk_unbox_complex_array(a, out, 3);
+    for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(out[i], in[i]);  // exact round-trip
+    nk_release(a);
+}
+
+TEST(Bridge, ComplexResultFromBridgedFft)
+{
+    // fft of a real signal returns a COMPLEX array; unbox via the complex path.
+    const double sig[4] = {1.0, 2.0, 3.0, 4.0};
+    nk_val       x      = nk_box_array(sig, 4);
+    nk_val       y      = nk_call("fft", &x, 1, 1, nullptr, nullptr);
+    ASSERT_NE(y, nullptr);
+    ASSERT_EQ(nk_numel(y), 4u);
+    double out[8] = {0};  // 4 complex
+    nk_unbox_complex_array(y, out, 4);
+    // DC bin = sum = 10 (imag 0); the transform is non-trivial elsewhere.
+    EXPECT_DOUBLE_EQ(out[0], 10.0);
+    EXPECT_DOUBLE_EQ(out[1], 0.0);
+    nk_release(x);
+    nk_release(y);
+}
+
 // A runtime error inside a bridged call must be TRANSLATED (nk_error),
 // never thrown across the extern "C" boundary (that is UB). The call
 // returns null and the process does not crash.
