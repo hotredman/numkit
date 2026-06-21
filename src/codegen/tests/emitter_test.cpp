@@ -250,6 +250,32 @@ TEST(EmitterFn, ComplexElementwise)
     EXPECT_TRUE(contains(s, "y[_nk_i] = (x[_nk_i] * 2.0);"));             // std::complex fill loop
 }
 
+// CX5: complex 2-D / N-D arrays flow through the dtype-agnostic buffer + index
+// machinery — params (const std::complex<double>* A, dims) and indexed reads
+// (index2 / indexN are templated on T). (2-D/N-D elementwise is a separate,
+// non-complex gap — the elementwise fill loop is 1-D only.)
+TEST(EmitterFn, ComplexMatrixAndND)
+{
+    const auto reg = stdReg();
+    {  // 2-D complex param + A(i,j) read -> complex scalar
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn  = findFunc("function y = f(A)\n  y = A(1,2);\nend\n", root);
+        const InferredType     mat = InferredType::concrete(ValueType::COMPLEX, Shape::dims(2, 3));
+        const std::string      s   = emitFunction(*fn, {{"A", mat}}, reg).source;
+        EXPECT_TRUE(contains(s, "const std::complex<double>* A"));
+        EXPECT_TRUE(contains(s, "nk_rt::index2(A,"));
+    }
+    {  // N-D complex param + A(i,j,k) read -> complex scalar
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = A(1,1,1);\nend\n", root);
+        const InferredType     nd =
+            InferredType::concrete(ValueType::COMPLEX, numkit::codegen::Shape::ndShape({2, 2, 2}));
+        const std::string s = emitFunction(*fn, {{"A", nd}}, reg).source;
+        EXPECT_TRUE(contains(s, "const std::complex<double>* A"));
+        EXPECT_TRUE(contains(s, "nk_rt::indexN(A,"));
+    }
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {
