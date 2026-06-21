@@ -173,6 +173,8 @@ struct ArrayInfo {
     bool        isLocal  = false;  // an owned `std::vector` local (not a buffer ptr)
     std::string dataExpr;          // the element-pointer EXPRESSION — `<name>` for a
                                    // param/output buffer, `<name>.data()` for a local
+    bool        isND     = false;  // a rank-N (N>=3) array (column-major flat storage)
+    std::vector<std::string> ndDims;  // when isND: per-dim size EXPRESSIONS (rank = size())
 };
 
 // A 2-D matrix type (KnownDims with both dims > 1): indexed A(i,j),
@@ -890,6 +892,18 @@ std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
         && call.children[1]->strValue == *promotedCounter_)
         return ptr + "[" + *promotedCounter_ + "]";
 
+    // Rank-N (N>=3) read A(i,j,k,...) -> column-major nk_rt::indexN.
+    if (ai.isND) {
+        if (call.children.size() - 1 != ai.ndDims.size())
+            unsupported("N-D index arity for '" + base + "' (expected "
+                        + std::to_string(ai.ndDims.size()) + " subscripts)");
+        std::string dims, subs;
+        for (std::size_t k = 0; k < ai.ndDims.size(); ++k) dims += (k ? ", " : "") + ai.ndDims[k];
+        for (std::size_t i = 1; i < call.children.size(); ++i)
+            subs += (i > 1 ? ", " : "") + emitExpr(*call.children[i]);
+        return "nk_rt::indexN(" + ptr + ", {" + dims + "}, {" + subs + "})";
+    }
+
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < call.children.size(); ++i)
         idx.push_back(inferExpr(*call.children[i], types_, reg_, classes_));
@@ -923,6 +937,20 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         && lhsCall.children[1]->type == NodeType::IDENTIFIER
         && lhsCall.children[1]->strValue == *promotedCounter_) {
         line(ptr + "[" + *promotedCounter_ + "] = " + emitExpr(rhs) + ";");
+        return;
+    }
+
+    // Rank-N (N>=3) write A(i,j,k,...) = v -> column-major nk_rt::indexN_set.
+    if (ai.isND) {
+        if (lhsCall.children.size() - 1 != ai.ndDims.size())
+            unsupported("N-D index arity for '" + base + "' (expected "
+                        + std::to_string(ai.ndDims.size()) + " subscripts)");
+        std::string dims, subs;
+        for (std::size_t k = 0; k < ai.ndDims.size(); ++k) dims += (k ? ", " : "") + ai.ndDims[k];
+        for (std::size_t i = 1; i < lhsCall.children.size(); ++i)
+            subs += (i > 1 ? ", " : "") + emitExpr(*lhsCall.children[i]);
+        line("nk_rt::indexN_set(" + ptr + ", {" + dims + "}, {" + subs + "}, " + emitExpr(rhs)
+             + ");");
         return;
     }
 
@@ -1361,6 +1389,7 @@ const char *kPrelude =
     "#include <complex>\n"
     "#include <cstddef>\n"
     "#include <cstdint>\n"
+    "#include <initializer_list>\n"
     "#include <limits>\n"
     "#include <memory>\n"
     "#include <stdexcept>\n"
@@ -1411,6 +1440,25 @@ const char *kPrelude =
     "        throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
     "    a[(j - 1) * rows + (i - 1)] = v;\n"
     "}\n"
+    "// N-D (rank>=3) column-major linear offset from 1-based subscripts + dims;\n"
+    "// bounds-checked per axis. dims and subs are parallel (same rank).\n"
+    "inline std::size_t nd_off(std::initializer_list<std::size_t> dims,\n"
+    "                          std::initializer_list<double> subs) {\n"
+    "    const std::size_t* d = dims.begin(); const double* s = subs.begin();\n"
+    "    std::size_t off = 0, stride = 1;\n"
+    "    for (std::size_t __a = 0; __a < dims.size(); ++__a) {\n"
+    "        const std::size_t ik = static_cast<std::size_t>(s[__a]);\n"
+    "        if (s[__a] < 1.0 || ik > d[__a]) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
+    "        off += (ik - 1) * stride; stride *= d[__a];\n"
+    "    }\n"
+    "    return off;\n"
+    "}\n"
+    "template <class T>\n"
+    "inline T indexN(const T* a, std::initializer_list<std::size_t> dims,\n"
+    "                std::initializer_list<double> subs) { return a[nd_off(dims, subs)]; }\n"
+    "template <class T>\n"
+    "inline void indexN_set(T* a, std::initializer_list<std::size_t> dims,\n"
+    "                       std::initializer_list<double> subs, T v) { a[nd_off(dims, subs)] = v; }\n"
     "} // namespace nk_rt\n";
 
 // The bridged-emission addendum (DESIGN.md §6a): the runtime C-ABI header +
@@ -1585,6 +1633,23 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.rowsVar   = std::to_string(t.shape.rows);
             ai.colsVar   = std::to_string(t.shape.cols);
             arrays[name] = ai;
+        } else if (t.isConcrete() && t.shape.isNDims()) {
+            // A rank-N (N>=3) local — checked BEFORE isBufferArrayType (which
+            // also matches an N-D shape). Flat owned vector + compile-time
+            // dims. (Only fully-known dims for now; a runtime dim needs vars.)
+            bool allKnown = true;
+            for (std::size_t d : t.shape.nd)
+                if (d == 0) { allKnown = false; break; }
+            if (allKnown) {
+                ArrayInfo ai;
+                ai.dtype    = t.dtype;
+                ai.isLocal  = true;
+                ai.isND     = true;
+                ai.dataExpr = name + ".data()";
+                ai.lenVar   = name + ".size()";
+                for (std::size_t d : t.shape.nd) ai.ndDims.push_back(std::to_string(d));
+                arrays[name] = ai;
+            }
         } else if (isBufferArrayType(t)) {
             ArrayInfo ai;
             ai.dtype     = t.dtype;
