@@ -247,6 +247,31 @@ TEST(EmitterFn, ArrayLocalOwnedVector)
     EXPECT_TRUE(contains(s, "z.data()"));                // element access via data()/size()
 }
 
+// Elementwise array ARITHMETIC: y = x .* 2 + 1 -> a per-element fill loop
+// (whole arrays index at __i). Self-contained, no bridge.
+TEST(EmitterFn, ElementwiseArrayArithmetic)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x .* 2 + 1;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
+    EXPECT_TRUE(contains(s, "x[__i]"));    // whole array -> current element
+    EXPECT_TRUE(contains(s, "[__i] = "));  // elementwise fill loop store
+    EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));  // self-contained, no bridge
+}
+
+// A matrix op (mtimes `*`, not elementwise `.*`) is NOT lowered as elementwise
+// — without bridging it falls to the boundary (throws), never silently wrong.
+TEST(EmitterFn, MatrixMtimesNotElementwise)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x * x;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleRow}}, reg), std::runtime_error);
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits

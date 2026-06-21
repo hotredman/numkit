@@ -551,6 +551,11 @@ private:
     void        appendCallArg(const ASTNode &arg, std::vector<InferredType> &argTypes,
                               std::string &argList);
     std::string emitIndexRead(const std::string &base, const ASTNode &call);
+    // True if `e` is a pure ELEMENTWISE expression — literals, scalar vars,
+    // whole arrays, and only elementwise ops (+ - .* ./ .\ .^, unary +/-).
+    // Collects the distinct whole-array variable names into `arrays`. (Matrix
+    // ops *,/,^ and calls/indexing make it false.)
+    bool        collectElementwise(const ASTNode &e, std::set<std::string> &arrays) const;
     void        emitAssign(const ASTNode &s);
     void        emitMultiAssign(const ASTNode &s);
     void        emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs);
@@ -576,6 +581,9 @@ private:
     // Non-null inside a promoted clean-index loop: the 0-based size_t
     // counter that replaced the 1-based double loop variable.
     const std::string                          *promotedCounter_ = nullptr;
+    // Non-empty inside an elementwise-array fill loop: the 0-based size_t
+    // index, so a bare whole-array `x` emits the element `x[<idx>]`.
+    std::string                                 elementCtx_;
     // Non-null when emitting as part of a multi-function program: routes
     // user-function calls and accumulates the specialisations to emit.
     ProgramEmitCtx                             *ctx_ = nullptr;
@@ -629,8 +637,13 @@ std::string Emitter::emitExpr(const ASTNode &e)
     case NodeType::BOOL_LITERAL:
         return e.boolValue ? "true" : "false";
     case NodeType::IDENTIFIER:
-        if (isArrayVar(e.strValue))
+        if (isArrayVar(e.strValue)) {
+            // Inside an elementwise-array fill loop a whole array means its
+            // current element; in any other (scalar) context it is an error.
+            if (!elementCtx_.empty())
+                return arrays_.at(e.strValue).dataExpr + "[" + elementCtx_ + "]";
             unsupported("bare array identifier '" + e.strValue + "' in scalar context");
+        }
         return e.strValue;
     case NodeType::BINARY_OP:
         if (e.children.size() != 2) unsupported("binary op arity");
@@ -931,6 +944,33 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line(ptr + "[static_cast<std::size_t>(" + idxExpr + ") - 1] = " + rhsExpr + ";");
 }
 
+bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays) const
+{
+    switch (e.type) {
+    case NodeType::NUMBER_LITERAL:
+    case NodeType::BOOL_LITERAL:
+    case NodeType::IMAG_LITERAL:
+        return true;
+    case NodeType::IDENTIFIER:
+        if (isArrayVar(e.strValue)) arrays.insert(e.strValue);
+        return true;  // a scalar var, or a whole array (recorded)
+    case NodeType::BINARY_OP: {
+        // Operator SYMBOLS (the AST stores the symbol; inference maps it to the
+        // transfer name). Elementwise only: + - .* ./ .\ .^  — NOT the matrix
+        // forms * / \ ^ (those aren't elementwise except for scalars).
+        static const std::set<std::string> kElementwise = {"+", "-", ".*", "./", ".\\", ".^"};
+        return kElementwise.count(e.strValue) != 0 && e.children.size() == 2
+               && collectElementwise(*e.children[0], arrays)
+               && collectElementwise(*e.children[1], arrays);
+    }
+    case NodeType::UNARY_OP:
+        return (e.strValue == "-" || e.strValue == "+") && e.children.size() == 1
+               && collectElementwise(*e.children[0], arrays);
+    default:
+        return false;  // calls / indexing / fields -> not a pure elementwise expr
+    }
+}
+
 void Emitter::emitAssign(const ASTNode &s)
 {
     if (s.children.size() != 2) unsupported("assign arity");
@@ -1018,6 +1058,35 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Elementwise array ARITHMETIC: dest = <expr over ONE whole array +
+        // scalars> (self-contained). Sound only with a single distinct array
+        // operand (no length-mismatch, no matrix semantics) and an
+        // inference-proven array result. Emit a fill loop; a LOCAL is resized
+        // to the operand's length, the OUTPUT uses its caller-sized length.
+        if (isArrayVar(name) && !arrays_.at(name).is2D
+            && arrays_.at(name).dtype == ValueType::DOUBLE) {
+            std::set<std::string> srcArrays;
+            if (collectElementwise(rhs, srcArrays) && srcArrays.size() == 1) {
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (res.type.isConcrete() && !res.type.shape.isScalar()
+                    && res.type.dtype == ValueType::DOUBLE) {
+                    const ArrayInfo  &ai    = arrays_.at(name);
+                    const ArrayInfo  &src   = arrays_.at(*srcArrays.begin());
+                    const std::string bound = ai.isLocal ? src.lenVar : ai.lenVar;
+                    if (ai.isLocal) line(name + ".resize(" + src.lenVar + ");");
+                    elementCtx_               = "__i";
+                    const std::string rhsExpr = emitExpr(rhs);  // whole arrays -> [__i]
+                    elementCtx_.clear();
+                    open("for (std::size_t __i = 0; __i < " + bound + "; ++__i)");
+                    line(ai.dataExpr + "[__i] = " + rhsExpr + ";");
+                    close();
+                    types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
+                                      ConstVal::unknown()});
+                    return;
+                }
+            }
+        }
+
         if (isArrayVar(name))
             unsupported("array-valued assignment to '" + name
                         + "' (only size-constructor init of the output in RawBuffer ABI)");
