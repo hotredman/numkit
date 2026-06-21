@@ -1478,30 +1478,39 @@ void Emitter::emitAssign(const ASTNode &s)
         // operand (no length-mismatch, no matrix semantics) and an
         // inference-proven array result. Emit a fill loop; a LOCAL is resized
         // to the operand's length, the OUTPUT uses its caller-sized length.
-        if (isArrayVar(name) && !arrays_.at(name).is2D && !arrays_.at(name).isND
+        if (isArrayVar(name) && !arrays_.at(name).isND
             && (arrays_.at(name).dtype == ValueType::DOUBLE
                 || arrays_.at(name).dtype == ValueType::COMPLEX)) {
             std::set<std::string> srcArrays;
             if (collectElementwise(rhs, srcArrays) && !srcArrays.empty()) {
-                // This flat per-element loop is 1-D only: it bounds on lenVar
-                // and numel-matches operands — neither correct nor sufficient
-                // for N-D (shapes, not just numel, must agree), and an N-D PARAM
-                // has no lenVar at all. Refuse if any operand is N-D (the dest
-                // is already gated !isND above): an explicit boundary, never
-                // broken/wrong code.
-                bool anyND = false;
-                for (const std::string &an : srcArrays)
-                    if (arrays_.find(an) != arrays_.end() && arrays_.at(an).isND) anyND = true;
-                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
-                if (!anyND && res.type.isConcrete() && !res.type.shape.isScalar()
+                const bool dst2D = arrays_.at(name).is2D;
+                // The flat per-element loop bounds on numel (column-major
+                // storage, so elementwise is rank-agnostic over the flat
+                // buffer). Rank discipline: every array operand must match the
+                // dest's rank — no implicit 1-D<->2-D broadcast, and N-D
+                // refused (an N-D PARAM has no flat numel here, and shapes —
+                // not just numel — would have to agree). A 2-D dest is v1
+                // limited to ONE array operand (scalar broadcast), so no
+                // cross-operand per-dim agreement is needed; multi-operand 2-D
+                // (A.*B) is deferred. Explicit boundary, never wrong code.
+                bool anyND = false, rankMismatch = false;
+                for (const std::string &an : srcArrays) {
+                    const ArrayInfo &sa = arrays_.at(an);
+                    if (sa.isND) anyND = true;
+                    if (sa.is2D != dst2D) rankMismatch = true;
+                }
+                const bool          twoDok = !dst2D || srcArrays.size() == 1;
+                const AbstractValue res    = inferExpr(rhs, types_, reg_, classes_);
+                if (!anyND && !rankMismatch && twoDok && res.type.isConcrete()
+                    && !res.type.shape.isScalar()
                     && (res.type.dtype == ValueType::DOUBLE
                         || res.type.dtype == ValueType::COMPLEX)) {
                     const ArrayInfo  &ai    = arrays_.at(name);
-                    // Loop length: the OUTPUT's caller-sized length, else (a
-                    // local) the first operand's length.
+                    // Loop length: the OUTPUT's caller-sized numel, else (a
+                    // local) the first operand's numel.
                     const std::string bound =
                         ai.isLocal ? arrays_.at(*srcArrays.begin()).lenVar : ai.lenVar;
-                    // SOUNDNESS: every array operand must have that length, or
+                    // SOUNDNESS: every array operand must have that numel, or
                     // the per-element loop would read out of bounds. Guard at
                     // runtime (MATLAB errors on a size mismatch too).
                     std::string guard;
@@ -1520,8 +1529,13 @@ void Emitter::emitAssign(const ASTNode &s)
                     open("for (std::size_t _nk_i = 0; _nk_i < " + bound + "; ++_nk_i)");
                     line(ai.dataExpr + "[_nk_i] = " + rhsExpr + ";");
                     close();
-                    types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
-                                      ConstVal::unknown()});
+                    // A 2-D dest keeps its true dims (res); a 1-D dest a row
+                    // stand-in (arrays_ drives indexing/queries either way).
+                    if (dst2D)
+                        types_.set(name, res);
+                    else
+                        types_.set(name, {InferredType::concrete(ai.dtype, Shape::rowVector()),
+                                          ConstVal::unknown()});
                     return;
                 }
             }
@@ -1975,6 +1989,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             ai.is2D     = true;
             ai.rowsVar  = companion(p.name, "_rows");
             ai.colsVar  = companion(p.name, "_cols");
+            ai.lenVar   = "(" + ai.rowsVar + " * " + ai.colsVar + ")";  // numel (elementwise)
             ai.dataExpr = p.name;
             arrays[p.name] = ai;
             sigParams.push_back("const " + cppScalarType(p.type.dtype) + "* " + p.name
