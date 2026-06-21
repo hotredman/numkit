@@ -237,6 +237,28 @@ InferredType absTransfer(const std::vector<ArgInfo> &args)
     return InferredType::concrete(dt, args[0].type.shape);
 }
 
+// conj — preserves the value class: complex->complex, real->real (identity).
+InferredType conjTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    const ValueType dt = args[0].type.dtype;
+    if (dt == ValueType::COMPLEX || dt == ValueType::DOUBLE || dt == ValueType::SINGLE)
+        return InferredType::concrete(dt, args[0].type.shape);
+    return InferredType::dynamic();
+}
+
+// real / imag / angle — the real part / imag part / phase: complex -> real
+// (DOUBLE), a real input keeps its real class (real(3.0)=3, imag(3.0)=0). Same
+// shape. (std::real / std::imag / std::arg accept double + complex.)
+InferredType realPartTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    ValueType dt = args[0].type.dtype;
+    if (dt == ValueType::COMPLEX) dt = ValueType::DOUBLE;
+    else if (dt != ValueType::DOUBLE && dt != ValueType::SINGLE) return InferredType::dynamic();
+    return InferredType::concrete(dt, args[0].type.shape);
+}
+
 } // namespace
 
 void registerElementwiseTransfers(TransferRegistry &reg)
@@ -266,6 +288,10 @@ void registerElementwiseTransfers(TransferRegistry &reg)
                           "atan", "floor", "ceil", "round", "fix", "sign"})
         reg.add(n, realMathUnaryTransfer);
     reg.add("abs", absTransfer);
+    // complex accessors
+    reg.add("conj", conjTransfer);                       // complex->complex, real->real
+    for (const char *n : {"real", "imag", "angle"})      // complex->real (DOUBLE)
+        reg.add(n, realPartTransfer);
     // real-only elementwise math (no std complex overload)
     for (const char *n : {"asinh", "erf", "erfc", "expm1"})
         reg.add(n, realOnlyMathUnaryTransfer);
