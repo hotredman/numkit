@@ -626,6 +626,11 @@ private:
     // Collects the distinct whole-array variable names into `arrays`. (Matrix
     // ops *,/,^ and calls/indexing make it false.)
     bool        collectElementwise(const ASTNode &e, std::set<std::string> &arrays) const;
+    // The size_t expression for axis k (0-based) of array `a`: N-D companion /
+    // 2-D rows,cols / 1-D orientation (row = 1 x len, col = len x 1). Axes
+    // beyond the rank, or an orientation-unknown vector, yield "1" -- callers
+    // that must distinguish unknown orientation guard on a.orient first.
+    std::string dimExpr(const ArrayInfo &a, std::size_t k) const;
     void        emitAssign(const ASTNode &s);
     void        emitMultiAssign(const ASTNode &s);
     void        emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs);
@@ -798,16 +803,11 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
         const double     kd = call.children[2]->numValue;
         const auto       k  = static_cast<std::size_t>(kd);
         const bool       kok = kd >= 1.0 && static_cast<double>(k) == kd;
-        if (kok && ai.isND)
-            return "static_cast<double>("
-                   + (k <= ai.ndDims.size() ? ai.ndDims[k - 1] : std::string("1")) + ")";
-        if (kok && ai.is2D)
-            return "static_cast<double>("
-                   + (k == 1 ? ai.rowsVar : k == 2 ? ai.colsVar : std::string("1")) + ")";
-        if (kok && ai.orient == VecOrient::Row)
-            return "static_cast<double>(" + (k == 2 ? ai.lenVar : std::string("1")) + ")";
-        if (kok && ai.orient == VecOrient::Col)
-            return "static_cast<double>(" + (k == 1 ? ai.lenVar : std::string("1")) + ")";
+        // Emit only once the axis is determinate: any 2-D/N-D array, or a 1-D
+        // vector with a known orientation. A 1-D unknown-orientation vector
+        // falls through (-> bridge), since dimExpr can't place its single axis.
+        if (kok && (ai.isND || ai.is2D || ai.orient != VecOrient::Unknown))
+            return "static_cast<double>(" + dimExpr(ai, k - 1) + ")";
     }
 
     // Complex accessors: real/imag/angle/conj (scalar). std::real / std::imag /
@@ -1141,6 +1141,15 @@ bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays
     }
 }
 
+std::string Emitter::dimExpr(const ArrayInfo &a, std::size_t k) const
+{
+    if (a.isND) return k < a.ndDims.size() ? a.ndDims[k] : std::string("1");
+    if (a.is2D) return k == 0 ? a.rowsVar : k == 1 ? a.colsVar : std::string("1");
+    if (a.orient == VecOrient::Row) return k == 1 ? a.lenVar : std::string("1");
+    if (a.orient == VecOrient::Col) return k == 0 ? a.lenVar : std::string("1");
+    return std::string("1");
+}
+
 void Emitter::emitAssign(const ASTNode &s)
 {
     if (s.children.size() != 2) unsupported("assign arity");
@@ -1210,18 +1219,10 @@ void Emitter::emitAssign(const ASTNode &s)
             const ArrayInfo  &sai  = arrays_.at(name);
             const ArrayInfo  &aai  = arrays_.at(rhs.children[1]->strValue);
             const std::size_t rank = aai.isND ? aai.ndDims.size() : 2;
-            // The k-th dimension of A: N-D companion / 2-D rows,cols / 1-D orient.
-            auto nthDim = [](const ArrayInfo &a, std::size_t k) -> std::string {
-                if (a.isND) return k < a.ndDims.size() ? a.ndDims[k] : std::string("1");
-                if (a.is2D) return k == 0 ? a.rowsVar : k == 1 ? a.colsVar : std::string("1");
-                if (a.orient == VecOrient::Row) return k == 1 ? a.lenVar : std::string("1");
-                if (a.orient == VecOrient::Col) return k == 0 ? a.lenVar : std::string("1");
-                return std::string("1");
-            };
             if (sai.isLocal) line(name + ".assign(" + std::to_string(rank) + ", 0.0);");
             for (std::size_t k = 0; k < rank; ++k)
                 line(sai.dataExpr + "[" + std::to_string(k) + "] = static_cast<double>("
-                     + nthDim(aai, k) + ");");
+                     + dimExpr(aai, k) + ");");
             types_.set(name, {InferredType::concrete(sai.dtype, Shape::rowVector()),
                               ConstVal::unknown()});
             return;
@@ -1387,6 +1388,37 @@ void Emitter::emitMultiAssign(const ASTNode &s)
     if (!s.lhsTargets.empty()) unsupported("complex multi-assign targets (v1)");
     if (s.children.empty()) unsupported("multi-assign arity");
     const ASTNode &rhs = *s.children[0];
+
+    // [r, c] = size(A): native two-output size. r = axis 0; c = the remaining
+    // axes folded (cols for a matrix, the trailing-dim product for N-D) -- so
+    // [r,c]=size(rand(2,3,4)) gives r=2, c=12, matching MATLAB. Both targets
+    // are real scalars. BEFORE the user-function path so it lowers natively
+    // instead of bridging into numkit::size. v1 is exactly this two-output
+    // idiom; any other nargout (or a user-shadowed `size`) falls through.
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 2
+        && rhs.children[0]->type == NodeType::IDENTIFIER
+        && rhs.children[0]->strValue == "size"
+        && rhs.children[1]->type == NodeType::IDENTIFIER
+        && isArrayVar(rhs.children[1]->strValue) && s.returnNames.size() == 2
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has("size"))) {
+        const std::string &rn0 = s.returnNames[0];
+        const std::string &rn1 = s.returnNames[1];
+        if (rn0.empty() || rn0 == "~" || rn1.empty() || rn1 == "~")
+            unsupported("[r,c]=size with an ignored (~) output (v1)");
+        if (isArrayVar(rn0) || isArrayVar(rn1))
+            unsupported("[r,c]=size into a non-scalar target");
+        const ArrayInfo &aai = arrays_.at(rhs.children[1]->strValue);
+        if (!aai.is2D && !aai.isND && aai.orient == VecOrient::Unknown)
+            unsupported("[r,c]=size of an orientation-unknown vector");
+        const std::size_t rank = aai.isND ? aai.ndDims.size() : 2;
+        std::string       cols = dimExpr(aai, 1);  // fold dims 1..rank-1 into c
+        for (std::size_t k = 2; k < rank; ++k) cols += " * " + dimExpr(aai, k);
+        line(rn0 + " = static_cast<double>(" + dimExpr(aai, 0) + ");");
+        line(rn1 + " = static_cast<double>(" + cols + ");");
+        types_.set(rn0, {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()});
+        types_.set(rn1, {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()});
+        return;
+    }
     if (rhs.type != NodeType::CALL || rhs.children.empty()
         || rhs.children[0]->type != NodeType::IDENTIFIER)
         unsupported("multi-assign RHS must be a user-function call (v1)");

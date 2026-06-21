@@ -42,6 +42,17 @@ InferredType sizeTransfer(const std::vector<ArgInfo> &args)
     return InferredType::concrete(ValueType::DOUBLE, Shape::dims(1, rank));  // 1 x rank row
 }
 
+// [r, c] = size(A): the two-output size idiom. Both outputs are real scalar
+// doubles (r = rows, c = the trailing dims folded). size is variadic, but
+// applyMulti is nargout-blind, so v1 models exactly the supported two-output
+// arity; the emitter computes the VALUES (folding the trailing dims into c)
+// and refuses other nargout. Modelling only the supported shape keeps the
+// fallback sound (an unsupported arity -> Dynamic / explicit refusal).
+std::vector<InferredType> sizeMultiTransfer(const std::vector<ArgInfo> & /*args*/)
+{
+    return {InferredType::scalar(ValueType::DOUBLE), InferredType::scalar(ValueType::DOUBLE)};
+}
+
 } // namespace
 
 void registerShapeTransfers(TransferRegistry &reg)
@@ -50,6 +61,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("length", countTransfer);
     reg.add("ndims", countTransfer);
     reg.add("size", sizeTransfer);
+    reg.addMulti("size", sizeMultiTransfer);
 }
 
 } // namespace numkit::codegen
