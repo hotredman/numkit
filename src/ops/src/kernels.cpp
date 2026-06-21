@@ -17,4 +17,21 @@ void matmulDouble(const double *a, const double *b, double *c,
     detail::matmulDoubleLoop(a, b, c, M, N, K);
 }
 
+void plusDouble(const double *a, const double *b, double *out, std::size_t n)
+{
+    detail::plusLoop(a, b, out, n);
+}
+void minusDouble(const double *a, const double *b, double *out, std::size_t n)
+{
+    detail::minusLoop(a, b, out, n);
+}
+void timesDouble(const double *a, const double *b, double *out, std::size_t n)
+{
+    detail::timesLoop(a, b, out, n);
+}
+void rdivideDouble(const double *a, const double *b, double *out, std::size_t n)
+{
+    detail::rdivideLoop(a, b, out, n);
+}
+
 } // namespace numkit::ops

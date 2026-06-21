@@ -1551,12 +1551,40 @@ void Emitter::emitAssign(const ASTNode &s)
                         line("if (" + guard
                              + ") throw std::out_of_range(\"numkit: array dimensions must match\");");
                     if (ai.isLocal) line(name + ".resize(" + bound + ");");
-                    elementCtx_               = "_nk_i";
-                    const std::string rhsExpr = emitExpr(rhs);  // whole arrays -> [_nk_i]
-                    elementCtx_.clear();
-                    open("for (std::size_t _nk_i = 0; _nk_i < " + bound + "; ++_nk_i)");
-                    line(ai.dataExpr + "[_nk_i] = " + rhsExpr + ";");
-                    close();
+                    // Opt-in ops-kernel tier: a SINGLE binary op over exactly
+                    // two whole DOUBLE arrays (out = a OP b) maps 1:1 to an ops
+                    // SIMD kernel (flat over numel; internal small-N gate). Any
+                    // scalar operand, compound/math expression, or complex dtype
+                    // has no matching kernel -> the inline fill loop (which is
+                    // also the self-contained default when ops kernels are off,
+                    // and already auto-vectorises cheap arithmetic — A3).
+                    const char *opsFn = nullptr;
+                    if (opsKernels_ && ai.dtype == ValueType::DOUBLE
+                        && rhs.type == NodeType::BINARY_OP && rhs.children.size() == 2
+                        && rhs.children[0]->type == NodeType::IDENTIFIER
+                        && isArrayVar(rhs.children[0]->strValue)
+                        && rhs.children[1]->type == NodeType::IDENTIFIER
+                        && isArrayVar(rhs.children[1]->strValue)) {
+                        const std::string &op = rhs.strValue;
+                        opsFn = op == "+"    ? "plusDouble"
+                                : op == "-"  ? "minusDouble"
+                                : op == ".*" ? "timesDouble"
+                                : op == "./" ? "rdivideDouble"
+                                             : nullptr;
+                    }
+                    if (opsFn) {
+                        line("numkit::ops::" + std::string(opsFn) + "("
+                             + arrays_.at(rhs.children[0]->strValue).dataExpr + ", "
+                             + arrays_.at(rhs.children[1]->strValue).dataExpr + ", " + ai.dataExpr
+                             + ", " + bound + ");");
+                    } else {
+                        elementCtx_               = "_nk_i";
+                        const std::string rhsExpr = emitExpr(rhs);  // whole arrays -> [_nk_i]
+                        elementCtx_.clear();
+                        open("for (std::size_t _nk_i = 0; _nk_i < " + bound + "; ++_nk_i)");
+                        line(ai.dataExpr + "[_nk_i] = " + rhsExpr + ";");
+                        close();
+                    }
                     // A 2-D dest keeps its true dims (res); a 1-D dest a row
                     // stand-in (arrays_ drives indexing/queries either way).
                     if (dst2D)

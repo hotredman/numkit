@@ -396,6 +396,37 @@ TEST(EmitterFn, MatrixProductComplexFallsToInline)
     EXPECT_TRUE(contains(s, "_nk_acc +="));     // inline loop
 }
 
+// With ops kernels enabled, a single binary op over two whole DOUBLE arrays
+// (z = x + y) lowers to the matching ops kernel. A scalar operand or compound
+// expression has no two-array kernel and stays inline (also the default).
+TEST(EmitterFn, ElementwiseBinaryViaOpsKernel)
+{
+    const auto             reg = stdReg();
+    const InferredType     row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+    const OpsKernelOptions ops{true};
+    {  // z = x + y -> ops::plusDouble
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function z = f(x, y)\n  z = x + y;\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"x", row}, {"y", row}}, reg, nullptr, {}, ops).source;
+        EXPECT_TRUE(contains(s, "numkit::ops::plusDouble(x, y, z, "));
+        EXPECT_FALSE(contains(s, "z[_nk_i] = (x[_nk_i] + y[_nk_i])"));  // NOT the inline loop
+    }
+    {  // z = x .* y -> ops::timesDouble
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function z = f(x, y)\n  z = x .* y;\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"x", row}, {"y", row}}, reg, nullptr, {}, ops).source;
+        EXPECT_TRUE(contains(s, "numkit::ops::timesDouble(x, y, z, "));
+    }
+    {  // z = x .* 2 (scalar operand) -> no two-array kernel -> inline
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function z = f(x)\n  z = x .* 2;\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"x", row}}, reg, nullptr, {}, ops).source;
+        EXPECT_FALSE(contains(s, "numkit::ops::"));
+        EXPECT_TRUE(contains(s, "z[_nk_i] = (x[_nk_i] * 2.0);"));
+    }
+}
+
 // Matrix * vector and vector * matrix -> a vector. A*x (2-D * col) is a column
 // vector; r*A (row * 2-D) is a row vector. Native double loop + shared-dim
 // guard, not bridged.

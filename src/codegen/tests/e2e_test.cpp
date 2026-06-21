@@ -2130,6 +2130,71 @@ TEST(CodegenOpsKernel, MatrixProductViaOpsKernelRunsCorrectly)
     for (int i = 0; i < 4; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
+// Element-wise binary op via the ops kernel: z = x + y -> numkit::ops::plusDouble,
+// linked through the same nk_ops_kernels shared facade. x=[1,2,3], y=[10,20,30]
+// -> z=[11,22,33].
+TEST(CodegenOpsKernel, ElementwiseBinaryViaOpsKernelRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function z = f(x, y)\n  z = x + y;\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    OpsKernelOptions      ops{true};
+    const InferredType    row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", row}, {"y", row}}, reg, nullptr, {}, ops);
+    ASSERT_NE(emitted.source.find("numkit::ops::plusDouble(x, y, z,"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_opsewise_e2e.exe").string();
+    const std::string outTxt = (base / "nk_opsewise_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[3] = {1, 2, 3}, y[3] = {10, 20, 30}, z[3];\n"
+        "  f(x, 3, y, 3, z, 3);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 3; ++i) std::fprintf(g, \"%.17g\\n\", z[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_OPS_INCLUDE_DIR};
+    opts.defines     = {"NK_OPS_USE_DLL"};
+    opts.linkLibs    = {NK_OPS_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_OPS_SHARED_DLL, base / "nk_ops_kernels.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_ops_kernels.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 3u);
+    const double exp[3] = {11, 22, 33};  // x + y
+    for (int i = 0; i < 3; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
 // CX4b: a bridged call returning a COMPLEX array — y = fft(x). The headline of
 // the complex pipeline: x (real) is boxed, fft runs in the runtime, and the
 // complex result is unboxed into a std::complex<double> out-param via

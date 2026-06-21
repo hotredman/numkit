@@ -39,4 +39,15 @@ namespace numkit::ops {
 NK_OPS_API void matmulDouble(const double *a, const double *b, double *c,
                              std::size_t M, std::size_t N, std::size_t K);
 
+// Element-wise binary ops over two equal-length DOUBLE buffers: out[i] = a[i] OP
+// b[i], n elements (flat — rank-agnostic). SIMD under NUMKIT_WITH_SIMD with an
+// internal small-N scalar gate (so no dynamic-dispatch crater at tiny n). NOTE:
+// a plain __restrict inline loop already auto-vectorises to match these for
+// cheap arithmetic (A3) — codegen uses them only as the opt-in ops-kernel tier;
+// the inline loop stays the self-contained default.
+NK_OPS_API void plusDouble   (const double *a, const double *b, double *out, std::size_t n);
+NK_OPS_API void minusDouble  (const double *a, const double *b, double *out, std::size_t n);
+NK_OPS_API void timesDouble  (const double *a, const double *b, double *out, std::size_t n);
+NK_OPS_API void rdivideDouble(const double *a, const double *b, double *out, std::size_t n);
+
 } // namespace numkit::ops
