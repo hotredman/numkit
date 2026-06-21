@@ -343,6 +343,24 @@ TEST(EmitterFn, MatrixTranspose)
     }
 }
 
+// Matrix product C = A * B (both 2-D): native column-major triple loop with a
+// shared-dim guard; not elementwise, not bridged.
+TEST(EmitterFn, MatrixProduct)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function C = f(A, B)\n  C = A * B;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const InferredType A = InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3));
+    const InferredType B = InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 2));
+    const std::string  s = emitFunction(*fn, {{"A", A}, {"B", B}}, reg).source;
+    EXPECT_TRUE(contains(s, "if (_nk_A_cols != _nk_B_rows)"));  // shared-dim guard
+    EXPECT_TRUE(contains(
+        s, "_nk_acc += A[_nk_i + _nk_l * _nk_A_rows] * B[_nk_l + _nk_j * _nk_B_rows];"));
+    EXPECT_TRUE(contains(s, "[_nk_i + _nk_j * _nk_C_rows] = _nk_acc;"));
+    EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));  // self-contained
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

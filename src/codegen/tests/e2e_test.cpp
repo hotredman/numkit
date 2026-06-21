@@ -1662,6 +1662,43 @@ TEST(CodegenE2E, MatrixTransposeRunsCorrectly)
     for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
+// Matrix product end-to-end: C = A * B. A (2x3) col-major {1,2,3,4,5,6} =
+// [[1,3,5],[2,4,6]]; B (3x2) col-major {1,2,3,4,5,6} = [[1,4],[2,5],[3,6]];
+// C = A*B (2x2) = [[22,49],[28,64]], col-major {22,28,49,64}. Validates the
+// column-major triple loop + the shared-dim guard.
+TEST(CodegenE2E, MatrixProductRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function C = f(A, B)\n  C = A * B;\nend\n",
+        {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))},
+         {"B", InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 2))}});
+    ASSERT_NE(emitted.source.find("_nk_acc += "), std::string::npos);
+    ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_matmul_e2e.exe").string();
+    const std::string outTxt = (base / "nk_matmul_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[6] = {1, 2, 3, 4, 5, 6};\n"  // 2x3 col-major
+        "  double B[6] = {1, 2, 3, 4, 5, 6};\n"  // 3x2 col-major
+        "  double C[4];\n"
+        "  " + emitted.name + "(A, 2, 3, B, 3, 2, C, 2, 2);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 4; ++i) std::fprintf(g, \"%.17g\\n\", C[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 4u);
+    const double exp[4] = {22, 28, 49, 64};  // (A*B) column-major
+    for (int i = 0; i < 4; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)
