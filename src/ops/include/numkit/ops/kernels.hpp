@@ -16,6 +16,7 @@
 // as the codegen lowering surface grows.
 #pragma once
 
+#include <complex>
 #include <cstddef>
 
 // Linkage. Default (static — compiled into numkit_ops, a test, or a
@@ -38,6 +39,13 @@ namespace numkit::ops {
 // columns of A under NUMKIT_WITH_SIMD, a portable loop otherwise.
 NK_OPS_API void matmulDouble(const double *a, const double *b, double *c,
                              std::size_t M, std::size_t N, std::size_t K);
+
+// Same, for complex matrices (column-major std::complex<double>). Portable
+// SAXPY loop (no SIMD-complex split); the single call is amortised over O(M·N·K)
+// work, so it carries no per-element overhead vs an inline loop.
+NK_OPS_API void matmulComplex(const std::complex<double> *a, const std::complex<double> *b,
+                              std::complex<double> *c,
+                              std::size_t M, std::size_t N, std::size_t K);
 
 // Element-wise binary ops over two equal-length DOUBLE buffers: out[i] = a[i] OP
 // b[i], n elements (flat — rank-agnostic). SIMD under NUMKIT_WITH_SIMD with an
