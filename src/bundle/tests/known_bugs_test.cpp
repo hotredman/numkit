@@ -374,3 +374,26 @@ TEST_F(BuiltinKnownBug, InterpnOneDimNaN)
     // MATLAB: interpn([1 2 3],[1 4 9],2.5) = 6.5 (linear).
     EXPECT_NEAR(evalScalar("interpn([1 2 3], [1 4 9], 2.5)"), 6.5, 1e-12);
 }
+
+// bugs/lang/zeros-size-args.md — array-creation size-arg validation (FIXED;
+// live guard). A negative dimension clamps to 0 (empty array); the shared dim
+// parser (zeros/ones/eye/…) was bad_alloc-ing on negative dims. MATLAB: 0x3.
+TEST_F(BuiltinKnownBug, ZerosNegativeDimEmpty)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("numel(zeros(-1, 3))"), 0.0);     // 0x3 empty
+    EXPECT_DOUBLE_EQ(evalScalar("size(zeros(-1, 3), 2)"), 3.0);   // ...the kept dim
+    EXPECT_DOUBLE_EQ(evalScalar("numel(zeros(2, 3, -1))"), 0.0);  // 2x3x0 empty
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(zeros(2, 3, -1))"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ones(-5))"), 0.0);         // ones shares the parser
+}
+
+// bugs/lang/zeros-size-args.md — an invalid size is an error, never UB:
+// a non-integer dim was silently truncated; a dim larger than size_t UB-cast
+// (yielded a garbage size — observed as a silent empty array). MATLAB errors
+// on both ("Size inputs must be integers." / too-large).
+TEST_F(BuiltinKnownBug, ZerosNonIntegerDimThrows)
+{
+    EXPECT_THROW(eval("zeros(2.5);"), std::exception);
+    EXPECT_THROW(eval("ones(2, 3.5);"), std::exception);
+    EXPECT_THROW(eval("zeros(1e300);"), std::exception);  // > size_t: error, not UB->empty
+}

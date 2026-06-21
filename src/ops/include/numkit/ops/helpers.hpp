@@ -523,6 +523,25 @@ Value unaryComplex(const Value &a, Op op, std::pmr::memory_resource *mr)
 // Returns {rows, cols, pages}. pages=0 means 2D.
 // ============================================================
 
+// Convert one (double) size argument to a dimension length, matching MATLAB:
+//   * a non-integer or non-finite size is an error ("Size inputs must be
+//     integers." — what MATLAB reports);
+//   * a negative size clamps to 0 (so zeros(-1, 3) is 0x3, an empty array);
+//   * a size larger than size_t can hold is an error (MATLAB errors too).
+// Every guard PRECEDES the cast, so a negative, non-finite, or out-of-range
+// value never reaches the float->unsigned conversion (which would be UB for
+// any of those).
+inline size_t toDim(double d)
+{
+    if (!std::isfinite(d) || d != std::floor(d))
+        throw std::runtime_error("Size inputs must be integers.");
+    if (d < 0.0)
+        return size_t{0};
+    if (d >= static_cast<double>(std::numeric_limits<size_t>::max()))
+        throw std::runtime_error("Requested array size is too large.");
+    return static_cast<size_t>(d);
+}
+
 inline DimsArg parseDimsArgs(Span<const Value> args)
 {
     if (args.empty())
@@ -532,25 +551,25 @@ inline DimsArg parseDimsArgs(Span<const Value> args)
     if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
         const double *d = args[0].doubleData();
         size_t n = args[0].numel();
-        size_t r = static_cast<size_t>(d[0]);
-        size_t c = static_cast<size_t>(d[1]);
-        size_t p = (n >= 3) ? static_cast<size_t>(d[2]) : 0;
+        size_t r = toDim(d[0]);
+        size_t c = toDim(d[1]);
+        size_t p = (n >= 3) ? toDim(d[2]) : 0;
         return {r, c, p};
     }
 
     // Single scalar: f(n) → n×n
     if (args.size() == 1) {
-        size_t n = static_cast<size_t>(args[0].toScalar());
+        size_t n = toDim(args[0].toScalar());
         return {n, n, 0};
     }
 
     // Two scalars: f(m, n)
-    size_t r = static_cast<size_t>(args[0].toScalar());
-    size_t c = static_cast<size_t>(args[1].toScalar());
+    size_t r = toDim(args[0].toScalar());
+    size_t c = toDim(args[1].toScalar());
 
     // Three scalars: f(m, n, p)
     if (args.size() >= 3) {
-        size_t p = static_cast<size_t>(args[2].toScalar());
+        size_t p = toDim(args[2].toScalar());
         return {r, c, p};
     }
 
@@ -581,19 +600,19 @@ inline ScratchVec<size_t> parseDimsArgsND(std::pmr::memory_resource *mr,
         const size_t n = args[0].numel();
         out.reserve(n);
         for (size_t i = 0; i < n; ++i)
-            out.push_back(static_cast<size_t>(d[i]));
+            out.push_back(toDim(d[i]));
         return out;
     }
     // Single scalar: f(n) → n×n
     if (args.size() == 1) {
-        const size_t n = static_cast<size_t>(args[0].toScalar());
+        const size_t n = toDim(args[0].toScalar());
         out.assign({n, n});
         return out;
     }
     // Multiple scalars: f(m, n, p, ...)
     out.reserve(args.size());
     for (const auto &a : args)
-        out.push_back(static_cast<size_t>(a.toScalar()));
+        out.push_back(toDim(a.toScalar()));
     return out;
 }
 

@@ -275,7 +275,7 @@ together.
 | `trimdata` | ✅ | Sig: Y = trimdata(X, M). Trim to 500. 1000 iters. |
 | `true` | ✅ | Sig: r = true(...). true()=1; true(2,2) is a 2x2 logical one matrix (numel 4); true(3) is 3x3 (numel 9), every element 1. Indexing goes through a temp var (t2(1)) because MATLAB rejects chained indexing on a call result -- true(2,2)(1) is 'Invalid array indexing' in MATLAB (numkit allows it). namespace=builtin. |
 | `vertcat` | ✅ | Sig: r = vertcat(...). Shape op. Spec-extension batch 2026-05-09. |
-| `zeros` | ✅ | Sig: r = zeros(...). Spec-extension batch 2026-05-09. |
+| `zeros` | ✅ | Sig: r = zeros(...). Spec-extension batch 2026-05-09. + negative-dim clamp-to-0 edge (r5=numel(zeros(-1,3))=0, r6=numel(zeros(2,3,-1))=0; bugs/lang/zeros-size-args.md). Non-integer dim errors on both engines (gtest, not a value fingerprint). |
 
 ### Control Flow
 
