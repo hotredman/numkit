@@ -740,20 +740,22 @@ cover it.
   (column-major index swap); ctranspose (`'`) conjugates a complex operand. The
   `transpose`/`ctranspose` transfer infers the shape (row↔col / dims swap /
   scalar; N-D → Dynamic). N-D and in-place (`y=y'`) refused.
-- **The `*` operator (whole), native.** Scalar scaling — `s*X` / `X*s` (either
-  operand scalar) and `X/s` (denominator scalar) lower as the elementwise fill
-  loop (`collectElementwise` accepts `*`/`/` only in their scalar forms). Matrix
-  product — `C = A*B` (both 2-D) is a column-major triple loop with a shared-dim
-  runtime guard; a complex product accumulates in `std::complex`. matrix*vector
-  (1-D operand) and in-place `C=C*B` refused.
+- **The `*` operator — COMPLETE for the common shapes, native.** Scalar scaling
+  (`s*X` / `X*s`, and `X/s` for `/`) → elementwise fill loop (`collectElementwise`
+  accepts `*`/`/` only in their scalar forms). `C = A*B` (both 2-D) → column-major
+  triple loop + shared-dim guard. `A*x` (matrix * col → col) and `r*A` (row *
+  matrix → row) → double loop + guard. `r*c` (row * col → scalar) → a reduction
+  into a scalar. All accumulate complex in `std::complex`. Deferred: outer
+  product (`col*row` → matrix), `scalar*MATRIX` (needs 2-D elementwise), in-place
+  `C=C*B`.
 
 **Still later (each its own milestone), simplest first:**
 - `size(scalar-var)` (the no-dim row + `[r,c]` two-output forms are done).
 - merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
   interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
   throws on negative, matching the OLD interpreter — self-consistent until then).
-- `matmul` matrix*VECTOR (`A*x`) + scalar*MATRIX (needs 2-D elementwise); the
-  matrix*matrix and vector-scaling forms are done.
+- 2-D/N-D native elementwise (unlocks `scalar*MATRIX`, `A.*B` for matrices, …);
+  outer product `col*row`.
 - interprocedural array RETURN (a compiled callee returning an array — out-param
   threading at the call site).
 - multi-output methods + partial-nargout + `~`-ignored outputs (v1: scalar
