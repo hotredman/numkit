@@ -561,9 +561,10 @@ public:
     Emitter(TypeEnv types, const TransferRegistry &reg,
             std::unordered_map<std::string, ArrayInfo> arrays, OptFacts opt,
             ProgramEmitCtx *ctx = nullptr, const ClassRegistry *classes = nullptr,
-            bool bridge = false)
+            bool bridge = false, bool opsKernels = false)
         : types_(std::move(types)), reg_(reg), arrays_(std::move(arrays)),
-          opt_(std::move(opt)), ctx_(ctx), classes_(classes), bridge_(bridge)
+          opt_(std::move(opt)), ctx_(ctx), classes_(classes), bridge_(bridge),
+          opsKernels_(opsKernels)
     {}
 
     // Hoist a local declaration at function entry (scalar or object).
@@ -669,6 +670,9 @@ private:
     // lower but whose result inference proves scalar is emitted as a C-ABI
     // call (nk_rt::bridge_scalar) instead of throwing.
     bool                                        bridge_ = false;
+    // Ops-kernel lowering: when true, a heavy array op with a matching ops
+    // kernel (matmul, …) emits a numkit::ops:: call instead of an inline loop.
+    bool                                        opsKernels_ = false;
 };
 
 // MATLAB unary-math name -> std:: name. Restricted to functions that BOTH
@@ -1298,10 +1302,12 @@ void Emitter::emitAssign(const ASTNode &s)
         }
         // Matrix product: C = A * B (both 2-D). C is m x n (A is m x k, B is
         // k x n), C(i,j) = sum_l A(i,l)*B(l,j), column-major. The shared dim
-        // must agree (runtime guard, MATLAB-like). Native triple loop; a
-        // complex product accumulates in std::complex. (Scalar*X / X*scalar are
-        // elementwise scaling, handled above; matrix*vector needs a 1-D operand
-        // and is not yet lowered.) Native + self-contained.
+        // must agree (runtime guard, MATLAB-like). With ops kernels enabled +
+        // a DOUBLE result, lower to numkit::ops::matmulDouble (the SIMD kernel
+        // ops owns); otherwise an inline triple loop (the deletable fallback +
+        // the complex path — no complex ops kernel yet). (Scalar*X / X*scalar
+        // are elementwise scaling, handled above; matrix*vector needs a 1-D
+        // operand and is not yet lowered.)
         if (isArrayVar(name) && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
             && arrays_.at(name).is2D && rhs.type == NodeType::BINARY_OP && rhs.strValue == "*"
             && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
@@ -1317,19 +1323,30 @@ void Emitter::emitAssign(const ASTNode &s)
                 unsupported("in-place matrix product (C = C * B)");
             line("if (" + A.colsVar + " != " + B.rowsVar
                  + ") throw std::out_of_range(\"numkit: inner matrix dimensions must agree\");");
-            if (dst.isLocal)
-                line(name + ".assign(" + dst.rowsVar + " * " + dst.colsVar + ", "
-                     + zeroLiteral(dst.dtype) + ");");
-            open("for (std::size_t _nk_j = 0; _nk_j < " + dst.colsVar + "; ++_nk_j)");
-            open("for (std::size_t _nk_i = 0; _nk_i < " + dst.rowsVar + "; ++_nk_i)");
-            line(cppScalarType(dst.dtype) + " _nk_acc = " + zeroLiteral(dst.dtype) + ";");
-            open("for (std::size_t _nk_l = 0; _nk_l < " + A.colsVar + "; ++_nk_l)");
-            line("_nk_acc += " + A.dataExpr + "[_nk_i + _nk_l * " + A.rowsVar + "] * "
-                 + B.dataExpr + "[_nk_l + _nk_j * " + B.rowsVar + "];");
-            close();
-            line(dst.dataExpr + "[_nk_i + _nk_j * " + dst.rowsVar + "] = _nk_acc;");
-            close();
-            close();
+            if (opsKernels_ && dst.dtype == ValueType::DOUBLE) {
+                // ops owns the kernel: M=dst.rows, N=dst.cols, K=A.cols (==B.rows,
+                // guarded). The kernel zeroes+accumulates; a LOCAL still needs
+                // its owned vector sized first.
+                if (dst.isLocal)
+                    line(name + ".resize(" + dst.rowsVar + " * " + dst.colsVar + ");");
+                line("numkit::ops::matmulDouble(" + A.dataExpr + ", " + B.dataExpr + ", "
+                     + dst.dataExpr + ", " + dst.rowsVar + ", " + dst.colsVar + ", " + A.colsVar
+                     + ");");
+            } else {
+                if (dst.isLocal)
+                    line(name + ".assign(" + dst.rowsVar + " * " + dst.colsVar + ", "
+                         + zeroLiteral(dst.dtype) + ");");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + dst.colsVar + "; ++_nk_j)");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + dst.rowsVar + "; ++_nk_i)");
+                line(cppScalarType(dst.dtype) + " _nk_acc = " + zeroLiteral(dst.dtype) + ";");
+                open("for (std::size_t _nk_l = 0; _nk_l < " + A.colsVar + "; ++_nk_l)");
+                line("_nk_acc += " + A.dataExpr + "[_nk_i + _nk_l * " + A.rowsVar + "] * "
+                     + B.dataExpr + "[_nk_l + _nk_j * " + B.rowsVar + "];");
+                close();
+                line(dst.dataExpr + "[_nk_i + _nk_j * " + dst.rowsVar + "] = _nk_acc;");
+                close();
+                close();
+            }
             types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
@@ -1972,7 +1989,8 @@ std::string bridgePrelude(const std::string &runtimeHeader)
 OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &params,
                       const TransferRegistry &reg, ProgramEmitCtx *ctx,
                       const std::string &cppName, const ClassRegistry *classes,
-                      const std::vector<ParamSpec> &extraSeed = {}, bool bridge = false)
+                      const std::vector<ParamSpec> &extraSeed = {}, bool bridge = false,
+                      bool opsKernels = false)
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
@@ -2234,7 +2252,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     for (const ASTNode *f : opt.promotedLoops) promotedVars.insert(f->strValue);
 
     // Emit hoisted local declarations (deterministic order) + the body.
-    Emitter em(entry, reg, arrays, opt, ctx, classes, bridge);
+    Emitter em(entry, reg, arrays, opt, ctx, classes, bridge, opsKernels);
     em.hoistArrayLocals();  // owned-vector array locals first
     std::map<std::string, InferredType> ordered(decls.begin(), decls.end());
     for (const auto &[name, t] : ordered) {
@@ -2270,12 +2288,13 @@ static std::string emitAllStructs(const ClassRegistry *classes)
 EmittedFunction emitFunction(const ASTNode &funcDef,
                              const std::vector<ParamSpec> &params,
                              const TransferRegistry &reg, const ClassRegistry *classes,
-                             const BridgeOptions &bridge)
+                             const BridgeOptions &bridge, const OpsKernelOptions &opsKernels)
 {
     const OneFn f = emitOneFunction(funcDef, params, reg, /*ctx=*/nullptr, /*cppName=*/"", classes,
-                                    /*extraSeed=*/{}, bridge.enabled);
+                                    /*extraSeed=*/{}, bridge.enabled, opsKernels.enabled);
     std::string source = kPrelude;
     source += "\n";
+    if (opsKernels.enabled) source += "#include <numkit/ops/kernels.hpp>\n";
     if (bridge.enabled) source += bridgePrelude(bridge.runtimeHeader);
     source += emitAllStructs(classes);
     source += f.definition;
@@ -2286,7 +2305,8 @@ EmittedFunction emitFunction(const ASTNode &funcDef,
 EmittedFunction emitProgram(const ASTNode &entryDef,
                             const std::vector<ParamSpec> &params,
                             const FunctionTable &table, const TransferRegistry &reg,
-                            const ClassRegistry *classes, const BridgeOptions &bridge)
+                            const ClassRegistry *classes, const BridgeOptions &bridge,
+                            const OpsKernelOptions &opsKernels)
 {
     ProgramEmitCtx ctx;
     ctx.funcs = &table;
@@ -2298,8 +2318,8 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
     ctx.seen.insert(entryMangled);
 
     std::vector<std::string> sigs, defs;
-    const OneFn ef =
-        emitOneFunction(entryDef, params, reg, &ctx, entryMangled, classes, {}, bridge.enabled);
+    const OneFn ef = emitOneFunction(entryDef, params, reg, &ctx, entryMangled, classes, {},
+                                     bridge.enabled, opsKernels.enabled);
     const std::string entrySig = ef.signature;
     sigs.push_back(ef.signature);
     defs.push_back(ef.definition);
@@ -2314,14 +2334,15 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
         ps.reserve(cs.argTypes.size());
         for (std::size_t i = 0; i < cs.argTypes.size(); ++i)
             ps.push_back({cs.def->paramNames[i], cs.argTypes[i]});
-        const OneFn cf =
-            emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes, cs.extraSeed, bridge.enabled);
+        const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes, cs.extraSeed,
+                                         bridge.enabled, opsKernels.enabled);
         sigs.push_back(cf.signature);
         defs.push_back(cf.definition);
     }
 
     std::string source = kPrelude;
     source += "\n";
+    if (opsKernels.enabled) source += "#include <numkit/ops/kernels.hpp>\n";
     if (bridge.enabled) source += bridgePrelude(bridge.runtimeHeader);
     source += emitAllStructs(classes);              // class structs precede all functions
     source += "\n";
