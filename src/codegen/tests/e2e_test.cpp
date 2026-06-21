@@ -1529,6 +1529,70 @@ TEST(CodegenE2E, ComplexElementwiseRunsCorrectly)
         EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
+// Vector transpose end-to-end. y = x.' on a real row vector copies the data
+// (orientation flips, observable via size). Self-contained (no bridge).
+TEST(CodegenE2E, RealVectorTransposeRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x)\n  y = x.';\nend\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("y[_nk_i] = x[_nk_i];"), std::string::npos);
+    ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_transp_e2e.exe").string();
+    const std::string outTxt = (base / "nk_transp_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[3] = {10, 20, 30}, y[3];\n"
+        "  " + emitted.name + "(x, 3, y, 3);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 3; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 3u);
+    const double exp[3] = {10, 20, 30};
+    for (int i = 0; i < 3; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
+// Conjugate transpose end-to-end: y = x' on a complex vector conjugates each
+// element (the ctranspose ' distinguishes itself from .' here). x = [1+2i, 3+4i]
+// -> y = [1-2i, 3-4i].
+TEST(CodegenE2E, ComplexConjTransposeRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x)\n  y = x';\nend\n",
+        {{"x", InferredType::concrete(ValueType::COMPLEX, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("y[_nk_i] = std::conj(x[_nk_i]);"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_conjtransp_e2e.exe").string();
+    const std::string outTxt = (base / "nk_conjtransp_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  std::complex<double> x[2] = { {1,2}, {3,4} }, y[2];\n"
+        "  " + emitted.name + "(x, 2, y, 2);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 2; ++i) std::fprintf(g, \"%.17g\\n%.17g\\n\", y[i].real(), y[i].imag());\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 4u);
+    const double exp[4] = {1, -2, 3, -4};  // conj([1+2i, 3+4i])
+    for (int i = 0; i < 4; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)

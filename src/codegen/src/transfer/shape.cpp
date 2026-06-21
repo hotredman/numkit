@@ -53,6 +53,29 @@ std::vector<InferredType> sizeMultiTransfer(const std::vector<ArgInfo> & /*args*
     return {InferredType::scalar(ValueType::DOUBLE), InferredType::scalar(ValueType::DOUBLE)};
 }
 
+// transpose (A.') / ctranspose (A'): swap the two dimensions. A row becomes a
+// column and vice-versa; a matrix's dims swap; a scalar is unchanged. The
+// dtype is preserved (ctranspose conjugates the VALUES of a complex operand
+// but the type stays complex; the conjugation is emitted, not inferred). N-D
+// transpose is undefined in MATLAB -> Dynamic (the sound fallback). Shared by
+// both operators since the shape rule is identical.
+InferredType transposeTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1) return InferredType::dynamic();
+    const InferredType &t = args[0].type;
+    if (!t.isConcrete()) return InferredType::dynamic();
+    switch (t.shape.kind) {
+    case ShapeKind::Scalar:    return InferredType::concrete(t.dtype, Shape::scalar());
+    case ShapeKind::RowVector: return InferredType::concrete(t.dtype, Shape::colVector());
+    case ShapeKind::ColVector: return InferredType::concrete(t.dtype, Shape::rowVector());
+    case ShapeKind::KnownDims:
+        return InferredType::concrete(t.dtype, Shape::dims(t.shape.cols, t.shape.rows));
+    case ShapeKind::NDims:
+    case ShapeKind::Unknown: return InferredType::dynamic();
+    }
+    return InferredType::dynamic();
+}
+
 } // namespace
 
 void registerShapeTransfers(TransferRegistry &reg)
@@ -62,6 +85,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("ndims", countTransfer);
     reg.add("size", sizeTransfer);
     reg.addMulti("size", sizeMultiTransfer);
+    reg.add("transpose", transposeTransfer);   // A.'
+    reg.add("ctranspose", transposeTransfer);  // A'
 }
 
 } // namespace numkit::codegen

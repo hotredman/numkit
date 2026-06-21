@@ -276,6 +276,50 @@ TEST(EmitterFn, ComplexMatrixAndND)
     }
 }
 
+// Transpose: y = x.' (transpose) / y = x' (ctranspose). A 1-D vector flips
+// orientation with an element-for-element copy; ctranspose conjugates a complex
+// operand. A scalar transpose is identity (ctranspose conjugates). 2-D/N-D
+// transpose is refused (an explicit lowering boundary).
+TEST(EmitterFn, VectorTranspose)
+{
+    const auto reg = stdReg();
+    {  // real .' : plain copy, no conjugation
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x.';\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;
+        EXPECT_TRUE(contains(s, "y[_nk_i] = x[_nk_i];"));
+    }
+    {  // complex ' : conjugating copy
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x';\nend\n", root);
+        const InferredType     cxrow =
+            InferredType::concrete(ValueType::COMPLEX, Shape::rowVector());
+        const std::string s = emitFunction(*fn, {{"x", cxrow}}, reg).source;
+        EXPECT_TRUE(contains(s, "y[_nk_i] = std::conj(x[_nk_i]);"));
+    }
+    {  // complex .' : NON-conjugating copy (plain transpose)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x.';\nend\n", root);
+        const InferredType     cxrow =
+            InferredType::concrete(ValueType::COMPLEX, Shape::rowVector());
+        const std::string s = emitFunction(*fn, {{"x", cxrow}}, reg).source;
+        EXPECT_TRUE(contains(s, "y[_nk_i] = x[_nk_i];"));
+    }
+    {  // scalar ctranspose of a complex scalar -> std::conj, no loop
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x';\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"x", InferredType::scalar(ValueType::COMPLEX)}}, reg).source;
+        EXPECT_TRUE(contains(s, "std::conj(x)"));
+    }
+    {  // 2-D transpose is refused (explicit boundary, not broken code)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn  = findFunc("function y = f(A)\n  y = A';\nend\n", root);
+        const InferredType     mat = InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3));
+        EXPECT_THROW(emitFunction(*fn, {{"A", mat}}, reg), std::runtime_error);
+    }
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

@@ -726,6 +726,19 @@ std::string Emitter::emitExpr(const ASTNode &e)
                              emitExpr(*e.children[1]));
     case NodeType::UNARY_OP:
         if (e.children.size() != 1) unsupported("unary op arity");
+        if (e.strValue == "'" || e.strValue == ".'") {
+            // Transpose in expression position is only the SCALAR case here
+            // (identity, except ctranspose ' conjugates a complex scalar). A
+            // whole-vector/matrix transpose is a statement-level producer
+            // (emitAssign); transposing a non-scalar sub-expression is refused.
+            const AbstractValue a = inferExpr(*e.children[0], types_, reg_, classes_);
+            if (!a.type.shape.isScalar())
+                unsupported("transpose of a non-scalar sub-expression");
+            const std::string inner = emitExpr(*e.children[0]);
+            return (e.strValue == "'" && a.type.dtype == ValueType::COMPLEX)
+                       ? "std::conj(" + inner + ")"
+                       : inner;
+        }
         return emitUnOpJoin(e.strValue, emitExpr(*e.children[0]));
     case NodeType::CALL: {
         if (e.children.empty()) unsupported("empty call");
@@ -1225,6 +1238,31 @@ void Emitter::emitAssign(const ASTNode &s)
                      + dimExpr(aai, k) + ");");
             types_.set(name, {InferredType::concrete(sai.dtype, Shape::rowVector()),
                               ConstVal::unknown()});
+            return;
+        }
+        // Vector transpose: y = x' (ctranspose) / y = x.' (transpose). A 1-D
+        // vector transpose flips orientation; the data is copied element for
+        // element, and ctranspose (') additionally conjugates a complex
+        // operand. The result orientation (col<->row) comes from the transfer.
+        // 2-D / N-D transpose is not yet lowered (refused, an explicit
+        // boundary). Native + self-contained.
+        if (isArrayVar(name) && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
+            && rhs.type == NodeType::UNARY_OP && (rhs.strValue == "'" || rhs.strValue == ".'")
+            && rhs.children.size() == 1 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue)) {
+            const ArrayInfo &dst = arrays_.at(name);
+            const ArrayInfo &src = arrays_.at(rhs.children[0]->strValue);
+            if (dst.is2D || dst.isND || src.is2D || src.isND)
+                unsupported("2-D / N-D transpose not yet lowered");
+            if (name == rhs.children[0]->strValue)
+                unsupported("in-place vector transpose (y = y')");
+            const bool conj = rhs.strValue == "'" && src.dtype == ValueType::COMPLEX;
+            if (dst.isLocal) line(name + ".resize(" + src.lenVar + ");");
+            open("for (std::size_t _nk_i = 0; _nk_i < " + src.lenVar + "; ++_nk_i)");
+            const std::string rd = src.dataExpr + "[_nk_i]";
+            line(dst.dataExpr + "[_nk_i] = " + (conj ? ("std::conj(" + rd + ")") : rd) + ";");
+            close();
+            types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
