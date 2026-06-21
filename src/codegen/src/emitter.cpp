@@ -1323,15 +1323,20 @@ void Emitter::emitAssign(const ASTNode &s)
                 unsupported("in-place matrix product (C = C * B)");
             line("if (" + A.colsVar + " != " + B.rowsVar
                  + ") throw std::out_of_range(\"numkit: inner matrix dimensions must agree\");");
-            if (opsKernels_ && dst.dtype == ValueType::DOUBLE) {
+            if (opsKernels_
+                && (dst.dtype == ValueType::DOUBLE || dst.dtype == ValueType::COMPLEX)) {
                 // ops owns the kernel: M=dst.rows, N=dst.cols, K=A.cols (==B.rows,
                 // guarded). The kernel zeroes+accumulates; a LOCAL still needs
-                // its owned vector sized first.
+                // its owned vector sized first. DOUBLE -> SIMD matmulDouble;
+                // COMPLEX -> portable matmulComplex (the call is amortised over
+                // O(M·N·K), so no per-element overhead vs inline).
+                const char *fn =
+                    dst.dtype == ValueType::DOUBLE ? "matmulDouble" : "matmulComplex";
                 if (dst.isLocal)
                     line(name + ".resize(" + dst.rowsVar + " * " + dst.colsVar + ");");
-                line("numkit::ops::matmulDouble(" + A.dataExpr + ", " + B.dataExpr + ", "
-                     + dst.dataExpr + ", " + dst.rowsVar + ", " + dst.colsVar + ", " + A.colsVar
-                     + ");");
+                line("numkit::ops::" + std::string(fn) + "(" + A.dataExpr + ", " + B.dataExpr
+                     + ", " + dst.dataExpr + ", " + dst.rowsVar + ", " + dst.colsVar + ", "
+                     + A.colsVar + ");");
             } else {
                 if (dst.isLocal)
                     line(name + ".assign(" + dst.rowsVar + " * " + dst.colsVar + ", "

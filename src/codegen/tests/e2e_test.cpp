@@ -2195,6 +2195,73 @@ TEST(CodegenOpsKernel, ElementwiseBinaryViaOpsKernelRunsCorrectly)
     for (int i = 0; i < 3; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
 }
 
+// Complex matrix product via the ops kernel: C = A*B (complex) ->
+// numkit::ops::matmulComplex. A=B=diag(i) (2x2) -> C=diag(i*i)=diag(-1),
+// exercising complex multiply across the kernel + shared facade.
+TEST(CodegenOpsKernel, ComplexMatrixProductViaOpsKernelRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function C = f(A, B)\n  C = A * B;\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    OpsKernelOptions      ops{true};
+    const InferredType    mat = InferredType::concrete(ValueType::COMPLEX, Shape::dims(2, 2));
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"A", mat}, {"B", mat}}, reg, nullptr, {}, ops);
+    ASSERT_NE(emitted.source.find("numkit::ops::matmulComplex("), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_opscxmm_e2e.exe").string();
+    const std::string outTxt = (base / "nk_opscxmm_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  std::complex<double> A[4] = { {0,1}, {0,0}, {0,0}, {0,1} };\n"  // col-major diag(i)
+        "  std::complex<double> B[4] = { {0,1}, {0,0}, {0,0}, {0,1} };\n"
+        "  std::complex<double> C[4];\n"
+        "  f(A, 2, 2, B, 2, 2, C, 2, 2);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 4; ++i) std::fprintf(g, \"%.17g\\n%.17g\\n\", C[i].real(), C[i].imag());\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_OPS_INCLUDE_DIR};
+    opts.defines     = {"NK_OPS_USE_DLL"};
+    opts.linkLibs    = {NK_OPS_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_OPS_SHARED_DLL, base / "nk_ops_kernels.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_ops_kernels.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 8u);                            // re,im per element
+    const double exp[8] = {-1, 0, 0, 0, 0, 0, -1, 0};  // diag(-1) col-major
+    for (int i = 0; i < 8; ++i) EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
 // CX4b: a bridged call returning a COMPLEX array — y = fft(x). The headline of
 // the complex pipeline: x (real) is boxed, fft runs in the runtime, and the
 // complex result is unboxed into a std::complex<double> out-param via

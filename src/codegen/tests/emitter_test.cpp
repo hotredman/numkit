@@ -381,19 +381,27 @@ TEST(EmitterFn, MatrixProductViaOpsKernel)
     EXPECT_FALSE(contains(s, "_nk_acc +="));                    // NOT the inline loop
 }
 
-// A COMPLEX matrix product has no ops kernel yet, so even with ops kernels
-// enabled it falls to the inline loop (the deletable fallback covers complex).
-TEST(EmitterFn, MatrixProductComplexFallsToInline)
+// A COMPLEX matrix product uses ops::matmulComplex when ops kernels are enabled
+// (not the double kernel), and the inline loop when they are off (default).
+TEST(EmitterFn, MatrixProductComplexViaOpsKernel)
 {
     const auto             reg = stdReg();
     numkit::ASTNodePtr     root;
     const numkit::ASTNode *fn = findFunc("function C = f(A, B)\n  C = A * B;\nend\n", root);
     const InferredType     A = InferredType::concrete(ValueType::COMPLEX, Shape::dims(2, 3));
     const InferredType     B = InferredType::concrete(ValueType::COMPLEX, Shape::dims(3, 2));
-    const OpsKernelOptions ops{true};
-    const std::string      s = emitFunction(*fn, {{"A", A}, {"B", B}}, reg, nullptr, {}, ops).source;
-    EXPECT_FALSE(contains(s, "matmulDouble"));  // no double kernel for complex
-    EXPECT_TRUE(contains(s, "_nk_acc +="));     // inline loop
+    {  // ops kernels on -> matmulComplex (not matmulDouble, not inline)
+        const OpsKernelOptions ops{true};
+        const std::string s = emitFunction(*fn, {{"A", A}, {"B", B}}, reg, nullptr, {}, ops).source;
+        EXPECT_TRUE(contains(s, "numkit::ops::matmulComplex("));
+        EXPECT_FALSE(contains(s, "matmulDouble"));
+        EXPECT_FALSE(contains(s, "_nk_acc +="));
+    }
+    {  // default (ops off) -> inline complex loop
+        const std::string s = emitFunction(*fn, {{"A", A}, {"B", B}}, reg).source;
+        EXPECT_FALSE(contains(s, "numkit::ops::"));
+        EXPECT_TRUE(contains(s, "_nk_acc +="));
+    }
 }
 
 // With ops kernels enabled, a single binary op over two whole DOUBLE arrays
