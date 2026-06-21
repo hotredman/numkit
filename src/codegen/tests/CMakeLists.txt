@@ -66,10 +66,34 @@ set(NK_RT_IMPORT_LIB
 set(NK_RT_SHARED_DLL
     "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}nk_codegen_rt${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
+# ---- nk_ops_kernels: the public ops kernel facade as a shared lib -----------
+# Same pattern as nk_codegen_rt, for the OTHER lowering tier: a codegen artifact
+# that uses an ops kernel (matmul, …) links THIS one import lib + copies the DLL
+# beside it, instead of statically enumerating numkit_ops + its transitive deps
+# (numkit_value, Highway). The DLL compiles the facade (kernels.cpp) with
+# dllexport (NK_OPS_BUILDING_DLL) and embeds numkit_ops; CMake resolves the deps.
+add_library(nk_ops_kernels SHARED ${CMAKE_CURRENT_SOURCE_DIR}/../../ops/src/kernels.cpp)
+target_include_directories(nk_ops_kernels PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../ops/include)
+target_compile_definitions(nk_ops_kernels PRIVATE NK_OPS_BUILDING_DLL)
+target_link_libraries(nk_ops_kernels PRIVATE numkit_ops)
+set_target_properties(nk_ops_kernels PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY         ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_CURRENT_BINARY_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}
+    ARCHIVE_OUTPUT_DIRECTORY         ${CMAKE_CURRENT_BINARY_DIR}
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_CURRENT_BINARY_DIR}
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR})
+get_filename_component(NK_OPS_INCLUDE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../ops/include" ABSOLUTE)
+set(NK_OPS_IMPORT_LIB
+    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_IMPORT_LIBRARY_PREFIX}nk_ops_kernels${CMAKE_IMPORT_LIBRARY_SUFFIX}")
+set(NK_OPS_SHARED_DLL
+    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}nk_ops_kernels${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/nk_codegen_test_paths.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/nk_codegen_test_paths.h @ONLY)
 target_include_directories(numkit_gtest PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-# Ensure both fixtures exist before the test binary runs.
-add_dependencies(numkit_gtest nk_sample_plugin nk_codegen_rt_shared)
+# Ensure all fixtures exist before the test binary runs.
+add_dependencies(numkit_gtest nk_sample_plugin nk_codegen_rt_shared nk_ops_kernels)

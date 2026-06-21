@@ -18,12 +18,25 @@
 
 #include <cstddef>
 
+// Linkage. Default (static — compiled into numkit_ops, a test, or a
+// self-contained artifact): plain. Building the nk_ops_kernels shared lib:
+// dllexport. A consumer linking that shared lib (a codegen artifact that uses
+// ops kernels): define NK_OPS_USE_DLL -> dllimport. No effect off Windows.
+// Mirrors NK_RT_API (nk_codegen_rt.h).
+#if defined(_WIN32) && defined(NK_OPS_BUILDING_DLL)
+#  define NK_OPS_API __declspec(dllexport)
+#elif defined(_WIN32) && defined(NK_OPS_USE_DLL)
+#  define NK_OPS_API __declspec(dllimport)
+#else
+#  define NK_OPS_API
+#endif
+
 namespace numkit::ops {
 
 // C(M×N) = A(M×K) · B(K×N), all column-major (a[k*M+i], b[j*K+k], c[j*M+i]).
 // C is caller-allocated; the kernel zeroes then accumulates. SIMD MulAdd down
 // columns of A under NUMKIT_WITH_SIMD, a portable loop otherwise.
-void matmulDouble(const double *a, const double *b, double *c,
-                  std::size_t M, std::size_t N, std::size_t K);
+NK_OPS_API void matmulDouble(const double *a, const double *b, double *c,
+                             std::size_t M, std::size_t N, std::size_t K);
 
 } // namespace numkit::ops
