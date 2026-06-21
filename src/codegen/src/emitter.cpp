@@ -175,6 +175,10 @@ struct ArrayInfo {
                                    // param/output buffer, `<name>.data()` for a local
     bool        isND     = false;  // a rank-N (N>=3) array (column-major flat storage)
     std::vector<std::string> ndDims;  // when isND: per-dim size EXPRESSIONS (rank = size())
+    bool        ndRuntimeLocal = false;  // an N-D LOCAL whose dims are runtime: ndDims are
+                                         // `<name>_dN` size_t vars hoisted at fn entry and
+                                         // set from the zeros/ones args at the assignment
+                                         // (vs a const-dim local, whose ndDims are literals)
 };
 
 // A 2-D matrix type (KnownDims with both dims > 1): indexed A(i,j),
@@ -537,6 +541,16 @@ public:
             if (ai.isLocal) ordered.emplace(name, ai.dtype);
         for (const auto &[name, dtype] : ordered)
             line("std::vector<" + cppScalarType(dtype) + "> " + name + ";");
+        // Runtime-dim N-D locals also need their size_t dim companions declared
+        // (set at the zeros/ones assignment; read by indexN / size / numel).
+        for (const auto &[name, dtype] : ordered) {
+            const ArrayInfo &ai = arrays_.at(name);
+            if (!ai.ndRuntimeLocal) continue;
+            std::string decl = "std::size_t ";
+            for (std::size_t d = 0; d < ai.ndDims.size(); ++d)
+                decl += (d ? ", " : "") + ai.ndDims[d] + " = 0";
+            line(decl + ";");
+        }
     }
 
     void emitStmt(const ASTNode &s);
@@ -1081,7 +1095,17 @@ void Emitter::emitAssign(const ASTNode &s)
             const std::string fill = rhs.children[0]->strValue == "zeros"
                                          ? zeroLiteral(ai.dtype)
                                          : "1";
-            if (ai.isLocal) {
+            if (ai.ndRuntimeLocal) {
+                // Capture each runtime dim into its companion var, then size the
+                // owned vector to their product (column-major flat storage).
+                std::string prod;
+                for (std::size_t d = 0; d < ai.ndDims.size(); ++d) {
+                    line(ai.ndDims[d] + " = static_cast<std::size_t>("
+                         + emitExpr(*rhs.children[d + 1]) + ");");
+                    prod += (d ? " * " : "") + ai.ndDims[d];
+                }
+                line(name + ".assign(" + prod + ", " + fill + ");");
+            } else if (ai.isLocal) {
                 std::string numel;  // product of the size args (zeros(1,n) -> 1*n)
                 for (std::size_t i = 1; i < rhs.children.size(); ++i)
                     numel += (i > 1 ? " * " : "")
@@ -1711,21 +1735,27 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             arrays[name] = ai;
         } else if (t.isConcrete() && t.shape.isNDims()) {
             // A rank-N (N>=3) local — checked BEFORE isBufferArrayType (which
-            // also matches an N-D shape). Flat owned vector + compile-time
-            // dims. (Only fully-known dims for now; a runtime dim needs vars.)
+            // also matches an N-D shape). Flat owned vector, column-major.
+            ArrayInfo ai;
+            ai.dtype    = t.dtype;
+            ai.isLocal  = true;
+            ai.isND     = true;
+            ai.dataExpr = name + ".data()";
+            ai.lenVar   = name + ".size()";
             bool allKnown = true;
             for (std::size_t d : t.shape.nd)
                 if (d == 0) { allKnown = false; break; }
             if (allKnown) {
-                ArrayInfo ai;
-                ai.dtype    = t.dtype;
-                ai.isLocal  = true;
-                ai.isND     = true;
-                ai.dataExpr = name + ".data()";
-                ai.lenVar   = name + ".size()";
+                // Compile-time dims -> literals baked into indexN / queries.
                 for (std::size_t d : t.shape.nd) ai.ndDims.push_back(std::to_string(d));
-                arrays[name] = ai;
+            } else {
+                // A runtime dim -> per-dim `<name>_dN` size_t vars, hoisted at
+                // fn entry and set from the zeros/ones args at the assignment.
+                ai.ndRuntimeLocal = true;
+                for (std::size_t d = 0; d < t.shape.nd.size(); ++d)
+                    ai.ndDims.push_back(name + "_d" + std::to_string(d));
             }
+            arrays[name] = ai;
         } else if (isBufferArrayType(t)) {
             ArrayInfo ai;
             ai.dtype     = t.dtype;

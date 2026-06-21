@@ -1134,6 +1134,80 @@ TEST(CodegenE2E, NDOutputRunsCorrectly)
         EXPECT_DOUBLE_EQ(got[i], 0.0) << "zeros() must clear the interior at i=" << i;
 }
 
+// RUNTIME-dim N-D LOCAL end-to-end: A = zeros(m,n,p) with the dims passed in as
+// args. f(2,3,4): A is 2x3x4 (NOT a cube — proves per-axis strides), A(1,1,1)=7
+// (offset 0), A(2,2,2)=9 (column-major offset 1 + 2*1 + (2*3)*1 = 9). Then
+// s = 7 + 9 + size(A,2)=3 + numel=24 + ndims=3 = 46. Every dim is a runtime
+// value captured at the zeros() assignment.
+TEST(CodegenE2E, NDRuntimeLocalRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(m, n, p)\n  A = zeros(m, n, p);\n  A(1,1,1) = 7;\n  A(2,2,2) = 9;\n"
+        "  s = A(1,1,1) + A(2,2,2) + size(A,2) + numel(A) + ndims(A);\nend\n",
+        {{"m", InferredType::scalar(ValueType::DOUBLE)},
+         {"n", InferredType::scalar(ValueType::DOUBLE)},
+         {"p", InferredType::scalar(ValueType::DOUBLE)}});
+    ASSERT_NE(emitted.source.find("A.assign(A_d0 * A_d1 * A_d2"), std::string::npos);  // runtime size
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ndrt_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ndrt_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "(2.0, 3.0, 4.0);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 7.0 + 9.0 + 3.0 + 24.0 + 3.0);  // = 46
+}
+
+// RUNTIME-dim N-D OUTPUT: the same `zeros(>=3 runtime)->NDims` inference that
+// enables runtime-dim locals composes with N6 (N-D outputs). `y = zeros(m,n,2)`
+// returns an m x n x 2 array; under the RawBuffer caller-pre-sizes contract the
+// caller allocates m*n*2 and passes the matching companions. f(2,3): y is
+// 2x3x2 (12 elems); y(1,1,1)=5 (offset 0), y(2,3,2)=8 (offset 1+2*2+6*1=11).
+TEST(CodegenE2E, NDRuntimeOutputRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(m, n)\n  y = zeros(m, n, 2);\n  y(1,1,1) = 5;\n  y(m,n,2) = 8;\nend\n",
+        {{"m", InferredType::scalar(ValueType::DOUBLE)},
+         {"n", InferredType::scalar(ValueType::DOUBLE)}});
+    ASSERT_NE(emitted.source.find("double* y, std::size_t y_d0, std::size_t y_d1, std::size_t y_d2"),
+              std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ndrtout_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ndrtout_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double y[12];\n"
+        "  for (int i = 0; i < 12; ++i) y[i] = -1.0;  // sentinel; zeros() must clear\n"
+        "  " + emitted.name + "(2.0, 3.0, y, 2, 3, 2);\n"  // caller pre-sizes: m=2,n=3,2
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 12; ++i) std::fprintf(g, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 12u);
+    EXPECT_DOUBLE_EQ(got[0], 5.0);   // y(1,1,1), offset 0
+    EXPECT_DOUBLE_EQ(got[11], 8.0);  // y(2,3,2), column-major offset 11
+    for (int i = 1; i < 11; ++i)
+        EXPECT_DOUBLE_EQ(got[i], 0.0) << "zeros() must clear the interior at i=" << i;
+}
+
 // Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
 // loop — SELF-CONTAINED (no runtime DLL, plain stdlib exe) — and matches
 // std::sin. The win over bridging: no boxing, no runtime dependency.

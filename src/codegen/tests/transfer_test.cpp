@@ -91,10 +91,28 @@ TEST(Transfer, ZerosShapes)
 
     EXPECT_TRUE(reg.apply("zeros", {}).shape.isScalar());
 
-    // A runtime dimension drops the shape to Unknown (dtype kept).
+    // A runtime dimension drops a 1-D / 2-D shape to Unknown (dtype kept).
     const auto rt = reg.apply("zeros", {ArgInfo::of(InferredType::scalar(ValueType::DOUBLE))});
     EXPECT_EQ(rt.dtype, ValueType::DOUBLE);
     EXPECT_EQ(rt.shape.kind, ShapeKind::Unknown);
+
+    // >=3 const args -> a fully-known NDims (rank = nargs).
+    const auto nk = reg.apply("zeros", {ArgInfo::scalarConst(ValueType::DOUBLE, 2.0),
+                                        ArgInfo::scalarConst(ValueType::DOUBLE, 3.0),
+                                        ArgInfo::scalarConst(ValueType::DOUBLE, 4.0)});
+    EXPECT_TRUE(nk.shape.isNDims());
+    EXPECT_EQ(nk.shape.ndRank(), 3u);
+    EXPECT_EQ(nk.shape.nd[2], 4u);
+
+    // >=3 args stay RANKED even with runtime dims: NDims of rank=nargs, each
+    // runtime dim recorded as 0. This is what lets the emitter materialise
+    // runtime dim vars (a runtime-dim N-D local) instead of giving up.
+    const auto nrt = reg.apply("zeros", {ArgInfo::of(InferredType::scalar(ValueType::DOUBLE)),
+                                         ArgInfo::of(InferredType::scalar(ValueType::DOUBLE)),
+                                         ArgInfo::of(InferredType::scalar(ValueType::DOUBLE))});
+    EXPECT_TRUE(nrt.shape.isNDims());
+    EXPECT_EQ(nrt.shape.ndRank(), 3u);
+    EXPECT_EQ(nrt.shape.nd[0], 0u);  // dims unknown
 }
 
 // ones shares the size-constructor rule.
