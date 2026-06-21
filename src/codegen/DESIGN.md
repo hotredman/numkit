@@ -740,14 +740,20 @@ cover it.
   (column-major index swap); ctranspose (`'`) conjugates a complex operand. The
   `transpose`/`ctranspose` transfer infers the shape (row↔col / dims swap /
   scalar; N-D → Dynamic). N-D and in-place (`y=y'`) refused.
+- **The `*` operator (whole), native.** Scalar scaling — `s*X` / `X*s` (either
+  operand scalar) and `X/s` (denominator scalar) lower as the elementwise fill
+  loop (`collectElementwise` accepts `*`/`/` only in their scalar forms). Matrix
+  product — `C = A*B` (both 2-D) is a column-major triple loop with a shared-dim
+  runtime guard; a complex product accumulates in `std::complex`. matrix*vector
+  (1-D operand) and in-place `C=C*B` refused.
 
 **Still later (each its own milestone), simplest first:**
 - `size(scalar-var)` (the no-dim row + `[r,c]` two-output forms are done).
 - merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
   interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
   throws on negative, matching the OLD interpreter — self-consistent until then).
-- `matmul` (`A*B`) — 2-D-producing; `ops::matmulDoubleLoop` exists, or a native
-  triple loop (transpose is now done).
+- `matmul` matrix*VECTOR (`A*x`) + scalar*MATRIX (needs 2-D elementwise); the
+  matrix*matrix and vector-scaling forms are done.
 - interprocedural array RETURN (a compiled callee returning an array — out-param
   threading at the call site).
 - multi-output methods + partial-nargout + `~`-ignored outputs (v1: scalar
