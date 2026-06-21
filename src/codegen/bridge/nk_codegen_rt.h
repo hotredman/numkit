@@ -49,6 +49,10 @@ typedef struct nk_error {
 /* Box an unboxed value into a handle (boundary only — never a hot loop). */
 NK_RT_API nk_val nk_box_scalar(double v);
 NK_RT_API nk_val nk_box_array(const double *p, size_t len);  /* copies the data in */
+/* Complex array: `p` is interleaved re,im — `len` complex elements = 2*len
+ * doubles, matching std::complex<double>[len] (codegen passes a
+ * reinterpret_cast<const double*> of its std::complex buffer). */
+NK_RT_API nk_val nk_box_complex_array(const double *p, size_t len);
 
 /* Evaluate numkit source `code` in the runtime's persistent workspace and
  * return the last expression's value (owned; an empty handle for pure
@@ -68,6 +72,10 @@ NK_RT_API nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
 /* Unbox. */
 NK_RT_API double nk_unbox_scalar(nk_val v);
 NK_RT_API void   nk_unbox_array(nk_val v, double *out, size_t len);  /* copies min(len,numel) */
+/* Complex unbox: `out` is interleaved re,im (len complex = 2*len doubles).
+ * Handles a REAL result too (imag = 0) — numkit may narrow a zero-imag complex
+ * result back to a real array. */
+NK_RT_API void   nk_unbox_complex_array(nk_val v, double *out, size_t len);
 NK_RT_API size_t nk_numel(nk_val v);
 
 /* Free an owned handle. */
