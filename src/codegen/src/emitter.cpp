@@ -1124,11 +1124,23 @@ bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays
         return true;  // a scalar var, or a whole array (recorded)
     case NodeType::BINARY_OP: {
         // Operator SYMBOLS (the AST stores the symbol; inference maps it to the
-        // transfer name). Elementwise only: + - .* ./ .\ .^  — NOT the matrix
-        // forms * / \ ^ (those aren't elementwise except for scalars).
+        // transfer name). Unconditionally elementwise: + - .* ./ .\ .^. The
+        // matrix forms * / are elementwise ONLY in their scalar-scaling cases —
+        // mtimes (*) when EITHER operand is scalar (s*X == s.*X), mrdivide (/)
+        // when the DENOMINATOR is scalar (X/s == X./s); s/X is a matrix divide.
+        if (e.children.size() != 2) return false;
         static const std::set<std::string> kElementwise = {"+", "-", ".*", "./", ".\\", ".^"};
-        return kElementwise.count(e.strValue) != 0 && e.children.size() == 2
-               && collectElementwise(*e.children[0], arrays)
+        auto isScalarArg = [&](const ASTNode &n) {
+            return inferExpr(n, types_, reg_, classes_).type.shape.isScalar();
+        };
+        if (e.strValue == "*") {
+            if (!isScalarArg(*e.children[0]) && !isScalarArg(*e.children[1])) return false;
+        } else if (e.strValue == "/") {
+            if (!isScalarArg(*e.children[1])) return false;
+        } else if (kElementwise.count(e.strValue) == 0) {
+            return false;
+        }
+        return collectElementwise(*e.children[0], arrays)
                && collectElementwise(*e.children[1], arrays);
     }
     case NodeType::UNARY_OP:
