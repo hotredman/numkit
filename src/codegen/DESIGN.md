@@ -263,11 +263,13 @@ array views; 2-D array box/unbox.
    RUNS, and -1/0/1 match the interpreter. The opaque handle design keeps all
    Value alloc/free inside the DLL (no cross-module heap / CRT issue).
 
-Array layer ✅ (partial): a bridged call whose result inference proves an
-array, assigned to the output, fills the out-param via `nk_rt::bridge_into`
-(box scalar/array-var args -> nk_call -> unbox into the caller buffer). Demo:
-`y = sin(x)`, e2e CodegenBridge.BridgedArrayResult. Remaining: array LOCALS
-(owned-buffer storage) + Dynamic locals.
+Array layer ✅: a bridged call whose result inference proves an array, assigned
+to the output, fills the out-param via `nk_rt::bridge_into`; a bridged array
+LOCAL resizes an owned `std::vector` via `nk_rt::bridge_to_vec`; elementwise
+array arithmetic (`y = x + w.*2`) lowers to a fill loop over owned/out-param
+storage (box scalar/array-var args -> nk_call -> unbox). Demos: `y = sin(x)`
+(e2e CodegenBridge.BridgedArrayResult / BridgedArrayLocal). **Remaining:
+Dynamic locals (full Value-arith dispatch on operands of unknown type).**
 
 ## 6b. Embedding C-ABI + plugin system
 
@@ -674,17 +676,41 @@ table.
   emission (emitClassStruct, where emitScalarExpr lives). Moving it into
   buildClassInfo would invert layering (classinfo -> emitter); not worth it.
 
-**More DONE:** 2-D matrix indexing `A(i,j)` READ (column-major,
-`const T* A, size_t A_rows, size_t A_cols`; numel/length 2-D; reuses the
-Subscript2D plan). 2-D WRITE is refused (needs a mutable 2-D output/local).
+**More DONE:**
+- 2-D matrix `A(i,j)` READ + local WRITE (column-major, `const T* A, size_t
+  A_rows, size_t A_cols`; `index2`/`index2_set`; a 2-D local is an owned vector
+  with compile-time dims).
+- **Full N-D (rank ≥ 3), bricks N1-N7:** the `NDims` shape lattice; flat
+  column-major owned storage + `indexN`/`indexN_set`; `size`/`ndims`/`numel`;
+  N-D PARAMS (ptr + one `size_t` companion per dim, read-only) and N-D OUTPUTS
+  (caller-allocated out-param + companions); const AND runtime dims
+  (`zeros(m,n,p)` with variables → `_nk_<name>_dN` size_t dim vars).
+- **`Value`-ABI bridge (§6):** compiled code calls uncompiled builtins/libs
+  (sort/fft/…) and passes scalars + 1-D arrays as `Value` via `nk_codegen_rt`
+  (scalar + array results, owned-vector locals, e2e + tiered-as-plugin). The
+  bridged artifact links one import lib; the non-bridged path stays stdlib-only.
+- All synthesised names UB-free + conforming (`_nk_` block-scope prefix, `__`-
+  free letter-led mangle; user `__`-names refused); dim/index conversions guard
+  against the negative/out-of-range `double`→`size_t` UB.
 
-**Still later (each its own milestone):** the `Value`-ABI bridge (§6) so
-compiled code calls uncompiled builtins/libs and passes arrays/objects as
-`Value` — the biggest unlock (real programs calling fft/sort/…), but it
-abandons self-containedness (links libnumkit) and needs a build/link design
-pass; mutable 2-D (output/local matrices + `A(i,j)=rhs` + index2_set); 2-D
-producing ops (`zeros(m,n)`, transpose, matmul) — needs a richer shape;
-array RESULTS from a call (out-param threading at the call site);
-multi-output methods + partial-nargout + `~`-ignored outputs; closed-world
-polymorphism via class-id type-switch (§7a); `ControlBlock` for `delete`/
-`isvalid`.
+**Still later (each its own milestone), simplest first:**
+- `size(A)` no-dim (1×ndims row) + 1-D `size(vec,dim)` orientation (row vs col).
+- **2-D OUTPUT** (KnownDims rank-2 out-param — the zeros-path guard
+  `(isLocal||!is2D)` currently excludes it; mirrors the N-D-output brick).
+- merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
+  interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
+  throws on negative, matching the OLD interpreter — self-consistent until then).
+- 2-D-producing ops beyond `zeros`: transpose, matmul (need shape + emission).
+- interprocedural array RETURN (a compiled callee returning an array — out-param
+  threading at the call site).
+- multi-output methods + partial-nargout + `~`-ignored outputs (v1: scalar
+  outputs, all requested).
+- closed-world polymorphism via class-id type-switch (§7a); `ControlBlock` for
+  `delete`/`isvalid`.
+- **Dynamic locals / full Value-arith dispatch** — the biggest remaining
+  coverage unlock: operands of unknown type boxed to `Value`, arithmetic
+  dispatched to the runtime, turning most "unsupported" into a bridged path.
+- multi-output bridged calls; object boxing across the bridge; zero-copy array
+  views; complex/string/cell/struct pipelines; recursion precision
+  (Bottom-fixpoint; Dynamic is sound today); multi-engine embedding; plugin
+  unload (needs core `Engine::unregisterFunction`); WASM plugins.
