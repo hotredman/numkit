@@ -452,6 +452,33 @@ TEST(EmitterFn, CompanionDoesNotClashWithUserVar)
     EXPECT_TRUE(contains(s, "double x_len"));           // the user var — coexists, no clash
 }
 
+// A user identifier containing "__" is emitted verbatim, and "__" anywhere is
+// reserved to the implementation ([lex.name]) — UB. The emitter refuses it with
+// a clear message (the last no-UB hole: synthesised names escape "__", user
+// names stay verbatim, so a "__" user name must be rejected).
+TEST(EmitterFn, DoubleUnderscoreUserNameRefused)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn =
+        findFunc("function y = f(x)\n  a__b = x * 2;\n  y = a__b + 1;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
+}
+
+// A single or trailing underscore is NOT reserved — `x_` emits verbatim and its
+// companion escapes the trailing '_' (`_nk_x_0_len`), so it compiles fine.
+TEST(EmitterFn, SingleUnderscoreUserNameAllowed)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function s = g(x_)\n  s = numel(x_);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {{"x_", kDoubleRow}}, reg).source;
+    EXPECT_TRUE(contains(s, "const double* x_"));  // verbatim, legal (no "__")
+    EXPECT_TRUE(contains(s, "_nk_x_0_len"));        // companion escapes the trailing '_'
+}
+
 // ---- bridged emission (DESIGN.md §6a) --------------------------------------
 // `sign` is typed scalar->scalar by the registry (realMathUnaryTransfer) but
 // has no clean std form, so the emitter cannot lower it. Opt-in bridging emits

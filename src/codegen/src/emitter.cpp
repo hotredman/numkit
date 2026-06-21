@@ -1685,6 +1685,24 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
 
     const DeclTypeMap decls = computeDeclTypes(body, entry, reg, classes);
 
+    // Reserved-identifier guard. A user variable / parameter is emitted VERBATIM
+    // as a C++ name (synthesised names escape "__", but user names stay readable
+    // as-is). "__" anywhere in an identifier is reserved to the implementation
+    // ([lex.name]) — UB to declare. A leading "_"+uppercase is impossible (a
+    // MATLAB identifier cannot begin with "_"), so "__" is the only reserved
+    // shape a user name can take. Refuse it with a clear message rather than
+    // emit UB. (A function/method NAME may contain "__"; it is mangled through
+    // escapeBase, so it never reaches the output verbatim — only var names do.)
+    {
+        auto refuseDunder = [](const std::string &name) {
+            if (name.find("__") != std::string::npos)
+                unsupported("identifier '" + name + "' contains '__', which is reserved in C++ "
+                            "([lex.name]) — rename the variable");
+        };
+        for (const std::string &p : paramSet) refuseDunder(p);
+        for (const auto &[n, t] : decls) refuseDunder(n);
+    }
+
     // Return classification:
     //   0 outputs -> void (e.g. a handle class's in-place mutator);
     //   1 output  -> scalar (by value) / array (out-param) / object (by value);
