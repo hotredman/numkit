@@ -1128,6 +1128,7 @@ void Emitter::emitAssign(const ASTNode &s)
         // the (array-var / scalar) args, call the runtime (1 output), and
         // unbox into the caller-allocated out-param. v1: a DOUBLE output.
         if (bridge_ && isArrayVar(name) && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND  // 1-D dest only; an N-D bridge needs dim handling
             && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
             && arrays_.at(name).dtype == ValueType::DOUBLE
             && rhs.type == NodeType::CALL && !rhs.children.empty()
@@ -1178,12 +1179,21 @@ void Emitter::emitAssign(const ASTNode &s)
         // operand (no length-mismatch, no matrix semantics) and an
         // inference-proven array result. Emit a fill loop; a LOCAL is resized
         // to the operand's length, the OUTPUT uses its caller-sized length.
-        if (isArrayVar(name) && !arrays_.at(name).is2D
+        if (isArrayVar(name) && !arrays_.at(name).is2D && !arrays_.at(name).isND
             && arrays_.at(name).dtype == ValueType::DOUBLE) {
             std::set<std::string> srcArrays;
             if (collectElementwise(rhs, srcArrays) && !srcArrays.empty()) {
+                // This flat per-element loop is 1-D only: it bounds on lenVar
+                // and numel-matches operands — neither correct nor sufficient
+                // for N-D (shapes, not just numel, must agree), and an N-D PARAM
+                // has no lenVar at all. Refuse if any operand is N-D (the dest
+                // is already gated !isND above): an explicit boundary, never
+                // broken/wrong code.
+                bool anyND = false;
+                for (const std::string &an : srcArrays)
+                    if (arrays_.find(an) != arrays_.end() && arrays_.at(an).isND) anyND = true;
                 const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
-                if (res.type.isConcrete() && !res.type.shape.isScalar()
+                if (!anyND && res.type.isConcrete() && !res.type.shape.isScalar()
                     && res.type.dtype == ValueType::DOUBLE) {
                     const ArrayInfo  &ai    = arrays_.at(name);
                     // Loop length: the OUTPUT's caller-sized length, else (a
