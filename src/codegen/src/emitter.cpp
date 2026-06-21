@@ -1130,8 +1130,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 // owned vector to their product (column-major flat storage).
                 std::string prod;
                 for (std::size_t d = 0; d < ai.ndDims.size(); ++d) {
-                    line(ai.ndDims[d] + " = static_cast<std::size_t>("
-                         + emitExpr(*rhs.children[d + 1]) + ");");
+                    line(ai.ndDims[d] + " = nk_rt::dim(" + emitExpr(*rhs.children[d + 1]) + ");");
                     prod += (d ? " * " : "") + ai.ndDims[d];
                 }
                 line(name + ".assign(" + prod + ", " + fill + ");");
@@ -1139,7 +1138,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 std::string numel;  // product of the size args (zeros(1,n) -> 1*n)
                 for (std::size_t i = 1; i < rhs.children.size(); ++i)
                     numel += (i > 1 ? " * " : "")
-                             + ("static_cast<std::size_t>(" + emitExpr(*rhs.children[i]) + ")");
+                             + ("nk_rt::dim(" + emitExpr(*rhs.children[i]) + ")");
                 if (numel.empty()) numel = "0";
                 line(name + ".assign(" + numel + ", " + fill + ");");
             } else {
@@ -1515,31 +1514,43 @@ const char *kPrelude =
     "    template <class... A> static handle make(A&&... a)\n"
     "        { return handle(std::make_shared<T>(static_cast<A&&>(a)...)); }\n"
     "};\n"
-    "template <class T>\n"
-    "inline T index(const T* a, std::size_t len, double idx1) {\n"
+    "// Convert a (double) array dimension to size_t. A negative dimension is a\n"
+    "// hard error (the interpreter errors on negative dims too); the check\n"
+    "// PRECEDES the cast so a negative value never reaches the float->unsigned\n"
+    "// conversion (which would be UB). A fractional dim truncates toward zero, as\n"
+    "// the interpreter does.\n"
+    "inline std::size_t dim(double d) {\n"
+    "    if (d < 0.0) throw std::out_of_range(\"numkit: array dimension must be non-negative\");\n"
+    "    return static_cast<std::size_t>(d);\n"
+    "}\n"
+    "template <class T>\n"  // all index helpers check `< 1.0` BEFORE the cast: a
+    "inline T index(const T* a, std::size_t len, double idx1) {\n"  // negative idx
+    "    if (idx1 < 1.0) throw std::out_of_range(\"numkit: index out of bounds\");\n"  // never UB-casts
     "    const std::size_t i = static_cast<std::size_t>(idx1);\n"
-    "    if (idx1 < 1.0 || i > len) throw std::out_of_range(\"numkit: index out of bounds\");\n"
+    "    if (i > len) throw std::out_of_range(\"numkit: index out of bounds\");\n"
     "    return a[i - 1];\n"
     "}\n"
     "template <class T>\n"
     "inline void index_set(T* a, std::size_t len, double idx1, T v) {\n"
+    "    if (idx1 < 1.0)\n"
+    "        throw std::out_of_range(\"numkit: index out of bounds (RawBuffer ABI cannot grow)\");\n"
     "    const std::size_t i = static_cast<std::size_t>(idx1);\n"
-    "    if (idx1 < 1.0 || i > len)\n"
+    "    if (i > len)\n"
     "        throw std::out_of_range(\"numkit: index out of bounds (RawBuffer ABI cannot grow)\");\n"
     "    a[i - 1] = v;\n"
     "}\n"
     "template <class T>\n"  // A(i,j) read, column-major; 2-D writes are a later step
     "inline T index2(const T* a, std::size_t rows, std::size_t cols, double i1, double j1) {\n"
+    "    if (i1 < 1.0 || j1 < 1.0) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
     "    const std::size_t i = static_cast<std::size_t>(i1), j = static_cast<std::size_t>(j1);\n"
-    "    if (i1 < 1.0 || i > rows || j1 < 1.0 || j > cols)\n"
-    "        throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    if (i > rows || j > cols) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
     "    return a[(j - 1) * rows + (i - 1)];\n"
     "}\n"
     "template <class T>\n"  // A(i,j) = v write, column-major (mutable 2-D: local/output)
     "inline void index2_set(T* a, std::size_t rows, std::size_t cols, double i1, double j1, T v) {\n"
+    "    if (i1 < 1.0 || j1 < 1.0) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
     "    const std::size_t i = static_cast<std::size_t>(i1), j = static_cast<std::size_t>(j1);\n"
-    "    if (i1 < 1.0 || i > rows || j1 < 1.0 || j > cols)\n"
-    "        throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
+    "    if (i > rows || j > cols) throw std::out_of_range(\"numkit: 2-D index out of bounds\");\n"
     "    a[(j - 1) * rows + (i - 1)] = v;\n"
     "}\n"
     "// N-D (rank>=3) column-major linear offset from 1-based subscripts + dims;\n"
@@ -1549,8 +1560,9 @@ const char *kPrelude =
     "    const std::size_t* d = dims.begin(); const double* s = subs.begin();\n"
     "    std::size_t off = 0, stride = 1;\n"
     "    for (std::size_t _nk_a = 0; _nk_a < dims.size(); ++_nk_a) {\n"
+    "        if (s[_nk_a] < 1.0) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
     "        const std::size_t ik = static_cast<std::size_t>(s[_nk_a]);\n"
-    "        if (s[_nk_a] < 1.0 || ik > d[_nk_a]) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
+    "        if (ik > d[_nk_a]) throw std::out_of_range(\"numkit: N-D index out of bounds\");\n"
     "        off += (ik - 1) * stride; stride *= d[_nk_a];\n"
     "    }\n"
     "    return off;\n"
