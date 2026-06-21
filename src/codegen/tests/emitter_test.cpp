@@ -312,11 +312,34 @@ TEST(EmitterFn, VectorTranspose)
         const std::string s = emitFunction(*fn, {{"x", InferredType::scalar(ValueType::COMPLEX)}}, reg).source;
         EXPECT_TRUE(contains(s, "std::conj(x)"));
     }
-    {  // 2-D transpose is refused (explicit boundary, not broken code)
+    {  // N-D transpose is refused (undefined in MATLAB; explicit boundary)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = A';\nend\n", root);
+        const InferredType     nd =
+            InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 2, 2}));
+        EXPECT_THROW(emitFunction(*fn, {{"A", nd}}, reg), std::runtime_error);
+    }
+}
+
+// 2-D matrix transpose: y = A' / A.' swaps the dims, column-major. y is n x m,
+// A is m x n; y(p,q) = A(q,p). ctranspose conjugates a complex matrix.
+TEST(EmitterFn, MatrixTranspose)
+{
+    const auto reg = stdReg();
+    {  // real matrix .' : column-major index swap, no conjugation
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn  = findFunc("function y = f(A)\n  y = A.';\nend\n", root);
+        const InferredType     mat = InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3));
+        const std::string      s   = emitFunction(*fn, {{"A", mat}}, reg).source;
+        // y is 3x2 (its rows companion = 3); reads A column-major with A's rows = 2.
+        EXPECT_TRUE(contains(s, "[_nk_i + _nk_j * _nk_y_rows] = A[_nk_j + _nk_i * _nk_A_rows];"));
+    }
+    {  // complex matrix ' : conjugating transpose
         numkit::ASTNodePtr     root;
         const numkit::ASTNode *fn  = findFunc("function y = f(A)\n  y = A';\nend\n", root);
-        const InferredType     mat = InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3));
-        EXPECT_THROW(emitFunction(*fn, {{"A", mat}}, reg), std::runtime_error);
+        const InferredType     mat = InferredType::concrete(ValueType::COMPLEX, Shape::dims(2, 3));
+        const std::string      s   = emitFunction(*fn, {{"A", mat}}, reg).source;
+        EXPECT_TRUE(contains(s, "= std::conj(A[_nk_j + _nk_i * _nk_A_rows]);"));
     }
 }
 

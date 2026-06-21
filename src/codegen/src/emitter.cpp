@@ -1240,28 +1240,47 @@ void Emitter::emitAssign(const ASTNode &s)
                               ConstVal::unknown()});
             return;
         }
-        // Vector transpose: y = x' (ctranspose) / y = x.' (transpose). A 1-D
-        // vector transpose flips orientation; the data is copied element for
-        // element, and ctranspose (') additionally conjugates a complex
-        // operand. The result orientation (col<->row) comes from the transfer.
-        // 2-D / N-D transpose is not yet lowered (refused, an explicit
-        // boundary). Native + self-contained.
+        // Transpose: y = x' (ctranspose) / y = x.' (transpose). A 1-D vector
+        // flips orientation; a 2-D matrix swaps its dims (column-major). The
+        // data is copied, and ctranspose (') additionally conjugates a complex
+        // operand. The result shape comes from the transfer. N-D transpose is
+        // undefined in MATLAB -> refused (an explicit boundary). Native +
+        // self-contained.
         if (isArrayVar(name) && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
             && rhs.type == NodeType::UNARY_OP && (rhs.strValue == "'" || rhs.strValue == ".'")
             && rhs.children.size() == 1 && rhs.children[0]->type == NodeType::IDENTIFIER
             && isArrayVar(rhs.children[0]->strValue)) {
             const ArrayInfo &dst = arrays_.at(name);
             const ArrayInfo &src = arrays_.at(rhs.children[0]->strValue);
-            if (dst.is2D || dst.isND || src.is2D || src.isND)
-                unsupported("2-D / N-D transpose not yet lowered");
+            if (dst.isND || src.isND)
+                unsupported("N-D transpose (undefined in MATLAB)");
             if (name == rhs.children[0]->strValue)
-                unsupported("in-place vector transpose (y = y')");
+                unsupported("in-place transpose (y = y')");
             const bool conj = rhs.strValue == "'" && src.dtype == ValueType::COMPLEX;
-            if (dst.isLocal) line(name + ".resize(" + src.lenVar + ");");
-            open("for (std::size_t _nk_i = 0; _nk_i < " + src.lenVar + "; ++_nk_i)");
-            const std::string rd = src.dataExpr + "[_nk_i]";
-            line(dst.dataExpr + "[_nk_i] = " + (conj ? ("std::conj(" + rd + ")") : rd) + ";");
-            close();
+            if (src.is2D || dst.is2D) {
+                // 2-D matrix transpose, column-major: y is n x m, A is m x n,
+                // and y(p,q) = A(q,p) -> y[p + q*yrows] = op(A[q + p*Arows]).
+                if (!src.is2D || !dst.is2D)
+                    unsupported("transpose dest/source rank mismatch");
+                if (dst.isLocal)
+                    line(name + ".assign(" + dst.rowsVar + " * " + dst.colsVar + ", "
+                         + zeroLiteral(dst.dtype) + ");");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + dst.colsVar + "; ++_nk_j)");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + dst.rowsVar + "; ++_nk_i)");
+                const std::string rd = src.dataExpr + "[_nk_j + _nk_i * " + src.rowsVar + "]";
+                line(dst.dataExpr + "[_nk_i + _nk_j * " + dst.rowsVar + "] = "
+                     + (conj ? ("std::conj(" + rd + ")") : rd) + ";");
+                close();
+                close();
+            } else {
+                // 1-D vector transpose: orientation flip, element-for-element
+                // copy (ctranspose conjugates a complex operand).
+                if (dst.isLocal) line(name + ".resize(" + src.lenVar + ");");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + src.lenVar + "; ++_nk_i)");
+                const std::string rd = src.dataExpr + "[_nk_i]";
+                line(dst.dataExpr + "[_nk_i] = " + (conj ? ("std::conj(" + rd + ")") : rd) + ";");
+                close();
+            }
             types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
