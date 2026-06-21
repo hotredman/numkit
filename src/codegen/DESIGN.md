@@ -538,12 +538,20 @@ points are deliberate divergences from MATLAB, consistent with the
 performance-first "minimal validation" stance — the same stance under which an
 out-of-bounds index throws `std::out_of_range` rather than auto-growing (the
 buffer cannot grow):
-- **Reserved companion names.** Every array param/output and runtime-dim N-D
-  local synthesises companion vars `<base>_len` / `_rows` / `_cols` / `_dN`. A
-  user identifier equal to one of these would yield two same-named C++
-  declarations, so the emitter DETECTS the clash and refuses with a clear
-  message (Contract 2 boundary) rather than emit code the C++ compiler rejects.
-  (A future enhancement could auto-disambiguate instead of refusing.)
+- **Synthesised names: conforming and collision-free by construction.** Every
+  emitter-synthesised block-scope name — the fill-loop counter (`_nk_i`), the
+  bridged-call arg temp (`_nk_args`), and the `_len`/`_rows`/`_cols`/`_dN`
+  companions of array params, outputs, and runtime-dim N-D locals — carries the
+  `_nk_` prefix; the monomorphised function symbol is mangled `__`-free (escaped
+  base, `_1` separator, letter-led). Two consequences. (1) **No UB:**
+  `__`-anything and `_`+uppercase are reserved for any use ([lex.name]); `_nk_*`
+  is `_`+lowercase, reserved only for names in the GLOBAL namespace — and these
+  are all block-scope params/locals, so they are conforming; the function symbol
+  is letter-led, so conforming at global scope too. (2) **No collision:** a
+  MATLAB identifier can never begin with `_`, so a `_nk_*` name can never equal a
+  user variable — the companion-vs-user clash is *structurally impossible*, no
+  detection needed. The mangle base is escaped (`_`→`_0`) so even a user name
+  like `x_` cannot form a reserved `__`.
 - **Size args.** `zeros`/`ones` dimension args must be non-negative integers.
   Codegen does NOT clamp: a negative runtime dim casts to a huge `size_t` and
   the allocation throws (`std::length_error`/`std::bad_alloc`) — an exception on

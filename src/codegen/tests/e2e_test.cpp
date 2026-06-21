@@ -1208,6 +1208,40 @@ TEST(CodegenE2E, NDRuntimeOutputRunsCorrectly)
         EXPECT_DOUBLE_EQ(got[i], 0.0) << "zeros() must clear the interior at i=" << i;
 }
 
+// Reserved-companion coexistence, end-to-end: a user var named exactly like a
+// synthesised companion now compiles + runs (it once had to be refused). The
+// `_nk_` prefix puts every companion in the underscore namespace MATLAB can't
+// enter, so the param's length companion `_nk_x_len` and the user's `x_len`
+// coexist. f(x) returns x(numel(x)) = last element. x=[10..50] -> 50.
+TEST(CodegenE2E, CompanionUserVarCoexistRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x)\n  x_len = numel(x);\n  y = x(x_len);\nend\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("std::size_t _nk_x_len"), std::string::npos);  // companion
+    ASSERT_NE(emitted.source.find("double x_len"), std::string::npos);           // user var coexists
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_companion_coexist_e2e.exe").string();
+    const std::string outTxt = (base / "nk_companion_coexist_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {10, 20, 30, 40, 50};\n"
+        "  double r = " + emitted.name + "(x, 5);\n"  // _nk_x_len = 5
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 50.0);  // x(numel(x)) = x(5)
+}
+
 // Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
 // loop — SELF-CONTAINED (no runtime DLL, plain stdlib exe) — and matches
 // std::sin. The win over bridging: no boxing, no runtime dependency.
