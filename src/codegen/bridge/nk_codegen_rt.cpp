@@ -12,6 +12,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/value_type.hpp>
 
+#include <atomic>
 #include <cstdio>
 #include <exception>
 #include <limits>
@@ -56,6 +57,30 @@ const Value &handleFor(const std::string &name)
 Value *unwrap(nk_val v) { return reinterpret_cast<Value *>(v); }
 nk_val  wrap(Value *v) { return reinterpret_cast<nk_val>(v); }
 
+// Live-handle balance counter. EVERY owned handle is created via make() and
+// freed via destroy(), so `liveHandles` is the number of outstanding nk_val
+// the runtime has handed out. A test snapshots it around a sequence and
+// asserts it returns to baseline — leak-freedom of the bridge's own handle
+// lifecycle, proven portably (MSVC's ASan has no LeakSanitizer). The inc/dec
+// is on the boundary, never a hot loop.
+std::atomic<long long> &liveHandles()
+{
+    static std::atomic<long long> n{0};
+    return n;
+}
+nk_val make(Value v)
+{
+    nk_val h = wrap(new Value(std::move(v)));
+    liveHandles().fetch_add(1, std::memory_order_relaxed);
+    return h;
+}
+void destroy(nk_val v)
+{
+    if (!v) return;  // a null handle was never a live allocation
+    liveHandles().fetch_sub(1, std::memory_order_relaxed);
+    delete unwrap(v);
+}
+
 void setError(nk_error *err, const char *msg)
 {
     if (!err) return;
@@ -74,7 +99,7 @@ extern "C" {
 nk_val nk_box_scalar(double v)
 {
     try {
-        return wrap(new Value(Value::scalar(v)));
+        return make(Value::scalar(v));
     } catch (...) {
         return nullptr;
     }
@@ -87,7 +112,7 @@ nk_val nk_box_array(const double *p, size_t len)
         Value   m = Value::matrix(1, len, numkit::ValueType::DOUBLE, nullptr);
         double *d = m.doubleDataMut();
         for (size_t i = 0; i < len; ++i) d[i] = p[i];
-        return wrap(new Value(std::move(m)));
+        return make(std::move(m));
     } catch (...) {
         return nullptr;
     }
@@ -100,7 +125,7 @@ nk_val nk_eval(const char *code, nk_error *err)
     try {
         // suppressTopLevelDisplay = true: an embedder wants the value back,
         // not `ans = ...` printed to the engine's output sink.
-        return wrap(new Value(engine().eval(code, true)));
+        return make(engine().eval(code, true));
     } catch (const std::exception &e) {
         setError(err, e.what());
         return nullptr;
@@ -129,8 +154,8 @@ nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
             handleFor(name), numkit::Span<const Value>(a.data(), a.size()), nout);
 
         for (size_t k = 1; k < nargout && extra_outs; ++k)
-            extra_outs[k - 1] = wrap(new Value(k < outs.size() ? outs[k] : Value()));
-        return wrap(new Value(outs.empty() ? Value() : outs[0]));
+            extra_outs[k - 1] = make(k < outs.size() ? outs[k] : Value());
+        return make(outs.empty() ? Value() : outs[0]);
     } catch (const std::exception &e) {
         setError(err, e.what());
         return nullptr;
@@ -170,7 +195,12 @@ size_t nk_numel(nk_val v)
     }
 }
 
-void nk_release(nk_val v) { delete unwrap(v); }
+void nk_release(nk_val v) { destroy(v); }
+
+long long nk_debug_live_handles(void)
+{
+    return liveHandles().load(std::memory_order_relaxed);
+}
 
 int nk_register_fn(const char *name, nk_fn fn)
 {
@@ -189,7 +219,7 @@ int nk_register_fn(const char *name, nk_fn fn)
                 numkit::Span<Value> outs, numkit::CallContext &) {
                 std::vector<nk_val> in;  // owned by us, borrowed by the plugin
                 in.reserve(args.size());
-                for (const Value &a : args) in.push_back(wrap(new Value(a)));
+                for (const Value &a : args) in.push_back(make(a));
 
                 const size_t        nout = nargout == 0 ? 1 : nargout;
                 std::vector<nk_val> extra(nout > 1 ? nout - 1 : 0, nullptr);
@@ -199,24 +229,24 @@ int nk_register_fn(const char *name, nk_fn fn)
                 err.message[0] = '\0';
                 nk_val r = f(in.data(), in.size(), nargout, extra.data(), &err);
 
-                for (nk_val h : in) delete unwrap(h);  // release inputs
+                for (nk_val h : in) destroy(h);  // release inputs
 
                 if (err.code != 0) {
                     std::string msg = err.message[0] ? err.message : "plugin error";
-                    delete unwrap(r);
-                    for (nk_val h : extra) delete unwrap(h);
+                    destroy(r);
+                    for (nk_val h : extra) destroy(h);
                     throw std::runtime_error(msg);
                 }
 
                 if (!outs.empty()) outs[0] = r ? *unwrap(r) : Value();
-                delete unwrap(r);
+                destroy(r);
                 // Release EVERY owned extra output, whether or not it fits in
                 // `outs` — decoupled from outs.size() so a slot count mismatch
                 // can never leak a plugin-owned handle.
                 for (size_t j = 0; j < extra.size(); ++j) {
                     const size_t k = j + 1;
                     if (k < outs.size()) outs[k] = extra[j] ? *unwrap(extra[j]) : Value();
-                    delete unwrap(extra[j]);
+                    destroy(extra[j]);
                 }
             });
         return 0;
