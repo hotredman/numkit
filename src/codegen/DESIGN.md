@@ -692,11 +692,15 @@ table.
 - All synthesised names UB-free + conforming (`_nk_` block-scope prefix, `__`-
   free letter-led mangle; user `__`-names refused); dim/index conversions guard
   against the negative/out-of-range `double`→`size_t` UB.
+- **2-D matrix OUTPUT** (caller-allocated out-param, rows/cols companions,
+  column-major + index2_set) — completes the array-output story (scalar / 1-D /
+  2-D / N-D all return).
+- **1-D `size(vec,dim)`** folded via a tracked `VecOrient` (the RawBuffer ABI
+  erases row/col; the compile-time type supplies it).
 
 **Still later (each its own milestone), simplest first:**
-- `size(A)` no-dim (1×ndims row) + 1-D `size(vec,dim)` orientation (row vs col).
-- **2-D OUTPUT** (KnownDims rank-2 out-param — the zeros-path guard
-  `(isLocal||!is2D)` currently excludes it; mirrors the N-D-output brick).
+- `size(A)` no-dim (1×ndims row) — needs array-result-from-builtin, or the
+  `[r,c] = size(A)` multi-output form.
 - merge-gated: `nk_rt::dim` → clamp-negative-to-0 + error (to re-match the fixed
   interpreter once the core `zeros` fix lands and feat/codegen rebases; today it
   throws on negative, matching the OLD interpreter — self-consistent until then).
