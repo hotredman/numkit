@@ -1134,6 +1134,43 @@ TEST(CodegenE2E, NDOutputRunsCorrectly)
         EXPECT_DOUBLE_EQ(got[i], 0.0) << "zeros() must clear the interior at i=" << i;
 }
 
+// 2-D matrix OUTPUT end-to-end: f(a) returns a 2x3 matrix via a caller-allocated
+// out-param (ptr + rows/cols companions, column-major). The caller allocates 6
+// (seeded with a -1 sentinel that zeros() must clear), passes rows=2, cols=3;
+// M(1,1)=a (offset 0), M(2,3)=2a (column-major offset (3-1)*2+(2-1)=5).
+TEST(CodegenE2E, Matrix2DOutputRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function M = f(a)\n  M = zeros(2, 3);\n  M(1,1) = a;\n  M(2,3) = a * 2;\nend\n",
+        {{"a", InferredType::scalar(ValueType::DOUBLE)}});
+    ASSERT_NE(emitted.source.find("double* M, std::size_t _nk_M_rows, std::size_t _nk_M_cols"),
+              std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_mat2dout_e2e.exe").string();
+    const std::string outTxt = (base / "nk_mat2dout_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double M[6];\n"
+        "  for (int i = 0; i < 6; ++i) M[i] = -1.0;  // sentinel: zeros() must clear it\n"
+        "  " + emitted.name + "(4.0, M, 2, 3);\n"  // a=4, rows=2, cols=3
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 6; ++i) std::fprintf(g, \"%.17g\\n\", M[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 6u);
+    EXPECT_DOUBLE_EQ(got[0], 4.0);  // M(1,1) = a        (column-major offset 0)
+    EXPECT_DOUBLE_EQ(got[5], 8.0);  // M(2,3) = a * 2    (offset 5)
+    for (int i = 1; i < 5; ++i)
+        EXPECT_DOUBLE_EQ(got[i], 0.0) << "zeros() must clear the interior at i=" << i;
+}
+
 // RUNTIME-dim N-D LOCAL end-to-end: A = zeros(m,n,p) with the dims passed in as
 // args. f(2,3,4): A is 2x3x4 (NOT a cube — proves per-axis strides), A(1,1,1)=7
 // (offset 0), A(2,2,2)=9 (column-major offset 1 + 2*1 + (2*3)*1 = 9). Then

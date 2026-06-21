@@ -389,6 +389,24 @@ TEST(EmitterFn, NDOutputAsOutParam)
     EXPECT_TRUE(contains(s, "nk_rt::indexN_set(y, {_nk_y_d0, _nk_y_d1, _nk_y_d2}"));  // companion dims, mutable ptr
 }
 
+// 2-D matrix OUTPUT: a function returning a matrix -> caller-allocated out-param
+// (mutable ptr + rows/cols companions, column-major). Mirror of the N-D-output
+// brick on the 2-D fast path (index2_set). Completes the array-output story
+// (scalar / 1-D / 2-D / N-D all return).
+TEST(EmitterFn, Matrix2DOutputAsOutParam)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function M = f(a)\n  M = zeros(2, 3);\n  M(1,1) = a;\n  M(2,3) = a * 2;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {{"a", kDoubleScalar}}, reg).source;
+    EXPECT_TRUE(contains(s, "void f(double a, double* M, "
+                            "std::size_t _nk_M_rows, std::size_t _nk_M_cols"));  // mutable + void
+    EXPECT_TRUE(contains(s, "_nk_i < (_nk_M_rows * _nk_M_cols)"));               // zeros() fill bound
+    EXPECT_TRUE(contains(s, "nk_rt::index2_set(M, _nk_M_rows, _nk_M_cols"));     // column-major write
+}
+
 // RUNTIME-dim N-D LOCAL: zeros(m,n,p) with variable dims -> per-dim size_t
 // companion vars (hoisted, set from the args), a flat owned vector sized to
 // their product; indexN / size / numel read the vars (ndims still folds to the
