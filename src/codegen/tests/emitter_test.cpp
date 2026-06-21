@@ -612,6 +612,36 @@ TEST(EmitterFn, Elementwise2DScalarBroadcast)
     }
 }
 
+// N-D elementwise (v1: a SINGLE array operand). A rank-3 dest + one rank-3 array
+// operand (+ scalars / a transcendental) -> flat numel loop / ops kernel.
+// Multi-operand N-D is refused (needs a per-axis guard). Mixed rank refused.
+TEST(EmitterFn, ElementwiseNDSingleOperand)
+{
+    const auto         reg = stdReg();
+    const InferredType nd =
+        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 3, 4}));
+    {  // B = 2*A (scalar broadcast over 3-D) -> flat numel inline loop
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function B = f(A)\n  B = 2 * A;\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"A", nd}}, reg).source;
+        EXPECT_TRUE(contains(s, "B[_nk_i] = (2.0 * A[_nk_i]);"));
+        EXPECT_TRUE(contains(s, "_nk_A_d0 * _nk_A_d1 * _nk_A_d2"));  // numel guard vs A's dims
+    }
+    {  // B = sin(A) over 3-D + ops -> ops::sinDouble over numel
+        const OpsKernelOptions ops{true};
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function B = f(A)\n  B = sin(A);\nend\n", root);
+        const std::string s = emitFunction(*fn, {{"A", nd}}, reg, nullptr, {}, ops).source;
+        EXPECT_TRUE(contains(s, "numkit::ops::sinDouble(A, B, "));
+    }
+    {  // B = A + C (two 3-D operands) -> refused (multi-operand N-D); falls through
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function B = f(A, C)\n  B = A + C;\nend\n", root);
+        EXPECT_THROW(emitFunction(*fn, {{"A", nd}, {"C", nd}}, reg), std::runtime_error);
+    }
+}
+
 // A matrix op (mtimes `*`, not elementwise `.*`) is NOT lowered as elementwise
 // — without bridging it falls to the boundary (throws), never silently wrong.
 TEST(EmitterFn, MatrixMtimesNotElementwise)
@@ -888,21 +918,27 @@ TEST(EmitterFn, NDRuntimeLocal)
     EXPECT_TRUE(contains(s, "static_cast<double>(_nk_A_d0 * _nk_A_d1 * _nk_A_d2)"));          // numel -> product
 }
 
-// N-D is REFUSED by the 1-D-only elementwise path (explicit boundary, not
-// broken C++). `y = A .* 2` with A 3-D: the flat per-element loop bounds on a
-// lenVar an N-D param doesn't have, and numel-matching is unsound for N-D, so
-// the emitter throws rather than emit malformed/wrong code (Contract 2).
-TEST(EmitterFn, ElementwiseOnNDRefused)
+// N-D single-operand elementwise now LOWERS (the boundary moved): `y = A .* 2`
+// with A 3-D is a scalar broadcast over one array operand -> a flat numel loop
+// (the N-D param now carries a product-of-dims lenVar). Multi-operand N-D
+// (A + C) is still refused — it needs a per-axis shape guard (Contract 2).
+TEST(EmitterFn, ElementwiseNDSingleLowersMultiRefused)
 {
-    const auto             reg = stdReg();
-    numkit::ASTNodePtr     root;
-    const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = A .* 2;\nend\n", root);
-    ASSERT_NE(fn, nullptr);
-    EXPECT_THROW(emitFunction(*fn,
-                              {{"A", InferredType::concrete(ValueType::DOUBLE,
-                                                            numkit::codegen::Shape::ndShape({2, 2, 2}))}},
-                              reg),
-                 std::runtime_error);
+    const auto         reg = stdReg();
+    const InferredType nd =
+        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 2, 2}));
+    {  // single operand -> flat numel loop, no throw
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = A .* 2;\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"A", nd}}, reg).source;
+        EXPECT_TRUE(contains(s, "y[_nk_i] = (A[_nk_i] * 2.0);"));
+    }
+    {  // two N-D operands -> still refused
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A, C)\n  y = A .* C;\nend\n", root);
+        EXPECT_THROW(emitFunction(*fn, {{"A", nd}, {"C", nd}}, reg), std::runtime_error);
+    }
 }
 
 // Reserved-companion coexistence: a user var named `x_len` no longer clashes
