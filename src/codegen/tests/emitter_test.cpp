@@ -407,6 +407,27 @@ TEST(EmitterFn, Matrix2DOutputAsOutParam)
     EXPECT_TRUE(contains(s, "nk_rt::index2_set(M, _nk_M_rows, _nk_M_cols"));     // column-major write
 }
 
+// 1-D size(vec, dim): orientation (row vs col) is recorded from the compile-time
+// type and folds size(vec,1)/size(vec,2) to constants — though the RawBuffer ABI
+// (ptr+len) erases orientation. Row: size(.,1)=1, size(.,2)=len; col: swapped.
+TEST(EmitterFn, OneDSizeOrientation)
+{
+    const auto             reg = stdReg();
+    const char            *src = "function s = f(x)\n  s = size(x,1)*100 + size(x,2);\nend\n";
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(src, root);
+    ASSERT_NE(fn, nullptr);
+    const std::string row = emitFunction(*fn, {{"x", kDoubleRow}}, reg).source;  // 1 x len
+    EXPECT_TRUE(contains(row, "(static_cast<double>(1) * 100.0) + static_cast<double>(_nk_x_len)"));
+
+    numkit::ASTNodePtr     root2;
+    const numkit::ASTNode *fn2 = findFunc(src, root2);
+    const InferredType     colv =
+        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::colVector());
+    const std::string col = emitFunction(*fn2, {{"x", colv}}, reg).source;       // len x 1
+    EXPECT_TRUE(contains(col, "(static_cast<double>(_nk_x_len) * 100.0) + static_cast<double>(1)"));
+}
+
 // RUNTIME-dim N-D LOCAL: zeros(m,n,p) with variable dims -> per-dim size_t
 // companion vars (hoisted, set from the args), a flat owned vector sized to
 // their product; indexN / size / numel read the vars (ndims still folds to the
