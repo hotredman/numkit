@@ -214,6 +214,26 @@ TEST(EmitterFn, ComplexErfRefusedWithoutBridge)
                  std::runtime_error);
 }
 
+// CX1: complex scalar accessors. real/imag/angle -> real (std::real/imag/arg);
+// conj -> complex (std::conj), but conj of a REAL value is the identity (a bare
+// std::conj(double) would return a std::complex, mismatching the transfer).
+TEST(EmitterFn, ComplexAccessors)
+{
+    const auto         reg = stdReg();
+    const InferredType cx  = InferredType::scalar(ValueType::COMPLEX);
+    auto body = [&](const char *expr, const InferredType &xt) {
+        numkit::ASTNodePtr     root;
+        const std::string      src = std::string("function y = f(x)\n  y = ") + expr + ";\nend\n";
+        const numkit::ASTNode *fn  = findFunc(src, root);
+        return emitFunction(*fn, {{"x", xt}}, reg).source;
+    };
+    EXPECT_TRUE(contains(body("real(x)", cx), "y = std::real(x);"));   // -> double
+    EXPECT_TRUE(contains(body("imag(x)", cx), "y = std::imag(x);"));
+    EXPECT_TRUE(contains(body("angle(x)", cx), "y = std::arg(x);"));
+    EXPECT_TRUE(contains(body("conj(x)", cx), "y = std::conj(x);"));   // -> complex
+    EXPECT_TRUE(contains(body("conj(x)", kDoubleScalar), "y = (x);"));  // real conj = identity
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

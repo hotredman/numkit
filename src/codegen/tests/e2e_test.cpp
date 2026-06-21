@@ -1416,6 +1416,37 @@ TEST(CodegenE2E, ElementwiseArrayMathRunsCorrectly)
         EXPECT_NEAR(got[i], std::sin(0.3 * double(i + 1)), 1e-12) << "at i=" << i;
 }
 
+// CX1: complex scalar accessors end-to-end (real/imag/angle/conj/abs), SELF-
+// CONTAINED (std::complex, no runtime). r = real(conj(x))*100 + imag(conj(x))*10
+// + abs(x). x = 3+4i -> conj = 3-4i -> 3*100 + (-4)*10 + 5 = 265.
+TEST(CodegenE2E, ComplexAccessorsRunCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n  r = real(conj(x))*100 + imag(conj(x))*10 + abs(x);\nend\n",
+        {{"x", InferredType::scalar(ValueType::COMPLEX)}});
+    ASSERT_NE(emitted.source.find("std::conj("), std::string::npos);
+    ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cxaccess_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cxaccess_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "(std::complex<double>(3.0, 4.0));\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 265.0);  // 3*100 + (-4)*10 + 5
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)

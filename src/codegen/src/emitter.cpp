@@ -810,6 +810,20 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
             return "static_cast<double>(" + (k == 1 ? ai.lenVar : std::string("1")) + ")";
     }
 
+    // Complex accessors: real/imag/angle/conj (scalar). std::real / std::imag /
+    // std::arg accept both double and complex; conj of a REAL value is the
+    // identity (std::conj(double) would return a std::complex, mismatching the
+    // real-preserving transfer), so emit the bare value there.
+    if (nargs == 1
+        && (name == "real" || name == "imag" || name == "angle" || name == "conj")) {
+        const std::string arg = emitExpr(*call.children[1]);
+        if (name == "real")  return "std::real(" + arg + ")";
+        if (name == "imag")  return "std::imag(" + arg + ")";
+        if (name == "angle") return "std::arg(" + arg + ")";
+        const ValueType adt = inferExpr(*call.children[1], types_, reg_, classes_).type.dtype;
+        return adt == ValueType::COMPLEX ? ("std::conj(" + arg + ")") : ("(" + arg + ")");  // conj
+    }
+
     if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
