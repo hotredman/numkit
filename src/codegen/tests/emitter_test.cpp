@@ -234,6 +234,22 @@ TEST(EmitterFn, ComplexAccessors)
     EXPECT_TRUE(contains(body("conj(x)", kDoubleScalar), "y = (x);"));  // real conj = identity
 }
 
+// CX2/CX3: complex 1-D arrays. Params/indexing/numel already flow through the
+// dtype-agnostic buffer machinery (`const std::complex<double>* x`); the gap was
+// elementwise — now lifted (the fill loop is valid std::complex arithmetic).
+TEST(EmitterFn, ComplexElementwise)
+{
+    const auto             reg    = stdReg();
+    const InferredType     cxrow  = InferredType::concrete(ValueType::COMPLEX, Shape::rowVector());
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = x .* 2;\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const std::string s = emitFunction(*fn, {{"x", cxrow}}, reg).source;
+    EXPECT_TRUE(contains(s, "const std::complex<double>* x"));            // complex buffer param
+    EXPECT_TRUE(contains(s, "std::complex<double>* __restrict y"));       // complex out-param
+    EXPECT_TRUE(contains(s, "y[_nk_i] = (x[_nk_i] * 2.0);"));             // std::complex fill loop
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

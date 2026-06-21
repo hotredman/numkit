@@ -1447,6 +1447,41 @@ TEST(CodegenE2E, ComplexAccessorsRunCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 265.0);  // 3*100 + (-4)*10 + 5
 }
 
+// CX2/CX3: complex 1-D array elementwise end-to-end, SELF-CONTAINED (std::complex
+// buffers, no runtime). y = x .* 2 over x = [1+1i, 2+2i, 3+3i] -> [2+2i,4+4i,6+6i].
+// Exercises the complex buffer ABI (param in + out-param out) and the lifted
+// elementwise loop.
+TEST(CodegenE2E, ComplexElementwiseRunsCorrectly)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x)\n  y = x .* 2;\nend\n",
+        {{"x", InferredType::concrete(ValueType::COMPLEX, Shape::rowVector())}});
+    ASSERT_NE(emitted.source.find("std::complex<double>* __restrict y"), std::string::npos);
+    ASSERT_EQ(emitted.source.find("nk_codegen_rt.h"), std::string::npos);  // self-contained
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cxewise_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cxewise_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  std::complex<double> x[3] = { {1,1}, {2,2}, {3,3} }, y[3];\n"
+        "  " + emitted.name + "(x, 3, y, 3);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 3; ++i) std::fprintf(g, \"%.17g\\n%.17g\\n\", y[i].real(), y[i].imag());\n"
+        "  std::fclose(g); return 0;\n}\n";
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 6u);  // re,im per element
+    const double exp[6] = {2, 2, 4, 4, 6, 6};  // x .* 2
+    for (int i = 0; i < 6; ++i)
+        EXPECT_DOUBLE_EQ(got[i], exp[i]) << "at " << i;
+}
+
 // MULTI-array elementwise: y = x + w .* 2 (two array operands) -> a length
 // guard + per-element loop. y[i] = x[i] + w[i]*2.
 TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)

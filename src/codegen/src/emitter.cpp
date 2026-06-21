@@ -1283,7 +1283,8 @@ void Emitter::emitAssign(const ASTNode &s)
         // inference-proven array result. Emit a fill loop; a LOCAL is resized
         // to the operand's length, the OUTPUT uses its caller-sized length.
         if (isArrayVar(name) && !arrays_.at(name).is2D && !arrays_.at(name).isND
-            && arrays_.at(name).dtype == ValueType::DOUBLE) {
+            && (arrays_.at(name).dtype == ValueType::DOUBLE
+                || arrays_.at(name).dtype == ValueType::COMPLEX)) {
             std::set<std::string> srcArrays;
             if (collectElementwise(rhs, srcArrays) && !srcArrays.empty()) {
                 // This flat per-element loop is 1-D only: it bounds on lenVar
@@ -1297,7 +1298,8 @@ void Emitter::emitAssign(const ASTNode &s)
                     if (arrays_.find(an) != arrays_.end() && arrays_.at(an).isND) anyND = true;
                 const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
                 if (!anyND && res.type.isConcrete() && !res.type.shape.isScalar()
-                    && res.type.dtype == ValueType::DOUBLE) {
+                    && (res.type.dtype == ValueType::DOUBLE
+                        || res.type.dtype == ValueType::COMPLEX)) {
                     const ArrayInfo  &ai    = arrays_.at(name);
                     // Loop length: the OUTPUT's caller-sized length, else (a
                     // local) the first operand's length.
