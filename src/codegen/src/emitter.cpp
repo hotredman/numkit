@@ -222,6 +222,23 @@ bool isBufferArrayType(const InferredType &t)
     return isBufferArray(AbstractValue{t, ConstVal::unknown()});
 }
 
+// A numeric (double/complex) buffer returnable BY VALUE across an interproc call
+// as a flat std::vector (column-major): 1-D vectors, 2-D KnownDims matrices, and
+// fully-known N-D arrays. The data is self-describing (.size()) and the dims are
+// compile-time-known on BOTH sides (the caller monomorphises the callee to the
+// same return type), so no runtime dims need to travel with the buffer. A
+// runtime-dim N-D result (an `nd` entry of 0) is excluded — its dims are not
+// compile-time-known, so the caller could not hoist a matching local.
+bool isByValueReturnArrayType(const InferredType &t)
+{
+    if (!isBufferArrayType(t)) return false;
+    if (t.dtype != ValueType::DOUBLE && t.dtype != ValueType::COMPLEX) return false;
+    if (t.shape.isNDims())
+        for (std::size_t d : t.shape.nd)
+            if (d == 0) return false;
+    return true;
+}
+
 [[noreturn]] void unsupported(const std::string &what);  // fwd (defined below)
 
 // The C++ variable type for an object: a value class is the plain struct
@@ -1065,17 +1082,16 @@ std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
         unsupported("multi-output call not yet supported (2b): '" + name + "'");
     if (nout == 1) {  // 0 -> void function, result discarded
         const InferredType ret = reg_.apply(name, toArgInfos(argTypes));
-        // A 1-D double/complex array result is returned BY VALUE (std::vector) —
-        // the callee is emitted with interprocByValueReturn so its signature
-        // returns std::vector<T> (self-describing .size()). 2-D/N-D array results
-        // stay an explicit boundary (need dims alongside the buffer; sound refusal).
-        const bool arrayByValue = isBufferArrayType(ret) && !is2DMatrixType(ret)
-                                  && !(ret.isConcrete() && ret.shape.isNDims())
-                                  && (ret.dtype == ValueType::DOUBLE
-                                      || ret.dtype == ValueType::COMPLEX);
+        // A 1-D / 2-D-KnownDims / fully-known-N-D double/complex array result is
+        // returned BY VALUE (flat std::vector) — the callee is emitted with
+        // interprocByValueReturn so its signature returns std::vector<T>
+        // (self-describing .size(); dims compile-time-known on both sides). A
+        // runtime-dim N-D result stays an explicit boundary (its dims would need to
+        // travel with the buffer; sound refusal below).
+        const bool arrayByValue = isByValueReturnArrayType(ret);
         if (!isUnboxableScalarType(ret) && !arrayByValue)
-            unsupported("interprocedural call result must be an unboxed scalar or 1-D "
-                        "double/complex array (v1): '" + name + "'");
+            unsupported("interprocedural call result must be an unboxed scalar or a 1-D / "
+                        "2-D / fully-known-N-D double/complex array (v1): '" + name + "'");
     }
 
     const std::string mangled = mangle(name, argTypes);
@@ -2657,6 +2673,17 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         const InferredType retType = retIt->second;
         if (isUnboxableScalarType(retType)) {
             retCpp = cppScalarType(retType.dtype);
+        } else if (interprocByValueReturn && isByValueReturnArrayType(retType)) {
+            // Interproc callee returning a 1-D / 2-D-KnownDims / fully-known-N-D
+            // array BY VALUE as a flat std::vector (column-major; self-describing
+            // .size()). The dims are compile-time-known on BOTH sides (the caller
+            // monomorphises the callee to the same return type), so no runtime dims
+            // travel with the buffer. retName is NOT registered as an output -> it
+            // falls to the array-LOCAL hoist (1-D vector / 2-D KnownDims / known
+            // N-D), the body fills it, and the scalar-return path emits
+            // `return retName;`. Checked BEFORE the N-D/2-D/1-D out-param branches
+            // (which serve the ENTRY, emitted with interprocByValueReturn=false).
+            retCpp = "std::vector<" + cppScalarType(retType.dtype) + ">";
         } else if (retType.isConcrete() && retType.shape.isNDims()) {
             // N-D (rank>=3) OUTPUT -> caller-allocated out-param: a MUTABLE
             // pointer + one size_t companion per dim (column-major), all passed
@@ -2710,16 +2737,6 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             arrays[retName] = ai;
             sigParams.push_back(cppScalarType(retType.dtype) + "* __restrict " + retName
                                 + ", std::size_t " + ai.rowsVar + ", std::size_t " + ai.colsVar);
-        } else if (isBufferArrayType(retType) && interprocByValueReturn
-                   && (retType.dtype == ValueType::DOUBLE
-                       || retType.dtype == ValueType::COMPLEX)) {
-            // Interproc callee: return a 1-D array BY VALUE as an owned
-            // std::vector (self-describing .size() — no out-size protocol; the
-            // ENTRY keeps the out-param ABI). retName is NOT registered as an
-            // output, so it falls to the array-LOCAL hoist (std::vector<T>); the
-            // body fills it and the scalar-return path emits `return retName;`.
-            // v1: 1-D double/complex (2-D/N-D need dims alongside).
-            retCpp = "std::vector<" + cppScalarType(retType.dtype) + ">";
         } else if (isBufferArrayType(retType)) {
             arrayReturn = true;
             retCpp      = "void";
