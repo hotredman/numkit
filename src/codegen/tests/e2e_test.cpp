@@ -626,6 +626,60 @@ TEST(CodegenE2E, InterprocArrayReturnIntoOutput)
     EXPECT_DOUBLE_EQ(got[3], 16.0);
 }
 
+// MULTI-OUTPUT with a leading 1-D array (P2.1): `[v, s] = f(n)` where v is a 1-D
+// array and s a scalar. The callee returns v BY VALUE (std::vector) and writes s
+// through a reference out-param; the caller binds v from the return and s from
+// the reference. Routed through a caller g so the call-site binding
+// (emitMultiAssign) is exercised too. End-to-end.
+TEST(CodegenE2E, MultiOutputLeadingArray)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function out = g(n)\n"
+        "  [v, s] = f(n);\n"   // v: 1-D array (by-value return); s: scalar (ref out-param)
+        "  out = v(2) + s;\n"  // v(2) = 4, s = n+1 = 5 -> 9 for n = 4
+        "end\n"
+        "function [v, s] = f(n)\n"
+        "  v = zeros(1, n);\n"
+        "  for k = 1:n\n"
+        "    v(k) = k * k;\n"
+        "  end\n"
+        "  s = n + 1;\n"
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("g"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
+    ASSERT_NE(emitted.source.find("std::vector<double> "), std::string::npos)
+        << "expected the callee to return its leading 1-D array output by value";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_multiout_arr_e2e.exe").string();
+    const std::string outTxt = (base / "nk_multiout_arr_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double out = " + emitted.name + "(4.0);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", out);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 9.0);  // v(2) = 4 + s = 5
+}
+
 // Interproc array RETURN, complex 1-D variant: a callee returning a complex 1-D
 // array returns std::vector<std::complex<double>> by value (emit-level — the run
 // pipeline is proven by InterprocArrayReturn above).
