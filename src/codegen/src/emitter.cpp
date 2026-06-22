@@ -613,6 +613,9 @@ public:
 
     void emitStmt(const ASTNode &s);
     void emitReturnScalar(const std::string &name) { line("return " + name + ";"); }
+    // Dynamic tier (DESIGN.md §10 C1): a boxed (nk_val) return transfers handle
+    // ownership OUT to the caller (val::take nulls the local so its dtor is a no-op).
+    void emitReturnDynamic(const std::string &name) { line("return " + name + ".take();"); }
 
     const std::string &out() const { return out_; }
 
@@ -2279,6 +2282,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    val& operator=(val&& o) noexcept {\n"
            "        if (this != &o) { nk_release(h_); h_ = o.h_; o.h_ = nullptr; } return *this; }\n"
            "    nk_val get() const { return h_; }\n"
+           "    nk_val take() { nk_val h = h_; h_ = nullptr; return h; }  // release ownership out\n"
            "    static val scalar(double x) { return val(nk_box_scalar(x)); }\n"
            "    double to_scalar() const { return nk_unbox_scalar(h_); }\n"
            "    bool truth() const {\n"
@@ -2417,9 +2421,10 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     //   0 outputs -> void (e.g. a handle class's in-place mutator);
     //   1 output  -> scalar (by value) / array (out-param) / object (by value);
     //   N outputs -> void + a reference out-param per (scalar) output.
-    std::string retCpp      = "void";
+    std::string retCpp        = "void";
     std::string retName;
-    bool        arrayReturn = false;
+    bool        arrayReturn   = false;
+    bool        dynamicReturn = false;
     if (nout == 1) {
         retName             = funcDef.returnNames[0];
         const auto retIt    = decls.find(retName);
@@ -2497,6 +2502,13 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             // returned BY VALUE (value class) / handle wrapper — not an
             // out-param; the scalar-return path (return retName;) applies.
             retCpp = cppObjectType(retType.classId, classes);
+        } else if (bridge && retType.isDynamic()) {
+            // Dynamic tier (DESIGN.md §10 C1): an un-typeable result is returned
+            // BOXED as an owned nk_val — the path for a Dynamic VALUE to cross the
+            // typed RawBuffer boundary (the local is an nk_rt::val whose handle is
+            // transferred out via take()). The caller owns it (nk_release).
+            retCpp        = "nk_val";
+            dynamicReturn = true;
         } else {
             unsupported("output '" + retName + "' has an unsupported type");
         }
@@ -2601,7 +2613,8 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         em.hoistLocal(name, t);
     }
     em.emitStmt(body);
-    if (nout == 1 && !arrayReturn) em.emitReturnScalar(retName);
+    if (nout == 1 && !arrayReturn)
+        dynamicReturn ? em.emitReturnDynamic(retName) : em.emitReturnScalar(retName);
 
     std::string definition = sig + " {\n";
     definition += em.out();
