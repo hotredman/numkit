@@ -2012,6 +2012,39 @@ void Emitter::emitAssign(const ASTNode &s)
             return;
         }
 
+        // LOGICAL-INDEXING READ: `y = x(m)` where x is an array var and m a LOGICAL
+        // array (mask). Build a runtime-sized result by FILTERING x — the elements
+        // of x where m is true (MATLAB x(logical)). v1: a single LOGICAL-array
+        // subscript that is itself a VARIABLE (an inline mask would need
+        // materialising first); x and m both 1-D; y a 1-D array LOCAL (push_back).
+        // Bound on min(len) so a too-long mask cannot read x out of bounds.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::LOGICAL) {
+            const ArrayInfo &bx = arrays_.at(rhs.children[0]->strValue);  // x (source)
+            const ArrayInfo &bm = arrays_.at(rhs.children[1]->strValue);  // m (mask)
+            if (bx.is2D || bx.isND || bm.is2D || bm.isND)
+                unsupported("logical indexing: a 1-D array + a 1-D mask only (v1)");
+            line("{");
+            ++indent_;
+            line(name + ".clear();");
+            line("const std::size_t _nk_n = " + bm.lenVar + " < " + bx.lenVar + " ? "
+                 + bm.lenVar + " : " + bx.lenVar + ";");
+            open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+            line("if (" + bm.dataExpr + "[_nk_i]) " + name + ".push_back("
+                 + bx.dataExpr + "[_nk_i]);");
+            close();
+            --indent_;
+            line("}");
+            types_.set(name, {InferredType::concrete(bx.dtype, Shape::rowVector()),
+                              ConstVal::unknown()});
+            return;
+        }
+
         if (isArrayVar(name))
             unsupported("array-valued assignment to '" + name
                         + "' (only size-constructor init of the output in RawBuffer ABI)");

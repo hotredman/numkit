@@ -946,6 +946,43 @@ TEST(CodegenE2E, LogicalArrayFromComparison)
     EXPECT_DOUBLE_EQ(got[0], 2.0);  // count of x > 2.5 in [1 2 3 4]
 }
 
+// LOGICAL-INDEXING READ `v = x(m)` (P3 datatypes): build a runtime-sized result
+// by filtering x by the mask m. The result is a 1-D array LOCAL grown via
+// push_back. End-to-end.
+TEST(CodegenE2E, LogicalIndexingRead)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(x)\n"
+        "  m = x > 2.5;\n"        // mask: [0 0 1 1] for [1 2 3 4]
+        "  v = x(m);\n"           // logical indexing -> [3 4]
+        "  s = v(1) + v(2);\n"    // 3 + 4 = 7
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find(".push_back("), std::string::npos)
+        << "logical indexing must build the result by filtering (push_back)";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_logidx_e2e.exe").string();
+    const std::string outTxt = (base / "nk_logidx_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {1.0, 2.0, 3.0, 4.0};\n"  // x(x>2.5) = [3 4]
+        "  double s = f(x, 4);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 7.0);  // v(1)+v(2) = 3+4
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
