@@ -1,4 +1,4 @@
-// toolboxes/stats/src/nan_aware/backends/nan_reductions_simd.cpp
+// ops/src/nan_reductions_simd.cpp
 //
 // Highway dynamic-dispatch single-pass nansum / nanmean kernels (P2).
 // Reads the input ONCE; the NaN positions are masked to zero by
@@ -11,19 +11,19 @@
 // pass. 4× unrolled accumulators preserve the same ILP pattern as the
 // existing binary-op SIMD loops.
 
-#include "nan_reductions.hpp"
+#include <numkit/ops/nan_reductions.hpp>
 
 #include <cmath>
 #include <cstddef>
 #include <limits>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "nan_aware/backends/nan_reductions_simd.cpp"
+#define HWY_TARGET_INCLUDE "nan_reductions_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
 HWY_BEFORE_NAMESPACE();
-namespace numkit::stats::detail {
+namespace numkit::ops {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
@@ -270,11 +270,11 @@ double NanSumSqDevScanLoop(const double *HWY_RESTRICT p, std::size_t n,
 }
 
 } // namespace HWY_NAMESPACE
-} // namespace numkit::stats::detail
+} // namespace numkit::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
-namespace numkit::stats::detail {
+namespace numkit::ops {
 
 HWY_EXPORT(NanSumScanLoop);
 HWY_EXPORT(NanSumCountScanLoop);
@@ -327,5 +327,5 @@ double nanVarianceTwoPass(const double *p, std::size_t n, int normFlag)
     return ss / denom;
 }
 
-} // namespace numkit::stats::detail
+} // namespace numkit::ops
 #endif // HWY_ONCE
