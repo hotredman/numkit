@@ -1488,6 +1488,50 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Bridged array reduction -> scalar (opt-in): s = sum(x) / prod / mean /
+        // max / min. The array arg can't be a scalar C++ expression, so box it
+        // (like the bridged array-RESULT path) and call bridge_scalar_arr —
+        // exact runtime result (summation order, NaN). Sound only when inference
+        // proves a real (non-complex) scalar result AND an arg is an array (a
+        // pure-scalar call uses the bridge_scalar path in emitBuiltinCall).
+        if (!isArrayVar(name) && bridge_ && rhs.type == NodeType::CALL && !rhs.children.empty()
+            && rhs.children[0]->type == NodeType::IDENTIFIER) {
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            bool                anyArrayArg = false;
+            for (std::size_t i = 1; i < rhs.children.size(); ++i)
+                if (rhs.children[i]->type == NodeType::IDENTIFIER
+                    && isArrayVar(rhs.children[i]->strValue))
+                    anyArrayArg = true;
+            if (anyArrayArg && res.type.isUnboxableScalar()
+                && res.type.dtype != ValueType::COMPLEX) {
+                const std::string callee = rhs.children[0]->strValue;
+                const std::size_t nargs  = rhs.children.size() - 1;
+                std::string       boxed;
+                for (std::size_t i = 1; i < rhs.children.size(); ++i) {
+                    const ASTNode &arg = *rhs.children[i];
+                    if (i > 1) boxed += ", ";
+                    if (arg.type == NodeType::IDENTIFIER && isArrayVar(arg.strValue)) {
+                        const ArrayInfo &aai = arrays_.at(arg.strValue);
+                        if (aai.is2D || aai.isND)
+                            unsupported("bridged reduction: 2-D/N-D array argument (v1)");
+                        if (aai.dtype == ValueType::COMPLEX)
+                            unsupported("bridged reduction: complex array argument (v1)");
+                        boxed += "nk_box_array(" + aai.dataExpr + ", " + aai.lenVar + ")";
+                    } else {
+                        if (inferExpr(arg, types_, reg_, classes_).type.dtype == ValueType::COMPLEX)
+                            unsupported("bridged reduction: complex scalar argument (v1)");
+                        boxed += "nk_box_scalar(" + emitExpr(arg) + ")";
+                    }
+                }
+                open("");  // fresh scope for the temporary arg array
+                line("nk_val _nk_args[] = { " + boxed + " };");
+                line(name + " = nk_rt::bridge_scalar_arr(\"" + callee + "\", _nk_args, "
+                     + std::to_string(nargs) + ");");
+                close();
+                types_.set(name, res);
+                return;
+            }
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and
@@ -2052,6 +2096,18 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_error err; err.code = 0;\n"
            "    nk_val r = nk_call(name, argv.data(), argv.size(), 1, nullptr, &err);\n"
            "    for (nk_val h : argv) nk_release(h);\n"
+           "    if (!r || err.code) { nk_release(r);\n"
+           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "    const double v = nk_unbox_scalar(r); nk_release(r); return v;\n"
+           "}\n"
+           "// Pre-boxed args (incl. arrays) -> call (1 output) -> unbox a SCALAR\n"
+           "// result; releases args + result; errors throw. For array-arg\n"
+           "// reductions (sum, prod, mean, max, min) whose arg can't be a scalar\n"
+           "// C++ expression. Mirrors bridge_into but the result is a scalar.\n"
+           "inline double bridge_scalar_arr(const char* name, nk_val* args, std::size_t nargs) {\n"
+           "    nk_error err; err.code = 0;\n"
+           "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
+           "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
            "    if (!r || err.code) { nk_release(r);\n"
            "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
            "    const double v = nk_unbox_scalar(r); nk_release(r); return v;\n"
