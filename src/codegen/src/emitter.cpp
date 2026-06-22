@@ -845,24 +845,36 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
             unsupported("Dynamic tier: transpose operand (v1)");
         return "nk_rt::unop(\"" + e.strValue + "\", " + emitDynamicExpr(*e.children[0]) + ")";
     case NodeType::CALL: {
-        // An un-typeable builtin result, kept boxed. v1: a plain builtin name,
-        // all args real-double scalars (a Dynamic / array / complex argument is
-        // A3/A4). Index reads and method calls are not this path.
+        // An un-typeable builtin result, kept boxed. v1: a plain builtin name;
+        // each argument is a real-double scalar OR a Dynamic value (A3). A
+        // concrete array / complex argument is an explicit boundary (A4 / later).
+        // Index reads and method calls are not this path.
         if (e.children.empty()) unsupported("Dynamic tier: empty call");
         const ASTNode &callee = *e.children[0];
         if (callee.type != NodeType::IDENTIFIER)
             unsupported("Dynamic tier: non-identifier callee");
         if (isArrayVar(callee.strValue))
             unsupported("Dynamic tier: index read '" + callee.strValue + "' (v1, A4)");
-        std::string args;
+        bool allDoubleScalar = true;
         for (std::size_t i = 1; i < e.children.size(); ++i) {
-            const ASTNode      &arg = *e.children[i];
-            const AbstractValue av  = inferExpr(arg, types_, reg_, classes_);
-            if (!(av.type.dtype == ValueType::DOUBLE && av.type.shape.isScalar()))
-                unsupported("Dynamic tier: call argument must be a real-double scalar (v1, A3)");
-            args += (i > 1 ? ", " : "") + emitExpr(arg);
+            const AbstractValue av = inferExpr(*e.children[i], types_, reg_, classes_);
+            if (av.type.isConcrete() && !av.type.shape.isScalar())
+                unsupported("Dynamic tier: array/matrix call argument (v1, A4)");
+            if (av.type.isConcrete() && av.type.dtype == ValueType::COMPLEX)
+                unsupported("Dynamic tier: complex call argument (v1)");
+            if (!(av.type.isConcrete() && av.type.dtype == ValueType::DOUBLE
+                  && av.type.shape.isScalar()))
+                allDoubleScalar = false;  // a Dynamic argument
         }
-        return "nk_rt::call_dyn(\"" + callee.strValue + "\", {" + args + "})";
+        std::string args;
+        for (std::size_t i = 1; i < e.children.size(); ++i)
+            args += (i > 1 ? ", " : "")
+                    + (allDoubleScalar ? emitExpr(*e.children[i]) : emitDynamicExpr(*e.children[i]));
+        // All real-double scalars -> call_dyn (boxes doubles directly, fewer
+        // allocations); any Dynamic arg -> call_dynv (each arg is a boxed val).
+        return allDoubleScalar
+                   ? ("nk_rt::call_dyn(\"" + callee.strValue + "\", {" + args + "})")
+                   : ("nk_rt::call_dynv(\"" + callee.strValue + "\", {" + args + "})");
     }
     default:
         unsupported("Dynamic tier: expression node kind");
@@ -2289,6 +2301,14 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_error e; e.code = 0;\n"
            "    nk_val r = nk_call(name, argv.data(), argv.size(), 1, nullptr, &e);\n"
            "    for (nk_val h : argv) nk_release(h);\n"
+           "    return _checked(r, e); }\n"
+           "// Like call_dyn but the args are already boxed vals (a Dynamic / mixed\n"
+           "// argument list, A3) — borrowed; their val owners release them. 1 output.\n"
+           "inline val call_dynv(const char* name, std::initializer_list<val> args) {\n"
+           "    std::vector<nk_val> argv; argv.reserve(args.size());\n"
+           "    for (const val& a : args) argv.push_back(a.get());\n"
+           "    nk_error e; e.code = 0;\n"
+           "    nk_val r = nk_call(name, argv.data(), argv.size(), 1, nullptr, &e);\n"
            "    return _checked(r, e); }\n"
            "} // namespace nk_rt\n";
 }
