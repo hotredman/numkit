@@ -230,6 +230,56 @@ int nk_truth(nk_val v, nk_error *err)
     }
 }
 
+nk_val nk_index(nk_val a, const nk_val *subs, size_t nsubs, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        const Value *av = unwrap(a);
+        if (!av) throw std::runtime_error("nk_index: null handle");
+        std::vector<Value> args;
+        args.reserve(nsubs);
+        for (size_t i = 0; i < nsubs; ++i) {
+            const Value *sv = subs ? unwrap(subs[i]) : nullptr;
+            if (!sv) throw std::runtime_error("nk_index: null subscript handle");
+            args.push_back(*sv);
+        }
+        const numkit::Span<const Value> argSpan(args.data(), args.size());
+
+        // `value(subs)` is index/call-AMBIGUOUS — resolve exactly as the
+        // interpreter (VM::execCallIndirect), so a Dynamic value behaves
+        // identically whatever it turns out to be at runtime.
+        // 1. function handle / closure cell -> CALL (captures resolved inside).
+        if (av->isFuncHandle()
+            || (av->isCell() && av->numel() >= 1 && av->cellAt(0).isFuncHandle())) {
+            std::vector<Value> outs = engine().callFunctionHandleMulti(*av, argSpan, 1);
+            return make(outs.empty() ? Value() : outs[0]);
+        }
+        // 2. object -> custom subsref overload, else builtin object-array indexing.
+        if (av->isObject()) {
+            Value self = *av, out;
+            if (engine().tryObjectSubsref(self, argSpan, 1, out, nullptr))
+                return make(std::move(out));
+            if (nsubs != 1)
+                throw std::runtime_error("nk_index: multi-subscript object indexing not supported (v1)");
+            const std::vector<std::size_t> ids = Value::resolveIndices(args[0], av->objectCount());
+            return make(av->objectSubArray(ids, nullptr));
+        }
+        // 3. array / numeric -> indexing. v1: a single subscript (1-D linear;
+        //    a vector subscript yields a sub-array). resolveIndices is the
+        //    interpreter's own 1-based->0-based, bounds-checked resolution.
+        if (nsubs != 1)
+            throw std::runtime_error("nk_index: multi-subscript indexing not supported (v1)");
+        const std::vector<std::size_t> ids = Value::resolveIndices(args[0], av->numel());
+        return make(av->indexGet(ids.data(), ids.size()));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
+}
+
 double nk_unbox_scalar(nk_val v)
 {
     try {
