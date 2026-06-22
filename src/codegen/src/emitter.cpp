@@ -1402,18 +1402,29 @@ void Emitter::emitAssign(const ASTNode &s)
         if (isArrayVar(name) && !arrays_.at(name).is2D && !arrays_.at(name).isND
             && rhs.type == NodeType::CALL && rhs.children.size() == 2
             && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "size"
-            && rhs.children[1]->type == NodeType::IDENTIFIER
-            && isArrayVar(rhs.children[1]->strValue)) {
-            const ArrayInfo  &sai  = arrays_.at(name);
-            const ArrayInfo  &aai  = arrays_.at(rhs.children[1]->strValue);
-            const std::size_t rank = aai.isND ? aai.ndDims.size() : 2;
-            if (sai.isLocal) line(name + ".assign(" + std::to_string(rank) + ", 0.0);");
-            for (std::size_t k = 0; k < rank; ++k)
-                line(sai.dataExpr + "[" + std::to_string(k) + "] = static_cast<double>("
-                     + dimExpr(aai, k) + ");");
-            types_.set(name, {InferredType::concrete(sai.dtype, Shape::rowVector()),
-                              ConstVal::unknown()});
-            return;
+            && rhs.children[1]->type == NodeType::IDENTIFIER) {
+            const std::string &opnd = rhs.children[1]->strValue;
+            const ArrayInfo   &sai  = arrays_.at(name);
+            if (isArrayVar(opnd)) {
+                const ArrayInfo  &aai  = arrays_.at(opnd);
+                const std::size_t rank = aai.isND ? aai.ndDims.size() : 2;
+                if (sai.isLocal) line(name + ".assign(" + std::to_string(rank) + ", 0.0);");
+                for (std::size_t k = 0; k < rank; ++k)
+                    line(sai.dataExpr + "[" + std::to_string(k) + "] = static_cast<double>("
+                         + dimExpr(aai, k) + ");");
+                types_.set(name, {InferredType::concrete(sai.dtype, Shape::rowVector()),
+                                  ConstVal::unknown()});
+                return;
+            }
+            // A scalar operand: size is [1 1] (rank 2). Native + self-contained.
+            if (inferExpr(*rhs.children[1], types_, reg_, classes_).type.shape.kind
+                == ShapeKind::Scalar) {
+                if (sai.isLocal) line(name + ".assign(2, 1.0);");
+                else { line(sai.dataExpr + "[0] = 1.0;"); line(sai.dataExpr + "[1] = 1.0;"); }
+                types_.set(name, {InferredType::concrete(sai.dtype, Shape::rowVector()),
+                                  ConstVal::unknown()});
+                return;
+            }
         }
         // Transpose: y = x' (ctranspose) / y = x.' (transpose). A 1-D vector
         // flips orientation; a 2-D matrix swaps its dims (column-major). The
