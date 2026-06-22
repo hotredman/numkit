@@ -1,17 +1,17 @@
-// toolboxes/stats/src/nan_aware/backends/nan_reductions_portable.cpp
+// ops/src/nan_reductions_portable.cpp
 //
 // Scalar single-pass nansum / nanmean. Compiled when NUMKIT_WITH_SIMD=OFF.
 // Same single-read pattern as the Highway variant — branch-free predicate
 // (`std::isnan` + ternary) keeps it autovectorisable by recent compilers
 // even on the portable build.
 
-#include "nan_reductions.hpp"
+#include <numkit/ops/nan_reductions.hpp>
 
 #include <cmath>
 #include <cstddef>
 #include <limits>
 
-namespace numkit::stats::detail {
+namespace numkit::ops {
 
 double nanSumScan(const double *p, std::size_t n)
 {
@@ -81,4 +81,4 @@ double nanVarianceTwoPass(const double *p, std::size_t n, int normFlag)
     return ss / denom;
 }
 
-} // namespace numkit::stats::detail
+} // namespace numkit::ops

@@ -1,4 +1,4 @@
-// toolboxes/stats/src/nan_aware/backends/nan_reductions.hpp
+// ops/include/numkit/ops/nan_reductions.hpp
 //
 // Internal contract for single-pass NaN-skipping reductions used by
 // nansum / nanmean in stats.cpp. SIMD-dispatched (Highway) when
@@ -13,7 +13,7 @@
 
 #include <cstddef>
 
-namespace numkit::stats::detail {
+namespace numkit::ops {
 
 // Single pass over [p, p+n). NaN positions contribute 0. Returns the
 // sum of the non-NaN values. Empty / all-NaN input returns 0.
@@ -43,4 +43,4 @@ double nanMinScan(const double *p, std::size_t n);
 // normFlag==1, NaN for normFlag==0.
 double nanVarianceTwoPass(const double *p, std::size_t n, int normFlag);
 
-} // namespace numkit::stats::detail
+} // namespace numkit::ops

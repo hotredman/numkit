@@ -65,13 +65,17 @@ if(NUMKIT_WITH_SIMD)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_simd.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_stockham_simd.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_soa_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp
+        # NaN-skipping single-pass reductions (nansum/nanmean/nanmax/nanmin/
+        # nanvar) — Highway; backs stats nan_aware. Portable fallback below.
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp)
 else()
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_kernels_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_portable.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_portable.cpp)
 endif()
 
 add_library(numkit_ops STATIC ${NUMKIT_OPS_SOURCES})

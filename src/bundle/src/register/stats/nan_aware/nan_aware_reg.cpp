@@ -8,7 +8,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
-#include "nan_aware/backends/nan_reductions.hpp"
+#include <numkit/ops/nan_reductions.hpp>
 #include <numkit/ops/helpers.hpp>
 #include "nan_aware/nan_aware_detail.hpp"
 #include <numkit/ops/reductions.hpp>
