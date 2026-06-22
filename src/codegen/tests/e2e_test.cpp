@@ -906,6 +906,46 @@ TEST(CodegenE2E, SwitchStatement)
     EXPECT_DOUBLE_EQ(got[3], 99.0);  // otherwise
 }
 
+// LOGICAL array from an elementwise comparison (P3 datatypes): `m = x > 2.5`
+// produces a LOGICAL buffer; it is stored as std::vector<std::uint8_t> (not
+// vector<bool>, which has no .data()). Reading its elements (clean loop-counter
+// index) and accumulating counts the trues. End-to-end.
+TEST(CodegenE2E, LogicalArrayFromComparison)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(x)\n"
+        "  m = x > 2.5;\n"      // LOGICAL array -> uint8 storage
+        "  s = 0;\n"
+        "  for k = 1:numel(x)\n"
+        "    s = s + m(k);\n"   // read logical elements, count the trues
+        "  end\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("std::vector<std::uint8_t>"), std::string::npos)
+        << "a LOGICAL array local must use uint8 storage (not vector<bool>)";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_logarr_e2e.exe").string();
+    const std::string outTxt = (base / "nk_logarr_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {1.0, 2.0, 3.0, 4.0};\n"  // x > 2.5 -> [0 0 1 1], count = 2
+        "  double s = f(x, 4);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 2.0);  // count of x > 2.5 in [1 2 3 4]
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
