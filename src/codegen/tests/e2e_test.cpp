@@ -983,6 +983,46 @@ TEST(CodegenE2E, LogicalIndexingRead)
     EXPECT_DOUBLE_EQ(got[0], 7.0);  // v(1)+v(2) = 3+4
 }
 
+// LOGICAL-INDEXING WRITE `y(m) = c` (P3 datatypes): scatter a scalar into the
+// masked positions (MATLAB clamp idiom x(x<0)=0). End-to-end.
+TEST(CodegenE2E, LogicalIndexingWrite)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(x)\n"
+        "  y = x;\n"          // copy into the writable output buffer
+        "  m = y < 2.5;\n"    // mask: [1 1 0 0] for [1 2 3 4]
+        "  y(m) = 0;\n"       // clamp masked elements to 0
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("] = _nk_c;"), std::string::npos)
+        << "logical-indexing write must scatter the scalar into the masked positions";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_logidxw_e2e.exe").string();
+    const std::string outTxt = (base / "nk_logidxw_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {1.0, 2.0, 3.0, 4.0};\n"
+        "  double y[4] = {0, 0, 0, 0};\n"
+        "  f(x, 4, y, 4);\n"  // y -> [0 0 3 4]
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  for (int i = 0; i < 4; ++i) std::fprintf(h, \"%.17g\\n\", y[i]);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 4u);
+    EXPECT_DOUBLE_EQ(got[0], 0.0);  // 1 < 2.5 -> clamped
+    EXPECT_DOUBLE_EQ(got[1], 0.0);  // 2 < 2.5 -> clamped
+    EXPECT_DOUBLE_EQ(got[2], 3.0);  // 3 >= 2.5 -> kept
+    EXPECT_DOUBLE_EQ(got[3], 4.0);  // 4 >= 2.5 -> kept
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
