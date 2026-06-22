@@ -59,4 +59,31 @@ ScratchVec<Complex> applyFilterDf2tComplex(const Complex *bn, std::size_t nb, co
     return out;
 }
 
+void biquadDf2t(double b0, double b1, double b2, double a1, double a2,
+                const double *x, double *y, std::size_t n)
+{
+    double s1 = 0.0, s2 = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double xi = x[i];
+        const double yi = b0 * xi + s1;
+        s1 = b1 * xi - a1 * yi + s2;
+        s2 = b2 * xi - a2 * yi;
+        y[i] = yi;
+    }
+}
+
+void biquadDf2tWithState(double b0, double b1, double b2, double a1, double a2,
+                         const double *x, double *y, std::size_t n,
+                         double s1_init, double s2_init)
+{
+    double s1 = s1_init, s2 = s2_init;
+    for (std::size_t i = 0; i < n; ++i) {
+        const double xi = x[i];
+        const double yi = b0 * xi + s1;
+        s1 = b1 * xi - a1 * yi + s2;
+        s2 = b2 * xi - a2 * yi;
+        y[i] = yi;
+    }
+}
+
 } // namespace numkit::ops

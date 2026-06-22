@@ -10,6 +10,7 @@
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
+#include <numkit/ops/iir_filter.hpp>
 
 #include <algorithm>
 #include <array>
@@ -20,41 +21,12 @@ namespace numkit::signal {
 
 namespace {
 
-// In-place: y[n] for one biquad section, single-channel signal.
-// b/a are pre-normalised so a0 = 1.
-//   y[n] = b0·x[n] + s1
-//   s1   = b1·x[n] - a1·y[n] + s2
-//   s2   = b2·x[n] - a2·y[n]
-void biquadDf2t(double b0, double b1, double b2,
-                double a1, double a2,
-                const double *x, double *y, size_t n)
-{
-    double s1 = 0.0, s2 = 0.0;
-    for (size_t i = 0; i < n; ++i) {
-        const double xi = x[i];
-        const double yi = b0 * xi + s1;
-        s1 = b1 * xi - a1 * yi + s2;
-        s2 = b2 * xi - a2 * yi;
-        y[i] = yi;
-    }
-}
-
-// Same as biquadDf2t but with explicit initial state. Used for the
-// forward + backward passes of sosfiltfilt to remove edge transients.
-void biquadDf2tWithState(double b0, double b1, double b2,
-                         double a1, double a2,
-                         const double *x, double *y, size_t n,
-                         double s1_init, double s2_init)
-{
-    double s1 = s1_init, s2 = s2_init;
-    for (size_t i = 0; i < n; ++i) {
-        const double xi = x[i];
-        const double yi = b0 * xi + s1;
-        s1 = b1 * xi - a1 * yi + s2;
-        s2 = b2 * xi - a2 * yi;
-        y[i] = yi;
-    }
-}
+// The raw-buffer biquad DF2T recurrence kernels moved to the kernel layer —
+// numkit::ops::biquadDf2t{,WithState} (numkit/ops/iir_filter.hpp). Re-export
+// them so the Value-coupled cascade orchestration below calls them unqualified.
+// The steady-state-IC helper (biquadZi) and the cascade logic stay in signal.
+using numkit::ops::biquadDf2t;
+using numkit::ops::biquadDf2tWithState;
 
 // Steady-state initial conditions (s1, s2) for one biquad: when input
 // is constant 1, applying these as initial state makes the output

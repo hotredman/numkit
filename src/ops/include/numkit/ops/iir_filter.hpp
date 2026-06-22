@@ -40,4 +40,19 @@ ScratchVec<Complex> applyFilterDf2tComplex(const Complex *bn, std::size_t nb,
                                            std::size_t ziLen = 0,
                                            Complex *zfOut = nullptr);
 
+// ── Second-order section (biquad) DF2T ────────────────────────────────────
+// One biquad section applied in place to a single-channel signal, Direct-Form-II
+// transposed. b/a are pre-normalised so a0 = 1:
+//   y[n] = b0*x[n] + s1;  s1 = b1*x[n] - a1*y[n] + s2;  s2 = b2*x[n] - a2*y[n].
+// The building block of an SOS cascade (signal sosfilt/sosfiltfilt). Like the
+// general DF2T above it is a sequential recurrence — no SIMD.
+void biquadDf2t(double b0, double b1, double b2, double a1, double a2,
+                const double *x, double *y, std::size_t n);
+
+// Same recurrence seeded with an explicit initial state (s1_init, s2_init) —
+// used by the forward/backward passes of sosfiltfilt.
+void biquadDf2tWithState(double b0, double b1, double b2, double a1, double a2,
+                         const double *x, double *y, std::size_t n,
+                         double s1_init, double s2_init);
+
 } // namespace numkit::ops
