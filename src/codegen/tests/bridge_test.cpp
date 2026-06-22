@@ -296,6 +296,33 @@ TEST(Bridge, IndexOutOfBoundsReported)
     nk_release(i);
 }
 
+// Shape-preserving boxers for a Dynamic ARRAY operand (column-major). Round-trip
+// box -> numel -> unbox (flat) confirms the shape + values survive.
+TEST(Bridge, BoxMatrixRoundTrip)
+{
+    const double m[6] = {1, 4, 2, 5, 3, 6};  // 2x3, column-major
+    nk_val       a    = nk_box_matrix(m, 2, 3);
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(nk_numel(a), 6u);
+    double out[6] = {0, 0, 0, 0, 0, 0};
+    nk_unbox_array(a, out, 6);
+    for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(out[i], m[i]);
+    nk_release(a);
+}
+
+TEST(Bridge, BoxArrayNdRoundTrip)
+{
+    const std::size_t dims[3] = {2, 2, 2};
+    const double      v[8]    = {1, 2, 3, 4, 5, 6, 7, 8};  // 2x2x2, column-major
+    nk_val            a       = nk_box_array_nd(v, dims, 3);
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(nk_numel(a), 8u);
+    double out[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    nk_unbox_array(a, out, 8);
+    for (int i = 0; i < 8; ++i) EXPECT_DOUBLE_EQ(out[i], v[i]);
+    nk_release(a);
+}
+
 // ---- Plugin / extension ABI (DESIGN.md §6b) --------------------------------
 // A plugin PROVIDES functions with the nk_fn signature (the mirror of
 // nk_call). Once registered, they resolve from numkit source / nk_call /

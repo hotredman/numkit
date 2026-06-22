@@ -828,12 +828,23 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         return "nk_rt::val::scalar(" + formatDoubleLiteral(e.numValue) + ")";
     case NodeType::IDENTIFIER: {
         if (isArrayVar(e.strValue)) {
-            // A4: box a typed 1-D DOUBLE array at the boundary (val::array).
-            // 2-D / N-D / complex arrays are an explicit boundary (later).
+            // Box a typed array at the boundary (shape-preserving, column-major).
             const ArrayInfo &ai = arrays_.at(e.strValue);
-            if (ai.is2D || ai.isND || ai.dtype != ValueType::DOUBLE)
-                unsupported("Dynamic tier: 2-D/N-D/complex array operand '" + e.strValue + "' (v1)");
-            return "nk_rt::val::array(" + ai.dataExpr + ", " + ai.lenVar + ")";
+            if (ai.dtype == ValueType::DOUBLE) {
+                if (ai.is2D)
+                    return "nk_rt::val::matrix(" + ai.dataExpr + ", " + ai.rowsVar + ", "
+                           + ai.colsVar + ")";
+                if (ai.isND) {
+                    std::string dims;
+                    for (std::size_t k = 0; k < ai.ndDims.size(); ++k)
+                        dims += (k ? ", " : "") + ai.ndDims[k];
+                    return "nk_rt::val::array_nd(" + ai.dataExpr + ", {" + dims + "})";
+                }
+                return "nk_rt::val::array(" + ai.dataExpr + ", " + ai.lenVar + ")";  // 1-D
+            }
+            if (ai.dtype == ValueType::COMPLEX && !ai.is2D && !ai.isND)
+                return "nk_rt::val::complex_array(" + ai.dataExpr + ", " + ai.lenVar + ")";  // 1-D complex
+            unsupported("Dynamic tier: complex 2-D/N-D array operand '" + e.strValue + "' (v1)");
         }
         const AbstractValue av = inferExpr(e, types_, reg_, classes_);
         if (av.type.isDynamic())
@@ -2297,6 +2308,12 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val take() { nk_val h = h_; h_ = nullptr; return h; }  // release ownership out\n"
            "    static val scalar(double x) { return val(nk_box_scalar(x)); }\n"
            "    static val array(const double* p, std::size_t n) { return val(nk_box_array(p, n)); }\n"
+           "    static val matrix(const double* p, std::size_t r, std::size_t c) {\n"
+           "        return val(nk_box_matrix(p, r, c)); }\n"
+           "    static val array_nd(const double* p, std::initializer_list<std::size_t> dims) {\n"
+           "        return val(nk_box_array_nd(p, dims.begin(), (int)dims.size())); }\n"
+           "    static val complex_array(const std::complex<double>* p, std::size_t n) {\n"
+           "        return val(nk_box_complex_array(reinterpret_cast<const double*>(p), n)); }\n"
            "    double to_scalar() const { return nk_unbox_scalar(h_); }\n"
            "    bool truth() const {\n"
            "        nk_error e; e.code = 0; int t = nk_truth(h_, &e);\n"

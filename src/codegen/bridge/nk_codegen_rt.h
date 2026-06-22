@@ -53,6 +53,11 @@ NK_RT_API nk_val nk_box_array(const double *p, size_t len);  /* copies the data 
  * doubles, matching std::complex<double>[len] (codegen passes a
  * reinterpret_cast<const double*> of its std::complex buffer). */
 NK_RT_API nk_val nk_box_complex_array(const double *p, size_t len);
+/* Shape-preserving boxers for a Dynamic ARRAY operand (column-major, matching
+ * the codegen RawBuffer layout): a 2-D rows×cols matrix, and an N-D array whose
+ * `nd` dims are `dims[0..nd)`. `p` holds rows*cols (resp. prod(dims)) doubles. */
+NK_RT_API nk_val nk_box_matrix(const double *p, size_t rows, size_t cols);
+NK_RT_API nk_val nk_box_array_nd(const double *p, const size_t *dims, int nd);
 
 /* Evaluate numkit source `code` in the runtime's persistent workspace and
  * return the last expression's value (owned; an empty handle for pure

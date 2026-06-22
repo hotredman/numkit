@@ -132,6 +132,35 @@ nk_val nk_box_complex_array(const double *p, size_t len)
     }
 }
 
+nk_val nk_box_matrix(const double *p, size_t rows, size_t cols)
+{
+    const size_t n = rows * cols;
+    if (!p && n != 0) return nullptr;  // a null read is UB, not a throw
+    try {
+        Value   m = Value::matrix(rows, cols, numkit::ValueType::DOUBLE, nullptr);
+        double *d = m.doubleDataMut();
+        for (size_t i = 0; i < n; ++i) d[i] = p[i];  // column-major, copied
+        return make(std::move(m));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+nk_val nk_box_array_nd(const double *p, const size_t *dims, int nd)
+{
+    if (nd < 0 || (!dims && nd != 0)) return nullptr;
+    try {
+        Value        m = Value::matrixND(dims, nd, numkit::ValueType::DOUBLE, nullptr);
+        const size_t n = m.numel();
+        if (!p && n != 0) return nullptr;
+        double *d = m.doubleDataMut();
+        for (size_t i = 0; i < n; ++i) d[i] = p[i];  // column-major, copied
+        return make(std::move(m));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 nk_val nk_eval(const char *code, nk_error *err)
 {
     if (err) { err->code = 0; err->message[0] = '\0'; }
