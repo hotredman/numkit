@@ -823,6 +823,47 @@ TEST(CodegenE2E, BreakAndContinueInLoop)
     EXPECT_DOUBLE_EQ(got[0], 8.0);
 }
 
+// Early `return` (control-flow coverage): a conditional return mid-function plus
+// the normal fall-through trailing return. Both must produce MATLAB's result.
+TEST(CodegenE2E, EarlyReturnStatement)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(n)\n"
+        "  y = 0;\n"
+        "  for k = 1:n\n"
+        "    y = y + k;\n"
+        "    if y > 10\n"
+        "      return;\n"   // early return once the running sum exceeds 10
+        "    end\n"
+        "  end\n"
+        "  y = -1;\n"       // only reached if the loop completes without returning
+        "end\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+    EXPECT_NE(emitted.source.find("return y;"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_earlyret_e2e.exe").string();
+    const std::string outTxt = (base / "nk_earlyret_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const double a = f(100.0);\n"  // 1+2+3+4+5 = 15 (>10 at k=5 -> early return)
+        "  const double b = f(3.0);\n"    // 1+2+3 = 6, never >10 -> fall through -> -1
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n%.17g\\n\", a, b);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 15.0);  // early return
+    EXPECT_DOUBLE_EQ(got[1], -1.0);  // fall-through trailing return
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
