@@ -1969,6 +1969,42 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         types_.set(rn1, {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()});
         return;
     }
+    // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
+    // builtin(args)` where builtin is NOT a compiled user function (nor a
+    // variable). The runtime owns nargout and computes all outputs; each result
+    // is kept BOXED as a Dynamic nk_rt::val (sound — no per-builtin type
+    // assumption; reuses the Dynamic tier). Targets are Dynamic locals (the
+    // inference types them so); a ~ slot discards its output. v1: 2+ outputs;
+    // args boxed by emitDynamicExpr (scalar / 1-D/2-D/N-D array / Dynamic).
+    if (bridge_ && rhs.type == NodeType::CALL && !rhs.children.empty()
+        && rhs.children[0]->type == NodeType::IDENTIFIER && s.returnNames.size() >= 2
+        && !types_.has(rhs.children[0]->strValue)  // not a variable (would be indexing)
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {  // not a user fn
+        const std::string callee = rhs.children[0]->strValue;
+        const std::size_t nout   = s.returnNames.size();
+        std::string       boxedArgs;
+        for (std::size_t i = 1; i < rhs.children.size(); ++i)
+            boxedArgs += (i > 1 ? ", " : "") + emitDynamicExpr(*rhs.children[i]);
+        const std::string call = "nk_rt::call_dyn_multi(\"" + callee + "\", {" + boxedArgs + "}, "
+                                 + std::to_string(nout) + ", _nk_mo)";
+        open("");  // scope for the extra-outputs array (outputs 1..nout-1)
+        line("nk_rt::val _nk_mo[" + std::to_string(nout - 1) + "];");
+        const std::string &t0 = s.returnNames[0];  // output 0 = call_dyn_multi's return
+        if (t0.empty() || t0 == "~") {
+            line(call + ";");  // discarded
+        } else {
+            line(t0 + " = " + call + ";");
+            types_.set(t0, {InferredType::dynamic(), ConstVal::unknown()});
+        }
+        for (std::size_t k = 1; k < nout; ++k) {  // outputs 1.. = the extras
+            const std::string &tk = s.returnNames[k];
+            if (tk.empty() || tk == "~") continue;  // discarded (released at block close)
+            line(tk + " = std::move(_nk_mo[" + std::to_string(k - 1) + "]);");
+            types_.set(tk, {InferredType::dynamic(), ConstVal::unknown()});
+        }
+        close();
+        return;
+    }
     if (rhs.type != NodeType::CALL || rhs.children.empty()
         || rhs.children[0]->type != NodeType::IDENTIFIER)
         unsupported("multi-assign RHS must be a user-function call (v1)");
@@ -2400,6 +2436,20 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    for (const val& s : subs) sv.push_back(s.get());\n"
            "    nk_error e; e.code = 0;\n"
            "    return _checked(nk_index(a.get(), sv.data(), sv.size(), &e), e); }\n"
+           "// Multi-output bridged call: `[o0, o1, ...] = name(args)`. Returns output\n"
+           "// 0; outputs 1..nargout-1 are written (owned) into extra[0..nargout-2].\n"
+           "// Args borrowed (their val owners release them). Errors throw.\n"
+           "inline val call_dyn_multi(const char* name, std::initializer_list<val> args,\n"
+           "                          std::size_t nargout, val* extra) {\n"
+           "    std::vector<nk_val> argv; argv.reserve(args.size());\n"
+           "    for (const val& a : args) argv.push_back(a.get());\n"
+           "    std::vector<nk_val> ex(nargout > 1 ? nargout - 1 : 0, nullptr);\n"
+           "    nk_error e; e.code = 0;\n"
+           "    nk_val r = nk_call(name, argv.data(), argv.size(), nargout, ex.data(), &e);\n"
+           "    if (!r || e.code) { nk_release(r); for (nk_val h : ex) nk_release(h);\n"
+           "        throw std::runtime_error(e.code ? e.message : \"numkit dynamic op failed\"); }\n"
+           "    for (std::size_t i = 0; i < ex.size(); ++i) extra[i] = val(ex[i]);\n"
+           "    return val(r); }\n"
            "} // namespace nk_rt\n";
 }
 
