@@ -2288,6 +2288,14 @@ void Emitter::emitStmt(const ASTNode &s)
     case NodeType::FOR_STMT:   emitFor(s);    return;
     case NodeType::WHILE_STMT: emitWhile(s);  return;
     case NodeType::IF_STMT:    emitIf(s);     return;
+    // break / continue lower directly to the C++ loop-control keywords. They only
+    // ever appear inside a loop body (MATLAB semantics + the parser enforce it,
+    // and the emitted code mirrors that structure), so the keyword lands inside
+    // the corresponding emitted for/while. No effect on the index/bound analyses
+    // (those are per-expression, not control-flow sensitive); an early exit just
+    // leaves arrays filled up to the exit point, matching MATLAB.
+    case NodeType::BREAK_STMT:    line("break;");    return;
+    case NodeType::CONTINUE_STMT: line("continue;"); return;
     case NodeType::EXPR_STMT:
         // A call evaluated for effect — a void method/function (e.g. a
         // handle class's in-place mutator), result discarded.
