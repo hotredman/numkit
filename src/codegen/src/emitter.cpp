@@ -2075,11 +2075,20 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         unsupported("multi-assign must request all of '" + name + "'s outputs (v1)");
 
     const std::vector<InferredType> outs = reg_.applyMulti(name, toArgInfos(argTypes));
+    // Output 0 may be returned BY VALUE — a leading 1-D array (the callee's ABI
+    // mirror in emitOneFunction). Then target 0 takes the call's RETURN value and
+    // is NOT a reference out-arg; outputs 1.. stay reference out-args. Otherwise
+    // every output is a reference out-arg (the all-scalar multi-output case).
+    const InferredType out0 = !outs.empty() ? outs[0] : InferredType::dynamic();
+    const bool         out0ByValue =
+        isBufferArrayType(out0) && !is2DMatrixType(out0)
+        && !(out0.isConcrete() && out0.shape.isNDims())
+        && (out0.dtype == ValueType::DOUBLE || out0.dtype == ValueType::COMPLEX);
     // An ignored (~) output still has a reference out-param the callee writes, so
     // it gets a throwaway local. The throwaways are scoped in a fresh block so
     // repeated `[~,...] = f()` statements never collide on the throwaway name.
     std::vector<std::string> ignoreDecls;
-    for (std::size_t i = 0; i < s.returnNames.size(); ++i) {
+    for (std::size_t i = (out0ByValue ? 1 : 0); i < s.returnNames.size(); ++i) {
         const std::string &rn = s.returnNames[i];
         const InferredType  ot = i < outs.size() ? outs[i] : InferredType::dynamic();
         if (!argList.empty()) argList += ", ";
@@ -2099,12 +2108,21 @@ void Emitter::emitMultiAssign(const ASTNode &s)
     const std::string mangled = mangle(name, argTypes);
     if (ctx_->seen.insert(mangled).second)
         ctx_->pending.push_back({def, argTypes, mangled});
+    // With a by-value output 0, target 0 takes the RETURN (an array LOCAL —
+    // std::vector); a ~ slot discards the returned vector.
+    std::string callStmt;
+    if (out0ByValue && !(s.returnNames[0].empty() || s.returnNames[0] == "~")) {
+        callStmt = s.returnNames[0] + " = " + mangled + "(" + argList + ");";
+        types_.set(s.returnNames[0], {out0, ConstVal::unknown()});
+    } else {
+        callStmt = mangled + "(" + argList + ");";  // all-ref outputs, or out0 discarded
+    }
     if (ignoreDecls.empty()) {
-        line(mangled + "(" + argList + ");");
+        line(callStmt);
     } else {
         open("");  // fresh scope for the ~ throwaway locals
         for (const std::string &d : ignoreDecls) line(d);
-        line(mangled + "(" + argList + ");");
+        line(callStmt);
         close();
     }
 }
@@ -2626,10 +2644,11 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     //   0 outputs -> void (e.g. a handle class's in-place mutator);
     //   1 output  -> scalar (by value) / array (out-param) / object (by value);
     //   N outputs -> void + a reference out-param per (scalar) output.
-    std::string retCpp        = "void";
+    std::string retCpp             = "void";
     std::string retName;
-    bool        arrayReturn   = false;
-    bool        dynamicReturn = false;
+    bool        arrayReturn        = false;
+    bool        dynamicReturn      = false;
+    bool        multiByValueReturn = false;  // nout>=2 + leading 1-D array (output 0 by value)
     if (nout == 1) {
         retName             = funcDef.returnNames[0];
         const auto retIt    = decls.find(retName);
@@ -2728,14 +2747,31 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             unsupported("output '" + retName + "' has an unsupported type");
         }
     } else if (nout >= 2) {
-        // Each output is a reference out-param the body writes directly.
-        // v1: scalar outputs only (array/object multi-outputs deferred).
-        for (const std::string &rn : funcDef.returnNames) {
+        // Outputs are reference out-params the body writes directly — EXCEPT a
+        // leading 1-D array (output 0), which is returned BY VALUE as a
+        // std::vector (self-describing; no caller pre-alloc). This composes the
+        // interproc-by-value 1-D return with scalar reference outputs. v1:
+        // outputs 1.. must be unboxed scalars (a trailing array output would need
+        // caller pre-alloc — sound refusal); a 2-D/N-D leading output too.
+        for (std::size_t oi = 0; oi < funcDef.returnNames.size(); ++oi) {
+            const std::string &rn = funcDef.returnNames[oi];
             if (rn.empty()) unsupported("multi-output with an unnamed output");
             const auto         it = decls.find(rn);
             const InferredType t  = (it != decls.end()) ? it->second : InferredType::dynamic();
+            if (oi == 0 && isBufferArrayType(t) && !is2DMatrixType(t)
+                && !(t.isConcrete() && t.shape.isNDims())
+                && (t.dtype == ValueType::DOUBLE || t.dtype == ValueType::COMPLEX)) {
+                // Leading 1-D array -> by-value std::vector return. Falls to the
+                // array-LOCAL hoist (not a sigParam/paramSet); the body fills it;
+                // `return rn;` is emitted at the end (emitReturnScalar).
+                retCpp             = "std::vector<" + cppScalarType(t.dtype) + ">";
+                retName            = rn;
+                multiByValueReturn = true;
+                continue;
+            }
             if (!isUnboxableScalarType(t))
-                unsupported("multi-output '" + rn + "' must be an unboxed scalar (v1)");
+                unsupported("multi-output '" + rn + "' must be an unboxed scalar "
+                            "(only a leading 1-D array output is returned by value; v1)");
             sigParams.push_back(cppScalarType(t.dtype) + "& " + rn);
             paramSet.insert(rn);  // a reference param, not a hoisted local
         }
@@ -2828,7 +2864,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         em.hoistLocal(name, t);
     }
     em.emitStmt(body);
-    if (nout == 1 && !arrayReturn)
+    if (multiByValueReturn || (nout == 1 && !arrayReturn))
         dynamicReturn ? em.emitReturnDynamic(retName) : em.emitReturnScalar(retName);
 
     std::string definition = sig + " {\n";
