@@ -1909,6 +1909,34 @@ void Emitter::emitAssign(const ASTNode &s)
             return;
         }
 
+        // Interproc 1-D array RETURN into the OUTPUT out-param (P1.5): like the
+        // LOCAL case but the dest is the caller-allocated buffer (T* + _len), so
+        // copy the callee's self-describing vector into it, bounded by the
+        // caller's _len — the same size contract the zeros-fill output already
+        // trusts (the caller allocates the true output length). 1-D only; 2-D/N-D
+        // results are refused upstream in emitUserCall (need dims with the buffer).
+        if (isArrayVar(name) && arrays_.at(name).isOutput && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && !rhs.children.empty() && rhs.children[0]->type == NodeType::IDENTIFIER
+            && ctx_ && ctx_->funcs && !types_.has(rhs.children[0]->strValue)
+            && ctx_->funcs->has(rhs.children[0]->strValue)) {
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            const ArrayInfo    &ai = arrays_.at(name);
+            line("{");
+            ++indent_;
+            line("const std::vector<" + cppScalarType(ai.dtype) + "> _nk_ret = "
+                 + emitExpr(rhs) + ";");
+            line("const std::size_t _nk_n = _nk_ret.size() < (std::size_t)(" + ai.lenVar
+                 + ") ? _nk_ret.size() : (std::size_t)(" + ai.lenVar + ");");
+            open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+            line(ai.dataExpr + "[_nk_i] = _nk_ret[_nk_i];");
+            close();
+            --indent_;
+            line("}");
+            types_.set(name, rv);
+            return;
+        }
+
         if (isArrayVar(name))
             unsupported("array-valued assignment to '" + name
                         + "' (only size-constructor init of the output in RawBuffer ABI)");

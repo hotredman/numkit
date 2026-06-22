@@ -569,6 +569,63 @@ TEST(CodegenE2E, InterprocArrayReturn)
     EXPECT_DOUBLE_EQ(got[0], 4.0);  // g(4) = [1 4 9 16]; v(2) = 4
 }
 
+// INTERPROC ARRAY RETURN into the program OUTPUT (P1.5): f's 1-D array output is
+// produced directly by an interproc call `v = g(n)`. The callee returns a
+// self-describing std::vector; the body copies it into the caller-allocated
+// out-param buffer (bounded by the caller's _len — the size contract the
+// zeros-fill output already trusts). End-to-end.
+TEST(CodegenE2E, InterprocArrayReturnIntoOutput)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function v = f(n)\n"
+        "  v = g(n);\n"   // the OUTPUT array is filled directly by the interproc result
+        "end\n"
+        "function r = g(n)\n"
+        "  r = zeros(1, n);\n"
+        "  for k = 1:n\n"
+        "    r(k) = k * k;\n"
+        "  end\n"
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("f"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
+    ASSERT_NE(emitted.source.find("_nk_ret"), std::string::npos)
+        << "expected the interproc-result -> output-buffer copy path";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_iparr_out_e2e.exe").string();
+    const std::string outTxt = (base / "nk_iparr_out_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const std::size_t N = 4;\n"
+        "  double v[4] = {0, 0, 0, 0};\n"
+        "  " + emitted.name + "(4.0, v, N);\n"  // g(4) = [1 4 9 16]
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  for (std::size_t i = 0; i < N; ++i) std::fprintf(h, \"%.17g\\n\", v[i]);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 4u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0);
+    EXPECT_DOUBLE_EQ(got[1], 4.0);
+    EXPECT_DOUBLE_EQ(got[2], 9.0);
+    EXPECT_DOUBLE_EQ(got[3], 16.0);
+}
+
 // Interproc array RETURN, complex 1-D variant: a callee returning a complex 1-D
 // array returns std::vector<std::complex<double>> by value (emit-level — the run
 // pipeline is proven by InterprocArrayReturn above).
