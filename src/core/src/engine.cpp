@@ -365,6 +365,35 @@ bool Engine::tryObjectUnaryOp(const std::string &op, const Value &operand,
                              + "' for input arguments of type '" + clsName + "'.");
 }
 
+Value Engine::applyBinaryOp(const std::string &op, const Value &lhs, const Value &rhs)
+{
+    // Object overloading first (env=nullptr: an embedding-initiated call has no
+    // caller environment, exactly like nk_call; a numeric operand short-circuits
+    // tryObjectBinaryOp before env is ever read).
+    if (lhs.isObject() || rhs.isObject()) {
+        Value out;
+        if (tryObjectBinaryOp(op, lhs, rhs, /*env=*/nullptr, out))
+            return out;
+    }
+    auto it = binaryOps_.find(op);
+    if (it != binaryOps_.end())
+        return it->second(lhs, rhs);
+    throw std::runtime_error("Undefined binary operator: " + op);
+}
+
+Value Engine::applyUnaryOp(const std::string &op, const Value &operand)
+{
+    if (operand.isObject()) {
+        Value out;
+        if (tryObjectUnaryOp(op, operand, /*env=*/nullptr, out))
+            return out;  // (returns false for ' / .': fall through to builtin transpose)
+    }
+    auto it = unaryOps_.find(op);
+    if (it != unaryOps_.end())
+        return it->second(operand);
+    throw std::runtime_error("Undefined unary operator: " + op);
+}
+
 const BytecodeChunk *Engine::resolveBinaryOpChunk(const std::string &op, const Value &lhs,
                                                   const Value &rhs, std::string &ownerClassOut)
 {

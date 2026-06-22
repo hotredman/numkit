@@ -69,6 +69,21 @@ NK_RT_API nk_val nk_eval(const char *code, nk_error *err);
 NK_RT_API nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
                          size_t nargout, nk_val *extra_outs, nk_error *err);
 
+/* ---- Dynamic-tier value operations (DESIGN.md §10 C1) ----------------------
+ *
+ * Apply an operator to boxed operands, identical to the interpreter (overload-
+ * aware): the codegen Dynamic tier emits these where a value's type could not
+ * be inferred, so a typed inline op is unavailable. Operands are BORROWED;
+ * the result is OWNED (release with nk_release). On failure return NULL and
+ * set *err. `op` is the numkit source token. */
+NK_RT_API nk_val nk_binop(const char *op, nk_val a, nk_val b, nk_error *err);
+/* Unary op: token "-", "+", "~", "'", ".'". Borrowed operand, owned result. */
+NK_RT_API nk_val nk_unop(const char *op, nk_val a, nk_error *err);
+/* MATLAB truthiness of `v` (an `if` / `while` condition): 1 iff `v` is
+ * non-empty and EVERY element is non-zero, else 0. On failure returns 0 and
+ * sets *err. (`v` is borrowed.) */
+NK_RT_API int nk_truth(nk_val v, nk_error *err);
+
 /* Unbox. */
 NK_RT_API double nk_unbox_scalar(nk_val v);
 NK_RT_API void   nk_unbox_array(nk_val v, double *out, size_t len);  /* copies min(len,numel) */

@@ -128,6 +128,113 @@ TEST(Bridge, BoxArrayNullPointer)
     nk_release(z);
 }
 
+// ---- A1: Dynamic-tier value operations (DESIGN.md §10 C1) ------------------
+// The value-level operator + truthiness primitives the generated Dynamic tier
+// (A2+) uses for operands whose type the codegen inference could not pin down.
+// Overload-aware and identical to the interpreter (they route through the same
+// Engine dispatch the TreeWalker / VM use).
+
+TEST(Bridge, BinOpScalarArithmetic)
+{
+    nk_val a = nk_box_scalar(3.0);
+    nk_val b = nk_box_scalar(4.0);
+    nk_val s = nk_binop("+", a, b, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(s), 7.0);
+    nk_val d = nk_binop("-", a, b, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(d), -1.0);
+    nk_val p = nk_binop("*", a, b, nullptr);  // scalar "*" == mtimes
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(p), 12.0);
+    nk_release(a);
+    nk_release(b);
+    nk_release(s);
+    nk_release(d);
+    nk_release(p);
+}
+
+TEST(Bridge, BinOpArrayElementwise)
+{
+    const double xa[3] = {1, 2, 3};
+    const double xb[3] = {10, 20, 30};
+    nk_val       a     = nk_box_array(xa, 3);
+    nk_val       b     = nk_box_array(xb, 3);
+    nk_val       s     = nk_binop(".*", a, b, nullptr);  // elementwise multiply
+    ASSERT_EQ(nk_numel(s), 3u);
+    double out[3] = {0, 0, 0};
+    nk_unbox_array(s, out, 3);
+    EXPECT_DOUBLE_EQ(out[0], 10.0);
+    EXPECT_DOUBLE_EQ(out[1], 40.0);
+    EXPECT_DOUBLE_EQ(out[2], 90.0);
+    nk_release(a);
+    nk_release(b);
+    nk_release(s);
+}
+
+TEST(Bridge, BinOpComparisonIsLogical)
+{
+    nk_val a  = nk_box_scalar(3.0);
+    nk_val b  = nk_box_scalar(4.0);
+    nk_val lt = nk_binop("<", a, b, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(lt), 1.0);  // 3 < 4 -> true
+    nk_val gt = nk_binop(">", a, b, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(gt), 0.0);
+    nk_release(a);
+    nk_release(b);
+    nk_release(lt);
+    nk_release(gt);
+}
+
+TEST(Bridge, UnOpNegateAndNot)
+{
+    nk_val a = nk_box_scalar(5.0);
+    nk_val n = nk_unop("-", a, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(n), -5.0);
+    nk_val z = nk_box_scalar(0.0);
+    nk_val t = nk_unop("~", z, nullptr);  // ~0 -> true
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(t), 1.0);
+    nk_release(a);
+    nk_release(n);
+    nk_release(z);
+    nk_release(t);
+}
+
+TEST(Bridge, TruthScalarAndArray)
+{
+    nk_val t = nk_box_scalar(1.0);
+    nk_val f = nk_box_scalar(0.0);
+    EXPECT_EQ(nk_truth(t, nullptr), 1);
+    EXPECT_EQ(nk_truth(f, nullptr), 0);
+    nk_release(t);
+    nk_release(f);
+    const double allnz[3] = {1, 2, 3};
+    const double hasz[3]  = {1, 0, 3};
+    nk_val       a        = nk_box_array(allnz, 3);
+    nk_val       z        = nk_box_array(hasz, 3);
+    EXPECT_EQ(nk_truth(a, nullptr), 1);  // every element non-zero -> true
+    EXPECT_EQ(nk_truth(z, nullptr), 0);  // a zero element -> false
+    nk_release(a);
+    nk_release(z);
+}
+
+// A numkit error in a value op (dimension mismatch) is TRANSLATED via nk_error,
+// never thrown across the C boundary; the call returns null and is leak-free.
+TEST(Bridge, BinOpErrorTranslatedNoLeak)
+{
+    const long long before = nk_debug_live_handles();
+    const double     xa[2] = {1, 2};
+    const double     xb[3] = {1, 2, 3};
+    nk_val           a     = nk_box_array(xa, 2);
+    nk_val           b     = nk_box_array(xb, 3);
+    nk_error         err;
+    err.code     = 0;
+    nk_val r     = nk_binop("+", a, b, &err);  // incompatible dims
+    EXPECT_EQ(r, nullptr);
+    EXPECT_NE(err.code, 0);
+    EXPECT_NE(err.message[0], '\0');
+    nk_release(a);
+    nk_release(b);
+    EXPECT_EQ(nk_debug_live_handles(), before);  // no handle leaked on the error path
+}
+
 // ---- Plugin / extension ABI (DESIGN.md §6b) --------------------------------
 // A plugin PROVIDES functions with the nk_fn signature (the mirror of
 // nk_call). Once registered, they resolve from numkit source / nk_call /
