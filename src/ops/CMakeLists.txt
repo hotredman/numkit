@@ -21,6 +21,10 @@ set(NUMKIT_OPS_SOURCES
     # Direct (time-domain) FIR convolution — the kernel behind signal conv()/
     # xcorr(). Portable C++; a Highway backend can replace the inner accumulate.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/conv.cpp
+    # Direct-Form-II-transposed IIR filter recurrence (real + complex) — the
+    # core of signal filter()/filtfilt(). Sequential recurrence, no SIMD; here
+    # for dedup + a single codegen-lowering target.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/iir_filter.cpp
     # Complex-input fused kernels — scalar std::complex (no SIMD), needed in
     # both the SIMD and portable builds.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_complex.cpp
