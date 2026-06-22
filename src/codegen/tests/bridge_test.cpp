@@ -282,6 +282,23 @@ TEST(Bridge, IndexVectorSubscriptSubArray)
     nk_release(r);
 }
 
+TEST(Bridge, IndexMatrixTwoSubscripts)
+{
+    // 2-D A(i,j) via two subscripts — the multi-subscript path resolves each
+    // subscript against its dim and reads via indexGetND (which delegates to
+    // indexGet2D), exactly like the interpreter.
+    const double m[4]    = {10, 20, 30, 40};  // column-major 2x2: [10 30; 20 40]
+    nk_val       a       = nk_box_matrix(m, 2, 2);
+    nk_val       subs[2] = {nk_box_scalar(2.0), nk_box_scalar(1.0)};  // A(2,1) = 20
+    nk_val       r       = nk_index(a, subs, 2, nullptr);
+    ASSERT_NE(r, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 20.0);
+    nk_release(a);
+    nk_release(subs[0]);
+    nk_release(subs[1]);
+    nk_release(r);
+}
+
 TEST(Bridge, IndexOutOfBoundsReported)
 {
     const double xa[2] = {1, 2};
