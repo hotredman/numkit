@@ -18,6 +18,8 @@
 
 #include <numkit/value/error.hpp>
 
+#include "ode_detail.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -50,64 +52,8 @@ constexpr double e2 = 1.0 / 3.0 - 1.0 / 4.0;    // =  1/12
 constexpr double e3 = 4.0 / 9.0 - 1.0 / 3.0;    // =  1/9
 constexpr double e4 = 0.0 - 1.0 / 8.0;          // = -1/8
 
-// Local copy of OdeOpts parser — shared design (RelTol, AbsTol, MaxStep,
-// InitialStep, NormControl, Stats) plus Refine (default = 1 for ode23,
-// per MATLAB R2025b).
-struct OdeOpts {
-    double rel_tol = 1e-3;             // MATLAB ode23 default
-    std::vector<double> abs_tol{1e-6}; // MATLAB ode23 default
-    double max_step = std::numeric_limits<double>::infinity();
-    double initial_step = 0.0;
-    int    refine = 1;                 // MATLAB ode23 default
-    bool   norm_control = false;
-    bool   stats = false;
-};
-
-OdeOpts read_opts(const Value &opts)
-{
-    OdeOpts o;
-    if (opts.isEmpty() || !opts.isStruct()) return o;
-    auto get_double = [&](const char *name, double def) -> double {
-        if (opts.hasField(name)) {
-            const Value &v = opts.field(name);
-            if (!v.isEmpty()) return v.toScalar();
-        }
-        return def;
-    };
-    o.rel_tol = get_double("RelTol", 1e-3);
-    o.max_step = get_double("MaxStep", std::numeric_limits<double>::infinity());
-    o.initial_step = get_double("InitialStep", 0.0);
-    if (opts.hasField("Refine")) {
-        const Value &v = opts.field("Refine");
-        if (!v.isEmpty()) {
-            const double r = v.toScalar();
-            o.refine = (r >= 1.0) ? static_cast<int>(r) : 1;
-        }
-    }
-    if (opts.hasField("NormControl")) {
-        const Value &v = opts.field("NormControl");
-        if (!v.isEmpty()) {
-            const std::string s = v.toString();
-            o.norm_control = (!s.empty() && (s[0] == 'o' || s[0] == 'O'));
-        }
-    }
-    if (opts.hasField("AbsTol")) {
-        const Value &v = opts.field("AbsTol");
-        if (!v.isEmpty()) {
-            const std::size_t n = v.numel();
-            o.abs_tol.resize(n);
-            for (std::size_t i = 0; i < n; ++i) o.abs_tol[i] = v.elemAsDouble(i);
-        }
-    }
-    if (opts.hasField("Stats")) {
-        const Value &v = opts.field("Stats");
-        if (!v.isEmpty()) {
-            const std::string s = v.toString();
-            o.stats = (!s.empty() && (s[0] == 'o' || s[0] == 'O'));
-        }
-    }
-    return o;
-}
+// OdeOpts + read_opts live in the shared ode_detail.hpp (factored out of the
+// ode45/ode23 duplication). ode23's Refine default is 1 (passed to read_opts).
 
 // Cubic Hermite dense-output interpolant.
 //
@@ -143,26 +89,13 @@ void hermite_interp(double theta, double dir, double h,
     }
 }
 
-// Evaluate the RHS callback at (t, y) → dy/dt. Engine-free: the RHS is a
-// numkit::FnHandle (args = {t, y}, outs[0] = dy/dt); the MATLAB adapter
-// (ode23_reg) wraps Engine::callFunctionHandle into such a handle.
+// The FnHandle RHS bridge lives in ode_detail.hpp (callOdeRhs); this thin
+// binder keeps the call sites below unqualified and names ode23 in errors.
 void eval_rhs(FnHandle rhs, double t,
               const std::vector<double> &y,
               std::vector<double> &dydt, std::pmr::memory_resource *mr)
 {
-    const std::size_t d = y.size();
-    Value tv = Value::scalar(t, mr);
-    Value yv = Value::matrix(d, 1, ValueType::DOUBLE, mr);
-    for (std::size_t i = 0; i < d; ++i) yv.doubleDataMut()[i] = y[i];
-    std::array<Value, 2> args_buf{tv, yv};
-    Value out_buf;
-    rhs(Span<const Value>(args_buf.data(), 2), Span<Value>(&out_buf, 1), mr);
-    if (out_buf.numel() != d)
-        throw Error("ode23: RHS returned " + std::to_string(out_buf.numel())
-                  + " values but expected " + std::to_string(d),
-                    0, 0, "ode23", "", "numkit:ode23:badRhsSize");
-    dydt.resize(d);
-    for (std::size_t i = 0; i < d; ++i) dydt[i] = out_buf.elemAsDouble(i);
+    callOdeRhs(rhs, t, y, dydt, mr, "ode23");
 }
 
 } // anonymous
@@ -194,7 +127,7 @@ ode23(FnHandle rhs, const Value &tspan, const Value &y0,
     std::vector<double> y(d);
     for (std::size_t i = 0; i < d; ++i) y[i] = y0.elemAsDouble(i);
 
-    OdeOpts O = read_opts(opts);
+    OdeOpts O = read_opts(opts, 1);
     if (O.abs_tol.size() != 1 && O.abs_tol.size() != d)
         throw Error("ode23: AbsTol must be scalar or match length(y0)",
                     0, 0, "ode23", "", "numkit:ode23:absTolSize");
