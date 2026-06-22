@@ -2096,10 +2096,7 @@ void Emitter::emitMultiAssign(const ASTNode &s)
     // is NOT a reference out-arg; outputs 1.. stay reference out-args. Otherwise
     // every output is a reference out-arg (the all-scalar multi-output case).
     const InferredType out0 = !outs.empty() ? outs[0] : InferredType::dynamic();
-    const bool         out0ByValue =
-        isBufferArrayType(out0) && !is2DMatrixType(out0)
-        && !(out0.isConcrete() && out0.shape.isNDims())
-        && (out0.dtype == ValueType::DOUBLE || out0.dtype == ValueType::COMPLEX);
+    const bool         out0ByValue = isByValueReturnArrayType(out0);
     // An ignored (~) output still has a reference out-param the callee writes, so
     // it gets a throwaway local. The throwaways are scoped in a fresh block so
     // repeated `[~,...] = f()` statements never collide on the throwaway name.
@@ -2765,22 +2762,21 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         }
     } else if (nout >= 2) {
         // Outputs are reference out-params the body writes directly — EXCEPT a
-        // leading 1-D array (output 0), which is returned BY VALUE as a
+        // leading array (output 0), which is returned BY VALUE as a flat
         // std::vector (self-describing; no caller pre-alloc). This composes the
-        // interproc-by-value 1-D return with scalar reference outputs. v1:
-        // outputs 1.. must be unboxed scalars (a trailing array output would need
-        // caller pre-alloc — sound refusal); a 2-D/N-D leading output too.
+        // interproc-by-value return (1-D / 2-D-KnownDims / fully-known N-D) with
+        // scalar reference outputs. v1: outputs 1.. must be unboxed scalars (a
+        // trailing array output would need caller pre-alloc — sound refusal).
         for (std::size_t oi = 0; oi < funcDef.returnNames.size(); ++oi) {
             const std::string &rn = funcDef.returnNames[oi];
             if (rn.empty()) unsupported("multi-output with an unnamed output");
             const auto         it = decls.find(rn);
             const InferredType t  = (it != decls.end()) ? it->second : InferredType::dynamic();
-            if (oi == 0 && isBufferArrayType(t) && !is2DMatrixType(t)
-                && !(t.isConcrete() && t.shape.isNDims())
-                && (t.dtype == ValueType::DOUBLE || t.dtype == ValueType::COMPLEX)) {
-                // Leading 1-D array -> by-value std::vector return. Falls to the
-                // array-LOCAL hoist (not a sigParam/paramSet); the body fills it;
-                // `return rn;` is emitted at the end (emitReturnScalar).
+            if (oi == 0 && isByValueReturnArrayType(t)) {
+                // Leading array -> by-value std::vector return. Falls to the
+                // array-LOCAL hoist (1-D / 2-D KnownDims / known N-D; not a
+                // sigParam/paramSet); the body fills it; `return rn;` is emitted at
+                // the end (emitReturnScalar).
                 retCpp             = "std::vector<" + cppScalarType(t.dtype) + ">";
                 retName            = rn;
                 multiByValueReturn = true;
@@ -2788,7 +2784,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             }
             if (!isUnboxableScalarType(t))
                 unsupported("multi-output '" + rn + "' must be an unboxed scalar "
-                            "(only a leading 1-D array output is returned by value; v1)");
+                            "(only a leading array output is returned by value; v1)");
             sigParams.push_back(cppScalarType(t.dtype) + "& " + rn);
             paramSet.insert(rn);  // a reference param, not a hoisted local
         }
