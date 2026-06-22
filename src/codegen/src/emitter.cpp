@@ -684,6 +684,7 @@ private:
     void        emitFor(const ASTNode &s);
     void        emitWhile(const ASTNode &s);
     void        emitIf(const ASTNode &s);
+    void        emitSwitch(const ASTNode &s);
 
     bool isArrayVar(const std::string &n) const { return arrays_.count(n) != 0; }
 
@@ -695,7 +696,8 @@ private:
     }
 
     std::string                                 out_;
-    int                                         indent_ = 1;
+    int                                         indent_        = 1;
+    int                                         switchCounter_ = 0;  // unique switch-selector temp ids
     TypeEnv                                     types_;
     const TransferRegistry                     &reg_;
     std::unordered_map<std::string, ArrayInfo>  arrays_;
@@ -2292,6 +2294,77 @@ void Emitter::emitIf(const ASTNode &s)
     types_ = have ? merged : entry;
 }
 
+void Emitter::emitSwitch(const ASTNode &s)
+{
+    // MATLAB switch: evaluate the selector ONCE, then take the first case whose
+    // value — or ANY element of a `case {a,b}` cell-list — equals it (isequal),
+    // else `otherwise`. Lowered to an if-else chain over a selector temp. v1: an
+    // unboxed-scalar selector + unboxed-scalar case values, so isequal reduces to
+    // `==` (NaN matches nothing, as in MATLAB). A string/array selector or case
+    // value (full isequal), or a 2-D cell case-list, is refused.
+    if (s.children.empty()) unsupported("switch with no selector expression");
+    const ASTNode      &sel  = *s.children[0];
+    const AbstractValue selv = inferExpr(sel, types_, reg_, classes_);
+    if (!isUnboxableScalarType(selv.type))
+        unsupported("switch selector must be an unboxed scalar (v1)");
+    const std::string tmp = "_nk_switch" + std::to_string(switchCounter_++);
+
+    const TypeEnv entry = types_;
+    TypeEnv       merged;
+    bool          have = false;
+    auto mergeIn = [&](const TypeEnv &e) { merged = have ? joinEnv(merged, e) : e; have = true; };
+
+    open("");  // scope the selector temp (no leak / nested-switch name collision)
+    line("const " + cppScalarType(selv.type.dtype) + " " + tmp + " = " + emitExpr(sel) + ";");
+
+    auto eqTerm = [&](const ASTNode &v) -> std::string {
+        const AbstractValue vv = inferExpr(v, types_, reg_, classes_);
+        if (!isUnboxableScalarType(vv.type))
+            unsupported("switch case value must be an unboxed scalar (v1)");
+        return "(" + tmp + " == " + emitExpr(v) + ")";
+    };
+
+    for (std::size_t i = 0; i < s.branches.size(); ++i) {
+        types_ = entry;  // each case body typed from the incoming env
+        const ASTNode &caseVal = *s.branches[i].first;
+        std::string    cond;
+        if (caseVal.type == NodeType::CELL_LITERAL) {
+            // `case {a,b,...}` matches the selector against ANY element. A cell
+            // literal stores each row as a BLOCK child (a 1-row cell -> one row
+            // block), so descend a row block to reach the elements; flatten all
+            // rows (matching any element is rank-agnostic).
+            auto addElem = [&](const ASTNode &el) {
+                cond += (cond.empty() ? "" : " || ") + eqTerm(el);
+            };
+            for (const auto &child : caseVal.children) {
+                if (!child) continue;
+                if (child->type == NodeType::BLOCK)
+                    for (const auto &el : child->children) { if (el) addElem(*el); }
+                else
+                    addElem(*child);
+            }
+            if (cond.empty()) cond = "false";  // `case {}` matches nothing
+        } else {
+            cond = eqTerm(caseVal);
+        }
+        open((i == 0 ? "if (" : "else if (") + cond + ")");
+        if (s.branches[i].second) emitStmt(*s.branches[i].second);
+        close();
+        mergeIn(types_);
+    }
+    if (s.elseBranch) {
+        types_ = entry;
+        open(s.branches.empty() ? "" : "else");  // otherwise; a bare block if no cases
+        emitStmt(*s.elseBranch);
+        close();
+        mergeIn(types_);
+    } else {
+        mergeIn(entry);  // no case matched — fall-through
+    }
+    close();  // selector-temp scope
+    types_ = have ? merged : entry;
+}
+
 void Emitter::emitStmt(const ASTNode &s)
 {
     switch (s.type) {
@@ -2303,7 +2376,8 @@ void Emitter::emitStmt(const ASTNode &s)
     case NodeType::MULTI_ASSIGN:  emitMultiAssign(s); return;
     case NodeType::FOR_STMT:   emitFor(s);    return;
     case NodeType::WHILE_STMT: emitWhile(s);  return;
-    case NodeType::IF_STMT:    emitIf(s);     return;
+    case NodeType::IF_STMT:     emitIf(s);     return;
+    case NodeType::SWITCH_STMT: emitSwitch(s); return;
     // break / continue lower directly to the C++ loop-control keywords. They only
     // ever appear inside a loop body (MATLAB semantics + the parser enforce it,
     // and the emitted code mirrors that structure), so the keyword lands inside

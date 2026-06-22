@@ -864,6 +864,48 @@ TEST(CodegenE2E, EarlyReturnStatement)
     EXPECT_DOUBLE_EQ(got[1], -1.0);  // fall-through trailing return
 }
 
+// switch / case / otherwise (control-flow coverage) lowers to an if-else chain
+// over a selector temp; a `case {a,b}` cell-list matches any element.
+TEST(CodegenE2E, SwitchStatement)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(k)\n"
+        "  switch k\n"
+        "    case 1\n"
+        "      y = 10;\n"
+        "    case {2, 3}\n"     // cell-list: matches 2 or 3
+        "      y = 20;\n"
+        "    otherwise\n"
+        "      y = 99;\n"
+        "  end\n"
+        "end\n",
+        {{"k", InferredType::scalar(ValueType::DOUBLE)}});
+    EXPECT_NE(emitted.source.find("_nk_switch0"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_switch_e2e.exe").string();
+    const std::string outTxt = (base / "nk_switch_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const double a = f(1.0), b = f(2.0), c = f(3.0), d = f(5.0);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n%.17g\\n%.17g\\n%.17g\\n\", a, b, c, d);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 4u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0);  // case 1
+    EXPECT_DOUBLE_EQ(got[1], 20.0);  // case {2,3}
+    EXPECT_DOUBLE_EQ(got[2], 20.0);  // case {2,3}
+    EXPECT_DOUBLE_EQ(got[3], 99.0);  // otherwise
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
