@@ -228,13 +228,14 @@ unboxed. A Dynamic `if` / `while` condition reduces to MATLAB truthiness
 *typed* branches. A Dynamic VALUE also crosses the function boundary BOXED — a
 boxed `nk_val` RETURN (A3.5) and an `nk_rt::val` by-value PARAM — so an
 un-typeable value flows fully in and out, not only via its typed consequences.
-Covered: scalars + 1-D double arrays — arithmetic / comparison / unary ops,
-un-typeable calls (Dynamic args A3 + boxed result), boxed param/return, `if`/
-`while` conditions, and `z(i)` indexing (`nk_index` resolves the index/call
-ambiguity exactly as the interpreter). **Remaining (marginal, all sound-refused
-→ the function falls back to the interpreter):** 2-D / N-D / complex Dynamic
-ARRAYS (need shape-preserving box helpers), and multi-subscript Dynamic indexing.
-Multi-output reuses `nargout`/extra_outs.
+Covered: scalars and 1-D/2-D/N-D real arrays (+ complex 1-D) — arithmetic /
+comparison / unary ops, un-typeable calls (Dynamic args A3 + boxed result),
+boxed param/return, `if`/`while` conditions, `z(i)` indexing (`nk_index`
+resolves the index/call ambiguity exactly as the interpreter), and shape-
+preserving array boxing (`nk_box_matrix` / `nk_box_array_nd`, column-major).
+**Remaining (marginal, all sound-refused → the function falls back to the
+interpreter):** complex 2-D / N-D Dynamic arrays, and multi-subscript Dynamic
+indexing. Multi-output reuses `nargout`/extra_outs.
 
 **Cleanliness / soundness.** No-kludge litmus: delete the bridge and bridged
 mode is gone; uncompiled builtins are refused (self-contained), still
@@ -805,10 +806,10 @@ cover it.
   applyBinaryOp`; scalars + 1-D double arrays; arithmetic/comparison/unary;
   un-typeable calls (Dynamic args + boxed result); boxed `nk_val` return + by-value
   Dynamic param (in/out symmetry); `if`/`while` conditions via `truth`; `z(i)`
-  indexing (`nk_index` resolves index/call/subsref exactly as `VM::execCallIndirect`).
-  Marginal remainder (all SOUND-REFUSED → falls back to the interpreter): 2-D/N-D/
-  complex Dynamic arrays (shape-preserving box helpers); multi-subscript Dynamic
-  indexing.
+  indexing (`nk_index` resolves index/call/subsref exactly as `VM::execCallIndirect`);
+  1-D/2-D/N-D real + complex-1-D array operands boxed shape-preserving (`nk_box_matrix`
+  / `nk_box_array_nd`). Marginal remainder (all SOUND-REFUSED → falls back to the
+  interpreter): complex 2-D/N-D Dynamic arrays; multi-subscript Dynamic indexing.
 - multi-output bridged calls; object boxing across the bridge; zero-copy array
   views; string/cell/struct pipelines (complex is done, CX1-CX5); 2-D/N-D
   elementwise (native, beyond bridged); recursion precision
