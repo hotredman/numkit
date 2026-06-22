@@ -1772,6 +1772,39 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native min(x) / max(x) -> scalar (self-contained; EXACT, NaN-skipping
+        // like MATLAB). An inline fold over a 1-D array, preferred over the bridged
+        // reduction. Seed with element 0; for a float dtype `acc != acc` replaces a
+        // NaN seed, and a NaN x[i] fails the compare so it is skipped
+        // (max([1 NaN 3])=3, max([NaN NaN])=NaN). v1: a single 1-D non-complex
+        // array arg (assumed non-empty -> a scalar), the result directly assigned.
+        if (!isArrayVar(name) && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "min" || rhs.children[0]->strValue == "max")
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!a.is2D && !a.isND && a.dtype != ValueType::COMPLEX && res.type.isConcrete()
+                && res.type.shape.isScalar()) {
+                const std::string cmp = rhs.children[0]->strValue == "max" ? ">" : "<";
+                const bool        isFloat =
+                    a.dtype == ValueType::DOUBLE || a.dtype == ValueType::SINGLE;
+                const std::string nanClause = isFloat ? " || _nk_acc != _nk_acc" : "";
+                line("{");  // scope _nk_acc so repeated reductions in one fn don't collide
+                ++indent_;
+                line(cppScalarType(a.dtype) + " _nk_acc = " + a.dataExpr + "[0];");
+                open("for (std::size_t _nk_i = 1; _nk_i < " + a.lenVar + "; ++_nk_i)");
+                line("if (" + a.dataExpr + "[_nk_i] " + cmp + " _nk_acc" + nanClause + ") _nk_acc = "
+                     + a.dataExpr + "[_nk_i];");
+                close();
+                line(name + " = _nk_acc;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Bridged array reduction -> scalar (opt-in): s = sum(x) / prod / mean /
         // max / min. The array arg can't be a scalar C++ expression, so box it
         // (like the bridged array-RESULT path) and call bridge_scalar_arr —

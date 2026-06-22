@@ -1060,6 +1060,42 @@ TEST(CodegenE2E, NativeAnyAllReductions)
     EXPECT_DOUBLE_EQ(got[0], 10.0);  // any=1 -> *10; all=0
 }
 
+// Native min / max reductions (P3, self-contained, NaN-skipping): an inline fold,
+// no runtime bridge. range = max(x) - min(x).
+TEST(CodegenE2E, NativeMinMaxReductions)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(x)\n"
+        "  a = max(x);\n"   // 5
+        "  b = min(x);\n"   // 1
+        "  s = a - b;\n"    // 4
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_acc != _nk_acc"), std::string::npos)
+        << "native min/max must NaN-skip (acc != acc) for a float dtype";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_minmax_e2e.exe").string();
+    const std::string outTxt = (base / "nk_minmax_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {3.0, 1.0, 4.0, 1.0, 5.0};\n"  // max 5, min 1
+        "  double s = f(x, 5);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4.0);  // max(5) - min(1)
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
