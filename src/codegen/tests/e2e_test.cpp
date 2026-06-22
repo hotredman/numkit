@@ -781,6 +781,48 @@ TEST(CodegenE2E, MultiOutputLeading2DArray)
     EXPECT_DOUBLE_EQ(got[0], 14.0);  // M(2,2) = 4 + s = 10
 }
 
+// break / continue lower directly to C++ (control-flow coverage). A loop that
+// `continue`s past one index and `break`s out early must produce MATLAB's result.
+TEST(CodegenE2E, BreakAndContinueInLoop)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function y = f(n)\n"
+        "  y = 0;\n"
+        "  for k = 1:n\n"
+        "    if k == 2\n"
+        "      continue;\n"   // skip k = 2
+        "    end\n"
+        "    if k > 4\n"
+        "      break;\n"      // stop once k exceeds 4
+        "    end\n"
+        "    y = y + k;\n"
+        "  end\n"
+        "end\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+    EXPECT_NE(emitted.source.find("break;"), std::string::npos);
+    EXPECT_NE(emitted.source.find("continue;"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_brkcont_e2e.exe").string();
+    const std::string outTxt = (base / "nk_brkcont_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double y = f(10.0);\n"  // 1 + 3 + 4 = 8 (skip 2; break once k>4)
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", y);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 8.0);
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
