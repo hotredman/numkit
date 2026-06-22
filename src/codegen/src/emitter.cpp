@@ -584,6 +584,15 @@ public:
           opsKernels_(opsKernels)
     {}
 
+    // Tell the emitter how an early `return` statement should lower (it matches
+    // the end-of-function return chosen in emitOneFunction).
+    void setReturnInfo(bool returnsValue, std::string name, bool dynamic)
+    {
+        returnsValue_  = returnsValue;
+        returnName_    = std::move(name);
+        returnDynamic_ = dynamic;
+    }
+
     // Hoist a local declaration at function entry (scalar or object).
     void hoistLocal(const std::string &name, const InferredType &t)
     {
@@ -697,6 +706,13 @@ private:
     // Non-empty inside an elementwise-array fill loop: the 0-based size_t
     // index, so a bare whole-array `x` emits the element `x[<idx>]`.
     std::string                                 elementCtx_;
+    // The function's RETURN ABI (set by emitOneFunction before the body is
+    // emitted), so an early `return` lowers to the SAME form as the
+    // end-of-function return: a value output (`return name;`, or `.take()` if
+    // boxed), or a bare `return;` for a void / out-param / multi-ref function.
+    bool                                        returnsValue_  = false;
+    std::string                                 returnName_;
+    bool                                        returnDynamic_ = false;
     // Non-null when emitting as part of a multi-function program: routes
     // user-function calls and accumulates the specialisations to emit.
     ProgramEmitCtx                             *ctx_ = nullptr;
@@ -2296,6 +2312,15 @@ void Emitter::emitStmt(const ASTNode &s)
     // leaves arrays filled up to the exit point, matching MATLAB.
     case NodeType::BREAK_STMT:    line("break;");    return;
     case NodeType::CONTINUE_STMT: line("continue;"); return;
+    case NodeType::RETURN_STMT:
+        // Early return -> the SAME form as the end-of-function return (set by
+        // emitOneFunction via setReturnInfo). A value function returns its output
+        // var (boxed via .take() for a Dynamic result); a void / out-param /
+        // multi-ref function emits a bare `return;`.
+        if (!returnsValue_)      line("return;");
+        else if (returnDynamic_) emitReturnDynamic(returnName_);
+        else                     emitReturnScalar(returnName_);
+        return;
     case NodeType::EXPR_STMT:
         // A call evaluated for effect — a void method/function (e.g. a
         // handle class's in-place mutator), result discarded.
@@ -2900,8 +2925,16 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
                         + t.str() + ") — unsupported in RawBuffer ABI");
         em.hoistLocal(name, t);
     }
+    em.setReturnInfo(multiByValueReturn || (nout == 1 && !arrayReturn), retName, dynamicReturn);
     em.emitStmt(body);
-    if (multiByValueReturn || (nout == 1 && !arrayReturn))
+    // Trailing return for the fall-through path. Skipped when the body already
+    // ends in an explicit `return` (its emitStmt emitted the return), so we don't
+    // emit a dead duplicate; a CONDITIONAL early return leaves the trailing return
+    // reachable, so it stays.
+    const bool bodyEndsInReturn = body.type == NodeType::BLOCK && !body.children.empty()
+                                  && body.children.back()
+                                  && body.children.back()->type == NodeType::RETURN_STMT;
+    if (!bodyEndsInReturn && (multiByValueReturn || (nout == 1 && !arrayReturn)))
         dynamicReturn ? em.emitReturnDynamic(retName) : em.emitReturnScalar(retName);
 
     std::string definition = sig + " {\n";
