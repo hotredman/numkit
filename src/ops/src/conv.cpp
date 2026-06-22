@@ -8,6 +8,8 @@
 
 #include <numkit/ops/conv.hpp>
 
+#include <algorithm>
+
 namespace numkit::ops {
 
 ScratchVec<double> convDirect(const double *a, std::size_t na,
@@ -20,6 +22,27 @@ ScratchVec<double> convDirect(const double *a, std::size_t na,
         for (std::size_t j = 0; j < nb; ++j)
             c[i + j] += a[i] * b[j];
     return c;
+}
+
+void conv2Direct(const double *A, std::size_t M, std::size_t N,
+                 const double *B, std::size_t P, std::size_t Q,
+                 double *out)
+{
+    const std::size_t outR = M + P - 1;
+    const std::size_t outC = N + Q - 1;
+    std::fill_n(out, outR * outC, 0.0);
+    for (std::size_t j = 0; j < Q; ++j) {
+        for (std::size_t i = 0; i < P; ++i) {
+            const double bij = B[j * P + i];
+            if (bij == 0.0) continue;
+            for (std::size_t cc = 0; cc < N; ++cc) {
+                const std::size_t outCol = j + cc;
+                for (std::size_t rr = 0; rr < M; ++rr) {
+                    out[outCol * outR + (i + rr)] += A[cc * M + rr] * bij;
+                }
+            }
+        }
+    }
 }
 
 } // namespace numkit::ops

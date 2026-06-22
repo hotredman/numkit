@@ -25,4 +25,12 @@ ScratchVec<double> convDirect(const double *a, std::size_t na,
                               const double *b, std::size_t nb,
                               std::pmr::memory_resource *mr);
 
+// Direct 2-D "full" convolution into a caller-allocated buffer. A is M×N
+// (column-major), B is P×Q (column-major); `out` must be sized (M+P-1)×(N+Q-1)
+// column-major and is zeroed then accumulated by the kernel. O(M·N·P·Q) — the
+// time-domain core of signal conv2/filter2/convn. No allocation, no mr.
+void conv2Direct(const double *A, std::size_t M, std::size_t N,
+                 const double *B, std::size_t P, std::size_t Q,
+                 double *out);
+
 } // namespace numkit::ops
