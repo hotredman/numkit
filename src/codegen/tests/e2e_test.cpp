@@ -1653,13 +1653,13 @@ TEST(CodegenE2E, CompanionUserVarCoexistRunsCorrectly)
     EXPECT_DOUBLE_EQ(got[0], 50.0);  // x(numel(x)) = x(5)
 }
 
-// Negative array dimension (caveat #2): `zeros(1, n)` with n<0. The dim
-// conversion is guarded by nk_rt::dim, which throws BEFORE the float->size_t
-// cast (that cast would be UB for a negative value). f(3) -> numel 3; f(-1)
-// throws — matching the interpreter, which also errors on a negative dim
-// (rather than silently UB-allocating). Not MATLAB's clamp-to-0: codegen's
-// contract is to match the interpreter.
-TEST(CodegenE2E, NegativeDimThrowsNotUB)
+// Negative array dimension: `zeros(1, n)` with n<0. After fix/zeros-size-args
+// the interpreter CLAMPS a negative dim to 0 (zeros(1,-1) -> 1x0 empty, MATLAB
+// parity); codegen's nk_rt::dim mirrors it (the clamp PRECEDES the float->size_t
+// cast — a negative value never UB-casts). f(3) -> numel 3; f(-1) -> numel 0
+// (empty), matching the interpreter. (A non-integer or too-large dim still
+// errors — also like the interpreter; see toDim.)
+TEST(CodegenE2E, NegativeDimClampsToEmpty)
 {
     if (!aot::available())
         GTEST_SKIP() << "no external compiler configured for this build";
@@ -1676,17 +1676,20 @@ TEST(CodegenE2E, NegativeDimThrowsNotUB)
     std::string       program = emitted.source +
         "#include <cstdio>\n"
         "int main() {\n"
-        "  double pos = " + emitted.name + "(3.0);\n"        // 1x3 -> numel 3
-        "  int threw = 0;\n"
-        "  try { " + emitted.name + "(-1.0); } catch (...) { threw = 1; }\n"  // negative -> throws
+        "  double pos = " + emitted.name + "(3.0);\n"   // 1x3 -> numel 3
+        "  double neg = " + emitted.name + "(-1.0);\n"  // negative dim -> clamp to 0 -> empty
         "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
         "  if (!g) return 2;\n"
-        "  std::fprintf(g, \"%.17g\\n%d\\n\", pos, threw);\n"
+        "  std::fprintf(g, \"%.17g\\n%.17g\\n\", pos, neg);\n"
         "  std::fclose(g); return 0;\n}\n";
     const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
     ASSERT_EQ(got.size(), 2u);
     EXPECT_DOUBLE_EQ(got[0], 3.0);  // numel(zeros(1,3))
-    EXPECT_DOUBLE_EQ(got[1], 1.0);  // negative dim threw (not UB)
+    EXPECT_DOUBLE_EQ(got[1], 0.0);  // numel(zeros(1,-1)) = numel(1x0) = 0 (clamped, no throw)
+
+    // Cross-check: the interpreter clamps identically (codegen == interpreter).
+    numkit::StandardEngine engine;
+    EXPECT_DOUBLE_EQ(engine.eval("numel(zeros(1,-1))", true).toScalar(), 0.0);
 }
 
 // Native elementwise array MATH end-to-end: y = sin(x) lowers to a std::sin
