@@ -58,6 +58,10 @@ NK_RT_API nk_val nk_box_complex_array(const double *p, size_t len);
  * `nd` dims are `dims[0..nd)`. `p` holds rows*cols (resp. prod(dims)) doubles. */
 NK_RT_API nk_val nk_box_matrix(const double *p, size_t rows, size_t cols);
 NK_RT_API nk_val nk_box_array_nd(const double *p, const size_t *dims, int nd);
+/* Complex counterparts: `p` is interleaved re,im (2*numel doubles, column-major),
+ * matching std::complex<double>[numel]. 2-D rows×cols, and N-D `dims[0..nd)`. */
+NK_RT_API nk_val nk_box_complex_matrix(const double *p, size_t rows, size_t cols);
+NK_RT_API nk_val nk_box_complex_array_nd(const double *p, const size_t *dims, int nd);
 
 /* Evaluate numkit source `code` in the runtime's persistent workspace and
  * return the last expression's value (owned; an empty handle for pure

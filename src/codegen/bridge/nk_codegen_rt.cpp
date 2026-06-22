@@ -161,6 +161,35 @@ nk_val nk_box_array_nd(const double *p, const size_t *dims, int nd)
     }
 }
 
+nk_val nk_box_complex_matrix(const double *p, size_t rows, size_t cols)
+{
+    const size_t n = rows * cols;
+    if (!p && n != 0) return nullptr;  // p: interleaved re,im (2*n doubles, column-major)
+    try {
+        Value                 m = Value::complexMatrix(rows, cols, nullptr);
+        std::complex<double> *d = m.complexDataMut();
+        for (size_t i = 0; i < n; ++i) d[i] = std::complex<double>(p[2 * i], p[2 * i + 1]);
+        return make(std::move(m));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+nk_val nk_box_complex_array_nd(const double *p, const size_t *dims, int nd)
+{
+    if (nd < 0 || (!dims && nd != 0)) return nullptr;
+    try {
+        Value        m = Value::matrixND(dims, nd, numkit::ValueType::COMPLEX, nullptr);
+        const size_t n = m.numel();
+        if (!p && n != 0) return nullptr;
+        std::complex<double> *d = m.complexDataMut();
+        for (size_t i = 0; i < n; ++i) d[i] = std::complex<double>(p[2 * i], p[2 * i + 1]);
+        return make(std::move(m));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 nk_val nk_eval(const char *code, nk_error *err)
 {
     if (err) { err->code = 0; err->message[0] = '\0'; }

@@ -642,6 +642,24 @@ TEST(EmitterFn, DynamicArrayOperandBoxing)
         const std::string s = emitFunction(*fn, {{"x", cx}}, reg, nullptr, bridge).source;
         EXPECT_TRUE(contains(s, "nk_rt::val::complex_array(x, _nk_x_len)"));
     }
+    {  // complex 2-D array arg -> val::complex_matrix
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = foo(A);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const InferredType cx2 = InferredType::concrete(
+            ValueType::COMPLEX, numkit::codegen::Shape::ndShape({2, 3}));
+        const std::string s = emitFunction(*fn, {{"A", cx2}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "nk_rt::val::complex_matrix(A,"));
+    }
+    {  // complex N-D array arg -> val::complex_array_nd
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = foo(A);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const InferredType cxnd = InferredType::concrete(
+            ValueType::COMPLEX, numkit::codegen::Shape::ndShape({2, 2, 2}));
+        const std::string s = emitFunction(*fn, {{"A", cxnd}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "nk_rt::val::complex_array_nd(A, {"));
+    }
 }
 
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
