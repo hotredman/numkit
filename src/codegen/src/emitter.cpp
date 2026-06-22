@@ -1053,9 +1053,16 @@ std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
         unsupported("multi-output call not yet supported (2b): '" + name + "'");
     if (nout == 1) {  // 0 -> void function, result discarded
         const InferredType ret = reg_.apply(name, toArgInfos(argTypes));
-        if (!isUnboxableScalarType(ret))
-            unsupported("interprocedural call result must be an unboxed scalar (v1): '"
-                        + name + "'");
+        // A 1-D DOUBLE array result is returned BY VALUE (std::vector) — the
+        // callee is emitted with interprocByValueReturn so its signature returns
+        // std::vector<double>. 2-D/N-D/complex array results stay an explicit
+        // boundary (need dims alongside the buffer; sound refusal).
+        const bool arrayByValue = isBufferArrayType(ret) && !is2DMatrixType(ret)
+                                  && !(ret.isConcrete() && ret.shape.isNDims())
+                                  && ret.dtype == ValueType::DOUBLE;
+        if (!isUnboxableScalarType(ret) && !arrayByValue)
+            unsupported("interprocedural call result must be an unboxed scalar or 1-D double "
+                        "array (v1): '" + name + "'");
     }
 
     const std::string mangled = mangle(name, argTypes);
@@ -1669,7 +1676,12 @@ void Emitter::emitAssign(const ASTNode &s)
             // An elementwise-math call (sin/erf/…) lowers NATIVELY below — only
             // bridge a call the emitter cannot lower (sort, fft, …).
             && unaryMathStd(rhs.children[0]->strValue) == nullptr
-            && binaryMathStd(rhs.children[0]->strValue) == nullptr) {
+            && binaryMathStd(rhs.children[0]->strValue) == nullptr
+            // A USER function is compiled, not a runtime builtin — never bridge it
+            // (nk_call by name would fail). It returns its 1-D array BY VALUE and
+            // is assigned via the scalar tail (`name = <mangled>(args);`).
+            && !(ctx_ && ctx_->funcs && !types_.has(rhs.children[0]->strValue)
+                 && ctx_->funcs->has(rhs.children[0]->strValue))) {
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
                 && (res.type.dtype == ValueType::DOUBLE
@@ -1854,6 +1866,23 @@ void Emitter::emitAssign(const ASTNode &s)
                     return;
                 }
             }
+        }
+
+        // Interproc 1-D array RETURN (typed): `arrLocal = g(args)` where g is a
+        // compiled user function returning a 1-D array. The callee returns an
+        // owned std::vector<double> (interprocByValueReturn); the array LOCAL is a
+        // std::vector too, so this is a move/copy-assign. emitExpr routes the CALL
+        // to emitUserCall (queues g's specialisation; allows the 1-D array result).
+        // Only a LOCAL dest (the output out-param can't take a vector — that
+        // vector->buffer copy is a later step; sound refusal below otherwise).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && rhs.type == NodeType::CALL
+            && !rhs.children.empty() && rhs.children[0]->type == NodeType::IDENTIFIER
+            && ctx_ && ctx_->funcs && !types_.has(rhs.children[0]->strValue)
+            && ctx_->funcs->has(rhs.children[0]->strValue)) {
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            line(name + " = " + emitExpr(rhs) + ";");  // std::vector<double> = g_spec(args)
+            types_.set(name, rv);
+            return;
         }
 
         if (isArrayVar(name))
@@ -2363,7 +2392,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
                       const TransferRegistry &reg, ProgramEmitCtx *ctx,
                       const std::string &cppName, const ClassRegistry *classes,
                       const std::vector<ParamSpec> &extraSeed = {}, bool bridge = false,
-                      bool opsKernels = false)
+                      bool opsKernels = false, bool interprocByValueReturn = false)
 {
     if (funcDef.type != NodeType::FUNCTION_DEF || funcDef.children.empty())
         unsupported("emitOneFunction expects a FUNCTION_DEF with a body");
@@ -2529,6 +2558,15 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             arrays[retName] = ai;
             sigParams.push_back(cppScalarType(retType.dtype) + "* __restrict " + retName
                                 + ", std::size_t " + ai.rowsVar + ", std::size_t " + ai.colsVar);
+        } else if (isBufferArrayType(retType) && interprocByValueReturn
+                   && retType.dtype == ValueType::DOUBLE) {
+            // Interproc callee: return a 1-D array BY VALUE as an owned
+            // std::vector (self-describing .size() — no out-size protocol; the
+            // ENTRY keeps the out-param ABI). retName is NOT registered as an
+            // output, so it falls to the array-LOCAL hoist (std::vector<double>);
+            // the body fills it and the scalar-return path emits `return retName;`.
+            // v1: 1-D double (2-D/N-D need dims alongside; complex later).
+            retCpp = "std::vector<double>";
         } else if (isBufferArrayType(retType)) {
             arrayReturn = true;
             retCpp      = "void";
@@ -2728,7 +2766,8 @@ EmittedFunction emitProgram(const ASTNode &entryDef,
         for (std::size_t i = 0; i < cs.argTypes.size(); ++i)
             ps.push_back({cs.def->paramNames[i], cs.argTypes[i]});
         const OneFn cf = emitOneFunction(*cs.def, ps, reg, &ctx, cs.mangled, classes, cs.extraSeed,
-                                         bridge.enabled, opsKernels.enabled);
+                                         bridge.enabled, opsKernels.enabled,
+                                         /*interprocByValueReturn=*/true);
         sigs.push_back(cf.signature);
         defs.push_back(cf.definition);
     }
