@@ -1065,16 +1065,17 @@ std::string Emitter::emitUserCall(const std::string &name, const ASTNode &call)
         unsupported("multi-output call not yet supported (2b): '" + name + "'");
     if (nout == 1) {  // 0 -> void function, result discarded
         const InferredType ret = reg_.apply(name, toArgInfos(argTypes));
-        // A 1-D DOUBLE array result is returned BY VALUE (std::vector) — the
-        // callee is emitted with interprocByValueReturn so its signature returns
-        // std::vector<double>. 2-D/N-D/complex array results stay an explicit
-        // boundary (need dims alongside the buffer; sound refusal).
+        // A 1-D double/complex array result is returned BY VALUE (std::vector) —
+        // the callee is emitted with interprocByValueReturn so its signature
+        // returns std::vector<T> (self-describing .size()). 2-D/N-D array results
+        // stay an explicit boundary (need dims alongside the buffer; sound refusal).
         const bool arrayByValue = isBufferArrayType(ret) && !is2DMatrixType(ret)
                                   && !(ret.isConcrete() && ret.shape.isNDims())
-                                  && ret.dtype == ValueType::DOUBLE;
+                                  && (ret.dtype == ValueType::DOUBLE
+                                      || ret.dtype == ValueType::COMPLEX);
         if (!isUnboxableScalarType(ret) && !arrayByValue)
-            unsupported("interprocedural call result must be an unboxed scalar or 1-D double "
-                        "array (v1): '" + name + "'");
+            unsupported("interprocedural call result must be an unboxed scalar or 1-D "
+                        "double/complex array (v1): '" + name + "'");
     }
 
     const std::string mangled = mangle(name, argTypes);
@@ -2663,14 +2664,15 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             sigParams.push_back(cppScalarType(retType.dtype) + "* __restrict " + retName
                                 + ", std::size_t " + ai.rowsVar + ", std::size_t " + ai.colsVar);
         } else if (isBufferArrayType(retType) && interprocByValueReturn
-                   && retType.dtype == ValueType::DOUBLE) {
+                   && (retType.dtype == ValueType::DOUBLE
+                       || retType.dtype == ValueType::COMPLEX)) {
             // Interproc callee: return a 1-D array BY VALUE as an owned
             // std::vector (self-describing .size() — no out-size protocol; the
             // ENTRY keeps the out-param ABI). retName is NOT registered as an
-            // output, so it falls to the array-LOCAL hoist (std::vector<double>);
-            // the body fills it and the scalar-return path emits `return retName;`.
-            // v1: 1-D double (2-D/N-D need dims alongside; complex later).
-            retCpp = "std::vector<double>";
+            // output, so it falls to the array-LOCAL hoist (std::vector<T>); the
+            // body fills it and the scalar-return path emits `return retName;`.
+            // v1: 1-D double/complex (2-D/N-D need dims alongside).
+            retCpp = "std::vector<" + cppScalarType(retType.dtype) + ">";
         } else if (isBufferArrayType(retType)) {
             arrayReturn = true;
             retCpp      = "void";
