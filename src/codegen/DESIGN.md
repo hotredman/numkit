@@ -225,11 +225,15 @@ an un-typeable builtin result stays boxed (`call_dyn`) — interpreter-speed at
 those sites (exactly Dynamic's assigned cost) while every *typed* value stays
 unboxed. A Dynamic `if` / `while` condition reduces to MATLAB truthiness
 (`val::truth`) — a non-poisoning sink that lets an un-typeable value steer
-*typed* branches. The typed RawBuffer ABI carries no Dynamic, so a Dynamic value
-is consumed back to a typed one before the function boundary. **Remaining:**
-Dynamic call *arguments* (A3); Dynamic *arrays* + indexing (A4); and a boxed
-(`nk_val`) param/return ABI — the path for a Dynamic VALUE itself to reach an
-output (today only its typed *consequences* can, e.g. via a condition).
+*typed* branches. A Dynamic VALUE also crosses the function boundary BOXED — a
+boxed `nk_val` RETURN (A3.5) and an `nk_rt::val` by-value PARAM — so an
+un-typeable value flows fully in and out, not only via its typed consequences.
+Covered: scalars + 1-D double arrays — arithmetic / comparison / unary ops,
+un-typeable calls (Dynamic args A3 + boxed result), boxed param/return, `if`/
+`while` conditions, and `z(i)` indexing (`nk_index` resolves the index/call
+ambiguity exactly as the interpreter). **Remaining (marginal, all sound-refused
+→ the function falls back to the interpreter):** 2-D / N-D / complex Dynamic
+ARRAYS (need shape-preserving box helpers), and multi-subscript Dynamic indexing.
 Multi-output reuses `nargout`/extra_outs.
 
 **Cleanliness / soundness.** No-kludge litmus: delete the bridge and bridged
@@ -796,14 +800,15 @@ cover it.
   outputs, all requested).
 - closed-world polymorphism via class-id type-switch (§7a); `ControlBlock` for
   `delete`/`isvalid`.
-- **Dynamic tier** — the generic coverage unlock (un-typeable operands boxed to
-  `Value`, ops dispatched to the runtime). Scalar tier ✅ (A1/A2/A5: value-op
-  C-ABI + `Engine::applyBinaryOp`; `nk_rt::val` arithmetic/comparison/unary;
-  un-typeable call results boxed; Dynamic conditions via `truth`). Remaining:
-  Dynamic call *args* (A3); Dynamic *arrays* + indexing (A4); a boxed
-  (`nk_val`) param/return ABI so an un-typeable VALUE can cross the function
-  boundary (today a Dynamic value reaches an output only via its typed
-  consequences, e.g. a condition steering typed branches).
+- **Dynamic tier** ✅ (the generic coverage unlock — un-typeable operands boxed to
+  `nk_rt::val`, ops dispatched to the runtime). DONE: value-op C-ABI + `Engine::
+  applyBinaryOp`; scalars + 1-D double arrays; arithmetic/comparison/unary;
+  un-typeable calls (Dynamic args + boxed result); boxed `nk_val` return + by-value
+  Dynamic param (in/out symmetry); `if`/`while` conditions via `truth`; `z(i)`
+  indexing (`nk_index` resolves index/call/subsref exactly as `VM::execCallIndirect`).
+  Marginal remainder (all SOUND-REFUSED → falls back to the interpreter): 2-D/N-D/
+  complex Dynamic arrays (shape-preserving box helpers); multi-subscript Dynamic
+  indexing.
 - multi-output bridged calls; object boxing across the bridge; zero-copy array
   views; string/cell/struct pipelines (complex is done, CX1-CX5); 2-D/N-D
   elementwise (native, beyond bridged); recursion precision
