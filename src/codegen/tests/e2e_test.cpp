@@ -612,6 +612,49 @@ TEST(CodegenE2E, MultiOutputCall)
     EXPECT_DOUBLE_EQ(got[0], 302.0);  // 17/5 -> q=3 r=2 -> 3*100+2
 }
 
+// Multi-output with an IGNORED (~) target: [~, b] = f(x). The callee writes its
+// reference out-param regardless, so the ~ slot gets a throwaway local (scoped in
+// a block so repeated [~,...]=f() never collide); only b is kept.
+TEST(CodegenE2E, MultiOutputIgnoredTarget)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function [a, b] = f(x)\n  a = x + 1;\n  b = x * 2;\nend\n"
+        "function y = run(x)\n  [~, b] = f(x);\n  y = b;\nend\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("run"), {{"x", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
+    ASSERT_TRUE(emitted.source.find("_nk_ignore_0") != std::string::npos)
+        << "expected a throwaway local for the ignored (~) output";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_multiign_e2e.exe").string();
+    const std::string outTxt = (base / "nk_multiign_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double y = " + emitted.name + "(5.0);\n"  // f(5): a=6 (ignored), b=10 -> y=10
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", y);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0);  // b = 5*2 = 10 (a discarded)
+}
+
 // Boundary #3: an ARRAY passed across an interprocedural call. run(v)
 // forwards its array to mysum(v) (emitted as `ptr, len`), which sums it.
 TEST(CodegenE2E, InterproceduralArrayArg)
