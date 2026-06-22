@@ -76,6 +76,23 @@ InferredType transposeTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// sum / prod / mean / max / min over a VECTOR (single-arg form) -> a scalar of
+// the operand's dtype. MATLAB reduces a matrix along a dim (-> a row vector) and
+// max/min take a 2nd arg (elementwise) or a 2nd output (index) — only the
+// vector->scalar single-output case is typed here (the common reduction); it is
+// bridged to the runtime for the exact result (summation order, NaN handling).
+// Matrix / N-D input, or a 2-arg call, -> Dynamic (the sound fallback).
+InferredType vectorReductionTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::Scalar:
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector: return InferredType::scalar(args[0].type.dtype);
+    default:                   return InferredType::dynamic();
+    }
+}
+
 } // namespace
 
 void registerShapeTransfers(TransferRegistry &reg)
@@ -87,6 +104,9 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.addMulti("size", sizeMultiTransfer);
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
+    // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
+    for (const char *n : {"sum", "prod", "mean", "max", "min"})
+        reg.add(n, vectorReductionTransfer);
 }
 
 } // namespace numkit::codegen

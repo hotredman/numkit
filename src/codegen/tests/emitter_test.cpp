@@ -534,6 +534,27 @@ TEST(EmitterFn, OuterProduct)
     EXPECT_FALSE(contains(s, "nk_codegen_rt.h"));       // self-contained
 }
 
+// Bridged array reduction -> scalar: s = sum(x) boxes the array arg and calls
+// bridge_scalar_arr (the array arg can't be a scalar C++ expression). Opt-in;
+// without bridging there is no native reduction, so it's refused.
+TEST(EmitterFn, ReductionSumViaBridge)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function s = f(x)\n  s = sum(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const InferredType row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+    {  // bridged -> box the array arg + bridge_scalar_arr
+        const BridgeOptions bridge{true, "nk_codegen_rt.h"};
+        const std::string   s = emitFunction(*fn, {{"x", row}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "nk_box_array(x, _nk_x_len)"));
+        EXPECT_TRUE(contains(s, "s = nk_rt::bridge_scalar_arr(\"sum\", _nk_args, 1);"));
+    }
+    {  // no bridge -> no native reduction -> refused (explicit boundary)
+        EXPECT_THROW(emitFunction(*fn, {{"x", row}}, reg), std::runtime_error);
+    }
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

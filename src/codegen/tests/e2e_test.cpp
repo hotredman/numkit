@@ -2158,6 +2158,77 @@ TEST(CodegenBridge, BridgedArrayResultRunsAndMatchesInterpreter)
     }
 }
 
+// Bridged array REDUCTION -> scalar: s = sum(x). The array arg is boxed and the
+// scalar result unboxed via bridge_scalar_arr; the value is the runtime's own
+// sum (exact summation order / NaN handling). Compiled bridged, run, matched
+// to the interpreter's sum.
+TEST(CodegenBridge, ReductionSumBridgedMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function s = f(x)\n  s = sum(x);\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted = emitFunction(
+        *fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg, nullptr,
+        bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::bridge_scalar_arr(\"sum\""), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_redsum_e2e.exe").string();
+    const std::string outTxt = (base / "nk_redsum_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {1.5, 2.5, 3.5, 4.5, 5.5};\n"
+        "  double s = " + emitted.name + "(x, 5);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", s);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 1u);
+
+    numkit::StandardEngine engine;
+    engine.eval("import compat.*;");
+    const double ref = engine.eval("sum([1.5 2.5 3.5 4.5 5.5]);").toScalar();
+    EXPECT_NEAR(got[0], ref, 1e-12);  // == runtime sum (here 17.5)
+}
+
 // Ops-kernel lowering end-to-end: C = A*B with OpsKernelOptions enabled emits
 // numkit::ops::matmulDouble and links the nk_ops_kernels shared facade (one
 // import lib + DLL, mirroring nk_codegen_rt — no static transitive-dep
