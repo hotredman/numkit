@@ -2411,6 +2411,11 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         } else if (p.type.isObject()) {
             // value class -> by value (value semantics); handle -> wrapper.
             sigParams.push_back(cppObjectType(p.type.classId, classes) + " " + p.name);
+        } else if (bridge && p.type.isDynamic()) {
+            // Dynamic tier (DESIGN.md §10 C1): an un-typeable parameter is a boxed
+            // nk_rt::val passed BY VALUE — MATLAB pass-by-value is a copy (val's
+            // copy = deep clone). Directly usable as a Dynamic local in the body.
+            sigParams.push_back("nk_rt::val " + p.name);
         } else {
             unsupported("parameter '" + p.name + "' has an unsupported type for RawBuffer ABI");
         }

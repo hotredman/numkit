@@ -2472,6 +2472,75 @@ TEST(CodegenBridge, DynamicIndexRunsAndMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[0], 1.0);  // mod([5 7 4 9],3) = [2 1 1 0]; (2) = 1
 }
 
+// DYNAMIC PARAMETER (DESIGN.md §10 C1): a function taking an un-typeable input
+// — the IN side of the Dynamic boundary (boxed return is the OUT side, A3.5).
+// The param is an nk_rt::val by value (MATLAB pass-by-value = a copy); the body
+// operates on it in the Value tier. Completes the Dynamic in/out symmetry.
+TEST(CodegenBridge, DynamicParamRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function y = f(z)\n  y = z + 1;\nend\n");  // z Dynamic param
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"z", InferredType::dynamic()}}, reg, nullptr, bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::val z"), std::string::npos);  // by-value Dynamic param
+    ASSERT_NE(emitted.source.find("nk_val f("), std::string::npos);     // boxed Dynamic return
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_dynparam_e2e.exe").string();
+    const std::string outTxt = (base / "nk_dynparam_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  nk_val r = f(nk_rt::val::scalar(5.0));\n"   // pass a boxed Dynamic value in
+        "  const double v = nk_unbox_scalar(r);\n"
+        "  nk_release(r);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", v);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 6.0);  // f(5) = 5 + 1
+}
+
 // BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sign(x). `sign` is
 // typed as an array (realMathUnaryTransfer) but has no std form, so it CANNOT
 // lower natively — it bridges: box the array arg -> nk_call -> unbox into the
