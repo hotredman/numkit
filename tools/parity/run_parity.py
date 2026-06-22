@@ -41,6 +41,66 @@ OCTAVE_EXE = r"C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin\octave-cli.
 PROGRESS_MD = ROOT / "tools" / "parity" / "PROGRESS.md"
 BENCHMARK_MD = ROOT / "tools" / "parity" / "BENCHMARK.md"
 
+
+def _numkit_stale() -> tuple[float, float, str] | None:
+    """Detect a stale numkit_smoke.exe — the prebuilt binary the harness drives.
+
+    The harness runs every spec against NUMKIT_EXE; it never rebuilds it. If the
+    binary is older than the newest *library* source under src/, any function
+    added or changed since the last smoke build is simply not registered in it,
+    so its spec reads as a spurious `FAIL  N/A  rows=0` — a binary-staleness
+    artifact, NOT a real parity gap. (This bit ode45/ode23: the smoke binary
+    predated their registration by two weeks.)
+
+    Returns (exe_mtime, newest_src_mtime, newest_src_relpath) when stale, else
+    None. Also None when the binary is absent — run_chunk reports that case.
+    tests/ and benchmarks/ are pruned: they compile into the gtest / bench
+    targets, not numkit_smoke, so editing them must not flag the binary stale.
+    """
+    if not NUMKIT_EXE.exists():
+        return None
+    exe_mtime = NUMKIT_EXE.stat().st_mtime
+    newest_mtime = 0.0
+    newest_path: Path | None = None
+    for dirpath, dirs, files in os.walk(ROOT / "src"):
+        dirs[:] = [d for d in dirs if d not in ("tests", "benchmarks")]
+        for f in files:
+            if f.endswith((".cpp", ".cc", ".cxx", ".hpp", ".h")):
+                fp = Path(dirpath) / f
+                try:
+                    m = fp.stat().st_mtime
+                except OSError:
+                    continue
+                if m > newest_mtime:
+                    newest_mtime, newest_path = m, fp
+    if newest_path is not None and newest_mtime > exe_mtime:
+        rel = str(newest_path.relative_to(ROOT)).replace("\\", "/")
+        return (exe_mtime, newest_mtime, rel)
+    return None
+
+
+def _warn_if_numkit_stale() -> None:
+    """Print a prominent warning if the numkit binary looks stale (see above)."""
+    st = _numkit_stale()
+    if st is None:
+        return
+    exe_m, src_m, src_rel = st
+    fmt = lambda t: time.strftime("%Y-%m-%d %H:%M", time.localtime(t))
+    bar = "!" * 74
+    exe_rel = str(NUMKIT_EXE.relative_to(ROOT)).replace("\\", "/")
+    print(
+        f"\n{bar}\n"
+        f"  WARNING: numkit_smoke.exe is STALE — numkit parity will under-report.\n"
+        f"  The harness drives this prebuilt binary and never rebuilds it. Functions\n"
+        f"  added/changed since it was built are NOT registered in it and show as a\n"
+        f"  spurious 'FAIL  N/A  rows=0' (a staleness artifact, NOT a real gap).\n"
+        f"    binary : {exe_rel}  (built  {fmt(exe_m)})\n"
+        f"    newest : {src_rel}  (edited {fmt(src_m)})\n"
+        f"  Rebuild, then re-run parity:\n"
+        f"    cmake --build build/desktop-fast --target numkit_smoke --config Release\n"
+        f"{bar}\n",
+        file=sys.stderr, flush=True)
+
 # Two-point benchmark sizes. A spec's `bench_setup` references the
 # variable `N`; the harness defines it to each of these and times the
 # call, so BENCHMARK.md shows both small-array (overhead-sensitive) and
@@ -843,6 +903,8 @@ def main():
     nchunks = (len(specs) + chunk - 1) // chunk
     print(f"{len(specs)} spec(s) · chunk={chunk} · "
           f"{nchunks} launch(es) per engine", flush=True)
+
+    _warn_if_numkit_stale()
 
     rc = 0
     total = {"OK": 0, "MISMATCH": 0, "FAIL": 0, "N/A": 0}
