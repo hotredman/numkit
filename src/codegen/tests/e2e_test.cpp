@@ -1023,6 +1023,43 @@ TEST(CodegenE2E, LogicalIndexingWrite)
     EXPECT_DOUBLE_EQ(got[3], 4.0);  // 4 >= 2.5 -> kept
 }
 
+// Native any / all reductions (P3 — mask consumption, self-contained): an inline
+// short-circuit loop, no runtime bridge. any([0 0 1 1])=true, all([0 0 1 1])=false.
+TEST(CodegenE2E, NativeAnyAllReductions)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(x)\n"
+        "  m = x > 2.5;\n"
+        "  a = any(m);\n"      // true  for [0 0 1 1]
+        "  b = all(m);\n"      // false for [0 0 1 1]
+        "  s = a * 10 + b;\n"  // 1*10 + 0 = 10
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_acc"), std::string::npos)
+        << "any/all must lower to an inline reduction loop (no bridge)";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_anyall_e2e.exe").string();
+    const std::string outTxt = (base / "nk_anyall_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {1.0, 2.0, 3.0, 4.0};\n"  // x > 2.5 -> [0 0 1 1]
+        "  double s = f(x, 4);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0);  // any=1 -> *10; all=0
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled

@@ -93,6 +93,20 @@ InferredType vectorReductionTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// any / all over a VECTOR -> a LOGICAL scalar (true/false), regardless of the
+// operand dtype. Only the vector->scalar single-output case is typed (the emitter
+// lowers it to a native inline short-circuit loop). Matrix / N-D / 2-arg -> Dynamic.
+InferredType anyAllTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::Scalar:
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector: return InferredType::scalar(ValueType::LOGICAL);
+    default:                   return InferredType::dynamic();
+    }
+}
+
 // cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
 // array shape out). Single-arg form only. Bridged via the array-result path
 // (the runtime owns the algorithm); the value matches the interpreter exactly.
@@ -116,6 +130,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
     for (const char *n : {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median"})
         reg.add(n, vectorReductionTransfer);
+    for (const char *n : {"any", "all"})  // vector -> LOGICAL scalar (native inline loop)
+        reg.add(n, anyAllTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);

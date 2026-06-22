@@ -1743,6 +1743,35 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native any(x) / all(x) -> LOGICAL scalar (self-contained; EXACT). An
+        // inline short-circuit loop over a 1-D array (double or logical), so no
+        // runtime is needed — preferred over the bridged reduction below. NaN is
+        // nonzero (any([NaN])=true, all([NaN])=true), matching MATLAB. v1: a single
+        // 1-D non-complex array arg, the result directly assigned to the scalar.
+        if (!isArrayVar(name) && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "any" || rhs.children[0]->strValue == "all")
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!a.is2D && !a.isND && a.dtype != ValueType::COMPLEX && res.type.isConcrete()
+                && res.type.shape.isScalar()) {
+                const bool isAny = rhs.children[0]->strValue == "any";
+                line("{");  // scope _nk_acc so repeated any/all in one fn don't collide
+                ++indent_;
+                line(std::string("bool _nk_acc = ") + (isAny ? "false;" : "true;"));
+                open("for (std::size_t _nk_i = 0; _nk_i < " + a.lenVar + "; ++_nk_i)");
+                line(isAny ? ("if (" + a.dataExpr + "[_nk_i] != 0) { _nk_acc = true; break; }")
+                           : ("if (" + a.dataExpr + "[_nk_i] == 0) { _nk_acc = false; break; }"));
+                close();
+                line(name + " = _nk_acc;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Bridged array reduction -> scalar (opt-in): s = sum(x) / prod / mean /
         // max / min. The array arg can't be a scalar C++ expression, so box it
         // (like the bridged array-RESULT path) and call bridge_scalar_arr —
