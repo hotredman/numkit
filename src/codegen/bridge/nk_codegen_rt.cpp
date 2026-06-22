@@ -179,6 +179,57 @@ nk_val nk_call(const char *name, const nk_val *args, size_t nargs,
     }
 }
 
+nk_val nk_binop(const char *op, nk_val a, nk_val b, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        if (!op) throw std::runtime_error("nk_binop: null op");
+        const Value *av = unwrap(a);
+        const Value *bv = unwrap(b);
+        if (!av || !bv) throw std::runtime_error("nk_binop: null operand handle");
+        return make(engine().applyBinaryOp(op, *av, *bv));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
+}
+
+nk_val nk_unop(const char *op, nk_val a, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        if (!op) throw std::runtime_error("nk_unop: null op");
+        const Value *av = unwrap(a);
+        if (!av) throw std::runtime_error("nk_unop: null operand handle");
+        return make(engine().applyUnaryOp(op, *av));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
+}
+
+int nk_truth(nk_val v, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        const Value *val = unwrap(v);
+        if (!val) throw std::runtime_error("nk_truth: null handle");
+        return val->toBool() ? 1 : 0;
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return 0;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return 0;
+    }
+}
+
 double nk_unbox_scalar(nk_val v)
 {
     try {

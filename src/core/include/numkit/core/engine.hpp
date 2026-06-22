@@ -229,6 +229,17 @@ public:
     // MATLAB "Undefined operator" error when an object has no overload.
     bool tryObjectUnaryOp(const std::string &op, const Value &operand,
                           Environment *env, Value &out);
+    // Value-level operator application with object-overload dispatch — the
+    // counterpart to the AST (TreeWalker) and bytecode (VM) operator paths for
+    // callers that hold Values but no AST node / bytecode operands: the codegen
+    // Value-ABI bridge (nk_codegen_rt's Dynamic tier) and feval of an operator
+    // handle. Mirrors the VM slow path exactly: tryObject*Op first (overloads),
+    // then the registered numeric op; throws "Undefined … operator" when
+    // neither applies. `op` is the source token ("+", ".*", "==", "-", "~",
+    // "'", …). Short-circuit "&&"/"||" are NOT handled here (they are control
+    // flow, lowered by the caller) — pass an eager logical op instead.
+    Value applyBinaryOp(const std::string &op, const Value &lhs, const Value &rhs);
+    Value applyUnaryOp(const std::string &op, const Value &operand);
     // Builtin object-array slice store: dst(subscripts) = val, default-
     // filling grown slots via the class's no-arg constructor. `perDim` holds
     // the resolved 0-based index list per subscript — one list → linear
