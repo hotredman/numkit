@@ -283,6 +283,16 @@ size_t nk_numel(nk_val v)
     }
 }
 
+nk_val nk_clone(nk_val v)
+{
+    if (!v) return nullptr;
+    try {
+        return make(*unwrap(v));  // copy-construct a fresh owned Value
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 void nk_release(nk_val v) { destroy(v); }
 
 long long nk_debug_live_handles(void)

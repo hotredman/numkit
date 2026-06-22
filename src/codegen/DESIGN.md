@@ -217,11 +217,20 @@ result array → `nk_unbox_array` into a local buffer. Dynamic result →
 kept as an `nk_rt::val` (the Dynamic tier). Copies live only AT the boundary
 (an uncompiled call); a zero-copy view is a later optimisation.
 
-**Dynamic tier realised.** In bridged mode a Dynamic-typed local is emitted
-as `nk_rt::val`; an operation producing/consuming Dynamic (an uncompiled
-builtin call, or `a+b` on two Dynamics) lowers to `nk_call("<op>", …)` —
-interpreter-speed at those sites (exactly Dynamic's assigned cost), while
-every *typed* value stays unboxed. Multi-output reuses `nargout`/extra_outs.
+**Dynamic tier (scalar) — realised (A1/A2/A5).** In bridged mode an un-typeable
+SCALAR local is an `nk_rt::val` (owned RAII handle, copy = deep clone via
+`nk_clone`); its arithmetic / comparison / unary ops dispatch to the runtime
+through `nk_rt::binop` / `unop` (`Engine::applyBinaryOp` — overload-aware), and
+an un-typeable builtin result stays boxed (`call_dyn`) — interpreter-speed at
+those sites (exactly Dynamic's assigned cost) while every *typed* value stays
+unboxed. A Dynamic `if` / `while` condition reduces to MATLAB truthiness
+(`val::truth`) — a non-poisoning sink that lets an un-typeable value steer
+*typed* branches. The typed RawBuffer ABI carries no Dynamic, so a Dynamic value
+is consumed back to a typed one before the function boundary. **Remaining:**
+Dynamic call *arguments* (A3); Dynamic *arrays* + indexing (A4); and a boxed
+(`nk_val`) param/return ABI — the path for a Dynamic VALUE itself to reach an
+output (today only its typed *consequences* can, e.g. via a condition).
+Multi-output reuses `nargout`/extra_outs.
 
 **Cleanliness / soundness.** No-kludge litmus: delete the bridge and bridged
 mode is gone; uncompiled builtins are refused (self-contained), still
@@ -236,9 +245,10 @@ built.
 
 **v1 scope:** opt-in bridged mode; an uncompiled builtin CALL lowers to
 `nk_call` (single output); box scalars + 1-D arrays; result scalar / array /
-Dynamic. **Deferred:** multi-output bridged calls; full Value-arithmetic
-dispatch (`a+b` on Dynamics); object boxing across the bridge; zero-copy
-array views; 2-D array box/unbox.
+Dynamic. **Deferred:** multi-output bridged calls; Dynamic call *arguments*
+(A3) and Dynamic *arrays* (A4) — scalar Value-arith dispatch (`a+b` on
+Dynamics) is now done (A1/A2/A5); a boxed (`nk_val`) param/return ABI; object
+boxing across the bridge; zero-copy array views; 2-D array box/unbox.
 
 **Build plan (bricks):**
 1. ✅ `nk_codegen_rt` — the opaque C ABI (box/call/unbox/numel/release) over
@@ -268,8 +278,9 @@ to the output, fills the out-param via `nk_rt::bridge_into`; a bridged array
 LOCAL resizes an owned `std::vector` via `nk_rt::bridge_to_vec`; elementwise
 array arithmetic (`y = x + w.*2`) lowers to a fill loop over owned/out-param
 storage (box scalar/array-var args -> nk_call -> unbox). Demos: `y = sin(x)`
-(e2e CodegenBridge.BridgedArrayResult / BridgedArrayLocal). **Remaining:
-Dynamic locals (full Value-arith dispatch on operands of unknown type).**
+(e2e CodegenBridge.BridgedArrayResult / BridgedArrayLocal). **Scalar Dynamic
+tier done (A1/A2/A5); remaining: Dynamic ARRAYS + indexing (A4), Dynamic call
+args (A3), and a boxed param/return ABI.**
 
 ## 6b. Embedding C-ABI + plugin system
 
@@ -785,9 +796,14 @@ cover it.
   outputs, all requested).
 - closed-world polymorphism via class-id type-switch (§7a); `ControlBlock` for
   `delete`/`isvalid`.
-- **Dynamic locals / full Value-arith dispatch** — the biggest remaining
-  coverage unlock: operands of unknown type boxed to `Value`, arithmetic
-  dispatched to the runtime, turning most "unsupported" into a bridged path.
+- **Dynamic tier** — the generic coverage unlock (un-typeable operands boxed to
+  `Value`, ops dispatched to the runtime). Scalar tier ✅ (A1/A2/A5: value-op
+  C-ABI + `Engine::applyBinaryOp`; `nk_rt::val` arithmetic/comparison/unary;
+  un-typeable call results boxed; Dynamic conditions via `truth`). Remaining:
+  Dynamic call *args* (A3); Dynamic *arrays* + indexing (A4); a boxed
+  (`nk_val`) param/return ABI so an un-typeable VALUE can cross the function
+  boundary (today a Dynamic value reaches an output only via its typed
+  consequences, e.g. a condition steering typed branches).
 - multi-output bridged calls; object boxing across the bridge; zero-copy array
   views; string/cell/struct pipelines (complex is done, CX1-CX5); 2-D/N-D
   elementwise (native, beyond bridged); recursion precision
