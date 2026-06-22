@@ -517,6 +517,58 @@ TEST(CodegenE2E, Matrix2DRead)
     EXPECT_DOUBLE_EQ(got[0], 6.0);  // trace = 1 + 2 + 3
 }
 
+// INTERPROC ARRAY RETURN (typed): a compiled callee g returns a 1-D array. The
+// callee returns it BY VALUE as an owned std::vector<double> (self-describing
+// size — no out-size protocol; the ENTRY keeps the out-param ABI). The caller
+// binds it to an array LOCAL and indexes it natively. Self-contained (no bridge).
+TEST(CodegenE2E, InterprocArrayReturn)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function s = f(n)\n"
+        "  v = g(n);\n"   // g returns a 1-D array by value -> v is a local std::vector
+        "  s = v(2);\n"   // native index of the returned vector
+        "end\n"
+        "function r = g(n)\n"
+        "  r = zeros(1, n);\n"
+        "  for k = 1:n\n"
+        "    r(k) = k * k;\n"
+        "  end\n"
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("f"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
+    ASSERT_TRUE(emitted.source.find("std::vector<double> ") != std::string::npos)
+        << "expected the callee to return a 1-D array by value (std::vector)";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_iparr_e2e.exe").string();
+    const std::string outTxt = (base / "nk_iparr_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double s = " + emitted.name + "(4.0);\n"  // g(4) = [1 4 9 16]; v(2) = 4
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4.0);  // g(4) = [1 4 9 16]; v(2) = 4
+}
+
 // Boundary #2b: a multi-output function `[a,b] = f(...)`, end-to-end.
 // divmod returns quotient + remainder via reference out-params.
 TEST(CodegenE2E, MultiOutputCall)
