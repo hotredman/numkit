@@ -38,6 +38,15 @@ std::string cppScalarType(ValueType dtype)
     }
 }
 
+// The C++ ELEMENT type for an owned array buffer. Identical to cppScalarType
+// except LOGICAL uses std::uint8_t, not bool: std::vector<bool> is bit-packed and
+// exposes no .data(), which the buffer ABI (name.data()) relies on. A bool value
+// assigns to / reads from a uint8 element as 0/1 (MATLAB logical 1-byte storage).
+std::string cppArrayElemType(ValueType dtype)
+{
+    return dtype == ValueType::LOGICAL ? "std::uint8_t" : cppScalarType(dtype);
+}
+
 std::string formatDoubleLiteral(double v)
 {
     if (std::isnan(v)) return "std::numeric_limits<double>::quiet_NaN()";
@@ -627,7 +636,7 @@ public:
         for (const auto &[name, ai] : arrays_)
             if (ai.isLocal) ordered.emplace(name, ai.dtype);
         for (const auto &[name, dtype] : ordered)
-            line("std::vector<" + cppScalarType(dtype) + "> " + name + ";");
+            line("std::vector<" + cppArrayElemType(dtype) + "> " + name + ";");
         // Runtime-dim N-D locals also need their size_t dim companions declared
         // (set at the zeros/ones assignment; read by indexN / size / numel).
         for (const auto &[name, dtype] : ordered) {
@@ -1352,7 +1361,12 @@ bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays
         // mtimes (*) when EITHER operand is scalar (s*X == s.*X), mrdivide (/)
         // when the DENOMINATOR is scalar (X/s == X./s); s/X is a matrix divide.
         if (e.children.size() != 2) return false;
-        static const std::set<std::string> kElementwise = {"+", "-", ".*", "./", ".\\", ".^"};
+        static const std::set<std::string> kElementwise = {
+            "+", "-", ".*", "./", ".\\", ".^",
+            // Relational + elementwise-logical ops: the same broadcast shape rules
+            // as arithmetic, a LOGICAL result. (Short-circuit && / || are
+            // scalar-only and stay excluded.)
+            "<", ">", "<=", ">=", "==", "~=", "&", "|"};
         auto isScalarArg = [&](const ASTNode &n) {
             return inferExpr(n, types_, reg_, classes_).type.shape.isScalar();
         };
@@ -1367,8 +1381,8 @@ bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays
                && collectElementwise(*e.children[1], arrays);
     }
     case NodeType::UNARY_OP:
-        return (e.strValue == "-" || e.strValue == "+") && e.children.size() == 1
-               && collectElementwise(*e.children[0], arrays);
+        return (e.strValue == "-" || e.strValue == "+" || e.strValue == "~")
+               && e.children.size() == 1 && collectElementwise(*e.children[0], arrays);
     case NodeType::CALL: {
         // An ELEMENTWISE-math call (sin/cos/erf/atan2/…) over elementwise args
         // is itself elementwise — sin(x)[i] == std::sin(x[i]). An index `x(k)`
@@ -1820,7 +1834,8 @@ void Emitter::emitAssign(const ASTNode &s)
         // to the operand's length, the OUTPUT uses its caller-sized length.
         if (isArrayVar(name)
             && (arrays_.at(name).dtype == ValueType::DOUBLE
-                || arrays_.at(name).dtype == ValueType::COMPLEX)) {
+                || arrays_.at(name).dtype == ValueType::COMPLEX
+                || arrays_.at(name).dtype == ValueType::LOGICAL)) {
             std::set<std::string> srcArrays;
             if (collectElementwise(rhs, srcArrays) && !srcArrays.empty()) {
                 const bool dst2D = arrays_.at(name).is2D;
@@ -1844,7 +1859,8 @@ void Emitter::emitAssign(const ASTNode &s)
                 if (!rankMismatch && res.type.isConcrete()
                     && !res.type.shape.isScalar()
                     && (res.type.dtype == ValueType::DOUBLE
-                        || res.type.dtype == ValueType::COMPLEX)) {
+                        || res.type.dtype == ValueType::COMPLEX
+                        || res.type.dtype == ValueType::LOGICAL)) {
                     const ArrayInfo &ai = arrays_.at(name);
                     // Loop count = numel; the per-element loop is flat
                     // (column-major, so elementwise is rank-agnostic). SOUNDNESS
