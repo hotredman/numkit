@@ -93,6 +93,15 @@ InferredType vectorReductionTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
+// array shape out). Single-arg form only. Bridged via the array-result path
+// (the runtime owns the algorithm); the value matches the interpreter exactly.
+InferredType identityShapeTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    return args[0].type;
+}
+
 } // namespace
 
 void registerShapeTransfers(TransferRegistry &reg)
@@ -105,8 +114,11 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
-    for (const char *n : {"sum", "prod", "mean", "max", "min"})
+    for (const char *n : {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median"})
         reg.add(n, vectorReductionTransfer);
+    // Shape-preserving array->array builtins (bridged via the array-result path).
+    for (const char *n : {"cumsum", "cumprod", "flip"})
+        reg.add(n, identityShapeTransfer);
 }
 
 } // namespace numkit::codegen

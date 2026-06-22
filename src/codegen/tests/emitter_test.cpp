@@ -555,6 +555,29 @@ TEST(EmitterFn, ReductionSumViaBridge)
     }
 }
 
+// More bridged builtins (same paths, just more transfers): norm -> scalar
+// (reduction path), cumsum -> array (shape-preserving array-result path).
+TEST(EmitterFn, MoreBridgedBuiltins)
+{
+    const auto          reg = stdReg();
+    const InferredType  row = InferredType::concrete(ValueType::DOUBLE, Shape::rowVector());
+    const BridgeOptions bridge{true, "nk_codegen_rt.h"};
+    {  // norm(x) -> scalar reduction (bridge_scalar_arr)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function s = f(x)\n  s = norm(x);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const std::string s = emitFunction(*fn, {{"x", row}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "bridge_scalar_arr(\"norm\""));
+    }
+    {  // cumsum(x) -> array result (bridge_into; an OUTPUT array)
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = cumsum(x);\nend\n", root);
+        const std::string      s  = emitFunction(*fn, {{"x", row}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "bridge_into(\"cumsum\""));
+        EXPECT_TRUE(contains(s, "nk_box_array(x, _nk_x_len)"));
+    }
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {
