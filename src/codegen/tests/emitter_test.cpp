@@ -616,6 +616,34 @@ TEST(EmitterFn, DynamicScalarTier)
     }
 }
 
+// Dynamic-tier boxing of a typed ARRAY operand at the boundary (the arg to an
+// un-typeable call): shape-preserving. N-D double -> val::array_nd; complex 1-D
+// -> val::complex_array. (1-D double + 2-D are covered by the e2e tests.) `foo`
+// has no transfer -> a Dynamic result, routing its array arg via emitDynamicExpr.
+TEST(EmitterFn, DynamicArrayOperandBoxing)
+{
+    const auto          reg = stdReg();
+    const BridgeOptions bridge{true, "nk_codegen_rt.h"};
+    {  // N-D double array arg -> val::array_nd
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(A)\n  y = foo(A);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const InferredType nd =
+            InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 2, 2}));
+        const std::string s = emitFunction(*fn, {{"A", nd}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "nk_rt::val::array_nd(A, {"));
+    }
+    {  // complex 1-D array arg -> val::complex_array
+        numkit::ASTNodePtr     root;
+        const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = foo(x);\nend\n", root);
+        ASSERT_NE(fn, nullptr);
+        const InferredType cx = InferredType::concrete(ValueType::COMPLEX,
+                                                       numkit::codegen::Shape::rowVector());
+        const std::string s = emitFunction(*fn, {{"x", cx}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "nk_rt::val::complex_array(x, _nk_x_len)"));
+    }
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

@@ -2541,6 +2541,81 @@ TEST(CodegenBridge, DynamicParamRunsAndMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[0], 6.0);  // f(5) = 5 + 1
 }
 
+// 2-D DYNAMIC ARRAY (DESIGN.md §10 C1): a Dynamic value that is a MATRIX. mod
+// over a 2-D param has no transfer -> y is a Dynamic 2-D array; the matrix arg
+// is boxed shape-preserving (val::matrix -> nk_box_matrix, column-major) and the
+// result crosses the boundary boxed (A3.5). Compiles, links the runtime DLL,
+// runs, matches the interpreter element-for-element.
+TEST(CodegenBridge, DynamicMatrixRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function y = f(M)\n  y = mod(M, 3);\nend\n");  // M 2-D -> y Dynamic matrix
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted = emitFunction(
+        *fn, {{"M", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 3))}}, reg, nullptr,
+        bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::val::matrix(M, _nk_M_rows, _nk_M_cols)"),
+              std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_dynmat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_dynmat_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const double M[6] = {1, 4, 2, 5, 3, 6};\n"  // 2x3 column-major = [1 2 3; 4 5 6]
+        "  nk_val r = f(M, 2, 3);\n"
+        "  double out[6] = {0, 0, 0, 0, 0, 0};\n"
+        "  nk_unbox_array(r, out, 6);\n"               // flat column-major
+        "  nk_release(r);\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 6; ++i) std::fprintf(g, \"%.17g\\n\", out[i]);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 6u);
+    // mod([1 4 2 5 3 6], 3) column-major = [1 1 2 2 0 0]
+    const double expect[6] = {1, 1, 2, 2, 0, 0};
+    for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(got[i], expect[i]) << "at i=" << i;
+}
+
 // BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sign(x). `sign` is
 // typed as an array (realMathUnaryTransfer) but has no std form, so it CANNOT
 // lower natively — it bridges: box the array arg -> nk_call -> unbox into the
