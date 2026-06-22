@@ -18,6 +18,9 @@ set(NUMKIT_OPS_SOURCES
     # Iterative solver kernels (Brent root/bracket/min, Nelder-Mead; FnHandle
     # objective) — the numerical core of fzero/fminbnd/fminsearch. Portable C++.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/root_solve.cpp
+    # Direct (time-domain) FIR convolution — the kernel behind signal conv()/
+    # xcorr(). Portable C++; a Highway backend can replace the inner accumulate.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/conv.cpp
     # Complex-input fused kernels — scalar std::complex (no SIMD), needed in
     # both the SIMD and portable builds.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_complex.cpp

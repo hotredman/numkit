@@ -6,6 +6,7 @@
 
 #include <numkit/signal/convolution/convolution.hpp>
 
+#include <numkit/ops/conv.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
@@ -108,7 +109,7 @@ Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pm
     ScratchArena scratch(mr);
     auto c = conv_use_fft(na, nb)
         ? convFFT  (&scratch, a.doubleData(), na, b.doubleData(), nb)
-        : convDirect(&scratch, a.doubleData(), na, b.doubleData(), nb);
+        : ops::convDirect(a.doubleData(), na, b.doubleData(), nb, &scratch);
 
     const size_t nc = c.size();
     size_t outStart = 0, outLen = nc;
@@ -211,7 +212,7 @@ xcorr(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 
     auto c = conv_use_fft(nx, ny)
         ? convFFT  (&scratch, xd, nx, yRev.data(), ny)
-        : convDirect(&scratch, xd, nx, yRev.data(), ny);
+        : ops::convDirect(xd, nx, yRev.data(), ny, &scratch);
 
     auto r = Value::matrix(1, nc, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nc; ++i)

@@ -120,20 +120,9 @@ inline Value packComplexResult(const Complex *buf, size_t outLen, std::pmr::memo
     return r;
 }
 
-// ============================================================
-// Direct convolution O(n*m)
-// ============================================================
-inline ScratchVec<double> convDirect(std::pmr::memory_resource *mr,
-                                     const double *a, size_t na,
-                                     const double *b, size_t nb)
-{
-    size_t nc = na + nb - 1;
-    ScratchVec<double> c(nc, mr);
-    for (size_t i = 0; i < na; ++i)
-        for (size_t j = 0; j < nb; ++j)
-            c[i + j] += a[i] * b[j];
-    return c;
-}
+// Direct convolution O(n*m) moved to the kernel layer: numkit::ops::convDirect
+// (numkit/ops/conv.hpp). convFFT stays here — it is built on the signal-local
+// radix-2 FFT helpers below, not ops::fft.
 
 // ============================================================
 // FFT-based convolution O(N log N)
