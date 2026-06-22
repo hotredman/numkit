@@ -1987,19 +1987,38 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         unsupported("multi-assign must request all of '" + name + "'s outputs (v1)");
 
     const std::vector<InferredType> outs = reg_.applyMulti(name, toArgInfos(argTypes));
+    // An ignored (~) output still has a reference out-param the callee writes, so
+    // it gets a throwaway local. The throwaways are scoped in a fresh block so
+    // repeated `[~,...] = f()` statements never collide on the throwaway name.
+    std::vector<std::string> ignoreDecls;
     for (std::size_t i = 0; i < s.returnNames.size(); ++i) {
         const std::string &rn = s.returnNames[i];
-        if (rn.empty() || rn == "~")
-            unsupported("ignored (~) multi-output target not yet supported (v1)");
+        const InferredType  ot = i < outs.size() ? outs[i] : InferredType::dynamic();
         if (!argList.empty()) argList += ", ";
-        argList += rn;  // out-arg, bound to the callee's reference out-param
-        types_.set(rn, {i < outs.size() ? outs[i] : InferredType::dynamic(), ConstVal::unknown()});
+        if (rn.empty() || rn == "~") {
+            if (!isUnboxableScalarType(ot))
+                unsupported("ignored (~) multi-output must be a scalar output (v1): '" + name + "'");
+            const std::string tmp = "_nk_ignore_" + std::to_string(i);
+            ignoreDecls.push_back(cppScalarType(ot.dtype) + " " + tmp + " = "
+                                  + zeroLiteral(ot.dtype) + ";");
+            argList += tmp;
+        } else {
+            argList += rn;  // out-arg, bound to the callee's reference out-param
+            types_.set(rn, {ot, ConstVal::unknown()});
+        }
     }
 
     const std::string mangled = mangle(name, argTypes);
     if (ctx_->seen.insert(mangled).second)
         ctx_->pending.push_back({def, argTypes, mangled});
-    line(mangled + "(" + argList + ");");
+    if (ignoreDecls.empty()) {
+        line(mangled + "(" + argList + ");");
+    } else {
+        open("");  // fresh scope for the ~ throwaway locals
+        for (const std::string &d : ignoreDecls) line(d);
+        line(mangled + "(" + argList + ");");
+        close();
+    }
 }
 
 void Emitter::emitFor(const ASTNode &s)
