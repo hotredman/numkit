@@ -888,10 +888,12 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         // the runtime (nk_index) resolves it. v1: a single subscript.
         if (types_.has(callee.strValue)
             && inferExpr(callee, types_, reg_, classes_).type.isDynamic()) {
-            if (e.children.size() != 2)
-                unsupported("Dynamic tier: multi-subscript indexing of a Dynamic value (v1)");
-            return "nk_rt::index_dyn(" + callee.strValue + ", {"
-                   + emitDynamicExpr(*e.children[1]) + "})";
+            if (e.children.size() < 2)
+                unsupported("Dynamic tier: index with no subscript");
+            std::string subs;
+            for (std::size_t k = 1; k < e.children.size(); ++k)
+                subs += (k > 1 ? ", " : "") + emitDynamicExpr(*e.children[k]);
+            return "nk_rt::index_dyn(" + callee.strValue + ", {" + subs + "})";
         }
         if (isArrayVar(callee.strValue))
             unsupported("Dynamic tier: index read '" + callee.strValue + "' (v1, A4)");

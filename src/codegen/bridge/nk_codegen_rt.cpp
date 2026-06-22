@@ -322,13 +322,32 @@ nk_val nk_index(nk_val a, const nk_val *subs, size_t nsubs, nk_error *err)
             const std::vector<std::size_t> ids = Value::resolveIndices(args[0], av->objectCount());
             return make(av->objectSubArray(ids, nullptr));
         }
-        // 3. array / numeric -> indexing. v1: a single subscript (1-D linear;
-        //    a vector subscript yields a sub-array). resolveIndices is the
-        //    interpreter's own 1-based->0-based, bounds-checked resolution.
-        if (nsubs != 1)
-            throw std::runtime_error("nk_index: multi-subscript indexing not supported (v1)");
-        const std::vector<std::size_t> ids = Value::resolveIndices(args[0], av->numel());
-        return make(av->indexGet(ids.data(), ids.size()));
+        // 3. array / numeric -> indexing. resolveIndices is the interpreter's
+        //    own 1-based->0-based, bounds-checked resolution (scalar / vector /
+        //    logical / colon).
+        if (nsubs == 1) {
+            // 1-D linear (a vector subscript yields a sub-array).
+            const std::vector<std::size_t> ids = Value::resolveIndices(args[0], av->numel());
+            return make(av->indexGet(ids.data(), ids.size()));
+        }
+        // Multi-subscript A(i,j[,k…]) — resolve each subscript against its own
+        // dim and read via indexGetND (which delegates to the 2-D/3-D fast
+        // paths), exactly like the interpreter. v1: the subscript count must
+        // match the array's rank (no MATLAB trailing-singleton / dim-collapse),
+        // else refuse — never miscompile.
+        const auto &dd = av->dims();
+        if (static_cast<int>(nsubs) != dd.ndim())
+            throw std::runtime_error(
+                "nk_index: multi-subscript count must match array rank (v1)");
+        std::vector<std::vector<std::size_t>> lists(nsubs);
+        std::vector<const std::size_t *>      ptrs(nsubs);
+        std::vector<std::size_t>              counts(nsubs);
+        for (std::size_t k = 0; k < nsubs; ++k) {
+            lists[k]  = Value::resolveIndices(args[k], dd.dim(static_cast<int>(k)));
+            ptrs[k]   = lists[k].data();
+            counts[k] = lists[k].size();
+        }
+        return make(av->indexGetND(ptrs.data(), counts.data(), static_cast<int>(nsubs), nullptr));
     } catch (const std::exception &e) {
         setError(err, e.what());
         return nullptr;

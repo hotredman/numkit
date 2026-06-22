@@ -662,6 +662,24 @@ TEST(EmitterFn, DynamicArrayOperandBoxing)
     }
 }
 
+// Dynamic multi-subscript index z(i,j): emitted as index_dyn with TWO boxed
+// subscripts (the runtime nk_index resolves it per-dim, like the interpreter).
+TEST(EmitterFn, DynamicMultiSubscriptIndex)
+{
+    const auto          reg = stdReg();
+    const BridgeOptions bridge{true, "nk_codegen_rt.h"};
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn =
+        findFunc("function y = f(A)\n  z = mod(A, 3);\n  y = z(2, 1);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    const InferredType m2 = InferredType::concrete(
+        ValueType::DOUBLE, numkit::codegen::Shape::ndShape({2, 2}));
+    const std::string s = emitFunction(*fn, {{"A", m2}}, reg, nullptr, bridge).source;
+    EXPECT_TRUE(contains(s, "nk_rt::index_dyn(z, {"));
+    EXPECT_TRUE(contains(s, "val::scalar(2"));
+    EXPECT_TRUE(contains(s, "val::scalar(1"));
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {
