@@ -25,6 +25,9 @@ set(NUMKIT_OPS_SOURCES
     # core of signal filter()/filtfilt(). Sequential recurrence, no SIMD; here
     # for dedup + a single codegen-lowering target.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/iir_filter.cpp
+    # nth_element-based linear-interpolation quantile (stats iqr/mad/median-of-
+    # slice). Raw-buffer select primitive, O(n) average; shared kernel home.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/quantile_select.cpp
     # Complex-input fused kernels — scalar std::complex (no SIMD), needed in
     # both the SIMD and portable builds.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_complex.cpp
