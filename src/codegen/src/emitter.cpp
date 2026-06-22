@@ -842,9 +842,19 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
                 }
                 return "nk_rt::val::array(" + ai.dataExpr + ", " + ai.lenVar + ")";  // 1-D
             }
-            if (ai.dtype == ValueType::COMPLEX && !ai.is2D && !ai.isND)
+            if (ai.dtype == ValueType::COMPLEX) {
+                if (ai.is2D)
+                    return "nk_rt::val::complex_matrix(" + ai.dataExpr + ", " + ai.rowsVar + ", "
+                           + ai.colsVar + ")";
+                if (ai.isND) {
+                    std::string dims;
+                    for (std::size_t k = 0; k < ai.ndDims.size(); ++k)
+                        dims += (k ? ", " : "") + ai.ndDims[k];
+                    return "nk_rt::val::complex_array_nd(" + ai.dataExpr + ", {" + dims + "})";
+                }
                 return "nk_rt::val::complex_array(" + ai.dataExpr + ", " + ai.lenVar + ")";  // 1-D complex
-            unsupported("Dynamic tier: complex 2-D/N-D array operand '" + e.strValue + "' (v1)");
+            }
+            unsupported("Dynamic tier: array operand '" + e.strValue + "' unsupported dtype (v1)");
         }
         const AbstractValue av = inferExpr(e, types_, reg_, classes_);
         if (av.type.isDynamic())
@@ -2406,6 +2416,10 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "        return val(nk_box_array_nd(p, dims.begin(), (int)dims.size())); }\n"
            "    static val complex_array(const std::complex<double>* p, std::size_t n) {\n"
            "        return val(nk_box_complex_array(reinterpret_cast<const double*>(p), n)); }\n"
+           "    static val complex_matrix(const std::complex<double>* p, std::size_t r, std::size_t c) {\n"
+           "        return val(nk_box_complex_matrix(reinterpret_cast<const double*>(p), r, c)); }\n"
+           "    static val complex_array_nd(const std::complex<double>* p, std::initializer_list<std::size_t> dims) {\n"
+           "        return val(nk_box_complex_array_nd(reinterpret_cast<const double*>(p), dims.begin(), (int)dims.size())); }\n"
            "    double to_scalar() const { return nk_unbox_scalar(h_); }\n"
            "    bool truth() const {\n"
            "        nk_error e; e.code = 0; int t = nk_truth(h_, &e);\n"
