@@ -12,7 +12,7 @@
 
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
-#include "backends/nan_reductions.hpp"
+#include <numkit/ops/nan_reductions.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -26,11 +26,11 @@ namespace numkit::stats {
 
 using ::numkit::ops::applyAlongDim;
 using ::numkit::ops::resolveDim;
-using ::numkit::stats::detail::nanSumScan;
-using ::numkit::stats::detail::nanSumCountScan;
-using ::numkit::stats::detail::nanMaxScan;
-using ::numkit::stats::detail::nanMinScan;
-using ::numkit::stats::detail::nanVarianceTwoPass;
+using ::numkit::ops::nanSumScan;
+using ::numkit::ops::nanSumCountScan;
+using ::numkit::ops::nanMaxScan;
+using ::numkit::ops::nanMinScan;
+using ::numkit::ops::nanVarianceTwoPass;
 using ::numkit::ops::compactNonNan;
 
 
