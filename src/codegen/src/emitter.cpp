@@ -1315,6 +1315,34 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // LOGICAL-INDEXING WRITE: `x(m) = c` where m is a LOGICAL-array var and c a
+    // SCALAR -> scatter c into x at the positions where m is true (MATLAB
+    // x(logical)=scalar, e.g. clamp x(x<0)=0). x must be writable (local/output).
+    // v1: a single LOGICAL-array subscript that is a VARIABLE; x + m 1-D; scalar
+    // rhs. Bound on min(len) so a too-long mask cannot write x out of bounds.
+    if (lhsCall.children.size() == 2 && lhsCall.children[1]->type == NodeType::IDENTIFIER
+        && isArrayVar(lhsCall.children[1]->strValue)
+        && arrays_.at(lhsCall.children[1]->strValue).dtype == ValueType::LOGICAL && !ai.is2D) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("logical-indexing write to a read-only array parameter '" + base + "'");
+        const ArrayInfo &bm = arrays_.at(lhsCall.children[1]->strValue);  // m (mask)
+        if (bm.is2D || bm.isND) unsupported("logical-indexing write: a 1-D mask only (v1)");
+        const AbstractValue rhsScalar = inferExpr(rhs, types_, reg_, classes_);
+        if (!rhsScalar.type.shape.isScalar())
+            unsupported("logical-indexing write: a scalar rhs only (v1)");
+        line("{");
+        ++indent_;
+        line("const " + cppScalarType(ai.dtype) + " _nk_c = " + emitExpr(rhs) + ";");
+        line("const std::size_t _nk_n = " + bm.lenVar + " < " + ai.lenVar + " ? "
+             + bm.lenVar + " : " + ai.lenVar + ";");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+        line("if (" + bm.dataExpr + "[_nk_i]) " + ptr + "[_nk_i] = _nk_c;");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < lhsCall.children.size(); ++i)
         idx.push_back(inferExpr(*lhsCall.children[i], types_, reg_, classes_));
