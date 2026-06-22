@@ -15,57 +15,10 @@
 
 namespace numkit::signal {
 
-// [Phase 2b] raw-buffer filter kernels promoted to numkit::signal scope so
-// filter_reg.cpp can reuse them (declared in filter_detail.hpp).
-
-// Direct Form II transposed core, applied to a flat input buffer.
-// Used by both filter() and filtfilt()'s forward/backward passes.
-// Optional `zi` (length ziLen) seeds the initial delay state; when
-// `zfOut` is non-null the final state (length nfilt-1) is written there —
-// this implements MATLAB's filter(b,a,x,zi) and [y,zf] = filter(...).
-ScratchVec<double> applyFilterDf2t(const double *bn, size_t nb, const double *an, size_t na, const double *input, size_t len, std::pmr::memory_resource *mr, const double *zi, size_t ziLen, double *zfOut)
-{
-    const size_t nfilt = std::max(nb, na);
-    ScratchVec<double> out(len, mr);
-    ScratchVec<double> z(nfilt, mr);
-    for (size_t i = 0; i < nfilt; ++i)
-        z[i] = (zi && i < ziLen) ? zi[i] : 0.0;
-    for (size_t n = 0; n < len; ++n) {
-        out[n] = (nb > 0 ? bn[0] : 0.0) * input[n] + z[0];
-        for (size_t i = 1; i < nfilt; ++i) {
-            z[i - 1] = (i < nb ? bn[i] : 0.0) * input[n]
-                       - (i < na ? an[i] : 0.0) * out[n]
-                       + (i < nfilt - 1 ? z[i] : 0.0);
-        }
-    }
-    if (zfOut)
-        for (size_t i = 0; i + 1 < nfilt; ++i) zfOut[i] = z[i];
-    return out;
-}
-
-// Complex Direct Form II transposed core. filter is BILINEAR (the recursive
-// a-part mixes terms), so a real/imag split does NOT apply — the recurrence
-// runs over Complex. b/a are already a0-normalised.
-ScratchVec<Complex> applyFilterDf2tComplex(const Complex *bn, size_t nb, const Complex *an, size_t na, const Complex *input, size_t len, std::pmr::memory_resource *mr, const Complex *zi, size_t ziLen, Complex *zfOut)
-{
-    const size_t nfilt = std::max(nb, na);
-    ScratchVec<Complex> out(len, mr);
-    ScratchVec<Complex> z(nfilt, mr);
-    const Complex zero(0.0, 0.0);
-    for (size_t i = 0; i < nfilt; ++i)
-        z[i] = (zi && i < ziLen) ? zi[i] : zero;
-    for (size_t n = 0; n < len; ++n) {
-        out[n] = (nb > 0 ? bn[0] : zero) * input[n] + z[0];
-        for (size_t i = 1; i < nfilt; ++i) {
-            z[i - 1] = (i < nb ? bn[i] : zero) * input[n]
-                       - (i < na ? an[i] : zero) * out[n]
-                       + (i < nfilt - 1 ? z[i] : zero);
-        }
-    }
-    if (zfOut)
-        for (size_t i = 0; i + 1 < nfilt; ++i) zfOut[i] = z[i];
-    return out;
-}
+// The raw-buffer IIR recurrence kernels (applyFilterDf2t / ...Complex) moved to
+// the kernel layer — numkit::ops::applyFilterDf2t{,Complex} (numkit/ops/
+// iir_filter.hpp), re-exported into this namespace by filter_detail.hpp. The
+// Value-level marshalling helpers below stay in signal.
 
 // Gather a Value into a Complex buffer (real element -> Complex(v, 0)).
 ScratchVec<Complex> toComplexBuf(const Value &v, size_t n, std::pmr::memory_resource *mr)
