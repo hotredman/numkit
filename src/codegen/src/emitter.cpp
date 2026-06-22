@@ -914,6 +914,22 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         }
         if (isArrayVar(callee.strValue))
             unsupported("Dynamic tier: index read '" + callee.strValue + "' (v1, A4)");
+        // A boxed-result call to a CO-COMPILED user function (in this program's
+        // function table) cannot use the call_dyn-by-NAME ABI: that resolves
+        // against the runtime registry, which holds builtins / engine functions —
+        // NOT the compiled specialisations emitted alongside this code. Emitting
+        // call_dyn here would look up a name that is not the compiled spec, i.e.
+        // miscompile in a standalone artifact. Refuse instead (refuse-not-
+        // miscompile). This is the path a recursive call takes (the monomorphiser
+        // breaks recursion to Dynamic), so recursion cleanly refuses under the
+        // bridge rather than miscompiling. (An EXTERNAL callee — not in the table —
+        // keeps call_dyn below: it genuinely resolves in the runtime/engine.) A
+        // future enhancement can call the compiled spec directly and box its result.
+        if (ctx_ && ctx_->funcs && !types_.has(callee.strValue)
+            && ctx_->funcs->has(callee.strValue))
+            unsupported("Dynamic tier: boxed result of a co-compiled user call '"
+                        + callee.strValue + "' (e.g. recursion) — the compiled "
+                        "specialisation is not resolvable by name in the runtime registry (v1)");
         bool allDoubleScalar = true;
         for (std::size_t i = 1; i < e.children.size(); ++i) {
             const AbstractValue av = inferExpr(*e.children[i], types_, reg_, classes_);

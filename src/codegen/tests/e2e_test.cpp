@@ -781,6 +781,40 @@ TEST(CodegenE2E, MultiOutputLeading2DArray)
     EXPECT_DOUBLE_EQ(got[0], 14.0);  // M(2,2) = 4 + s = 10
 }
 
+// RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
+// recursive call to Dynamic (a sound inference break); the recursive call's boxed
+// result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
+// specialisation in a standalone artifact. So recursion is REFUSED (refuse-not-
+// miscompile), not silently miscompiled. (A precision upgrade -> unboxed recursion
+// via a Bottom-fixpoint needs Bottom to propagate through the transfer layer:
+// deferred.)
+TEST(CodegenE2E, RecursiveCallRefusedUnderBridge)
+{
+    const char *src =
+        "function y = fact(n)\n"
+        "  if n <= 1\n"
+        "    y = 1;\n"
+        "  else\n"
+        "    y = n * fact(n - 1);\n"
+        "  end\n"
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    BridgeOptions bridge;
+    bridge.enabled = true;
+    EXPECT_THROW(
+        emitProgram(*ft.find("fact"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg,
+                    nullptr, bridge),
+        std::runtime_error);
+}
+
 // Interproc array RETURN, complex 1-D variant: a callee returning a complex 1-D
 // array returns std::vector<std::complex<double>> by value (emit-level — the run
 // pipeline is proven by InterprocArrayReturn above).
