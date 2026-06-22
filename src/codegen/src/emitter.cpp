@@ -593,6 +593,9 @@ public:
         returnDynamic_ = dynamic;
     }
 
+    // Record a local that was hoisted as Dynamic (nk_val); see dynamicLocals_.
+    void addDynamicLocal(const std::string &n) { dynamicLocals_.insert(n); }
+
     // Hoist a local declaration at function entry (scalar or object).
     void hoistLocal(const std::string &name, const InferredType &t)
     {
@@ -685,6 +688,7 @@ private:
     void        emitWhile(const ASTNode &s);
     void        emitIf(const ASTNode &s);
     void        emitSwitch(const ASTNode &s);
+    void        emitTry(const ASTNode &s);
 
     bool isArrayVar(const std::string &n) const { return arrays_.count(n) != 0; }
 
@@ -715,6 +719,11 @@ private:
     bool                                        returnsValue_  = false;
     std::string                                 returnName_;
     bool                                        returnDynamic_ = false;
+    // Locals hoisted as Dynamic (nk_val) — arising from markAssignedDynamic
+    // constructs (e.g. try/catch bodies). Every assignment to one must box (there
+    // is no nk_val = <typed>), and it stays Dynamic so later reads route through
+    // the runtime.
+    std::set<std::string>                       dynamicLocals_;
     // Non-null when emitting as part of a multi-function program: routes
     // user-function calls and accumulates the specialisations to emit.
     ProgramEmitCtx                             *ctx_ = nullptr;
@@ -1997,9 +2006,15 @@ void Emitter::emitAssign(const ASTNode &s)
         // keep it boxed as an nk_rt::val (the local was hoisted as one) and
         // dispatch its operations to the runtime. The universal sound fallback;
         // needs the C-ABI, so only under bridge_ (else the typed path throws).
-        if (bridge_ && rv.type.isDynamic()) {
+        // A Dynamic-hoisted local (nk_val) keeps EVERY assignment boxed: there is
+        // no nk_val = <typed> conversion, and its later reads must stay Dynamic so
+        // they route through the runtime. Box when the RHS is Dynamic OR the LHS
+        // local was hoisted Dynamic (from markAssignedDynamic — e.g. a try/catch
+        // body); the local then stays Dynamic in the flow env.
+        const bool lhsDynamic = dynamicLocals_.count(name) != 0;
+        if (bridge_ && (rv.type.isDynamic() || lhsDynamic)) {
             line(name + " = " + emitDynamicExpr(rhs) + ";");
-            types_.set(name, rv);
+            types_.set(name, lhsDynamic ? AbstractValue::dynamic() : rv);
             return;
         }
         // numel/length return a count; assigning into a double local needs
@@ -2365,6 +2380,40 @@ void Emitter::emitSwitch(const ASTNode &s)
     types_ = have ? merged : entry;
 }
 
+void Emitter::emitTry(const ASTNode &s)
+{
+    // try/catch -> C++ `try { <body> } catch (...) { <handler> }`. A numkit runtime
+    // error surfaces as a C++ exception, so `catch (...)` catches it. The inference
+    // marks try/catch-assigned vars Dynamic (a throw mid-try leaves them uncertain
+    // — sound over-approximation), so the bodies ride the Dynamic tier (bridge).
+    // v1: the catch's bound exception variable (MATLAB binds an MException object)
+    // is NOT represented -> refuse a `catch err` form; a bare `catch`, or
+    // `try ... end` with no catch (which silently swallows), is supported.
+    if (s.children.empty()) unsupported("try with no body");
+    if (!s.strValue.empty())
+        unsupported("try/catch with a bound exception variable '" + s.strValue
+                    + "' (MException object not represented; v1)");
+
+    const TypeEnv entry = types_;
+    TypeEnv       merged;
+    bool          have = false;
+    auto mergeIn = [&](const TypeEnv &e) { merged = have ? joinEnv(merged, e) : e; have = true; };
+
+    open("try");
+    emitStmt(*s.children[0]);  // try body
+    close();
+    mergeIn(types_);  // try ran to completion
+    mergeIn(entry);   // try threw before assigning -> the incoming types
+
+    types_ = entry;   // catch body typed from the incoming env
+    open("catch (...)");
+    if (s.children.size() > 1 && s.children[1]) emitStmt(*s.children[1]);
+    close();
+    mergeIn(types_);
+
+    types_ = have ? merged : entry;
+}
+
 void Emitter::emitStmt(const ASTNode &s)
 {
     switch (s.type) {
@@ -2378,6 +2427,7 @@ void Emitter::emitStmt(const ASTNode &s)
     case NodeType::WHILE_STMT: emitWhile(s);  return;
     case NodeType::IF_STMT:     emitIf(s);     return;
     case NodeType::SWITCH_STMT: emitSwitch(s); return;
+    case NodeType::TRY_STMT:    emitTry(s);    return;
     // break / continue lower directly to the C++ loop-control keywords. They only
     // ever appear inside a loop body (MATLAB semantics + the parser enforce it,
     // and the emitted code mirrors that structure), so the keyword lands inside
@@ -2998,6 +3048,7 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             unsupported("local '" + name + "' is not an unboxable scalar or object (type "
                         + t.str() + ") — unsupported in RawBuffer ABI");
         em.hoistLocal(name, t);
+        if (bridge && t.isDynamic()) em.addDynamicLocal(name);  // boxed-assign discipline
     }
     em.setReturnInfo(multiByValueReturn || (nout == 1 && !arrayReturn), retName, dynamicReturn);
     em.emitStmt(body);

@@ -2664,6 +2664,108 @@ TEST(CodegenBridge, DynamicScalarTierRunsAndMatchesInterpreter)
         engine.eval("z=mod(5,3); y=20; if z>1.5, y=10; end; y", true).toScalar(), got[0]);
 }
 
+// try / catch (control-flow coverage) under the bridge. The try/catch-assigned
+// var z is Dynamic (markAssignedDynamic — a throw mid-try leaves it uncertain),
+// so every assignment to it boxes (the Dynamic-hoisted-local discipline: there is
+// no nk_val = <typed>); a Dynamic condition sink then yields a typed output.
+// Compiles, links the runtime DLL, runs, matches the interpreter.
+TEST(CodegenBridge, TryCatchRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex("function y = f(n)\n"
+                       "  z = 0;\n"
+                       "  try\n"
+                       "    z = n + 1;\n"
+                       "  catch\n"
+                       "    z = -1;\n"
+                       "  end\n"
+                       "  if z > 3.5\n"
+                       "    y = 10;\n"
+                       "  else\n"
+                       "    y = 20;\n"
+                       "  end\n"
+                       "end\n");
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    const numkit::ASTNode *fn = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"n", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
+    ASSERT_NE(emitted.source.find("try {"), std::string::npos);
+    ASSERT_NE(emitted.source.find("catch (...)"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_trycatch_e2e.exe").string();
+    const std::string outTxt = (base / "nk_trycatch_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const double xs[2] = {5.0, 1.0};\n"  // z=6 -> 10 ; z=2 -> 20
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 2; ++i) std::fprintf(g, \"%.17g\\n\", f(xs[i]));\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0);  // try z = 6 > 3.5 -> 10
+    EXPECT_DOUBLE_EQ(got[1], 20.0);  // try z = 2 <= 3.5 -> 20
+}
+
+// try/catch with a bound exception variable (`catch err`) is refused: MATLAB
+// binds an MException object, not represented in v1 (emit-level).
+TEST(CodegenE2E, TryCatchBoundVarRefused)
+{
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex("function y = f(n)\n  try\n    y = n + 1;\n"
+                       "  catch err\n    y = -1;\n  end\nend\n");
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    const numkit::ASTNode *fn = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+    BridgeOptions bridge;
+    bridge.enabled = true;
+    EXPECT_THROW(
+        emitFunction(*fn, {{"n", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge),
+        std::runtime_error);
+}
+
 // DYNAMIC CALL ARGUMENT (DESIGN.md §10 C1, A3): a Dynamic value passed AS an
 // argument to another call. mod(x,3) is Dynamic (z); mod(z,2) passes the boxed
 // z -> call_dynv (a val argument list), result Dynamic again; a condition sink
