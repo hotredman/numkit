@@ -569,6 +569,34 @@ TEST(CodegenE2E, InterprocArrayReturn)
     EXPECT_DOUBLE_EQ(got[0], 4.0);  // g(4) = [1 4 9 16]; v(2) = 4
 }
 
+// Interproc array RETURN, complex 1-D variant: a callee returning a complex 1-D
+// array returns std::vector<std::complex<double>> by value (emit-level — the run
+// pipeline is proven by InterprocArrayReturn above).
+TEST(CodegenE2E, InterprocComplexArrayReturnEmits)
+{
+    const char *src =
+        "function s = f(x)\n"
+        "  v = g(x);\n"      // g returns a complex 1-D array by value -> complex local
+        "  s = numel(v);\n"  // use it (dtype-agnostic) -> scalar
+        "end\n"
+        "function r = g(x)\n"
+        "  r = x + 1i;\n"    // double 1-D + 1i -> complex 1-D (elementwise)
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+    const InferredType vec =
+        InferredType::concrete(ValueType::DOUBLE, numkit::codegen::Shape::rowVector());
+    const EmittedFunction emitted = emitProgram(*ft.find("f"), {{"x", vec}}, ft, reg);
+    EXPECT_NE(emitted.source.find("std::vector<std::complex<double>> "), std::string::npos)
+        << "complex 1-D interproc result should return std::vector<std::complex<double>>";
+}
+
 // Boundary #2b: a multi-output function `[a,b] = f(...)`, end-to-end.
 // divmod returns quotient + remainder via reference out-params.
 TEST(CodegenE2E, MultiOutputCall)
