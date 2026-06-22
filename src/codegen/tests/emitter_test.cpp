@@ -578,6 +578,44 @@ TEST(EmitterFn, MoreBridgedBuiltins)
     }
 }
 
+// ---- Dynamic tier (DESIGN.md §10 C1) ---------------------------------------
+// An un-typeable scalar value is kept BOXED as an nk_rt::val and its operations
+// dispatch to the runtime — the universal sound fallback. Driver: mod (no
+// codegen transfer -> a Dynamic result), a Value-dispatched comparison, then a
+// control-flow CONDITION (truth) — the non-poisoning sink that steers typed
+// branches while leaving the output typed. Opt-in; refused without bridging.
+TEST(EmitterFn, DynamicScalarTier)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc(
+        "function y = f(x)\n"
+        "  z = mod(x, 3);\n"   // mod has no transfer -> z is Dynamic (kept boxed)
+        "  w = z;\n"            // Dynamic-to-Dynamic copy (val clone)
+        "  if w > 1.5\n"        // Dynamic comparison -> truth (the condition sink)
+        "    y = 10.0;\n"
+        "  else\n"
+        "    y = 20.0;\n"
+        "  end\n"
+        "end\n",
+        root);
+    ASSERT_NE(fn, nullptr);
+    {  // bridged: Dynamic local + call_dyn source + copy + binop + truth() condition
+        const BridgeOptions bridge{true, "nk_codegen_rt.h"};
+        const std::string   s =
+            emitFunction(*fn, {{"x", kDoubleScalar}}, reg, nullptr, bridge).source;
+        EXPECT_TRUE(contains(s, "nk_rt::val z;"));
+        EXPECT_TRUE(contains(s, "nk_rt::val w;"));
+        EXPECT_TRUE(contains(s, "z = nk_rt::call_dyn(\"mod\", {x, 3.0});"));
+        EXPECT_TRUE(contains(s, "w = z;"));  // Dynamic copy (val operator= -> nk_clone)
+        EXPECT_TRUE(contains(s, "nk_rt::binop(\">\", w, nk_rt::val::scalar(1.5)).truth()"));
+        EXPECT_TRUE(contains(s, "y = 10.0;"));  // typed branch -> typed (double) output
+    }
+    {  // no bridge: no runtime to hold a Dynamic value -> explicit refusal
+        EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
+    }
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {

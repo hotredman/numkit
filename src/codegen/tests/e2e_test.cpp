@@ -2082,6 +2082,91 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[2], 1.0);
 }
 
+// DYNAMIC TIER end-to-end (DESIGN.md §10 C1): an un-typeable value stays BOXED
+// (nk_rt::val) and its operations dispatch to the runtime. `mod` has no codegen
+// transfer -> z is Dynamic; a Value-tier comparison steers a typed branch (the
+// condition `truth()` sink), so the result is a typed double the RawBuffer ABI
+// returns. Compiles -> runs -> links the runtime DLL -> matches the interpreter.
+TEST(CodegenBridge, DynamicScalarTierRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer          lex("function y = f(x)\n"
+                               "  z = mod(x, 3);\n"   // no transfer -> z Dynamic (boxed)
+                               "  w = z;\n"            // Dynamic-to-Dynamic copy (val clone)
+                               "  if w > 1.5\n"        // Value-tier comparison -> truth sink
+                               "    y = 10.0;\n"
+                               "  else\n"
+                               "    y = 20.0;\n"
+                               "  end\n"
+                               "end\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::call_dyn(\"mod\""), std::string::npos);
+    ASSERT_NE(emitted.source.find(".truth()"), std::string::npos);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_dyntier_e2e.exe").string();
+    const std::string outTxt = (base / "nk_dyntier_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  const double xs[4] = {5.0, 3.0, 8.0, 2.0};\n"  // mod(.,3)=2,0,2,2
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  for (int i = 0; i < 4; ++i) std::fprintf(g, \"%.17g\\n\", f(xs[i]));\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 4u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0);  // mod(5,3)=2 > 1.5 -> 10
+    EXPECT_DOUBLE_EQ(got[1], 20.0);  // mod(3,3)=0      -> 20
+    EXPECT_DOUBLE_EQ(got[2], 10.0);  // mod(8,3)=2      -> 10
+    EXPECT_DOUBLE_EQ(got[3], 10.0);  // mod(2,3)=2      -> 10
+
+    // Cross-check: the interpreter computes the same (mod + the same branch).
+    numkit::StandardEngine engine;
+    EXPECT_DOUBLE_EQ(
+        engine.eval("z=mod(5,3); y=20; if z>1.5, y=10; end; y", true).toScalar(), got[0]);
+}
+
 // BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sign(x). `sign` is
 // typed as an array (realMathUnaryTransfer) but has no std form, so it CANNOT
 // lower natively — it bridges: box the array arg -> nk_call -> unbox into the

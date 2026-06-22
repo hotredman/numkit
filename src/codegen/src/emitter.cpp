@@ -579,6 +579,13 @@ public:
                 line(ci->name + " " + name + "{};");                    // default-constructed
             return;
         }
+        // Dynamic tier (DESIGN.md §10 C1): an un-typeable local is a boxed
+        // runtime value (null until assigned). Reachable only under bridge_
+        // (the caller's refusal check gates it); cppScalarType(Dynamic) throws.
+        if (t.isDynamic()) {
+            line("nk_rt::val " + name + ";");
+            return;
+        }
         line(cppScalarType(t.dtype) + " " + name + " = " + zeroLiteral(t.dtype) + ";");
     }
 
@@ -615,6 +622,16 @@ private:
     void close() { --indent_; line("}"); }
 
     std::string emitExpr(const ASTNode &e);
+    // Dynamic tier (DESIGN.md §10 C1): emit `e` as an `nk_rt::val` C++
+    // expression (a boxed runtime value), for an operand/result the inference
+    // could not type. Operators dispatch to the runtime (binop/unop); an
+    // un-typeable builtin result stays boxed (call_dyn). Only reachable under
+    // bridge_ (it needs the C-ABI). The sound fallback to the typed emitExpr.
+    std::string emitDynamicExpr(const ASTNode &e);
+    // A control-flow condition (if / while): a typed condition is the bare C++
+    // boolean; a Dynamic condition is evaluated in the Value tier and reduced to
+    // MATLAB truthiness (non-empty AND every element non-zero). DESIGN.md §10 C1.
+    std::string emitCondition(const ASTNode &c);
     std::string emitBuiltinCall(const std::string &name, const ASTNode &call);
     std::string emitUserCall(const std::string &name, const ASTNode &call);
     std::string emitMethodCall(const ASTNode &call);
@@ -793,6 +810,74 @@ std::string Emitter::emitExpr(const ASTNode &e)
     default:
         unsupported("expression node kind");
     }
+}
+
+// Dynamic tier (DESIGN.md §10 C1): emit `e` as an nk_rt::val expression. An
+// operand the inference DID type is boxed at the boundary (val::scalar); a
+// Dynamic operand is already a val (binds by const-ref into binop/unop); an
+// un-typeable builtin result stays boxed (call_dyn). v1 covers real-double
+// scalars + Dynamic values — a complex/array operand, a Dynamic call argument,
+// or short-circuit && / || is an explicit boundary (A3/A4/A5), never wrong code.
+std::string Emitter::emitDynamicExpr(const ASTNode &e)
+{
+    switch (e.type) {
+    case NodeType::NUMBER_LITERAL:
+        return "nk_rt::val::scalar(" + formatDoubleLiteral(e.numValue) + ")";
+    case NodeType::IDENTIFIER: {
+        if (isArrayVar(e.strValue))
+            unsupported("Dynamic tier: array operand '" + e.strValue + "' (v1)");
+        const AbstractValue av = inferExpr(e, types_, reg_, classes_);
+        if (av.type.isDynamic())
+            return e.strValue;  // an existing Dynamic local (already an nk_rt::val)
+        if (av.type.dtype == ValueType::DOUBLE && av.type.shape.isScalar())
+            return "nk_rt::val::scalar(" + e.strValue + ")";  // box a typed double scalar
+        unsupported("Dynamic tier: non-double-scalar operand '" + e.strValue + "' (v1)");
+    }
+    case NodeType::BINARY_OP:
+        if (e.children.size() != 2) unsupported("Dynamic tier: binary op arity");
+        if (e.strValue == "&&" || e.strValue == "||")
+            unsupported("Dynamic tier: short-circuit && / || operand (v1, A5)");
+        return "nk_rt::binop(\"" + e.strValue + "\", " + emitDynamicExpr(*e.children[0]) + ", "
+               + emitDynamicExpr(*e.children[1]) + ")";
+    case NodeType::UNARY_OP:
+        if (e.children.size() != 1) unsupported("Dynamic tier: unary op arity");
+        if (e.strValue == "'" || e.strValue == ".'")
+            unsupported("Dynamic tier: transpose operand (v1)");
+        return "nk_rt::unop(\"" + e.strValue + "\", " + emitDynamicExpr(*e.children[0]) + ")";
+    case NodeType::CALL: {
+        // An un-typeable builtin result, kept boxed. v1: a plain builtin name,
+        // all args real-double scalars (a Dynamic / array / complex argument is
+        // A3/A4). Index reads and method calls are not this path.
+        if (e.children.empty()) unsupported("Dynamic tier: empty call");
+        const ASTNode &callee = *e.children[0];
+        if (callee.type != NodeType::IDENTIFIER)
+            unsupported("Dynamic tier: non-identifier callee");
+        if (isArrayVar(callee.strValue))
+            unsupported("Dynamic tier: index read '" + callee.strValue + "' (v1, A4)");
+        std::string args;
+        for (std::size_t i = 1; i < e.children.size(); ++i) {
+            const ASTNode      &arg = *e.children[i];
+            const AbstractValue av  = inferExpr(arg, types_, reg_, classes_);
+            if (!(av.type.dtype == ValueType::DOUBLE && av.type.shape.isScalar()))
+                unsupported("Dynamic tier: call argument must be a real-double scalar (v1, A3)");
+            args += (i > 1 ? ", " : "") + emitExpr(arg);
+        }
+        return "nk_rt::call_dyn(\"" + callee.strValue + "\", {" + args + "})";
+    }
+    default:
+        unsupported("Dynamic tier: expression node kind");
+    }
+}
+
+std::string Emitter::emitCondition(const ASTNode &c)
+{
+    const AbstractValue cv = inferExpr(c, types_, reg_, classes_);
+    // Dynamic tier (DESIGN.md §10 C1): a Dynamic condition reduces to MATLAB
+    // truthiness via the runtime — the non-poisoning sink that lets an
+    // un-typeable value steer control flow while the branches stay typed.
+    if (bridge_ && cv.type.isDynamic())
+        return emitDynamicExpr(c) + ".truth()";
+    return emitExpr(c);
 }
 
 std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &call)
@@ -1738,12 +1823,21 @@ void Emitter::emitAssign(const ASTNode &s)
                         + "' (only size-constructor init of the output in RawBuffer ABI)");
 
         // Scalar assignment (the local was hoisted at function entry).
-        const std::string rhsExpr = emitExpr(rhs);
+        const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+        // Dynamic tier (DESIGN.md §10 C1): the RHS type could not be inferred —
+        // keep it boxed as an nk_rt::val (the local was hoisted as one) and
+        // dispatch its operations to the runtime. The universal sound fallback;
+        // needs the C-ABI, so only under bridge_ (else the typed path throws).
+        if (bridge_ && rv.type.isDynamic()) {
+            line(name + " = " + emitDynamicExpr(rhs) + ";");
+            types_.set(name, rv);
+            return;
+        }
         // numel/length return a count; assigning into a double local needs
         // no cast (the builtin emitter already produced a double). But the
         // companion length is size_t, so the cast is inside emitBuiltinCall.
-        line(name + " = " + rhsExpr + ";");
-        types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+        line(name + " = " + emitExpr(rhs) + ";");
+        types_.set(name, rv);
         return;
     }
 
@@ -1925,7 +2019,7 @@ void Emitter::emitWhile(const ASTNode &s)
     }
     types_ = cur;
 
-    open("while (" + emitExpr(*s.children[0]) + ")");
+    open("while (" + emitCondition(*s.children[0]) + ")");
     emitStmt(body);
     close();
     types_ = cur;
@@ -1943,7 +2037,7 @@ void Emitter::emitIf(const ASTNode &s)
 
     for (std::size_t i = 0; i < s.branches.size(); ++i) {
         types_ = entry;  // condition + body typed from the incoming env
-        const std::string cond = emitExpr(*s.branches[i].first);
+        const std::string cond = emitCondition(*s.branches[i].first);
         open((i == 0 ? "if (" : "else if (") + cond + ")");
         if (s.branches[i].second) emitStmt(*s.branches[i].second);
         close();
@@ -2155,6 +2249,47 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    out.resize(nk_numel(r));\n"
            "    nk_unbox_complex_array(r, reinterpret_cast<double*>(out.data()), out.size()); nk_release(r);\n"
            "}\n"
+           "// ---- Dynamic tier (DESIGN.md §10 C1) ----------------------------------\n"
+           "// A value whose type the codegen could not infer: held BOXED as an owned\n"
+           "// runtime handle (RAII), its operations dispatched to the runtime — the\n"
+           "// universal sound fallback when no typed inline form exists. Copyable via\n"
+           "// deep clone (MATLAB value semantics); errors throw (never across the C ABI).\n"
+           "class val {\n"
+           "    nk_val h_ = nullptr;\n"
+           "public:\n"
+           "    val() = default;\n"
+           "    explicit val(nk_val h) : h_(h) {}\n"
+           "    ~val() { nk_release(h_); }\n"
+           "    val(const val& o) : h_(nk_clone(o.h_)) {}\n"
+           "    val(val&& o) noexcept : h_(o.h_) { o.h_ = nullptr; }\n"
+           "    val& operator=(const val& o) {\n"
+           "        if (this != &o) { nk_val n = nk_clone(o.h_); nk_release(h_); h_ = n; } return *this; }\n"
+           "    val& operator=(val&& o) noexcept {\n"
+           "        if (this != &o) { nk_release(h_); h_ = o.h_; o.h_ = nullptr; } return *this; }\n"
+           "    nk_val get() const { return h_; }\n"
+           "    static val scalar(double x) { return val(nk_box_scalar(x)); }\n"
+           "    double to_scalar() const { return nk_unbox_scalar(h_); }\n"
+           "    bool truth() const {\n"
+           "        nk_error e; e.code = 0; int t = nk_truth(h_, &e);\n"
+           "        if (e.code) throw std::runtime_error(e.message); return t != 0; }\n"
+           "};\n"
+           "inline val _checked(nk_val r, nk_error& e) {\n"
+           "    if (!r || e.code) { nk_release(r);\n"
+           "        throw std::runtime_error(e.code ? e.message : \"numkit dynamic op failed\"); }\n"
+           "    return val(r); }\n"
+           "inline val binop(const char* op, const val& a, const val& b) {\n"
+           "    nk_error e; e.code = 0; return _checked(nk_binop(op, a.get(), b.get(), &e), e); }\n"
+           "inline val unop(const char* op, const val& a) {\n"
+           "    nk_error e; e.code = 0; return _checked(nk_unop(op, a.get(), &e), e); }\n"
+           "// Box scalar args, call `name` (1 output), keep the result BOXED (the\n"
+           "// Dynamic tier does not unbox an un-typeable result). Args released; throws.\n"
+           "inline val call_dyn(const char* name, std::initializer_list<double> args) {\n"
+           "    std::vector<nk_val> argv; argv.reserve(args.size());\n"
+           "    for (double x : args) argv.push_back(nk_box_scalar(x));\n"
+           "    nk_error e; e.code = 0;\n"
+           "    nk_val r = nk_call(name, argv.data(), argv.size(), 1, nullptr, &e);\n"
+           "    for (nk_val h : argv) nk_release(h);\n"
+           "    return _checked(r, e); }\n"
            "} // namespace nk_rt\n";
 }
 
@@ -2437,7 +2572,10 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     for (const auto &[name, t] : ordered) {
         if (paramSet.count(name) || arrays.count(name) || promotedVars.count(name))
             continue;  // signature params / arrays / promoted loop counters
-        if (!isUnboxableScalarType(t) && !t.isObject())
+        // A Dynamic local is allowed under bridging — it lives in the Dynamic
+        // tier as a boxed nk_rt::val (DESIGN.md §10 C1). Without bridging there
+        // is no runtime to hold it, so it stays the explicit refusal.
+        if (!isUnboxableScalarType(t) && !t.isObject() && !(bridge && t.isDynamic()))
             unsupported("local '" + name + "' is not an unboxable scalar or object (type "
                         + t.str() + ") — unsupported in RawBuffer ABI");
         em.hoistLocal(name, t);

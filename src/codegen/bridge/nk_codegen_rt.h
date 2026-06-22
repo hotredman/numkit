@@ -93,6 +93,11 @@ NK_RT_API void   nk_unbox_array(nk_val v, double *out, size_t len);  /* copies m
 NK_RT_API void   nk_unbox_complex_array(nk_val v, double *out, size_t len);
 NK_RT_API size_t nk_numel(nk_val v);
 
+/* Duplicate a handle: a new OWNED handle holding a copy of `v`'s value (the
+ * Dynamic tier's val wrapper is copyable, matching MATLAB value semantics).
+ * Returns NULL if `v` is null. (`v` is borrowed.) */
+NK_RT_API nk_val nk_clone(nk_val v);
+
 /* Free an owned handle. */
 NK_RT_API void nk_release(nk_val v);
 
