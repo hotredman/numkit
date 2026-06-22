@@ -680,6 +680,20 @@ TEST(EmitterFn, DynamicMultiSubscriptIndex)
     EXPECT_TRUE(contains(s, "val::scalar(1"));
 }
 
+// size(scalarVar) is native + self-contained: a scalar's size is [1 1] (no bridge).
+TEST(EmitterFn, SizeOfScalarVarIsOneOne)
+{
+    const auto             reg = stdReg();
+    numkit::ASTNodePtr     root;
+    const numkit::ASTNode *fn = findFunc("function s = f(x)\n  s = size(x);\nend\n", root);
+    ASSERT_NE(fn, nullptr);
+    // x scalar, bridge OFF -> must lower natively to a [1 1] fill (not refuse / bridge).
+    const std::string s =
+        emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr).source;
+    EXPECT_TRUE(contains(s, "[0] = 1.0"));
+    EXPECT_TRUE(contains(s, "[1] = 1.0"));
+}
+
 // Binary math: atan2/hypot are total on R^2 and lower to std:: (scalar args).
 TEST(EmitterFn, BinaryMathLowersToStd)
 {
