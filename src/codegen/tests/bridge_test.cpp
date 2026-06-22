@@ -235,6 +235,67 @@ TEST(Bridge, BinOpErrorTranslatedNoLeak)
     EXPECT_EQ(nk_debug_live_handles(), before);  // no handle leaked on the error path
 }
 
+// nk_index resolves value(subs) the way the interpreter does — `value(subs)` is
+// index/call-AMBIGUOUS, so an array is INDEXED but a function handle is CALLED.
+// A Dynamic value thus behaves identically whatever it is at runtime (A4 soundness).
+TEST(Bridge, IndexArrayElement)
+{
+    const double xa[4] = {10, 20, 30, 40};
+    nk_val       a     = nk_box_array(xa, 4);
+    nk_val       i     = nk_box_scalar(3.0);  // 1-based
+    nk_val       r     = nk_index(a, &i, 1, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 30.0);  // a(3)
+    nk_release(a);
+    nk_release(i);
+    nk_release(r);
+}
+
+TEST(Bridge, IndexFunctionHandleCalls)
+{
+    // value(subs) on a function handle is a CALL, not indexing — the crux of the
+    // index/call ambiguity. sin(0) = 0 (NOT "element 0 of a handle").
+    nk_val h = nk_eval("@sin", nullptr);
+    ASSERT_NE(h, nullptr);
+    nk_val arg = nk_box_scalar(0.0);
+    nk_val r   = nk_index(h, &arg, 1, nullptr);
+    ASSERT_NE(r, nullptr);
+    EXPECT_DOUBLE_EQ(nk_unbox_scalar(r), 0.0);
+    nk_release(h);
+    nk_release(arg);
+    nk_release(r);
+}
+
+TEST(Bridge, IndexVectorSubscriptSubArray)
+{
+    const double xa[4] = {10, 20, 30, 40};
+    nk_val       a     = nk_box_array(xa, 4);
+    const double ia[2] = {2, 4};
+    nk_val       i     = nk_box_array(ia, 2);  // a([2 4]) -> [20 40]
+    nk_val       r     = nk_index(a, &i, 1, nullptr);
+    ASSERT_EQ(nk_numel(r), 2u);
+    double out[2] = {0, 0};
+    nk_unbox_array(r, out, 2);
+    EXPECT_DOUBLE_EQ(out[0], 20.0);
+    EXPECT_DOUBLE_EQ(out[1], 40.0);
+    nk_release(a);
+    nk_release(i);
+    nk_release(r);
+}
+
+TEST(Bridge, IndexOutOfBoundsReported)
+{
+    const double xa[2] = {1, 2};
+    nk_val       a     = nk_box_array(xa, 2);
+    nk_val       i     = nk_box_scalar(5.0);  // out of bounds
+    nk_error     err;
+    err.code   = 0;
+    nk_val r   = nk_index(a, &i, 1, &err);
+    EXPECT_EQ(r, nullptr);
+    EXPECT_NE(err.code, 0);  // bounds error translated, not UB
+    nk_release(a);
+    nk_release(i);
+}
+
 // ---- Plugin / extension ABI (DESIGN.md §6b) --------------------------------
 // A plugin PROVIDES functions with the nk_fn signature (the mirror of
 // nk_call). Once registered, they resolve from numkit source / nk_call /

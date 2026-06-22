@@ -862,6 +862,16 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         const ASTNode &callee = *e.children[0];
         if (callee.type != NodeType::IDENTIFIER)
             unsupported("Dynamic tier: non-identifier callee");
+        // Indexing a Dynamic value: z(i) where z is a Dynamic VARIABLE in scope
+        // (not a builtin, not a typed array). `z(i)` is index/call-ambiguous —
+        // the runtime (nk_index) resolves it. v1: a single subscript.
+        if (types_.has(callee.strValue)
+            && inferExpr(callee, types_, reg_, classes_).type.isDynamic()) {
+            if (e.children.size() != 2)
+                unsupported("Dynamic tier: multi-subscript indexing of a Dynamic value (v1)");
+            return "nk_rt::index_dyn(" + callee.strValue + ", {"
+                   + emitDynamicExpr(*e.children[1]) + "})";
+        }
         if (isArrayVar(callee.strValue))
             unsupported("Dynamic tier: index read '" + callee.strValue + "' (v1, A4)");
         bool allDoubleScalar = true;
@@ -2317,6 +2327,14 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_error e; e.code = 0;\n"
            "    nk_val r = nk_call(name, argv.data(), argv.size(), 1, nullptr, &e);\n"
            "    return _checked(r, e); }\n"
+           "// Index a Dynamic value: a(subs) -> a new Dynamic value (A4). subs are\n"
+           "// boxed vals (borrowed). The runtime resolves index-vs-call (a handle is\n"
+           "// CALLED, an array is INDEXED) — sound whatever `a` is at runtime.\n"
+           "inline val index_dyn(const val& a, std::initializer_list<val> subs) {\n"
+           "    std::vector<nk_val> sv; sv.reserve(subs.size());\n"
+           "    for (const val& s : subs) sv.push_back(s.get());\n"
+           "    nk_error e; e.code = 0;\n"
+           "    return _checked(nk_index(a.get(), sv.data(), sv.size(), &e), e); }\n"
            "} // namespace nk_rt\n";
 }
 

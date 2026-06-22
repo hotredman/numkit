@@ -83,6 +83,13 @@ NK_RT_API nk_val nk_unop(const char *op, nk_val a, nk_error *err);
  * non-empty and EVERY element is non-zero, else 0. On failure returns 0 and
  * sets *err. (`v` is borrowed.) */
 NK_RT_API int nk_truth(nk_val v, nk_error *err);
+/* Apply subscripts to a boxed value: a(subs) — resolved EXACTLY as the
+ * interpreter (`value(subs)` is index/call-ambiguous): a function handle /
+ * closure is CALLED, an object dispatches to its subsref, otherwise it is
+ * array indexing. v1 supports a single subscript (the subscript may be a
+ * vector → a sub-array). `subs` borrowed; returns an OWNED result; on failure
+ * NULL + *err. (DESIGN.md §10 C1 A4.) */
+NK_RT_API nk_val nk_index(nk_val a, const nk_val *subs, size_t nsubs, nk_error *err);
 
 /* Unbox. */
 NK_RT_API double nk_unbox_scalar(nk_val v);
