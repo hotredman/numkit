@@ -6,6 +6,7 @@
 
 #include <numkit/signal/convolution/convolution.hpp>
 
+#include <numkit/ops/conv.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
@@ -108,7 +109,7 @@ Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pm
     ScratchArena scratch(mr);
     auto c = conv_use_fft(na, nb)
         ? convFFT  (&scratch, a.doubleData(), na, b.doubleData(), nb)
-        : convDirect(&scratch, a.doubleData(), na, b.doubleData(), nb);
+        : ops::convDirect(a.doubleData(), na, b.doubleData(), nb, &scratch);
 
     const size_t nc = c.size();
     size_t outStart = 0, outLen = nc;
@@ -211,7 +212,7 @@ xcorr(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 
     auto c = conv_use_fft(nx, ny)
         ? convFFT  (&scratch, xd, nx, yRev.data(), ny)
-        : convDirect(&scratch, xd, nx, yRev.data(), ny);
+        : ops::convDirect(xd, nx, yRev.data(), ny, &scratch);
 
     auto r = Value::matrix(1, nc, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nc; ++i)
@@ -309,31 +310,10 @@ xcov(const Value &x, const Value &y, int maxlag,
 }
 
 // ── Pack 36: conv2 / filter2 / convn ─────────────────────────────────
+// The direct 2-D convolution kernel moved to the kernel layer —
+// numkit::ops::conv2Direct (numkit/ops/conv.hpp), the 2-D companion to
+// ops::convDirect. The Value-level shape-crop + validation stay here.
 namespace {
-
-// Direct 2-D convolution into a `(M+P-1) × (N+Q-1)` "full" output buffer.
-// A is M×N (column-major, src1), B is P×Q (column-major, src2).
-// Output `out` must be sized M+P-1 by N+Q-1, column-major.
-void conv2Direct(const double *A, size_t M, size_t N,
-                 const double *B, size_t P, size_t Q,
-                 double *out)
-{
-    const size_t outR = M + P - 1;
-    const size_t outC = N + Q - 1;
-    std::fill_n(out, outR * outC, 0.0);
-    for (size_t j = 0; j < Q; ++j) {
-        for (size_t i = 0; i < P; ++i) {
-            const double bij = B[j * P + i];
-            if (bij == 0.0) continue;
-            for (size_t cc = 0; cc < N; ++cc) {
-                const size_t outCol = j + cc;
-                for (size_t rr = 0; rr < M; ++rr) {
-                    out[outCol * outR + (i + rr)] += A[cc * M + rr] * bij;
-                }
-            }
-        }
-    }
-}
 
 // Crop a "full" 2-D conv result to MATLAB's "same" or "valid" shape.
 // Returns a fresh Value sized appropriately. fullR/fullC are dims of
@@ -404,7 +384,7 @@ Value conv2(const Value &A, const Value &B, const std::string &shape, std::pmr::
     const size_t fullR = M + P - 1, fullC = N + Q - 1;
     ScratchArena scratch(mr);
     ScratchVec<double> full(fullR * fullC, &scratch);
-    conv2Direct(A.doubleData(), M, N, B.doubleData(), P, Q, full.data());
+    ops::conv2Direct(A.doubleData(), M, N, B.doubleData(), P, Q, full.data());
 
     return cropConv2(full.data(), fullR, fullC, M, N, P, Q, shape, mr);
 }

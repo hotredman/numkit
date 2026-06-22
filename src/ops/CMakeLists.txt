@@ -15,6 +15,19 @@ set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
+    # Iterative solver kernels (Brent root/bracket/min, Nelder-Mead; FnHandle
+    # objective) — the numerical core of fzero/fminbnd/fminsearch. Portable C++.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/root_solve.cpp
+    # Direct (time-domain) FIR convolution — the kernel behind signal conv()/
+    # xcorr(). Portable C++; a Highway backend can replace the inner accumulate.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/conv.cpp
+    # Direct-Form-II-transposed IIR filter recurrence (real + complex) — the
+    # core of signal filter()/filtfilt(). Sequential recurrence, no SIMD; here
+    # for dedup + a single codegen-lowering target.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/iir_filter.cpp
+    # nth_element-based linear-interpolation quantile (stats iqr/mad/median-of-
+    # slice). Raw-buffer select primitive, O(n) average; shared kernel home.
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/quantile_select.cpp
     # Complex-input fused kernels — scalar std::complex (no SIMD), needed in
     # both the SIMD and portable builds.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_complex.cpp
@@ -52,13 +65,17 @@ if(NUMKIT_WITH_SIMD)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_simd.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_stockham_simd.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r2_soa_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp
+        # NaN-skipping single-pass reductions (nansum/nanmean/nanmax/nanmin/
+        # nanvar) — Highway; backs stats nan_aware. Portable fallback below.
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp)
 else()
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_kernels_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_portable.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_portable.cpp)
 endif()
 
 add_library(numkit_ops STATIC ${NUMKIT_OPS_SOURCES})

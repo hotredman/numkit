@@ -9,6 +9,7 @@
 #include <numkit/value/span.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
+#include <numkit/ops/quantile_select.hpp>   // ops::sliceQuantile (visible via the using-directive below)
 
 #include <algorithm>
 #include <cmath>
@@ -81,31 +82,10 @@ double sliceMax(const double *s, size_t n)
     return m;
 }
 
-// Linear-interpolation quantile of a slice (MATLAB default, type 7).
-// MATLAB R2025b default ("midpoint" / R2007a / Type-5):
-//   positions (k-0.5)/N for k=1..N → q = p*N + 0.5, clamped to [1, N].
-double sliceQuantile(double *s, size_t n, double p)
-{
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    if (n == 1) return s[0];
-    // The MATLAB "+0.5" rule needs at most two adjacent order statistics, so
-    // partition with nth_element (O(n) average) instead of a full O(n log n)
-    // sort. The selected values are exactly the sorted ones, so results are
-    // bit-for-bit unchanged — only the cost drops (a two-call iqr over ~10^7
-    // elements goes from ~1.7 s of sorting to well under 0.1 s). Shared by
-    // iqr / mad / median-of-slice.
-    const double q = p * static_cast<double>(n) + 0.5;
-    if (q <= 1.0) return *std::min_element(s, s + n);
-    if (q >= static_cast<double>(n)) return *std::max_element(s, s + n);
-    const size_t lo = static_cast<size_t>(std::floor(q)) - 1;
-    const double frac = q - std::floor(q);
-    // Place the lo-th smallest at s[lo]; everything in (lo, n) is then >= it,
-    // so the (lo+1)-th smallest is the minimum of that right partition.
-    std::nth_element(s, s + lo, s + n);
-    const double a = s[lo];
-    const double b = *std::min_element(s + lo + 1, s + n);
-    return a + frac * (b - a);
-}
+// sliceQuantile (linear-interpolation quantile of a flat buffer, MATLAB type 5)
+// moved to the kernel layer — numkit::ops::sliceQuantile (numkit/ops/
+// quantile_select.hpp), reached here through the `using namespace ::numkit::ops`
+// directive above. iqr / mad / median-of-slice call it unqualified, unchanged.
 
 } // namespace
 namespace {
