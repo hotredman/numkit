@@ -827,8 +827,14 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
     case NodeType::NUMBER_LITERAL:
         return "nk_rt::val::scalar(" + formatDoubleLiteral(e.numValue) + ")";
     case NodeType::IDENTIFIER: {
-        if (isArrayVar(e.strValue))
-            unsupported("Dynamic tier: array operand '" + e.strValue + "' (v1)");
+        if (isArrayVar(e.strValue)) {
+            // A4: box a typed 1-D DOUBLE array at the boundary (val::array).
+            // 2-D / N-D / complex arrays are an explicit boundary (later).
+            const ArrayInfo &ai = arrays_.at(e.strValue);
+            if (ai.is2D || ai.isND || ai.dtype != ValueType::DOUBLE)
+                unsupported("Dynamic tier: 2-D/N-D/complex array operand '" + e.strValue + "' (v1)");
+            return "nk_rt::val::array(" + ai.dataExpr + ", " + ai.lenVar + ")";
+        }
         const AbstractValue av = inferExpr(e, types_, reg_, classes_);
         if (av.type.isDynamic())
             return e.strValue;  // an existing Dynamic local (already an nk_rt::val)
@@ -848,9 +854,9 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
             unsupported("Dynamic tier: transpose operand (v1)");
         return "nk_rt::unop(\"" + e.strValue + "\", " + emitDynamicExpr(*e.children[0]) + ")";
     case NodeType::CALL: {
-        // An un-typeable builtin result, kept boxed. v1: a plain builtin name;
-        // each argument is a real-double scalar OR a Dynamic value (A3). A
-        // concrete array / complex argument is an explicit boundary (A4 / later).
+        // An un-typeable builtin result, kept boxed. A plain builtin name; each
+        // argument is a real-double scalar, a Dynamic value (A3), or a 1-D double
+        // array (A4) — emitDynamicExpr is the gatekeeper that boxes/refuses each.
         // Index reads and method calls are not this path.
         if (e.children.empty()) unsupported("Dynamic tier: empty call");
         const ASTNode &callee = *e.children[0];
@@ -861,13 +867,9 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         bool allDoubleScalar = true;
         for (std::size_t i = 1; i < e.children.size(); ++i) {
             const AbstractValue av = inferExpr(*e.children[i], types_, reg_, classes_);
-            if (av.type.isConcrete() && !av.type.shape.isScalar())
-                unsupported("Dynamic tier: array/matrix call argument (v1, A4)");
-            if (av.type.isConcrete() && av.type.dtype == ValueType::COMPLEX)
-                unsupported("Dynamic tier: complex call argument (v1)");
             if (!(av.type.isConcrete() && av.type.dtype == ValueType::DOUBLE
                   && av.type.shape.isScalar()))
-                allDoubleScalar = false;  // a Dynamic argument
+                allDoubleScalar = false;  // Dynamic / array arg -> call_dynv (emitDynamicExpr boxes)
         }
         std::string args;
         for (std::size_t i = 1; i < e.children.size(); ++i)
@@ -2284,6 +2286,7 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    nk_val get() const { return h_; }\n"
            "    nk_val take() { nk_val h = h_; h_ = nullptr; return h; }  // release ownership out\n"
            "    static val scalar(double x) { return val(nk_box_scalar(x)); }\n"
+           "    static val array(const double* p, std::size_t n) { return val(nk_box_array(p, n)); }\n"
            "    double to_scalar() const { return nk_unbox_scalar(h_); }\n"
            "    bool truth() const {\n"
            "        nk_error e; e.code = 0; int t = nk_truth(h_, &e);\n"
