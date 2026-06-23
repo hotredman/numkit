@@ -2015,6 +2015,43 @@ TEST(CodegenE2E, EndInIndex)
     EXPECT_DOUBLE_EQ(got[0], 4030.0);
 }
 
+// 1-D slice read: y = x(2:4) and z = x(2:end). A range index yields a sub-array
+// (previously refused -- IndexForm had no slice). end inside the slice rides on the
+// end-context. x = [10 20 30 40 50]: x(2:4)=[20 30 40], x(2:end)=[20 30 40 50].
+TEST(CodegenE2E, SliceRead)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  y = x(2:4);\n"      // [20 30 40]
+        "  z = x(2:end);\n"    // [20 30 40 50]
+        "  r = y(1) + y(3)*10 + numel(y)*100 + z(4)*1000 + numel(z)*10000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_s0"), std::string::npos)
+        << "a range index must materialise a slice copy, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_slice_e2e.exe").string();
+    const std::string outTxt = (base / "nk_slice_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {10.0, 20.0, 30.0, 40.0, 50.0};\n"
+        "  double r = f(x, 5);\n"  // 20 + 40*10 + 3*100 + 50*1000 + 4*10000 = 90720
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 20.0 + 400.0 + 300.0 + 50000.0 + 40000.0);  // 90720
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
