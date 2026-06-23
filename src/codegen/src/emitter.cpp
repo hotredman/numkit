@@ -1908,6 +1908,32 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native diag(A) -> the diagonal of a 2-D matrix as a fresh 1-D LOCAL. Column-
+        // major: the (i,i) element is A[i + i*rows]; the length is min(rows, cols).
+        // v1: A a 2-D DOUBLE matrix var; result a 1-D LOCAL (push_back).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "diag"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).is2D
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_d = " + A.rowsVar + " < " + A.colsVar + " ? " + A.rowsVar
+                     + " : " + A.colsVar + ";");
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_d; ++_nk_i)");
+                line(name + ".push_back(" + A.dataExpr + "[_nk_i + _nk_i * " + A.rowsVar + "]);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // reshape(x, m, n) -> reinterpret x's elements as an m x n matrix. Column-major
         // storage means a reshape is just the SAME flat buffer reinterpreted, so copy
         // x's elements into the 2-D KnownDims LOCAL (numel must match: m*n==numel(x),
