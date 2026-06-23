@@ -1852,6 +1852,41 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // A(i, :) -> row i of a 2-D matrix as a row vector, a fresh 1-D LOCAL. Row i
+        // (1-based) is STRIDED in column-major storage: out[j] = A[(i-1) + j*rows] for
+        // j in [0, cols). `end` in the ROW index = rows (pushed). Bounds-checked i in
+        // [1, rows]. v1: A a 2-D DOUBLE matrix var, i a scalar; result a 1-D LOCAL of
+        // `cols`. (The mirror of A(:,j); A(:,:) -- both colons -- is deferred.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[0]->strValue)
+            && arrays_.at(rhs.children[0]->strValue).is2D
+            && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[1]->type != NodeType::COLON_EXPR
+            && rhs.children[2]->type == NodeType::COLON_EXPR && rhs.children[2]->children.empty()) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[0]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()
+                && inferExpr(*rhs.children[1], types_, reg_, classes_).type.shape.isScalar()) {
+                endStack_.push_back(A.rowsVar);  // `end` in the row index = rows
+                const std::string i = emitExpr(*rhs.children[1]);
+                endStack_.pop_back();
+                line("{");
+                ++indent_;
+                line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
+                line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + A.rowsVar + "))");
+                line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
+                line(name + ".assign(" + A.colsVar + ", 0.0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + A.colsVar + "; ++_nk_j)");
+                line(name + "[_nk_j] = " + A.dataExpr + "[static_cast<std::size_t>(_nk_i0) + _nk_j * "
+                     + A.rowsVar + "];");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // 1-D SLICE read: y = x(a:b) / y = x(a:s:b) -> a sub-array copied into the
         // owned 1-D local y. The colon ranges over x's 1-based positions; `end`
         // inside it = x's length (pushed here, so x(2:end) works). count = the colon
