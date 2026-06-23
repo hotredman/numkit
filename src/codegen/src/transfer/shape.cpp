@@ -262,9 +262,18 @@ InferredType traceTransfer(const std::vector<ArgInfo> &args)
 InferredType diagTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
-    if (args[0].type.shape.kind == ShapeKind::KnownDims)  // a 2-D matrix -> its diagonal
+    if (args[0].type.shape.kind == ShapeKind::KnownDims)  // a 2-D matrix -> its diagonal (1-D)
         return InferredType::concrete(args[0].type.dtype, Shape::unknown());
-    return InferredType::dynamic();  // vector (diag -> matrix) / scalar / N-D deferred
+    // A VECTOR -> a diagonal MATRIX: an n x n runtime-dim 2-D (n = numel(v)). Modelled
+    // as a rank-2 NDims with both dims runtime (ndShape({0,0}) -> a rank-2 ndRuntimeLocal).
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:
+        return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
+    default:
+        return InferredType::dynamic();  // scalar / N-D deferred
+    }
 }
 
 // unique(x) -> the sorted distinct values, a 1-D vector of runtime length (-> Unknown
