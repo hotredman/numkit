@@ -216,20 +216,24 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
     }
 
     case NodeType::MATRIX_LITERAL: {
-        // v1: a single-row horzcat [a b ...] of 1-D ARRAY operands of one dtype ->
-        // a 1-D array of that dtype (runtime length). Anything else (multi-row,
-        // scalar element, mixed dtype, empty) -> Dynamic.
+        // v1: a single-row horzcat [a b ...] -> a 1-D array of the common dtype
+        // (runtime length). Each element may be a 1-D array, a char/string literal,
+        // or a SCALAR (each contributes its elements). Multi-row, a 2-D/N-D
+        // element, a mixed char/numeric dtype, or empty -> Dynamic.
         if (expr.children.size() != 1 || !expr.children[0]
             || expr.children[0]->children.empty())
             return AbstractValue::dynamic();
         ValueType dt = ValueType::EMPTY;
         for (const auto &el : expr.children[0]->children) {
             if (!el) return AbstractValue::dynamic();
-            const AbstractValue ev = inferExpr(*el, env, reg, classes);
-            if (!ev.type.isConcrete() || ev.type.shape.isScalar())
-                return AbstractValue::dynamic();
+            const AbstractValue ev      = inferExpr(*el, env, reg, classes);
+            const bool          isMatrix =
+                (ev.type.shape.kind == ShapeKind::KnownDims && ev.type.shape.rows > 1
+                 && ev.type.shape.cols > 1)
+                || ev.type.shape.isNDims();
+            if (!ev.type.isConcrete() || isMatrix) return AbstractValue::dynamic();
             if (dt == ValueType::EMPTY) dt = ev.type.dtype;
-            else if (dt != ev.type.dtype) return AbstractValue::dynamic();
+            else if (dt != ev.type.dtype) return AbstractValue::dynamic();  // no dtype mix
         }
         return {InferredType::concrete(dt, Shape::unknown()), ConstVal::unknown()};
     }

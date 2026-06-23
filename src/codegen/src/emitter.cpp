@@ -2355,31 +2355,35 @@ void Emitter::emitAssign(const ASTNode &s)
         // give a Dynamic or non-buffer inference -> skipped here.)
         if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
             && !arrays_.at(name).isND && rhs.type == NodeType::MATRIX_LITERAL
-            && rhs.children.size() == 1 && rhs.children[0]) {
-            const ASTNode &row          = *rhs.children[0];
-            bool           allArrayVars = !row.children.empty();
-            for (const auto &el : row.children)
-                if (!el || el->type != NodeType::IDENTIFIER || !isArrayVar(el->strValue)) {
-                    allArrayVars = false;
-                    break;
-                }
-            if (allArrayVars) {
-                const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
-                if (rv.type.isConcrete() && !rv.type.shape.isScalar()) {
-                    line("{");
-                    ++indent_;
-                    line(name + ".clear();");
-                    for (const auto &el : row.children) {
-                        const ArrayInfo &op = arrays_.at(el->strValue);
+            && rhs.children.size() == 1 && rhs.children[0]
+            && !rhs.children[0]->children.empty()) {
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (rv.type.isConcrete() && !rv.type.shape.isScalar()) {
+                const ASTNode &row = *rhs.children[0];
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                for (const auto &el : row.children) {
+                    if (el->type == NodeType::IDENTIFIER && isArrayVar(el->strValue)) {
+                        const ArrayInfo &op = arrays_.at(el->strValue);  // append a 1-D array
                         open("for (std::size_t _nk_i = 0; _nk_i < " + op.lenVar + "; ++_nk_i)");
                         line(name + ".push_back(" + op.dataExpr + "[_nk_i]);");
                         close();
+                    } else if (el->type == NodeType::STRING_LITERAL) {
+                        for (unsigned char ch : el->strValue)  // append a char literal's units
+                            line(name + ".push_back(std::uint16_t("
+                                 + std::to_string(static_cast<unsigned>(ch)) + "));");
+                    } else if (inferExpr(*el, types_, reg_, classes_).type.shape.isScalar()) {
+                        line(name + ".push_back(" + emitExpr(*el) + ");");  // append one scalar
+                    } else {
+                        unsupported("horzcat element (v1: an array var, char/string literal, "
+                                    "or scalar)");
                     }
-                    --indent_;
-                    line("}");
-                    types_.set(name, rv);
-                    return;
                 }
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
             }
         }
 

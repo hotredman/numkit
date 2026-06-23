@@ -1531,6 +1531,41 @@ TEST(CodegenE2E, HorzcatTwoArrays)
     EXPECT_DOUBLE_EQ(got[0], 9.0);  // numel(5) + c(4)=4
 }
 
+// Concat with a string literal (P3, char string-building): ['Hi' s] prepends a
+// char literal to a char var. Exercises a STRING_LITERAL operand in horzcat.
+TEST(CodegenE2E, ConcatStringLiteral)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(s)\n"
+        "  c = ['Hi' s];\n"            // 'Hi' (2) ++ s
+        "  r = numel(c) * 100 + c(1);\n"  // len*100 + 'H'
+        "end\n",
+        {{"s", InferredType::concrete(ValueType::CHAR, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("std::uint16_t(72)"), std::string::npos)
+        << "a char literal operand must append its code units ('H' = 72)";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_concatlit_e2e.exe").string();
+    const std::string outTxt = (base / "nk_concatlit_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  std::uint16_t s[3] = {120, 121, 122};\n"  // 'xyz' -> c = 'Hixyz' (5)
+        "  double r = f(s, 3);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 572.0);  // numel(5)*100 + c(1)='H'(72)
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
