@@ -866,6 +866,9 @@ std::string Emitter::emitExpr(const ASTNode &e)
     case NodeType::FIELD_ACCESS: {  // obj.field read -> obj.field / obj->field
         if (e.children.empty()) unsupported("field access arity");
         const AbstractValue base = inferExpr(*e.children[0], types_, reg_, classes_);
+        // Plain struct: the synthesized scalar field-local (field-flattening).
+        if (!base.type.isObject() && e.children[0]->type == NodeType::IDENTIFIER)
+            return "_nk_fld_" + e.children[0]->strValue + "_" + e.strValue;
         if (!base.type.isObject() || !classes_)
             unsupported("field access on a non-object value");
         const ClassInfo *ci = classes_->byId(base.type.classId);
@@ -2377,6 +2380,17 @@ void Emitter::emitAssign(const ASTNode &s)
     if (lhs.type == NodeType::FIELD_ACCESS) {  // obj.field = rhs
         if (lhs.children.empty()) unsupported("field write arity");
         const AbstractValue base = inferExpr(*lhs.children[0], types_, reg_, classes_);
+        // Plain struct: flatten `s.f = rhs` to the synthesized scalar field-local
+        // (field-flattening; no struct type). v1: a scalar (unboxable) field.
+        if (!base.type.isObject() && lhs.children[0]->type == NodeType::IDENTIFIER) {
+            const std::string   fld = "_nk_fld_" + lhs.children[0]->strValue + "_" + lhs.strValue;
+            const AbstractValue rv  = inferExpr(rhs, types_, reg_, classes_);
+            if (!rv.type.isUnboxableScalar())
+                unsupported("struct field write (v1: a scalar field on a plain struct)");
+            line(fld + " = " + emitExpr(rhs) + ";");
+            types_.set(fld, rv);
+            return;
+        }
         if (!base.type.isObject() || !classes_)
             unsupported("field write on a non-object value");
         const ClassInfo *ci = classes_->byId(base.type.classId);
