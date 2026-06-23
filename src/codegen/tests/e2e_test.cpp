@@ -1718,6 +1718,52 @@ TEST(CodegenE2E, StructFieldIndex)
     EXPECT_DOUBLE_EQ(got[0], 200.0);  // s.v(2)=20 * 10
 }
 
+// INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
+// masking + find + a max reduction + char literal/upper/index + numel + an if +
+// arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
+TEST(CodegenE2E, IntegrationCapstone)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function out = f(x, thr)\n"
+        "  rec.data = x;\n"        // struct array field (write)
+        "  d = rec.data;\n"        // struct array field (whole read)
+        "  m = d > thr;\n"         // logical mask (array var > scalar var)
+        "  c = find(m);\n"         // positions above threshold
+        "  hi = max(d);\n"         // native reduction
+        "  s = 'ok';\n"            // char literal
+        "  tag = upper(s);\n"      // char transform -> 'OK'
+        "  out = numel(c) * 1000 + hi + tag(1);\n"  // 2*1000 + 8 + 'O'(79)
+        "  if hi > 5\n"           // control-flow
+        "    out = out + 1;\n"
+        "  end\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"thr", InferredType::scalar(ValueType::DOUBLE)}});
+    EXPECT_NE(emitted.source.find("_nk_fld_rec_data"), std::string::npos)
+        << "the capstone must exercise a struct array field-local";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_capstone_e2e.exe").string();
+    const std::string outTxt = (base / "nk_capstone_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {1.0, 5.0, 2.0, 8.0, 3.0};\n"  // >4 at idx 2,4 -> find=[2 4]
+        "  double out = f(x, 5, 4.0);\n"  // 2*1000 + max(8) + 'O'(79) + (hi>5 ? 1) = 2088
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", out);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 2088.0);  // 2000 + 8 + 79 + 1
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
