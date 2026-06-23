@@ -253,9 +253,25 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
     }
 
     case NodeType::MATRIX_LITERAL: {
+        // Multi-row, each row a SINGLE SCALAR -> vertcat of scalars = a 1-D COLUMN of
+        // the common dtype (runtime length). [a; b; c]. (Multi-row with array/row
+        // operands = a true 2-D stack, deferred -> Dynamic via the fall-through.)
+        if (expr.children.size() > 1) {
+            ValueType dt = ValueType::EMPTY;
+            bool      ok = true;
+            for (const auto &rowN : expr.children) {
+                if (!rowN || rowN->children.size() != 1) { ok = false; break; }
+                const AbstractValue ev = inferExpr(*rowN->children[0], env, reg, classes);
+                if (!ev.type.isConcrete() || !ev.type.shape.isScalar()) { ok = false; break; }
+                if (dt == ValueType::EMPTY) dt = ev.type.dtype;
+                else if (dt != ev.type.dtype) { ok = false; break; }  // no dtype mix
+            }
+            if (ok && dt != ValueType::EMPTY)
+                return {InferredType::concrete(dt, Shape::unknown()), ConstVal::unknown()};
+        }
         // v1: a single-row horzcat [a b ...] -> a 1-D array of the common dtype
         // (runtime length). Each element may be a 1-D array, a char/string literal,
-        // or a SCALAR (each contributes its elements). Multi-row, a 2-D/N-D
+        // or a SCALAR (each contributes its elements). Other multi-row, a 2-D/N-D
         // element, a mixed char/numeric dtype, or empty -> Dynamic.
         if (expr.children.size() != 1 || !expr.children[0]
             || expr.children[0]->children.empty())

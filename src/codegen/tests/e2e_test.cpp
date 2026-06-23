@@ -2889,6 +2889,40 @@ TEST(CodegenE2E, TrilLower)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 0.0 + 4000.0);  // 4031
 }
 
+// vertcat of scalars [a; b; c] -> a 1-D column (the column counterpart of horzcat).
+// [10; 20; 30] -> [10 20 30].
+TEST(CodegenE2E, VertcatScalars)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f()\n"
+        "  v = [10; 20; 30];\n"
+        "  r = v(1) + v(2)*10 + v(3)*100 + numel(v)*1000;\n"
+        "end\n",
+        {});
+    EXPECT_NE(emitted.source.find(".push_back("), std::string::npos)
+        << "vertcat of scalars must build a 1-D column via push_back, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_vcat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_vcat_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f();\n"  // [10 20 30]: 10 + 200 + 3000 + 3*1000 = 6210
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0 + 200.0 + 3000.0 + 3000.0);  // 6210
+}
+
 // repmat(x, p, 1) col tiling: p copies of a column stacked. x = [10; 20; 30] (col);
 // repmat(x, 2, 1) -> [10; 20; 30; 10; 20; 30].
 TEST(CodegenE2E, RepmatColTile)
