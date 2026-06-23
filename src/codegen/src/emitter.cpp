@@ -2013,6 +2013,39 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // tril(A) / triu(A) -> the lower/upper triangular part of a 2-D matrix (the
+        // other triangle zeroed), SAME shape as A, a fresh 2-D KnownDims LOCAL.
+        // Column-major: out[i + j*rows] = keep ? A[i+j*rows] : 0, keep = (tril: i>=j /
+        // triu: i<=j). v1: A a 2-D DOUBLE matrix var, result a DISTINCT local (an
+        // in-place A=tril(A) is refused -- the zero-then-copy would alias).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).is2D
+            && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "tril" || rhs.children[0]->strValue == "triu")
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[1]->strValue != name
+            && arrays_.at(rhs.children[1]->strValue).is2D
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A     = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res   = inferExpr(rhs, types_, reg_, classes_);
+            const std::string   cmp   = rhs.children[0]->strValue == "tril" ? ">=" : "<=";
+            if (res.type.isConcrete() && res.type.shape.kind == ShapeKind::KnownDims) {
+                line("{");
+                ++indent_;
+                line(name + ".assign(static_cast<std::size_t>(" + A.rowsVar + " * " + A.colsVar
+                     + "), 0.0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + A.colsVar + "; ++_nk_j)");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + A.rowsVar + "; ++_nk_i)");
+                line("if (_nk_i " + cmp + " _nk_j) " + name + "[_nk_i + _nk_j * " + A.rowsVar
+                     + "] = " + A.dataExpr + "[_nk_i + _nk_j * " + A.rowsVar + "];");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // 1-D SLICE read: y = x(a:b) / y = x(a:s:b) -> a sub-array copied into the
         // owned 1-D local y. The colon ranges over x's 1-based positions; `end`
         // inside it = x's length (pushed here, so x(2:end) works). count = the colon
