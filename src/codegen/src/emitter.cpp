@@ -1459,7 +1459,7 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
     // checked j, length-checked col; A must be writable (local/output). Placed before
     // the N-D write branch so it intercepts a runtime-dim 2-D target (whose other
     // colon writes that branch refuses). v1: A 2-D DOUBLE, col a distinct 1-D DOUBLE
-    // array var, j scalar. (A(i,:)=row strided write is a follow-up.)
+    // array var, j scalar. (A(i,:)=row strided write is the sibling branch below.)
     if (lhsCall.children.size() == 3
         && (ai.is2D || (ai.isND && ai.ndDims.size() == 2)) && ai.dtype == ValueType::DOUBLE
         && lhsCall.children[1]->type == NodeType::COLON_EXPR
@@ -1487,6 +1487,45 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j - 1) * " + Arows + ";");
         open("for (std::size_t _nk_i = 0; _nk_i < " + Arows + "; ++_nk_i)");
         line(ptr + "[_nk_off + _nk_i] = " + col.dataExpr + "[_nk_i];");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
+    // 2-D ROW slice write: A(i, :) = row -> overwrite row i (1-based) of a 2-D matrix
+    // with the 1-D vector row (length = cols). The mirror of the column write above; in
+    // column-major storage row i is STRIDED: A[(i-1) + j*rows] = row[j] for j in
+    // [0, cols). Works for a KnownDims 2-D OR a runtime-dim 2-D (dims via dimExpr).
+    // Bounds-checked i, length-checked row; A must be writable. v1: A 2-D DOUBLE, row a
+    // distinct 1-D DOUBLE array var, i scalar.
+    if (lhsCall.children.size() == 3
+        && (ai.is2D || (ai.isND && ai.ndDims.size() == 2)) && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children[1]->type != NodeType::COLON_EXPR
+        && lhsCall.children[2]->type == NodeType::COLON_EXPR
+        && lhsCall.children[2]->children.empty()
+        && rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue)
+        && rhs.strValue != base && !arrays_.at(rhs.strValue).is2D
+        && !arrays_.at(rhs.strValue).isND
+        && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE
+        && inferExpr(*lhsCall.children[1], types_, reg_, classes_).type.shape.isScalar()) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("row-slice write to a read-only matrix parameter '" + base + "'");
+        const std::string Arows = dimExpr(ai, 0), Acols = dimExpr(ai, 1);
+        const ArrayInfo  &row   = arrays_.at(rhs.strValue);
+        endStack_.push_back(Arows);  // `end` in the row index = rows
+        const std::string i = emitExpr(*lhsCall.children[1]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
+        line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + Arows + "))");
+        line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
+        line("if (" + row.lenVar + " != " + Acols + ")");
+        line("    throw std::out_of_range(\"numkit: row assignment length mismatch\");");
+        open("for (std::size_t _nk_j = 0; _nk_j < " + Acols + "; ++_nk_j)");
+        line(ptr + "[static_cast<std::size_t>(_nk_i0) + _nk_j * " + Arows + "] = "
+             + row.dataExpr + "[_nk_j];");
         close();
         --indent_;
         line("}");
