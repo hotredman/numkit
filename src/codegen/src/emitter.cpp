@@ -242,7 +242,9 @@ bool isBufferArrayType(const InferredType &t)
 bool isByValueReturnArrayType(const InferredType &t)
 {
     if (!isBufferArrayType(t)) return false;
-    if (t.dtype != ValueType::DOUBLE && t.dtype != ValueType::COMPLEX) return false;
+    if (t.dtype != ValueType::DOUBLE && t.dtype != ValueType::COMPLEX
+        && t.dtype != ValueType::CHAR)  // CHAR -> uint16 buffer (string-building helpers)
+        return false;
     if (t.shape.isNDims())
         for (std::size_t d : t.shape.nd)
             if (d == 0) return false;
