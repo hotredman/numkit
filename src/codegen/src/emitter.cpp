@@ -3070,6 +3070,54 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         types_.set(rn1, {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()});
         return;
     }
+    // [m, i] = max(x) / [m, i] = min(x): native argmax/argmin. m = the extremum
+    // value, i = its 1-based index (the FIRST occurrence on ties, MATLAB). NaN is
+    // ignored (the extremum of the non-NaNs); an all-NaN vector -> the value NaN at
+    // index 1; the empty vector -> (NaN, 0) [MATLAB returns [], not representable as
+    // a codegen scalar]. The update fires on the first element, on a strict cmp, or
+    // when acc is NaN and the candidate is not (so the first non-NaN seeds it).
+    // ALWAYS native (like [r,c]=size): maxMinMultiTransfer types m,i concrete for a
+    // DOUBLE vector, so this emit must match in every tier (a matrix/non-double
+    // operand stays Dynamic -> the bridged multi path below). BEFORE the user-fn
+    // path. v1: a single 1-D DOUBLE array var, the two-output form.
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 2
+        && rhs.children[0]->type == NodeType::IDENTIFIER
+        && (rhs.children[0]->strValue == "max" || rhs.children[0]->strValue == "min")
+        && rhs.children[1]->type == NodeType::IDENTIFIER
+        && isArrayVar(rhs.children[1]->strValue) && s.returnNames.size() == 2
+        && !arrays_.at(rhs.children[1]->strValue).is2D
+        && !arrays_.at(rhs.children[1]->strValue).isND
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const std::string &rn0 = s.returnNames[0];  // value
+        const std::string &rn1 = s.returnNames[1];  // 1-based index
+        if (rn0.empty() || rn0 == "~" || rn1.empty() || rn1 == "~")
+            unsupported("[m,i]=max/min with an ignored (~) output (v1)");
+        if (isArrayVar(rn0) || isArrayVar(rn1))
+            unsupported("[m,i]=max/min into a non-scalar target");
+        const ArrayInfo  &xa  = arrays_.at(rhs.children[1]->strValue);
+        const std::string cmp = rhs.children[0]->strValue == "max" ? ">" : "<";
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_n = " + xa.lenVar + ";");
+        open("if (_nk_n == 0)");
+        line(rn0 + " = std::numeric_limits<double>::quiet_NaN(); " + rn1 + " = 0.0;");
+        close();
+        open("else");
+        line("double _nk_acc = " + xa.dataExpr + "[0]; std::size_t _nk_idx = 1;");
+        open("for (std::size_t _nk_i = 1; _nk_i < _nk_n; ++_nk_i)");
+        line("const double _nk_v = " + xa.dataExpr + "[_nk_i];");
+        line("if (_nk_v " + cmp + " _nk_acc || (_nk_acc != _nk_acc && _nk_v == _nk_v))");
+        line("    { _nk_acc = _nk_v; _nk_idx = _nk_i + 1; }");
+        close();
+        line(rn0 + " = _nk_acc; " + rn1 + " = static_cast<double>(_nk_idx);");
+        close();
+        --indent_;
+        line("}");
+        types_.set(rn0, {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()});
+        types_.set(rn1, {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result
