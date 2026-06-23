@@ -1805,6 +1805,35 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native sum(x) -> scalar, but ONLY with no bridge. UNLIKE min/max it is
+        // order-dependent: a sequential sum can differ in the last ULP from the
+        // runtime's summation order, so the bridged path stays the EXACT tier when
+        // the bridge is on; native is the self-contained fallback when there is no
+        // runtime to bridge to. v1: a single 1-D DOUBLE array arg (sum of
+        // logical/int has dtype subtleties -> left to the bridged path), direct
+        // assign.
+        if (!isArrayVar(name) && !bridge_ && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "sum"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!a.is2D && !a.isND && res.type.isConcrete() && res.type.shape.isScalar()) {
+                line("{");  // scope _nk_acc so repeated reductions in one fn don't collide
+                ++indent_;
+                line("double _nk_acc = 0.0;");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + a.lenVar + "; ++_nk_i)");
+                line("_nk_acc += " + a.dataExpr + "[_nk_i];");
+                close();
+                line(name + " = _nk_acc;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Bridged array reduction -> scalar (opt-in): s = sum(x) / prod / mean /
         // max / min. The array arg can't be a scalar C++ expression, so box it
         // (like the bridged array-RESULT path) and call bridge_scalar_arr —

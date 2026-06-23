@@ -550,8 +550,10 @@ TEST(EmitterFn, ReductionSumViaBridge)
         EXPECT_TRUE(contains(s, "nk_box_array(x, _nk_x_len)"));
         EXPECT_TRUE(contains(s, "s = nk_rt::bridge_scalar_arr(\"sum\", _nk_args, 1);"));
     }
-    {  // no bridge -> no native reduction -> refused (explicit boundary)
-        EXPECT_THROW(emitFunction(*fn, {{"x", row}}, reg), std::runtime_error);
+    {  // no bridge -> native inline accumulation loop (self-contained). Sequential
+       // sum, so it is the no-bridge tier while the bridged path above stays exact.
+        const std::string s = emitFunction(*fn, {{"x", row}}, reg).source;
+        EXPECT_TRUE(contains(s, "_nk_acc += "));
     }
 }
 
