@@ -2825,6 +2825,37 @@ TEST(CodegenE2E, TraceOfMatrix)
     EXPECT_DOUBLE_EQ(got[0], 15.0);
 }
 
+// eye(n): the identity matrix. eye(3) -> 3x3 with 1 on the diagonal, 0 off it.
+TEST(CodegenE2E, EyeIdentity)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f()\n"
+        "  M = eye(3);\n"
+        "  r = M(1,1) + M(2,2)*10 + M(3,3)*100 + M(1,2)*1000 + numel(M)*10000;\n"
+        "end\n",
+        {});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_eye_e2e.exe").string();
+    const std::string outTxt = (base / "nk_eye_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f();\n"  // diag 1,1,1; M(1,2)=0; numel 9: 1 + 10 + 100 + 0 + 90000 = 90111
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 10.0 + 100.0 + 0.0 + 90000.0);  // 90111
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).

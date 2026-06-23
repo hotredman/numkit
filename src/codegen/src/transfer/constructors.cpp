@@ -86,6 +86,25 @@ InferredType logspaceTransfer(const std::vector<ArgInfo> &args)
     return InferredType::concrete(ValueType::DOUBLE, sh);
 }
 
+// eye(n) / eye(m, n) -> the identity matrix; dtype double, shape from the dim args
+// (like zeros/ones). () -> 1x1 (the scalar 1); (n) -> n x n; (m,n) -> m x n (KnownDims
+// iff the dims are known constants); runtime / >=3 dims -> Unknown.
+InferredType eyeTransfer(const std::vector<ArgInfo> &args)
+{
+    Shape       sh;
+    std::size_t a = 0, b = 0;
+    if (args.empty())
+        sh = Shape::scalar();
+    else if (args.size() == 1)
+        sh = args[0].constant.asDim(a) ? Shape::dims(a, a) : Shape::unknown();
+    else if (args.size() == 2)
+        sh = (args[0].constant.asDim(a) && args[1].constant.asDim(b)) ? Shape::dims(a, b)
+                                                                      : Shape::unknown();
+    else
+        sh = Shape::unknown();
+    return InferredType::concrete(ValueType::DOUBLE, sh);
+}
+
 // reshape(x, m, n) -> reinterpret x as an m x n matrix (column-major, the SAME flat
 // data, so numel must match). v1: m,n known constants -> KnownDims(m, n) of x's
 // dtype; a runtime dim -> Dynamic (deferred). The reshape(x,[m n]) vector-size form
@@ -126,6 +145,7 @@ void registerConstructorTransfers(TransferRegistry &reg)
     reg.add("logspace", logspaceTransfer);
     reg.add("reshape", reshapeTransfer);  // (x,m,n) -> m x n, same column-major data
     reg.add("repmat", repmatTransfer);    // (s,m,n) scalar -> m x n all = s (v1)
+    reg.add("eye", eyeTransfer);          // eye(n)/eye(m,n) -> identity matrix
 }
 
 } // namespace numkit::codegen
