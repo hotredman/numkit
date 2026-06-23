@@ -1615,6 +1615,42 @@ void Emitter::emitAssign(const ASTNode &s)
                                   ConstVal::unknown()});
             return;
         }
+        // linspace(a, b [, n]) -> n linearly-spaced points from a to b, a 1 x n
+        // owned-vector LOCAL (the size-constructor transfer gives it a 1 x n /
+        // 1 x 100 / unknown shape). Like zeros/ones it sizes the local, then fills a
+        // ramp -- but MATLAB forces the LAST point to exactly b (no rounding drift),
+        // so we seed every slot to b and overwrite [0, n-1) with a + i*step. n==1 ->
+        // {b}; n<=0 -> empty. v1: an owned LOCAL, 2- or 3-arg; an OUTPUT-param target
+        // (caller-sized) falls through to the bridge.
+        if (isArrayVar(name) && arrays_.at(name).isLocal
+            && rhs.type == NodeType::CALL && !rhs.children.empty()
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "linspace"
+            && (rhs.children.size() == 3 || rhs.children.size() == 4)) {
+            const std::string a = emitExpr(*rhs.children[1]);
+            const std::string b = emitExpr(*rhs.children[2]);
+            const std::string n = rhs.children.size() == 4
+                                      ? ("nk_rt::dim(" + emitExpr(*rhs.children[3]) + ")")
+                                      : std::string("100");  // 2-arg default (MATLAB)
+            line("{");
+            ++indent_;
+            line("const double _nk_a = " + a + ";");
+            line("const double _nk_b = " + b + ";");
+            line("const std::size_t _nk_n = " + n + ";");
+            line(name + ".assign(_nk_n, _nk_b);");  // size n; the last point is already b
+            open("if (_nk_n >= 2)");
+            line("const double _nk_step = (_nk_b - _nk_a) / static_cast<double>(_nk_n - 1);");
+            open("for (std::size_t _nk_i = 0; _nk_i + 1 < _nk_n; ++_nk_i)");
+            line(name + "[_nk_i] = _nk_a + static_cast<double>(_nk_i) * _nk_step;");
+            close();
+            close();
+            --indent_;
+            line("}");
+            const ArrayInfo &ai = arrays_.at(name);
+            if (ai.isND || ai.is2D)
+                types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+            return;
+        }
         // `s = size(A)` (no dim): fill a 1 x rank row with A's per-axis sizes.
         // rank is compile-time (2 for a scalar/vector/matrix; the array's rank
         // for N-D). Native + self-contained — the first array-RESULT-from-a-
