@@ -208,7 +208,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("diff", diffTransfer);  // vector -> 1-D differences, length n-1 (native loop)
     reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
-    for (const char *n : {"isempty", "isscalar", "isreal"})  // x -> LOGICAL scalar query (native)
+    // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
+    for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})
         reg.add(n, logicalQueryTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})

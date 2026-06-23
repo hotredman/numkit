@@ -1089,6 +1089,36 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
             return at.dtype == ValueType::COMPLEX ? "false" : "true";
     }
 
+    // isrow / iscolumn / isvector: 2-D orientation predicates -> a LOGICAL scalar.
+    // MATLAB: isrow = (ndims==2 && rows==1); iscolumn = (ndims==2 && cols==1);
+    // isvector = (ndims==2 && (rows==1 || cols==1)). A rank-N (N>=3) array is none
+    // of these. A 2-D matrix compares its known dims. A 1-D buffer is always a
+    // vector; its row/col answer comes from the recorded orientation (a row is
+    // also a column iff length 1, and vice-versa). A 1-D buffer of ERASED
+    // orientation can't answer isrow/iscolumn -> boundary. A scalar is all three.
+    if ((name == "isrow" || name == "iscolumn" || name == "isvector") && nargs == 1) {
+        const ASTNode &arg = *call.children[1];
+        if (arg.type == NodeType::IDENTIFIER && isArrayVar(arg.strValue)) {
+            const ArrayInfo &ai = arrays_.at(arg.strValue);
+            if (ai.isND)
+                return "false";  // ndims >= 3 -> not a row / column / vector
+            if (ai.is2D) {
+                if (name == "isrow")    return "((" + ai.rowsVar + ") == 1)";
+                if (name == "iscolumn") return "((" + ai.colsVar + ") == 1)";
+                return "((" + ai.rowsVar + ") == 1 || (" + ai.colsVar + ") == 1)";
+            }
+            if (name == "isvector")
+                return "true";  // a 1-D buffer is always a vector
+            if (ai.orient == VecOrient::Row)
+                return name == "isrow" ? std::string("true") : "(" + ai.lenVar + " == 1)";
+            if (ai.orient == VecOrient::Col)
+                return name == "iscolumn" ? std::string("true") : "(" + ai.lenVar + " == 1)";
+            // orientation erased -> can't decide isrow/iscolumn -> fall through (boundary)
+        } else if (inferExpr(arg, types_, reg_, classes_).type.shape.kind == ShapeKind::Scalar) {
+            return "true";  // a 1x1 scalar is a row, a column, and a vector
+        }
+    }
+
     // size(A, dim) with a compile-time literal dim: the dim's size (2-D
     // rows/cols, N-D the dim, out-of-range -> 1). A 1-D buffer's row/col
     // orientation is erased by the RawBuffer ABI but recorded from the
