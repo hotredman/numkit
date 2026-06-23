@@ -2052,6 +2052,44 @@ TEST(CodegenE2E, SliceRead)
     EXPECT_DOUBLE_EQ(got[0], 20.0 + 400.0 + 300.0 + 50000.0 + 40000.0);  // 90720
 }
 
+// 1-D slice WRITE: x(2:4) = scalar (broadcast) and x(1:2) = w (matched-length
+// array copy). Previously a range lhs index refused. x = 1:5 = [1 2 3 4 5];
+// x(2:4)=7 -> [1 7 7 7 5]; x(1:2)=[3 4] -> [3 4 7 7 5].
+TEST(CodegenE2E, SliceWrite)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(w)\n"
+        "  x = 1:5;\n"        // 1-D local [1 2 3 4 5]
+        "  x(2:4) = 7;\n"     // broadcast -> [1 7 7 7 5]
+        "  x(1:2) = w;\n"     // array copy (w = [3 4]) -> [3 4 7 7 5]
+        "  r = x(1) + x(2)*10 + x(3)*100 + x(4)*1000 + x(5)*10000;\n"
+        "end\n",
+        {{"w", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_v"), std::string::npos)
+        << "a scalar slice write must broadcast natively, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_slicew_e2e.exe").string();
+    const std::string outTxt = (base / "nk_slicew_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double w[2] = {3.0, 4.0};\n"
+        "  double r = f(w, 2);\n"  // [3 4 7 7 5]: 3 + 40 + 700 + 7000 + 50000 = 57743
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 3.0 + 40.0 + 700.0 + 7000.0 + 50000.0);  // 57743
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).

@@ -1475,6 +1475,67 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // 1-D SLICE WRITE: x(a:b) = rhs / x(a:s:b) = rhs. The lhs colon ranges over x's
+    // 1-based positions (`end` -> x's length, pushed here). count = the colon count;
+    // then either broadcast a SCALAR rhs into each position, or copy a matched-length
+    // 1-D array rhs element-wise. x must be writable (local/output) + DOUBLE; bounds-
+    // checked, and (array rhs) length-checked. Aliasing (rhs is x itself) is refused
+    // (overlapping copy) -- sound. v1: x 1-D DOUBLE.
+    if (lhsCall.children.size() == 2 && lhsCall.children[1]->type == NodeType::COLON_EXPR
+        && !ai.is2D && !ai.isND && ai.dtype == ValueType::DOUBLE
+        && (lhsCall.children[1]->children.size() == 2 || lhsCall.children[1]->children.size() == 3)) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("slice write to a read-only array parameter '" + base + "'");
+        const ASTNode      &colon     = *lhsCall.children[1];
+        const bool          three     = colon.children.size() == 3;
+        const AbstractValue rhsAV     = inferExpr(rhs, types_, reg_, classes_);
+        const bool          rhsScalar = rhsAV.type.isConcrete() && rhsAV.type.shape.isScalar();
+        const bool          rhsArr    = rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue)
+                                     && rhs.strValue != base && !arrays_.at(rhs.strValue).is2D
+                                     && !arrays_.at(rhs.strValue).isND
+                                     && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE;
+        if (!rhsScalar && !rhsArr)
+            unsupported("slice write rhs: a scalar or a distinct 1-D DOUBLE array var (v1)");
+        endStack_.push_back(ai.lenVar);
+        const std::string start = emitExpr(*colon.children[0]);
+        const std::string step  = three ? emitExpr(*colon.children[1]) : std::string("1.0");
+        const std::string stop  = emitExpr(*colon.children[three ? 2 : 1]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line("const double _nk_start = " + start + ";");
+        line("const double _nk_step = " + step + ";");
+        line("const double _nk_stop = " + stop + ";");
+        line("const double _nk_nr = (_nk_stop - _nk_start) / _nk_step;");
+        line("const std::ptrdiff_t _nk_cnt = (_nk_step == 0.0 || _nk_nr < 0.0)");
+        line("    ? 0 : static_cast<std::ptrdiff_t>(_nk_nr + 1e-10) + 1;");
+        line("const std::ptrdiff_t _nk_s0 = static_cast<std::ptrdiff_t>(_nk_start) - 1;");
+        line("const std::ptrdiff_t _nk_st = static_cast<std::ptrdiff_t>(_nk_step);");
+        open("if (_nk_cnt > 0)");
+        line("const std::ptrdiff_t _nk_last = _nk_s0 + (_nk_cnt - 1) * _nk_st;");
+        line("const std::ptrdiff_t _nk_len = static_cast<std::ptrdiff_t>(" + ai.lenVar + ");");
+        line("if (_nk_s0 < 0 || _nk_s0 >= _nk_len || _nk_last < 0 || _nk_last >= _nk_len)");
+        line("    throw std::out_of_range(\"numkit: index out of bounds\");");
+        close();
+        if (rhsScalar) {
+            line("const double _nk_v = " + emitExpr(rhs) + ";");
+            open("for (std::ptrdiff_t _nk_k = 0; _nk_k < _nk_cnt; ++_nk_k)");
+            line(ptr + "[static_cast<std::size_t>(_nk_s0 + _nk_k * _nk_st)] = _nk_v;");
+            close();
+        } else {
+            const ArrayInfo &ra = arrays_.at(rhs.strValue);
+            line("if (static_cast<std::ptrdiff_t>(" + ra.lenVar + ") != _nk_cnt)");
+            line("    throw std::out_of_range(\"numkit: slice assignment length mismatch\");");
+            open("for (std::ptrdiff_t _nk_k = 0; _nk_k < _nk_cnt; ++_nk_k)");
+            line(ptr + "[static_cast<std::size_t>(_nk_s0 + _nk_k * _nk_st)] = " + ra.dataExpr
+                 + "[static_cast<std::size_t>(_nk_k)];");
+            close();
+        }
+        --indent_;
+        line("}");
+        return;
+    }
+
     std::vector<AbstractValue> idx;
     for (std::size_t i = 1; i < lhsCall.children.size(); ++i)
         idx.push_back(inferExpr(*lhsCall.children[i], types_, reg_, classes_));
