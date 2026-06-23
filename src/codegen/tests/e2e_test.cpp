@@ -2163,6 +2163,45 @@ TEST(CodegenE2E, SortAscending)
     EXPECT_DOUBLE_EQ(got[0], 10.0 + 200.0 + 3000.0 + 40000.0);  // 43210
 }
 
+// Native scalar stats reductions (no-bridge tier): norm([3 4])=5, var([2 4 6])=4
+// (sample, /(n-1)), std([2 4 6])=2.
+TEST(CodegenE2E, StatsReductions)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x, y)\n"
+        "  a = norm(x);\n"   // [3 4] -> 5
+        "  b = var(y);\n"    // [2 4 6] -> 4
+        "  c = std(y);\n"    // -> 2
+        "  r = a + b*10 + c*100;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"y", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_ss"), std::string::npos)
+        << "norm/var/std must lower to native accumulation, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_stats_e2e.exe").string();
+    const std::string outTxt = (base / "nk_stats_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[2] = {3.0, 4.0};\n"
+        "  double y[3] = {2.0, 4.0, 6.0};\n"
+        "  double r = f(x, 2, y, 3);\n"  // 5 + 4*10 + 2*100 = 245
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5.0 + 40.0 + 200.0);  // 245
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
