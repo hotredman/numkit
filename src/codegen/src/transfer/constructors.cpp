@@ -86,6 +86,19 @@ InferredType logspaceTransfer(const std::vector<ArgInfo> &args)
     return InferredType::concrete(ValueType::DOUBLE, sh);
 }
 
+// reshape(x, m, n) -> reinterpret x as an m x n matrix (column-major, the SAME flat
+// data, so numel must match). v1: m,n known constants -> KnownDims(m, n) of x's
+// dtype; a runtime dim -> Dynamic (deferred). The reshape(x,[m n]) vector-size form
+// and the []-placeholder form are deferred.
+InferredType reshapeTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 3 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    std::size_t m = 0, n = 0;
+    if (args[1].constant.asDim(m) && args[2].constant.asDim(n))
+        return InferredType::concrete(args[0].type.dtype, Shape::dims(m, n));
+    return InferredType::dynamic();
+}
+
 } // namespace
 
 void registerConstructorTransfers(TransferRegistry &reg)
@@ -94,6 +107,7 @@ void registerConstructorTransfers(TransferRegistry &reg)
     reg.add("ones", zerosOnesTransfer);
     reg.add("linspace", linspaceTransfer);
     reg.add("logspace", logspaceTransfer);
+    reg.add("reshape", reshapeTransfer);  // (x,m,n) -> m x n, same column-major data
 }
 
 } // namespace numkit::codegen

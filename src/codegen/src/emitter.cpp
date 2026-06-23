@@ -1887,6 +1887,42 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // reshape(x, m, n) -> reinterpret x's elements as an m x n matrix. Column-major
+        // storage means a reshape is just the SAME flat buffer reinterpreted, so copy
+        // x's elements into the 2-D KnownDims LOCAL (numel must match: m*n==numel(x),
+        // runtime-checked). v(i,j) 2-D indexing then works on the result. v1: x a
+        // 1-D/2-D DOUBLE array var, m,n compile-time literals -> a 2-D LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).is2D
+            && rhs.type == NodeType::CALL && rhs.children.size() == 4
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "reshape"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &v   = arrays_.at(name);  // the 2-D result
+            const ArrayInfo    &x   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && res.type.shape.kind == ShapeKind::KnownDims) {
+                std::string xnumel;
+                if (x.isND) {
+                    xnumel = x.ndDims[0];
+                    for (std::size_t i = 1; i < x.ndDims.size(); ++i) xnumel += " * " + x.ndDims[i];
+                } else if (x.is2D) {
+                    xnumel = x.rowsVar + " * " + x.colsVar;
+                } else {
+                    xnumel = x.lenVar;
+                }
+                line("{");
+                ++indent_;
+                line("if ((" + v.rowsVar + " * " + v.colsVar + ") != (" + xnumel + "))");
+                line("    throw std::out_of_range(\"numkit: reshape element count mismatch\");");
+                line(name + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + (" + v.rowsVar + " * "
+                     + v.colsVar + "));");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // 1-D SLICE read: y = x(a:b) / y = x(a:s:b) -> a sub-array copied into the
         // owned 1-D local y. The colon ranges over x's 1-based positions; `end`
         // inside it = x's length (pushed here, so x(2:end) works). count = the colon

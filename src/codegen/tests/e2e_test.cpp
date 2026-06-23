@@ -2656,6 +2656,41 @@ TEST(CodegenE2E, RowSlice2D)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 20.0 + 300.0 + 3000.0);  // 3321
 }
 
+// reshape(x, m, n): a vector reinterpreted as an m x n matrix (column-major).
+// reshape([1..6], 2, 3) = [1 3 5; 2 4 6]; verified via 2-D indexing of the result.
+TEST(CodegenE2E, Reshape)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  M = reshape(x, 2, 3);\n"   // 2x3 col-major from [1..6]
+        "  r = M(1,1) + M(2,1)*10 + M(1,2)*100 + M(2,3)*1000 + numel(M)*10000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("reshape element count mismatch"), std::string::npos)
+        << "reshape must materialise a 2-D local with a numel-match check, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_reshape_e2e.exe").string();
+    const std::string outTxt = (base / "nk_reshape_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6] = {1, 2, 3, 4, 5, 6};\n"
+        "  double r = f(x, 6);\n"  // M=[1 3 5; 2 4 6]: 1 + 20 + 300 + 6000 + 60000 = 66321
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 20.0 + 300.0 + 6000.0 + 60000.0);  // 66321
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
