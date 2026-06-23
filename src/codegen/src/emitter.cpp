@@ -1934,6 +1934,40 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native cross(a, b) -> the 3-D cross product, a fresh 3-element 1-D LOCAL:
+        // c = [a2*b3-a3*b2, a3*b1-a1*b3, a1*b2-a2*b1] (1-based; 0-based in the emit).
+        // v1: a, b 1-D DOUBLE array vars (length 3).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "cross"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && !arrays_.at(rhs.children[2]->strValue).is2D
+            && !arrays_.at(rhs.children[2]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &b   = arrays_.at(rhs.children[2]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const std::string ad = a.dataExpr, bd = b.dataExpr;
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                line(name + ".push_back(" + ad + "[1] * " + bd + "[2] - " + ad + "[2] * " + bd
+                     + "[1]);");
+                line(name + ".push_back(" + ad + "[2] * " + bd + "[0] - " + ad + "[0] * " + bd
+                     + "[2]);");
+                line(name + ".push_back(" + ad + "[0] * " + bd + "[1] - " + ad + "[1] * " + bd
+                     + "[0]);");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // reshape(x, m, n) -> reinterpret x's elements as an m x n matrix. Column-major
         // storage means a reshape is just the SAME flat buffer reinterpreted, so copy
         // x's elements into the 2-D KnownDims LOCAL (numel must match: m*n==numel(x),
