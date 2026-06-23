@@ -1939,6 +1939,37 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native cumsum/cumprod(x) -> running accumulation, a SAME-LENGTH 1-D
+        // result, but ONLY with no bridge (order-dependent rounding -> the bridged
+        // array-result path stays the exact tier when the bridge is on). cumsum:
+        // acc += (seed 0); cumprod: acc *= (seed 1). v1: a single 1-D DOUBLE array
+        // arg that is a VARIABLE; the result a 1-D array LOCAL (push_back).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_ && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "cumsum" || rhs.children[0]->strValue == "cumprod")
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &xa  = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!xa.is2D && !xa.isND && res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const bool isProd = rhs.children[0]->strValue == "cumprod";
+                line("{");
+                ++indent_;
+                line(std::string("double _nk_acc = ") + (isProd ? "1.0;" : "0.0;"));
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + xa.lenVar + "; ++_nk_i)");
+                line(std::string("_nk_acc ") + (isProd ? "*=" : "+=") + " " + xa.dataExpr
+                     + "[_nk_i];");
+                line(name + ".push_back(_nk_acc);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and
