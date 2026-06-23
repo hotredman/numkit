@@ -2418,6 +2418,21 @@ void Emitter::emitAssign(const ASTNode &s)
             }
         }
 
+        // Whole-array struct-field READ: `y = s.v` where s.v is an array field-local
+        // (field-flattening). emitExpr(s.v) yields the field-local vector name, so
+        // this is a vector copy-assign. v1: a 1-D array field; y a 1-D array LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && rhs.type == NodeType::FIELD_ACCESS
+            && !rhs.children.empty() && rhs.children[0]->type == NodeType::IDENTIFIER) {
+            const AbstractValue rbase = inferExpr(*rhs.children[0], types_, reg_, classes_);
+            const AbstractValue rv    = inferExpr(rhs, types_, reg_, classes_);
+            if (!rbase.type.isObject() && rv.type.isConcrete() && !rv.type.shape.isScalar()
+                && !is2DMatrixType(rv.type) && !rv.type.shape.isNDims()) {
+                line(name + " = " + emitExpr(rhs) + ";");  // vector copy from the field-local
+                types_.set(name, rv);
+                return;
+            }
+        }
+
         if (isArrayVar(name))
             unsupported("array-valued assignment to '" + name
                         + "' (only size-constructor init of the output in RawBuffer ABI)");
@@ -2455,11 +2470,22 @@ void Emitter::emitAssign(const ASTNode &s)
         if (!base.type.isObject() && lhs.children[0]->type == NodeType::IDENTIFIER) {
             const std::string   fld = "_nk_fld_" + lhs.children[0]->strValue + "_" + lhs.strValue;
             const AbstractValue rv  = inferExpr(rhs, types_, reg_, classes_);
-            if (!rv.type.isUnboxableScalar())
-                unsupported("struct field write (v1: a scalar field on a plain struct)");
-            line(fld + " = " + emitExpr(rhs) + ";");
-            types_.set(fld, rv);
-            return;
+            if (rv.type.isUnboxableScalar()) {
+                line(fld + " = " + emitExpr(rhs) + ";");  // scalar field
+                types_.set(fld, rv);
+                return;
+            }
+            // Array field `s.v = x` (x a 1-D array VAR): the field-local vector
+            // (hoisted from the inferred array decl) copies x's elements.
+            if (rv.type.isConcrete() && !rv.type.shape.isScalar() && !is2DMatrixType(rv.type)
+                && !rv.type.shape.isNDims() && rhs.type == NodeType::IDENTIFIER
+                && isArrayVar(rhs.strValue)) {
+                const ArrayInfo &x = arrays_.at(rhs.strValue);
+                line(fld + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + " + x.lenVar + ");");
+                types_.set(fld, rv);
+                return;
+            }
+            unsupported("struct field write (v1: a scalar, or a 1-D array var, field)");
         }
         if (!base.type.isObject() || !classes_)
             unsupported("field write on a non-object value");

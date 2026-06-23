@@ -1647,6 +1647,42 @@ TEST(CodegenE2E, CharUpperLower)
     EXPECT_DOUBLE_EQ(got[0], 72073.0);  // 'H'(72)*1000 + 'I'(73)
 }
 
+// Struct ARRAY field (P3): whole-array field write `s.v = a` + read `w = s.v`
+// (field-local is an array). Indexing s.v(k) is deferred; read the whole field.
+TEST(CodegenE2E, StructArrayField)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a)\n"
+        "  s.v = a;\n"               // array field write
+        "  w = s.v;\n"               // whole array field read
+        "  r = numel(w) + w(2);\n"   // len(3) + w(2)(20) = 23
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_fld_s_v.assign("), std::string::npos)
+        << "an array struct field must copy via the field-local vector";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_structarr_e2e.exe").string();
+    const std::string outTxt = (base / "nk_structarr_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {10.0, 20.0, 30.0};\n"
+        "  double r = f(a, 3);\n"  // numel(3) + w(2)=20 -> 23
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 23.0);  // numel(3) + s.v(2)=20
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
