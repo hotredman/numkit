@@ -107,6 +107,23 @@ InferredType anyAllTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// find(x) -> a 1-D DOUBLE vector of the 1-based positions of the nonzero
+// elements. The length is runtime (-> Unknown shape, still a buffer type); the
+// emitter lowers it to a native filter loop. Single-arg vector form only; a
+// matrix / N-D input or a 2-arg call -> Dynamic.
+InferredType findTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::Scalar:
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+        return InferredType::concrete(ValueType::DOUBLE, Shape::unknown());
+    default: return InferredType::dynamic();
+    }
+}
+
 // cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
 // array shape out). Single-arg form only. Bridged via the array-result path
 // (the runtime owns the algorithm); the value matches the interpreter exactly.
@@ -132,6 +149,7 @@ void registerShapeTransfers(TransferRegistry &reg)
         reg.add(n, vectorReductionTransfer);
     for (const char *n : {"any", "all"})  // vector -> LOGICAL scalar (native inline loop)
         reg.add(n, anyAllTransfer);
+    reg.add("find", findTransfer);  // vector -> 1-D DOUBLE positions (native filter loop)
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);
