@@ -2419,6 +2419,40 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native cummax/cummin(x) -> running max/min, a SAME-LENGTH 1-D LOCAL. Exact
+        // (no rounding), so it runs in every tier. The running accumulator uses the
+        // single-output max/min NaN logic (update on the first element, on a strict
+        // cmp, or when acc is NaN and the candidate isn't -> the first non-NaN seeds
+        // it), so NaN is ignored mid-stream but a LEADING NaN is preserved (MATLAB
+        // cummax([1 NaN 3]) = [1 1 3]; cummax([NaN 3]) = [NaN 3]). v1: a single 1-D
+        // DOUBLE array var; the result a 1-D array LOCAL (push_back).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "cummax" || rhs.children[0]->strValue == "cummin")
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &xa  = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!xa.is2D && !xa.isND && res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const std::string cmp = rhs.children[0]->strValue == "cummax" ? ">" : "<";
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                line("double _nk_acc = 0.0;");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + xa.lenVar + "; ++_nk_i)");
+                line("const double _nk_v = " + xa.dataExpr + "[_nk_i];");
+                line("if (_nk_i == 0 || _nk_v " + cmp + " _nk_acc"
+                     " || (_nk_acc != _nk_acc && _nk_v == _nk_v)) _nk_acc = _nk_v;");
+                line(name + ".push_back(_nk_acc);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native flip/fliplr/flipud(x) on a 1-D vector -> a fresh same-length 1-D
         // LOCAL. flip reverses a vector; fliplr reverses along columns (a ROW is
         // reversed, a column is unchanged); flipud reverses along rows (a COLUMN is
