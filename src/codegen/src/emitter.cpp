@@ -2367,7 +2367,9 @@ void Emitter::emitAssign(const ASTNode &s)
         // are elementwise scaling, handled above; matrix*vector needs a 1-D
         // operand and is not yet lowered.)
         if (isArrayVar(name) && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
-            && arrays_.at(name).is2D && rhs.type == NodeType::BINARY_OP && rhs.strValue == "*"
+            && (arrays_.at(name).is2D
+                || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+            && rhs.type == NodeType::BINARY_OP && rhs.strValue == "*"
             && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
             && isArrayVar(rhs.children[0]->strValue)
             && rhs.children[1]->type == NodeType::IDENTIFIER
@@ -2375,43 +2377,59 @@ void Emitter::emitAssign(const ASTNode &s)
             const ArrayInfo &dst = arrays_.at(name);
             const ArrayInfo &A   = arrays_.at(rhs.children[0]->strValue);
             const ArrayInfo &B   = arrays_.at(rhs.children[1]->strValue);
-            if (!A.is2D || !B.is2D)
-                unsupported("matrix product with a non-matrix operand (matrix*vector not yet lowered)");
-            if (name == rhs.children[0]->strValue || name == rhs.children[1]->strValue)
-                unsupported("in-place matrix product (C = C * B)");
-            line("if (" + A.colsVar + " != " + B.rowsVar
-                 + ") throw std::out_of_range(\"numkit: inner matrix dimensions must agree\");");
-            if (opsKernels_
-                && (dst.dtype == ValueType::DOUBLE || dst.dtype == ValueType::COMPLEX)) {
-                // ops owns the kernel: M=dst.rows, N=dst.cols, K=A.cols (==B.rows,
-                // guarded). The kernel zeroes+accumulates; a LOCAL still needs
-                // its owned vector sized first. DOUBLE -> SIMD matmulDouble;
-                // COMPLEX -> portable matmulComplex (the call is amortised over
-                // O(M·N·K), so no per-element overhead vs inline).
-                const char *fn =
-                    dst.dtype == ValueType::DOUBLE ? "matmulDouble" : "matmulComplex";
-                if (dst.isLocal)
-                    line(name + ".resize(" + dst.rowsVar + " * " + dst.colsVar + ");");
-                line("numkit::ops::" + std::string(fn) + "(" + A.dataExpr + ", " + B.dataExpr
-                     + ", " + dst.dataExpr + ", " + dst.rowsVar + ", " + dst.colsVar + ", "
-                     + A.colsVar + ");");
-            } else {
-                if (dst.isLocal)
-                    line(name + ".assign(" + dst.rowsVar + " * " + dst.colsVar + ", "
-                         + zeroLiteral(dst.dtype) + ");");
-                open("for (std::size_t _nk_j = 0; _nk_j < " + dst.colsVar + "; ++_nk_j)");
-                open("for (std::size_t _nk_i = 0; _nk_i < " + dst.rowsVar + "; ++_nk_i)");
-                line(cppScalarType(dst.dtype) + " _nk_acc = " + zeroLiteral(dst.dtype) + ";");
-                open("for (std::size_t _nk_l = 0; _nk_l < " + A.colsVar + "; ++_nk_l)");
-                line("_nk_acc += " + A.dataExpr + "[_nk_i + _nk_l * " + A.rowsVar + "] * "
-                     + B.dataExpr + "[_nk_l + _nk_j * " + B.rowsVar + "];");
-                close();
-                line(dst.dataExpr + "[_nk_i + _nk_j * " + dst.rowsVar + "] = _nk_acc;");
-                close();
-                close();
+            // A rank-2 operand is a matrix — KnownDims 2-D OR a runtime-dim 2-D (NDims
+            // rank-2). Only matrix*matrix is lowered here; with a vector operand (a
+            // matrix*vector, or a col*row outer product whose result is also 2-D) this
+            // branch falls through to the matrix*vector / outer-product branches below.
+            const bool aMatrix = A.is2D || (A.isND && A.ndDims.size() == 2);
+            const bool bMatrix = B.is2D || (B.isND && B.ndDims.size() == 2);
+            if (aMatrix && bMatrix) {
+                if (name == rhs.children[0]->strValue || name == rhs.children[1]->strValue)
+                    unsupported("in-place matrix product (C = C * B)");
+                // dimExpr is rank-agnostic: a KnownDims matrix yields its rows/colsVar
+                // literals, a runtime-dim 2-D yields its ndDims companions. So the same
+                // lowering serves both (the runtime dst gets its companions set first).
+                const std::string Arows = dimExpr(A, 0), Ak = dimExpr(A, 1);  // A is m x k
+                const std::string Brows = dimExpr(B, 0), Bn = dimExpr(B, 1);  // B is k x n
+                const bool        dstRuntime = dst.isND && dst.ndDims.size() == 2;
+                line("if (" + Ak + " != " + Brows
+                     + ") throw std::out_of_range(\"numkit: inner matrix dimensions must agree\");");
+                if (dstRuntime) {
+                    line(dst.ndDims[0] + " = " + Arows + ";");  // C rows = A rows (m)
+                    line(dst.ndDims[1] + " = " + Bn + ";");     // C cols = B cols (n)
+                }
+                const std::string Crows = dimExpr(dst, 0), Ccols = dimExpr(dst, 1);
+                if (opsKernels_
+                    && (dst.dtype == ValueType::DOUBLE || dst.dtype == ValueType::COMPLEX)) {
+                    // ops owns the kernel: M=C rows, N=C cols, K=A cols (==B rows,
+                    // guarded). The kernel zeroes+accumulates; a LOCAL still needs its
+                    // owned vector sized first. DOUBLE -> SIMD matmulDouble; COMPLEX ->
+                    // portable matmulComplex (amortised over O(M·N·K), no per-elem cost).
+                    const char *fn =
+                        dst.dtype == ValueType::DOUBLE ? "matmulDouble" : "matmulComplex";
+                    if (dst.isLocal)
+                        line(name + ".resize(" + Crows + " * " + Ccols + ");");
+                    line("numkit::ops::" + std::string(fn) + "(" + A.dataExpr + ", "
+                         + B.dataExpr + ", " + dst.dataExpr + ", " + Crows + ", " + Ccols
+                         + ", " + Ak + ");");
+                } else {
+                    if (dst.isLocal)
+                        line(name + ".assign(" + Crows + " * " + Ccols + ", "
+                             + zeroLiteral(dst.dtype) + ");");
+                    open("for (std::size_t _nk_j = 0; _nk_j < " + Ccols + "; ++_nk_j)");
+                    open("for (std::size_t _nk_i = 0; _nk_i < " + Crows + "; ++_nk_i)");
+                    line(cppScalarType(dst.dtype) + " _nk_acc = " + zeroLiteral(dst.dtype) + ";");
+                    open("for (std::size_t _nk_l = 0; _nk_l < " + Ak + "; ++_nk_l)");
+                    line("_nk_acc += " + A.dataExpr + "[_nk_i + _nk_l * " + Arows + "] * "
+                         + B.dataExpr + "[_nk_l + _nk_j * " + Brows + "];");
+                    close();
+                    line(dst.dataExpr + "[_nk_i + _nk_j * " + Crows + "] = _nk_acc;");
+                    close();
+                    close();
+                }
+                types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+                return;
             }
-            types_.set(name, inferExpr(rhs, types_, reg_, classes_));
-            return;
         }
         // Matrix * vector / vector * matrix -> a vector. A*x (A m x k, x k x 1)
         // -> y m x 1: y[i] = sum_l A[i+l*Arows]*x[l]. r*A (r 1 x k, A k x n)

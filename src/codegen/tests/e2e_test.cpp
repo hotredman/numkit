@@ -3100,6 +3100,48 @@ TEST(CodegenE2E, ElementwiseAddRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], 605975.0);
 }
 
+// matmul A*B of two runtime-dim 2-D matrices. A=[1 2;3 4], B=[5 6;7 8] (built by
+// vertcat-of-rows) -> C = A*B = [19 22; 43 50]. Exercises the triple-loop with
+// cross-term accumulation + sets the runtime dst's dim companions.
+TEST(CodegenE2E, MatmulRuntimeDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a1, a2, b1, b2)\n"
+        "  A = [a1; a2];\n"   // 2x2: [1 2; 3 4]
+        "  B = [b1; b2];\n"   // 2x2: [5 6; 7 8]
+        "  C = A * B;\n"      // 2x2: [19 22; 43 50]
+        "  r = C(1,1) + C(1,2)*10 + C(2,1)*100 + C(2,2)*1000 + numel(C)*10000;\n"
+        "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_matmul2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_matmul2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double b1[2] = {5, 6};\n"
+        "  double b2[2] = {7, 8};\n"
+        "  double r = f(a1, 2, a2, 2, b1, 2, b2, 2);\n"  // C=[19 22;43 50]: 94539
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 19.0 + 220.0 + 4300.0 + 50000.0 + 40000.0);  // 94539
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)
