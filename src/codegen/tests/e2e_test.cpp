@@ -1859,6 +1859,54 @@ TEST(CodegenE2E, OrientationQueries)
     EXPECT_DOUBLE_EQ(got[1], 1111.0);
 }
 
+// dtype-classification predicates (isnumeric/isfloat/isinteger/ischar/islogical):
+// compile-time constants from the static dtype, the type-dispatch idiom. Mixed-
+// dtype params exercise true AND false branches; the two should-be-false guards
+// (isinteger of a double, isnumeric of a char) must contribute 0.
+TEST(CodegenE2E, DtypeClassification)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(d, c, b, n, z)\n"
+        "  r = 0;\n"
+        "  if isnumeric(d), r = r + 1; end\n"        // double -> +1
+        "  if isfloat(d),   r = r + 10; end\n"       // double float -> +10
+        "  if isinteger(d), r = r + 5; end\n"        // double NOT integer -> 0
+        "  if ischar(c),    r = r + 100; end\n"      // char -> +100
+        "  if isnumeric(c), r = r + 3; end\n"        // char NOT numeric -> 0
+        "  if islogical(b), r = r + 1000; end\n"     // logical -> +1000
+        "  if isinteger(n), r = r + 10000; end\n"    // int32 -> +10000
+        "  if isfloat(z),   r = r + 100000; end\n"   // complex IS float -> +100000
+        "end\n",
+        {{"d", InferredType::scalar(ValueType::DOUBLE)},
+         {"c", InferredType::scalar(ValueType::CHAR)},
+         {"b", InferredType::scalar(ValueType::LOGICAL)},
+         {"n", InferredType::scalar(ValueType::INT32)},
+         {"z", InferredType::scalar(ValueType::COMPLEX)}});
+    EXPECT_EQ(emitted.source.find("isnumeric"), std::string::npos)
+        << "dtype predicates must be lowered to compile-time true/false, not left as calls";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_dtype_e2e.exe").string();
+    const std::string outTxt = (base / "nk_dtype_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n#include <complex>\n#include <cstdint>\n"
+        "int main() {\n"
+        "  double r = f(2.5, (std::uint16_t)'A', true, (std::int32_t)7,\n"
+        "               std::complex<double>(1.0, 2.0));\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 111111.0);  // only the true-branch contributions
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
