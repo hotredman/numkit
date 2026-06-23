@@ -213,6 +213,23 @@ InferredType sortTransfer(const std::vector<ArgInfo> &args)
     return args[0].type;
 }
 
+// unique(x) -> the sorted distinct values, a 1-D vector of runtime length (-> Unknown
+// shape) preserving the operand dtype. The emitter sorts a copy then dedups
+// consecutive-equal elements (NaN are KEPT -- MATLAB treats each NaN as distinct --
+// because NaN != NaN). v1: a 1-D vector; a matrix/N-D operand -> Dynamic.
+InferredType uniqueTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::Scalar:
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:
+        return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+    default: return InferredType::dynamic();
+    }
+}
+
 // circshift(x, k) -> same shape AND dtype as x (a circular permutation of the
 // elements; the 2nd arg is the integer shift). v1: the (array, scalar-shift) form;
 // a shift VECTOR (per-dim) or a 2-D/N-D operand is deferred -> Dynamic.
@@ -256,6 +273,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
     reg.add("circshift", circshiftTransfer);  // (x, k) -> same shape (native circular shift)
+    reg.add("unique", uniqueTransfer);  // x -> sorted distinct 1-D (native sort + dedup)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})
         reg.add(n, logicalQueryTransfer);

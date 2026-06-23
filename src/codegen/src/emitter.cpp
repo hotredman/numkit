@@ -2606,6 +2606,39 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native unique(x) -> the sorted distinct values in a fresh 1-D LOCAL. Sort a
+        // temp copy (NaN-last comparator) then push each element that differs from the
+        // previous (consecutive-equal skip). NaN are KEPT (MATLAB: each NaN distinct)
+        // because NaN != NaN is true. !bridge_ keeps the bridged array-result path as
+        // the tier when the bridge is on. v1: a single 1-D DOUBLE array var.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_ && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "unique"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &xa  = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("std::vector<double> _nk_t(" + xa.dataExpr + ", " + xa.dataExpr + " + "
+                     + xa.lenVar + ");");
+                line("std::sort(_nk_t.begin(), _nk_t.end(),");
+                line("    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_t.size(); ++_nk_i)");
+                line("if (_nk_i == 0 || _nk_t[_nk_i] != _nk_t[_nk_i - 1]) " + name
+                     + ".push_back(_nk_t[_nk_i]);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native upper(s)/lower(s) -> a char-array ASCII case transform (A-Z <-> a-z),
         // a runtime-sized 1-D char LOCAL. Self-contained. v1: a single 1-D CHAR
         // array var; a non-char arg is not handled here (-> bridged/refused).
