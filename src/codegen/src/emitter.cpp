@@ -3456,6 +3456,33 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // 1-D vertcat of scalars: `v = [a; b; c]` (multi-row MATRIX_LITERAL, each row a
+        // single scalar) -> a 1-D column LOCAL, pushing each row's scalar in order. The
+        // column counterpart of the 1-D horzcat above. v1: scalar elements (a multi-
+        // row stack of arrays/rows = a true 2-D vertcat, deferred).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::MATRIX_LITERAL
+            && rhs.children.size() > 1) {
+            bool allScalarRows = true;
+            for (const auto &rowN : rhs.children)
+                if (!rowN || rowN->children.size() != 1 || !rowN->children[0]
+                    || !inferExpr(*rowN->children[0], types_, reg_, classes_).type.shape.isScalar()) {
+                    allScalarRows = false;
+                    break;
+                }
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (allScalarRows && rv.type.isConcrete() && !rv.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                for (const auto &rowN : rhs.children)
+                    line(name + ".push_back(" + emitExpr(*rowN->children[0]) + ");");
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
 
         // Whole-array struct-field READ: `y = s.v` where s.v is an array field-local
         // (field-flattening). emitExpr(s.v) yields the field-local vector name, so
