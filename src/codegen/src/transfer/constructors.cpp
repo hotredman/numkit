@@ -99,6 +99,23 @@ InferredType reshapeTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// repmat(A, m, n) / repmat(A, n) -> tile A into an (m*rows) x (n*cols) matrix. v1: A
+// a SCALAR -> the result is m x n (or n x n) all = A (tiling a 1x1). Literal dims ->
+// KnownDims of A's dtype. A vector/matrix operand (true tiling) or runtime dims are
+// deferred -> Dynamic.
+InferredType repmatTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.empty() || !args[0].type.isConcrete()
+        || args[0].type.shape.kind != ShapeKind::Scalar)
+        return InferredType::dynamic();  // v1: a scalar operand only
+    std::size_t m = 0, n = 0;
+    if (args.size() == 2 && args[1].constant.asDim(m))  // repmat(s, n) -> n x n
+        return InferredType::concrete(args[0].type.dtype, Shape::dims(m, m));
+    if (args.size() == 3 && args[1].constant.asDim(m) && args[2].constant.asDim(n))
+        return InferredType::concrete(args[0].type.dtype, Shape::dims(m, n));
+    return InferredType::dynamic();
+}
+
 } // namespace
 
 void registerConstructorTransfers(TransferRegistry &reg)
@@ -108,6 +125,7 @@ void registerConstructorTransfers(TransferRegistry &reg)
     reg.add("linspace", linspaceTransfer);
     reg.add("logspace", logspaceTransfer);
     reg.add("reshape", reshapeTransfer);  // (x,m,n) -> m x n, same column-major data
+    reg.add("repmat", repmatTransfer);    // (s,m,n) scalar -> m x n all = s (v1)
 }
 
 } // namespace numkit::codegen
