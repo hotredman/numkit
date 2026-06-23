@@ -192,6 +192,17 @@ InferredType sortTransfer(const std::vector<ArgInfo> &args)
     return args[0].type;
 }
 
+// circshift(x, k) -> same shape AND dtype as x (a circular permutation of the
+// elements; the 2nd arg is the integer shift). v1: the (array, scalar-shift) form;
+// a shift VECTOR (per-dim) or a 2-D/N-D operand is deferred -> Dynamic.
+InferredType circshiftTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[1].type.isConcrete() && args[1].type.shape.kind != ShapeKind::Scalar)
+        return InferredType::dynamic();  // a per-dim shift vector -> deferred
+    return args[0].type;
+}
+
 // cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
 // array shape out). Single-arg form only. Bridged via the array-result path
 // (the runtime owns the algorithm); the value matches the interpreter exactly.
@@ -221,6 +232,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("diff", diffTransfer);  // vector -> 1-D differences, length n-1 (native loop)
     reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
+    reg.add("circshift", circshiftTransfer);  // (x, k) -> same shape (native circular shift)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})
         reg.add(n, logicalQueryTransfer);

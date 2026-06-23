@@ -2453,6 +2453,41 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native circshift(x, k) -> a circularly-shifted copy, SAME shape as x. A
+        // positive k shifts toward higher indices (MATLAB circshift([1 2 3 4],1) =
+        // [4 1 2 3]); out[i] = x[((i-k) mod n + n) mod n], which is well-defined for
+        // any k (negative / larger than n). dtype-general (a plain element copy).
+        // v1: a 1-D array var + a scalar integer shift.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "circshift"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND) {
+            const ArrayInfo    &xa  = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()
+                && inferExpr(*rhs.children[2], types_, reg_, classes_).type.shape.isScalar()) {
+                const std::string k = emitExpr(*rhs.children[2]);
+                line("{");
+                ++indent_;
+                line("const std::ptrdiff_t _nk_n = static_cast<std::ptrdiff_t>(" + xa.lenVar + ");");
+                line("const std::ptrdiff_t _nk_k = static_cast<std::ptrdiff_t>(" + k + ");");
+                line(name + ".assign(static_cast<std::size_t>(_nk_n), " + zeroLiteral(xa.dtype)
+                     + ");");
+                open("for (std::ptrdiff_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+                line("const std::ptrdiff_t _nk_s = ((_nk_i - _nk_k) % _nk_n + _nk_n) % _nk_n;");
+                line(name + "[static_cast<std::size_t>(_nk_i)] = " + xa.dataExpr
+                     + "[static_cast<std::size_t>(_nk_s)];");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native flip/fliplr/flipud(x) on a 1-D vector -> a fresh same-length 1-D
         // LOCAL. flip reverses a vector; fliplr reverses along columns (a ROW is
         // reversed, a column is unchanged); flipud reverses along rows (a COLUMN is
