@@ -1805,29 +1805,37 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // Native sum(x) -> scalar, but ONLY with no bridge. UNLIKE min/max it is
-        // order-dependent: a sequential sum can differ in the last ULP from the
-        // runtime's summation order, so the bridged path stays the EXACT tier when
-        // the bridge is on; native is the self-contained fallback when there is no
-        // runtime to bridge to. v1: a single 1-D DOUBLE array arg (sum of
-        // logical/int has dtype subtleties -> left to the bridged path), direct
+        // Native sum / prod / mean(x) -> scalar, but ONLY with no bridge. UNLIKE
+        // min/max these are order-dependent: a sequential reduction can differ in
+        // the last ULP from the runtime's order, so the bridged path stays the
+        // EXACT tier when the bridge is on; native is the self-contained fallback.
+        // sum: acc += (seed 0); prod: acc *= (seed 1); mean: sum / len. Empty input
+        // matches MATLAB: sum([])=0, prod([])=1, mean([])=NaN (0/0). v1: a single
+        // 1-D DOUBLE array arg (logical/int dtype subtleties -> bridged), direct
         // assign.
         if (!isArrayVar(name) && !bridge_ && rhs.type == NodeType::CALL
             && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
-            && rhs.children[0]->strValue == "sum"
+            && (rhs.children[0]->strValue == "sum" || rhs.children[0]->strValue == "prod"
+                || rhs.children[0]->strValue == "mean")
             && rhs.children[1]->type == NodeType::IDENTIFIER
             && isArrayVar(rhs.children[1]->strValue)
             && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
             const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (!a.is2D && !a.isND && res.type.isConcrete() && res.type.shape.isScalar()) {
+                const std::string callee = rhs.children[0]->strValue;
+                const bool        isProd = callee == "prod";
                 line("{");  // scope _nk_acc so repeated reductions in one fn don't collide
                 ++indent_;
-                line("double _nk_acc = 0.0;");
+                line(std::string("double _nk_acc = ") + (isProd ? "1.0;" : "0.0;"));
                 open("for (std::size_t _nk_i = 0; _nk_i < " + a.lenVar + "; ++_nk_i)");
-                line("_nk_acc += " + a.dataExpr + "[_nk_i];");
+                line(std::string("_nk_acc ") + (isProd ? "*=" : "+=") + " " + a.dataExpr
+                     + "[_nk_i];");
                 close();
-                line(name + " = _nk_acc;");
+                if (callee == "mean")
+                    line(name + " = _nk_acc / static_cast<double>(" + a.lenVar + ");");
+                else
+                    line(name + " = _nk_acc;");
                 --indent_;
                 line("}");
                 types_.set(name, res);
