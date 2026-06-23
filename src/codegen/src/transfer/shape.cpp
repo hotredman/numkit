@@ -300,7 +300,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     for (const char *n : {"isnumeric", "isfloat", "isinteger", "ischar", "islogical"})
         reg.add(n, logicalQueryTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
-    for (const char *n : {"cumsum", "cumprod", "cummax", "cummin", "flip", "fliplr", "flipud"})
+    for (const char *n :
+         {"cumsum", "cumprod", "cummax", "cummin", "flip", "fliplr", "flipud", "gradient"})
         reg.add(n, identityShapeTransfer);
     for (const char *n : {"upper", "lower"})  // char case transform (native, same shape)
         reg.add(n, identityShapeTransfer);

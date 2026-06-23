@@ -2549,6 +2549,41 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native gradient(y) -> numerical gradient, unit spacing, SAME length as y.
+        // Edge points use one-sided differences, the interior centered: g[0]=y[1]-y[0];
+        // g[i]=(y[i+1]-y[i-1])/2; g[n-1]=y[n-1]-y[n-2]; n==1 -> {0}; n==0 -> empty.
+        // Exact -> every tier. v1: a single 1-D DOUBLE array var; result a 1-D LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "gradient"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &y   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const std::string d = y.dataExpr;
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_n = " + y.lenVar + ";");
+                line(name + ".assign(_nk_n, 0.0);");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+                line("if (_nk_n == 1) " + name + "[_nk_i] = 0.0;");
+                line("else if (_nk_i == 0) " + name + "[_nk_i] = " + d + "[1] - " + d + "[0];");
+                line("else if (_nk_i + 1 == _nk_n) " + name + "[_nk_i] = " + d + "[_nk_i] - " + d
+                     + "[_nk_i - 1];");
+                line("else " + name + "[_nk_i] = (" + d + "[_nk_i + 1] - " + d
+                     + "[_nk_i - 1]) * 0.5;");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native flip/fliplr/flipud(x) on a 1-D vector -> a fresh same-length 1-D
         // LOCAL. flip reverses a vector; fliplr reverses along columns (a ROW is
         // reversed, a column is unchanged); flipud reverses along rows (a COLUMN is
