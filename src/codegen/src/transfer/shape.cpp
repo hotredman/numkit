@@ -219,6 +219,7 @@ void registerShapeTransfers(TransferRegistry &reg)
         reg.add(n, identityShapeTransfer);
     for (const char *n : {"upper", "lower"})  // char case transform (native, same shape)
         reg.add(n, identityShapeTransfer);
+    reg.add("sort", identityShapeTransfer);  // ascending sort -> same shape (native std::sort)
 }
 
 } // namespace numkit::codegen
