@@ -116,11 +116,17 @@ InferredType mtimesTransfer(const std::vector<ArgInfo> &args)
             return InferredType::concrete(
                 dt, Shape::ndShape({rowsOf(a.shape), colsOf(b.shape)}));
     }
-    // matrix * column vector -> column vector (A is m x k, x is k x 1 -> m x 1)
-    if (a.shape.kind == ShapeKind::KnownDims && b.shape.kind == ShapeKind::ColVector)
+    // matrix * column vector -> column vector (A is m x k, x is k x 1 -> m x 1). The
+    // matrix operand may be KnownDims OR a runtime-dim 2-D (an NDims rank-2 matrix).
+    if ((a.shape.kind == ShapeKind::KnownDims
+         || (a.shape.kind == ShapeKind::NDims && a.shape.nd.size() == 2))
+        && b.shape.kind == ShapeKind::ColVector)
         return InferredType::concrete(dt, Shape::colVector());
-    // row vector * matrix -> row vector (r is 1 x k, A is k x n -> 1 x n)
-    if (a.shape.kind == ShapeKind::RowVector && b.shape.kind == ShapeKind::KnownDims)
+    // row vector * matrix -> row vector (r is 1 x k, A is k x n -> 1 x n). Same: the
+    // matrix may be KnownDims OR a runtime-dim 2-D.
+    if (a.shape.kind == ShapeKind::RowVector
+        && (b.shape.kind == ShapeKind::KnownDims
+            || (b.shape.kind == ShapeKind::NDims && b.shape.nd.size() == 2)))
         return InferredType::concrete(dt, Shape::rowVector());
     // row vector * column vector -> scalar (inner / dot product)
     if (a.shape.kind == ShapeKind::RowVector && b.shape.kind == ShapeKind::ColVector)

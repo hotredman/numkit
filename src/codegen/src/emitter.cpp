@@ -2454,30 +2454,42 @@ void Emitter::emitAssign(const ASTNode &s)
             const ArrayInfo &R   = arrays_.at(rhs.children[1]->strValue);
             if (name == rhs.children[0]->strValue || name == rhs.children[1]->strValue)
                 unsupported("in-place matrix*vector (y = y * x)");
-            if (L.isND || R.isND) unsupported("N-D operand in matrix*vector");
-            const std::string ty  = cppScalarType(dst.dtype);
-            const std::string zer = zeroLiteral(dst.dtype);
-            if (L.is2D && !R.is2D) {  // A * x -> column vector
-                line("if (" + L.colsVar + " != " + R.lenVar + ") throw std::out_of_range(\""
+            // A matrix operand is KnownDims 2-D OR a runtime-dim 2-D (NDims rank-2); a
+            // vector is 1-D (neither). dimExpr reads the matrix dims rank-agnostically
+            // (rows/colsVar literals or ndDims companions). A true N-D (rank>=3) operand
+            // is refused. (matrix*matrix went to the matmul branch above; both-vector
+            // falls to the outer-product / refusal below.)
+            if ((L.isND && L.ndDims.size() != 2) || (R.isND && R.ndDims.size() != 2))
+                unsupported("N-D operand in matrix*vector");
+            const bool        lMat = L.is2D || (L.isND && L.ndDims.size() == 2);
+            const bool        rMat = R.is2D || (R.isND && R.ndDims.size() == 2);
+            const bool        lVec = !L.is2D && !L.isND;
+            const bool        rVec = !R.is2D && !R.isND;
+            const std::string ty   = cppScalarType(dst.dtype);
+            const std::string zer  = zeroLiteral(dst.dtype);
+            if (lMat && rVec) {  // A * x -> column vector
+                const std::string Arows = dimExpr(L, 0), Acols = dimExpr(L, 1);
+                line("if (" + Acols + " != " + R.lenVar + ") throw std::out_of_range(\""
                      "numkit: inner matrix dimensions must agree\");");
-                if (dst.isLocal) line(name + ".resize(" + L.rowsVar + ");");
-                open("for (std::size_t _nk_i = 0; _nk_i < " + L.rowsVar + "; ++_nk_i)");
+                if (dst.isLocal) line(name + ".resize(" + Arows + ");");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + Arows + "; ++_nk_i)");
                 line(ty + " _nk_acc = " + zer + ";");
-                open("for (std::size_t _nk_l = 0; _nk_l < " + L.colsVar + "; ++_nk_l)");
-                line("_nk_acc += " + L.dataExpr + "[_nk_i + _nk_l * " + L.rowsVar + "] * "
+                open("for (std::size_t _nk_l = 0; _nk_l < " + Acols + "; ++_nk_l)");
+                line("_nk_acc += " + L.dataExpr + "[_nk_i + _nk_l * " + Arows + "] * "
                      + R.dataExpr + "[_nk_l];");
                 close();
                 line(dst.dataExpr + "[_nk_i] = _nk_acc;");
                 close();
-            } else if (!L.is2D && R.is2D) {  // r * A -> row vector
-                line("if (" + L.lenVar + " != " + R.rowsVar + ") throw std::out_of_range(\""
+            } else if (lVec && rMat) {  // r * A -> row vector
+                const std::string Brows = dimExpr(R, 0), Bcols = dimExpr(R, 1);
+                line("if (" + L.lenVar + " != " + Brows + ") throw std::out_of_range(\""
                      "numkit: inner matrix dimensions must agree\");");
-                if (dst.isLocal) line(name + ".resize(" + R.colsVar + ");");
-                open("for (std::size_t _nk_j = 0; _nk_j < " + R.colsVar + "; ++_nk_j)");
+                if (dst.isLocal) line(name + ".resize(" + Bcols + ");");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + Bcols + "; ++_nk_j)");
                 line(ty + " _nk_acc = " + zer + ";");
-                open("for (std::size_t _nk_l = 0; _nk_l < " + R.rowsVar + "; ++_nk_l)");
+                open("for (std::size_t _nk_l = 0; _nk_l < " + Brows + "; ++_nk_l)");
                 line("_nk_acc += " + L.dataExpr + "[_nk_l] * " + R.dataExpr + "[_nk_l + _nk_j * "
-                     + R.rowsVar + "];");
+                     + Brows + "];");
                 close();
                 line(dst.dataExpr + "[_nk_j] = _nk_acc;");
                 close();
