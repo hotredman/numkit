@@ -3584,6 +3584,51 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // 2-D vertcat of rows: `M = [r1; r2; ...; rk]` (multi-row MATRIX_LITERAL, each
+        // row a single ROW-VECTOR var of a common length n) -> a k x n 2-D matrix, a
+        // rank-2 ndRuntimeLocal. Column-major: M[i + j*k] = r_i[j]. The k rows are
+        // distinct locals so the i-loop is unrolled; every inner loop is bounded by the
+        // FIRST row's length (the matrix's n) so a write can never escape the buffer.
+        // All rows must share length n (precondition; MATLAB errors otherwise). v1:
+        // DOUBLE 1-D row vars.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::MATRIX_LITERAL
+            && rhs.children.size() > 1) {
+            bool allRowVars = true;
+            for (const auto &rowN : rhs.children)
+                if (!rowN || rowN->children.size() != 1 || !rowN->children[0]
+                    || rowN->children[0]->type != NodeType::IDENTIFIER
+                    || !isArrayVar(rowN->children[0]->strValue)
+                    || arrays_.at(rowN->children[0]->strValue).is2D
+                    || arrays_.at(rowN->children[0]->strValue).isND
+                    || arrays_.at(rowN->children[0]->strValue).dtype != ValueType::DOUBLE) {
+                    allRowVars = false;
+                    break;
+                }
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (allRowVars && rv.type.isConcrete()) {
+                const ArrayInfo  &M  = arrays_.at(name);
+                const ArrayInfo  &r0 = arrays_.at(rhs.children[0]->children[0]->strValue);
+                const std::string k  = std::to_string(rhs.children.size());
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_n = " + r0.lenVar + ";");  // matrix cols
+                line(M.ndDims[0] + " = " + k + ";");                   // rows = k
+                line(M.ndDims[1] + " = _nk_n;");
+                line(name + ".assign(" + k + " * _nk_n, 0.0);");
+                for (std::size_t i = 0; i < rhs.children.size(); ++i) {
+                    const ArrayInfo &ri = arrays_.at(rhs.children[i]->children[0]->strValue);
+                    open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                    line(name + "[" + std::to_string(i) + " + _nk_j * " + k + "] = "
+                         + ri.dataExpr + "[_nk_j];");
+                    close();
+                }
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
 
         // Whole-array struct-field READ: `y = s.v` where s.v is an array field-local
         // (field-flattening). emitExpr(s.v) yields the field-local vector name, so

@@ -268,6 +268,28 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
             }
             if (ok && dt != ValueType::EMPTY)
                 return {InferredType::concrete(dt, Shape::unknown()), ConstVal::unknown()};
+            // Each row a single ROW VECTOR of a common dtype -> a k x n 2-D matrix
+            // (vertcat of rows): rows = k (known), cols = n (the rows' length, taken as
+            // runtime -> NDims rank-2 ndShape({k, 0}); a runtime-dim 2-D the emitter
+            // materialises as an ndRuntimeLocal). All rows must share length n
+            // (precondition; MATLAB errors on a mismatch).
+            ValueType rdt     = ValueType::EMPTY;
+            bool      rowsOk  = true;
+            for (const auto &rowN : expr.children) {
+                if (!rowN || rowN->children.size() != 1) { rowsOk = false; break; }
+                const AbstractValue ev    = inferExpr(*rowN->children[0], env, reg, classes);
+                const bool          isRow =
+                    ev.type.isConcrete()
+                    && (ev.type.shape.kind == ShapeKind::RowVector
+                        || (ev.type.shape.kind == ShapeKind::KnownDims
+                            && ev.type.shape.rows == 1));
+                if (!isRow) { rowsOk = false; break; }
+                if (rdt == ValueType::EMPTY) rdt = ev.type.dtype;
+                else if (rdt != ev.type.dtype) { rowsOk = false; break; }  // no dtype mix
+            }
+            if (rowsOk && rdt != ValueType::EMPTY)
+                return {InferredType::concrete(rdt, Shape::ndShape({expr.children.size(), 0})),
+                        ConstVal::unknown()};
         }
         // v1: a single-row horzcat [a b ...] -> a 1-D array of the common dtype
         // (runtime length). Each element may be a 1-D array, a char/string literal,
