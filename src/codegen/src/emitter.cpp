@@ -2047,6 +2047,35 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native upper(s)/lower(s) -> a char-array ASCII case transform (A-Z <-> a-z),
+        // a runtime-sized 1-D char LOCAL. Self-contained. v1: a single 1-D CHAR
+        // array var; a non-char arg is not handled here (-> bridged/refused).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "upper" || rhs.children[0]->strValue == "lower")
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::CHAR) {
+            const ArrayInfo &s = arrays_.at(rhs.children[1]->strValue);
+            if (!s.is2D && !s.isND) {
+                const bool          isUpper = rhs.children[0]->strValue == "upper";
+                const AbstractValue rv      = inferExpr(rhs, types_, reg_, classes_);
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + s.lenVar + "; ++_nk_i)");
+                line("std::uint16_t _nk_c = " + s.dataExpr + "[_nk_i];");
+                line(isUpper ? "if (_nk_c >= 97 && _nk_c <= 122) _nk_c = std::uint16_t(_nk_c - 32);"
+                             : "if (_nk_c >= 65 && _nk_c <= 90) _nk_c = std::uint16_t(_nk_c + 32);");
+                line(name + ".push_back(_nk_c);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and

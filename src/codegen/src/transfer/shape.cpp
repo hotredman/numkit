@@ -199,6 +199,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);
+    for (const char *n : {"upper", "lower"})  // char case transform (native, same shape)
+        reg.add(n, identityShapeTransfer);
 }
 
 } // namespace numkit::codegen
