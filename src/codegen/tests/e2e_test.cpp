@@ -2889,6 +2889,39 @@ TEST(CodegenE2E, TrilLower)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 0.0 + 4000.0);  // 4031
 }
 
+// repmat(x, 1, q) row tiling: q copies of a row concatenated. repmat([1 2 3], 1, 2)
+// -> [1 2 3 1 2 3].
+TEST(CodegenE2E, RepmatRowTile)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  y = repmat(x, 1, 2);\n"   // [1 2 3 1 2 3]
+        "  r = y(1) + y(4)*10 + y(6)*100 + numel(y)*1000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_repmatv_e2e.exe").string();
+    const std::string outTxt = (base / "nk_repmatv_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[3] = {1, 2, 3};\n"
+        "  double r = f(x, 3);\n"  // [1 2 3 1 2 3]: 1 + 1*10 + 3*100 + 6*1000 = 6311
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 10.0 + 300.0 + 6000.0);  // 6311
+}
+
 // 2-D INTEGRATION CAPSTONE: one kernel composing reshape + a column slice + a row
 // slice + diag + trace + eye + tril -- proving the 2-D/matrix surface composes
 // end-to-end (a cross-feature 2-D regression guard, meaningful at this breadth).

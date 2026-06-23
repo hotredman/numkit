@@ -124,14 +124,24 @@ InferredType reshapeTransfer(const std::vector<ArgInfo> &args)
 // deferred -> Dynamic.
 InferredType repmatTransfer(const std::vector<ArgInfo> &args)
 {
-    if (args.empty() || !args[0].type.isConcrete()
-        || args[0].type.shape.kind != ShapeKind::Scalar)
-        return InferredType::dynamic();  // v1: a scalar operand only
+    if (args.empty() || !args[0].type.isConcrete()) return InferredType::dynamic();
     std::size_t m = 0, n = 0;
-    if (args.size() == 2 && args[1].constant.asDim(m))  // repmat(s, n) -> n x n
-        return InferredType::concrete(args[0].type.dtype, Shape::dims(m, m));
-    if (args.size() == 3 && args[1].constant.asDim(m) && args[2].constant.asDim(n))
-        return InferredType::concrete(args[0].type.dtype, Shape::dims(m, n));
+    // Scalar operand -> an m x n (or n x n) matrix all = s.
+    if (args[0].type.shape.kind == ShapeKind::Scalar) {
+        if (args.size() == 2 && args[1].constant.asDim(m))  // repmat(s, n) -> n x n
+            return InferredType::concrete(args[0].type.dtype, Shape::dims(m, m));
+        if (args.size() == 3 && args[1].constant.asDim(m) && args[2].constant.asDim(n))
+            return InferredType::concrete(args[0].type.dtype, Shape::dims(m, n));
+        return InferredType::dynamic();
+    }
+    // Row-vector operand with a "1" down-rep: repmat(rowVec, 1, q) -> a 1 x (q*n) row
+    // (q copies concatenated). A column operand, or a general (p,q) with both > 1
+    // (true 2-D tiling), is deferred -> Dynamic.
+    if (args[0].type.shape.kind == ShapeKind::RowVector && args.size() == 3) {
+        std::size_t p = 0;
+        if (args[1].constant.asDim(p) && p == 1)
+            return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+    }
     return InferredType::dynamic();
 }
 
