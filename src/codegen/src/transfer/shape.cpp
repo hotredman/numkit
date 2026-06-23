@@ -157,6 +157,16 @@ InferredType dotTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// strcmp(a,b) -> a LOGICAL scalar (true iff the two arrays are identical: same
+// length AND elementwise equal). v1: two concrete array args -> LOGICAL scalar;
+// the emitter lowers it to a length + elementwise compare.
+InferredType strcmpTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete())
+        return InferredType::dynamic();
+    return InferredType::scalar(ValueType::LOGICAL);
+}
+
 // cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
 // array shape out). Single-arg form only. Bridged via the array-result path
 // (the runtime owns the algorithm); the value matches the interpreter exactly.
@@ -185,6 +195,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("find", findTransfer);  // vector -> 1-D DOUBLE positions (native filter loop)
     reg.add("diff", diffTransfer);  // vector -> 1-D differences, length n-1 (native loop)
     reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
+    reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);

@@ -1420,6 +1420,44 @@ TEST(CodegenE2E, CharArgIndexReturn)
     EXPECT_DOUBLE_EQ(got[0], 101.0);  // 'e' in 'hello' at index 2
 }
 
+// Native strcmp (P3, 4th char brick): string equality via length + elementwise
+// compare. Tests both an equal pair and a same-length-but-different pair.
+TEST(CodegenE2E, NativeStrcmp)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f()\n"
+        "  a = 'hello';\n"
+        "  b = 'hello';\n"
+        "  c = 'world';\n"
+        "  e1 = strcmp(a, b);\n"   // equal -> 1
+        "  e2 = strcmp(a, c);\n"   // same length, differ -> 0
+        "  r = e1 * 10 + e2;\n"    // 10
+        "end\n",
+        {});
+    EXPECT_NE(emitted.source.find("_nk_eq"), std::string::npos)
+        << "strcmp must lower to a length + elementwise equality check";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_strcmp_e2e.exe").string();
+    const std::string outTxt = (base / "nk_strcmp_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f();\n"  // strcmp(hello,hello)=1 -> *10; strcmp(hello,world)=0
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0);  // equal=1*10 + differ=0
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled

@@ -1884,6 +1884,36 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native strcmp(a,b) -> LOGICAL scalar: true iff the two arrays are equal
+        // (same length AND elementwise equal). Self-contained; works for char
+        // (uint16) and numeric arrays. v1: two 1-D array vars, result assigned.
+        if (!isArrayVar(name) && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "strcmp"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[2]->strValue)) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &B   = arrays_.at(rhs.children[2]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!A.is2D && !A.isND && !B.is2D && !B.isND && res.type.isConcrete()
+                && res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("bool _nk_eq = (" + A.lenVar + " == " + B.lenVar + ");");
+                open("if (_nk_eq)");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + A.lenVar + "; ++_nk_i)");
+                line("if (" + A.dataExpr + "[_nk_i] != " + B.dataExpr
+                     + "[_nk_i]) { _nk_eq = false; break; }");
+                close();
+                close();
+                line(name + " = _nk_eq;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Bridged array reduction -> scalar (opt-in): s = sum(x) / prod / mean /
         // max / min. The array arg can't be a scalar C++ expression, so box it
         // (like the bridged array-RESULT path) and call bridge_scalar_arr —
