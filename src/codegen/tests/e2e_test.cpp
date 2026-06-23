@@ -2991,6 +2991,41 @@ TEST(CodegenE2E, VertcatRowsTo2D)
     EXPECT_DOUBLE_EQ(got[0], 6654321.0);
 }
 
+// horzcat-of-columns: `M = [a b]` with a,b column vectors -> an n x k 2-D matrix
+// (runtime-dim 2-D, placing columns side by side). [1;2;3] and [4;5;6] -> [1 4; 2 5; 3 6].
+TEST(CodegenE2E, HorzcatColumnsTo2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a, b)\n"
+        "  M = [a b];\n"   // 3 x 2
+        "  r = M(1,1) + M(3,1)*10 + M(1,2)*100 + M(3,2)*1000 + numel(M)*10000;\n"
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_horzcat2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_horzcat2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {1, 2, 3};\n"
+        "  double b[3] = {4, 5, 6};\n"
+        "  double r = f(a, 3, b, 3);\n"  // [1 4; 2 5; 3 6]: 1 + 30 + 400 + 6000 + 60000 = 66431
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 66431.0);
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)

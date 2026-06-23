@@ -298,6 +298,30 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         if (expr.children.size() != 1 || !expr.children[0]
             || expr.children[0]->children.empty())
             return AbstractValue::dynamic();
+        // Single-row literal whose every element is a COLUMN VECTOR (>=2 of them) ->
+        // horzcat of columns = an n x k 2-D matrix: cols = k (known), rows = n (the
+        // columns' length, taken as runtime -> NDims rank-2 ndShape({0, k}); a runtime-
+        // dim 2-D the emitter materialises as an ndRuntimeLocal). All columns must share
+        // length n (precondition). Checked before the 1-D horzcat fall-through, which
+        // would otherwise flatten columns into a wrong 1-D concatenation.
+        if (expr.children[0]->children.size() >= 2) {
+            ValueType cdt    = ValueType::EMPTY;
+            bool      colsOk = true;
+            for (const auto &el : expr.children[0]->children) {
+                if (!el) { colsOk = false; break; }
+                const AbstractValue ev = inferExpr(*el, env, reg, classes);
+                if (!ev.type.isConcrete() || ev.type.shape.kind != ShapeKind::ColVector) {
+                    colsOk = false;
+                    break;
+                }
+                if (cdt == ValueType::EMPTY) cdt = ev.type.dtype;
+                else if (cdt != ev.type.dtype) { colsOk = false; break; }  // no dtype mix
+            }
+            if (colsOk && cdt != ValueType::EMPTY)
+                return {InferredType::concrete(
+                            cdt, Shape::ndShape({0, expr.children[0]->children.size()})),
+                        ConstVal::unknown()};
+        }
         ValueType dt = ValueType::EMPTY;
         for (const auto &el : expr.children[0]->children) {
             if (!el) return AbstractValue::dynamic();

@@ -3557,6 +3557,48 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // 2-D horzcat of columns: `M = [c1 c2 ... ck]` (single-row MATRIX_LITERAL, each
+        // element a COLUMN-VECTOR var of a common length n) -> an n x k 2-D matrix, a
+        // rank-2 ndRuntimeLocal. Column-major: column j is contiguous, M[i + j*n] =
+        // c_j[i]. The k columns are distinct locals so the j-loop is unrolled; every
+        // inner loop is bounded by the first column's length (the matrix's n). All
+        // columns must share length n (precondition). v1: DOUBLE 1-D col vars.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::MATRIX_LITERAL
+            && rhs.children.size() == 1 && rhs.children[0]
+            && rhs.children[0]->children.size() >= 2) {
+            bool allColVars = true;
+            for (const auto &el : rhs.children[0]->children)
+                if (!el || el->type != NodeType::IDENTIFIER || !isArrayVar(el->strValue)
+                    || arrays_.at(el->strValue).is2D || arrays_.at(el->strValue).isND
+                    || arrays_.at(el->strValue).dtype != ValueType::DOUBLE) {
+                    allColVars = false;
+                    break;
+                }
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (allColVars && rv.type.isConcrete()) {
+                const ArrayInfo  &M  = arrays_.at(name);
+                const ArrayInfo  &c0 = arrays_.at(rhs.children[0]->children[0]->strValue);
+                const std::string k  = std::to_string(rhs.children[0]->children.size());
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_n = " + c0.lenVar + ";");  // matrix rows
+                line(M.ndDims[0] + " = _nk_n;");
+                line(M.ndDims[1] + " = " + k + ";");
+                line(name + ".assign(_nk_n * " + k + ", 0.0);");
+                for (std::size_t j = 0; j < rhs.children[0]->children.size(); ++j) {
+                    const ArrayInfo &cj = arrays_.at(rhs.children[0]->children[j]->strValue);
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+                    line(name + "[_nk_i + " + std::to_string(j) + " * _nk_n] = "
+                         + cj.dataExpr + "[_nk_i];");
+                    close();
+                }
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
         // 1-D vertcat of scalars: `v = [a; b; c]` (multi-row MATRIX_LITERAL, each row a
         // single scalar) -> a 1-D column LOCAL, pushing each row's scalar in order. The
         // column counterpart of the 1-D horzcat above. v1: scalar elements (a multi-
