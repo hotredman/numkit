@@ -1981,6 +1981,40 @@ TEST(CodegenE2E, ColonRangeMaterialise)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 50.0 + 500.0 + 2000.0 + 80000.0 + 500000.0);  // 582551
 }
 
+// `end` inside a 1-D scalar index: x(end), x(end-1). Previously END_VAL was
+// unhandled in codegen -> refused; now it resolves to the indexed array's length.
+TEST(CodegenE2E, EndInIndex)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  a = x(end);\n"       // last element
+        "  b = x(end - 1);\n"   // second-to-last
+        "  r = a*100 + b;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_end_e2e.exe").string();
+    const std::string outTxt = (base / "nk_end_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {10.0, 20.0, 30.0, 40.0};\n"
+        "  double r = f(x, 4);\n"   // x(end)=40, x(end-1)=30 -> 40*100 + 30 = 4030
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4030.0);
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).

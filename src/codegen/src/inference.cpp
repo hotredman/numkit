@@ -137,6 +137,12 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         return {InferredType::concrete(ValueType::DOUBLE, Shape::rowVector()),
                 ConstVal::unknown()};
 
+    case NodeType::END_VAL:
+        // `end` inside an index is a scalar double (the indexed extent). Its VALUE
+        // is supplied by the emitter's end-context; here we only fix the TYPE so the
+        // index planner classifies e.g. x(end), x(end-1) as a scalar (LinearScalar).
+        return {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()};
+
     case NodeType::BINARY_OP: {
         if (expr.children.size() != 2) return AbstractValue::dynamic();
         const std::string fn = opFuncName(expr.strValue, /*unary=*/false);
