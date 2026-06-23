@@ -2339,6 +2339,49 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native flip/fliplr/flipud(x) on a 1-D vector -> a fresh same-length 1-D
+        // LOCAL. flip reverses a vector; fliplr reverses along columns (a ROW is
+        // reversed, a column is unchanged); flipud reverses along rows (a COLUMN is
+        // reversed, a row is unchanged). Whether a reversal happens is decided from
+        // the operand's orientation; fliplr/flipud on an ERASED-orientation 1-D
+        // buffer can't be decided -> fall through (refuse). dtype-general (a plain
+        // element copy). v1: a single 1-D array VAR; the result a 1-D array LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "flip" || rhs.children[0]->strValue == "fliplr"
+                || rhs.children[0]->strValue == "flipud")
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND) {
+            const ArrayInfo    &xa  = arrays_.at(rhs.children[1]->strValue);
+            const std::string  &fn  = rhs.children[0]->strValue;
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            bool                reverse   = true;
+            bool                decidable = true;
+            if (fn == "flip")
+                reverse = true;  // a vector flip reverses regardless of orientation
+            else if (xa.orient == VecOrient::Unknown)
+                decidable = false;  // fliplr/flipud need a known orientation
+            else if (fn == "fliplr")
+                reverse = xa.orient == VecOrient::Row;
+            else  // flipud
+                reverse = xa.orient == VecOrient::Col;
+            if (decidable && res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line(name + ".assign(" + xa.lenVar + ", " + zeroLiteral(xa.dtype) + ");");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + xa.lenVar + "; ++_nk_i)");
+                line(name + "[_nk_i] = " + xa.dataExpr + "["
+                     + (reverse ? (xa.lenVar + " - 1 - _nk_i") : std::string("_nk_i")) + "];");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native upper(s)/lower(s) -> a char-array ASCII case transform (A-Z <-> a-z),
         // a runtime-sized 1-D char LOCAL. Self-contained. v1: a single 1-D CHAR
         // array var; a non-char arg is not handled here (-> bridged/refused).
