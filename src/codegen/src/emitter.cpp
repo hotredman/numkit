@@ -1695,6 +1695,53 @@ void Emitter::emitAssign(const ASTNode &s)
             line("}");
             return;
         }
+        // 1-D SLICE read: y = x(a:b) / y = x(a:s:b) -> a sub-array copied into the
+        // owned 1-D local y. The colon ranges over x's 1-based positions; `end`
+        // inside it = x's length (pushed here, so x(2:end) works). count = the colon
+        // count; y[k] = x[(start-1) + k*step] (0-based, forward or reverse step).
+        // Bounds-checked against x's length (MATLAB errors on an out-of-range slice).
+        // v1: x a 1-D DOUBLE array VAR, y an owned 1-D LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[0]->strValue)
+            && rhs.children[1]->type == NodeType::COLON_EXPR
+            && !arrays_.at(rhs.children[0]->strValue).is2D
+            && !arrays_.at(rhs.children[0]->strValue).isND
+            && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
+            && (rhs.children[1]->children.size() == 2 || rhs.children[1]->children.size() == 3)) {
+            const ArrayInfo  &xa    = arrays_.at(rhs.children[0]->strValue);
+            const ASTNode    &colon = *rhs.children[1];
+            const bool        three = colon.children.size() == 3;
+            endStack_.push_back(xa.lenVar);  // `end` inside the slice = x's length
+            const std::string start = emitExpr(*colon.children[0]);
+            const std::string step  = three ? emitExpr(*colon.children[1]) : std::string("1.0");
+            const std::string stop  = emitExpr(*colon.children[three ? 2 : 1]);
+            endStack_.pop_back();
+            line("{");
+            ++indent_;
+            line("const double _nk_start = " + start + ";");
+            line("const double _nk_step = " + step + ";");
+            line("const double _nk_stop = " + stop + ";");
+            line("const double _nk_nr = (_nk_stop - _nk_start) / _nk_step;");
+            line("const std::ptrdiff_t _nk_cnt = (_nk_step == 0.0 || _nk_nr < 0.0)");
+            line("    ? 0 : static_cast<std::ptrdiff_t>(_nk_nr + 1e-10) + 1;");
+            line("const std::ptrdiff_t _nk_s0 = static_cast<std::ptrdiff_t>(_nk_start) - 1;");
+            line("const std::ptrdiff_t _nk_st = static_cast<std::ptrdiff_t>(_nk_step);");
+            open("if (_nk_cnt > 0)");
+            line("const std::ptrdiff_t _nk_last = _nk_s0 + (_nk_cnt - 1) * _nk_st;");
+            line("const std::ptrdiff_t _nk_len = static_cast<std::ptrdiff_t>(" + xa.lenVar + ");");
+            line("if (_nk_s0 < 0 || _nk_s0 >= _nk_len || _nk_last < 0 || _nk_last >= _nk_len)");
+            line("    throw std::out_of_range(\"numkit: index out of bounds\");");
+            close();
+            line(name + ".assign(static_cast<std::size_t>(_nk_cnt), 0.0);");
+            open("for (std::ptrdiff_t _nk_k = 0; _nk_k < _nk_cnt; ++_nk_k)");
+            line(name + "[static_cast<std::size_t>(_nk_k)] = " + xa.dataExpr
+                 + "[static_cast<std::size_t>(_nk_s0 + _nk_k * _nk_st)];");
+            close();
+            --indent_;
+            line("}");
+            return;
+        }
         // `s = size(A)` (no dim): fill a 1 x rank row with A's per-axis sizes.
         // rank is compile-time (2 for a scalar/vector/matrix; the array's rank
         // for N-D). Native + self-contained — the first array-RESULT-from-a-
