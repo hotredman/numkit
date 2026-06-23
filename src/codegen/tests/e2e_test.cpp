@@ -2955,6 +2955,42 @@ TEST(CodegenE2E, RepmatRowVectorTo2D)
     EXPECT_DOUBLE_EQ(got[0], 10.0 + 300.0 + 1000.0 + 30000.0 + 1200000.0);  // 1231310
 }
 
+// vertcat-of-rows: `M = [a; b]` with a,b row vectors -> a k x n 2-D matrix (runtime-dim
+// 2-D, stacking rows). [1 2 3; 4 5 6] -> a 2x3 matrix.
+TEST(CodegenE2E, VertcatRowsTo2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a, b)\n"
+        "  M = [a; b];\n"   // 2 x 3
+        "  r = M(1,1) + M(1,2)*10 + M(1,3)*100 + M(2,1)*1000 + M(2,2)*10000 "
+        "+ M(2,3)*100000 + numel(M)*1000000;\n"
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_vertcat2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_vertcat2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {1, 2, 3};\n"
+        "  double b[3] = {4, 5, 6};\n"
+        "  double r = f(a, 3, b, 3);\n"  // [1 2 3; 4 5 6]: 1+20+300+4000+50000+600000+6e6
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 6654321.0);
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)
