@@ -2666,6 +2666,42 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native polyval(p, x) with x a vector -> the polynomial p (coeffs highest
+        // degree first) evaluated at each x[i] by Horner, a same-length-as-x 1-D
+        // LOCAL: out[i] = ((p[0]*x[i] + p[1])*x[i] + ...) + p[np-1]. Exact (a fused
+        // multiply-add chain) -> every tier. v1: p and x both 1-D DOUBLE array vars.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "polyval"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && !arrays_.at(rhs.children[2]->strValue).is2D
+            && !arrays_.at(rhs.children[2]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &p   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &x   = arrays_.at(rhs.children[2]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line(name + ".assign(" + x.lenVar + ", 0.0);");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + x.lenVar + "; ++_nk_i)");
+                line("double _nk_acc = 0.0;");
+                open("for (std::size_t _nk_k = 0; _nk_k < " + p.lenVar + "; ++_nk_k)");
+                line("_nk_acc = _nk_acc * " + x.dataExpr + "[_nk_i] + " + p.dataExpr + "[_nk_k];");
+                close();
+                line(name + "[_nk_i] = _nk_acc;");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native upper(s)/lower(s) -> a char-array ASCII case transform (A-Z <-> a-z),
         // a runtime-sized 1-D char LOCAL. Self-contained. v1: a single 1-D CHAR
         // array var; a non-char arg is not handled here (-> bridged/refused).

@@ -2487,6 +2487,43 @@ TEST(CodegenE2E, Trapz)
     EXPECT_DOUBLE_EQ(got[0], 12.0);
 }
 
+// Native polyval(p, x) (Horner, x a vector). p = [1 0 -1] (x^2 - 1) at x = [0 1 2 3]
+// -> [-1 0 3 8].
+TEST(CodegenE2E, Polyval)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(p, x)\n"
+        "  y = polyval(p, x);\n"   // x^2 - 1 -> [-1 0 3 8]
+        "  r = y(1) + y(2)*10 + y(3)*100 + y(4)*1000;\n"
+        "end\n",
+        {{"p", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_acc * "), std::string::npos)
+        << "polyval must lower to a native Horner loop, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_polyval_e2e.exe").string();
+    const std::string outTxt = (base / "nk_polyval_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double p[3] = {1.0, 0.0, -1.0};\n"   // x^2 - 1
+        "  double x[4] = {0.0, 1.0, 2.0, 3.0};\n"
+        "  double r = f(p, 3, x, 4);\n"  // [-1 0 3 8]: -1 + 0 + 300 + 8000 = 8299
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], -1.0 + 0.0 + 300.0 + 8000.0);  // 8299
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
