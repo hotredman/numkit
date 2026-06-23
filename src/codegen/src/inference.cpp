@@ -215,6 +215,25 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         return AbstractValue::dynamic();
     }
 
+    case NodeType::MATRIX_LITERAL: {
+        // v1: a single-row horzcat [a b ...] of 1-D ARRAY operands of one dtype ->
+        // a 1-D array of that dtype (runtime length). Anything else (multi-row,
+        // scalar element, mixed dtype, empty) -> Dynamic.
+        if (expr.children.size() != 1 || !expr.children[0]
+            || expr.children[0]->children.empty())
+            return AbstractValue::dynamic();
+        ValueType dt = ValueType::EMPTY;
+        for (const auto &el : expr.children[0]->children) {
+            if (!el) return AbstractValue::dynamic();
+            const AbstractValue ev = inferExpr(*el, env, reg, classes);
+            if (!ev.type.isConcrete() || ev.type.shape.isScalar())
+                return AbstractValue::dynamic();
+            if (dt == ValueType::EMPTY) dt = ev.type.dtype;
+            else if (dt != ev.type.dtype) return AbstractValue::dynamic();
+        }
+        return {InferredType::concrete(dt, Shape::unknown()), ConstVal::unknown()};
+    }
+
     default:
         return AbstractValue::dynamic();
     }
