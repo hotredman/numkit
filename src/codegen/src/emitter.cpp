@@ -1452,13 +1452,22 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
-    // Rank-N (N>=3) write A(i,j,k,...) = v -> column-major nk_rt::indexN_set.
+    // Rank-N (N>=3) AND runtime-dim 2-D write A(i,j,k,...) = v -> column-major
+    // nk_rt::indexN_set. The companions in ai.ndDims give the per-axis sizes, so a
+    // SCALAR-subscript element store works for any rank, including a runtime-dim 2-D
+    // matrix (the canonical `A = zeros(m,n); A(i,j) = v` fill). A colon subscript (a
+    // slice write A(i,:) = row) is refused here -- scalar subscripts only (v1) -- so it
+    // is a clean boundary rather than a mis-emit of emitExpr on a bare colon.
     if (ai.isND) {
         if (!ai.isLocal && !ai.isOutput)
             unsupported("N-D write to a read-only matrix parameter '" + base + "'");
         if (lhsCall.children.size() - 1 != ai.ndDims.size())
             unsupported("N-D index arity for '" + base + "' (expected "
                         + std::to_string(ai.ndDims.size()) + " subscripts)");
+        for (std::size_t i = 1; i < lhsCall.children.size(); ++i)
+            if (lhsCall.children[i]->type == NodeType::COLON_EXPR)
+                unsupported("N-D slice write (a colon subscript) for '" + base
+                            + "' -- scalar subscripts only (v1)");
         std::string dims, subs;
         for (std::size_t k = 0; k < ai.ndDims.size(); ++k) dims += (k ? ", " : "") + ai.ndDims[k];
         for (std::size_t i = 1; i < lhsCall.children.size(); ++i)
