@@ -92,6 +92,13 @@ InferredType transposeTransfer(const std::vector<ArgInfo> &args)
     case ShapeKind::KnownDims:
         return InferredType::concrete(t.dtype, Shape::dims(t.shape.cols, t.shape.rows));
     case ShapeKind::NDims:
+        // A rank-2 matrix (incl. a runtime-dim 2-D) -> swap the two dims. ndShape keeps
+        // it NDims when a dim is runtime, or canonicalises to KnownDims if both are now
+        // known. A true N-D (rank>=3) transpose is undefined in MATLAB -> Dynamic.
+        if (t.shape.nd.size() == 2)
+            return InferredType::concrete(t.dtype,
+                                          Shape::ndShape({t.shape.nd[1], t.shape.nd[0]}));
+        return InferredType::dynamic();
     case ShapeKind::Unknown: return InferredType::dynamic();
     }
     return InferredType::dynamic();

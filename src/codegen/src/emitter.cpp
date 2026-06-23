@@ -2304,12 +2304,34 @@ void Emitter::emitAssign(const ASTNode &s)
             && isArrayVar(rhs.children[0]->strValue)) {
             const ArrayInfo &dst = arrays_.at(name);
             const ArrayInfo &src = arrays_.at(rhs.children[0]->strValue);
-            if (dst.isND || src.isND)
+            // A runtime-dim 2-D matrix is an NDims rank-2 (ndRuntimeLocal); its dims live
+            // in ndDims, not rowsVar/colsVar. Allow the rank-2 N-D case through; only a
+            // true N-D (rank>=3) transpose is undefined in MATLAB -> refused.
+            const bool srcRank2ND = src.isND && src.ndDims.size() == 2;
+            const bool dstRank2ND = dst.isND && dst.ndDims.size() == 2;
+            if ((src.isND && !srcRank2ND) || (dst.isND && !dstRank2ND))
                 unsupported("N-D transpose (undefined in MATLAB)");
             if (name == rhs.children[0]->strValue)
                 unsupported("in-place transpose (y = y')");
             const bool conj = rhs.strValue == "'" && src.dtype == ValueType::COMPLEX;
-            if (src.is2D || dst.is2D) {
+            if (srcRank2ND || dstRank2ND) {
+                // Runtime-dim 2-D transpose: y is n x m (= src cols x src rows), and
+                // y(p,q) = A(q,p) -> y[p + q*yrows] = op(A[q + p*Arows]). Dims and the
+                // buffer come from the ndDims companions; yrows = src cols = src.ndDims[1].
+                if (!srcRank2ND || !dstRank2ND)
+                    unsupported("transpose dest/source rank mismatch");
+                line(dst.ndDims[0] + " = " + src.ndDims[1] + ";");  // dst rows = src cols
+                line(dst.ndDims[1] + " = " + src.ndDims[0] + ";");  // dst cols = src rows
+                line(name + ".assign(" + dst.ndDims[0] + " * " + dst.ndDims[1] + ", "
+                     + zeroLiteral(dst.dtype) + ");");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + dst.ndDims[1] + "; ++_nk_j)");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + dst.ndDims[0] + "; ++_nk_i)");
+                const std::string rd = src.dataExpr + "[_nk_j + _nk_i * " + src.ndDims[0] + "]";
+                line(name + "[_nk_i + _nk_j * " + dst.ndDims[0] + "] = "
+                     + (conj ? ("std::conj(" + rd + ")") : rd) + ";");
+                close();
+                close();
+            } else if (src.is2D || dst.is2D) {
                 // 2-D matrix transpose, column-major: y is n x m, A is m x n,
                 // and y(p,q) = A(q,p) -> y[p + q*yrows] = op(A[q + p*Arows]).
                 if (!src.is2D || !dst.is2D)
