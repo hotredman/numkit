@@ -2691,6 +2691,41 @@ TEST(CodegenE2E, Reshape)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 20.0 + 300.0 + 6000.0 + 60000.0);  // 66321
 }
 
+// Nested struct fields s.a.b (the config-struct pattern): field-flattening via the
+// chain helper, generalised from single-level. s.a.b=2; s.a.c=3 -> 2*10 + 3 = 23.
+TEST(CodegenE2E, NestedStruct)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f()\n"
+        "  s.a.b = 2;\n"
+        "  s.a.c = 3;\n"
+        "  r = s.a.b * 10 + s.a.c;\n"
+        "end\n",
+        {});
+    EXPECT_NE(emitted.source.find("_nk_fld_s_a_b"), std::string::npos)
+        << "a nested field must flatten to a chained field-local";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_nstruct_e2e.exe").string();
+    const std::string outTxt = (base / "nk_nstruct_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f();\n"  // 2*10 + 3 = 23
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 23.0);
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
