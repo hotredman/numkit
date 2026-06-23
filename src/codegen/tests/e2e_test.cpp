@@ -3256,6 +3256,42 @@ TEST(CodegenE2E, IndexedWriteFillRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], 11.0 + 230.0 + 2100.0 + 6000.0);  // 8341
 }
 
+// 2-D column slice WRITE into a runtime-dim 2-D: A = zeros(3,2); A(:,2) = col -> overwrite
+// column 2 (contiguous, column-major). Builds a runtime matrix column-by-column.
+TEST(CodegenE2E, ColumnSliceWriteRuntimeDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(m, n, col)\n"
+        "  A = zeros(m, n);\n"   // 3x2 zeros
+        "  A(:, 2) = col;\n"     // overwrite column 2 with col = [7;8;9]
+        "  r = A(1,1) + A(1,2)*10 + A(2,2)*100 + A(m,2)*1000 + numel(A)*10000;\n"
+        "end\n",
+        {{"m", InferredType::scalar(ValueType::DOUBLE)},
+         {"n", InferredType::scalar(ValueType::DOUBLE)},
+         {"col", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_colwrite2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_colwrite2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double col[3] = {7, 8, 9};\n"
+        "  double r = f(3, 2, col, 3);\n"  // A(:,1)=0, A(:,2)=[7;8;9], numel=6: 0+70+800+9000+60000
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 0.0 + 70.0 + 800.0 + 9000.0 + 60000.0);  // 69870
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)

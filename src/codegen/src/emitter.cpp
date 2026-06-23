@@ -1452,6 +1452,47 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // 2-D COLUMN slice write: A(:, j) = col -> overwrite column j (1-based) of a 2-D
+    // matrix with the 1-D vector col (length = rows). Works for a KnownDims 2-D OR a
+    // runtime-dim 2-D (dims via the rank-agnostic dimExpr). Column-major: column j is
+    // the CONTIGUOUS block A[(j-1)*rows .. +rows), so it is a straight copy. Bounds-
+    // checked j, length-checked col; A must be writable (local/output). Placed before
+    // the N-D write branch so it intercepts a runtime-dim 2-D target (whose other
+    // colon writes that branch refuses). v1: A 2-D DOUBLE, col a distinct 1-D DOUBLE
+    // array var, j scalar. (A(i,:)=row strided write is a follow-up.)
+    if (lhsCall.children.size() == 3
+        && (ai.is2D || (ai.isND && ai.ndDims.size() == 2)) && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children[1]->type == NodeType::COLON_EXPR
+        && lhsCall.children[1]->children.empty()
+        && lhsCall.children[2]->type != NodeType::COLON_EXPR
+        && rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue)
+        && rhs.strValue != base && !arrays_.at(rhs.strValue).is2D
+        && !arrays_.at(rhs.strValue).isND
+        && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE
+        && inferExpr(*lhsCall.children[2], types_, reg_, classes_).type.shape.isScalar()) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("column-slice write to a read-only matrix parameter '" + base + "'");
+        const std::string Arows = dimExpr(ai, 0), Acols = dimExpr(ai, 1);
+        const ArrayInfo  &col   = arrays_.at(rhs.strValue);
+        endStack_.push_back(Acols);  // `end` in the column index = cols
+        const std::string j = emitExpr(*lhsCall.children[2]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line("const std::ptrdiff_t _nk_j = static_cast<std::ptrdiff_t>(" + j + ");");
+        line("if (_nk_j < 1 || _nk_j > static_cast<std::ptrdiff_t>(" + Acols + "))");
+        line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
+        line("if (" + col.lenVar + " != " + Arows + ")");
+        line("    throw std::out_of_range(\"numkit: column assignment length mismatch\");");
+        line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j - 1) * " + Arows + ";");
+        open("for (std::size_t _nk_i = 0; _nk_i < " + Arows + "; ++_nk_i)");
+        line(ptr + "[_nk_off + _nk_i] = " + col.dataExpr + "[_nk_i];");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
     // Rank-N (N>=3) AND runtime-dim 2-D write A(i,j,k,...) = v -> column-major
     // nk_rt::indexN_set. The companions in ai.ndDims give the per-axis sizes, so a
     // SCALAR-subscript element store works for any rank, including a runtime-dim 2-D
