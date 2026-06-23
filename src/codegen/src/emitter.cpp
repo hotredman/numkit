@@ -1119,6 +1119,34 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
         }
     }
 
+    // dtype-classification predicates -> a LOGICAL scalar. A codegen value's dtype
+    // is STATIC, so each is a compile-time constant from the operand's dtype:
+    //   isnumeric : float (double/single) | integer (int*/uint*) | complex
+    //   isfloat   : double | single | complex   (MATLAB: complex doubles are float)
+    //   isinteger : int* | uint*
+    //   ischar    : char        islogical : logical
+    // A Dynamic arg falls through to the boundary (refuse, never miscompile).
+    if ((name == "isnumeric" || name == "isfloat" || name == "isinteger"
+         || name == "ischar" || name == "islogical")
+        && nargs == 1) {
+        const InferredType at = inferExpr(*call.children[1], types_, reg_, classes_).type;
+        if (at.isConcrete()) {
+            const ValueType dt = at.dtype;
+            bool             v;
+            if (name == "isnumeric")
+                v = isIntegerType(dt) || isFloatType(dt) || dt == ValueType::COMPLEX;
+            else if (name == "isfloat")
+                v = isFloatType(dt) || dt == ValueType::COMPLEX;
+            else if (name == "isinteger")
+                v = isIntegerType(dt);
+            else if (name == "ischar")
+                v = dt == ValueType::CHAR;
+            else  // islogical
+                v = dt == ValueType::LOGICAL;
+            return v ? "true" : "false";
+        }
+    }
+
     // size(A, dim) with a compile-time literal dim: the dim's size (2-D
     // rows/cols, N-D the dim, out-of-range -> 1). A 1-D buffer's row/col
     // orientation is erased by the RawBuffer ABI but recorded from the

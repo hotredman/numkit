@@ -211,6 +211,9 @@ void registerShapeTransfers(TransferRegistry &reg)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})
         reg.add(n, logicalQueryTransfer);
+    // dtype-classification predicates (compile-time constants from the static dtype).
+    for (const char *n : {"isnumeric", "isfloat", "isinteger", "ischar", "islogical"})
+        reg.add(n, logicalQueryTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);
