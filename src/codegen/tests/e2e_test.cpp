@@ -1274,6 +1274,42 @@ TEST(CodegenE2E, NativeCumsumCumprod)
     EXPECT_DOUBLE_EQ(got[0], 34.0);  // cumsum[4]=10 + cumprod[4]=24
 }
 
+// Native dot(a,b) -> inner product (P3, self-contained / no bridge): an
+// accumulation loop with a length-match guard.
+TEST(CodegenE2E, NativeDotProduct)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(  // transpile() emits with NO bridge
+        "function s = f(a, b)\n"
+        "  s = dot(a, b);\n"   // 1*4 + 2*5 + 3*6 = 32
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_acc += "), std::string::npos)
+        << "dot must lower to an accumulation loop";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_dot_e2e.exe").string();
+    const std::string outTxt = (base / "nk_dot_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {1.0, 2.0, 3.0};\n"
+        "  double b[3] = {4.0, 5.0, 6.0};\n"  // dot = 4+10+18 = 32
+        "  double s = f(a, 3, b, 3);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 32.0);  // 1*4 + 2*5 + 3*6
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled

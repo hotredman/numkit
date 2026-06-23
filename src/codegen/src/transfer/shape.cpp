@@ -139,6 +139,24 @@ InferredType diffTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// dot(a,b) -> scalar inner product (sum of a.*b for real). v1: two 1-D real
+// DOUBLE vectors -> a DOUBLE scalar; the emitter lowers it to an accumulation
+// loop. Anything else (complex needs conj, matrix, wrong arity) -> Dynamic.
+InferredType dotTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete())
+        return InferredType::dynamic();
+    if (args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
+        return InferredType::dynamic();
+    auto isVec = [](ShapeKind k) {
+        return k == ShapeKind::RowVector || k == ShapeKind::ColVector
+               || k == ShapeKind::Unknown || k == ShapeKind::Scalar;
+    };
+    if (isVec(args[0].type.shape.kind) && isVec(args[1].type.shape.kind))
+        return InferredType::scalar(ValueType::DOUBLE);
+    return InferredType::dynamic();
+}
+
 // cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
 // array shape out). Single-arg form only. Bridged via the array-result path
 // (the runtime owns the algorithm); the value matches the interpreter exactly.
@@ -166,6 +184,7 @@ void registerShapeTransfers(TransferRegistry &reg)
         reg.add(n, anyAllTransfer);
     reg.add("find", findTransfer);  // vector -> 1-D DOUBLE positions (native filter loop)
     reg.add("diff", diffTransfer);  // vector -> 1-D differences, length n-1 (native loop)
+    reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);
