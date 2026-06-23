@@ -2198,6 +2198,37 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native median(x) -> the middle of a sorted copy (no-bridge tier, !bridge_).
+        // Sort a temp copy with the NaN-last comparator (a valid strict-weak-ordering).
+        // MATLAB's default median propagates NaN (any NaN -> NaN): a NaN sorts last,
+        // so a NaN present <=> the last post-sort element is NaN. empty -> NaN; n odd
+        // -> tmp[n/2]; n even -> (tmp[n/2-1]+tmp[n/2])/2. v1: a 1-D DOUBLE array var.
+        if (!isArrayVar(name) && !bridge_ && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "median"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!a.is2D && !a.isND && res.type.isConcrete() && res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("std::vector<double> _nk_t(" + a.dataExpr + ", " + a.dataExpr + " + "
+                     + a.lenVar + ");");
+                line("const std::size_t _nk_n = _nk_t.size();");
+                line("std::sort(_nk_t.begin(), _nk_t.end(),");
+                line("    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
+                line("if (_nk_n == 0 || _nk_t[_nk_n - 1] != _nk_t[_nk_n - 1])");
+                line("    " + name + " = std::numeric_limits<double>::quiet_NaN();");
+                line("else if (_nk_n % 2 == 1) " + name + " = _nk_t[_nk_n / 2];");
+                line("else " + name + " = (_nk_t[_nk_n / 2 - 1] + _nk_t[_nk_n / 2]) / 2.0;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native dot(a,b) -> sum of a[i]*b[i] (real inner product), but ONLY with
         // no bridge (order-dependent like sum -> the bridged path stays exact when
         // the bridge is on). A length-match guard then an accumulation loop. v1:

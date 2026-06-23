@@ -2202,6 +2202,44 @@ TEST(CodegenE2E, StatsReductions)
     EXPECT_DOUBLE_EQ(got[0], 5.0 + 40.0 + 200.0);  // 245
 }
 
+// Native median(x) (no-bridge tier): sort a copy + middle. median([3 1 2])=2 (odd),
+// median([4 1 3 2])=2.5 (even, mean of the two middles).
+TEST(CodegenE2E, Median)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x, y)\n"
+        "  a = median(x);\n"   // [3 1 2] -> 2
+        "  b = median(y);\n"   // [4 1 3 2] -> 2.5
+        "  r = a*100 + b*10;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"y", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_t"), std::string::npos)
+        << "median must lower to a native sort+middle, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_median_e2e.exe").string();
+    const std::string outTxt = (base / "nk_median_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[3] = {3.0, 1.0, 2.0};\n"
+        "  double y[4] = {4.0, 1.0, 3.0, 2.0};\n"
+        "  double r = f(x, 3, y, 4);\n"  // 2*100 + 2.5*10 = 225
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 225.0);  // 200 + 25
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
