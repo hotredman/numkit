@@ -2240,6 +2240,42 @@ TEST(CodegenE2E, Median)
     EXPECT_DOUBLE_EQ(got[0], 225.0);  // 200 + 25
 }
 
+// sort(x,'descend') alongside ascending sort(x). x = [30 10 40 20]:
+// descend -> [40 30 20 10], ascend -> [10 20 30 40].
+TEST(CodegenE2E, SortDescend)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  a = sort(x, 'descend');\n"   // [40 30 20 10]
+        "  b = sort(x);\n"              // [10 20 30 40]
+        "  r = a(1) + b(1)*10 + a(4)*100 + b(4)*1000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_a > _b"), std::string::npos)
+        << "sort(x,'descend') must emit the reversed comparator";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_sortd_e2e.exe").string();
+    const std::string outTxt = (base / "nk_sortd_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {30.0, 10.0, 40.0, 20.0};\n"
+        "  double r = f(x, 4);\n"  // 40 + 10*10 + 10*100 + 40*1000 = 41140
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 40.0 + 100.0 + 1000.0 + 40000.0);  // 41140
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
