@@ -96,6 +96,26 @@ InferredType mtimesTransfer(const std::vector<ArgInfo> &args)
     if (b.shape.isScalar()) return InferredType::concrete(dt, a.shape);
     if (a.shape.kind == ShapeKind::KnownDims && b.shape.kind == ShapeKind::KnownDims)
         return InferredType::concrete(dt, Shape::dims(a.shape.rows, b.shape.cols));
+    // matrix * matrix where at least one operand carries a RUNTIME dim (an NDims rank-2,
+    // e.g. a runtime-dim 2-D matrix) -> a runtime-dim m x n result. m = rows(a), n =
+    // cols(b); a 0 marks a runtime dim. ndShape keeps it NDims while a dim is runtime
+    // (the both-KnownDims case returned just above). matrix*vector / col*row outer
+    // product fall to their own cases below.
+    {
+        auto rank2 = [](const Shape &s) {
+            return s.kind == ShapeKind::KnownDims
+                   || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
+        };
+        auto rowsOf = [](const Shape &s) {
+            return s.kind == ShapeKind::KnownDims ? s.rows : s.nd[0];
+        };
+        auto colsOf = [](const Shape &s) {
+            return s.kind == ShapeKind::KnownDims ? s.cols : s.nd[1];
+        };
+        if (rank2(a.shape) && rank2(b.shape))
+            return InferredType::concrete(
+                dt, Shape::ndShape({rowsOf(a.shape), colsOf(b.shape)}));
+    }
     // matrix * column vector -> column vector (A is m x k, x is k x 1 -> m x 1)
     if (a.shape.kind == ShapeKind::KnownDims && b.shape.kind == ShapeKind::ColVector)
         return InferredType::concrete(dt, Shape::colVector());
