@@ -3026,6 +3026,42 @@ TEST(CodegenE2E, HorzcatColumnsTo2D)
     EXPECT_DOUBLE_EQ(got[0], 66431.0);
 }
 
+// transpose of a runtime-dim 2-D matrix: M = [a; b] (2x3), T = M' (3x2). Chains
+// vertcat-of-rows with transpose -> validates the runtime-dim 2-D transpose end to end.
+TEST(CodegenE2E, TransposeRuntimeDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a, b)\n"
+        "  M = [a; b];\n"   // 2 x 3: [1 2 3; 4 5 6]
+        "  T = M';\n"       // 3 x 2: [1 4; 2 5; 3 6]
+        "  r = T(1,1) + T(1,2)*10 + T(3,1)*100 + T(3,2)*1000 + numel(T)*10000;\n"
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_transpose2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_transpose2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {1, 2, 3};\n"
+        "  double b[3] = {4, 5, 6};\n"
+        "  double r = f(a, 3, b, 3);\n"  // T=[1 4;2 5;3 6]: 1 + 40 + 300 + 6000 + 60000 = 66341
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 66341.0);
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)
