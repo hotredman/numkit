@@ -156,12 +156,17 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
 
     case NodeType::FIELD_ACCESS: {
         // obj.field : strValue = field name, children[0] = object expr.
-        // Typed only when a class registry is supplied and the base is a
-        // known object; otherwise Dynamic (sound — non-class code, or a
-        // struct/handle we cannot class).
-        if (!classes || expr.children.empty()) return AbstractValue::dynamic();
+        if (expr.children.empty()) return AbstractValue::dynamic();
         const AbstractValue base = inferExpr(*expr.children[0], env, reg, classes);
-        if (!base.type.isObject()) return AbstractValue::dynamic();
+        // Plain struct: a synthesized scalar field-local from a prior `s.f = ...`
+        // (field-flattening; no struct type). Handled before the classdef path.
+        if (!base.type.isObject() && expr.children[0]->type == NodeType::IDENTIFIER) {
+            const std::string fld = "_nk_fld_" + expr.children[0]->strValue + "_" + expr.strValue;
+            return env.has(fld) ? env.get(fld) : AbstractValue::dynamic();
+        }
+        // Object field (classdef): typed only with a class registry + known field;
+        // otherwise Dynamic (sound — non-class code, or a handle we cannot class).
+        if (!classes || !base.type.isObject()) return AbstractValue::dynamic();
         const ClassInfo *ci = classes->byId(base.type.classId);
         if (!ci) return AbstractValue::dynamic();
         const ClassField *f = ci->field(expr.strValue);
@@ -310,6 +315,13 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 // Writing a field (`obj.f = rhs`) leaves the object's class
                 // unchanged — do NOT clobber the base to Dynamic.
                 recordDecl(declOut, base, cur.type);
+            } else if (lhs.type == NodeType::FIELD_ACCESS) {
+                // Plain struct: flatten `s.f = rhs` to a synthesized scalar
+                // field-local (no struct type; field-flattening). The base var is
+                // not a value itself — only its fields are read/written.
+                const std::string fld = "_nk_fld_" + base + "_" + lhs.strValue;
+                env.set(fld, rhs);
+                recordDecl(declOut, fld, rhs.type);
             } else if (cur.type.isConcrete() && rhs.type.isConcrete()
                        && cur.type.dtype == rhs.type.dtype) {
                 // Indexed assign x(i)=rhs: base keeps its dtype. A 1-D x(i)=v
