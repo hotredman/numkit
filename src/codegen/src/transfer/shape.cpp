@@ -230,6 +230,17 @@ InferredType polyvalTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// diag(A): the diagonal of a 2-D matrix as a 1-D vector (length min(rows,cols),
+// runtime -> Unknown shape). v1: a 2-D matrix operand. diag(v) (a vector -> a
+// diagonal MATRIX) and diag(A,k) (the k-th diagonal) are deferred -> Dynamic.
+InferredType diagTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[0].type.shape.kind == ShapeKind::KnownDims)  // a 2-D matrix -> its diagonal
+        return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+    return InferredType::dynamic();  // vector (diag -> matrix) / scalar / N-D deferred
+}
+
 // unique(x) -> the sorted distinct values, a 1-D vector of runtime length (-> Unknown
 // shape) preserving the operand dtype. The emitter sorts a copy then dedups
 // consecutive-equal elements (NaN are KEPT -- MATLAB treats each NaN as distinct --
@@ -291,6 +302,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
     reg.add("circshift", circshiftTransfer);  // (x, k) -> same shape (native circular shift)
+    reg.add("diag", diagTransfer);  // diag(A) -> the diagonal of a matrix as a 1-D vector
     reg.add("unique", uniqueTransfer);  // x -> sorted distinct 1-D (native sort + dedup)
     reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
