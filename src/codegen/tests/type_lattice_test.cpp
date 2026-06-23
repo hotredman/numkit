@@ -24,7 +24,7 @@ TEST(TypeLattice, UnboxableScalarPredicate)
     EXPECT_FALSE(InferredType::dynamic().isUnboxableScalar());
     EXPECT_FALSE(InferredType::bottom().isUnboxableScalar());
     EXPECT_FALSE(InferredType::scalar(ValueType::CELL).isUnboxableScalar());
-    EXPECT_FALSE(InferredType::scalar(ValueType::CHAR).isUnboxableScalar());
+    EXPECT_TRUE(InferredType::scalar(ValueType::CHAR).isUnboxableScalar());  // 1x1 char = uint16
     // A concrete matrix is concrete but NOT an unboxable scalar.
     EXPECT_FALSE(
         InferredType::concrete(ValueType::DOUBLE, Shape::dims(3, 3)).isUnboxableScalar());
