@@ -2889,6 +2889,50 @@ TEST(CodegenE2E, TrilLower)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 0.0 + 4000.0);  // 4031
 }
 
+// 2-D INTEGRATION CAPSTONE: one kernel composing reshape + a column slice + a row
+// slice + diag + trace + eye + tril -- proving the 2-D/matrix surface composes
+// end-to-end (a cross-feature 2-D regression guard, meaningful at this breadth).
+TEST(CodegenE2E, Integration2DCapstone)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function out = f(x)\n"
+        "  M = reshape(x, 3, 3);\n"     // 3x3 col-major from [1..9]: [1 4 7; 2 5 8; 3 6 9]
+        "  c = M(:,2);\n"              // column 2 = [4; 5; 6]
+        "  rrow = M(2,:);\n"          // row 2 = [2 5 8]
+        "  d = diag(M);\n"            // [1 5 9]
+        "  t = trace(M);\n"          // 1+5+9 = 15
+        "  L = tril(M);\n"           // lower triangle; L(3,1) = M(3,1) = 3
+        "  I = eye(3);\n"            // identity; I(2,2) = 1
+        "  out = c(1) + rrow(3)*10 + d(3)*100 + t*1000 + L(3,1)*10000 + I(2,2)*100000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_off"), std::string::npos)
+        << "the 2-D capstone must exercise a native column slice";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cap2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cap2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[9] = {1,2,3,4,5,6,7,8,9};\n"  // reshape(.,3,3) col-major
+        "  double out = f(x, 9);\n"
+        // c(1)=4, rrow(3)=8, d(3)=9, t=15, L(3,1)=3, I(2,2)=1:
+        // 4 + 80 + 900 + 15000 + 30000 + 100000 = 145984
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", out);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4.0 + 80.0 + 900.0 + 15000.0 + 30000.0 + 100000.0);  // 145984
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
