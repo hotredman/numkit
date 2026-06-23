@@ -849,8 +849,18 @@ std::string Emitter::emitExpr(const ASTNode &e)
     case NodeType::CALL: {
         if (e.children.empty()) unsupported("empty call");
         const ASTNode &callee = *e.children[0];
-        if (callee.type == NodeType::FIELD_ACCESS && classes_)
-            return emitMethodCall(e);  // obj.method(args)
+        if (callee.type == NodeType::FIELD_ACCESS) {
+            // s.v(k): index a struct array FIELD (field-flattening) when the base is
+            // a non-object plain var -> index the field-local array. (An object
+            // method obj.m(args) routes to emitMethodCall below.)
+            if (!callee.children.empty() && callee.children[0]->type == NodeType::IDENTIFIER
+                && !inferExpr(*callee.children[0], types_, reg_, classes_).type.isObject()) {
+                const std::string fld =
+                    "_nk_fld_" + callee.children[0]->strValue + "_" + callee.strValue;
+                if (isArrayVar(fld)) return emitIndexRead(fld, e);
+            }
+            if (classes_) return emitMethodCall(e);  // obj.method(args)
+        }
         if (callee.type != NodeType::IDENTIFIER)
             unsupported("non-identifier callee");
         if (isArrayVar(callee.strValue))

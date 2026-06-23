@@ -197,6 +197,16 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                 return indexResult(env.get(name), argVals);
             return {reg.apply(name, argInfos), ConstVal::unknown()};
         }
+        // s.v(k): indexing a struct array FIELD (field-flattening). The callee is
+        // FIELD_ACCESS on a non-object base var -> index the field-local array.
+        // (An object method obj.m(args) falls through to the method path below.)
+        if (callee.type == NodeType::FIELD_ACCESS && !callee.children.empty()
+            && callee.children[0]->type == NodeType::IDENTIFIER
+            && !inferExpr(*callee.children[0], env, reg, classes).type.isObject()) {
+            const std::string fld =
+                "_nk_fld_" + callee.children[0]->strValue + "_" + callee.strValue;
+            return env.has(fld) ? indexResult(env.get(fld), argVals) : AbstractValue::dynamic();
+        }
         // Method call `obj.m(args)`: callee is FIELD_ACCESS. Resolve the
         // object's class, prepend the object as the implicit first argument,
         // and dispatch via the "Class::m" transfer (registerClassMethods).
