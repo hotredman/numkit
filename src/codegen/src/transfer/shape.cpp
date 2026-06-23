@@ -167,11 +167,13 @@ InferredType strcmpTransfer(const std::vector<ArgInfo> &args)
     return InferredType::scalar(ValueType::LOGICAL);
 }
 
-// isempty(x) -> a LOGICAL scalar: true iff x has zero elements. Defined for any
-// concrete shape (a scalar is never empty -> false; an array lowers to a
-// numel==0 compare). A non-concrete (Dynamic) arg -> Dynamic, the sound fallback.
-// Pure expression -> the emitter can place it in any context (incl. an `if`).
-InferredType isemptyTransfer(const std::vector<ArgInfo> &args)
+// Single-arg type/shape query predicates (isempty / isscalar / isreal): always a
+// LOGICAL scalar for a concrete arg. The emitter computes the boolean VALUE --
+// compile-time for dtype queries (isreal: the dtype is static), a numel compare
+// for shape queries (isempty: ==0, isscalar: ==1), a compile-time constant for a
+// scalar operand. A non-concrete (Dynamic) arg -> Dynamic, the sound fallback.
+// Pure expressions -> the emitter can place them in any context (incl. an `if`).
+InferredType logicalQueryTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
     return InferredType::scalar(ValueType::LOGICAL);
@@ -206,7 +208,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("diff", diffTransfer);  // vector -> 1-D differences, length n-1 (native loop)
     reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
-    reg.add("isempty", isemptyTransfer);  // x -> LOGICAL scalar (numel == 0; native compare)
+    for (const char *n : {"isempty", "isscalar", "isreal"})  // x -> LOGICAL scalar query (native)
+        reg.add(n, logicalQueryTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);

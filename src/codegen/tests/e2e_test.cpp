@@ -1759,6 +1759,55 @@ TEST(CodegenE2E, IsemptyGuard)
     EXPECT_DOUBLE_EQ(got[1], 103.0);
 }
 
+// isscalar / isreal as `if` conditions: isscalar(x) is a runtime numel==1 compare
+// (both branches via two calls); isreal is a COMPILE-TIME constant from the static
+// dtype (true for the real array x, false for the complex scalar z).
+TEST(CodegenE2E, IsscalarIsrealQueries)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(z, x)\n"
+        "  r = 0;\n"
+        "  if isscalar(x)\n"
+        "    r = r + 1;\n"      // x has one element
+        "  end\n"
+        "  if isreal(z)\n"
+        "    r = r + 100;\n"    // z is complex -> compile-time false -> never
+        "  end\n"
+        "  if isreal(x)\n"
+        "    r = r + 1000;\n"   // x is real -> compile-time true -> always
+        "  end\n"
+        "end\n",
+        {{"z", InferredType::scalar(ValueType::COMPLEX)},
+         {"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("== 1"), std::string::npos)
+        << "isscalar must lower to a numel==1 compare";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_isquery_e2e.exe").string();
+    const std::string outTxt = (base / "nk_isquery_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n#include <complex>\n"
+        "int main() {\n"
+        "  std::complex<double> z(1.0, 2.0);\n"
+        "  double x1[1] = {5.0};\n"
+        "  double x3[3] = {1.0, 2.0, 3.0};\n"
+        "  double r1 = f(z, x1, 1);\n"   // isscalar true (+1) + isreal(x) (+1000) = 1001
+        "  double r3 = f(z, x3, 3);\n"   // isscalar false + isreal(x) (+1000) = 1000
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n%.17g\\n\", r1, r3);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], 1001.0);
+    EXPECT_DOUBLE_EQ(got[1], 1000.0);
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).

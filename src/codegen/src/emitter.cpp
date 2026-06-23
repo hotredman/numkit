@@ -1053,26 +1053,40 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
                + " : " + ai.colsVar + ")";  // length = max(rows, cols)
     }
 
-    // isempty(x): true iff x has zero elements. An array var lowers to a numel==0
-    // compare (1-D length, 2-D rows*cols, N-D product of dims); a scalar always
-    // has exactly one element -> "false". A pure expression (no loop) -> usable in
-    // any context, incl. an `if` condition. A non-array / non-scalar arg falls
-    // through to the explicit boundary (refuse, never miscompile).
-    if (name == "isempty" && nargs == 1) {
+    // Type/shape query predicates -> a LOGICAL scalar. Pure expressions (no loop /
+    // no bridge) -> they compose in any context, incl. an `if` condition.
+    //   isempty(x)  : numel == 0   (a scalar is never empty   -> "false")
+    //   isscalar(x) : numel == 1   (a scalar has one element  -> "true")
+    // An array var lowers to a numel compare (1-D length, 2-D rows*cols, N-D
+    // product of dims); a scalar operand to a compile-time constant. A non-array /
+    // non-scalar (Dynamic) arg falls through to the boundary (refuse, never
+    // miscompile).
+    if ((name == "isempty" || name == "isscalar") && nargs == 1) {
         const ASTNode &arg = *call.children[1];
+        const char    *cmp = name == "isempty" ? ") == 0)" : ") == 1)";
         if (arg.type == NodeType::IDENTIFIER && isArrayVar(arg.strValue)) {
             const ArrayInfo &ai = arrays_.at(arg.strValue);
+            std::string      n  = ai.lenVar;
             if (ai.isND) {
-                std::string e = ai.ndDims[0];
-                for (std::size_t i = 1; i < ai.ndDims.size(); ++i) e += " * " + ai.ndDims[i];
-                return "((" + e + ") == 0)";
+                n = ai.ndDims[0];
+                for (std::size_t i = 1; i < ai.ndDims.size(); ++i) n += " * " + ai.ndDims[i];
+            } else if (ai.is2D) {
+                n = ai.rowsVar + " * " + ai.colsVar;
             }
-            if (ai.is2D)
-                return "((" + ai.rowsVar + " * " + ai.colsVar + ") == 0)";
-            return "(" + ai.lenVar + " == 0)";
+            return "((" + n + cmp;
         }
         if (inferExpr(arg, types_, reg_, classes_).type.shape.kind == ShapeKind::Scalar)
-            return "false";  // a scalar is never empty
+            return name == "isempty" ? "false" : "true";
+    }
+
+    // isreal(x): true iff x has no imaginary part. A codegen value's complexity is
+    // fixed by its STATIC dtype, so this is a compile-time constant -- a COMPLEX
+    // operand -> "false", any other concrete dtype -> "true". A Dynamic arg falls
+    // through to the boundary.
+    if (name == "isreal" && nargs == 1) {
+        const InferredType at = inferExpr(*call.children[1], types_, reg_, classes_).type;
+        if (at.isConcrete())
+            return at.dtype == ValueType::COMPLEX ? "false" : "true";
     }
 
     // size(A, dim) with a compile-time literal dim: the dim's size (2-D
