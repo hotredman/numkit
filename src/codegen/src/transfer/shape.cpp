@@ -213,6 +213,23 @@ InferredType sortTransfer(const std::vector<ArgInfo> &args)
     return args[0].type;
 }
 
+// polyval(p, x) -> the polynomial with coefficients p (highest degree first)
+// evaluated at each point of x, a DOUBLE result with the SAME shape as x. v1: x a
+// VECTOR (Horner per element); a scalar / matrix x is deferred -> Dynamic. (p is the
+// coefficient vector; the result tracks x's shape.)
+InferredType polyvalTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete())
+        return InferredType::dynamic();
+    switch (args[1].type.shape.kind) {
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+        return InferredType::concrete(ValueType::DOUBLE, args[1].type.shape);
+    default: return InferredType::dynamic();  // scalar / matrix x -> deferred
+    }
+}
+
 // unique(x) -> the sorted distinct values, a 1-D vector of runtime length (-> Unknown
 // shape) preserving the operand dtype. The emitter sorts a copy then dedups
 // consecutive-equal elements (NaN are KEPT -- MATLAB treats each NaN as distinct --
@@ -275,6 +292,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
     reg.add("circshift", circshiftTransfer);  // (x, k) -> same shape (native circular shift)
     reg.add("unique", uniqueTransfer);  // x -> sorted distinct 1-D (native sort + dedup)
+    reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})
         reg.add(n, logicalQueryTransfer);
