@@ -32,17 +32,13 @@ InferredType zerosOnesTransfer(const std::vector<ArgInfo> &args)
         sh = Shape::scalar();
     } else if (args.size() == 1) {
         sh = args[0].constant.asDim(a) ? Shape::dims(a, a) : Shape::unknown();
-    } else if (args.size() == 2) {
-        sh = (args[0].constant.asDim(a) && args[1].constant.asDim(b))
-                 ? Shape::dims(a, b)
-                 : Shape::unknown();
     } else {
-        // >= 3 dims: a ranked N-D array of rank = nargs. Each known-constant
-        // dim records its exact size; a runtime dim records 0 (unknown). The
-        // shape stays NDims (ranked) rather than collapsing to Unknown — sound
-        // (it over-approximates an unknown dim), and it lets the emitter
-        // materialise runtime dim vars from the call args (a runtime-dim N-D
-        // local). ndShape canonicalises a fully-known rank-2 back to KnownDims.
+        // >= 2 dims: a ranked array of rank = nargs. Each known-constant dim records
+        // its exact size; a runtime dim records 0 (unknown). The shape stays NDims
+        // (ranked) rather than collapsing to Unknown -- sound (over-approximates an
+        // unknown dim), and it lets the emitter materialise runtime dim vars from the
+        // call args (a runtime-dim local, incl. a RUNTIME-DIM 2-D matrix). ndShape
+        // canonicalises a fully-known rank-2 back to KnownDims (the const-dim path).
         std::vector<std::size_t> dimsv;
         for (const auto &arg : args) {
             std::size_t d = 0;
