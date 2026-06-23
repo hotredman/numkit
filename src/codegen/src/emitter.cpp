@@ -721,6 +721,7 @@ private:
     // Non-null inside a promoted clean-index loop: the 0-based size_t
     // counter that replaced the 1-based double loop variable.
     const std::string                          *promotedCounter_ = nullptr;
+    std::vector<std::string>                    endStack_;  // `end` extents (active index ctx)
     // Non-empty inside an elementwise-array fill loop: the 0-based size_t
     // index, so a bare whole-array `x` emits the element `x[<idx>]`.
     std::string                                 elementCtx_;
@@ -826,6 +827,14 @@ std::string Emitter::emitExpr(const ASTNode &e)
             unsupported("bare array identifier '" + e.strValue + "' in scalar context");
         }
         return e.strValue;
+    case NodeType::END_VAL:
+        // `end` inside an index -> the current indexed array's extent (pushed by
+        // emitIndexRead as a 1-D length). MATLAB `end` is a scalar; emit it as a
+        // double so it composes in index arithmetic (end-1, end/2, ...). Outside an
+        // index context the stack is empty -> refuse (sound; never a wrong value).
+        if (endStack_.empty())
+            unsupported("'end' outside an indexing context");
+        return "static_cast<double>(" + endStack_.back() + ")";
     case NodeType::BINARY_OP:
         if (e.children.size() != 2) unsupported("binary op arity");
         return emitBinOpJoin(e.strValue, emitExpr(*e.children[0]),
@@ -1396,7 +1405,11 @@ std::string Emitter::emitIndexRead(const std::string &base, const ASTNode &call)
         unsupported("index read form for '" + base
                     + "' (a 1-D scalar index, or A(i,j) on a matrix)");
 
+    // `end` inside this 1-D scalar index resolves to the array's length; push it so
+    // x(end) / x(end-1) / x(end/2) lower correctly, then pop after the arg is emitted.
+    endStack_.push_back(ai.lenVar);
     const std::string idxExpr = emitExpr(*call.children[1]);
+    endStack_.pop_back();
     if (plan.boundsChecked)
         return "nk_rt::index(" + ptr + ", " + ai.lenVar + ", " + idxExpr + ")";
     return ptr + "[static_cast<std::size_t>(" + idxExpr + ") - 1]";  // proven in-bounds
