@@ -1842,6 +1842,38 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native dot(a,b) -> sum of a[i]*b[i] (real inner product), but ONLY with
+        // no bridge (order-dependent like sum -> the bridged path stays exact when
+        // the bridge is on). A length-match guard then an accumulation loop. v1:
+        // two 1-D DOUBLE array vars. (Mirrors the inner-product `s = r*c` path for
+        // the dot() builtin form, which works for any vector orientation.)
+        if (!isArrayVar(name) && !bridge_ && rhs.type == NodeType::CALL
+            && rhs.children.size() == 3 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "dot"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[2]->strValue)) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &B   = arrays_.at(rhs.children[2]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!A.is2D && !A.isND && !B.is2D && !B.isND && A.dtype == ValueType::DOUBLE
+                && B.dtype == ValueType::DOUBLE && res.type.isConcrete()
+                && res.type.shape.isScalar()) {
+                line("if (" + A.lenVar + " != " + B.lenVar
+                     + ") throw std::out_of_range(\"numkit: dot inputs must be the same length\");");
+                line("{");
+                ++indent_;
+                line("double _nk_acc = 0.0;");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + A.lenVar + "; ++_nk_i)");
+                line("_nk_acc += " + A.dataExpr + "[_nk_i] * " + B.dataExpr + "[_nk_i];");
+                close();
+                line(name + " = _nk_acc;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Bridged array reduction -> scalar (opt-in): s = sum(x) / prod / mean /
         // max / min. The array arg can't be a scalar C++ expression, so box it
         // (like the bridged array-RESULT path) and call bridge_scalar_arr —
