@@ -179,6 +179,19 @@ InferredType logicalQueryTransfer(const std::vector<ArgInfo> &args)
     return InferredType::scalar(ValueType::LOGICAL);
 }
 
+// sort(x) / sort(x, 'ascend'|'descend') -> same shape AND dtype as x (the values
+// reorder; the shape/dtype don't). The optional 2nd arg is a CHAR direction string;
+// only these forms are typed. sort along a numeric dim, or the 2-output [s,i]=sort,
+// are deferred -> Dynamic (the sound fallback).
+InferredType sortTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.empty() || args.size() > 2 || !args[0].type.isConcrete())
+        return InferredType::dynamic();
+    if (args.size() == 2 && args[1].type.dtype != ValueType::CHAR)
+        return InferredType::dynamic();  // a numeric dim arg -> deferred
+    return args[0].type;
+}
+
 // cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
 // array shape out). Single-arg form only. Bridged via the array-result path
 // (the runtime owns the algorithm); the value matches the interpreter exactly.
@@ -219,7 +232,7 @@ void registerShapeTransfers(TransferRegistry &reg)
         reg.add(n, identityShapeTransfer);
     for (const char *n : {"upper", "lower"})  // char case transform (native, same shape)
         reg.add(n, identityShapeTransfer);
-    reg.add("sort", identityShapeTransfer);  // ascending sort -> same shape (native std::sort)
+    reg.add("sort", sortTransfer);  // sort(x[, 'ascend'|'descend']) -> same shape (native std::sort)
 }
 
 } // namespace numkit::codegen

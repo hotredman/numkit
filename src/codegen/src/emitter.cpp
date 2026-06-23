@@ -2472,7 +2472,9 @@ void Emitter::emitAssign(const ASTNode &s)
         // but this preserves the existing bridged-sort behaviour); native is the
         // standalone (no-bridge) tier.
         if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_ && !arrays_.at(name).is2D
-            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && (rhs.children.size() == 2
+                || (rhs.children.size() == 3 && rhs.children[2]->type == NodeType::STRING_LITERAL))
             && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "sort"
             && rhs.children[1]->type == NodeType::IDENTIFIER
             && isArrayVar(rhs.children[1]->strValue)
@@ -2481,13 +2483,20 @@ void Emitter::emitAssign(const ASTNode &s)
             && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
             const ArrayInfo    &xa  = arrays_.at(rhs.children[1]->strValue);
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            // 'descend' reverses the order; MATLAB puts NaN first descending (last
+            // ascending). Both comparators are valid strict-weak-orderings (NaN as
+            // the extremum), so std::sort stays well-defined with NaNs.
+            const bool descend = rhs.children.size() == 3
+                                 && rhs.children[2]->strValue == "descend";
             if (res.type.isConcrete() && !res.type.shape.isScalar()) {
                 line("{");
                 ++indent_;
                 line(name + ".assign(" + xa.dataExpr + ", " + xa.dataExpr + " + " + xa.lenVar
                      + ");");
                 line("std::sort(" + name + ".begin(), " + name + ".end(),");
-                line("    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
+                line(descend
+                         ? "    [](double _a, double _b){ return _a > _b || (_a != _a && _b == _b); });"
+                         : "    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
                 --indent_;
                 line("}");
                 types_.set(name, res);
