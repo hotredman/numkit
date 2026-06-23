@@ -2348,6 +2348,42 @@ TEST(CodegenE2E, CircShift)
     EXPECT_DOUBLE_EQ(got[0], 4.0 + 10.0 + 200.0 + 1000.0);  // 1214
 }
 
+// [m,i]=max(x) / [m,i]=min(x): native argmax/argmin two-output (always-native, even
+// under the bridge). x = [30 10 40 20]: max=40 at index 3, min=10 at index 2.
+TEST(CodegenE2E, ArgMaxMin)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  [m, mi] = max(x);\n"   // 40, 3
+        "  [n, ni] = min(x);\n"   // 10, 2
+        "  r = m + mi*10 + n*100 + ni*1000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_idx"), std::string::npos)
+        << "[m,i]=max must track the 1-based index natively, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_argmm_e2e.exe").string();
+    const std::string outTxt = (base / "nk_argmm_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {30.0, 10.0, 40.0, 20.0};\n"
+        "  double r = f(x, 4);\n"  // 40 + 3*10 + 10*100 + 2*1000 = 3070
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 40.0 + 30.0 + 1000.0 + 2000.0);  // 3070
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
@@ -4703,12 +4739,13 @@ TEST(CodegenBridge, DynamicMatrixRunsAndMatchesInterpreter)
     for (int i = 0; i < 6; ++i) EXPECT_DOUBLE_EQ(got[i], expect[i]) << "at i=" << i;
 }
 
-// BRIDGED BUILTIN MULTI-OUTPUT (DESIGN.md §10 C1): the common `[m, i] = max(x)`
-// idiom (also sort/min/unique with an index). The runtime owns nargout and
-// computes both outputs; each is kept BOXED as a Dynamic nk_rt::val, then flows
-// through the Dynamic tier (here m+i). Compiles, links the runtime DLL, runs,
-// matches the interpreter. (Without this the whole program would refuse->fall
-// back to the interpreter; the bridge lets it compile.)
+// BRIDGED BUILTIN MULTI-OUTPUT (DESIGN.md §10 C1): a `[a, b] = builtin(x)` idiom
+// where the builtin has NO codegen multi-transfer, so a,b stay Dynamic and the
+// runtime owns nargout. Uses `[s, idx] = sort(x)` -- a core 2-output builtin (the
+// outputs are ARRAYS, kept Dynamic); `[m,i]=max` is now lowered NATIVELY (see
+// CodegenE2E.ArgMaxMin) so it no longer exercises the bridge. The outputs flow
+// through the Dynamic tier (Dynamic indexing s(1)/idx(1) + arithmetic). Compiles,
+// links the runtime DLL, runs, matches the interpreter.
 TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
 {
     if (!aot::available())
@@ -4717,8 +4754,8 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     TransferRegistry reg;
     registerStandardTransfers(reg);
     numkit::Lexer          lex("function y = f(x)\n"
-                               "  [m, i] = max(x);\n"  // bridged 2-output builtin -> m,i Dynamic
-                               "  y = m + i;\n"         // Dynamic arithmetic -> boxed return
+                               "  [s, idx] = sort(x);\n"  // bridged 2-output -> s,idx Dynamic
+                               "  y = s(1) + idx(1);\n"    // Dynamic indexing + arithmetic
                                "end\n");
     numkit::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
@@ -4733,7 +4770,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     const EmittedFunction emitted = emitFunction(
         *fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg, nullptr,
         bridge);
-    ASSERT_NE(emitted.source.find("nk_rt::call_dyn_multi(\"max\""), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk_rt::call_dyn_multi(\"sort\""), std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
     std::filesystem::create_directories(base);
@@ -4745,7 +4782,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     std::string program = emitted.source +
         "#include <cstdio>\n"
         "int main() {\n"
-        "  const double xs[5] = {3, 1, 4, 1, 5};\n"  // max = 5 at index 5 (1-based)
+        "  const double xs[5] = {3, 1, 4, 5, 2};\n"  // distinct; sort -> s(1)=1, idx(1)=2
         "  nk_val r = f(xs, 5);\n"
         "  const double v = nk_unbox_scalar(r);\n"
         "  nk_release(r);\n"
@@ -4774,7 +4811,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    EXPECT_DOUBLE_EQ(got[0], 10.0);  // max=5 at index 5; m + i = 10
+    EXPECT_DOUBLE_EQ(got[0], 3.0);  // sort: s(1)=1 (min), idx(1)=2 (its position); 1 + 2 = 3
 }
 
 // BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sign(x). `sign` is

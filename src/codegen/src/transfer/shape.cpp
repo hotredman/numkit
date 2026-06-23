@@ -53,6 +53,27 @@ std::vector<InferredType> sizeMultiTransfer(const std::vector<ArgInfo> & /*args*
     return {InferredType::scalar(ValueType::DOUBLE), InferredType::scalar(ValueType::DOUBLE)};
 }
 
+// [m, i] = max(x) / min(x): two outputs -- the extremum VALUE and its 1-based INDEX
+// (both real scalar doubles). Typed concrete ONLY for a DOUBLE VECTOR, which the
+// emitter lowers natively (a scan tracking the extremum + its position) in EVERY
+// tier -- so the transfer and the always-native emit agree. A matrix/N-D or non-
+// double operand -> Dynamic, which routes to the bridged multi-output path.
+std::vector<InferredType> maxMinMultiTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()
+        || args[0].type.dtype != ValueType::DOUBLE)
+        return {InferredType::dynamic(), InferredType::dynamic()};
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::Scalar:
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+        return {InferredType::scalar(ValueType::DOUBLE), InferredType::scalar(ValueType::DOUBLE)};
+    default:  // matrix / N-D reduces to a row, not two scalars -> deferred
+        return {InferredType::dynamic(), InferredType::dynamic()};
+    }
+}
+
 // transpose (A.') / ctranspose (A'): swap the two dimensions. A row becomes a
 // column and vice-versa; a matrix's dims swap; a scalar is unchanged. The
 // dtype is preserved (ctranspose conjugates the VALUES of a complex operand
@@ -221,6 +242,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("ndims", countTransfer);
     reg.add("size", sizeTransfer);
     reg.addMulti("size", sizeMultiTransfer);
+    reg.addMulti("max", maxMinMultiTransfer);  // [m,i]=max(x) -> {value, 1-based index}
+    reg.addMulti("min", maxMinMultiTransfer);  // [m,i]=min(x) -> {value, 1-based index}
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
