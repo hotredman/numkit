@@ -1566,6 +1566,52 @@ TEST(CodegenE2E, ConcatStringLiteral)
     EXPECT_DOUBLE_EQ(got[0], 572.0);  // numel(5)*100 + c(1)='H'(72)
 }
 
+// char-ARRAY interproc RETURN (P3): a string-building helper returns a char array
+// BY VALUE (std::vector<uint16>); the caller binds it. Enables string helpers.
+TEST(CodegenE2E, CharArrayInterprocReturn)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function r = f()\n"
+        "  c = g();\n"          // c is a char array returned by value
+        "  r = numel(c);\n"     // 7
+        "end\n"
+        "function s = g()\n"
+        "  s = ['Hi' 'there'];\n"  // build a 7-char string
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted = emitProgram(*ft.find("f"), {}, ft, reg);
+    EXPECT_NE(emitted.source.find("std::vector<std::uint16_t> "), std::string::npos)
+        << "the char-building helper must return its char array by value";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_charret_e2e.exe").string();
+    const std::string outTxt = (base / "nk_charret_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = " + emitted.name + "();\n"  // numel('Hithere') = 7
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 7.0);  // numel of 'Hithere'
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
