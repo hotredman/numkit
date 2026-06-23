@@ -167,6 +167,16 @@ InferredType strcmpTransfer(const std::vector<ArgInfo> &args)
     return InferredType::scalar(ValueType::LOGICAL);
 }
 
+// isempty(x) -> a LOGICAL scalar: true iff x has zero elements. Defined for any
+// concrete shape (a scalar is never empty -> false; an array lowers to a
+// numel==0 compare). A non-concrete (Dynamic) arg -> Dynamic, the sound fallback.
+// Pure expression -> the emitter can place it in any context (incl. an `if`).
+InferredType isemptyTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    return InferredType::scalar(ValueType::LOGICAL);
+}
+
 // cumsum / cumprod / flip: shape- AND dtype-preserving (one array in, the same
 // array shape out). Single-arg form only. Bridged via the array-result path
 // (the runtime owns the algorithm); the value matches the interpreter exactly.
@@ -196,6 +206,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("diff", diffTransfer);  // vector -> 1-D differences, length n-1 (native loop)
     reg.add("dot", dotTransfer);    // (vec, vec) -> DOUBLE scalar inner product (native loop)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
+    reg.add("isempty", isemptyTransfer);  // x -> LOGICAL scalar (numel == 0; native compare)
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "flip"})
         reg.add(n, identityShapeTransfer);
