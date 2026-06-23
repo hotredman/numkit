@@ -230,6 +230,15 @@ InferredType polyvalTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// trace(A): the sum of the diagonal of a 2-D matrix -> a DOUBLE scalar. v1: a 2-D
+// matrix operand; a non-2-D operand -> Dynamic.
+InferredType traceTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[0].type.shape.kind == ShapeKind::KnownDims) return InferredType::scalar(ValueType::DOUBLE);
+    return InferredType::dynamic();
+}
+
 // diag(A): the diagonal of a 2-D matrix as a 1-D vector (length min(rows,cols),
 // runtime -> Unknown shape). v1: a 2-D matrix operand. diag(v) (a vector -> a
 // diagonal MATRIX) and diag(A,k) (the k-th diagonal) are deferred -> Dynamic.
@@ -303,6 +312,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("strcmp", strcmpTransfer);  // (arr, arr) -> LOGICAL scalar string equality (native)
     reg.add("circshift", circshiftTransfer);  // (x, k) -> same shape (native circular shift)
     reg.add("diag", diagTransfer);  // diag(A) -> the diagonal of a matrix as a 1-D vector
+    reg.add("trace", traceTransfer);  // trace(A) -> sum of the diagonal (DOUBLE scalar)
     reg.add("unique", uniqueTransfer);  // x -> sorted distinct 1-D (native sort + dedup)
     reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).

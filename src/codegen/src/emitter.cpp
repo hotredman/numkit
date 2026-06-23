@@ -2459,6 +2459,33 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native trace(A) -> the sum of the diagonal of a 2-D matrix, a DOUBLE scalar.
+        // Column-major: acc += A[i + i*rows] for i in [0, min(rows,cols)). Gated
+        // !bridge_ (order-dependent sum). v1: A a 2-D DOUBLE matrix var.
+        if (!isArrayVar(name) && !bridge_ && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "trace"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).is2D
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_d = " + A.rowsVar + " < " + A.colsVar + " ? " + A.rowsVar
+                     + " : " + A.colsVar + ";");
+                line("double _nk_acc = 0.0;");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_d; ++_nk_i)");
+                line("_nk_acc += " + A.dataExpr + "[_nk_i + _nk_i * " + A.rowsVar + "];");
+                close();
+                line(name + " = _nk_acc;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native median(x) -> the middle of a sorted copy (no-bridge tier, !bridge_).
         // Sort a temp copy with the NaN-last comparator (a valid strict-weak-ordering).
         // MATLAB's default median propagates NaN (any NaN -> NaN): a NaN sorts last,
