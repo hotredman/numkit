@@ -3388,6 +3388,17 @@ void Emitter::emitAssign(const ASTNode &s)
                         line("if (" + guard
                              + ") throw std::out_of_range(\"numkit: array dimensions must match\");");
                     if (ai.isLocal) line(name + ".resize(" + bound + ");");
+                    // A runtime-dim N-D LOCAL result (an ndRuntimeLocal, e.g. a
+                    // runtime-dim 2-D matrix produced by C = A + B): copy the reference
+                    // shape into the dst's OWN dim companions. The resize above only
+                    // sizes the flat buffer; without this the companions stay 0 and the
+                    // dst's later numel / N-D indexing read stale dims. (A KnownDims 2-D
+                    // or 1-D dst has no companions -> this is a no-op for them.)
+                    if (ai.isLocal && ai.ndRuntimeLocal) {
+                        const ArrayInfo &ref = arrays_.at(*srcArrays.begin());
+                        for (std::size_t k = 0; k < ai.ndDims.size(); ++k)
+                            line(ai.ndDims[k] + " = " + ref.ndDims[k] + ";");
+                    }
                     // Opt-in ops-kernel tier: a SINGLE binary op over exactly
                     // two whole DOUBLE arrays (out = a OP b) maps 1:1 to an ops
                     // SIMD kernel (flat over numel; internal small-N gate). Any

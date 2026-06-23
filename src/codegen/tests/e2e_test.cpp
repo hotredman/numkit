@@ -3062,6 +3062,44 @@ TEST(CodegenE2E, TransposeRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], 66341.0);
 }
 
+// element-wise binary on two runtime-dim 2-D matrices: A = [a;b], B = [b;a], C = A + B.
+// Validates that the elementwise result's own dim companions are set (numel/indexing of C
+// must be correct, not just its flat buffer). A=[1 2 3;4 5 6], B=[4 5 6;1 2 3] -> C=[5 7 9;5 7 9].
+TEST(CodegenE2E, ElementwiseAddRuntimeDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a, b)\n"
+        "  A = [a; b];\n"   // 2x3: [1 2 3; 4 5 6]
+        "  B = [b; a];\n"   // 2x3: [4 5 6; 1 2 3]
+        "  C = A + B;\n"    // 2x3: [5 7 9; 5 7 9]
+        "  r = C(1,1) + C(1,2)*10 + C(1,3)*100 + C(2,1)*1000 + numel(C)*100000;\n"
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ewadd2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ewadd2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {1, 2, 3};\n"
+        "  double b[3] = {4, 5, 6};\n"
+        "  double r = f(a, 3, b, 3);\n"  // C=[5 7 9;5 7 9]: 5 + 70 + 900 + 5000 + 600000 = 605975
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 605975.0);
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)
