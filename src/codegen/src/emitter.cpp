@@ -1934,6 +1934,34 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // diag(v) with v a VECTOR -> an n x n diagonal MATRIX (n = numel(v), runtime),
+        // a rank-2 ndRuntimeLocal (the runtime-dim-2-D foundation): set both dim
+        // companions to n, zero the n*n buffer, then set the flat diagonal
+        // M[i + i*n] = v[i]. v1: v a 1-D DOUBLE vector var.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "diag"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &v   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            line("{");
+            ++indent_;
+            line(M.ndDims[0] + " = " + v.lenVar + ";");  // rows = n
+            line(M.ndDims[1] + " = " + v.lenVar + ";");  // cols = n
+            line(name + ".assign(" + v.lenVar + " * " + v.lenVar + ", 0.0);");
+            open("for (std::size_t _nk_i = 0; _nk_i < " + v.lenVar + "; ++_nk_i)");
+            line(name + "[_nk_i + _nk_i * " + v.lenVar + "] = " + v.dataExpr + "[_nk_i];");
+            close();
+            --indent_;
+            line("}");
+            types_.set(name, res);
+            return;
+        }
         // Native cross(a, b) -> the 3-D cross product, a fresh 3-element 1-D LOCAL:
         // c = [a2*b3-a3*b2, a3*b1-a1*b3, a1*b2-a2*b1] (1-based; 0-based in the emit).
         // v1: a, b 1-D DOUBLE array vars (length 3).

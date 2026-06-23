@@ -2889,6 +2889,39 @@ TEST(CodegenE2E, TrilLower)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 0.0 + 4000.0);  // 4031
 }
 
+// diag(v): a vector -> a diagonal MATRIX (runtime-dim 2-D). diag([5 6 7]) -> 3x3 with
+// [5 6 7] on the diagonal, 0 off it.
+TEST(CodegenE2E, DiagOfVector)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(v)\n"
+        "  M = diag(v);\n"   // 3x3 diagonal
+        "  r = M(1,1) + M(2,2)*10 + M(3,3)*100 + M(1,2)*1000 + numel(M)*10000;\n"
+        "end\n",
+        {{"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_diagv_e2e.exe").string();
+    const std::string outTxt = (base / "nk_diagv_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double v[3] = {5, 6, 7};\n"
+        "  double r = f(v, 3);\n"  // diag: 5 + 60 + 700 + 0 + 9*10000 = 90765
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5.0 + 60.0 + 700.0 + 0.0 + 90000.0);  // 90765
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)
