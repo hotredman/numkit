@@ -1886,6 +1886,33 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native find(m) -> the 1-based positions of the nonzero (true) elements,
+        // a runtime-sized 1-D DOUBLE column vector (MATLAB find). A native filter
+        // loop pushing (i+1); EXACT (deterministic positions), so preferred over
+        // the bridged array-result path below. v1: a single 1-D array arg (double
+        // or logical) that is a VARIABLE; the result a 1-D array LOCAL (push_back).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "find"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo    &m   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!m.is2D && !m.isND && res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + m.lenVar + "; ++_nk_i)");
+                line("if (" + m.dataExpr + "[_nk_i]) " + name
+                     + ".push_back(static_cast<double>(_nk_i + 1));");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and
