@@ -20,8 +20,9 @@ bool isBufferArray(const AbstractValue &v)
     case ValueType::UINT16:
     case ValueType::UINT32:
     case ValueType::UINT64:
+    case ValueType::CHAR:  // MATLAB char array -> a uint16 code-unit buffer
         return true;
-    default:  // CHAR / CELL / STRUCT / STRING / FUNC_HANDLE / OBJECT / EMPTY
+    default:  // CELL / STRUCT / STRING / FUNC_HANDLE / OBJECT / EMPTY
         return false;
     }
 }
