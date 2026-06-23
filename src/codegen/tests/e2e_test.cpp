@@ -1718,6 +1718,47 @@ TEST(CodegenE2E, StructFieldIndex)
     EXPECT_DOUBLE_EQ(got[0], 200.0);  // s.v(2)=20 * 10
 }
 
+// isempty(x) as the canonical input-validation idiom: `if isempty(x)`. A pure
+// numel==0 expression (no loop / no bridge), exercised in both branches.
+TEST(CodegenE2E, IsemptyGuard)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  if isempty(x)\n"
+        "    r = -1;\n"           // empty -> sentinel
+        "  else\n"
+        "    r = numel(x) + 100;\n"  // non-empty -> count + 100
+        "  end\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("== 0"), std::string::npos)
+        << "isempty must lower to a numel==0 compare, not a bridge call";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_isempty_e2e.exe").string();
+    const std::string outTxt = (base / "nk_isempty_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double d[3] = {1.0, 2.0, 3.0};\n"
+        "  double e[1] = {0.0};\n"
+        "  double r_empty = f(e, 0);\n"   // isempty -> true  -> -1
+        "  double r_full  = f(d, 3);\n"   // isempty -> false -> 3 + 100 = 103
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n%.17g\\n\", r_empty, r_full);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    EXPECT_DOUBLE_EQ(got[0], -1.0);
+    EXPECT_DOUBLE_EQ(got[1], 103.0);
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).

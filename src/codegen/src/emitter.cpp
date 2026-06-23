@@ -1053,6 +1053,28 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
                + " : " + ai.colsVar + ")";  // length = max(rows, cols)
     }
 
+    // isempty(x): true iff x has zero elements. An array var lowers to a numel==0
+    // compare (1-D length, 2-D rows*cols, N-D product of dims); a scalar always
+    // has exactly one element -> "false". A pure expression (no loop) -> usable in
+    // any context, incl. an `if` condition. A non-array / non-scalar arg falls
+    // through to the explicit boundary (refuse, never miscompile).
+    if (name == "isempty" && nargs == 1) {
+        const ASTNode &arg = *call.children[1];
+        if (arg.type == NodeType::IDENTIFIER && isArrayVar(arg.strValue)) {
+            const ArrayInfo &ai = arrays_.at(arg.strValue);
+            if (ai.isND) {
+                std::string e = ai.ndDims[0];
+                for (std::size_t i = 1; i < ai.ndDims.size(); ++i) e += " * " + ai.ndDims[i];
+                return "((" + e + ") == 0)";
+            }
+            if (ai.is2D)
+                return "((" + ai.rowsVar + " * " + ai.colsVar + ") == 0)";
+            return "(" + ai.lenVar + " == 0)";
+        }
+        if (inferExpr(arg, types_, reg_, classes_).type.shape.kind == ShapeKind::Scalar)
+            return "false";  // a scalar is never empty
+    }
+
     // size(A, dim) with a compile-time literal dim: the dim's size (2-D
     // rows/cols, N-D the dim, out-of-range -> 1). A 1-D buffer's row/col
     // orientation is erased by the RawBuffer ABI but recorded from the
