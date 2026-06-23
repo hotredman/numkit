@@ -1944,6 +1944,43 @@ TEST(CodegenE2E, LinspaceGenerative)
     EXPECT_DOUBLE_EQ(got[0], 0.0 + 5.0 + 100.0 + 1500.0 + 20000.0 + 500000.0);  // 521605
 }
 
+// Colon range materialised to an array: v = a:b and v = a:s:b. The for-loop header
+// form was already special-cased; this is the value form (previously inferred as a
+// row but unemitted -> refused). 1:5 = [1 2 3 4 5]; 0:2:8 = [0 2 4 6 8].
+TEST(CodegenE2E, ColonRangeMaterialise)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f()\n"
+        "  v = 1:5;\n"      // [1 2 3 4 5]
+        "  w = 0:2:8;\n"    // [0 2 4 6 8]
+        "  r = v(1) + v(5)*10 + numel(v)*100 + w(2)*1000 + w(5)*10000 + numel(w)*100000;\n"
+        "end\n",
+        {});
+    EXPECT_NE(emitted.source.find("_nk_cnt"), std::string::npos)
+        << "a colon range must materialise via a native count+fill, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_colon_e2e.exe").string();
+    const std::string outTxt = (base / "nk_colon_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f();\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    // 1 + 5*10 + 5*100 + 2*1000 + 8*10000 + 5*100000
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 50.0 + 500.0 + 2000.0 + 80000.0 + 500000.0);  // 582551
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
