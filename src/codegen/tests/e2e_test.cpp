@@ -1310,6 +1310,40 @@ TEST(CodegenE2E, NativeDotProduct)
     EXPECT_DOUBLE_EQ(got[0], 32.0);  // 1*4 + 2*5 + 3*6
 }
 
+// CHAR row-vector literal (P3 datatypes, first char brick): `c = 'abc'` becomes a
+// uint16 char-array local; numel reads its length. Foundational char support.
+TEST(CodegenE2E, CharRowLiteral)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function n = f()\n"
+        "  c = 'abcde';\n"   // 5-char char array
+        "  n = numel(c);\n"  // 5
+        "end\n",
+        {});
+    EXPECT_NE(emitted.source.find("std::vector<std::uint16_t>"), std::string::npos)
+        << "a CHAR array must be stored as a uint16 buffer";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_char_e2e.exe").string();
+    const std::string outTxt = (base / "nk_char_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double n = f();\n"  // numel('abcde') = 5
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", n);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5.0);  // numel of 'abcde'
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled

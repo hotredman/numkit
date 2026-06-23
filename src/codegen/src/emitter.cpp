@@ -33,6 +33,7 @@ std::string cppScalarType(ValueType dtype)
     case ValueType::UINT16:  return "std::uint16_t";
     case ValueType::UINT32:  return "std::uint32_t";
     case ValueType::UINT64:  return "std::uint64_t";
+    case ValueType::CHAR:    return "std::uint16_t";  // MATLAB char is a UTF-16 code unit
     default:
         throw std::runtime_error("cppScalarType: no scalar C++ mapping for this dtype");
     }
@@ -2285,6 +2286,23 @@ void Emitter::emitAssign(const ASTNode &s)
             line("}");
             types_.set(name, {InferredType::concrete(bx.dtype, Shape::rowVector()),
                               ConstVal::unknown()});
+            return;
+        }
+
+        // CHAR row-vector literal: `c = 'abc'` -> a char-array LOCAL initialised
+        // from the literal's code units (1 per element; v1: ASCII/BMP, so a UTF-8
+        // byte == the UTF-16 unit, matching the inference's byte-count length). char
+        // is a uint16 buffer (cppArrayElemType). A 1x1 char ('a') is a Scalar ->
+        // not handled here (char scalars deferred).
+        if (isArrayVar(name) && arrays_.at(name).isLocal
+            && arrays_.at(name).dtype == ValueType::CHAR
+            && rhs.type == NodeType::STRING_LITERAL) {
+            std::string codes;
+            for (unsigned char ch : rhs.strValue)
+                codes += (codes.empty() ? "" : ", ")
+                         + ("std::uint16_t(" + std::to_string(static_cast<unsigned>(ch)) + ")");
+            line(name + ".assign({" + codes + "});");
+            types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
 
