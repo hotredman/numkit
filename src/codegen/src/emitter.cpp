@@ -225,6 +225,23 @@ VecOrient orientOf(const InferredType &t)
     }
 }
 
+// The flattened field-local name for a plain-struct field chain (field-flattening).
+// `s.a.b` (a FIELD_ACCESS) -> "_nk_fld_s_a_b"; "" if not rooted at a plain identifier
+// -> not a flattenable struct field. A single-level `s.a` gives "_nk_fld_s_a"
+// (unchanged). MUST match inference.cpp's copy.
+std::string structFieldLocal(const ASTNode &fa)
+{
+    std::string    suffix;
+    const ASTNode *n = &fa;
+    while (n->type == NodeType::FIELD_ACCESS) {
+        if (n->children.empty() || !n->children[0]) return "";
+        suffix = "_" + n->strValue + suffix;
+        n      = n->children[0].get();
+    }
+    if (n->type != NodeType::IDENTIFIER) return "";
+    return "_nk_fld_" + n->strValue + suffix;
+}
+
 // A concrete numeric/logical buffer of non-scalar shape (raw-buffer array).
 bool isBufferArrayType(const InferredType &t)
 {
@@ -887,9 +904,13 @@ std::string Emitter::emitExpr(const ASTNode &e)
     case NodeType::FIELD_ACCESS: {  // obj.field read -> obj.field / obj->field
         if (e.children.empty()) unsupported("field access arity");
         const AbstractValue base = inferExpr(*e.children[0], types_, reg_, classes_);
-        // Plain struct: the synthesized scalar field-local (field-flattening).
-        if (!base.type.isObject() && e.children[0]->type == NodeType::IDENTIFIER)
-            return "_nk_fld_" + e.children[0]->strValue + "_" + e.strValue;
+        // Plain struct: the synthesized field-local (field-flattening), generalised
+        // to a NESTED chain s.a.b via the chain helper. The immediate base being
+        // non-object gates struct-vs-object at every level.
+        if (!base.type.isObject()) {
+            const std::string fld = structFieldLocal(e);
+            if (!fld.empty()) return fld;
+        }
         if (!base.type.isObject() || !classes_)
             unsupported("field access on a non-object value");
         const ClassInfo *ci = classes_->byId(base.type.classId);
@@ -3288,11 +3309,12 @@ void Emitter::emitAssign(const ASTNode &s)
     if (lhs.type == NodeType::FIELD_ACCESS) {  // obj.field = rhs
         if (lhs.children.empty()) unsupported("field write arity");
         const AbstractValue base = inferExpr(*lhs.children[0], types_, reg_, classes_);
-        // Plain struct: flatten `s.f = rhs` to the synthesized scalar field-local
-        // (field-flattening; no struct type). v1: a scalar (unboxable) field.
-        if (!base.type.isObject() && lhs.children[0]->type == NodeType::IDENTIFIER) {
-            const std::string   fld = "_nk_fld_" + lhs.children[0]->strValue + "_" + lhs.strValue;
-            const AbstractValue rv  = inferExpr(rhs, types_, reg_, classes_);
+        // Plain struct: flatten `s.f = rhs` to a synthesized field-local (field-
+        // flattening; no struct type), generalised to a NESTED chain s.a.b via the
+        // chain helper. v1: a scalar (unboxable) field, or a 1-D array-var field.
+        const std::string fld = base.type.isObject() ? std::string() : structFieldLocal(lhs);
+        if (!fld.empty()) {
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
             if (rv.type.isUnboxableScalar()) {
                 line(fld + " = " + emitExpr(rhs) + ";");  // scalar field
                 types_.set(fld, rv);

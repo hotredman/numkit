@@ -102,6 +102,24 @@ AbstractValue indexResult(const AbstractValue &var,
     return {InferredType::concrete(var.type.dtype, sh), ConstVal::unknown()};
 }
 
+// The flattened field-local name for a plain-struct field chain (field-flattening).
+// `s.a.b` (a FIELD_ACCESS) -> "_nk_fld_s_a_b"; "" if the chain is not rooted at a
+// plain identifier (a call/expression base) -> not a flattenable struct field. A
+// single-level `s.a` gives "_nk_fld_s_a" (unchanged), so this generalises the old
+// hardcoded name to nested access. MUST match emitter.cpp's copy.
+std::string structFieldLocal(const ASTNode &fa)
+{
+    std::string    suffix;
+    const ASTNode *n = &fa;
+    while (n->type == NodeType::FIELD_ACCESS) {
+        if (n->children.empty() || !n->children[0]) return "";
+        suffix = "_" + n->strValue + suffix;
+        n      = n->children[0].get();
+    }
+    if (n->type != NodeType::IDENTIFIER) return "";
+    return "_nk_fld_" + n->strValue + suffix;
+}
+
 } // namespace
 
 AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
@@ -164,11 +182,14 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         // obj.field : strValue = field name, children[0] = object expr.
         if (expr.children.empty()) return AbstractValue::dynamic();
         const AbstractValue base = inferExpr(*expr.children[0], env, reg, classes);
-        // Plain struct: a synthesized scalar field-local from a prior `s.f = ...`
-        // (field-flattening; no struct type). Handled before the classdef path.
-        if (!base.type.isObject() && expr.children[0]->type == NodeType::IDENTIFIER) {
-            const std::string fld = "_nk_fld_" + expr.children[0]->strValue + "_" + expr.strValue;
-            return env.has(fld) ? env.get(fld) : AbstractValue::dynamic();
+        // Plain struct: a synthesized field-local from a prior `s.f = ...` (field-
+        // flattening; no struct type), generalised to a NESTED chain s.a.b via the
+        // chain helper. The immediate base being non-object gates struct-vs-object at
+        // every level (a sub-struct s.a is itself Dynamic, not a value). Before the
+        // classdef path.
+        if (!base.type.isObject()) {
+            const std::string fld = structFieldLocal(expr);
+            if (!fld.empty()) return env.has(fld) ? env.get(fld) : AbstractValue::dynamic();
         }
         // Object field (classdef): typed only with a class registry + known field;
         // otherwise Dynamic (sound — non-class code, or a handle we cannot class).
@@ -381,6 +402,19 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 // Differing dtype / unknown base or rhs -> conservative.
                 env.set(base, AbstractValue::dynamic());
                 recordDecl(declOut, base, env.get(base).type);
+            }
+        } else if (lhs.type == NodeType::FIELD_ACCESS && !lhs.children.empty()) {
+            // Nested plain-struct field write s.a.b = rhs: children[0] is itself a
+            // FIELD_ACCESS, so the single-level branch above (children[0]==IDENTIFIER)
+            // missed it. Flatten to the leaf field-local via the chain helper, unless
+            // the chain is rooted at an object.
+            const AbstractValue ibase = inferExpr(*lhs.children[0], env, reg, classes);
+            if (!ibase.type.isObject()) {
+                const std::string fld = structFieldLocal(lhs);
+                if (!fld.empty()) {
+                    env.set(fld, rhs);
+                    recordDecl(declOut, fld, rhs.type);
+                }
             }
         }
         return;
