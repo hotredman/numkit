@@ -2149,6 +2149,55 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native norm/var/std(x) scalar reductions (1-D DOUBLE), no-bridge tier
+        // (gate !bridge_; the bridged path stays exact when the bridge is on). norm =
+        // the 2-norm sqrt(sum x^2); var = sum((x-mean)^2)/(n-1) (MATLAB's sample
+        // default; 0 for a scalar, NaN for empty); std = sqrt(var). Two passes for
+        // var/std (mean, then sum of squared deviations). v1: a single 1-D DOUBLE
+        // array var; the result a scalar.
+        if (!isArrayVar(name) && !bridge_ && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "norm" || rhs.children[0]->strValue == "var"
+                || rhs.children[0]->strValue == "std")
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
+            const std::string  &fn  = rhs.children[0]->strValue;
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!a.is2D && !a.isND && res.type.isConcrete() && res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_n = " + a.lenVar + ";");
+                if (fn == "norm") {
+                    line("double _nk_ss = 0.0;");
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+                    line("_nk_ss += " + a.dataExpr + "[_nk_i] * " + a.dataExpr + "[_nk_i];");
+                    close();
+                    line(name + " = std::sqrt(_nk_ss);");
+                } else {
+                    line("double _nk_m = 0.0;");
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+                    line("_nk_m += " + a.dataExpr + "[_nk_i];");
+                    close();
+                    line("_nk_m = _nk_n ? _nk_m / static_cast<double>(_nk_n) : 0.0;");
+                    line("double _nk_ss = 0.0;");
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+                    line("const double _nk_d = " + a.dataExpr + "[_nk_i] - _nk_m;");
+                    line("_nk_ss += _nk_d * _nk_d;");
+                    close();
+                    line("double _nk_var;");
+                    line("if (_nk_n > 1) _nk_var = _nk_ss / static_cast<double>(_nk_n - 1);");
+                    line("else _nk_var = _nk_n == 1 ? 0.0 "
+                         ": std::numeric_limits<double>::quiet_NaN();");
+                    line(name + (fn == "std" ? " = std::sqrt(_nk_var);" : " = _nk_var;"));
+                }
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native dot(a,b) -> sum of a[i]*b[i] (real inner product), but ONLY with
         // no bridge (order-dependent like sum -> the bridged path stays exact when
         // the bridge is on). A length-match guard then an accumulation loop. v1:
