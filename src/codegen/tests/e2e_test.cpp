@@ -2384,6 +2384,40 @@ TEST(CodegenE2E, ArgMaxMin)
     EXPECT_DOUBLE_EQ(got[0], 40.0 + 30.0 + 1000.0 + 2000.0);  // 3070
 }
 
+// Native logspace(a,b,n) (linspace mirror, decade-spaced). logspace(0,3,4) =
+// 10^[0 1 2 3] = [1 10 100 1000]; runtime n -> an owned 1-D local.
+TEST(CodegenE2E, LogspaceGenerative)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(n)\n"
+        "  y = logspace(0, 3, n);\n"   // [1 10 100 1000]
+        "  r = y(1) + y(2) + y(3) + y(4) + numel(y);\n"
+        "end\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+    EXPECT_NE(emitted.source.find("std::pow(10.0"), std::string::npos)
+        << "logspace must lower to a native 10^(a+i*step) fill, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_logspace_e2e.exe").string();
+    const std::string outTxt = (base / "nk_logspace_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f(4.0);\n"  // 1 + 10 + 100 + 1000 + 4 = 1115
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_NEAR(got[0], 1115.0, 1e-9);  // 1 + 10 + 100 + 1000 + 4
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
