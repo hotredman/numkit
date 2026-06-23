@@ -135,11 +135,18 @@ InferredType repmatTransfer(const std::vector<ArgInfo> &args)
         return InferredType::dynamic();
     }
     // Row-vector operand with a "1" down-rep: repmat(rowVec, 1, q) -> a 1 x (q*n) row
-    // (q copies concatenated). A column operand, or a general (p,q) with both > 1
-    // (true 2-D tiling), is deferred -> Dynamic.
+    // (q copies concatenated). A general (p,q) with both > 1 (true 2-D tiling) is
+    // deferred -> Dynamic.
     if (args[0].type.shape.kind == ShapeKind::RowVector && args.size() == 3) {
         std::size_t p = 0;
         if (args[1].constant.asDim(p) && p == 1)
+            return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+    }
+    // Column-vector operand with a "1" across-rep: repmat(colVec, p, 1) -> a (p*n) x 1
+    // column (p copies stacked). The mirror of the row case.
+    if (args[0].type.shape.kind == ShapeKind::ColVector && args.size() == 3) {
+        std::size_t q = 0;
+        if (args[2].constant.asDim(q) && q == 1)
             return InferredType::concrete(args[0].type.dtype, Shape::unknown());
     }
     return InferredType::dynamic();
