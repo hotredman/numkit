@@ -230,6 +230,23 @@ InferredType polyvalTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// cross(a, b): the 3-D vector cross product -> a 3-element vector (1-D DOUBLE). v1:
+// two concrete 1-D DOUBLE vectors (length 3 assumed -- a non-3 operand is a runtime
+// error in MATLAB, not modelled). 2-D operands or a dim arg -> Dynamic.
+InferredType crossTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete())
+        return InferredType::dynamic();
+    if (args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
+        return InferredType::dynamic();
+    auto isVec = [](ShapeKind k) {
+        return k == ShapeKind::RowVector || k == ShapeKind::ColVector || k == ShapeKind::Unknown;
+    };
+    if (isVec(args[0].type.shape.kind) && isVec(args[1].type.shape.kind))
+        return InferredType::concrete(ValueType::DOUBLE, Shape::unknown());  // 1-D, length 3
+    return InferredType::dynamic();
+}
+
 // trace(A): the sum of the diagonal of a 2-D matrix -> a DOUBLE scalar. v1: a 2-D
 // matrix operand; a non-2-D operand -> Dynamic.
 InferredType traceTransfer(const std::vector<ArgInfo> &args)
@@ -313,6 +330,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("circshift", circshiftTransfer);  // (x, k) -> same shape (native circular shift)
     reg.add("diag", diagTransfer);  // diag(A) -> the diagonal of a matrix as a 1-D vector
     reg.add("trace", traceTransfer);  // trace(A) -> sum of the diagonal (DOUBLE scalar)
+    reg.add("cross", crossTransfer);  // cross(a,b) -> the 3-D cross product (1-D, len 3)
     reg.add("unique", uniqueTransfer);  // x -> sorted distinct 1-D (native sort + dedup)
     reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).

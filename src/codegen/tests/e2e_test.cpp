@@ -2889,6 +2889,40 @@ TEST(CodegenE2E, TrilLower)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 0.0 + 4000.0);  // 4031
 }
 
+// cross(a,b): the 3-D vector cross product. cross([1 2 3],[4 5 6]) = [-3 6 -3].
+TEST(CodegenE2E, CrossProduct)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a, b)\n"
+        "  c = cross(a, b);\n"   // [-3 6 -3]
+        "  r = c(1) + c(2)*10 + c(3)*100 + numel(c)*1000;\n"
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cross_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cross_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {1, 2, 3};\n"
+        "  double b[3] = {4, 5, 6};\n"
+        "  double r = f(a, 3, b, 3);\n"  // [-3 6 -3]: -3 + 60 - 300 + 3000 = 2757
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], -3.0 + 60.0 - 300.0 + 3000.0);  // 2757
+}
+
 // vertcat of scalars [a; b; c] -> a 1-D column (the column counterpart of horzcat).
 // [10; 20; 30] -> [10 20 30].
 TEST(CodegenE2E, VertcatScalars)
