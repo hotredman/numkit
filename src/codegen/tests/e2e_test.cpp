@@ -2856,6 +2856,39 @@ TEST(CodegenE2E, EyeIdentity)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 10.0 + 100.0 + 0.0 + 90000.0);  // 90111
 }
 
+// tril(A): the lower triangular part of a 2-D matrix (upper triangle zeroed).
+// A = [1 2; 3 4] (col-major {1,3,2,4}); tril(A) = [1 0; 3 4].
+TEST(CodegenE2E, TrilLower)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(A)\n"
+        "  L = tril(A);\n"   // [1 0; 3 4]
+        "  r = L(1,1) + L(2,1)*10 + L(1,2)*100 + L(2,2)*1000;\n"
+        "end\n",
+        {{"A", InferredType::concrete(ValueType::DOUBLE, Shape::dims(2, 2))}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_tril_e2e.exe").string();
+    const std::string outTxt = (base / "nk_tril_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double A[4] = {1, 3, 2, 4};\n"  // [1 2; 3 4] col-major
+        "  double r = f(A, 2, 2);\n"  // tril=[1 0; 3 4]: 1 + 30 + 0 + 4000 = 4031
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 0.0 + 4000.0);  // 4031
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
