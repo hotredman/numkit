@@ -1790,6 +1790,33 @@ void Emitter::emitAssign(const ASTNode &s)
             line("}");
             return;
         }
+        // y = x(:) -> all elements of x as a column vector (column-major order), a
+        // fresh 1-D LOCAL. The bare colon parses as an EMPTY COLON_EXPR. Column-major
+        // storage means the flat buffer IS the column order, so x(:) is a straight
+        // copy of numel(x) elements (1-D length / 2-D rows*cols / N-D product of dims).
+        // v1: x a 1-D/2-D/N-D DOUBLE array var; result a 1-D LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[0]->strValue)
+            && rhs.children[1]->type == NodeType::COLON_EXPR && rhs.children[1]->children.empty()
+            && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &x   = arrays_.at(rhs.children[0]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                std::string numel;
+                if (x.isND) {
+                    numel = x.ndDims[0];
+                    for (std::size_t i = 1; i < x.ndDims.size(); ++i) numel += " * " + x.ndDims[i];
+                } else if (x.is2D) {
+                    numel = x.rowsVar + " * " + x.colsVar;
+                } else {
+                    numel = x.lenVar;
+                }
+                line(name + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + (" + numel + "));");
+                types_.set(name, res);
+                return;
+            }
+        }
         // 1-D SLICE read: y = x(a:b) / y = x(a:s:b) -> a sub-array copied into the
         // owned 1-D local y. The colon ranges over x's 1-based positions; `end`
         // inside it = x's length (pushed here, so x(2:end) works). count = the colon
