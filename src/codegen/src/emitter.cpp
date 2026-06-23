@@ -1847,26 +1847,29 @@ void Emitter::emitAssign(const ASTNode &s)
         if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
             && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
             && rhs.children[0]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[0]->strValue)
-            && arrays_.at(rhs.children[0]->strValue).is2D
+            && (arrays_.at(rhs.children[0]->strValue).is2D
+                || (arrays_.at(rhs.children[0]->strValue).isND
+                    && arrays_.at(rhs.children[0]->strValue).ndDims.size() == 2))
             && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
             && rhs.children[1]->type == NodeType::COLON_EXPR && rhs.children[1]->children.empty()
             && rhs.children[2]->type != NodeType::COLON_EXPR) {
-            const ArrayInfo    &A   = arrays_.at(rhs.children[0]->strValue);
-            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            const ArrayInfo    &A     = arrays_.at(rhs.children[0]->strValue);
+            const std::string   Arows = dimExpr(A, 0), Acols = dimExpr(A, 1);  // rank-agnostic
+            const AbstractValue res   = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
                 && inferExpr(*rhs.children[2], types_, reg_, classes_).type.shape.isScalar()) {
-                endStack_.push_back(A.colsVar);  // `end` in the column index = cols
+                endStack_.push_back(Acols);  // `end` in the column index = cols
                 const std::string j = emitExpr(*rhs.children[2]);
                 endStack_.pop_back();
                 line("{");
                 ++indent_;
                 line("const std::ptrdiff_t _nk_j = static_cast<std::ptrdiff_t>(" + j + ");");
-                line("if (_nk_j < 1 || _nk_j > static_cast<std::ptrdiff_t>(" + A.colsVar + "))");
+                line("if (_nk_j < 1 || _nk_j > static_cast<std::ptrdiff_t>(" + Acols + "))");
                 line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
                 line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j - 1) * "
-                     + A.rowsVar + ";");
+                     + Arows + ";");
                 line(name + ".assign(" + A.dataExpr + " + _nk_off, " + A.dataExpr + " + _nk_off + "
-                     + A.rowsVar + ");");
+                     + Arows + ");");
                 --indent_;
                 line("}");
                 types_.set(name, res);
@@ -1881,26 +1884,29 @@ void Emitter::emitAssign(const ASTNode &s)
         if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
             && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
             && rhs.children[0]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[0]->strValue)
-            && arrays_.at(rhs.children[0]->strValue).is2D
+            && (arrays_.at(rhs.children[0]->strValue).is2D
+                || (arrays_.at(rhs.children[0]->strValue).isND
+                    && arrays_.at(rhs.children[0]->strValue).ndDims.size() == 2))
             && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
             && rhs.children[1]->type != NodeType::COLON_EXPR
             && rhs.children[2]->type == NodeType::COLON_EXPR && rhs.children[2]->children.empty()) {
-            const ArrayInfo    &A   = arrays_.at(rhs.children[0]->strValue);
-            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            const ArrayInfo    &A     = arrays_.at(rhs.children[0]->strValue);
+            const std::string   Arows = dimExpr(A, 0), Acols = dimExpr(A, 1);  // rank-agnostic
+            const AbstractValue res   = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
                 && inferExpr(*rhs.children[1], types_, reg_, classes_).type.shape.isScalar()) {
-                endStack_.push_back(A.rowsVar);  // `end` in the row index = rows
+                endStack_.push_back(Arows);  // `end` in the row index = rows
                 const std::string i = emitExpr(*rhs.children[1]);
                 endStack_.pop_back();
                 line("{");
                 ++indent_;
                 line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
-                line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + A.rowsVar + "))");
+                line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + Arows + "))");
                 line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
-                line(name + ".assign(" + A.colsVar + ", 0.0);");
-                open("for (std::size_t _nk_j = 0; _nk_j < " + A.colsVar + "; ++_nk_j)");
+                line(name + ".assign(" + Acols + ", 0.0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < " + Acols + "; ++_nk_j)");
                 line(name + "[_nk_j] = " + A.dataExpr + "[static_cast<std::size_t>(_nk_i0) + _nk_j * "
-                     + A.rowsVar + "];");
+                     + Arows + "];");
                 close();
                 --indent_;
                 line("}");
