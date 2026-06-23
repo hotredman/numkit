@@ -1651,6 +1651,37 @@ void Emitter::emitAssign(const ASTNode &s)
                 types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
+        // Colon range MATERIALISED to an array: v = a:b (step 1) / v = a:s:b. A
+        // double row built into the owned 1-D local. Parser child order (verified):
+        // 2 children = [start, stop]; 3 children = [start, step, stop]. MATLAB count
+        // n = floor((stop-start)/step + tol) + 1, clamped to >=0 (empty when step==0
+        // or the direction disagrees); a small tol matches MATLAB's float-range
+        // length (e.g. 0:0.1:1 -> 11). The `for i=a:b` HEADER is special-cased
+        // elsewhere (no array); this is the value/materialise form. v1: owned 1-D
+        // LOCAL. (Exact MATLAB tolerance for pathological float ranges is deferred.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::COLON_EXPR
+            && (rhs.children.size() == 2 || rhs.children.size() == 3)) {
+            const bool        three = rhs.children.size() == 3;
+            const std::string start = emitExpr(*rhs.children[0]);
+            const std::string step  = three ? emitExpr(*rhs.children[1]) : std::string("1.0");
+            const std::string stop  = emitExpr(*rhs.children[three ? 2 : 1]);
+            line("{");
+            ++indent_;
+            line("const double _nk_start = " + start + ";");
+            line("const double _nk_step = " + step + ";");
+            line("const double _nk_stop = " + stop + ";");
+            line("const double _nk_nr = (_nk_stop - _nk_start) / _nk_step;");
+            line("const std::ptrdiff_t _nk_cnt = (_nk_step == 0.0 || _nk_nr < 0.0)");
+            line("    ? 0 : static_cast<std::ptrdiff_t>(_nk_nr + 1e-10) + 1;");
+            line(name + ".assign(static_cast<std::size_t>(_nk_cnt), 0.0);");
+            open("for (std::ptrdiff_t _nk_i = 0; _nk_i < _nk_cnt; ++_nk_i)");
+            line(name + "[static_cast<std::size_t>(_nk_i)] = _nk_start + static_cast<double>(_nk_i) * _nk_step;");
+            close();
+            --indent_;
+            line("}");
+            return;
+        }
         // `s = size(A)` (no dim): fill a 1 x rank row with A's per-axis sizes.
         // rank is compile-time (2 for a scalar/vector/matrix; the array's rank
         // for N-D). Native + self-contained — the first array-RESULT-from-a-
