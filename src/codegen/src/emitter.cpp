@@ -806,6 +806,15 @@ std::string Emitter::emitExpr(const ASTNode &e)
         return "std::complex<double>(0.0, " + formatDoubleLiteral(e.numValue) + ")";
     case NodeType::BOOL_LITERAL:
         return e.boolValue ? "true" : "false";
+    case NodeType::STRING_LITERAL:
+        // A 1x1 char literal ('a') is a uint16 code-unit scalar. A multi-char
+        // literal is a char ARRAY -> handled at the statement level (emitAssign);
+        // it cannot be a C++ scalar expression, so refuse it here.
+        if (e.strValue.size() != 1)
+            unsupported("multi-char string literal in expression position (char array)");
+        return "std::uint16_t("
+               + std::to_string(static_cast<unsigned>(static_cast<unsigned char>(e.strValue[0])))
+               + ")";
     case NodeType::IDENTIFIER:
         if (isArrayVar(e.strValue)) {
             // Inside an elementwise-array fill loop a whole array means its

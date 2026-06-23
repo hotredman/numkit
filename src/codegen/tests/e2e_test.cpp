@@ -1344,6 +1344,45 @@ TEST(CodegenE2E, CharRowLiteral)
     EXPECT_DOUBLE_EQ(got[0], 5.0);  // numel of 'abcde'
 }
 
+// CHAR scalar + comparison (P3, 2nd char brick): a 1x1 char literal is a uint16
+// code-unit scalar; reading a char element and comparing it enables char search.
+TEST(CodegenE2E, CharScalarCompareCount)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function n = f()\n"
+        "  c = 'banana';\n"
+        "  n = 0;\n"
+        "  for k = 1:numel(c)\n"
+        "    if c(k) == 'a'\n"   // char element vs char scalar literal
+        "      n = n + 1;\n"
+        "    end\n"
+        "  end\n"
+        "end\n",
+        {});
+    EXPECT_NE(emitted.source.find("std::uint16_t(97)"), std::string::npos)
+        << "a 1-char literal 'a' must emit its uint16 code unit (97)";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_charcmp_e2e.exe").string();
+    const std::string outTxt = (base / "nk_charcmp_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double n = f();\n"  // count of 'a' in "banana" = 3
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", n);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 3.0);  // 'a' appears 3 times in 'banana'
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled

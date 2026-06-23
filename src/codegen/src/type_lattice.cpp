@@ -53,10 +53,10 @@ bool InferredType::isUnboxableScalar() const
         case ValueType::UINT16:
         case ValueType::UINT32:
         case ValueType::UINT64:
+        case ValueType::CHAR:  // a 1x1 char is a uint16 code-unit scalar
             return true;
-        // CHAR (MATLAB char is UTF-16) and the aggregate / handle types
-        // (CELL / STRUCT / FUNC_HANDLE / STRING / OBJECT / EMPTY) are not
-        // unboxable C++ scalars in the MVP.
+        // The aggregate / handle types (CELL / STRUCT / FUNC_HANDLE / STRING /
+        // OBJECT / EMPTY) are not unboxable C++ scalars in the MVP.
         default:
             return false;
     }
