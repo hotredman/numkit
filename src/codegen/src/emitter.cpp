@@ -1913,6 +1913,32 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native diff(x) -> consecutive differences (y[i] = x[i+1]-x[i], length
+        // n-1), a runtime-sized 1-D LOCAL preserving x's dtype. EXACT (subtraction)
+        // -> preferred over the bridged array-result path; works for double and
+        // complex. v1: a single 1-D array arg that is a VARIABLE; result a LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "diff"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)) {
+            const ArrayInfo    &xa  = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!xa.is2D && !xa.isND && res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 1; _nk_i < " + xa.lenVar + "; ++_nk_i)");
+                line(name + ".push_back(" + xa.dataExpr + "[_nk_i] - " + xa.dataExpr
+                     + "[_nk_i - 1]);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Output array from a BRIDGED call (opt-in): y = sin(x). Sound ONLY
         // when inference proves the RHS is a concrete array (Contract 2); box
         // the (array-var / scalar) args, call the runtime (1 output), and

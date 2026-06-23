@@ -1203,6 +1203,41 @@ TEST(CodegenE2E, FindReturnsPositions)
     EXPECT_DOUBLE_EQ(got[0], 7.0);  // positions 3 + 4
 }
 
+// Native diff(x) -> consecutive differences (P3, self-contained, EXACT): a
+// push_back loop producing a length n-1 1-D array local.
+TEST(CodegenE2E, NativeDiffReduction)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function s = f(x)\n"
+        "  d = diff(x);\n"          // [1 4 9 16] -> [3 5 7]
+        "  s = d(1) + d(2) + d(3);\n"  // 3+5+7 = 15
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("[_nk_i] - "), std::string::npos)
+        << "diff must lower to a consecutive-difference loop";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_diff_e2e.exe").string();
+    const std::string outTxt = (base / "nk_diff_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {1.0, 4.0, 9.0, 16.0};\n"  // diff -> [3 5 7]
+        "  double s = f(x, 4);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 15.0);  // (4-1)+(9-4)+(16-9) = 3+5+7
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
