@@ -1683,6 +1683,41 @@ TEST(CodegenE2E, StructArrayField)
     EXPECT_DOUBLE_EQ(got[0], 23.0);  // numel(3) + s.v(2)=20
 }
 
+// Struct array-field element INDEXING `s.v(k)` (P3): index a struct's array field
+// directly (no temp), completing struct array access.
+TEST(CodegenE2E, StructFieldIndex)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a)\n"
+        "  s.v = a;\n"
+        "  r = s.v(2) * 10;\n"   // a(2) * 10
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_fld_s_v.size()"), std::string::npos)
+        << "s.v(k) must index the field-local array";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_structidx_e2e.exe").string();
+    const std::string outTxt = (base / "nk_structidx_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {10.0, 20.0, 30.0};\n"
+        "  double r = f(a, 3);\n"  // s.v(2)=20 * 10 = 200
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 200.0);  // s.v(2)=20 * 10
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
