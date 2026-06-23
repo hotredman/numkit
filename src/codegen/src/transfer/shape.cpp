@@ -264,7 +264,8 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
-    for (const char *n : {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median"})
+    for (const char *n :
+         {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median", "trapz"})
         reg.add(n, vectorReductionTransfer);
     for (const char *n : {"any", "all"})  // vector -> LOGICAL scalar (native inline loop)
         reg.add(n, anyAllTransfer);

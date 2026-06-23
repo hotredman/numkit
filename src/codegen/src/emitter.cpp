@@ -2232,6 +2232,33 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native trapz(y) -> trapezoidal integral with unit spacing, a DOUBLE scalar:
+        // sum over i of (y[i]+y[i+1])/2. n<2 -> 0 (no interval). Gated !bridge_
+        // (order-dependent summation -> the bridged path stays exact under the
+        // bridge). v1: a single 1-D DOUBLE array var.
+        if (!isArrayVar(name) && !bridge_ && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "trapz"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &a   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (!a.is2D && !a.isND && res.type.isConcrete() && res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("double _nk_acc = 0.0;");
+                open("for (std::size_t _nk_i = 0; _nk_i + 1 < " + a.lenVar + "; ++_nk_i)");
+                line("_nk_acc += (" + a.dataExpr + "[_nk_i] + " + a.dataExpr
+                     + "[_nk_i + 1]) * 0.5;");
+                close();
+                line(name + " = _nk_acc;");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native median(x) -> the middle of a sorted copy (no-bridge tier, !bridge_).
         // Sort a temp copy with the NaN-last comparator (a valid strict-weak-ordering).
         // MATLAB's default median propagates NaN (any NaN -> NaN): a NaN sorts last,
