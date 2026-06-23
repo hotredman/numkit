@@ -3757,6 +3757,63 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // 2-D horzcat of MATRICES: `M = [A B ...]` (single-row MATRIX_LITERAL, every
+        // element a 2-D matrix var of the same row count) -> horizontal concatenation, a
+        // rank-2 ndRuntimeLocal. In column-major each operand's buffer IS its columns in
+        // order, so the result is the operand buffers concatenated end to end: M rows = A
+        // rows, M cols = sum of the operands' cols. A runtime guard checks all operands
+        // share the row count. v1: DOUBLE matrix vars (KnownDims 2-D or runtime-dim 2-D),
+        // >=2 of them, none aliasing the destination.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::MATRIX_LITERAL
+            && rhs.children.size() == 1 && rhs.children[0]
+            && rhs.children[0]->children.size() >= 2) {
+            bool allMatVars = true;
+            for (const auto &el : rhs.children[0]->children)
+                if (!el || el->type != NodeType::IDENTIFIER || !isArrayVar(el->strValue)
+                    || el->strValue == name  // in-place horzcat -> fall through to refusal
+                    || !(arrays_.at(el->strValue).is2D
+                         || (arrays_.at(el->strValue).isND
+                             && arrays_.at(el->strValue).ndDims.size() == 2))
+                    || arrays_.at(el->strValue).dtype != ValueType::DOUBLE) {
+                    allMatVars = false;
+                    break;
+                }
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (allMatVars && rv.type.isConcrete()) {
+                const ArrayInfo  &M    = arrays_.at(name);
+                const ArrayInfo  &op0  = arrays_.at(rhs.children[0]->children[0]->strValue);
+                const std::string rows = dimExpr(op0, 0);
+                std::string       totalCols;
+                for (const auto &el : rhs.children[0]->children)
+                    totalCols += (totalCols.empty() ? "" : " + ")
+                                 + dimExpr(arrays_.at(el->strValue), 1);
+                line("{");
+                ++indent_;
+                line(M.ndDims[0] + " = " + rows + ";");
+                line(M.ndDims[1] + " = (" + totalCols + ");");
+                for (std::size_t e = 1; e < rhs.children[0]->children.size(); ++e) {
+                    const ArrayInfo &op = arrays_.at(rhs.children[0]->children[e]->strValue);
+                    line("if (" + dimExpr(op, 0) + " != " + rows
+                         + ") throw std::out_of_range(\"numkit: horzcat row dimensions must "
+                           "agree\");");
+                }
+                line(name + ".resize(" + rows + " * (" + totalCols + "));");
+                line("std::size_t _nk_off = 0;");
+                for (const auto &el : rhs.children[0]->children) {
+                    const ArrayInfo  &op = arrays_.at(el->strValue);
+                    const std::string sz = "(" + dimExpr(op, 0) + " * " + dimExpr(op, 1) + ")";
+                    open("for (std::size_t _nk_k = 0; _nk_k < " + sz + "; ++_nk_k)");
+                    line(name + "[_nk_off + _nk_k] = " + op.dataExpr + "[_nk_k];");
+                    close();
+                    line("_nk_off += " + sz + ";");
+                }
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
         // 1-D vertcat of scalars: `v = [a; b; c]` (multi-row MATRIX_LITERAL, each row a
         // single scalar) -> a 1-D column LOCAL, pushing each row's scalar in order. The
         // column counterpart of the 1-D horzcat above. v1: scalar elements (a multi-
