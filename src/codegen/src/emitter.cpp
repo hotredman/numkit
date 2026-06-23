@@ -1725,6 +1725,40 @@ void Emitter::emitAssign(const ASTNode &s)
                 types_.set(name, inferExpr(rhs, types_, reg_, classes_));
             return;
         }
+        // logspace(a, b [, n]) -> n decade-spaced points 10^a .. 10^b (= 10^linspace).
+        // Mirrors the linspace fill but each slot is 10^(a + i*step); the last point
+        // is seeded to exactly 10^b. n==1 -> {10^b}; n<=0 -> empty; the 2-arg form
+        // defaults n=50 (MATLAB logspace, NOT 100). v1: an owned LOCAL, 2- or 3-arg.
+        // (The logspace(a,pi,n) "upper limit = pi" quirk is a deferred gap.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal
+            && rhs.type == NodeType::CALL && !rhs.children.empty()
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "logspace"
+            && (rhs.children.size() == 3 || rhs.children.size() == 4)) {
+            const std::string a = emitExpr(*rhs.children[1]);
+            const std::string b = emitExpr(*rhs.children[2]);
+            const std::string n = rhs.children.size() == 4
+                                      ? ("nk_rt::dim(" + emitExpr(*rhs.children[3]) + ")")
+                                      : std::string("50");  // 2-arg default (MATLAB logspace)
+            line("{");
+            ++indent_;
+            line("const double _nk_a = " + a + ";");
+            line("const double _nk_b = " + b + ";");
+            line("const std::size_t _nk_n = " + n + ";");
+            line(name + ".assign(_nk_n, std::pow(10.0, _nk_b));");  // last point already 10^b
+            open("if (_nk_n >= 2)");
+            line("const double _nk_step = (_nk_b - _nk_a) / static_cast<double>(_nk_n - 1);");
+            open("for (std::size_t _nk_i = 0; _nk_i + 1 < _nk_n; ++_nk_i)");
+            line(name + "[_nk_i] = std::pow(10.0, _nk_a + static_cast<double>(_nk_i) * _nk_step);");
+            close();
+            close();
+            --indent_;
+            line("}");
+            const ArrayInfo &ai = arrays_.at(name);
+            if (ai.isND || ai.is2D)
+                types_.set(name, inferExpr(rhs, types_, reg_, classes_));
+            return;
+        }
         // Colon range MATERIALISED to an array: v = a:b (step 1) / v = a:s:b. A
         // double row built into the owned 1-D local. Parser child order (verified):
         // 2 children = [start, stop]; 3 children = [start, step, stop]. MATLAB count

@@ -70,6 +70,22 @@ InferredType linspaceTransfer(const std::vector<ArgInfo> &args)
     return InferredType::concrete(ValueType::DOUBLE, sh);
 }
 
+// logspace(a, b [, n]) -> 1 x N double row of decade-spaced points (10^linspace).
+// Same shape rule as linspace EXCEPT the 2-arg default is n=50 (MATLAB / numkit
+// logspace), not 100. n a known constant -> 1 x n; runtime n -> Unknown shape.
+InferredType logspaceTransfer(const std::vector<ArgInfo> &args)
+{
+    Shape       sh;
+    std::size_t n = 0;
+    if (args.size() >= 3 && args[2].constant.asDim(n))
+        sh = Shape::dims(1, n);
+    else if (args.size() == 2)
+        sh = Shape::dims(1, 50);  // MATLAB logspace default n=50
+    else
+        sh = Shape::unknown();
+    return InferredType::concrete(ValueType::DOUBLE, sh);
+}
+
 } // namespace
 
 void registerConstructorTransfers(TransferRegistry &reg)
@@ -77,6 +93,7 @@ void registerConstructorTransfers(TransferRegistry &reg)
     reg.add("zeros", zerosOnesTransfer);
     reg.add("ones", zerosOnesTransfer);
     reg.add("linspace", linspaceTransfer);
+    reg.add("logspace", logspaceTransfer);
 }
 
 } // namespace numkit::codegen
