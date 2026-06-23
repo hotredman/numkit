@@ -2453,6 +2453,40 @@ TEST(CodegenE2E, Unique)
     EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 400.0 + 5000.0 + 40000.0);  // 45431
 }
 
+// Native trapz(y) (no-bridge tier): trapezoidal integral, unit spacing.
+// trapz([1 2 3 4 5]) = 1.5 + 2.5 + 3.5 + 4.5 = 12.
+TEST(CodegenE2E, Trapz)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  r = trapz(x);\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("* 0.5"), std::string::npos)
+        << "trapz must lower to a native trapezoid accumulation, not refuse";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_trapz_e2e.exe").string();
+    const std::string outTxt = (base / "nk_trapz_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {1.0, 2.0, 3.0, 4.0, 5.0};\n"
+        "  double r = f(x, 5);\n"  // 1.5 + 2.5 + 3.5 + 4.5 = 12
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 12.0);
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
