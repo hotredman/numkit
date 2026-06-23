@@ -2922,6 +2922,39 @@ TEST(CodegenE2E, DiagOfVector)
     EXPECT_DOUBLE_EQ(got[0], 5.0 + 60.0 + 700.0 + 0.0 + 90000.0);  // 90765
 }
 
+// repmat(rowVec, p, q) with p>1 -> a true 2-D p x (q*n) tiling (runtime-dim 2-D).
+// repmat([10 20 30], 2, 2) -> a 2x6 matrix: each row is [10 20 30 10 20 30].
+TEST(CodegenE2E, RepmatRowVectorTo2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(v)\n"
+        "  M = repmat(v, 2, 2);\n"   // 2 x 6
+        "  r = M(1,1) + M(2,3)*10 + M(1,4)*100 + M(2,6)*1000 + numel(M)*100000;\n"
+        "end\n",
+        {{"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_repmat2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_repmat2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double v[3] = {10, 20, 30};\n"
+        "  double r = f(v, 3);\n"  // 10 + 30*10 + 10*100 + 30*1000 + 12*100000 = 1231310
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0 + 300.0 + 1000.0 + 30000.0 + 1200000.0);  // 1231310
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)

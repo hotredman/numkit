@@ -130,13 +130,17 @@ InferredType repmatTransfer(const std::vector<ArgInfo> &args)
             return InferredType::concrete(args[0].type.dtype, Shape::dims(m, n));
         return InferredType::dynamic();
     }
-    // Row-vector operand with a "1" down-rep: repmat(rowVec, 1, q) -> a 1 x (q*n) row
-    // (q copies concatenated). A general (p,q) with both > 1 (true 2-D tiling) is
-    // deferred -> Dynamic.
+    // Row-vector operand: repmat(rowVec, p, q) tiles a 1 x n row into p x (q*n).
+    //   p == 1  -> a 1 x (q*n) row (q copies concatenated), a 1-D row (Unknown shape).
+    //   p  > 1  -> a true 2-D p x (q*n) matrix. rows = p (known), cols = q*n (runtime,
+    //              n is the operand's runtime length) -> NDims rank-2 ndShape({p, 0}),
+    //              a runtime-dim 2-D the emitter materialises as an ndRuntimeLocal.
     if (args[0].type.shape.kind == ShapeKind::RowVector && args.size() == 3) {
-        std::size_t p = 0;
+        std::size_t p = 0, q = 0;
         if (args[1].constant.asDim(p) && p == 1)
             return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+        if (args[1].constant.asDim(p) && args[2].constant.asDim(q) && p > 1)
+            return InferredType::concrete(args[0].type.dtype, Shape::ndShape({p, 0}));
     }
     // Column-vector operand with a "1" across-rep: repmat(colVec, p, 1) -> a (p*n) x 1
     // column (p copies stacked). The mirror of the row case.
