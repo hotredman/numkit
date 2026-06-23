@@ -2276,6 +2276,42 @@ TEST(CodegenE2E, SortDescend)
     EXPECT_DOUBLE_EQ(got[0], 40.0 + 100.0 + 1000.0 + 40000.0);  // 41140
 }
 
+// Native cummax/cummin(x) running extrema. x = [3 1 4 1 5]:
+// cummax -> [3 3 4 4 5], cummin -> [3 1 1 1 1].
+TEST(CodegenE2E, CumulativeExtrema)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  a = cummax(x);\n"   // [3 3 4 4 5]
+        "  b = cummin(x);\n"   // [3 1 1 1 1]
+        "  r = a(2) + a(5)*10 + b(2)*100 + b(5)*1000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_EQ(emitted.source.find("cummax"), std::string::npos)
+        << "cummax must be lowered to a native running loop, not left as a call";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cumext_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cumext_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {3.0, 1.0, 4.0, 1.0, 5.0};\n"
+        "  double r = f(x, 5);\n"  // 3 + 5*10 + 1*100 + 1*1000 = 1153
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 3.0 + 50.0 + 100.0 + 1000.0);  // 1153
+}
+
 // INTEGRATION CAPSTONE (P3): one kernel composing struct array fields + logical
 // masking + find + a max reduction + char literal/upper/index + numel + an if +
 // arithmetic. Proves the P3 surface composes end-to-end (cross-feature guard).
