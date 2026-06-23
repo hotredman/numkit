@@ -1131,6 +1131,42 @@ TEST(CodegenE2E, NativeSumReduction)
     EXPECT_DOUBLE_EQ(got[0], 15.0);  // 1+2+3+4+5
 }
 
+// Native prod / mean reductions (P3, self-contained / no bridge): inline loops,
+// same !bridge_ tier as sum. Integer-exact values so order doesn't matter.
+TEST(CodegenE2E, NativeProdMeanReductions)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(  // transpile() emits with NO bridge
+        "function s = f(x)\n"
+        "  p = prod(x);\n"   // 1*2*3*4 = 24
+        "  m = mean(x);\n"   // (1+2+3+4)/4 = 2.5
+        "  s = p + m;\n"     // 26.5
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find("_nk_acc *= "), std::string::npos)
+        << "native prod must lower to an inline product loop";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_prodmean_e2e.exe").string();
+    const std::string outTxt = (base / "nk_prodmean_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {1.0, 2.0, 3.0, 4.0};\n"  // prod 24, mean 2.5
+        "  double s = f(x, 4);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 26.5);  // prod(24) + mean(2.5)
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
