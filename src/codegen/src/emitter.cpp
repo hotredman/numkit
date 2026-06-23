@@ -1944,6 +1944,26 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // repmat(s, m, n) / repmat(s, n) with s a SCALAR -> an m x n (or n x n) matrix
+        // all = s, a 2-D KnownDims LOCAL (the tiling of a 1x1). Like zeros/ones but the
+        // fill is the scalar value. v1: s a DOUBLE scalar, m,n literals. (repmat of a
+        // vector/matrix = true tiling, deferred.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).is2D
+            && rhs.type == NodeType::CALL
+            && (rhs.children.size() == 3 || rhs.children.size() == 4)
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "repmat"
+            && inferExpr(*rhs.children[1], types_, reg_, classes_).type.shape.isScalar()) {
+            const ArrayInfo    &v   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && res.type.shape.kind == ShapeKind::KnownDims) {
+                const std::string s = emitExpr(*rhs.children[1]);
+                line(name + ".assign(static_cast<std::size_t>(" + v.rowsVar + " * " + v.colsVar
+                     + "), " + s + ");");
+                types_.set(name, res);
+                return;
+            }
+        }
         // 1-D SLICE read: y = x(a:b) / y = x(a:s:b) -> a sub-array copied into the
         // owned 1-D local y. The colon ranges over x's 1-based positions; `end`
         // inside it = x's length (pushed here, so x(2:end) works). count = the colon
