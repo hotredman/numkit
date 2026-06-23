@@ -2022,6 +2022,40 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // repmat(x, p, 1) with x a COL vector -> p copies stacked into a (p*n) x 1
+        // column, a fresh 1-D LOCAL: out[k*n + i] = x[i]. The mirror of the row tile;
+        // the across-rep (children[3]) must be the literal 1, reps = children[2]. A
+        // row operand here yields a Dynamic result (2-D) -> the concrete-result guard
+        // gates it out. v1: x a 1-D DOUBLE col var.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 4
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "repmat"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[3]->type == NodeType::NUMBER_LITERAL
+            && rhs.children[3]->numValue == 1.0) {
+            const ArrayInfo    &x   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const std::string p = emitExpr(*rhs.children[2]);
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_p = nk_rt::dim(" + p + ");");
+                line(name + ".clear();");
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_p; ++_nk_k)");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + x.lenVar + "; ++_nk_i)");
+                line(name + ".push_back(" + x.dataExpr + "[_nk_i]);");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // eye(n) / eye(m, n) -> the identity matrix (1 on the main diagonal, 0 else), a
         // 2-D KnownDims LOCAL. Like zeros but the diagonal is set to 1. v1: literal dims.
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).is2D
