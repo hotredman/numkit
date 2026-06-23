@@ -2348,6 +2348,41 @@ void Emitter::emitAssign(const ASTNode &s)
             return;
         }
 
+        // 1-D horzcat: `r = [a b ...]` (a single row of 1-D array operands of one
+        // dtype) -> a runtime-sized 1-D array LOCAL built by appending each operand
+        // in order. Works for char (uint16) + numeric. v1: every element is an
+        // array VARIABLE; r a 1-D LOCAL. (Mixed-dtype / scalar element / multi-row
+        // give a Dynamic or non-buffer inference -> skipped here.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::MATRIX_LITERAL
+            && rhs.children.size() == 1 && rhs.children[0]) {
+            const ASTNode &row          = *rhs.children[0];
+            bool           allArrayVars = !row.children.empty();
+            for (const auto &el : row.children)
+                if (!el || el->type != NodeType::IDENTIFIER || !isArrayVar(el->strValue)) {
+                    allArrayVars = false;
+                    break;
+                }
+            if (allArrayVars) {
+                const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+                if (rv.type.isConcrete() && !rv.type.shape.isScalar()) {
+                    line("{");
+                    ++indent_;
+                    line(name + ".clear();");
+                    for (const auto &el : row.children) {
+                        const ArrayInfo &op = arrays_.at(el->strValue);
+                        open("for (std::size_t _nk_i = 0; _nk_i < " + op.lenVar + "; ++_nk_i)");
+                        line(name + ".push_back(" + op.dataExpr + "[_nk_i]);");
+                        close();
+                    }
+                    --indent_;
+                    line("}");
+                    types_.set(name, rv);
+                    return;
+                }
+            }
+        }
+
         if (isArrayVar(name))
             unsupported("array-valued assignment to '" + name
                         + "' (only size-constructor init of the output in RawBuffer ABI)");

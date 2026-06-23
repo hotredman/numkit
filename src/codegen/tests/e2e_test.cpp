@@ -1494,6 +1494,43 @@ TEST(CodegenE2E, StructScalarFields)
     EXPECT_DOUBLE_EQ(got[0], 23.0);  // 2*10 + 3
 }
 
+// 1-D horzcat `c = [a b]` (P3): concatenate two array operands into a runtime-
+// sized 1-D local; tests the joined length and element ordering.
+TEST(CodegenE2E, HorzcatTwoArrays)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a, b)\n"
+        "  c = [a b];\n"             // [1 2 3] ++ [4 5] -> [1 2 3 4 5]
+        "  r = numel(c) + c(4);\n"   // 5 + 4 = 9
+        "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    EXPECT_NE(emitted.source.find(".push_back("), std::string::npos)
+        << "horzcat must build the result by appending each operand";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_horzcat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_horzcat_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a[3] = {1.0, 2.0, 3.0};\n"
+        "  double b[2] = {4.0, 5.0};\n"  // [a b] = [1 2 3 4 5]
+        "  double r = f(a, 3, b, 2);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 9.0);  // numel(5) + c(4)=4
+}
+
 // RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
 // recursive call to Dynamic (a sound inference break); the recursive call's boxed
 // result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
