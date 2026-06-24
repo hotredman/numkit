@@ -352,7 +352,7 @@ void registerElementwiseTransfers(TransferRegistry &reg)
 
     // real-preserving elementwise math
     for (const char *n : {"sin", "cos", "tan", "exp", "sinh", "cosh", "tanh",
-                          "atan", "floor", "ceil", "round", "fix", "sign"})
+                          "atan", "floor", "ceil", "round", "fix"})
         reg.add(n, realMathUnaryTransfer);
     reg.add("abs", absTransfer);
     // complex accessors
@@ -365,6 +365,15 @@ void registerElementwiseTransfers(TransferRegistry &reg)
     // (real-total: poles at non-positive integers -> +Inf, matching numkit).
     for (const char *n : {"asinh", "erf", "erfc", "expm1", "gammaln"})
         reg.add(n, realOnlyMathUnaryTransfer);
+    // sign(x): real signum -> -1 / 0 / 1 (sign(0)=0, sign(NaN)=NaN). The emitter inlines
+    // the formula (not a std fn). Complex sign = z/|z| has no real formula, so realOnly
+    // sends a complex operand Dynamic (bridged) -> the inline emit only ever sees a real.
+    reg.add("sign", realOnlyMathUnaryTransfer);
+    // gamma(x): the gamma function. std::tgamma differs from MATLAB at the poles (non-positive
+    // integers -> MATLAB +Inf, tgamma NaN), so it is NEVER lowered natively (no bit-identity) --
+    // it stays the typed-real-scalar BRIDGE exemplar (scalar -> bridge_scalar; array -> bridged
+    // array). Real operand only; gamma of complex is a different continuation -> Dynamic.
+    reg.add("gamma", realOnlyMathUnaryTransfer);
     // real scalar scalings (no std fn; the emitter inlines numkit's exact constant)
     for (const char *n : {"deg2rad", "rad2deg"})
         reg.add(n, realScalarMathUnaryTransfer);

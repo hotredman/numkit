@@ -1164,13 +1164,13 @@ TEST(EmitterFn, BridgedScalarCallWhenEnabled)
 {
     const auto             reg = stdReg();
     numkit::ASTNodePtr     root;
-    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sign(x);\nend\n", root);
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = gamma(x);\nend\n", root);
     ASSERT_NE(fn, nullptr);
 
     const BridgeOptions   bridge{true, "nk_codegen_rt.h"};
     const EmittedFunction out = emitFunction(*fn, {{"x", kDoubleScalar}}, reg, nullptr, bridge);
 
-    EXPECT_TRUE(contains(out.source, "nk_rt::bridge_scalar(\"sign\", {x})"));  // the bridged call
+    EXPECT_TRUE(contains(out.source, "nk_rt::bridge_scalar(\"gamma\", {x})"));  // the bridged call
     EXPECT_TRUE(contains(out.source, "#include \"nk_codegen_rt.h\""));         // runtime header
     EXPECT_TRUE(contains(out.source, "inline double bridge_scalar("));         // helper present
 }
@@ -1181,7 +1181,7 @@ TEST(EmitterFn, UnlowerableCallThrowsWhenBridgingDisabled)
 {
     const auto             reg = stdReg();
     numkit::ASTNodePtr     root;
-    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = sign(x);\nend\n", root);
+    const numkit::ASTNode *fn = findFunc("function y = f(x)\n  y = gamma(x);\nend\n", root);
     ASSERT_NE(fn, nullptr);
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }
@@ -1368,14 +1368,14 @@ TEST(EmitterFn, BuiltinMathLowering)
     EXPECT_TRUE(contains(s, "std::trunc(x)"));  // MATLAB fix -> std::trunc
 }
 
-// A builtin that the transfer registry CAN type (sign -> scalar double)
+// A builtin that the transfer registry CAN type (gamma -> scalar double)
 // but the emitter does not lower hits the explicit boundary and throws —
 // no silent wrong code, and (post dead-code trim) no unreachable lowering.
 TEST(EmitterFn, TypedButUnloweredBuiltinThrows)
 {
     const auto reg = stdReg();
     numkit::ASTNodePtr root;
-    const numkit::ASTNode *fn = findFunc("function y = g(x)\n  y = sign(x);\nend\n", root);
+    const numkit::ASTNode *fn = findFunc("function y = g(x)\n  y = gamma(x);\nend\n", root);
     ASSERT_NE(fn, nullptr);
     EXPECT_THROW(emitFunction(*fn, {{"x", kDoubleScalar}}, reg), std::runtime_error);
 }

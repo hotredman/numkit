@@ -4057,6 +4057,45 @@ TEST(CodegenE2E, MaxMinTwoArg)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// native sign(x): real signum -> -1/0/1, both elementwise over an array and scalar.
+// x=[-3 0 5 -0.5] -> sign(x)=[-1 0 1 -1]; sign(0)=0; sign(7.5)=1.
+TEST(CodegenE2E, SignRealElementwise)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  S = sign(x);\n"        // elementwise: [-1 0 1 -1]
+        "  z = sign(x(2));\n"     // scalar sign(0) = 0
+        "  p = sign(7.5);\n"      // scalar literal -> 1
+        "  r = S(1) + S(2)*10 + S(3)*100 + S(4)*1000 + z*10000 + p*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_sign_e2e.exe").string();
+    const std::string outTxt = (base / "nk_sign_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4] = {-3, 0, 5, -0.5};\n"
+        "  double r = f(x, 4);\n"  // -1 + 0 + 100 - 1000 + 0 + 100000 = 99099
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 99099.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[-3 0 5 -0.5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // cat(dim, A, B) with a literal dim: cat(2,..) horizontal (like [A B]), cat(1,..) vertical
 // (like [A;B]). A=[1 2;3 4], B=[5 6;7 8] -> cat(2)=[1 2 5 6;3 4 7 8], cat(1)=[1 2;3 4;5 6;7 8].
 TEST(CodegenE2E, CatDimMatrices)
@@ -6285,10 +6324,11 @@ TEST(CodegenE2E, MultiArrayElementwiseRunsCorrectly)
 }
 
 // BRIDGED e2e (DESIGN.md §6a brick 4): a program calling a builtin the emitter
-// cannot lower (`sign`) compiles in BRIDGED mode, links the nk_codegen_rt
-// shared lib, RUNS, and matches the interpreter. Proves the C-ABI bridge end
-// to end: generated native code -> runtime DLL -> result. The opaque handle
-// design keeps all Value alloc/free inside the DLL (no cross-module heap).
+// cannot lower (`gamma` -- std::tgamma diverges from MATLAB at the poles, so it is
+// never native) compiles in BRIDGED mode, links the nk_codegen_rt shared lib, RUNS,
+// and matches the interpreter. Proves the C-ABI bridge end to end: generated native
+// code -> runtime DLL -> result. The opaque handle design keeps all Value alloc/free
+// inside the DLL (no cross-module heap).
 TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
 {
     if (!aot::available())
@@ -6296,7 +6336,7 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
 
     TransferRegistry reg;
     registerStandardTransfers(reg);
-    numkit::Lexer          lex("function y = f(x)\n  y = sign(x);\nend\n");
+    numkit::Lexer          lex("function y = f(x)\n  y = gamma(x);\nend\n");
     numkit::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
     const numkit::ASTNode *fn   = nullptr;
@@ -6309,7 +6349,7 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
     bridge.runtimeHeader = "nk_codegen_rt.h";  // resolved via the -I below
     const EmittedFunction emitted =
         emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
-    ASSERT_NE(emitted.source.find("nk_rt::bridge_scalar(\"sign\""), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk_rt::bridge_scalar(\"gamma\""), std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
     std::filesystem::create_directories(base);
@@ -6322,7 +6362,7 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
     program +=
         "#include <cstdio>\n"
         "int main() {\n"
-        "  const double xs[3] = {-3.5, 0.0, 2.75};\n"
+        "  const double xs[3] = {1.5, 3.0, 4.5};\n"
         "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
         "  if (!g) return 2;\n"
         "  for (int i = 0; i < 3; ++i) std::fprintf(g, \"%.17g\\n\", f(xs[i]));\n"
@@ -6353,14 +6393,13 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
     }
     ASSERT_EQ(got.size(), 3u);
 
-    // Reference: the interpreter's sign over the same inputs.
+    // Reference: the interpreter's gamma over the same inputs (the bridge calls the same
+    // runtime gamma, so this is the canonical diff-vs-interpreter check).
     numkit::StandardEngine engine;
-    EXPECT_DOUBLE_EQ(got[0], engine.eval("sign(-3.5)", true).toScalar());  // -1
-    EXPECT_DOUBLE_EQ(got[1], engine.eval("sign(0)", true).toScalar());     //  0
-    EXPECT_DOUBLE_EQ(got[2], engine.eval("sign(2.75)", true).toScalar());  //  1
-    EXPECT_DOUBLE_EQ(got[0], -1.0);
-    EXPECT_DOUBLE_EQ(got[1], 0.0);
-    EXPECT_DOUBLE_EQ(got[2], 1.0);
+    EXPECT_DOUBLE_EQ(got[0], engine.eval("gamma(1.5)", true).toScalar());
+    EXPECT_DOUBLE_EQ(got[1], engine.eval("gamma(3.0)", true).toScalar());
+    EXPECT_DOUBLE_EQ(got[2], engine.eval("gamma(4.5)", true).toScalar());
+    EXPECT_DOUBLE_EQ(got[1], 2.0);  // gamma(3) = 2! exactly
 }
 
 // DYNAMIC TIER end-to-end (DESIGN.md §10 C1): an un-typeable value stays BOXED
