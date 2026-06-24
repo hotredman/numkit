@@ -283,15 +283,23 @@ InferredType traceTransfer(const std::vector<ArgInfo> &args)
 // diagonal MATRIX) and diag(A,k) (the k-th diagonal) are deferred -> Dynamic.
 InferredType diagTransfer(const std::vector<ArgInfo> &args)
 {
-    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
-    if (args[0].type.shape.kind == ShapeKind::KnownDims)  // a 2-D matrix -> its diagonal (1-D)
-        return InferredType::concrete(args[0].type.dtype, Shape::unknown());
-    // A VECTOR -> a diagonal MATRIX: an n x n runtime-dim 2-D (n = numel(v)). Modelled
-    // as a rank-2 NDims with both dims runtime (ndShape({0,0}) -> a rank-2 ndRuntimeLocal).
+    if (args.empty() || args.size() > 2 || !args[0].type.isConcrete())
+        return InferredType::dynamic();
+    // diag(A) (1-arg matrix) -> its main diagonal (1-D). diag(A,k) on a matrix is deferred
+    // (k-dependent length) -> Dynamic (bridged).
+    if (args[0].type.shape.kind == ShapeKind::KnownDims)
+        return args.size() == 1 ? InferredType::concrete(args[0].type.dtype, Shape::unknown())
+                                : InferredType::dynamic();
+    // diag(v) / diag(v,k) with v a VECTOR -> a diagonal MATRIX: an N x N runtime-dim 2-D
+    // (N = numel(v) + |k|). Modelled as a rank-2 NDims with both dims runtime (ndShape
+    // ({0,0}) -> a rank-2 ndRuntimeLocal). The emit handles a literal k offset.
     switch (args[0].type.shape.kind) {
     case ShapeKind::RowVector:
     case ShapeKind::ColVector:
     case ShapeKind::Unknown:
+        // A runtime (non-literal) k stays Dynamic -> bridged (the emit needs a literal k
+        // to size the N x N matrix and decide the diagonal direction at compile time).
+        if (args.size() == 2 && !args[1].constant.isKnown()) return InferredType::dynamic();
         return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
     default:
         return InferredType::dynamic();  // scalar / N-D deferred
