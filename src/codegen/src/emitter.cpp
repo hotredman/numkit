@@ -4131,6 +4131,48 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native cat(3, A, B): stack two same-size 2-D matrices into an m x n x 2 array
+        // (phase N2). Concat along the new TRAILING dim is a CONTIGUOUS buffer append in
+        // column-major -- M = A_flat ++ B_flat (page 1 = A, page 2 = B). A rank-3
+        // ndRuntimeLocal; dims [m, n, 2]; same-size guard. v1: two DOUBLE 2-D matrix vars
+        // distinct from the dest.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "cat"
+            && rhs.children[1]->type == NodeType::NUMBER_LITERAL
+            && rhs.children[1]->numValue == 3.0
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && rhs.children[3]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[3]->strValue)
+            && rhs.children[2]->strValue != name && rhs.children[3]->strValue != name) {
+            const ArrayInfo &A = arrays_.at(rhs.children[2]->strValue);
+            const ArrayInfo &B = arrays_.at(rhs.children[3]->strValue);
+            const bool aMat = A.is2D || (A.isND && A.ndDims.size() == 2);
+            const bool bMat = B.is2D || (B.isND && B.ndDims.size() == 2);
+            if (aMat && bMat && A.dtype == ValueType::DOUBLE && B.dtype == ValueType::DOUBLE) {
+                const ArrayInfo    &M   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_ar = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_ac = " + dimExpr(A, 1) + ";");
+                line("if (_nk_ar != " + dimExpr(B, 0) + " || _nk_ac != " + dimExpr(B, 1)
+                     + ") throw std::out_of_range(\"numkit: cat(3) page sizes must agree\");");
+                line("const std::size_t _nk_p = _nk_ar * _nk_ac;");  // page size
+                line(M.ndDims[0] + " = _nk_ar;");
+                line(M.ndDims[1] + " = _nk_ac;");
+                line(M.ndDims[2] + " = 2;");
+                line(name + ".assign(_nk_p * 2, 0.0);");
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_p; ++_nk_k)");
+                line(name + "[_nk_k] = " + A.dataExpr + "[_nk_k];");          // page 1 = A
+                line(name + "[_nk_p + _nk_k] = " + B.dataExpr + "[_nk_k];");  // page 2 = B
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even

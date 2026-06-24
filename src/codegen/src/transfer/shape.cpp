@@ -145,15 +145,21 @@ InferredType catTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 3) return InferredType::dynamic();  // dim + exactly two arrays (v1)
     std::size_t dim = 0;
-    if (!args[0].constant.asDim(dim) || (dim != 1 && dim != 2)) return InferredType::dynamic();
+    if (!args[0].constant.asDim(dim) || (dim != 1 && dim != 2 && dim != 3))
+        return InferredType::dynamic();
     auto isMat = [](const Shape &s) {
         return (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
                || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
     };
+    // dim 1/2 -> a rank-2 result (vert/horz concat); dim 3 -> stack two matrices into a rank-3
+    // m x n x 2 (concat along the new trailing dim is a contiguous buffer append). Both
+    // operands are 2-D DOUBLE matrices (v1).
     if (args[1].type.isConcrete() && args[2].type.isConcrete()
         && isMat(args[1].type.shape) && isMat(args[2].type.shape)
         && args[1].type.dtype == ValueType::DOUBLE && args[2].type.dtype == ValueType::DOUBLE)
-        return InferredType::concrete(ValueType::DOUBLE, Shape::ndShape({0, 0}));
+        return InferredType::concrete(
+            ValueType::DOUBLE, Shape::ndShape(dim == 3 ? std::vector<std::size_t>{0, 0, 0}
+                                                       : std::vector<std::size_t>{0, 0}));
     return InferredType::dynamic();
 }
 
