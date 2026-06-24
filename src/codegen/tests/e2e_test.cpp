@@ -3573,6 +3573,43 @@ TEST(CodegenE2E, GammalnScalarNative)
     EXPECT_DOUBLE_EQ(got[0], interp);  // bit-exact vs interpreter
 }
 
+// repmat(colVec, p, q) with q>1 -> a (p*n) x q 2-D tiling (the mirror of the rowVec tile).
+// x=[10;20;30], repmat(.,2,2) -> 6x2, each column [10;20;30;10;20;30].
+TEST(CodegenE2E, RepmatColVectorTo2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  M = repmat(x, 2, 2);\n"  // 6 x 2
+        "  r = M(1,1) + M(3,1)*10 + M(4,1)*100 + M(6,2)*1000 + numel(M)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_repmatcol_e2e.exe").string();
+    const std::string outTxt = (base / "nk_repmatcol_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[3] = {10, 20, 30};\n"
+        "  double r = f(x, 3);\n"  // col=[10;20;30;10;20;30]: 10 + 300 + 1000 + 30000 + 120000
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0 + 300.0 + 1000.0 + 30000.0 + 120000.0);  // 151310
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[10;20;30];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // runtime reshape(x, m, n): reinterpret x's flat data as an m x n matrix at a RUNTIME
 // size (column-major, same buffer). x=[1..6], reshape(.,2,3) -> [1 3 5; 2 4 6].
 TEST(CodegenE2E, RuntimeReshape)

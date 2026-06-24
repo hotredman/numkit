@@ -157,12 +157,17 @@ InferredType repmatTransfer(const std::vector<ArgInfo> &args)
         if (args[1].constant.asDim(p) && args[2].constant.asDim(q) && p > 1)
             return InferredType::concrete(args[0].type.dtype, Shape::ndShape({p, 0}));
     }
-    // Column-vector operand with a "1" across-rep: repmat(colVec, p, 1) -> a (p*n) x 1
-    // column (p copies stacked). The mirror of the row case.
+    // Column-vector operand: repmat(colVec, p, q) tiles an n x 1 column into (p*n) x q.
+    //   q == 1  -> a (p*n) x 1 column (p copies stacked), a 1-D column (Unknown shape).
+    //   q  > 1  -> a true 2-D (p*n) x q matrix. cols = q (known), rows = p*n (runtime, n is
+    //              the operand's runtime length) -> NDims rank-2 ndShape({0, q}). The mirror
+    //              of the row case.
     if (args[0].type.shape.kind == ShapeKind::ColVector && args.size() == 3) {
-        std::size_t q = 0;
+        std::size_t p = 0, q = 0;
         if (args[2].constant.asDim(q) && q == 1)
             return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+        if (args[1].constant.asDim(p) && args[2].constant.asDim(q) && q > 1)
+            return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, q}));
     }
     return InferredType::dynamic();
 }
