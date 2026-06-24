@@ -243,6 +243,15 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                                     base.type.dtype,
                                     Shape::ndShape(std::vector<std::size_t>(r - 1, 0))),
                                 ConstVal::unknown()};
+                    // PAGE-RANGE read A(:,:,k1:k2): a trailing step-1 RANGE (a 2-child COLON_EXPR)
+                    // KEEPS the rank, the last dim becoming the range length (runtime). For r=3 a
+                    // rank-3 m x n x (k2-k1+1) sub-array. (vs the scalar case above which drops it.)
+                    if (pageSlice && expr.children[r]->type == NodeType::COLON_EXPR
+                        && expr.children[r]->children.size() == 2)
+                        return {InferredType::concrete(
+                                    base.type.dtype,
+                                    Shape::ndShape(std::vector<std::size_t>(r, 0))),
+                                ConstVal::unknown()};
                 }
                 return indexResult(base, argVals);
             }
