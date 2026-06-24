@@ -151,11 +151,16 @@ InferredType catTransfer(const std::vector<ArgInfo> &args)
         return (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
                || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
     };
-    // dim 1/2 -> a rank-2 result (vert/horz concat); dim 3 -> stack two matrices into a rank-3
-    // m x n x 2 (concat along the new trailing dim is a contiguous buffer append). Both
-    // operands are 2-D DOUBLE matrices (v1).
-    if (args[1].type.isConcrete() && args[2].type.isConcrete()
-        && isMat(args[1].type.shape) && isMat(args[2].type.shape)
+    // dim 1/2 -> a rank-2 result (vert/horz concat) of two 2-D matrices. dim 3 -> a rank-3
+    // result: stack/append along the new trailing dim (a contiguous buffer append), accepting
+    // 2-D OR rank-3 operands (two matrices -> m x n x 2; rank-3 ++ rank-3 -> m x n x (pA+pB)).
+    auto okDim3 = [](const Shape &s) {
+        return (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
+               || (s.kind == ShapeKind::NDims && (s.nd.size() == 2 || s.nd.size() == 3));
+    };
+    const bool bothOk = dim == 3 ? (okDim3(args[1].type.shape) && okDim3(args[2].type.shape))
+                                  : (isMat(args[1].type.shape) && isMat(args[2].type.shape));
+    if (args[1].type.isConcrete() && args[2].type.isConcrete() && bothOk
         && args[1].type.dtype == ValueType::DOUBLE && args[2].type.dtype == ValueType::DOUBLE)
         return InferredType::concrete(
             ValueType::DOUBLE, Shape::ndShape(dim == 3 ? std::vector<std::size_t>{0, 0, 0}

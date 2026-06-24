@@ -4231,25 +4231,35 @@ void Emitter::emitAssign(const ASTNode &s)
             && rhs.children[2]->strValue != name && rhs.children[3]->strValue != name) {
             const ArrayInfo &A = arrays_.at(rhs.children[2]->strValue);
             const ArrayInfo &B = arrays_.at(rhs.children[3]->strValue);
-            const bool aMat = A.is2D || (A.isND && A.ndDims.size() == 2);
-            const bool bMat = B.is2D || (B.isND && B.ndDims.size() == 2);
-            if (aMat && bMat && A.dtype == ValueType::DOUBLE && B.dtype == ValueType::DOUBLE) {
+            // Accept 2-D OR rank-3 operands (a 2-D operand is one page; a rank-3 operand has
+            // size(.,3) pages). Concat along dim 3 appends pages: M = A pages ++ B pages.
+            const bool aOk = A.is2D || (A.isND && (A.ndDims.size() == 2 || A.ndDims.size() == 3));
+            const bool bOk = B.is2D || (B.isND && (B.ndDims.size() == 2 || B.ndDims.size() == 3));
+            if (aOk && bOk && A.dtype == ValueType::DOUBLE && B.dtype == ValueType::DOUBLE) {
                 const ArrayInfo    &M   = arrays_.at(name);
                 const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                const std::string   pa  =
+                    (A.isND && A.ndDims.size() == 3) ? dimExpr(A, 2) : std::string("1");
+                const std::string pb =
+                    (B.isND && B.ndDims.size() == 3) ? dimExpr(B, 2) : std::string("1");
                 line("{");
                 ++indent_;
                 line("const std::size_t _nk_ar = " + dimExpr(A, 0) + ";");
                 line("const std::size_t _nk_ac = " + dimExpr(A, 1) + ";");
                 line("if (_nk_ar != " + dimExpr(B, 0) + " || _nk_ac != " + dimExpr(B, 1)
                      + ") throw std::out_of_range(\"numkit: cat(3) page sizes must agree\");");
-                line("const std::size_t _nk_p = _nk_ar * _nk_ac;");  // page size
+                line("const std::size_t _nk_pg = _nk_ar * _nk_ac;");  // one-page element count
+                line("const std::size_t _nk_pa = " + pa + ";");       // A page count
+                line("const std::size_t _nk_pb = " + pb + ";");       // B page count
                 line(M.ndDims[0] + " = _nk_ar;");
                 line(M.ndDims[1] + " = _nk_ac;");
-                line(M.ndDims[2] + " = 2;");
-                line(name + ".assign(_nk_p * 2, 0.0);");
-                open("for (std::size_t _nk_k = 0; _nk_k < _nk_p; ++_nk_k)");
-                line(name + "[_nk_k] = " + A.dataExpr + "[_nk_k];");          // page 1 = A
-                line(name + "[_nk_p + _nk_k] = " + B.dataExpr + "[_nk_k];");  // page 2 = B
+                line(M.ndDims[2] + " = _nk_pa + _nk_pb;");
+                line(name + ".assign(_nk_pg * (_nk_pa + _nk_pb), 0.0);");
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_pg * _nk_pa; ++_nk_k)");
+                line(name + "[_nk_k] = " + A.dataExpr + "[_nk_k];");                   // A pages
+                close();
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_pg * _nk_pb; ++_nk_k)");
+                line(name + "[_nk_pg * _nk_pa + _nk_k] = " + B.dataExpr + "[_nk_k];"); // B pages
                 close();
                 --indent_;
                 line("}");

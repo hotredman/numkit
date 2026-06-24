@@ -8431,3 +8431,50 @@ TEST(CodegenE2E, ReshapeToRank3)
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// N-D cat(3) of RANK-3 operands (N6): A = cat(3,P,Q) is 2x2x2; C = cat(3,A,A) appends pages ->
+// 2x2x4 with pages [P Q P Q]. Generalizes piece 55 (which did two 2-D matrices -> m x n x 2).
+TEST(CodegenE2E, Cat3Rank3Operands)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  P = [p1; p2];\n"        // 2x2 [1 2; 3 4]
+        "  Q = [q1; q2];\n"        // 2x2 [5 6; 7 8]
+        "  A = cat(3, P, Q);\n"    // 2x2x2
+        "  C = cat(3, A, A);\n"    // 2x2x4, pages [P Q P Q]
+        "  r = C(1,1,1) + C(2,2,2)*10 + C(1,1,3)*100 + C(2,2,4)*1000 + numel(C)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(p1, p2, q1, q2)\n") + body + "end\n",
+        {{"p1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"p2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"q1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"q2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cat3r3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cat3r3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double p1[2] = {1, 2};\n"
+        "  double p2[2] = {3, 4};\n"
+        "  double q1[2] = {5, 6};\n"
+        "  double q2[2] = {7, 8};\n"
+        "  double r = f(p1, 2, p2, 2, q1, 2, q2, 2);\n"  // 1+80+100+8000+160000 = 168181
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 168181.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("p1=[1 2]; p2=[3 4]; q1=[5 6]; q2=[7 8];\n") + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
