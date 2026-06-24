@@ -1265,6 +1265,36 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
         }
     }
 
+    // min(<expr>) / max(<expr>) over a single 1-D DOUBLE array -> a scalar, as an IIFE (works
+    // in any expr position). min/max are EXACT + order-independent (already native for a VAR),
+    // so an inline elementwise arg (min(abs(x)), max(x.^2), ...) folds natively. NaN-skipping
+    // mirrors the VAR reduction: seed = expr-at-0, then for i>=1 update on (v cmp acc) OR when
+    // acc is NaN (so the first non-NaN seeds it; all-NaN stays NaN). SINGLE-array 1-D
+    // elementwise only -- a 2-D min(A) is column-wise (a ROW VECTOR -> scalar gate fails ->
+    // bridged). A bare-VAR arg works too (the statement-level VAR reduction takes a whole-rhs
+    // r=min(v); this catches min(v) in expr position).
+    if (nargs == 1 && (name == "min" || name == "max")) {
+        std::set<std::string> srcArrays;
+        const bool            pureEw = collectElementwise(*call.children[1], srcArrays);
+        if (pureEw && srcArrays.size() == 1 && !arrays_.at(*srcArrays.begin()).is2D
+            && !arrays_.at(*srcArrays.begin()).isND
+            && arrays_.at(*srcArrays.begin()).dtype == ValueType::DOUBLE
+            && inferExpr(call, types_, reg_, classes_).type.shape.isScalar()) {
+            const ArrayInfo  &ba    = arrays_.at(*srcArrays.begin());
+            const std::string cmp   = name == "max" ? ">" : "<";
+            const std::string saved = elementCtx_;
+            elementCtx_              = "0";  // seed: expr at element 0
+            const std::string seed  = emitExpr(*call.children[1]);
+            elementCtx_              = "_nk_aa_i";  // body: expr at the loop index
+            const std::string bodyE = emitExpr(*call.children[1]);
+            elementCtx_             = saved;
+            return "([&]() -> double { double _nk_acc = (" + seed
+                   + "); for (std::size_t _nk_aa_i = 1; _nk_aa_i < (" + ba.lenVar
+                   + "); ++_nk_aa_i) { double _nk_v = (" + bodyE + "); if (_nk_v " + cmp
+                   + " _nk_acc || _nk_acc != _nk_acc) _nk_acc = _nk_v; } return _nk_acc; }())";
+        }
+    }
+
     if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
