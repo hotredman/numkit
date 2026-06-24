@@ -174,6 +174,37 @@ InferredType vectorReductionTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// max / min: BOTH the 1-arg vector reduction (-> scalar, as vectorReductionTransfer) AND the
+// 2-arg ELEMENTWISE form max(a,b) / min(a,b). MATLAB's 2-arg max/min ignore NaN (the result
+// is the non-NaN operand) -- bit-identical to std::fmax/std::fmin, so the emitter lowers them
+// via binaryMathStd (scalar) and the elementwise fill (arrays). REAL DOUBLE operands only
+// (complex max is by magnitude; integer/single/object differ) -> else Dynamic (bridged). The
+// 2-arg result is typed concrete ONLY for equal shapes or a scalar broadcast; any other shape
+// mismatch (row vs col, vector vs matrix -> MATLAB implicit expansion) -> Dynamic, so the
+// runtime does the broadcast (never a wrong-shape miscompile). 3-arg max(x,[],dim) -> Dynamic.
+InferredType maxMinTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.empty() || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args.size() == 1) {  // vector reduction -> scalar
+        switch (args[0].type.shape.kind) {
+        case ShapeKind::Scalar:
+        case ShapeKind::RowVector:
+        case ShapeKind::ColVector: return InferredType::scalar(args[0].type.dtype);
+        default:                   return InferredType::dynamic();
+        }
+    }
+    if (args.size() == 2 && args[1].type.isConcrete()) {  // elementwise max(a,b) / min(a,b)
+        if (args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
+            return InferredType::dynamic();
+        const Shape &sa = args[0].type.shape, &sb = args[1].type.shape;
+        if (sa == sb)      return InferredType::concrete(ValueType::DOUBLE, sa);
+        if (sa.isScalar()) return InferredType::concrete(ValueType::DOUBLE, sb);
+        if (sb.isScalar()) return InferredType::concrete(ValueType::DOUBLE, sa);
+        return InferredType::dynamic();  // shape mismatch / implicit expansion -> bridged
+    }
+    return InferredType::dynamic();  // 3+ args (max(x,[],dim), max(x,[],"all")) -> bridged
+}
+
 // any / all over a VECTOR -> a LOGICAL scalar (true/false), regardless of the
 // operand dtype. Only the vector->scalar single-output case is typed (the emitter
 // lowers it to a native inline short-circuit loop). Matrix / N-D / 2-arg -> Dynamic.
@@ -409,8 +440,12 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("cat", catTransfer);               // cat(dim,A,B) literal dim -> vert/horz concat
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
     for (const char *n :
-         {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median", "trapz"})
+         {"sum", "prod", "mean", "norm", "std", "var", "median", "trapz"})
         reg.add(n, vectorReductionTransfer);
+    // max/min: 1-arg reduction (-> scalar) OR 2-arg elementwise max(a,b)/min(a,b) (native
+    // via fmax/fmin). The single-output transfer; [m,i]=max(x) uses maxMinMultiTransfer.
+    reg.add("max", maxMinTransfer);
+    reg.add("min", maxMinTransfer);
     for (const char *n : {"any", "all"})  // vector -> LOGICAL scalar (native inline loop)
         reg.add(n, anyAllTransfer);
     reg.add("find", findTransfer);  // vector -> 1-D DOUBLE positions (native filter loop)

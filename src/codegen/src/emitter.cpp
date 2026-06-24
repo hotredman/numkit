@@ -814,7 +814,12 @@ const char *binaryMathStd(const std::string &name)
 {
     static const std::unordered_map<std::string, const char *> kMap = {
         {"atan2", "atan2"}, {"hypot", "hypot"},
-        {"rem", "fmod"}};  // numkit rem(a,b) == std::fmod(a,b) (bit-identical)
+        {"rem", "fmod"},   // numkit rem(a,b) == std::fmod(a,b) (bit-identical)
+        // MATLAB's 2-arg max/min ignore NaN (the result is the non-NaN operand), which is
+        // bit-identical to std::fmax/std::fmin. The 1-arg reduction max(x)/min(x) is a
+        // different arity (handled at the statement level), so it never reaches this 2-arg
+        // path. maxMinTransfer types the 2-arg form (real DOUBLE) for the elementwise fill.
+        {"max", "fmax"}, {"min", "fmin"}};
     const auto it = kMap.find(name);
     return it == kMap.end() ? nullptr : it->second;
 }
