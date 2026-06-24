@@ -3809,6 +3809,48 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// mixed vertcat [A; r]: a matrix with a row vector appended -> a taller matrix. The
+// mirror of the augmented-matrix horzcat. A=[1 2;3 4], r=[5 6] -> [1 2; 3 4; 5 6] (3x2).
+TEST(CodegenE2E, VertcatMatrixWithRowAppended)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"  // 2x2 [1 2; 3 4]
+        "  M = [A; r];\n"    // 3x2 [1 2; 3 4; 5 6]
+        "  s = M(1,1) + M(2,1)*10 + M(3,1)*100 + M(3,2)*1000 + numel(M)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function s = f(a1, a2, r)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"r", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_vrowapp_e2e.exe").string();
+    const std::string outTxt = (base / "nk_vrowapp_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double r[2]  = {5, 6};\n"
+        "  double s = f(a1, 2, a2, 2, r, 2);\n"  // [1 2;3 4;5 6]: 1 + 30 + 500 + 6000 + 60000 = 66531
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 30.0 + 500.0 + 6000.0 + 60000.0);  // 66531
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4]; r=[5 6];\n") + body + "s", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // mixed horzcat [A b] (augmented matrix): a matrix concatenated with a column vector ->
 // a wider matrix. A=[1 2;3 4] (vertcat), b=[5;6] (col) -> [1 2 5; 3 4 6] (2x3).
 TEST(CodegenE2E, HorzcatMatrixWithColumnAugmented)
