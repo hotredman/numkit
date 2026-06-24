@@ -538,8 +538,19 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 const bool keepColon = nidx == 1 && lhs.children[1]
                                        && lhs.children[1]->type == NodeType::COLON_EXPR
                                        && lhs.children[1]->children.empty();
-                const Shape sh =
-                    (keep2D || keepND || keepColon) ? cur.type.shape : Shape::unknown();
+                // A LOGICAL-array mask write `A(A>0) = c` scatters into EXISTING elements --
+                // it cannot grow A (unlike a numeric linear index, which can), so it preserves
+                // shape. Detect via the subscript inferring a concrete non-scalar LOGICAL array.
+                bool keepMask = false;
+                if (nidx == 1 && lhs.children[1]) {
+                    const InferredType st =
+                        inferExpr(*lhs.children[1], env, reg, classes).type;
+                    keepMask = st.isConcrete() && st.dtype == ValueType::LOGICAL
+                               && !st.shape.isScalar();
+                }
+                const Shape sh = (keep2D || keepND || keepColon || keepMask)
+                                     ? cur.type.shape
+                                     : Shape::unknown();
                 env.set(base, {InferredType::concrete(cur.type.dtype, sh), ConstVal::unknown()});
                 recordDecl(declOut, base, env.get(base).type);
             } else {
