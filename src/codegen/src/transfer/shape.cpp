@@ -157,6 +157,29 @@ InferredType catTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// permute(A, perm): reorder A's dimensions per the permutation vector. The result has the SAME
+// RANK as A, with its dims permuted -- all runtime (the actual permuted dims need perm's literal
+// VALUES, which the emit reads; the transfer only fixes the rank). So a rank-r A -> an NDims of
+// rank r with all-runtime dims (ndShape of r zeros). v1: a DOUBLE A that is NDims (rank>=2) or a
+// KnownDims 2-D (rank 2), and a vector perm. A scalar/1-D A, a non-vector perm, or a non-DOUBLE
+// operand -> Dynamic (bridged). (A LITERAL perm is enforced at emit; a runtime perm -> refusal.)
+InferredType permuteTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete())
+        return InferredType::dynamic();
+    if (args[0].type.dtype != ValueType::DOUBLE) return InferredType::dynamic();
+    std::size_t rank = 0;
+    if (args[0].type.shape.kind == ShapeKind::NDims) rank = args[0].type.shape.nd.size();
+    else if (args[0].type.shape.kind == ShapeKind::KnownDims) rank = 2;
+    else return InferredType::dynamic();  // scalar / vector -> permute is ~no-op, bridge
+    const ShapeKind pk = args[1].type.shape.kind;  // perm must be a vector (literal read at emit)
+    if (pk != ShapeKind::RowVector && pk != ShapeKind::ColVector
+        && pk != ShapeKind::KnownDims && pk != ShapeKind::Unknown)
+        return InferredType::dynamic();
+    return InferredType::concrete(ValueType::DOUBLE,
+                                  Shape::ndShape(std::vector<std::size_t>(rank, 0)));
+}
+
 // sum / prod / mean / max / min over a VECTOR (single-arg form) -> a scalar of
 // the operand's dtype. MATLAB reduces a matrix along a dim (-> a row vector) and
 // max/min take a 2nd arg (elementwise) or a 2nd output (index) — only the
@@ -452,6 +475,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)
     reg.add("kron", kronTransfer);             // kron(A,B) -> Kronecker product (mp x nq)
     reg.add("cat", catTransfer);               // cat(dim,A,B) literal dim -> vert/horz concat
+    reg.add("permute", permuteTransfer);        // permute(A,perm) -> A's dims reordered (same rank)
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
     for (const char *n :
          {"sum", "prod", "mean", "norm", "std", "var", "median", "trapz"})
