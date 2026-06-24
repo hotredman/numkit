@@ -226,14 +226,20 @@ InferredType anyAllTransfer(const std::vector<ArgInfo> &args)
 InferredType findTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    // find returns a 1-D vector of the 1-based LINEAR (column-major) positions of the
+    // nonzero/true elements, regardless of the operand's rank -- a vector OR a matrix / N-D
+    // array. The emit filters flat over the column-major buffer (the flat index +1 is the
+    // MATLAB linear index), so every ranked shape types to a 1-D DOUBLE result.
     switch (args[0].type.shape.kind) {
     case ShapeKind::Scalar:
     case ShapeKind::RowVector:
     case ShapeKind::ColVector:
     case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+    case ShapeKind::KnownDims:
+    case ShapeKind::NDims:
         return InferredType::concrete(ValueType::DOUBLE, Shape::unknown());
-    default: return InferredType::dynamic();
     }
+    return InferredType::dynamic();
 }
 
 // diff(x) -> consecutive differences, a 1-D vector of length n-1 (runtime ->

@@ -3461,11 +3461,12 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // Native find(m) -> the 1-based positions of the nonzero (true) elements,
-        // a runtime-sized 1-D DOUBLE column vector (MATLAB find). A native filter
-        // loop pushing (i+1); EXACT (deterministic positions), so preferred over
-        // the bridged array-result path below. v1: a single 1-D array arg (double
-        // or logical) that is a VARIABLE; the result a 1-D array LOCAL (push_back).
+        // Native find(m) -> the 1-based LINEAR (column-major) positions of the nonzero (true)
+        // elements, a runtime-sized 1-D DOUBLE column vector (MATLAB find). A native filter
+        // loop over the flat buffer pushing (i+1); EXACT (deterministic positions), preferred
+        // over the bridged array-result path below. Works for a 1-D vector OR a 2-D / N-D
+        // matrix arg (the flat index +1 is the MATLAB linear index) -> bound on NUMEL. v1: a
+        // single array VARIABLE (double or logical); the result a 1-D array LOCAL (push_back).
         if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
             && !arrays_.at(name).isND && rhs.type == NodeType::CALL
             && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
@@ -3474,11 +3475,20 @@ void Emitter::emitAssign(const ASTNode &s)
             && isArrayVar(rhs.children[1]->strValue)) {
             const ArrayInfo    &m   = arrays_.at(rhs.children[1]->strValue);
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
-            if (!m.is2D && !m.isND && res.type.isConcrete() && !res.type.shape.isScalar()) {
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                std::string numel;  // flat element count (1-D len / 2-D rows*cols / N-D prod)
+                if (m.isND) {
+                    numel = m.ndDims[0];
+                    for (std::size_t i = 1; i < m.ndDims.size(); ++i) numel += " * " + m.ndDims[i];
+                } else if (m.is2D) {
+                    numel = m.rowsVar + " * " + m.colsVar;
+                } else {
+                    numel = m.lenVar;
+                }
                 line("{");
                 ++indent_;
                 line(name + ".clear();");
-                open("for (std::size_t _nk_i = 0; _nk_i < " + m.lenVar + "; ++_nk_i)");
+                open("for (std::size_t _nk_i = 0; _nk_i < (" + numel + "); ++_nk_i)");
                 line("if (" + m.dataExpr + "[_nk_i]) " + name
                      + ".push_back(static_cast<double>(_nk_i + 1));");
                 close();
@@ -3489,13 +3499,14 @@ void Emitter::emitAssign(const ASTNode &s)
             }
         }
         // Native find(<expr>) with an INLINE elementwise expression -> the 1-based positions
-        // where the per-element value is nonzero/true: find(x>0), find(x>lo & x<hi), find(x-3)
+        // where the per-element value is nonzero/true: find(x>0), find(A>lo & A<hi), find(x-3)
         // (x!=3), ... The inline sibling of find(VAR): the expression is FUSED into the filter
-        // loop (no temp) -- elementCtx_ makes the whole array emit arr[_nk_i], then for each i,
-        // if the value is nonzero push (i+1). Restricted to a SINGLE-array pure-elementwise
-        // expression (collectElementwise srcArrays of size 1) so the bound is that array's
-        // length and per-element emission is valid (a multi-array find(x>y) -> bridged). Result
-        // a 1-D DOUBLE LOCAL (push_back). v1: a 1-D operand; a 2-D operand -> refused.
+        // loop (no temp) -- elementCtx_ makes the whole array emit arr[_nk_i] (flat), then for
+        // each flat element i, if the value is nonzero push (i+1). For a 2-D/N-D operand the
+        // flat index +1 IS MATLAB's column-major LINEAR index. Restricted to a SINGLE-array
+        // pure-elementwise expression (collectElementwise srcArrays of size 1) so the bound is
+        // that array's NUMEL and per-element emission is valid (a multi-array find(x>y) ->
+        // bridged). Result a 1-D DOUBLE LOCAL (push_back). v1: 1-D or 2-D/N-D operand.
         if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
             && !arrays_.at(name).isND && rhs.type == NodeType::CALL
             && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
@@ -3507,16 +3518,24 @@ void Emitter::emitAssign(const ASTNode &s)
             const AbstractValue   res    = inferExpr(rhs, types_, reg_, classes_);
             if (pureEw && srcArrays.size() == 1 && maskAV.type.isConcrete()
                 && !maskAV.type.shape.isScalar()
-                && !arrays_.at(*srcArrays.begin()).is2D && !arrays_.at(*srcArrays.begin()).isND
                 && res.type.isConcrete() && !res.type.shape.isScalar()) {
                 const ArrayInfo &ba = arrays_.at(*srcArrays.begin());
+                std::string      numel;  // flat element count (1-D len / 2-D rows*cols / N-D prod)
+                if (ba.isND) {
+                    numel = ba.ndDims[0];
+                    for (std::size_t i = 1; i < ba.ndDims.size(); ++i) numel += " * " + ba.ndDims[i];
+                } else if (ba.is2D) {
+                    numel = ba.rowsVar + " * " + ba.colsVar;
+                } else {
+                    numel = ba.lenVar;
+                }
                 line("{");
                 ++indent_;
                 line(name + ".clear();");
-                elementCtx_ = "_nk_i";  // whole array in the expr -> arr[_nk_i]
+                elementCtx_ = "_nk_i";  // whole array in the expr -> arr[_nk_i] (flat)
                 const std::string maskExpr = emitExpr(*rhs.children[1]);
                 elementCtx_.clear();
-                open("for (std::size_t _nk_i = 0; _nk_i < " + ba.lenVar + "; ++_nk_i)");
+                open("for (std::size_t _nk_i = 0; _nk_i < (" + numel + "); ++_nk_i)");
                 line("if (" + maskExpr + ") " + name
                      + ".push_back(static_cast<double>(_nk_i + 1));");
                 close();
