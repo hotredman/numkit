@@ -1532,6 +1532,39 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
             line("}");
             return;
         }
+        // A(:) = <elementwise expr>: a pure-elementwise DOUBLE expression over arrays
+        // (A(:)=A*2, A(:)=b+c, A(:)=A+1, ...) -> FUSE into the flat fill, A[i] = <expr at i>.
+        // Sound: A(:) fills in place; an elementwise expr is per-element, so even a self-ref
+        // (A[i]=f(A[i])) is fine, and a non-elementwise rhs (sort(A)) is rejected by collect-
+        // Elementwise -> bridged. Each array operand's numel is runtime-checked == A's (MATLAB
+        // errors on a mismatch). v1: A + every operand DOUBLE; reached only for a compound expr
+        // (a bare array var took the arm above, a scalar the first arm).
+        {
+            std::set<std::string> srcArrays;
+            const bool            pureEw = collectElementwise(rhs, srcArrays);
+            bool                  allDouble = ai.dtype == ValueType::DOUBLE && !srcArrays.empty();
+            for (const auto &s : srcArrays)
+                if (arrays_.at(s).dtype != ValueType::DOUBLE) allDouble = false;
+            if (pureEw && allDouble && rhsAV.type.isConcrete() && !rhsAV.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_nA = (" + arrayNumel(ai) + ");");
+                for (const auto &s : srcArrays) {
+                    line("if ((" + arrayNumel(arrays_.at(s)) + ") != _nk_nA)");
+                    line("    throw std::runtime_error("
+                         "\"numkit: A(:) = expr element-count mismatch\");");
+                }
+                elementCtx_ = "_nk_i";  // whole arrays in the expr -> arr[_nk_i]
+                const std::string e = emitExpr(rhs);
+                elementCtx_.clear();
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_nA; ++_nk_i)");
+                line(ptr + "[_nk_i] = " + e + ";");
+                close();
+                --indent_;
+                line("}");
+                return;
+            }
+        }
     }
 
     // 2-D COLUMN slice write: A(:, j) = col -> overwrite column j (1-based) of a 2-D
