@@ -4212,6 +4212,52 @@ TEST(CodegenE2E, NumericGatherRead)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// numeric SCATTER write x(idx)=v: array-rhs form (with a REPEATED index -> last write wins)
+// and scalar-broadcast form. x=[10 20 30 40 50], idx=[4 1 4], vals=[100 200 300].
+TEST(CodegenE2E, NumericScatterWrite)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  x = a;\n"          // local copy (an input param is read-only in the RawBuffer ABI)
+        "  x(idx) = vals;\n"  // array scatter: x(4)=100, x(1)=200, x(4)=300(last) -> [200 20 30 300 50]
+        "  t = x(2) + x(5);\n"  // untouched positions: 20 + 50 = 70
+        "  x(idx) = 0;\n"     // scalar broadcast on idx -> x(1)=0, x(4)=0 -> [0 20 30 0 50]
+        "  r = x(1) + x(2)*10 + x(3)*100 + x(4)*1000 + x(5)*10000 + t*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a, idx, vals)\n") + body + "end\n",
+        {{"a", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"idx", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"vals", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_scatter_e2e.exe").string();
+    const std::string outTxt = (base / "nk_scatter_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {10, 20, 30, 40, 50};\n"
+        "  double idx[3] = {4, 1, 4};\n"
+        "  double vals[3] = {100, 200, 300};\n"
+        "  double r = f(x, 5, idx, 3, vals, 3);\n"  // 0+200+3000+0+500000+7000000 = 7503200
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 7503200.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a=[10 20 30 40 50]; idx=[4 1 4]; vals=[100 200 300];\n")
+                    + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // cat(dim, A, B) with a literal dim: cat(2,..) horizontal (like [A B]), cat(1,..) vertical
 // (like [A;B]). A=[1 2;3 4], B=[5 6;7 8] -> cat(2)=[1 2 5 6;3 4 7 8], cat(1)=[1 2;3 4;5 6;7 8].
 TEST(CodegenE2E, CatDimMatrices)
