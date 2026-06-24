@@ -533,7 +533,13 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 // A rank-N subscript write on a ranked matrix likewise keeps
                 // its dims (fixed-size; out-of-range throws, never grows).
                 const bool keepND = cur.type.shape.isNDims() && nidx == cur.type.shape.ndRank();
-                const Shape sh = (keep2D || keepND) ? cur.type.shape : Shape::unknown();
+                // A bare-colon whole-array write `A(:) = rhs` fills in place -- it never
+                // changes the shape (1-D length / 2-D / N-D dims preserved), so keep it.
+                const bool keepColon = nidx == 1 && lhs.children[1]
+                                       && lhs.children[1]->type == NodeType::COLON_EXPR
+                                       && lhs.children[1]->children.empty();
+                const Shape sh =
+                    (keep2D || keepND || keepColon) ? cur.type.shape : Shape::unknown();
                 env.set(base, {InferredType::concrete(cur.type.dtype, sh), ConstVal::unknown()});
                 recordDecl(declOut, base, env.get(base).type);
             } else {
