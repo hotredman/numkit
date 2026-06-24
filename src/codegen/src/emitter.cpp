@@ -1239,6 +1239,32 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
                ": (_nk_x != _nk_x ? _nk_x : 0.0)); })(" + x + ")";
     }
 
+    // any(<expr>) / all(<expr>) over a single 1-D array -> a LOGICAL scalar, as an IIFE so it
+    // works in ANY expression position (an if-condition, a sub-expression, a whole rhs):
+    // any short-circuits to true on the first nonzero, all to false on the first zero. EXACT +
+    // order-independent. The arg is FUSED (elementCtx_ makes the whole array emit arr[_nk_aa_i]
+    // -- a fresh loop var, save/restore so a nesting fusion is unaffected). SINGLE-array 1-D
+    // elementwise only; a 2-D any(A) is column-wise (a ROW VECTOR, not a scalar -> the scalar
+    // gate fails -> bridged). A bare-VAR arg works too (collectElementwise of a whole array).
+    if (nargs == 1 && (name == "any" || name == "all")) {
+        std::set<std::string> srcArrays;
+        const bool            pureEw = collectElementwise(*call.children[1], srcArrays);
+        if (pureEw && srcArrays.size() == 1 && !arrays_.at(*srcArrays.begin()).is2D
+            && !arrays_.at(*srcArrays.begin()).isND
+            && inferExpr(call, types_, reg_, classes_).type.shape.isScalar()) {
+            const ArrayInfo  &ba    = arrays_.at(*srcArrays.begin());
+            const bool        isAny = name == "any";
+            const std::string saved = elementCtx_;
+            elementCtx_              = "_nk_aa_i";  // whole array in the arg -> arr[_nk_aa_i]
+            const std::string maskExpr = emitExpr(*call.children[1]);
+            elementCtx_                = saved;
+            return "([&]() -> bool { for (std::size_t _nk_aa_i = 0; _nk_aa_i < (" + ba.lenVar
+                   + "); ++_nk_aa_i) if ((" + maskExpr + ") "
+                   + (isAny ? "!= 0) return true; return false; }())"
+                            : "== 0) return false; return true; }())");
+        }
+    }
+
     if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
