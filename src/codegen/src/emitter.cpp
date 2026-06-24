@@ -4417,20 +4417,19 @@ void Emitter::emitAssign(const ASTNode &s)
         }
 
         // LOGICAL-INDEXING READ with an INLINE elementwise mask: `y = x(<expr>)` where <expr>
-        // is a pure-elementwise LOGICAL self-mask over x (y = x(x>0), y = x(x>lo & x<hi), ...).
+        // is a pure-elementwise LOGICAL self-mask over x (y = x(x>0), y = A(A>lo & A<hi), ...).
         // The sibling of the inline masked WRITE: the mask is FUSED into the filter loop (no
-        // temp vector) -- elementCtx_ makes whole-x emit x[_nk_i], then for each i, if the
-        // mask holds, push x[i]. A self-mask (collectElementwise srcArrays=={x}) keeps the
-        // bound at x's length (in bounds) and lets the mask be emitted per element; a READ
-        // never mutates x, so there is no aliasing subtlety. y a 1-D array LOCAL (push_back).
-        // v1: x 1-D; an inline mask over OTHER arrays / a 2-D x -> the VAR-mask path or a
-        // refusal. Placed after the VAR-mask read so a pre-bound mask var takes that branch.
+        // temp vector) -- elementCtx_ makes whole-x emit x[_nk_i] (flat), then for each flat
+        // element i, if the mask holds, push x[i]. Works for a 1-D vector OR a 2-D / N-D matrix
+        // source (filter is flat over the column-major buffer; the result is the selected
+        // elements in MATLAB linear order -> bound on NUMEL). A self-mask (collectElementwise
+        // srcArrays=={x}) keeps it in bounds and per-element-emittable; a READ never mutates x,
+        // so no aliasing subtlety. y a 1-D array LOCAL (push_back). Placed after the VAR-mask
+        // read so a pre-bound mask var takes that branch.
         if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
             && !arrays_.at(name).isND && rhs.type == NodeType::CALL
             && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
             && isArrayVar(rhs.children[0]->strValue)
-            && !arrays_.at(rhs.children[0]->strValue).is2D
-            && !arrays_.at(rhs.children[0]->strValue).isND
             && rhs.children[1]->type != NodeType::IDENTIFIER) {
             const AbstractValue   maskAV = inferExpr(*rhs.children[1], types_, reg_, classes_);
             std::set<std::string> maskArrays;
@@ -4439,13 +4438,22 @@ void Emitter::emitAssign(const ASTNode &s)
                 && !maskAV.type.shape.isScalar() && pureEw && maskArrays.size() == 1
                 && *maskArrays.begin() == rhs.children[0]->strValue) {
                 const ArrayInfo &bx = arrays_.at(rhs.children[0]->strValue);  // x (source)
+                std::string      numel;  // flat element count (1-D len / 2-D rows*cols / N-D prod)
+                if (bx.isND) {
+                    numel = bx.ndDims[0];
+                    for (std::size_t i = 1; i < bx.ndDims.size(); ++i) numel += " * " + bx.ndDims[i];
+                } else if (bx.is2D) {
+                    numel = bx.rowsVar + " * " + bx.colsVar;
+                } else {
+                    numel = bx.lenVar;
+                }
                 line("{");
                 ++indent_;
                 line(name + ".clear();");
-                elementCtx_ = "_nk_i";  // whole x in the mask -> x[_nk_i]
+                elementCtx_ = "_nk_i";  // whole x in the mask -> x[_nk_i] (flat)
                 const std::string maskExpr = emitExpr(*rhs.children[1]);
                 elementCtx_.clear();
-                open("for (std::size_t _nk_i = 0; _nk_i < " + bx.lenVar + "; ++_nk_i)");
+                open("for (std::size_t _nk_i = 0; _nk_i < (" + numel + "); ++_nk_i)");
                 line("if (" + maskExpr + ") " + name + ".push_back(" + bx.dataExpr + "[_nk_i]);");
                 close();
                 --indent_;
