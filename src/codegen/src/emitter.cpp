@@ -3433,6 +3433,47 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native rot90(A) on a 2-D matrix -> a 90deg-CCW rotation, dims swapped (A m x n ->
+        // B n x m). Column-major: B[i + j*n] = A[j + (n-1-i)*m] (B(i,j) = A(j, n-1-i)). Both
+        // tiers via dimExpr; a runtime dst gets its companions set (rows=n, cols=m). v1: the
+        // 1-arg form, a DOUBLE matrix var distinct from the dest. (rot90(A,k) / vector rot90
+        // stay bridged.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal
+            && (arrays_.at(name).is2D
+                || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+            && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "rot90"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");  // A rows
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");  // A cols
+                if (M.isND && M.ndDims.size() == 2) {  // result is n x m
+                    line(M.ndDims[0] + " = _nk_n;");
+                    line(M.ndDims[1] + " = _nk_m;");
+                }
+                line(name + ".assign(_nk_n * _nk_m, 0.0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < _nk_m; ++_nk_j)");  // B cols
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");  // B rows
+                line(name + "[_nk_i + _nk_j * _nk_n] = " + A.dataExpr
+                     + "[_nk_j + (_nk_n - 1 - _nk_i) * _nk_m];");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even

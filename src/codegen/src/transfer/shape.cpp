@@ -104,6 +104,21 @@ InferredType transposeTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// rot90(A): rotate a 2-D matrix 90 degrees -> the dims SWAP (m x n -> n x m), like
+// transpose. Only the 1-arg matrix forms are typed (KnownDims rank-2 / NDims rank-2); a
+// vector / scalar / the rot90(A,k) 2-arg form -> Dynamic (bridged) -- the emit handles the
+// 1-arg 2-D case only.
+InferredType rot90Transfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    const Shape &s = args[0].type.shape;
+    if (s.kind == ShapeKind::KnownDims)
+        return InferredType::concrete(args[0].type.dtype, Shape::dims(s.cols, s.rows));
+    if (s.kind == ShapeKind::NDims && s.nd.size() == 2)
+        return InferredType::concrete(args[0].type.dtype, Shape::ndShape({s.nd[1], s.nd[0]}));
+    return InferredType::dynamic();
+}
+
 // sum / prod / mean / max / min over a VECTOR (single-arg form) -> a scalar of
 // the operand's dtype. MATLAB reduces a matrix along a dim (-> a row vector) and
 // max/min take a 2nd arg (elementwise) or a 2nd output (index) — only the
@@ -333,6 +348,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.addMulti("min", maxMinMultiTransfer);  // [m,i]=min(x) -> {value, 1-based index}
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
+    reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
     for (const char *n :
          {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median", "trapz"})
