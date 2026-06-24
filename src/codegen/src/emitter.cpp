@@ -2287,6 +2287,38 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // eye(n) / eye(m,n) with a RUNTIME dim -> the identity as a rank-2 ndRuntimeLocal
+        // (the runtime mirror of the KnownDims eye above + zeros(m,n) runtime). Dims from
+        // the args via nk_rt::dim (eye(n): cols = rows); zero the buffer, set the main
+        // diagonal M[i + i*rows] = 1 for i < min(rows, cols). v1: 1 or 2 scalar dim args.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
+            && (rhs.children.size() == 2 || rhs.children.size() == 3)
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "eye") {
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_r = nk_rt::dim(" + emitExpr(*rhs.children[1]) + ");");
+                if (rhs.children.size() == 3)
+                    line("const std::size_t _nk_c = nk_rt::dim(" + emitExpr(*rhs.children[2]) + ");");
+                else
+                    line("const std::size_t _nk_c = _nk_r;");  // eye(n): n x n
+                line(M.ndDims[0] + " = _nk_r;");
+                line(M.ndDims[1] + " = _nk_c;");
+                line(name + ".assign(_nk_r * _nk_c, 0.0);");
+                line("const std::size_t _nk_d = _nk_r < _nk_c ? _nk_r : _nk_c;");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_d; ++_nk_i)");
+                line(name + "[_nk_i + _nk_i * _nk_r] = 1.0;");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // tril(A) / triu(A) -> the lower/upper triangular part of a 2-D matrix (the
         // other triangle zeroed), SAME shape as A, a fresh 2-D KnownDims LOCAL.
         // Column-major: out[i + j*rows] = keep ? A[i+j*rows] : 0, keep = (tril: i>=j /
