@@ -3886,6 +3886,72 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // 2-D vertcat of MATRICES: `M = [A; B; ...]` (multi-row MATRIX_LITERAL, every row a
+        // single 2-D matrix var of the same column count) -> vertical concatenation, a
+        // rank-2 ndRuntimeLocal. M rows = sum of the operands' rows, M cols = shared. In
+        // column-major the operands INTERLEAVE per column (not a buffer concat): for an
+        // operand at row-offset ro with pr rows, M[(ro+ii) + j*totalRows] = op[ii + j*pr].
+        // A runtime guard checks all operands share the column count. v1: DOUBLE matrix
+        // vars (KnownDims 2-D or runtime-dim 2-D), >=2 rows, none aliasing the dest.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::MATRIX_LITERAL
+            && rhs.children.size() > 1) {
+            bool allMatRows = true;
+            for (const auto &rowN : rhs.children)
+                if (!rowN || rowN->children.size() != 1 || !rowN->children[0]
+                    || rowN->children[0]->type != NodeType::IDENTIFIER
+                    || !isArrayVar(rowN->children[0]->strValue)
+                    || rowN->children[0]->strValue == name  // in-place -> fall through
+                    || !(arrays_.at(rowN->children[0]->strValue).is2D
+                         || (arrays_.at(rowN->children[0]->strValue).isND
+                             && arrays_.at(rowN->children[0]->strValue).ndDims.size() == 2))
+                    || arrays_.at(rowN->children[0]->strValue).dtype != ValueType::DOUBLE) {
+                    allMatRows = false;
+                    break;
+                }
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (allMatRows && rv.type.isConcrete()) {
+                const ArrayInfo  &M    = arrays_.at(name);
+                const ArrayInfo  &op0  = arrays_.at(rhs.children[0]->children[0]->strValue);
+                const std::string cols = dimExpr(op0, 1);
+                std::string       totalRows;
+                for (const auto &rowN : rhs.children)
+                    totalRows += (totalRows.empty() ? "" : " + ")
+                                 + dimExpr(arrays_.at(rowN->children[0]->strValue), 0);
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_tr = (" + totalRows + ");");  // total rows
+                line("const std::size_t _nk_nc = " + cols + ";");          // shared cols
+                line(M.ndDims[0] + " = _nk_tr;");
+                line(M.ndDims[1] + " = _nk_nc;");
+                for (std::size_t e = 1; e < rhs.children.size(); ++e) {
+                    const ArrayInfo &op = arrays_.at(rhs.children[e]->children[0]->strValue);
+                    line("if (" + dimExpr(op, 1) + " != _nk_nc) throw std::out_of_range(\""
+                         "numkit: vertcat column dimensions must agree\");");
+                }
+                line(name + ".resize(_nk_tr * _nk_nc);");
+                line("std::size_t _nk_ro = 0;");
+                for (const auto &rowN : rhs.children) {
+                    const ArrayInfo &op = arrays_.at(rowN->children[0]->strValue);
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_pr = " + dimExpr(op, 0) + ";");
+                    open("for (std::size_t _nk_j = 0; _nk_j < _nk_nc; ++_nk_j)");
+                    open("for (std::size_t _nk_ii = 0; _nk_ii < _nk_pr; ++_nk_ii)");
+                    line(name + "[(_nk_ro + _nk_ii) + _nk_j * _nk_tr] = "
+                         + op.dataExpr + "[_nk_ii + _nk_j * _nk_pr];");
+                    close();
+                    close();
+                    line("_nk_ro += _nk_pr;");
+                    --indent_;
+                    line("}");
+                }
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
 
         // Whole-array struct-field READ: `y = s.v` where s.v is an array field-local
         // (field-flattening). emitExpr(s.v) yields the field-local vector name, so
