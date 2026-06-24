@@ -812,7 +812,8 @@ const char *opsTranscendentalFn(const std::string &name)
 const char *binaryMathStd(const std::string &name)
 {
     static const std::unordered_map<std::string, const char *> kMap = {
-        {"atan2", "atan2"}, {"hypot", "hypot"}};
+        {"atan2", "atan2"}, {"hypot", "hypot"},
+        {"rem", "fmod"}};  // numkit rem(a,b) == std::fmod(a,b) (bit-identical)
     const auto it = kMap.find(name);
     return it == kMap.end() ? nullptr : it->second;
 }
