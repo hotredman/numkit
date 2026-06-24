@@ -1576,6 +1576,71 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // 2-D COLUMN scalar-fill: A(:, j) = s -> set every element of column j (1-based) to
+    // the scalar s (broadcast). Sibling of the column VECTOR write above; reached only for
+    // a scalar rhs (the vector branch already returned for an array-var rhs, so the two are
+    // disjoint). Common idiom: A(:,j) = 0. Column-major, so column j is the contiguous
+    // block A[(j-1)*rows .. +rows). Works for KnownDims or runtime-dim 2-D (dims via dimExpr).
+    if (lhsCall.children.size() == 3
+        && (ai.is2D || (ai.isND && ai.ndDims.size() == 2)) && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children[1]->type == NodeType::COLON_EXPR
+        && lhsCall.children[1]->children.empty()
+        && lhsCall.children[2]->type != NodeType::COLON_EXPR
+        && inferExpr(rhs, types_, reg_, classes_).type.isConcrete()
+        && inferExpr(rhs, types_, reg_, classes_).type.shape.isScalar()
+        && inferExpr(*lhsCall.children[2], types_, reg_, classes_).type.shape.isScalar()) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("column-slice fill to a read-only matrix parameter '" + base + "'");
+        const std::string Arows = dimExpr(ai, 0), Acols = dimExpr(ai, 1);
+        endStack_.push_back(Acols);  // `end` in the column index = cols
+        const std::string j = emitExpr(*lhsCall.children[2]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line(cppScalarType(ai.dtype) + " _nk_fv = " + emitExpr(rhs) + ";");
+        line("const std::ptrdiff_t _nk_j = static_cast<std::ptrdiff_t>(" + j + ");");
+        line("if (_nk_j < 1 || _nk_j > static_cast<std::ptrdiff_t>(" + Acols + "))");
+        line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
+        line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_j - 1) * " + Arows + ";");
+        open("for (std::size_t _nk_i = 0; _nk_i < " + Arows + "; ++_nk_i)");
+        line(ptr + "[_nk_off + _nk_i] = _nk_fv;");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
+    // 2-D ROW scalar-fill: A(i, :) = s -> set every element of row i (1-based) to the
+    // scalar s (broadcast). Mirror of the column scalar-fill; in column-major storage row i
+    // is STRIDED: A[(i-1) + j*rows] for j in [0, cols). Reached only for a scalar rhs.
+    if (lhsCall.children.size() == 3
+        && (ai.is2D || (ai.isND && ai.ndDims.size() == 2)) && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children[1]->type != NodeType::COLON_EXPR
+        && lhsCall.children[2]->type == NodeType::COLON_EXPR
+        && lhsCall.children[2]->children.empty()
+        && inferExpr(rhs, types_, reg_, classes_).type.isConcrete()
+        && inferExpr(rhs, types_, reg_, classes_).type.shape.isScalar()
+        && inferExpr(*lhsCall.children[1], types_, reg_, classes_).type.shape.isScalar()) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("row-slice fill to a read-only matrix parameter '" + base + "'");
+        const std::string Arows = dimExpr(ai, 0), Acols = dimExpr(ai, 1);
+        endStack_.push_back(Arows);  // `end` in the row index = rows
+        const std::string i = emitExpr(*lhsCall.children[1]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line(cppScalarType(ai.dtype) + " _nk_fv = " + emitExpr(rhs) + ";");
+        line("const std::ptrdiff_t _nk_i0 = static_cast<std::ptrdiff_t>(" + i + ") - 1;");
+        line("if (_nk_i0 < 0 || _nk_i0 >= static_cast<std::ptrdiff_t>(" + Arows + "))");
+        line("    throw std::out_of_range(\"numkit: row index out of bounds\");");
+        open("for (std::size_t _nk_j = 0; _nk_j < " + Acols + "; ++_nk_j)");
+        line(ptr + "[static_cast<std::size_t>(_nk_i0) + _nk_j * " + Arows + "] = _nk_fv;");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
     // Rank-N (N>=3) AND runtime-dim 2-D write A(i,j,k,...) = v -> column-major
     // nk_rt::indexN_set. The companions in ai.ndDims give the per-axis sizes, so a
     // SCALAR-subscript element store works for any rank, including a runtime-dim 2-D
