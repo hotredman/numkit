@@ -397,9 +397,17 @@ InferredType uniqueTransfer(const std::vector<ArgInfo> &args)
 // a shift VECTOR (per-dim) or a 2-D/N-D operand is deferred -> Dynamic.
 InferredType circshiftTransfer(const std::vector<ArgInfo> &args)
 {
-    if (args.size() != 2 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if ((args.size() != 2 && args.size() != 3) || !args[0].type.isConcrete())
+        return InferredType::dynamic();
     if (args[1].type.isConcrete() && args[1].type.shape.kind != ShapeKind::Scalar)
         return InferredType::dynamic();  // a per-dim shift vector -> deferred
+    // circshift(A, k, dim): only a known literal dim 1 or 2 is native (the emit needs the
+    // axis at compile time). A runtime dim, or any other literal, stays Dynamic (bridged --
+    // the runtime handles dim >= 3 as a no-op and dim <= 0 as the MATLAB subscript error).
+    if (args.size() == 3
+        && !(args[2].constant.isKnown()
+             && (args[2].constant.value == 1.0 || args[2].constant.value == 2.0)))
+        return InferredType::dynamic();
     return args[0].type;
 }
 

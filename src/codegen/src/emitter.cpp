@@ -3634,16 +3634,19 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // Native circshift(A, k) on a 2-D MATRIX with a SCALAR shift -> shift along dim 1
-        // (rows), MATLAB semantics: each column is circularly shifted, B(i,j) = A(mod(i-k,m),
-        // j) 0-based; the column index j passes through. SAME shape as A. The mirror of the
-        // 1-D branch but only the ROW index wraps. Runtime-dim 2-D operand (dims via dimExpr);
-        // the result is a fresh rank-2 ndRuntimeLocal. dtype-general. Built into a temp first,
-        // so an in-place A = circshift(A, k) is safe (the source is fully read before the
-        // destination is overwritten). v1: a scalar integer shift; KnownDims-2-D deferred.
+        // Native circshift(A, k[, dim]) on a 2-D MATRIX with a SCALAR shift, MATLAB semantics.
+        // dim 1 (default, rows): each column is circularly shifted, B(i,j)=A(mod(i-k,m),j); the
+        // column index passes through. dim 2 (columns): B(i,j)=A(i,mod(j-k,n)); the row index
+        // passes through. SAME shape as A. Runtime-dim 2-D operand (dims via dimExpr); a fresh
+        // rank-2 ndRuntimeLocal result. dtype-general. Built into a temp first, so an in-place
+        // A = circshift(A, k[, dim]) is aliasing-safe. v1: a scalar shift; a LITERAL dim in
+        // {1,2} (the transfer keeps a runtime / other dim Dynamic -> bridged); KnownDims-2-D
+        // deferred. children: [circshift, A, k] (dim 1) or [circshift, A, k, dim].
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
             && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
-            && rhs.children.size() == 3
+            && (rhs.children.size() == 3
+                || (rhs.children.size() == 4 && rhs.children[3]->type == NodeType::NUMBER_LITERAL
+                    && (rhs.children[3]->numValue == 1.0 || rhs.children[3]->numValue == 2.0)))
             && rhs.children[0]->type == NodeType::IDENTIFIER
             && rhs.children[0]->strValue == "circshift"
             && rhs.children[1]->type == NodeType::IDENTIFIER
@@ -3656,6 +3659,8 @@ void Emitter::emitAssign(const ASTNode &s)
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
                 && inferExpr(*rhs.children[2], types_, reg_, classes_).type.shape.isScalar()) {
+                const long dimv =
+                    rhs.children.size() == 4 ? static_cast<long>(rhs.children[3]->numValue) : 1;
                 const std::string ct = cppScalarType(B.dtype);
                 const std::string m = dimExpr(A, 0), n = dimExpr(A, 1);
                 const std::string k = emitExpr(*rhs.children[2]);
@@ -3667,9 +3672,15 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("std::vector<" + ct + "> _nk_out(static_cast<std::size_t>(_nk_m * _nk_n));");
                 open("for (std::ptrdiff_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
                 open("for (std::ptrdiff_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
-                line("const std::ptrdiff_t _nk_ri = ((_nk_i - _nk_k) % _nk_m + _nk_m) % _nk_m;");
-                line("_nk_out[static_cast<std::size_t>(_nk_i + _nk_j * _nk_m)] = " + A.dataExpr
-                     + "[static_cast<std::size_t>(_nk_ri + _nk_j * _nk_m)];");
+                if (dimv == 1) {
+                    line("const std::ptrdiff_t _nk_ri = ((_nk_i - _nk_k) % _nk_m + _nk_m) % _nk_m;");
+                    line("_nk_out[static_cast<std::size_t>(_nk_i + _nk_j * _nk_m)] = " + A.dataExpr
+                         + "[static_cast<std::size_t>(_nk_ri + _nk_j * _nk_m)];");
+                } else {  // dim 2: wrap the COLUMN index, the row passes through
+                    line("const std::ptrdiff_t _nk_rj = ((_nk_j - _nk_k) % _nk_n + _nk_n) % _nk_n;");
+                    line("_nk_out[static_cast<std::size_t>(_nk_i + _nk_j * _nk_m)] = " + A.dataExpr
+                         + "[static_cast<std::size_t>(_nk_i + _nk_rj * _nk_m)];");
+                }
                 close();
                 close();
                 line(B.ndDims[0] + " = static_cast<std::size_t>(_nk_m);");
