@@ -3996,6 +3996,83 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // BLOCK-matrix literal `M = [A B; C D]`: a multi-row MATRIX_LITERAL whose every row
+        // is a HORZCAT of >=1 matrix vars (the >1-block rows the single-matrix vertcat above
+        // does not match). Result (sum row-heights) x (common total cols), a rank-2
+        // ndRuntimeLocal. Each block is copied column-major into its (rowOff, colOff) region;
+        // runtime guards check the within-row block heights agree and each row's total width
+        // matches the common width. v1: DOUBLE matrix vars, none aliasing the dest.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::MATRIX_LITERAL
+            && rhs.children.size() > 1) {
+            bool allBlocks = true;
+            for (const auto &rowN : rhs.children) {
+                if (!rowN || rowN->children.empty()) { allBlocks = false; break; }
+                for (const auto &el : rowN->children)
+                    if (!el || el->type != NodeType::IDENTIFIER || !isArrayVar(el->strValue)
+                        || el->strValue == name
+                        || !(arrays_.at(el->strValue).is2D
+                             || (arrays_.at(el->strValue).isND
+                                 && arrays_.at(el->strValue).ndDims.size() == 2))
+                        || arrays_.at(el->strValue).dtype != ValueType::DOUBLE) {
+                        allBlocks = false;
+                        break;
+                    }
+                if (!allBlocks) break;
+            }
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (allBlocks && rv.type.isConcrete()) {
+                const ArrayInfo &M = arrays_.at(name);
+                std::string      P, Q;  // P = sum of row heights; Q = row 0's total width
+                for (const auto &rowN : rhs.children)
+                    P += (P.empty() ? "" : " + ")
+                         + dimExpr(arrays_.at(rowN->children[0]->strValue), 0);
+                for (const auto &el : rhs.children[0]->children)
+                    Q += (Q.empty() ? "" : " + ") + dimExpr(arrays_.at(el->strValue), 1);
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_P = (" + P + ");");
+                line("const std::size_t _nk_Q = (" + Q + ");");
+                line(M.ndDims[0] + " = _nk_P;");
+                line(M.ndDims[1] + " = _nk_Q;");
+                line(name + ".assign(_nk_P * _nk_Q, 0.0);");
+                line("std::size_t _nk_ro = 0;");
+                for (const auto &rowN : rhs.children) {
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_rh = "
+                         + dimExpr(arrays_.at(rowN->children[0]->strValue), 0) + ";");
+                    line("std::size_t _nk_co = 0;");
+                    for (const auto &el : rowN->children) {
+                        const ArrayInfo &b = arrays_.at(el->strValue);
+                        line("{");
+                        ++indent_;
+                        line("const std::size_t _nk_br = " + dimExpr(b, 0) + ";");
+                        line("const std::size_t _nk_bc = " + dimExpr(b, 1) + ";");
+                        line("if (_nk_br != _nk_rh) throw std::out_of_range(\"numkit: block row "
+                             "heights must agree\");");
+                        open("for (std::size_t _nk_j = 0; _nk_j < _nk_bc; ++_nk_j)");
+                        open("for (std::size_t _nk_i = 0; _nk_i < _nk_br; ++_nk_i)");
+                        line(name + "[(_nk_ro + _nk_i) + (_nk_co + _nk_j) * _nk_P] = "
+                             + b.dataExpr + "[_nk_i + _nk_j * _nk_br];");
+                        close();
+                        close();
+                        line("_nk_co += _nk_bc;");
+                        --indent_;
+                        line("}");
+                    }
+                    line("if (_nk_co != _nk_Q) throw std::out_of_range(\"numkit: block row widths "
+                         "must agree\");");
+                    line("_nk_ro += _nk_rh;");
+                    --indent_;
+                    line("}");
+                }
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
 
         // Whole-array struct-field READ: `y = s.v` where s.v is an array field-local
         // (field-flattening). emitExpr(s.v) yields the field-local vector name, so

@@ -3573,6 +3573,54 @@ TEST(CodegenE2E, GammalnScalarNative)
     EXPECT_DOUBLE_EQ(got[0], interp);  // bit-exact vs interpreter
 }
 
+// BLOCK-matrix literal [A B; B A]: a 2x2 grid of 2x2 runtime-dim blocks -> a 4x4 matrix.
+// Distinct blocks swap across the anti-diagonal so the row/col offset math is exercised.
+// A=[1 2;3 4], B=[5 6;7 8] -> [1 2 5 6; 3 4 7 8; 5 6 1 2; 7 8 3 4].
+TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"   // 2x2 [1 2; 3 4]
+        "  B = [b1; b2];\n"   // 2x2 [5 6; 7 8]
+        "  M = [A B; B A];\n"  // 4x4 block matrix
+        "  r = M(1,1) + M(1,3)*10 + M(3,1)*100 + M(3,3)*1000 + M(2,4)*10000 + numel(M)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2, b1, b2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_blockmat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_blockmat_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double b1[2] = {5, 6};\n"
+        "  double b2[2] = {7, 8};\n"
+        "  double r = f(a1, 2, a2, 2, b1, 2, b2, 2);\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    // M(1,1)=1, M(1,3)=5, M(3,1)=5, M(3,3)=1, M(2,4)=8, numel=16
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 50.0 + 500.0 + 1000.0 + 80000.0 + 1600000.0);  // 1681551
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // runtime eye(n) / eye(m,n): identity at a RUNTIME size -> a runtime-dim 2-D matrix.
 // eye(3) -> 3x3 identity; eye(2,3) -> 2x3 (diagonal ones). The runtime mirror of the
 // KnownDims eye + zeros(m,n) runtime.
