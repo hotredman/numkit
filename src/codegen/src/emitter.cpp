@@ -1228,6 +1228,17 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
                                  : "((" + x + ") * (180.0 / 3.14159265358979323846))";
     }
 
+    // sign(x): MATLAB's signum for a REAL operand -> 1 / -1 / 0, with sign(0)=0 and
+    // sign(NaN)=NaN. Not a std:: fn; inline via a single-eval IIFE. realOnlyMathUnary-
+    // Transfer types sign for real DOUBLE/SINGLE only (complex -> Dynamic -> bridged), so
+    // the operand here is always real. Lights up the scalar form AND the elementwise fill
+    // (collectElementwise recognises sign), e.g. C = sign(A).
+    if (nargs == 1 && name == "sign") {
+        const std::string x = emitExpr(*call.children[1]);
+        return "([](double _nk_x){ return _nk_x > 0.0 ? 1.0 : (_nk_x < 0.0 ? -1.0 "
+               ": (_nk_x != _nk_x ? _nk_x : 0.0)); })(" + x + ")";
+    }
+
     if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
@@ -1858,7 +1869,7 @@ bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays
         const std::string &callee = e.children[0]->strValue;
         if (isArrayVar(callee)) return false;  // x(k) indexing -> not pure elementwise
         const std::size_t nargs = e.children.size() - 1;
-        const bool isMath = (nargs == 1 && unaryMathStd(callee) != nullptr)
+        const bool isMath = (nargs == 1 && (unaryMathStd(callee) != nullptr || callee == "sign"))
                             || (nargs == 2 && binaryMathStd(callee) != nullptr);
         if (!isMath) return false;
         for (std::size_t i = 1; i < e.children.size(); ++i)

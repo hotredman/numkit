@@ -87,8 +87,8 @@ TEST(Driver, BridgeOptionEmitsBridgedCall)
     b.enabled       = true;
     b.runtimeHeader = "nk_codegen_rt.h";
     const EmittedFunction em = driver::transpileSource(
-        "function y = f(x)\n  y = sign(x);\nend\n", "", driver::parseTypeSpec("double"), b);
-    EXPECT_NE(em.source.find("nk_rt::bridge_scalar(\"sign\""), std::string::npos);
+        "function y = f(x)\n  y = gamma(x);\nend\n", "", driver::parseTypeSpec("double"), b);
+    EXPECT_NE(em.source.find("nk_rt::bridge_scalar(\"gamma\""), std::string::npos);
 }
 
 TEST(Driver, TranspileToPluginEmitsRegisterHook)
