@@ -290,6 +290,28 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
             if (rowsOk && rdt != ValueType::EMPTY)
                 return {InferredType::concrete(rdt, Shape::ndShape({expr.children.size(), 0})),
                         ConstVal::unknown()};
+            // Each row a single 2-D MATRIX of a common dtype -> vertcat of matrices
+            // [A; B; ...] = a (sum-of-rows) x n matrix (all share the column count). A
+            // runtime-dim 2-D (NDims rank-2; the emitter sets the dims). The matrix test
+            // mirrors the [A B] horzcat case (KnownDims rows>1 & cols>1, or NDims rank-2),
+            // disjoint from the row-vector case above.
+            ValueType vdt     = ValueType::EMPTY;
+            bool      matsOk  = true;
+            for (const auto &rowN : expr.children) {
+                if (!rowN || rowN->children.size() != 1) { matsOk = false; break; }
+                const AbstractValue ev    = inferExpr(*rowN->children[0], env, reg, classes);
+                const bool          isMat =
+                    ev.type.isConcrete()
+                    && ((ev.type.shape.kind == ShapeKind::KnownDims && ev.type.shape.rows > 1
+                         && ev.type.shape.cols > 1)
+                        || (ev.type.shape.kind == ShapeKind::NDims
+                            && ev.type.shape.nd.size() == 2));
+                if (!isMat) { matsOk = false; break; }
+                if (vdt == ValueType::EMPTY) vdt = ev.type.dtype;
+                else if (vdt != ev.type.dtype) { matsOk = false; break; }  // no dtype mix
+            }
+            if (matsOk && vdt != ValueType::EMPTY)
+                return {InferredType::concrete(vdt, Shape::ndShape({0, 0})), ConstVal::unknown()};
         }
         // v1: a single-row horzcat [a b ...] -> a 1-D array of the common dtype
         // (runtime length). Each element may be a 1-D array, a char/string literal,
