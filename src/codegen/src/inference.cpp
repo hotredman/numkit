@@ -220,8 +220,32 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
             // MATLAB ambiguity: `name(...)` is an indexed read when `name`
             // is a variable in scope, otherwise a function call (or a class
             // constructor, registered as a transfer).
-            if (env.has(name))
-                return indexResult(env.get(name), argVals);
+            if (env.has(name)) {
+                // PAGE-SLICE read A(:,:,k): leading bare colons + a trailing SCALAR on an NDims
+                // rank-r base -> drop the last dim -> rank (r-1) (for r=3 a 2-D m x n page). The
+                // dims are runtime (the emit copies the contiguous page); typed here so the dest
+                // hoists as a (r-1)-D local. r >= 3 only (r=2 A(:,k) is the column slice).
+                const AbstractValue base = env.get(name);
+                const std::size_t   nsub = expr.children.size() - 1;
+                if (base.type.shape.kind == ShapeKind::NDims && base.type.shape.nd.size() >= 3
+                    && nsub == base.type.shape.nd.size()) {
+                    const std::size_t r = base.type.shape.nd.size();
+                    bool              pageSlice = true;
+                    for (std::size_t i = 1; i < r; ++i)  // children[1..r-1] = bare colons
+                        if (expr.children[i]->type != NodeType::COLON_EXPR
+                            || !expr.children[i]->children.empty()) {
+                            pageSlice = false;
+                            break;
+                        }
+                    if (pageSlice && expr.children[r]->type != NodeType::COLON_EXPR
+                        && isScalarValue(argVals[r - 1]))  // trailing subscript is a scalar
+                        return {InferredType::concrete(
+                                    base.type.dtype,
+                                    Shape::ndShape(std::vector<std::size_t>(r - 1, 0))),
+                                ConstVal::unknown()};
+                }
+                return indexResult(base, argVals);
+            }
             return {reg.apply(name, argInfos), ConstVal::unknown()};
         }
         // s.v(k): indexing a struct array FIELD (field-flattening). The callee is
