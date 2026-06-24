@@ -137,6 +137,26 @@ InferredType kronTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// cat(dim, A, B): concatenate along dim -- dim==1 vertical (like [A;B]), dim==2 horizontal
+// (like [A B]). v1: a LITERAL dim 1|2 and exactly two 2-D DOUBLE matrix operands -> a
+// runtime-dim 2-D result (ndShape({0,0})). A runtime dim / >2 operands / vector / non-DOUBLE
+// -> Dynamic (bridged).
+InferredType catTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 3) return InferredType::dynamic();  // dim + exactly two arrays (v1)
+    std::size_t dim = 0;
+    if (!args[0].constant.asDim(dim) || (dim != 1 && dim != 2)) return InferredType::dynamic();
+    auto isMat = [](const Shape &s) {
+        return (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
+               || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
+    };
+    if (args[1].type.isConcrete() && args[2].type.isConcrete()
+        && isMat(args[1].type.shape) && isMat(args[2].type.shape)
+        && args[1].type.dtype == ValueType::DOUBLE && args[2].type.dtype == ValueType::DOUBLE)
+        return InferredType::concrete(ValueType::DOUBLE, Shape::ndShape({0, 0}));
+    return InferredType::dynamic();
+}
+
 // sum / prod / mean / max / min over a VECTOR (single-arg form) -> a scalar of
 // the operand's dtype. MATLAB reduces a matrix along a dim (-> a row vector) and
 // max/min take a 2nd arg (elementwise) or a 2nd output (index) — only the
@@ -386,6 +406,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("ctranspose", transposeTransfer);  // A'
     reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)
     reg.add("kron", kronTransfer);             // kron(A,B) -> Kronecker product (mp x nq)
+    reg.add("cat", catTransfer);               // cat(dim,A,B) literal dim -> vert/horz concat
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
     for (const char *n :
          {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median", "trapz"})
