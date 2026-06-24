@@ -8306,3 +8306,50 @@ TEST(CodegenE2E, Cat3StackMatrices)
             .toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// N-D page-slice read (phase N3): P = C(:,:,2) extracts page 2 of a 2x2x2 array as a 2-D
+// matrix. C built via cat(3) (chains N2+N3): page 2 = B = [5 6;7 8].
+TEST(CodegenE2E, PageSliceReadRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"          // 2x2 [1 2; 3 4]
+        "  B = [b1; b2];\n"          // 2x2 [5 6; 7 8]
+        "  C = cat(3, A, B);\n"      // 2x2x2
+        "  P = C(:,:,2);\n"          // page 2 -> [5 6; 7 8]
+        "  r = P(1,1) + P(2,2)*10 + P(1,2)*100 + numel(P)*1000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2, b1, b2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_pageslice_e2e.exe").string();
+    const std::string outTxt = (base / "nk_pageslice_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double b1[2] = {5, 6};\n"
+        "  double b2[2] = {7, 8};\n"
+        "  double r = f(a1, 2, a2, 2, b1, 2, b2, 2);\n"  // 5+80+600+4000 = 4685
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4685.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
