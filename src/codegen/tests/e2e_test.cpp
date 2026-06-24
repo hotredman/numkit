@@ -3809,6 +3809,48 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// mixed horzcat [A b] (augmented matrix): a matrix concatenated with a column vector ->
+// a wider matrix. A=[1 2;3 4] (vertcat), b=[5;6] (col) -> [1 2 5; 3 4 6] (2x3).
+TEST(CodegenE2E, HorzcatMatrixWithColumnAugmented)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"  // 2x2 [1 2; 3 4]
+        "  M = [A b];\n"     // 2x3 augmented [1 2 5; 3 4 6]
+        "  r = M(1,1) + M(2,2)*10 + M(1,3)*100 + M(2,3)*1000 + numel(M)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2, b)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b", InferredType::concrete(ValueType::DOUBLE, Shape::colVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_augmat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_augmat_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double b[2]  = {5, 6};\n"
+        "  double r = f(a1, 2, a2, 2, b, 2);\n"  // [1 2 5;3 4 6]: 1 + 40 + 500 + 6000 + 60000 = 66541
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 40.0 + 500.0 + 6000.0 + 60000.0);  // 66541
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4]; b=[5;6];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // runtime eye(n) / eye(m,n): identity at a RUNTIME size -> a runtime-dim 2-D matrix.
 // eye(3) -> 3x3 identity; eye(2,3) -> 2x3 (diagonal ones). The runtime mirror of the
 // KnownDims eye + zeros(m,n) runtime.
