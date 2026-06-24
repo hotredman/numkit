@@ -3573,6 +3573,45 @@ TEST(CodegenE2E, GammalnScalarNative)
     EXPECT_DOUBLE_EQ(got[0], interp);  // bit-exact vs interpreter
 }
 
+// runtime reshape(x, m, n): reinterpret x's flat data as an m x n matrix at a RUNTIME
+// size (column-major, same buffer). x=[1..6], reshape(.,2,3) -> [1 3 5; 2 4 6].
+TEST(CodegenE2E, RuntimeReshape)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  M = reshape(x, m, n);\n"  // 2 x 3, column-major from [1..6]
+        "  r = M(1,1) + M(2,1)*10 + M(1,2)*100 + M(2,3)*1000 + numel(M)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x, m, n)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"m", InferredType::scalar(ValueType::DOUBLE)},
+         {"n", InferredType::scalar(ValueType::DOUBLE)}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_reshape_e2e.exe").string();
+    const std::string outTxt = (base / "nk_reshape_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6] = {1, 2, 3, 4, 5, 6};\n"
+        "  double r = f(x, 6, 2, 3);\n"  // M=[1 3 5;2 4 6]: 1 + 20 + 300 + 6000 + 60000 = 66321
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 20.0 + 300.0 + 6000.0 + 60000.0);  // 66321
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 3 4 5 6]; m=2; n=3;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // BLOCK-matrix literal [A B; B A]: a 2x2 grid of 2x2 runtime-dim blocks -> a 4x4 matrix.
 // Distinct blocks swap across the anti-diagonal so the row/col offset math is exercised.
 // A=[1 2;3 4], B=[5 6;7 8] -> [1 2 5 6; 3 4 7 8; 5 6 1 2; 7 8 3 4].

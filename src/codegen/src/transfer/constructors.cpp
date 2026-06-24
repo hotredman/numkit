@@ -118,6 +118,14 @@ InferredType reshapeTransfer(const std::vector<ArgInfo> &args)
     std::size_t m = 0, n = 0;
     if (args[1].constant.asDim(m) && args[2].constant.asDim(n))
         return InferredType::concrete(args[0].type.dtype, Shape::dims(m, n));
+    // A runtime dim -> a runtime-dim 2-D (NDims rank-2; the emitter copies x's flat
+    // buffer, sets the dims, and guards numel). x must be a non-scalar array (its data is
+    // reinterpreted). ndShape keeps it NDims while a dim is runtime.
+    std::size_t rm = 0, rn = 0;
+    if (!args[0].type.shape.isScalar())
+        return InferredType::concrete(args[0].type.dtype,
+                                      Shape::ndShape({args[1].constant.asDim(rm) ? rm : 0,
+                                                      args[2].constant.asDim(rn) ? rn : 0}));
     return InferredType::dynamic();
 }
 
