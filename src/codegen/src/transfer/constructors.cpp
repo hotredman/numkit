@@ -169,6 +169,14 @@ InferredType repmatTransfer(const std::vector<ArgInfo> &args)
         if (args[1].constant.asDim(p) && args[2].constant.asDim(q) && q > 1)
             return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, q}));
     }
+    // Matrix operand: repmat(A, p, q) tiles an Arows x Acols matrix into a (p*Arows) x
+    // (q*Acols) block grid -> a runtime-dim 2-D (NDims rank-2). v1: the 3-arg form, A a
+    // 2-D matrix (KnownDims rows>1 & cols>1, or an NDims rank-2 runtime-dim matrix).
+    if (args.size() == 3
+        && ((args[0].type.shape.kind == ShapeKind::KnownDims && args[0].type.shape.rows > 1
+             && args[0].type.shape.cols > 1)
+            || (args[0].type.shape.kind == ShapeKind::NDims && args[0].type.shape.nd.size() == 2)))
+        return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
     return InferredType::dynamic();
 }
 

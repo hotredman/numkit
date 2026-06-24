@@ -2343,6 +2343,46 @@ void Emitter::emitAssign(const ASTNode &s)
             types_.set(name, res);
             return;
         }
+        // repmat(A, p, q) with A a 2-D MATRIX -> a (p*Arows) x (q*Acols) block tiling, a
+        // rank-2 ndRuntimeLocal. Column-major: M[R + C*(p*Arows)] = A[(R % Arows) +
+        // (C % Acols)*Arows] -- A repeats every Arows rows and every Acols cols. A's dims
+        // via dimExpr (KnownDims or runtime-dim 2-D). v1: A a DOUBLE matrix var, distinct
+        // from the dest (an in-place M=repmat(M,..) would read the zeroed/resized buffer).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "repmat"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[1]->strValue != name
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            const std::string   p   = emitExpr(*rhs.children[2]);
+            const std::string   q   = emitExpr(*rhs.children[3]);
+            line("{");
+            ++indent_;
+            line("const std::size_t _nk_ar = " + dimExpr(A, 0) + ";");
+            line("const std::size_t _nk_ac = " + dimExpr(A, 1) + ";");
+            line("const std::size_t _nk_rows = nk_rt::dim(" + p + ") * _nk_ar;");
+            line("const std::size_t _nk_cols = nk_rt::dim(" + q + ") * _nk_ac;");
+            line(M.ndDims[0] + " = _nk_rows;");
+            line(M.ndDims[1] + " = _nk_cols;");
+            line(name + ".assign(_nk_rows * _nk_cols, 0.0);");
+            open("for (std::size_t _nk_C = 0; _nk_C < _nk_cols; ++_nk_C)");
+            open("for (std::size_t _nk_R = 0; _nk_R < _nk_rows; ++_nk_R)");
+            line(name + "[_nk_R + _nk_C * _nk_rows] = " + A.dataExpr
+                 + "[(_nk_R % _nk_ar) + (_nk_C % _nk_ac) * _nk_ar];");
+            close();
+            close();
+            --indent_;
+            line("}");
+            types_.set(name, res);
+            return;
+        }
         // eye(n) / eye(m, n) -> the identity matrix (1 on the main diagonal, 0 else), a
         // 2-D KnownDims LOCAL. Like zeros but the diagonal is set to 1. v1: literal dims.
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).is2D
