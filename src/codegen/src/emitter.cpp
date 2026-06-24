@@ -1768,6 +1768,48 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // page-slice WRITE A(:,:,k) = M: write a 2-D m x n matrix M into page k of a rank-3 A
+    // (phase N4, the WRITE sibling of the N3 page-slice read). Column-major: page k (1-based)
+    // is the CONTIGUOUS block A[(k-1)*m*n ..] -> a straight copy from M. A writable; bounds-
+    // checked k (end = size(A,3)); m,n size guard. v1: rank-3 DOUBLE A, two leading bare colons
+    // + a scalar k, rhs a distinct 2-D DOUBLE matrix var. Placed BEFORE the N-D write branch
+    // (which refuses colon subscripts).
+    if (ai.isND && ai.ndDims.size() == 3 && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children.size() == 4
+        && lhsCall.children[1]->type == NodeType::COLON_EXPR && lhsCall.children[1]->children.empty()
+        && lhsCall.children[2]->type == NodeType::COLON_EXPR && lhsCall.children[2]->children.empty()
+        && lhsCall.children[3]->type != NodeType::COLON_EXPR
+        && rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue) && rhs.strValue != base
+        && (arrays_.at(rhs.strValue).is2D
+            || (arrays_.at(rhs.strValue).isND && arrays_.at(rhs.strValue).ndDims.size() == 2))
+        && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE
+        && inferExpr(*lhsCall.children[3], types_, reg_, classes_).type.shape.isScalar()) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("page-slice write to a read-only array parameter '" + base + "'");
+        const ArrayInfo  &M = arrays_.at(rhs.strValue);  // the 2-D page source
+        const std::string m = dimExpr(ai, 0), n = dimExpr(ai, 1), p = dimExpr(ai, 2);
+        endStack_.push_back(p);  // `end` in the page index = size(A,3)
+        const std::string k = emitExpr(*lhsCall.children[3]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_m = " + m + ";");
+        line("const std::size_t _nk_n = " + n + ";");
+        line("if (" + dimExpr(M, 0) + " != _nk_m || " + dimExpr(M, 1) + " != _nk_n)");
+        line("    throw std::out_of_range(\"numkit: page-slice assignment size mismatch\");");
+        line("const std::ptrdiff_t _nk_k = static_cast<std::ptrdiff_t>(" + k + ");");
+        line("if (_nk_k < 1 || _nk_k > static_cast<std::ptrdiff_t>(" + p + "))");
+        line("    throw std::out_of_range(\"numkit: page index out of bounds\");");
+        line("const std::size_t _nk_pg = _nk_m * _nk_n;");
+        line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k - 1) * _nk_pg;");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_pg; ++_nk_i)");
+        line(ptr + "[_nk_off + _nk_i] = " + M.dataExpr + "[_nk_i];");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
     // Rank-N (N>=3) AND runtime-dim 2-D write A(i,j,k,...) = v -> column-major
     // nk_rt::indexN_set. The companions in ai.ndDims give the per-axis sizes, so a
     // SCALAR-subscript element store works for any rank, including a runtime-dim 2-D
