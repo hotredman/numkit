@@ -3437,6 +3437,44 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native find(<expr>) with an INLINE elementwise expression -> the 1-based positions
+        // where the per-element value is nonzero/true: find(x>0), find(x>lo & x<hi), find(x-3)
+        // (x!=3), ... The inline sibling of find(VAR): the expression is FUSED into the filter
+        // loop (no temp) -- elementCtx_ makes the whole array emit arr[_nk_i], then for each i,
+        // if the value is nonzero push (i+1). Restricted to a SINGLE-array pure-elementwise
+        // expression (collectElementwise srcArrays of size 1) so the bound is that array's
+        // length and per-element emission is valid (a multi-array find(x>y) -> bridged). Result
+        // a 1-D DOUBLE LOCAL (push_back). v1: a 1-D operand; a 2-D operand -> refused.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "find"
+            && rhs.children[1]->type != NodeType::IDENTIFIER) {
+            std::set<std::string> srcArrays;
+            const bool            pureEw = collectElementwise(*rhs.children[1], srcArrays);
+            const AbstractValue   maskAV = inferExpr(*rhs.children[1], types_, reg_, classes_);
+            const AbstractValue   res    = inferExpr(rhs, types_, reg_, classes_);
+            if (pureEw && srcArrays.size() == 1 && maskAV.type.isConcrete()
+                && !maskAV.type.shape.isScalar()
+                && !arrays_.at(*srcArrays.begin()).is2D && !arrays_.at(*srcArrays.begin()).isND
+                && res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const ArrayInfo &ba = arrays_.at(*srcArrays.begin());
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                elementCtx_ = "_nk_i";  // whole array in the expr -> arr[_nk_i]
+                const std::string maskExpr = emitExpr(*rhs.children[1]);
+                elementCtx_.clear();
+                open("for (std::size_t _nk_i = 0; _nk_i < " + ba.lenVar + "; ++_nk_i)");
+                line("if (" + maskExpr + ") " + name
+                     + ".push_back(static_cast<double>(_nk_i + 1));");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native diff(x) -> consecutive differences (y[i] = x[i+1]-x[i], length
         // n-1), a runtime-sized 1-D LOCAL preserving x's dtype. EXACT (subtraction)
         // -> preferred over the bridged array-result path; works for double and

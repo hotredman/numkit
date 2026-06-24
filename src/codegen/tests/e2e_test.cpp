@@ -4212,6 +4212,43 @@ TEST(CodegenE2E, NumericGatherRead)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// find with an inline relational: idx = find(x>0) -> 1-based positions where x>0.
+// x=[-2 3 -4 5 -6] -> find(x>0) = [2 4] (positions of 3 and 5).
+TEST(CodegenE2E, FindInlineRelational)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  idx = find(x > 0);\n"  // positions where x>0 -> [2 4]
+        "  r = idx(1) + idx(2)*10 + numel(idx)*1000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_findinline_e2e.exe").string();
+    const std::string outTxt = (base / "nk_findinline_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {-2, 3, -4, 5, -6};\n"
+        "  double r = f(x, 5);\n"  // idx=[2 4]: 2 + 40 + 2000 = 2042
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 2042.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[-2 3 -4 5 -6];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // numeric SCATTER write x(idx)=v: array-rhs form (with a REPEATED index -> last write wins)
 // and scalar-broadcast form. x=[10 20 30 40 50], idx=[4 1 4], vals=[100 200 300].
 TEST(CodegenE2E, NumericScatterWrite)
