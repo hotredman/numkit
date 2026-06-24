@@ -83,22 +83,29 @@ InferredType logspaceTransfer(const std::vector<ArgInfo> &args)
 }
 
 // eye(n) / eye(m, n) -> the identity matrix; dtype double, shape from the dim args
-// (like zeros/ones). () -> 1x1 (the scalar 1); (n) -> n x n; (m,n) -> m x n (KnownDims
-// iff the dims are known constants); runtime / >=3 dims -> Unknown.
+// (like zeros/ones). () -> 1x1 (the scalar 1); (n) -> n x n; (m,n) -> m x n. A known-
+// constant dim gives KnownDims; a RUNTIME dim gives an NDims rank-2 (a runtime-dim 2-D
+// the emitter materialises as an ndRuntimeLocal, like zeros(m,n) runtime). >=3 dims ->
+// Unknown.
 InferredType eyeTransfer(const std::vector<ArgInfo> &args)
 {
-    Shape       sh;
-    std::size_t a = 0, b = 0;
-    if (args.empty())
-        sh = Shape::scalar();
-    else if (args.size() == 1)
-        sh = args[0].constant.asDim(a) ? Shape::dims(a, a) : Shape::unknown();
-    else if (args.size() == 2)
-        sh = (args[0].constant.asDim(a) && args[1].constant.asDim(b)) ? Shape::dims(a, b)
-                                                                      : Shape::unknown();
-    else
-        sh = Shape::unknown();
-    return InferredType::concrete(ValueType::DOUBLE, sh);
+    std::size_t a = 0;
+    if (args.empty()) return InferredType::concrete(ValueType::DOUBLE, Shape::scalar());
+    if (args.size() == 1)  // eye(n): n x n -- both dims are the same n
+        return args[0].constant.asDim(a)
+                   ? InferredType::concrete(ValueType::DOUBLE, Shape::dims(a, a))
+                   : InferredType::concrete(ValueType::DOUBLE, Shape::ndShape({0, 0}));
+    if (args.size() == 2) {
+        // const dim -> its value; runtime dim -> 0. ndShape canonicalises a fully-known
+        // rank-2 back to KnownDims (the const path) and keeps a runtime one as NDims.
+        std::vector<std::size_t> dimsv;
+        for (const auto &arg : args) {
+            std::size_t d = 0;
+            dimsv.push_back(arg.constant.asDim(d) ? d : 0);
+        }
+        return InferredType::concrete(ValueType::DOUBLE, Shape::ndShape(std::move(dimsv)));
+    }
+    return InferredType::concrete(ValueType::DOUBLE, Shape::unknown());
 }
 
 // reshape(x, m, n) -> reinterpret x as an m x n matrix (column-major, the SAME flat

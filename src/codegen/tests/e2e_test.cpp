@@ -3573,6 +3573,45 @@ TEST(CodegenE2E, GammalnScalarNative)
     EXPECT_DOUBLE_EQ(got[0], interp);  // bit-exact vs interpreter
 }
 
+// runtime eye(n) / eye(m,n): identity at a RUNTIME size -> a runtime-dim 2-D matrix.
+// eye(3) -> 3x3 identity; eye(2,3) -> 2x3 (diagonal ones). The runtime mirror of the
+// KnownDims eye + zeros(m,n) runtime.
+TEST(CodegenE2E, RuntimeEye)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = eye(n);\n"        // n x n identity
+        "  B = eye(2, n);\n"     // 2 x n (diagonal ones, rest 0)
+        "  r = A(1,1) + A(2,2)*10 + A(1,2)*100 + numel(A)*1000 "
+        "+ B(2,2)*100000 + numel(B)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(n)\n") + body + "end\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_eye_e2e.exe").string();
+    const std::string outTxt = (base / "nk_eye_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f(3);\n"  // A=eye(3): A11=1,A22=1,A12=0,numel=9; B=eye(2,3): B22=1,numel=6
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    // 1 + 10 + 0 + 9000 + 100000 + 6000000 = 6109011
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 10.0 + 0.0 + 9000.0 + 100000.0 + 6000000.0);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)
