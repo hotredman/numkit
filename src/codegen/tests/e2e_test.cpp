@@ -3929,6 +3929,47 @@ TEST(CodegenE2E, RowColScalarFill)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// whole-array fill from a MATCHING-NUMEL array: A(:) = b copies b column-major into A,
+// preserving A's shape. A=[1 2;3 4] (2x2), b=[10 20 30 40] -> A=[10 30; 20 40].
+TEST(CodegenE2E, WholeArrayArrayFill)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"        // 2x2 [1 2; 3 4]
+        "  b = [10 20 30 40];\n"   // 1x4, numel 4 == numel(A)
+        "  A(:) = b;\n"            // column-major fill -> A=[10 30; 20 40]
+        "  r = A(1,1) + A(2,1)*10 + A(1,2)*100 + A(2,2)*1000 + numel(A)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_fillarray_e2e.exe").string();
+    const std::string outTxt = (base / "nk_fillarray_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double r = f(a1, 2, a2, 2);\n"  // 10 + 200 + 3000 + 40000 + 40000 = 83210
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 10.0 + 200.0 + 3000.0 + 40000.0 + 40000.0);  // 83210
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // cat(dim, A, B) with a literal dim: cat(2,..) horizontal (like [A B]), cat(1,..) vertical
 // (like [A;B]). A=[1 2;3 4], B=[5 6;7 8] -> cat(2)=[1 2 5 6;3 4 7 8], cat(1)=[1 2;3 4;5 6;7 8].
 TEST(CodegenE2E, CatDimMatrices)
