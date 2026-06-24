@@ -4267,6 +4267,46 @@ void Emitter::emitAssign(const ASTNode &s)
             return;
         }
 
+        // LOGICAL-INDEXING READ with an INLINE elementwise mask: `y = x(<expr>)` where <expr>
+        // is a pure-elementwise LOGICAL self-mask over x (y = x(x>0), y = x(x>lo & x<hi), ...).
+        // The sibling of the inline masked WRITE: the mask is FUSED into the filter loop (no
+        // temp vector) -- elementCtx_ makes whole-x emit x[_nk_i], then for each i, if the
+        // mask holds, push x[i]. A self-mask (collectElementwise srcArrays=={x}) keeps the
+        // bound at x's length (in bounds) and lets the mask be emitted per element; a READ
+        // never mutates x, so there is no aliasing subtlety. y a 1-D array LOCAL (push_back).
+        // v1: x 1-D; an inline mask over OTHER arrays / a 2-D x -> the VAR-mask path or a
+        // refusal. Placed after the VAR-mask read so a pre-bound mask var takes that branch.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL
+            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue)
+            && !arrays_.at(rhs.children[0]->strValue).is2D
+            && !arrays_.at(rhs.children[0]->strValue).isND
+            && rhs.children[1]->type != NodeType::IDENTIFIER) {
+            const AbstractValue   maskAV = inferExpr(*rhs.children[1], types_, reg_, classes_);
+            std::set<std::string> maskArrays;
+            const bool            pureEw = collectElementwise(*rhs.children[1], maskArrays);
+            if (maskAV.type.isConcrete() && maskAV.type.dtype == ValueType::LOGICAL
+                && !maskAV.type.shape.isScalar() && pureEw && maskArrays.size() == 1
+                && *maskArrays.begin() == rhs.children[0]->strValue) {
+                const ArrayInfo &bx = arrays_.at(rhs.children[0]->strValue);  // x (source)
+                line("{");
+                ++indent_;
+                line(name + ".clear();");
+                elementCtx_ = "_nk_i";  // whole x in the mask -> x[_nk_i]
+                const std::string maskExpr = emitExpr(*rhs.children[1]);
+                elementCtx_.clear();
+                open("for (std::size_t _nk_i = 0; _nk_i < " + bx.lenVar + "; ++_nk_i)");
+                line("if (" + maskExpr + ") " + name + ".push_back(" + bx.dataExpr + "[_nk_i]);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, {InferredType::concrete(bx.dtype, Shape::rowVector()),
+                                  ConstVal::unknown()});
+                return;
+            }
+        }
+
         // CHAR row-vector literal: `c = 'abc'` -> a char-array LOCAL initialised
         // from the literal's code units (1 per element; v1: ASCII/BMP, so a UTF-8
         // byte == the UTF-16 unit, matching the inference's byte-count length). char
