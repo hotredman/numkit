@@ -1464,6 +1464,38 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // Whole-array scalar FILL: `A(:) = s` -> set every element of A to the scalar s (the
+    // bare colon is an empty COLON_EXPR). A must be writable (local/output); numel = 1-D
+    // length / 2-D rows*cols / N-D product of dims, over the flat column-major buffer.
+    // Placed before the N-D write branch so a runtime-dim 2-D A(:) = s is filled rather
+    // than rejected on subscript arity. v1: a scalar rhs (A(:) = array is deferred).
+    if (lhsCall.children.size() == 2 && lhsCall.children[1]->type == NodeType::COLON_EXPR
+        && lhsCall.children[1]->children.empty()) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("whole-array fill of a read-only parameter '" + base + "'");
+        const AbstractValue rhsAV = inferExpr(rhs, types_, reg_, classes_);
+        if (rhsAV.type.isConcrete() && rhsAV.type.shape.isScalar()) {
+            std::string numel;
+            if (ai.isND) {
+                numel = ai.ndDims[0];
+                for (std::size_t i = 1; i < ai.ndDims.size(); ++i) numel += " * " + ai.ndDims[i];
+            } else if (ai.is2D) {
+                numel = ai.rowsVar + " * " + ai.colsVar;
+            } else {
+                numel = ai.lenVar;
+            }
+            line("{");
+            ++indent_;
+            line(cppScalarType(ai.dtype) + " _nk_fv = " + emitExpr(rhs) + ";");
+            open("for (std::size_t _nk_i = 0; _nk_i < (" + numel + "); ++_nk_i)");
+            line(ptr + "[_nk_i] = _nk_fv;");
+            close();
+            --indent_;
+            line("}");
+            return;
+        }
+    }
+
     // 2-D COLUMN slice write: A(:, j) = col -> overwrite column j (1-based) of a 2-D
     // matrix with the 1-D vector col (length = rows). Works for a KnownDims 2-D OR a
     // runtime-dim 2-D (dims via the rank-agnostic dimExpr). Column-major: column j is
