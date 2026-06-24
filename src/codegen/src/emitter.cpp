@@ -3727,6 +3727,82 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native permute(A, [literal perm]) -> reorder A's dimensions (phase N1, the defining
+        // N-D op). B's dim k = A's dim perm[k] (1-based); flat over the column-major buffers --
+        // for each output o, decompose into B's multi-index (j_k = (o / Bstride_k) % Bdim_k) and
+        // gather A at sum_k j_k * Astride_{perm[k]-1}. perm must be a LITERAL permutation of
+        // 1..rank (read here; a runtime perm hits the scalar/refuse path). Runtime dims via
+        // dimExpr; B a fresh rank-r ndRuntimeLocal; built into a temp so an in-place
+        // A = permute(A, perm) is aliasing-safe. v1: DOUBLE A (NDims or KnownDims-2-D), rank 2-4.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "permute"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::MATRIX_LITERAL) {
+            const ArrayInfo  &A = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo  &B = arrays_.at(name);
+            const std::size_t r = A.isND ? A.ndDims.size() : (A.is2D ? 2u : 0u);
+            const ASTNode    &pn = *rhs.children[2];
+            // The literal perm: a single row of r integer literals, a permutation of 1..r.
+            std::vector<std::size_t> perm;
+            if (r >= 2 && r <= 4 && B.ndDims.size() == r && A.dtype == ValueType::DOUBLE
+                && pn.children.size() == 1 && pn.children[0]
+                && pn.children[0]->children.size() == r) {
+                bool              permOk = true;
+                std::vector<bool> seen(r, false);
+                for (const auto &el : pn.children[0]->children) {
+                    if (!el || el->type != NodeType::NUMBER_LITERAL
+                        || el->numValue != std::floor(el->numValue) || el->numValue < 1.0
+                        || el->numValue > static_cast<double>(r)) {
+                        permOk = false;
+                        break;
+                    }
+                    const std::size_t v = static_cast<std::size_t>(el->numValue);  // 1-based
+                    if (seen[v - 1]) {
+                        permOk = false;  // a repeated axis -> not a permutation
+                        break;
+                    }
+                    seen[v - 1] = true;
+                    perm.push_back(v);
+                }
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (permOk && perm.size() == r && res.type.isConcrete()
+                    && !res.type.shape.isScalar()) {
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_As0 = 1;");  // A column-major strides (runtime)
+                    for (std::size_t d = 1; d < r; ++d)
+                        line("const std::size_t _nk_As" + std::to_string(d) + " = _nk_As"
+                             + std::to_string(d - 1) + " * (" + dimExpr(A, d - 1) + ");");
+                    for (std::size_t k = 0; k < r; ++k)  // B dims = A dims permuted
+                        line("const std::size_t _nk_Bd" + std::to_string(k) + " = ("
+                             + dimExpr(A, perm[k] - 1) + ");");
+                    line("const std::size_t _nk_Bs0 = 1;");  // B strides
+                    for (std::size_t k = 1; k < r; ++k)
+                        line("const std::size_t _nk_Bs" + std::to_string(k) + " = _nk_Bs"
+                             + std::to_string(k - 1) + " * _nk_Bd" + std::to_string(k - 1) + ";");
+                    std::string numel = "_nk_Bd0";
+                    for (std::size_t k = 1; k < r; ++k) numel += " * _nk_Bd" + std::to_string(k);
+                    for (std::size_t k = 0; k < r; ++k)  // set B's dim companions (permuted)
+                        line(B.ndDims[k] + " = _nk_Bd" + std::to_string(k) + ";");
+                    line("std::vector<double> _nk_out(" + numel + ");");
+                    open("for (std::size_t _nk_o = 0; _nk_o < (" + numel + "); ++_nk_o)");
+                    line("std::size_t _nk_af = 0;");
+                    for (std::size_t k = 0; k < r; ++k)
+                        line("_nk_af += ((_nk_o / _nk_Bs" + std::to_string(k) + ") % _nk_Bd"
+                             + std::to_string(k) + ") * _nk_As" + std::to_string(perm[k] - 1) + ";");
+                    line("_nk_out[_nk_o] = " + A.dataExpr + "[_nk_af];");
+                    close();
+                    line(name + ".assign(_nk_out.begin(), _nk_out.end());");
+                    --indent_;
+                    line("}");
+                    types_.set(name, res);
+                    return;
+                }
+            }
+        }
         // Native circshift(A, k[, dim]) on a 2-D MATRIX with a SCALAR shift, MATLAB semantics.
         // dim 1 (default, rows): each column is circularly shifted, B(i,j)=A(mod(i-k,m),j); the
         // column index passes through. dim 2 (columns): B(i,j)=A(i,mod(j-k,n)); the row index

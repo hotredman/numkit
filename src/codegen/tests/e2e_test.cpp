@@ -8223,3 +8223,40 @@ TEST(CodegenBridge, BridgedArrayLocalRunsAndMatchesInterpreter)
         EXPECT_DOUBLE_EQ(got[i], ref) << "at i=" << i;
     }
 }
+
+// N-D permute (phase N1): B = permute(A, [2 3 1]) on a rank-3 2x2x2 array. B(i1,i2,i3) =
+// A(i3,i1,i2). A flat (col-major) = 1..8 -> read a few B elements + numel. Differential.
+TEST(CodegenE2E, PermuteRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = zeros(2,2,2);\n"
+        "  A(1,1,1)=1; A(2,1,1)=2; A(1,2,1)=3; A(2,2,1)=4;\n"
+        "  A(1,1,2)=5; A(2,1,2)=6; A(1,2,2)=7; A(2,2,2)=8;\n"
+        "  B = permute(A, [2 3 1]);\n"  // B(i1,i2,i3) = A(i3,i1,i2)
+        "  s = B(1,1,1) + B(2,1,1)*10 + B(1,2,1)*100 + B(1,1,2)*1000 + numel(B)*100000;\n";
+    const EmittedFunction emitted =
+        transpile(std::string("function s = f()\n") + body + "end\n", {});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_permute3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_permute3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double s = f();\n"  // 1 + 30 + 500 + 2000 + 800000 = 802531
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 802531.0);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string(body) + "s", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
