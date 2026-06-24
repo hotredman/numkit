@@ -1771,6 +1771,55 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         }
     }
 
+    // NUMERIC SCATTER WRITE: `x(idx) = v` where idx is a 1-D NUMERIC (DOUBLE) index vector ->
+    // assign into x at the 1-based positions idx. rhs is EITHER a SCALAR (broadcast: x(idx[i])
+    // = c for all i) OR a distinct 1-D DOUBLE array of length numel(idx) (x(idx[i]) = rhs[i]).
+    // The WRITE sibling of the numeric gather read. Each index is range+integer checked BEFORE
+    // the cast (a NaN fails `>= 1.0`, so no UB; the throw is faithful to MATLAB's subscript
+    // error). Repeated indices keep the LAST write -- a forward loop matches MATLAB. x writable
+    // 1-D DOUBLE; idx a DOUBLE array VAR distinct from x. An inline-literal idx / a 2-D x / a
+    // length-mismatched or aliasing array rhs -> refused (sound). Placed after the logical
+    // writes (a LOGICAL idx takes those; this is the numeric sibling).
+    if (lhsCall.children.size() == 2 && !ai.is2D && !ai.isND && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children[1]->type == NodeType::IDENTIFIER
+        && isArrayVar(lhsCall.children[1]->strValue)
+        && arrays_.at(lhsCall.children[1]->strValue).dtype == ValueType::DOUBLE
+        && !arrays_.at(lhsCall.children[1]->strValue).is2D
+        && !arrays_.at(lhsCall.children[1]->strValue).isND
+        && lhsCall.children[1]->strValue != base) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("numeric scatter write to a read-only array parameter '" + base + "'");
+        const ArrayInfo    &bi  = arrays_.at(lhsCall.children[1]->strValue);  // index vector
+        const AbstractValue rav = inferExpr(rhs, types_, reg_, classes_);
+        const bool rhsScalar = rav.type.isConcrete() && rav.type.shape.isScalar();
+        const bool rhsArr    = rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue)
+                            && rhs.strValue != base && rhs.strValue != lhsCall.children[1]->strValue
+                            && !arrays_.at(rhs.strValue).is2D && !arrays_.at(rhs.strValue).isND
+                            && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE;
+        if (!rhsScalar && !rhsArr)
+            unsupported("numeric scatter write rhs: a scalar or a distinct 1-D DOUBLE array (v1)");
+        line("{");
+        ++indent_;
+        if (rhsScalar)
+            line("const double _nk_c = " + emitExpr(rhs) + ";");
+        else {
+            line("if (" + arrays_.at(rhs.strValue).lenVar + " != " + bi.lenVar + ")");
+            line("    throw std::out_of_range(\"numkit: scatter assignment length mismatch\");");
+        }
+        const std::string rhsElem =
+            rhsScalar ? std::string("_nk_c") : (arrays_.at(rhs.strValue).dataExpr + "[_nk_i]");
+        open("for (std::size_t _nk_i = 0; _nk_i < " + bi.lenVar + "; ++_nk_i)");
+        line("const double _nk_d = " + bi.dataExpr + "[_nk_i];");
+        line("if (!(_nk_d >= 1.0 && _nk_d <= static_cast<double>(" + ai.lenVar
+             + ") && _nk_d == std::floor(_nk_d)))");
+        line("    throw std::out_of_range(\"numkit: array index out of bounds\");");
+        line(ptr + "[static_cast<std::size_t>(_nk_d) - 1] = " + rhsElem + ";");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
     // 1-D SLICE WRITE: x(a:b) = rhs / x(a:s:b) = rhs. The lhs colon ranges over x's
     // 1-based positions (`end` -> x's length, pushed here). count = the colon count;
     // then either broadcast a SCALAR rhs into each position, or copy a matched-length
