@@ -3547,6 +3547,69 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native cat(dim, A, B) with a LITERAL dim -> concatenate two 2-D matrices: dim==2 is
+        // horizontal (M cols = A cols + B cols, a column-major buffer concat -- A's columns
+        // then B's), dim==1 is vertical (M rows = A rows + B rows, a per-column interleave).
+        // A runtime-dim 2-D result; both tiers via dimExpr; runtime dst companions set;
+        // matching-dimension guard. v1: two DOUBLE matrix vars distinct from the dest.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "cat"
+            && rhs.children[1]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[1]->numValue == 1.0 || rhs.children[1]->numValue == 2.0)
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && rhs.children[3]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[3]->strValue)
+            && rhs.children[2]->strValue != name && rhs.children[3]->strValue != name) {
+            const ArrayInfo &A = arrays_.at(rhs.children[2]->strValue);
+            const ArrayInfo &B = arrays_.at(rhs.children[3]->strValue);
+            const bool aMat = A.is2D || (A.isND && A.ndDims.size() == 2);
+            const bool bMat = B.is2D || (B.isND && B.ndDims.size() == 2);
+            if (aMat && bMat && A.dtype == ValueType::DOUBLE && B.dtype == ValueType::DOUBLE) {
+                const ArrayInfo    &M   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                const bool          horz = rhs.children[1]->numValue == 2.0;
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_ar = " + dimExpr(A, 0) + ";");  // A rows
+                line("const std::size_t _nk_ac = " + dimExpr(A, 1) + ";");  // A cols
+                line("const std::size_t _nk_br = " + dimExpr(B, 0) + ";");  // B rows
+                line("const std::size_t _nk_bc = " + dimExpr(B, 1) + ";");  // B cols
+                if (horz) {  // cat(2,..): A cols then B cols; rows must agree
+                    line("if (_nk_ar != _nk_br) throw std::out_of_range(\"numkit: cat dim-1 "
+                         "sizes must agree\");");
+                    line(M.ndDims[0] + " = _nk_ar;");
+                    line(M.ndDims[1] + " = _nk_ac + _nk_bc;");
+                    line(name + ".assign(_nk_ar * (_nk_ac + _nk_bc), 0.0);");
+                    open("for (std::size_t _nk_k = 0; _nk_k < _nk_ar * _nk_ac; ++_nk_k)");
+                    line(name + "[_nk_k] = " + A.dataExpr + "[_nk_k];");
+                    close();
+                    open("for (std::size_t _nk_k = 0; _nk_k < _nk_ar * _nk_bc; ++_nk_k)");
+                    line(name + "[_nk_ar * _nk_ac + _nk_k] = " + B.dataExpr + "[_nk_k];");
+                    close();
+                } else {  // cat(1,..): A rows then B rows interleaved per column; cols agree
+                    line("if (_nk_ac != _nk_bc) throw std::out_of_range(\"numkit: cat dim-2 "
+                         "sizes must agree\");");
+                    line("const std::size_t _nk_tr = _nk_ar + _nk_br;");
+                    line(M.ndDims[0] + " = _nk_tr;");
+                    line(M.ndDims[1] + " = _nk_ac;");
+                    line(name + ".assign(_nk_tr * _nk_ac, 0.0);");
+                    open("for (std::size_t _nk_j = 0; _nk_j < _nk_ac; ++_nk_j)");
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_ar; ++_nk_i)");
+                    line(name + "[_nk_i + _nk_j * _nk_tr] = " + A.dataExpr + "[_nk_i + _nk_j * _nk_ar];");
+                    close();
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_br; ++_nk_i)");
+                    line(name + "[(_nk_ar + _nk_i) + _nk_j * _nk_tr] = " + B.dataExpr
+                         + "[_nk_i + _nk_j * _nk_br];");
+                    close();
+                    close();
+                }
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even

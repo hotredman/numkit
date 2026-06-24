@@ -3809,6 +3809,53 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// cat(dim, A, B) with a literal dim: cat(2,..) horizontal (like [A B]), cat(1,..) vertical
+// (like [A;B]). A=[1 2;3 4], B=[5 6;7 8] -> cat(2)=[1 2 5 6;3 4 7 8], cat(1)=[1 2;3 4;5 6;7 8].
+TEST(CodegenE2E, CatDimMatrices)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"      // 2x2 [1 2; 3 4]
+        "  B = [b1; b2];\n"      // 2x2 [5 6; 7 8]
+        "  H = cat(2, A, B);\n"  // 2x4
+        "  V = cat(1, A, B);\n"  // 4x2
+        "  r = H(1,3) + H(2,4)*10 + V(3,1)*100 + V(4,2)*1000 + numel(H)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2, b1, b2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cat_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double b1[2] = {5, 6};\n"
+        "  double b2[2] = {7, 8};\n"
+        "  double r = f(a1, 2, a2, 2, b1, 2, b2, 2);\n"  // H(1,3)=5,H(2,4)=8,V(3,1)=5,V(4,2)=8,8: 88585
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5.0 + 80.0 + 500.0 + 8000.0 + 80000.0);  // 88585
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // kron(A,B): Kronecker product. A=[1 2;3 4], B=[0 1;1 0] -> a 4x4 with A(i,j)*B blocks:
 // [0 1 0 2; 1 0 2 0; 0 3 0 4; 3 0 4 0]. (kron ships in the linalg toolbox, so this checks
 // the codegen-inlined result against a hand-computed value -- no interpreter diff.)
