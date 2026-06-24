@@ -369,31 +369,32 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                             cdt, Shape::ndShape({0, expr.children[0]->children.size()})),
                         ConstVal::unknown()};
         }
-        // Single-row literal whose every element is a 2-D MATRIX (>=2 of them) ->
-        // horizontal concatenation [A B ...] = a wider matrix (all share the row count;
-        // result rows x sum-of-cols). Taken as a runtime-dim 2-D (NDims rank-2; the
-        // emitter sets the dims from the operands). The matrix test matches exactly what
-        // the 1-D horzcat below rejects (KnownDims rows>1 & cols>1, or an NDims rank-2),
-        // so this only promotes the previously-Dynamic case -- 1-D-row / scalar horzcat
-        // is untouched.
+        // Single-row literal whose every element is a 2-D MATRIX or a COLUMN VECTOR (>=2
+        // of them, at least one a matrix) -> horizontal concatenation [A B ...] / [A b]
+        // (augmented matrix) = a wider matrix (all share the row count; result rows x
+        // sum-of-cols, a column vector contributing one column). A runtime-dim 2-D (NDims
+        // rank-2; the emitter sets the dims). A block is a matrix (KnownDims rows>1 & cols>1,
+        // or an NDims rank-2) or an n x 1 column vector. (All-column-vector is handled by
+        // the case above; this reaches the matrix / mixed cases the 1-D horzcat rejects.)
         if (expr.children[0]->children.size() >= 2) {
-            ValueType mdt    = ValueType::EMPTY;
-            bool      matsOk = true;
+            ValueType bdt      = ValueType::EMPTY;
+            bool      blocksOk = true;
             for (const auto &el : expr.children[0]->children) {
-                if (!el) { matsOk = false; break; }
+                if (!el) { blocksOk = false; break; }
                 const AbstractValue ev = inferExpr(*el, env, reg, classes);
-                const bool isMat =
+                const bool isBlock =
                     ev.type.isConcrete()
                     && ((ev.type.shape.kind == ShapeKind::KnownDims && ev.type.shape.rows > 1
                          && ev.type.shape.cols > 1)
                         || (ev.type.shape.kind == ShapeKind::NDims
-                            && ev.type.shape.nd.size() == 2));
-                if (!isMat) { matsOk = false; break; }
-                if (mdt == ValueType::EMPTY) mdt = ev.type.dtype;
-                else if (mdt != ev.type.dtype) { matsOk = false; break; }  // no dtype mix
+                            && ev.type.shape.nd.size() == 2)
+                        || ev.type.shape.kind == ShapeKind::ColVector);  // an n x 1 block
+                if (!isBlock) { blocksOk = false; break; }
+                if (bdt == ValueType::EMPTY) bdt = ev.type.dtype;
+                else if (bdt != ev.type.dtype) { blocksOk = false; break; }  // no dtype mix
             }
-            if (matsOk && mdt != ValueType::EMPTY)
-                return {InferredType::concrete(mdt, Shape::ndShape({0, 0})), ConstVal::unknown()};
+            if (blocksOk && bdt != ValueType::EMPTY)
+                return {InferredType::concrete(bdt, Shape::ndShape({0, 0})), ConstVal::unknown()};
         }
         ValueType dt = ValueType::EMPTY;
         for (const auto &el : expr.children[0]->children) {

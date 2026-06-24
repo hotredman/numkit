@@ -3920,30 +3920,34 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // 2-D horzcat of MATRICES: `M = [A B ...]` (single-row MATRIX_LITERAL, every
-        // element a 2-D matrix var of the same row count) -> horizontal concatenation, a
-        // rank-2 ndRuntimeLocal. In column-major each operand's buffer IS its columns in
-        // order, so the result is the operand buffers concatenated end to end: M rows = A
-        // rows, M cols = sum of the operands' cols. A runtime guard checks all operands
-        // share the row count. v1: DOUBLE matrix vars (KnownDims 2-D or runtime-dim 2-D),
-        // >=2 of them, none aliasing the destination.
+        // 2-D horzcat of MATRIX / COLUMN-VECTOR blocks: `M = [A B ...]` / `M = [A b]`
+        // (augmented matrix) -- a single-row MATRIX_LITERAL whose every element is a 2-D
+        // matrix var OR an n x 1 column vector, all of the same row count -> horizontal
+        // concatenation, a rank-2 ndRuntimeLocal. In column-major each block's buffer IS
+        // its columns in order, so the result is the buffers concatenated end to end: M
+        // rows = block rows, M cols = sum of the blocks' cols (a column vector = 1 col).
+        // dimExpr gives a matrix its rows/cols and a Col vector its (len, 1). A runtime
+        // guard checks all blocks share the row count. v1: DOUBLE vars, >=2, none aliasing
+        // the dest. (All-column-vector is the horzcat-of-columns case above.)
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
             && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::MATRIX_LITERAL
             && rhs.children.size() == 1 && rhs.children[0]
             && rhs.children[0]->children.size() >= 2) {
-            bool allMatVars = true;
+            bool allBlockVars = true;
             for (const auto &el : rhs.children[0]->children)
                 if (!el || el->type != NodeType::IDENTIFIER || !isArrayVar(el->strValue)
                     || el->strValue == name  // in-place horzcat -> fall through to refusal
                     || !(arrays_.at(el->strValue).is2D
                          || (arrays_.at(el->strValue).isND
-                             && arrays_.at(el->strValue).ndDims.size() == 2))
+                             && arrays_.at(el->strValue).ndDims.size() == 2)
+                         || (!arrays_.at(el->strValue).is2D && !arrays_.at(el->strValue).isND
+                             && arrays_.at(el->strValue).orient == VecOrient::Col))
                     || arrays_.at(el->strValue).dtype != ValueType::DOUBLE) {
-                    allMatVars = false;
+                    allBlockVars = false;
                     break;
                 }
             const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
-            if (allMatVars && rv.type.isConcrete()) {
+            if (allBlockVars && rv.type.isConcrete()) {
                 const ArrayInfo  &M    = arrays_.at(name);
                 const ArrayInfo  &op0  = arrays_.at(rhs.children[0]->children[0]->strValue);
                 const std::string rows = dimExpr(op0, 0);
