@@ -3809,6 +3809,46 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// rot90(A): rotate a 2-D matrix 90deg CCW -> dims swap. A=[1 2 3;4 5 6] (2x3) ->
+// rot90 = [3 6; 2 5; 1 4] (3x2). (Runtime-dim 2-D, built by vertcat.)
+TEST(CodegenE2E, Rot90Matrix)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"    // 2x3 [1 2 3; 4 5 6]
+        "  B = rot90(A);\n"    // 3x2 [3 6; 2 5; 1 4]
+        "  r = B(1,1) + B(1,2)*10 + B(2,1)*100 + B(3,1)*1000 + B(3,2)*10000 + numel(B)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_rot90_e2e.exe").string();
+    const std::string outTxt = (base / "nk_rot90_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[3] = {1, 2, 3};\n"
+        "  double a2[3] = {4, 5, 6};\n"
+        "  double r = f(a1, 3, a2, 3);\n"  // B=[3 6;2 5;1 4]: 3+60+200+1000+40000+600000 = 641263
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 3.0 + 60.0 + 200.0 + 1000.0 + 40000.0 + 600000.0);  // 641263
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // fliplr / flipud on a 2-D matrix: reverse the column / row order. A=[1 2 3;4 5 6] ->
 // fliplr=[3 2 1;6 5 4], flipud=[4 5 6;1 2 3]. (Runtime-dim 2-D, built by vertcat.)
 TEST(CodegenE2E, FliplrFlipudMatrix)
