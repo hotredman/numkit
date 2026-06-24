@@ -4172,6 +4172,46 @@ TEST(CodegenE2E, MaskedReadInlineRelational)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// numeric GATHER read: y = x(idx) reindexes/selects x by a numeric index vector.
+// x=[10 20 30 40 50], idx=[3 1 2] -> y=[30 10 20] (1-based, reorder+select).
+TEST(CodegenE2E, NumericGatherRead)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  y = x(idx);\n"   // gather: [x(3) x(1) x(2)] = [30 10 20]
+        "  r = y(1) + y(2)*10 + y(3)*100 + numel(y)*1000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x, idx)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"idx", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_gather_e2e.exe").string();
+    const std::string outTxt = (base / "nk_gather_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {10, 20, 30, 40, 50};\n"
+        "  double idx[3] = {3, 1, 2};\n"
+        "  double r = f(x, 5, idx, 3);\n"  // y=[30 10 20]: 30 + 100 + 2000 + 3000 = 5130
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5130.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[10 20 30 40 50]; idx=[3 1 2];\n") + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // cat(dim, A, B) with a literal dim: cat(2,..) horizontal (like [A B]), cat(1,..) vertical
 // (like [A;B]). A=[1 2;3 4], B=[5 6;7 8] -> cat(2)=[1 2 5 6;3 4 7 8], cat(1)=[1 2;3 4;5 6;7 8].
 TEST(CodegenE2E, CatDimMatrices)
