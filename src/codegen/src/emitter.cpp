@@ -784,7 +784,8 @@ const char *unaryMathStd(const std::string &name)
         {"abs", "abs"},     {"fix", "trunc"},
         // total-on-ℝ, real-only (transfer refuses complex) — see
         // realOnlyMathUnaryTransfer
-        {"asinh", "asinh"}, {"erf", "erf"}, {"erfc", "erfc"}, {"expm1", "expm1"}};
+        {"asinh", "asinh"}, {"erf", "erf"}, {"erfc", "erfc"}, {"expm1", "expm1"},
+        {"gammaln", "lgamma"}};  // numkit gammaln(x) == std::lgamma(x) (bit-identical)
     const auto it = kMap.find(name);
     return it == kMap.end() ? nullptr : it->second;
 }
