@@ -1732,6 +1732,45 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // LOGICAL-INDEXING WRITE with an INLINE elementwise mask: `x(<expr>) = c` where <expr>
+    // is a pure-elementwise LOGICAL array over x ITSELF (x(x<0)=0, x(x>lo & x<hi)=v, ...) and
+    // c is a SCALAR. The mask is FUSED into the scatter loop -- no temp vector: for each i, if
+    // the per-element mask holds, x[i] = c. Restricted to a SELF-mask (the only array operand
+    // is x): every reference is to x so indexing is trivially in bounds, AND the fusion is
+    // sound -- a per-element mask over x alone gives the same result as MATLAB's compute-all-
+    // then-scatter (setting x[i] cannot change x[j!=i]'s mask). A non-elementwise mask (e.g.
+    // x(x>mean(x))=0) is rejected by collectElementwise -> bridged, so fusion is never wrong.
+    // x writable + 1-D; a mask over OTHER arrays / a 2-D x / an array rhs -> refused. Placed
+    // after the logical-VAR write so a pre-bound mask variable still takes the simpler branch.
+    if (lhsCall.children.size() == 2 && !ai.is2D && !ai.isND
+        && lhsCall.children[1]->type != NodeType::COLON_EXPR
+        && lhsCall.children[1]->type != NodeType::IDENTIFIER) {
+        const AbstractValue   maskAV = inferExpr(*lhsCall.children[1], types_, reg_, classes_);
+        std::set<std::string> maskArrays;
+        const bool            pureEw = collectElementwise(*lhsCall.children[1], maskArrays);
+        if (maskAV.type.isConcrete() && maskAV.type.dtype == ValueType::LOGICAL
+            && !maskAV.type.shape.isScalar() && pureEw && maskArrays.size() == 1
+            && *maskArrays.begin() == base) {
+            if (!ai.isLocal && !ai.isOutput)
+                unsupported("logical-indexing write to a read-only array parameter '" + base + "'");
+            const AbstractValue rhsScalar = inferExpr(rhs, types_, reg_, classes_);
+            if (!rhsScalar.type.isConcrete() || !rhsScalar.type.shape.isScalar())
+                unsupported("logical-indexing write (inline mask): a scalar rhs only (v1)");
+            line("{");
+            ++indent_;
+            line("const " + cppScalarType(ai.dtype) + " _nk_c = " + emitExpr(rhs) + ";");
+            elementCtx_ = "_nk_i";  // whole x in the mask -> x[_nk_i]
+            const std::string maskExpr = emitExpr(*lhsCall.children[1]);
+            elementCtx_.clear();
+            open("for (std::size_t _nk_i = 0; _nk_i < " + ai.lenVar + "; ++_nk_i)");
+            line("if (" + maskExpr + ") " + ptr + "[_nk_i] = _nk_c;");
+            close();
+            --indent_;
+            line("}");
+            return;
+        }
+    }
+
     // 1-D SLICE WRITE: x(a:b) = rhs / x(a:s:b) = rhs. The lhs colon ranges over x's
     // 1-based positions (`end` -> x's length, pushed here). count = the colon count;
     // then either broadcast a SCALAR rhs into each position, or copy a matched-length
