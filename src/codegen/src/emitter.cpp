@@ -2564,6 +2564,48 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // reshape(x, d1, d2, d3) -> reinterpret x's flat data as a RANK-3 d1 x d2 x d3 array
+        // (same column-major buffer; phase N5). Copy x's elements, set the 3 dim companions
+        // from the args, numel-guard (d1*d2*d3 == numel(x)). v1: x a DOUBLE array var distinct
+        // from the dest (an in-place A=reshape(A,..) would self-alias the .assign -> refused).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 5 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "reshape"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[1]->strValue != name
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &M   = arrays_.at(name);
+            const ArrayInfo    &x   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete()) {
+                std::string xnumel;
+                if (x.isND) {
+                    xnumel = x.ndDims[0];
+                    for (std::size_t i = 1; i < x.ndDims.size(); ++i) xnumel += " * " + x.ndDims[i];
+                } else if (x.is2D) {
+                    xnumel = x.rowsVar + " * " + x.colsVar;
+                } else {
+                    xnumel = x.lenVar;
+                }
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_d0 = nk_rt::dim(" + emitExpr(*rhs.children[2]) + ");");
+                line("const std::size_t _nk_d1 = nk_rt::dim(" + emitExpr(*rhs.children[3]) + ");");
+                line("const std::size_t _nk_d2 = nk_rt::dim(" + emitExpr(*rhs.children[4]) + ");");
+                line("const std::size_t _nk_xn = (" + xnumel + ");");
+                line("if (_nk_d0 * _nk_d1 * _nk_d2 != _nk_xn)");
+                line("    throw std::out_of_range(\"numkit: reshape element count mismatch\");");
+                line(M.ndDims[0] + " = _nk_d0;");
+                line(M.ndDims[1] + " = _nk_d1;");
+                line(M.ndDims[2] + " = _nk_d2;");
+                line(name + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + _nk_xn);");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // repmat(s, m, n) / repmat(s, n) with s a SCALAR -> an m x n (or n x n) matrix
         // all = s, a 2-D KnownDims LOCAL (the tiling of a 1x1). Like zeros/ones but the
         // fill is the scalar value. v1: s a DOUBLE scalar, m,n literals. (repmat of a
