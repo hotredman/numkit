@@ -4310,6 +4310,55 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native page-RANGE read B = A(:,:,k1:k2): extract pages k1..k2 of a rank-3 A as a
+        // rank-3 m x n x (k2-k1+1) sub-array (phase N7). Column-major: pages k1..k2 are the
+        // CONTIGUOUS block A[(k1-1)*m*n .. k2*m*n] -> a straight copy. B a runtime-dim rank-3
+        // ndRuntimeLocal; bounds-checked range; `end` in the page index = size(A,3). v1: rank-3
+        // DOUBLE A, two leading bare colons + a step-1 range k1:k2, B distinct from A.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue) && rhs.children[0]->strValue != name
+            && arrays_.at(rhs.children[0]->strValue).isND
+            && arrays_.at(rhs.children[0]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[1]->type == NodeType::COLON_EXPR && rhs.children[1]->children.empty()
+            && rhs.children[2]->type == NodeType::COLON_EXPR && rhs.children[2]->children.empty()
+            && rhs.children[3]->type == NodeType::COLON_EXPR
+            && rhs.children[3]->children.size() == 2) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[0]->strValue);
+            const ArrayInfo    &B   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const std::string m = dimExpr(A, 0), n = dimExpr(A, 1), p = dimExpr(A, 2);
+                const ASTNode    &rng = *rhs.children[3];  // k1:k2
+                endStack_.push_back(p);                    // `end` in the page index = size(A,3)
+                const std::string k1 = emitExpr(*rng.children[0]);
+                const std::string k2 = emitExpr(*rng.children[1]);
+                endStack_.pop_back();
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + m + ";");
+                line("const std::size_t _nk_n = " + n + ";");
+                line("const std::ptrdiff_t _nk_k1 = static_cast<std::ptrdiff_t>(" + k1 + ");");
+                line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
+                line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + p
+                     + ") || _nk_k2 < _nk_k1)");
+                line("    throw std::out_of_range(\"numkit: page range out of bounds\");");
+                line("const std::size_t _nk_np = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
+                line("const std::size_t _nk_pg = _nk_m * _nk_n;");
+                line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_pg;");
+                line(B.ndDims[0] + " = _nk_m;");
+                line(B.ndDims[1] + " = _nk_n;");
+                line(B.ndDims[2] + " = _nk_np;");
+                line(name + ".assign(" + A.dataExpr + " + _nk_off, " + A.dataExpr
+                     + " + _nk_off + _nk_np * _nk_pg);");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even

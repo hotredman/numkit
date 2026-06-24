@@ -8478,3 +8478,41 @@ TEST(CodegenE2E, Cat3Rank3Operands)
             .toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// N-D page-RANGE read (phase N7): B = A(:,:,2:3) extracts pages 2..3 of a 2x2x3 array as a
+// rank-3 2x2x2 sub-array. A=reshape([1..12],2,2,3) (chains N5+N7); pages 2,3 are contiguous.
+TEST(CodegenE2E, PageRangeReadRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"  // 2x2x3, pages [1 3;2 4],[5 7;6 8],[9 11;10 12]
+        "  B = A(:,:,2:3);\n"           // pages 2,3 -> 2x2x2
+        "  r = B(1,1,1) + B(2,2,1)*10 + B(1,1,2)*100 + B(2,2,2)*1000 + numel(B)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_pagerange_e2e.exe").string();
+    const std::string outTxt = (base / "nk_pagerange_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};\n"
+        "  double r = f(x, 12);\n"  // 5 + 80 + 900 + 12000 + 80000 = 92985
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 92985.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
