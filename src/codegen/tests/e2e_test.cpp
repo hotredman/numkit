@@ -3809,6 +3809,49 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// kron(A,B): Kronecker product. A=[1 2;3 4], B=[0 1;1 0] -> a 4x4 with A(i,j)*B blocks:
+// [0 1 0 2; 1 0 2 0; 0 3 0 4; 3 0 4 0]. (kron ships in the linalg toolbox, so this checks
+// the codegen-inlined result against a hand-computed value -- no interpreter diff.)
+TEST(CodegenE2E, KronMatrix)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(a1, a2, b1, b2)\n"
+        "  A = [a1; a2];\n"   // 2x2 [1 2; 3 4]
+        "  B = [b1; b2];\n"   // 2x2 [0 1; 1 0]
+        "  C = kron(A, B);\n"  // 4x4
+        "  r = C(1,1) + C(1,2)*10 + C(1,4)*100 + C(2,3)*1000 + C(4,3)*10000 + numel(C)*100000;\n"
+        "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_kron_e2e.exe").string();
+    const std::string outTxt = (base / "nk_kron_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double b1[2] = {0, 1};\n"
+        "  double b2[2] = {1, 0};\n"
+        "  double r = f(a1, 2, a2, 2, b1, 2, b2, 2);\n"  // C(1,1)=0,C(1,2)=1,C(1,4)=2,C(2,3)=2,C(4,3)=4,16
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    // 0 + 10 + 200 + 2000 + 40000 + 1600000 = 1642210
+    EXPECT_DOUBLE_EQ(got[0], 0.0 + 10.0 + 200.0 + 2000.0 + 40000.0 + 1600000.0);
+}
+
 // diag(v,k) with a non-negative literal offset: place v on the k-th super-diagonal of an
 // N x N matrix (N = numel(v) + k). v=[5 6 7]: diag(v,1) -> 4x4, diag(v,2) -> 5x5.
 TEST(CodegenE2E, DiagVectorOffset)

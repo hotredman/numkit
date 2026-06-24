@@ -3505,6 +3505,48 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native kron(A, B) -> the Kronecker product, A m x n and B p x q -> C (m*p)x(n*q),
+        // a rank-2 ndRuntimeLocal. Each result element C(R,C) = A(R/p, C/q) * B(R%p, C%q)
+        // (0-based; column-major). Both tiers via dimExpr; the runtime dst gets its
+        // companions set. v1: two DOUBLE matrix vars, distinct from the dest.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 3 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "kron"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && rhs.children[1]->strValue != name && rhs.children[2]->strValue != name) {
+            const ArrayInfo &A = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo &B = arrays_.at(rhs.children[2]->strValue);
+            const bool aMat = A.is2D || (A.isND && A.ndDims.size() == 2);
+            const bool bMat = B.is2D || (B.isND && B.ndDims.size() == 2);
+            if (aMat && bMat && A.dtype == ValueType::DOUBLE && B.dtype == ValueType::DOUBLE) {
+                const ArrayInfo    &M   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");  // A rows
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");  // A cols
+                line("const std::size_t _nk_p = " + dimExpr(B, 0) + ";");  // B rows
+                line("const std::size_t _nk_q = " + dimExpr(B, 1) + ";");  // B cols
+                line("const std::size_t _nk_mp = _nk_m * _nk_p;");         // result rows
+                line("const std::size_t _nk_nq = _nk_n * _nk_q;");         // result cols
+                line(M.ndDims[0] + " = _nk_mp;");
+                line(M.ndDims[1] + " = _nk_nq;");
+                line(name + ".assign(_nk_mp * _nk_nq, 0.0);");
+                open("for (std::size_t _nk_C = 0; _nk_C < _nk_nq; ++_nk_C)");
+                open("for (std::size_t _nk_R = 0; _nk_R < _nk_mp; ++_nk_R)");
+                line(name + "[_nk_R + _nk_C * _nk_mp] = "
+                     + A.dataExpr + "[(_nk_R / _nk_p) + (_nk_C / _nk_q) * _nk_m] * "
+                     + B.dataExpr + "[(_nk_R % _nk_p) + (_nk_C % _nk_q) * _nk_p];");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even
