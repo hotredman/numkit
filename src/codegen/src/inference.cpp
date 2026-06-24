@@ -290,23 +290,25 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
             if (rowsOk && rdt != ValueType::EMPTY)
                 return {InferredType::concrete(rdt, Shape::ndShape({expr.children.size(), 0})),
                         ConstVal::unknown()};
-            // Each row a single 2-D MATRIX of a common dtype -> vertcat of matrices
-            // [A; B; ...] = a (sum-of-rows) x n matrix (all share the column count). A
-            // runtime-dim 2-D (NDims rank-2; the emitter sets the dims). The matrix test
-            // mirrors the [A B] horzcat case (KnownDims rows>1 & cols>1, or NDims rank-2),
-            // disjoint from the row-vector case above.
+            // Each row a single 2-D MATRIX or a ROW VECTOR of a common dtype -> vertcat
+            // [A; B; ...] / [A; r] (appending a row) = a (sum-of-rows) x n matrix (all share
+            // the column count; a row vector contributing one row). A runtime-dim 2-D (NDims
+            // rank-2; the emitter sets the dims). A block is a matrix (KnownDims rows>1 &
+            // cols>1, or an NDims rank-2) or a 1 x n row vector. (All-row-vector is the
+            // vertcat-of-rows case above; this reaches the matrix / mixed cases.)
             ValueType vdt     = ValueType::EMPTY;
             bool      matsOk  = true;
             for (const auto &rowN : expr.children) {
                 if (!rowN || rowN->children.size() != 1) { matsOk = false; break; }
-                const AbstractValue ev    = inferExpr(*rowN->children[0], env, reg, classes);
-                const bool          isMat =
+                const AbstractValue ev      = inferExpr(*rowN->children[0], env, reg, classes);
+                const bool          isBlock =
                     ev.type.isConcrete()
                     && ((ev.type.shape.kind == ShapeKind::KnownDims && ev.type.shape.rows > 1
                          && ev.type.shape.cols > 1)
                         || (ev.type.shape.kind == ShapeKind::NDims
-                            && ev.type.shape.nd.size() == 2));
-                if (!isMat) { matsOk = false; break; }
+                            && ev.type.shape.nd.size() == 2)
+                        || ev.type.shape.kind == ShapeKind::RowVector);  // a 1 x n block
+                if (!isBlock) { matsOk = false; break; }
                 if (vdt == ValueType::EMPTY) vdt = ev.type.dtype;
                 else if (vdt != ev.type.dtype) { matsOk = false; break; }  // no dtype mix
             }

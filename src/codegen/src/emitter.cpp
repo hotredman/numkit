@@ -4053,13 +4053,15 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // 2-D vertcat of MATRICES: `M = [A; B; ...]` (multi-row MATRIX_LITERAL, every row a
-        // single 2-D matrix var of the same column count) -> vertical concatenation, a
-        // rank-2 ndRuntimeLocal. M rows = sum of the operands' rows, M cols = shared. In
-        // column-major the operands INTERLEAVE per column (not a buffer concat): for an
-        // operand at row-offset ro with pr rows, M[(ro+ii) + j*totalRows] = op[ii + j*pr].
-        // A runtime guard checks all operands share the column count. v1: DOUBLE matrix
-        // vars (KnownDims 2-D or runtime-dim 2-D), >=2 rows, none aliasing the dest.
+        // 2-D vertcat of MATRIX / ROW-VECTOR blocks: `M = [A; B; ...]` / `M = [A; r]`
+        // (appending a row) -- a multi-row MATRIX_LITERAL whose every row is a single 2-D
+        // matrix var OR a 1 x n row vector, all of the same column count -> vertical
+        // concatenation, a rank-2 ndRuntimeLocal. M rows = sum of block rows (a row vector
+        // = 1), M cols = shared. In column-major the blocks INTERLEAVE per column: for a
+        // block at row-offset ro with pr rows, M[(ro+ii) + j*totalRows] = op[ii + j*pr]
+        // (pr=1 for a row vector). dimExpr gives a Row vector its ("1", len). A runtime
+        // guard checks the column counts agree. v1: DOUBLE vars, >=2 rows, none aliasing the
+        // dest. (All-row-vector is the vertcat-of-rows case above.)
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
             && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::MATRIX_LITERAL
             && rhs.children.size() > 1) {
@@ -4071,7 +4073,10 @@ void Emitter::emitAssign(const ASTNode &s)
                     || rowN->children[0]->strValue == name  // in-place -> fall through
                     || !(arrays_.at(rowN->children[0]->strValue).is2D
                          || (arrays_.at(rowN->children[0]->strValue).isND
-                             && arrays_.at(rowN->children[0]->strValue).ndDims.size() == 2))
+                             && arrays_.at(rowN->children[0]->strValue).ndDims.size() == 2)
+                         || (!arrays_.at(rowN->children[0]->strValue).is2D
+                             && !arrays_.at(rowN->children[0]->strValue).isND
+                             && arrays_.at(rowN->children[0]->strValue).orient == VecOrient::Row))
                     || arrays_.at(rowN->children[0]->strValue).dtype != ValueType::DOUBLE) {
                     allMatRows = false;
                     break;
