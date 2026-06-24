@@ -265,6 +265,19 @@ InferredType realOnlyMathUnaryTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// deg2rad / rad2deg — a real SCALAR scaling by a constant (x * pi/180, x * 180/pi).
+// There is no std:: function (the emitter inlines numkit's exact constant) and no clean
+// elementwise path (not in unaryMathStd), so this is typed for a real SCALAR only; an
+// array / complex / non-real arg -> Dynamic -> bridged (unchanged from before).
+InferredType realScalarMathUnaryTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    const ValueType dt = args[0].type.dtype;
+    if ((dt == ValueType::DOUBLE || dt == ValueType::SINGLE) && args[0].type.shape.isScalar())
+        return InferredType::scalar(dt);
+    return InferredType::dynamic();
+}
+
 // abs — |complex| is real; logical/char promote to double; numeric stays.
 InferredType absTransfer(const std::vector<ArgInfo> &args)
 {
@@ -351,6 +364,9 @@ void registerElementwiseTransfers(TransferRegistry &reg)
     // real-only elementwise math (no std complex overload)
     for (const char *n : {"asinh", "erf", "erfc", "expm1"})
         reg.add(n, realOnlyMathUnaryTransfer);
+    // real scalar scalings (no std fn; the emitter inlines numkit's exact constant)
+    for (const char *n : {"deg2rad", "rad2deg"})
+        reg.add(n, realScalarMathUnaryTransfer);
     // real-only binary math (scalar; no std complex overload). rem(a,b) is real-total
     // (real,real -> real) and the emitter lowers it to std::fmod -- bit-identical to
     // numkit's scalar rem (misc.cpp). (mod is intentionally NOT native: it is the

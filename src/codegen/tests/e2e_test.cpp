@@ -3503,6 +3503,42 @@ TEST(CodegenE2E, RemScalarNative)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// Native deg2rad / rad2deg (scalar, real): a constant scaling x*(pi/180) / x*(180/pi),
+// inlined with numkit's exact constant so it is bit-identical to the interpreter. (Array/
+// complex args stay bridged.)
+TEST(CodegenE2E, Deg2RadRad2DegScalarNative)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body = "  r = deg2rad(d)*100 + rad2deg(d);\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(d)\n") + body + "end\n",
+        {{"d", InferredType::scalar(ValueType::DOUBLE)}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_deg2rad_e2e.exe").string();
+    const std::string outTxt = (base / "nk_deg2rad_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f(90);\n"  // deg2rad(90)=pi/2, rad2deg(90)=90*180/pi
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    // independent sanity (loose) + bit-exact match vs the interpreter (the real guard).
+    EXPECT_NEAR(got[0], (3.14159265358979323846 / 2.0) * 100.0 + 90.0 * 180.0 / 3.14159265358979323846,
+                1e-9);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string("d=90;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)

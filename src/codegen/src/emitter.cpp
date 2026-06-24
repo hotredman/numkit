@@ -1212,6 +1212,16 @@ std::string Emitter::emitBuiltinCall(const std::string &name, const ASTNode &cal
         return adt == ValueType::COMPLEX ? ("std::conj(" + arg + ")") : ("(" + arg + ")");  // conj
     }
 
+    // deg2rad / rad2deg: a real scalar scaling. No std:: fn -> emit numkit's exact
+    // constant (misc.cpp: x * k, k computed from these literals as pi/180 or 180/pi) so
+    // it is bit-identical to the interpreter. Typed scalar-only (realScalarMathUnary-
+    // Transfer); an array / complex arg is Dynamic -> bridged.
+    if (nargs == 1 && (name == "deg2rad" || name == "rad2deg")) {
+        const std::string x = emitExpr(*call.children[1]);
+        return name == "deg2rad" ? "((" + x + ") * (3.14159265358979323846 / 180.0))"
+                                 : "((" + x + ") * (180.0 / 3.14159265358979323846))";
+    }
+
     if (nargs == 1)
         if (const char *fn = unaryMathStd(name))
             return std::string("std::") + fn + "(" + emitExpr(*call.children[1]) + ")";
