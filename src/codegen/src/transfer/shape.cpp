@@ -119,6 +119,24 @@ InferredType rot90Transfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// kron(A,B): Kronecker product. A m x n, B p x q -> (m*p) x (n*q). Both operands must be
+// 2-D matrices (KnownDims rank-2 or runtime-dim NDims rank-2), DOUBLE; the result is a
+// runtime-dim 2-D (ndShape({0,0})). Vector / scalar / non-DOUBLE operands -> Dynamic
+// (bridged); kron ships in the linalg toolbox, so the bridge handles those.
+InferredType kronTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete())
+        return InferredType::dynamic();
+    auto isMat = [](const Shape &s) {
+        return (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
+               || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
+    };
+    if (isMat(args[0].type.shape) && isMat(args[1].type.shape)
+        && args[0].type.dtype == ValueType::DOUBLE && args[1].type.dtype == ValueType::DOUBLE)
+        return InferredType::concrete(ValueType::DOUBLE, Shape::ndShape({0, 0}));
+    return InferredType::dynamic();
+}
+
 // sum / prod / mean / max / min over a VECTOR (single-arg form) -> a scalar of
 // the operand's dtype. MATLAB reduces a matrix along a dim (-> a row vector) and
 // max/min take a 2nd arg (elementwise) or a 2nd output (index) — only the
@@ -367,6 +385,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)
+    reg.add("kron", kronTransfer);             // kron(A,B) -> Kronecker product (mp x nq)
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
     for (const char *n :
          {"sum", "prod", "mean", "max", "min", "norm", "std", "var", "median", "trapz"})
