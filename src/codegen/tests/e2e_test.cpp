@@ -3573,6 +3573,47 @@ TEST(CodegenE2E, GammalnScalarNative)
     EXPECT_DOUBLE_EQ(got[0], interp);  // bit-exact vs interpreter
 }
 
+// repmat(A, p, q) of a MATRIX -> a (p*Arows) x (q*Acols) block tiling. A=[1 2;3 4] (runtime-
+// dim, via vertcat), repmat(.,2,2) -> [A A; A A] (4x4). value(R,C) = A[(R%2) + (C%2)*2].
+TEST(CodegenE2E, RepmatMatrixBlockTiling)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"        // 2x2 [1 2; 3 4]
+        "  M = repmat(A, 2, 2);\n"  // 4x4 block tiling
+        "  r = M(1,1) + M(2,2)*10 + M(3,3)*100 + M(4,4)*1000 + M(4,2)*10000 + numel(M)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_repmatmat_e2e.exe").string();
+    const std::string outTxt = (base / "nk_repmatmat_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double r = f(a1, 2, a2, 2);\n"  // [1 2 1 2;3 4 3 4;1 2 1 2;3 4 3 4]: 1+40+100+4000+40000+1.6e6
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    // M(1,1)=1, M(2,2)=4, M(3,3)=1, M(4,4)=4, M(4,2)=4, numel=16
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 40.0 + 100.0 + 4000.0 + 40000.0 + 1600000.0);  // 1644141
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // repmat(colVec, p, q) with q>1 -> a (p*n) x q 2-D tiling (the mirror of the rowVec tile).
 // x=[10;20;30], repmat(.,2,2) -> 6x2, each column [10;20;30;10;20;30].
 TEST(CodegenE2E, RepmatColVectorTo2D)
