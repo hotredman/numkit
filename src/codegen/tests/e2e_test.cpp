@@ -3970,6 +3970,50 @@ TEST(CodegenE2E, WholeArrayArrayFill)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// circshift on a 2-D matrix with a scalar shift: shifts along dim 1 (rows), MATLAB
+// semantics. A=[1 2;3 4;5 6] (3x2); circshift(A,1) -> [5 6;1 2;3 4]. Done IN-PLACE
+// (A = circshift(A,...)) to exercise the aliasing-safe temp.
+TEST(CodegenE2E, CircshiftMatrixDim1)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2; a3];\n"     // 3x2 [1 2; 3 4; 5 6]
+        "  A = circshift(A, 1);\n"  // in-place, shift rows down 1 -> [5 6; 1 2; 3 4]
+        "  r = A(1,1) + A(2,1)*10 + A(3,1)*100 + A(1,2)*1000 + A(2,2)*10000"
+        " + A(3,2)*100000 + numel(A)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2, a3)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a3", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_circshift2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_circshift2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double a3[2] = {5, 6};\n"
+        "  double r = f(a1, 2, a2, 2, a3, 2);\n"  // 5+10+300+6000+20000+400000+6000000 = 6426315
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 6426315.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2]; a2=[3 4]; a3=[5 6];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // cat(dim, A, B) with a literal dim: cat(2,..) horizontal (like [A B]), cat(1,..) vertical
 // (like [A;B]). A=[1 2;3 4], B=[5 6;7 8] -> cat(2)=[1 2 5 6;3 4 7 8], cat(1)=[1 2;3 4;5 6;7 8].
 TEST(CodegenE2E, CatDimMatrices)

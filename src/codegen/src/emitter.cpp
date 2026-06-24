@@ -3459,6 +3459,53 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native circshift(A, k) on a 2-D MATRIX with a SCALAR shift -> shift along dim 1
+        // (rows), MATLAB semantics: each column is circularly shifted, B(i,j) = A(mod(i-k,m),
+        // j) 0-based; the column index j passes through. SAME shape as A. The mirror of the
+        // 1-D branch but only the ROW index wraps. Runtime-dim 2-D operand (dims via dimExpr);
+        // the result is a fresh rank-2 ndRuntimeLocal. dtype-general. Built into a temp first,
+        // so an in-place A = circshift(A, k) is safe (the source is fully read before the
+        // destination is overwritten). v1: a scalar integer shift; KnownDims-2-D deferred.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "circshift"
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &B   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()
+                && inferExpr(*rhs.children[2], types_, reg_, classes_).type.shape.isScalar()) {
+                const std::string ct = cppScalarType(B.dtype);
+                const std::string m = dimExpr(A, 0), n = dimExpr(A, 1);
+                const std::string k = emitExpr(*rhs.children[2]);
+                line("{");
+                ++indent_;
+                line("const std::ptrdiff_t _nk_m = static_cast<std::ptrdiff_t>(" + m + ");");
+                line("const std::ptrdiff_t _nk_n = static_cast<std::ptrdiff_t>(" + n + ");");
+                line("const std::ptrdiff_t _nk_k = static_cast<std::ptrdiff_t>(" + k + ");");
+                line("std::vector<" + ct + "> _nk_out(static_cast<std::size_t>(_nk_m * _nk_n));");
+                open("for (std::ptrdiff_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                open("for (std::ptrdiff_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                line("const std::ptrdiff_t _nk_ri = ((_nk_i - _nk_k) % _nk_m + _nk_m) % _nk_m;");
+                line("_nk_out[static_cast<std::size_t>(_nk_i + _nk_j * _nk_m)] = " + A.dataExpr
+                     + "[static_cast<std::size_t>(_nk_ri + _nk_j * _nk_m)];");
+                close();
+                close();
+                line(B.ndDims[0] + " = static_cast<std::size_t>(_nk_m);");
+                line(B.ndDims[1] + " = static_cast<std::size_t>(_nk_n);");
+                line(name + ".assign(_nk_out.begin(), _nk_out.end());");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native gradient(y) -> numerical gradient, unit spacing, SAME length as y.
         // Edge points use one-sided differences, the interior centered: g[0]=y[1]-y[0];
         // g[i]=(y[i+1]-y[i-1])/2; g[n-1]=y[n-1]-y[n-2]; n==1 -> {0}; n==0 -> empty.
