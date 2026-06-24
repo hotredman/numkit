@@ -361,8 +361,9 @@ void registerElementwiseTransfers(TransferRegistry &reg)
         reg.add(n, realPartTransfer);
     for (const char *n : {"fft", "ifft"})                // complex transform (1-arg, bridged)
         reg.add(n, fftTransfer);
-    // real-only elementwise math (no std complex overload)
-    for (const char *n : {"asinh", "erf", "erfc", "expm1"})
+    // real-only elementwise math (no std complex overload). gammaln = std::lgamma
+    // (real-total: poles at non-positive integers -> +Inf, matching numkit).
+    for (const char *n : {"asinh", "erf", "erfc", "expm1", "gammaln"})
         reg.add(n, realOnlyMathUnaryTransfer);
     // real scalar scalings (no std fn; the emitter inlines numkit's exact constant)
     for (const char *n : {"deg2rad", "rad2deg"})

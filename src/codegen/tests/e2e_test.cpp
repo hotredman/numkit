@@ -3539,6 +3539,40 @@ TEST(CodegenE2E, Deg2RadRad2DegScalarNative)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// Native gammaln = std::lgamma (real-total log-gamma). Lowers via unaryMathStd, so it
+// works both scalar and elementwise; bit-identical to numkit's gammaln (special.cpp).
+TEST(CodegenE2E, GammalnScalarNative)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body = "  r = gammaln(a) + gammaln(b)*10;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a, b)\n") + body + "end\n",
+        {{"a", InferredType::scalar(ValueType::DOUBLE)},
+         {"b", InferredType::scalar(ValueType::DOUBLE)}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_gammaln_e2e.exe").string();
+    const std::string outTxt = (base / "nk_gammaln_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f(5, 3);\n"  // lgamma(5)=ln(24), lgamma(3)=ln(2)
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_NEAR(got[0], std::lgamma(5.0) + std::lgamma(3.0) * 10.0, 1e-9);  // independent
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string("a=5; b=3;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);  // bit-exact vs interpreter
+}
+
 // RUNTIME-DIM 2-D foundation: zeros/ones(m, n) with RUNTIME m,n -> a runtime-dim 2-D
 // (a rank-2 ndRuntimeLocal). ones(3,4) all 1: A(2,3)=1, numel=12 -> 1 + 120 = 121.
 TEST(CodegenE2E, RuntimeDim2DConstructor)
