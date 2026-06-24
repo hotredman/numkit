@@ -127,6 +127,53 @@ Key facts that make this cheap:
 Not `std::vector<double>` (wrong allocator, no dims, no COW, copy on
 every lib bridge) and not raw `double*` (no ownership/lifetime/dims).
 
+## 5a. Native-shape tiers in practice — runtime-dim 2-D + scalar math
+
+The **array** tier above splits, by what inference can prove about the
+shape, into concrete representations the emitter lowers WITHOUT the
+runtime:
+
+- **KnownDims 2-D** — both dims compile-time constants; `rowsVar`/`colsVar`
+  are literals baked into the column-major index math.
+- **Runtime-dim 2-D** — a rank-2 shape with ≥1 dim unknown until run time
+  (e.g. `zeros(m,n)` with `m`,`n` params). Represented as an **`NDims`
+  rank-2 `ndRuntimeLocal`**: a flat owned `std::vector<double>` (column-
+  major) plus per-axis **companion size vars** `<name>_dN` hoisted at
+  function entry (`= 0`) and set by the producer that builds the matrix.
+  Indexing/`numel`/`size` read the companions.
+
+The key that lets ONE lowering serve both is **`dimExpr(a, k)`** (emitter):
+the rank-agnostic axis accessor returning a KnownDims matrix's
+`rows`/`colsVar` literal or a runtime matrix's `ndDims[k]` companion. Any
+2-D op written against `dimExpr` works in both tiers; the runtime variant
+additionally assigns the destination's companions before filling.
+
+Coverage of the runtime-dim 2-D tier (each a differential e2e vs the
+interpreter; capstone composes them all):
+- **construct** — `zeros/ones(m,n)`, `diag(v)`→diagonal matrix,
+  `repmat(rowVec,p,q)`, `[r1;r2;…]` (vertcat of rows), `[c1 c2 …]`
+  (horzcat of columns), `[A B]`/`[A;B]` (concat of matrices).
+- **consume** — `A'` transpose, element-wise `A±B`/`A.*B`/`A./B` +
+  scalar-broadcast `A±s`/`A*s`, `A*B` matmul, `A*x`/`r*A` matrix·vector,
+  `A(:,j)`/`A(i,:)` slice read, `A(:)` flatten, `numel`/indexing.
+- **mutate** — `A(i,j)=v` scalar write (`indexN_set`), `A(:,j)=col`
+  contiguous column write, `A(i,:)=row` strided row write.
+
+Order-dependent **reductions** (`sum`/`prod`/`sort`/…) and **complex-
+capable math** (`sqrt`/`log`/`asin`) deliberately stay **bridged** — a
+native re-implementation could diverge from the interpreter's exact
+rounding/branch, which the soundness contract forbids (refuse or bridge,
+never miscompile).
+
+**Scalar / elementwise math** lowers natively when it is total on ℝ and
+bit-identical to numkit's own scalar implementation: the `unaryMathStd`
+(sin/cos/tan/atan/sinh/cosh/tanh/exp/expm1/floor/ceil/round/fix/abs/asinh/
+erf/erfc/**gammaln**) and `binaryMathStd` (atan2/hypot/**rem**) maps, plus
+the no-`std`-fn scalar scalings **deg2rad/rad2deg** (numkit's exact
+constant inlined). `mod` is intentionally left bridged — it is the
+Dynamic-tier exemplar across the test suite and scalar `mod` is correct
+via the bridge.
+
 ## 6. ABI / boundaries
 
 AOT model: **no interpreter at runtime.** The artifact's entry point is
