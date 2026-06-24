@@ -3809,6 +3809,43 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// diag(v,k) with a non-negative literal offset: place v on the k-th super-diagonal of an
+// N x N matrix (N = numel(v) + k). v=[5 6 7]: diag(v,1) -> 4x4, diag(v,2) -> 5x5.
+TEST(CodegenE2E, DiagVectorOffset)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  S = diag(v, 1);\n"    // 4x4, v on the 1st super-diagonal
+        "  U = diag(v, 2);\n"    // 5x5, v on the 2nd super-diagonal
+        "  r = S(1,2) + S(3,4)*10 + U(1,3)*100 + U(3,5)*1000 + numel(S)*10000 + numel(U)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(v)\n") + body + "end\n",
+        {{"v", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_diagoff_e2e.exe").string();
+    const std::string outTxt = (base / "nk_diagoff_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double v[3] = {5, 6, 7};\n"
+        "  double r = f(v, 3);\n"  // S(1,2)=5,S(3,4)=7,U(1,3)=5,U(3,5)=7,16,25: 5+70+500+7000+160000+2.5e6
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5.0 + 70.0 + 500.0 + 7000.0 + 160000.0 + 2500000.0);  // 2667575
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string("v=[5 6 7];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // tril/triu on a runtime-dim 2-D matrix + the diagonal-offset k. A=[1 2 3;4 5 6;7 8 9]:
 // tril(A)=[1 0 0;4 5 0;7 8 9], tril(A,1) keeps one super-diagonal, triu(A)=[1 2 3;0 5 6;0 0 9].
 TEST(CodegenE2E, TrilTriuOffsetRuntimeDim2D)

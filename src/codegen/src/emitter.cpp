@@ -2041,14 +2041,19 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // diag(v) with v a VECTOR -> an n x n diagonal MATRIX (n = numel(v), runtime),
-        // a rank-2 ndRuntimeLocal (the runtime-dim-2-D foundation): set both dim
-        // companions to n, zero the n*n buffer, then set the flat diagonal
-        // M[i + i*n] = v[i]. v1: v a 1-D DOUBLE vector var.
+        // diag(v[,k]) with v a VECTOR -> an N x N diagonal MATRIX (N = numel(v) + k), a
+        // rank-2 ndRuntimeLocal. k=0: M[i + i*N] = v[i] (main diagonal). A non-negative
+        // LITERAL offset k places v on the k-th super-diagonal: M[i + (i+k)*N] = v[i]. v1:
+        // v a 1-D DOUBLE vector var; k (if present) a non-negative literal integer. A
+        // negative k (`diag(v,-1)`, a sub-diagonal) parses as a unary-minus -> not folded
+        // -> diagTransfer keeps it Dynamic -> bridged; a runtime k is likewise bridged.
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
             && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
-            && rhs.children.size() == 2 && rhs.children[0]->type == NodeType::IDENTIFIER
-            && rhs.children[0]->strValue == "diag"
+            && (rhs.children.size() == 2
+                || (rhs.children.size() == 3 && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+                    && rhs.children[2]->numValue == std::floor(rhs.children[2]->numValue)
+                    && rhs.children[2]->numValue >= 0.0))
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "diag"
             && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
             && !arrays_.at(rhs.children[1]->strValue).is2D
             && !arrays_.at(rhs.children[1]->strValue).isND
@@ -2056,13 +2061,20 @@ void Emitter::emitAssign(const ASTNode &s)
             const ArrayInfo    &v   = arrays_.at(rhs.children[1]->strValue);
             const ArrayInfo    &M   = arrays_.at(name);
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            const std::string   k =  // non-negative literal offset (0 = main diagonal)
+                rhs.children.size() == 3
+                    ? std::to_string(static_cast<long>(rhs.children[2]->numValue))
+                    : std::string("0");
+            const std::string N = "(" + v.lenVar + " + " + k + ")";  // N = n + k
             line("{");
             ++indent_;
-            line(M.ndDims[0] + " = " + v.lenVar + ";");  // rows = n
-            line(M.ndDims[1] + " = " + v.lenVar + ";");  // cols = n
-            line(name + ".assign(" + v.lenVar + " * " + v.lenVar + ", 0.0);");
+            line("const std::size_t _nk_N = " + N + ";");
+            line(M.ndDims[0] + " = _nk_N;");  // rows = N
+            line(M.ndDims[1] + " = _nk_N;");  // cols = N
+            line(name + ".assign(_nk_N * _nk_N, 0.0);");
             open("for (std::size_t _nk_i = 0; _nk_i < " + v.lenVar + "; ++_nk_i)");
-            line(name + "[_nk_i + _nk_i * " + v.lenVar + "] = " + v.dataExpr + "[_nk_i];");
+            // v[i] on the k-th super-diagonal: (row i, col i+k), column-major.
+            line(name + "[_nk_i + (_nk_i + " + k + ") * _nk_N] = " + v.dataExpr + "[_nk_i];");
             close();
             --indent_;
             line("}");
