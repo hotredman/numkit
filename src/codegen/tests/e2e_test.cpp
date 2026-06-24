@@ -3809,6 +3809,47 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// fliplr / flipud on a 2-D matrix: reverse the column / row order. A=[1 2 3;4 5 6] ->
+// fliplr=[3 2 1;6 5 4], flipud=[4 5 6;1 2 3]. (Runtime-dim 2-D, built by vertcat.)
+TEST(CodegenE2E, FliplrFlipudMatrix)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2];\n"   // 2x3 [1 2 3; 4 5 6]
+        "  L = fliplr(A);\n"  // [3 2 1; 6 5 4]
+        "  U = flipud(A);\n"  // [4 5 6; 1 2 3]
+        "  r = L(1,1) + L(1,3)*10 + U(1,1)*100 + U(2,3)*1000 + numel(L)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_flip2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_flip2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[3] = {1, 2, 3};\n"
+        "  double a2[3] = {4, 5, 6};\n"
+        "  double r = f(a1, 3, a2, 3);\n"  // L(1,1)=3,L(1,3)=1,U(1,1)=4,U(2,3)=3,numel=6: 3+10+400+3000+60000
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 3.0 + 10.0 + 400.0 + 3000.0 + 60000.0);  // 63413
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // mixed vertcat [A; r]: a matrix with a row vector appended -> a taller matrix. The
 // mirror of the augmented-matrix horzcat. A=[1 2;3 4], r=[5 6] -> [1 2; 3 4; 5 6] (3x2).
 TEST(CodegenE2E, VertcatMatrixWithRowAppended)
