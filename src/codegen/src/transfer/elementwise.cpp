@@ -351,8 +351,13 @@ void registerElementwiseTransfers(TransferRegistry &reg)
     // real-only elementwise math (no std complex overload)
     for (const char *n : {"asinh", "erf", "erfc", "expm1"})
         reg.add(n, realOnlyMathUnaryTransfer);
-    // real-only binary math (scalar; no std complex overload)
-    for (const char *n : {"atan2", "hypot"})
+    // real-only binary math (scalar; no std complex overload). rem(a,b) is real-total
+    // (real,real -> real) and the emitter lowers it to std::fmod -- bit-identical to
+    // numkit's scalar rem (misc.cpp). (mod is intentionally NOT native: it is the
+    // Dynamic-tier exemplar across the codegen test suite, and scalar mod stays
+    // correctly bridged; making it native would churn those tier tests for marginal
+    // gain. array/complex rem -> Dynamic -> bridged, like atan2/hypot.)
+    for (const char *n : {"atan2", "hypot", "rem"})
         reg.add(n, realBinaryMathTransfer);
 }
 
