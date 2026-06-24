@@ -3809,6 +3809,51 @@ TEST(CodegenE2E, BlockMatrixLiteralRuntimeDim2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// tril/triu on a runtime-dim 2-D matrix + the diagonal-offset k. A=[1 2 3;4 5 6;7 8 9]:
+// tril(A)=[1 0 0;4 5 0;7 8 9], tril(A,1) keeps one super-diagonal, triu(A)=[1 2 3;0 5 6;0 0 9].
+TEST(CodegenE2E, TrilTriuOffsetRuntimeDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = [a1; a2; a3];\n"  // 3x3 [1 2 3; 4 5 6; 7 8 9]
+        "  L0 = tril(A);\n"      // k=0 lower
+        "  L1 = tril(A, 1);\n"   // one super-diagonal kept
+        "  U0 = triu(A);\n"      // k=0 upper
+        "  r = L0(1,1) + L0(3,1)*10 + L1(1,2)*100 + L1(1,3)*1000 + U0(1,3)*10000 + U0(2,1)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2, a3)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a3", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_triltriu_e2e.exe").string();
+    const std::string outTxt = (base / "nk_triltriu_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double a1[3] = {1, 2, 3};\n"
+        "  double a2[3] = {4, 5, 6};\n"
+        "  double a3[3] = {7, 8, 9};\n"
+        "  double r = f(a1, 3, a2, 3, a3, 3);\n"  // 1 + 70 + 200 + 0 + 30000 + 0 = 30271
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1.0 + 70.0 + 200.0 + 0.0 + 30000.0 + 0.0);  // 30271
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("a1=[1 2 3]; a2=[4 5 6]; a3=[7 8 9];\n") + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // rot90(A): rotate a 2-D matrix 90deg CCW -> dims swap. A=[1 2 3;4 5 6] (2x3) ->
 // rot90 = [3 6; 2 5; 1 4] (3x2). (Runtime-dim 2-D, built by vertcat.)
 TEST(CodegenE2E, Rot90Matrix)

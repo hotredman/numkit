@@ -2438,31 +2438,50 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // tril(A) / triu(A) -> the lower/upper triangular part of a 2-D matrix (the
-        // other triangle zeroed), SAME shape as A, a fresh 2-D KnownDims LOCAL.
-        // Column-major: out[i + j*rows] = keep ? A[i+j*rows] : 0, keep = (tril: i>=j /
-        // triu: i<=j). v1: A a 2-D DOUBLE matrix var, result a DISTINCT local (an
-        // in-place A=tril(A) is refused -- the zero-then-copy would alias).
-        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).is2D
-            && rhs.type == NodeType::CALL && rhs.children.size() == 2
+        // tril(A[,k]) / triu(A[,k]) -> the lower/upper triangular part of a 2-D matrix (the
+        // other triangle zeroed), SAME shape as A. The optional diagonal offset k shifts the
+        // boundary: tril keeps A(i,j) where i >= j - k (k>0 keeps super-diagonals, k<0 drops
+        // sub-diagonals); triu keeps i <= j - k (k=0 is the main diagonal). Both tiers via
+        // dimExpr (KnownDims 2-D or runtime-dim 2-D). Column-major out[i+j*rows] = keep ?
+        // A[...] : 0. v1: A a DOUBLE matrix var, a DISTINCT local (in-place refused -- the
+        // zero-then-copy would alias).
+        if (isArrayVar(name) && arrays_.at(name).isLocal
+            && (arrays_.at(name).is2D
+                || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+            && rhs.type == NodeType::CALL
+            && (rhs.children.size() == 2 || rhs.children.size() == 3)
             && rhs.children[0]->type == NodeType::IDENTIFIER
             && (rhs.children[0]->strValue == "tril" || rhs.children[0]->strValue == "triu")
             && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
             && rhs.children[1]->strValue != name
-            && arrays_.at(rhs.children[1]->strValue).is2D
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
             && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
-            const ArrayInfo    &A     = arrays_.at(rhs.children[1]->strValue);
-            const AbstractValue res   = inferExpr(rhs, types_, reg_, classes_);
-            const std::string   cmp   = rhs.children[0]->strValue == "tril" ? ">=" : "<=";
-            if (res.type.isConcrete() && res.type.shape.kind == ShapeKind::KnownDims) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            const std::string   cmp = rhs.children[0]->strValue == "tril" ? ">=" : "<=";
+            if (res.type.isConcrete()) {
                 line("{");
                 ++indent_;
-                line(name + ".assign(static_cast<std::size_t>(" + A.rowsVar + " * " + A.colsVar
-                     + "), 0.0);");
-                open("for (std::size_t _nk_j = 0; _nk_j < " + A.colsVar + "; ++_nk_j)");
-                open("for (std::size_t _nk_i = 0; _nk_i < " + A.rowsVar + "; ++_nk_i)");
-                line("if (_nk_i " + cmp + " _nk_j) " + name + "[_nk_i + _nk_j * " + A.rowsVar
-                     + "] = " + A.dataExpr + "[_nk_i + _nk_j * " + A.rowsVar + "];");
+                line("const std::size_t _nk_r = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_c = " + dimExpr(A, 1) + ";");
+                line("const std::ptrdiff_t _nk_k = "
+                     + (rhs.children.size() == 3
+                            ? ("static_cast<std::ptrdiff_t>(" + emitExpr(*rhs.children[2]) + ")")
+                            : std::string("0"))
+                     + ";");
+                if (M.isND && M.ndDims.size() == 2) {  // runtime-dim dst: set companions
+                    line(M.ndDims[0] + " = _nk_r;");
+                    line(M.ndDims[1] + " = _nk_c;");
+                }
+                line(name + ".assign(_nk_r * _nk_c, 0.0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < _nk_c; ++_nk_j)");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_r; ++_nk_i)");
+                line("if (static_cast<std::ptrdiff_t>(_nk_i) " + cmp
+                     + " static_cast<std::ptrdiff_t>(_nk_j) - _nk_k) " + name
+                     + "[_nk_i + _nk_j * _nk_r] = " + A.dataExpr + "[_nk_i + _nk_j * _nk_r];");
                 close();
                 close();
                 --indent_;

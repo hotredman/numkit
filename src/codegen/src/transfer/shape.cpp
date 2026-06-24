@@ -335,6 +335,16 @@ InferredType identityShapeTransfer(const std::vector<ArgInfo> &args)
     return args[0].type;
 }
 
+// tril / triu: lower / upper triangular part -> SAME shape as A, with an optional
+// diagonal-offset 2nd arg (tril(A,k) / triu(A,k)). Shape is A's regardless of k, so a
+// 1-OR-2-arg identity-shape transfer (identityShapeTransfer is strictly 1-arg).
+InferredType trilTriuTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.empty() || args.size() > 2 || !args[0].type.isConcrete())
+        return InferredType::dynamic();
+    return args[0].type;
+}
+
 } // namespace
 
 void registerShapeTransfers(TransferRegistry &reg)
@@ -373,8 +383,10 @@ void registerShapeTransfers(TransferRegistry &reg)
         reg.add(n, logicalQueryTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
     for (const char *n : {"cumsum", "cumprod", "cummax", "cummin", "flip", "fliplr", "flipud",
-                          "gradient", "tril", "triu"})
+                          "gradient"})
         reg.add(n, identityShapeTransfer);
+    reg.add("tril", trilTriuTransfer);  // tril(A[, k]) -- same shape, optional diag offset
+    reg.add("triu", trilTriuTransfer);  // triu(A[, k])
     for (const char *n : {"upper", "lower"})  // char case transform (native, same shape)
         reg.add(n, identityShapeTransfer);
     reg.add("sort", sortTransfer);  // sort(x[, 'ascend'|'descend']) -> same shape (native std::sort)
