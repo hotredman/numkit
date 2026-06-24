@@ -4440,6 +4440,39 @@ void Emitter::emitAssign(const ASTNode &s)
             }
         }
 
+        // Whole-array COPY: `B = A` where A is an array VAR (param or local) -> a value
+        // copy of A's flat buffer into B (column-major), plus B's dim companions for a
+        // runtime-dim dst. Works for any rank (1-D / 2-D KnownDims / runtime-dim N-D); B
+        // takes A's inferred type. v1: A distinct from B (a self-copy B=B is a no-op,
+        // skipped). numel(A) = 1-D length / 2-D rows*cols / N-D product of dims.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && rhs.type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.strValue) && rhs.strValue != name) {
+            const ArrayInfo    &A  = arrays_.at(rhs.strValue);
+            const ArrayInfo    &B  = arrays_.at(name);
+            const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            if (rv.type.isConcrete() && !rv.type.shape.isScalar()) {
+                std::string numel;
+                if (A.isND) {
+                    numel = A.ndDims[0];
+                    for (std::size_t i = 1; i < A.ndDims.size(); ++i) numel += " * " + A.ndDims[i];
+                } else if (A.is2D) {
+                    numel = A.rowsVar + " * " + A.colsVar;
+                } else {
+                    numel = A.lenVar;
+                }
+                line("{");
+                ++indent_;
+                if (B.isND && B.ndRuntimeLocal)  // runtime-dim dst: copy A's dims -> B's companions
+                    for (std::size_t k = 0; k < B.ndDims.size(); ++k)
+                        line(B.ndDims[k] + " = " + dimExpr(A, k) + ";");
+                line(name + ".assign(" + A.dataExpr + ", " + A.dataExpr + " + (" + numel + "));");
+                --indent_;
+                line("}");
+                types_.set(name, rv);
+                return;
+            }
+        }
+
         if (isArrayVar(name))
             unsupported("array-valued assignment to '" + name
                         + "' (only size-constructor init of the output in RawBuffer ABI)");
