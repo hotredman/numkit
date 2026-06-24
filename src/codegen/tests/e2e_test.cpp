@@ -27,10 +27,12 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -3465,6 +3467,75 @@ TEST(CodegenE2E, RuntimeDim2DCompositionMatchesInterpreter)
         engine.eval(std::string("a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n") + body + "r", true)
             .toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
+// BENCHMARK capstone: time a compute-heavy runtime-dim 2-D kernel (K matmuls of 2x2
+// matrices, accumulating C(1,1)) in the codegen-compiled binary vs the numkit interpreter
+// over the SAME .m. Asserts correctness (codegen result == interpreter == K*19, the real
+// guard) and LOGS the speedup (informational -- machine-dependent, never asserted, per the
+// CLAUDE.md perf rule). First matrix-tier perf evidence (Brick 7 was scalar biquad).
+TEST(CodegenE2E, RuntimeDim2DKernelVsInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    constexpr int K = 20000;
+    const char   *body =
+        "  A = [a1; a2];\n"       // 2x2 [1 2; 3 4]
+        "  B = [b1; b2];\n"       // 2x2 [5 6; 7 8]
+        "  s = 0;\n"
+        "  for i = 1:20000\n"     // K matmuls (literal bound -> no scalar param)
+        "    C = A * B;\n"
+        "    s = s + C(1,1);\n"   // C(1,1) = 1*5 + 2*7 = 19 each iter
+        "  end\n"
+        "  r = s;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(a1, a2, b1, b2)\n") + body + "end\n",
+        {{"a1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"a2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b1", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"b2", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_bench2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_bench2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "#include <chrono>\n"
+        "int main() {\n"
+        "  double a1[2] = {1, 2};\n"
+        "  double a2[2] = {3, 4};\n"
+        "  double b1[2] = {5, 6};\n"
+        "  double b2[2] = {7, 8};\n"
+        "  auto t0 = std::chrono::steady_clock::now();\n"
+        "  double r = f(a1, 2, a2, 2, b1, 2, b2, 2);\n"
+        "  auto t1 = std::chrono::steady_clock::now();\n"
+        "  double ns = std::chrono::duration<double, std::nano>(t1 - t0).count();\n"
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n%.17g\\n\", r, ns);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 2u);
+    const double codegenResult = got[0];
+    const double codegenNs     = got[1];
+    EXPECT_DOUBLE_EQ(codegenResult, static_cast<double>(K) * 19.0);  // s = K * C(1,1)
+
+    // Interpreter: run + time the same program.
+    numkit::StandardEngine engine;
+    const std::string interpSrc =
+        "a1=[1 2]; a2=[3 4]; b1=[5 6]; b2=[7 8];\n" + std::string(body) + "r";
+    const auto   i0          = std::chrono::steady_clock::now();
+    const double interpRes   = engine.eval(interpSrc, true).toScalar();
+    const auto   i1          = std::chrono::steady_clock::now();
+    const double interpNs    = std::chrono::duration<double, std::nano>(i1 - i0).count();
+    EXPECT_DOUBLE_EQ(codegenResult, interpRes);  // correctness diff vs interpreter (the guard)
+
+    std::cout << "[ BENCH    ] runtime-2-D 2x2 matmul x" << K << ": codegen="
+              << (codegenNs / 1e6) << " ms, interpreter=" << (interpNs / 1e6)
+              << " ms, speedup=" << (codegenNs > 0 ? interpNs / codegenNs : 0.0) << "x\n";
 }
 
 // Native rem (scalar, real): truncated remainder, sign of the dividend. Lowered to
