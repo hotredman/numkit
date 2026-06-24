@@ -4307,6 +4307,37 @@ void Emitter::emitAssign(const ASTNode &s)
             }
         }
 
+        // NUMERIC GATHER READ: `y = x(idx)` where idx is a 1-D NUMERIC (DOUBLE) index vector
+        // -> y[i] = x(idx[i]) 1-based, i.e. reindexing / selection. Result length = numel(idx).
+        // Each index is range+integer checked (MATLAB errors on a non-positive-integer or out-
+        // of-range subscript) BEFORE the 1-based->0-based read, so there is no UB (a NaN fails
+        // `>= 1.0`) and the throw is faithful. y a fresh 1-D LOCAL distinct from x and idx (an
+        // in-place x = x(idx) would need a temp -> refused, sound). Placed after the logical
+        // reads (a LOGICAL idx takes those; this is the numeric sibling). v1: x + idx 1-D, idx
+        // DOUBLE; a 2-D x / inline-literal index / an int-typed idx -> refused.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[0]->strValue)
+            && !arrays_.at(rhs.children[0]->strValue).is2D && !arrays_.at(rhs.children[0]->strValue).isND
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D && !arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[0]->strValue != name && rhs.children[1]->strValue != name) {
+            const ArrayInfo &bx = arrays_.at(rhs.children[0]->strValue);  // source
+            const ArrayInfo &bi = arrays_.at(rhs.children[1]->strValue);  // numeric index vector
+            line(name + ".resize(static_cast<std::size_t>(" + bi.lenVar + "));");
+            open("for (std::size_t _nk_i = 0; _nk_i < " + bi.lenVar + "; ++_nk_i)");
+            line("const double _nk_d = " + bi.dataExpr + "[_nk_i];");
+            line("if (!(_nk_d >= 1.0 && _nk_d <= static_cast<double>(" + bx.lenVar
+                 + ") && _nk_d == std::floor(_nk_d)))");
+            line("    throw std::out_of_range(\"numkit: array index out of bounds\");");
+            line(name + "[_nk_i] = " + bx.dataExpr + "[static_cast<std::size_t>(_nk_d) - 1];");
+            close();
+            types_.set(name, {InferredType::concrete(bx.dtype, Shape::rowVector()),
+                              ConstVal::unknown()});
+            return;
+        }
+
         // CHAR row-vector literal: `c = 'abc'` -> a char-array LOCAL initialised
         // from the literal's code units (1 per element; v1: ASCII/BMP, so a UTF-8
         // byte == the UTF-16 unit, matching the inference's byte-count length). char
