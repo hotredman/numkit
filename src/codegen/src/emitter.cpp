@@ -1717,8 +1717,16 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
     // SCALAR-subscript element store works for any rank, including a runtime-dim 2-D
     // matrix (the canonical `A = zeros(m,n); A(i,j) = v` fill). A colon subscript (a
     // slice write A(i,:) = row) is refused here -- scalar subscripts only (v1) -- so it
-    // is a clean boundary rather than a mis-emit of emitExpr on a bare colon.
-    if (ai.isND) {
+    // is a clean boundary rather than a mis-emit of emitExpr on a bare colon. EXCEPTION:
+    // a single LOGICAL-array subscript A(A>0)=... is a masked scatter (linear over the
+    // flat buffer), not an N-D element write -> fall through to the masked-write branch.
+    bool singleLogicalMask = false;
+    if (lhsCall.children.size() == 2) {
+        const InferredType st = inferExpr(*lhsCall.children[1], types_, reg_, classes_).type;
+        singleLogicalMask =
+            st.isConcrete() && st.dtype == ValueType::LOGICAL && !st.shape.isScalar();
+    }
+    if (ai.isND && !singleLogicalMask) {
         if (!ai.isLocal && !ai.isOutput)
             unsupported("N-D write to a read-only matrix parameter '" + base + "'");
         if (lhsCall.children.size() - 1 != ai.ndDims.size())
@@ -1766,17 +1774,18 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
     }
 
     // LOGICAL-INDEXING WRITE with an INLINE elementwise mask: `x(<expr>) = c` where <expr>
-    // is a pure-elementwise LOGICAL array over x ITSELF (x(x<0)=0, x(x>lo & x<hi)=v, ...) and
-    // c is a SCALAR. The mask is FUSED into the scatter loop -- no temp vector: for each i, if
-    // the per-element mask holds, x[i] = c. Restricted to a SELF-mask (the only array operand
-    // is x): every reference is to x so indexing is trivially in bounds, AND the fusion is
-    // sound -- a per-element mask over x alone gives the same result as MATLAB's compute-all-
-    // then-scatter (setting x[i] cannot change x[j!=i]'s mask). A non-elementwise mask (e.g.
-    // x(x>mean(x))=0) is rejected by collectElementwise -> bridged, so fusion is never wrong.
-    // x writable + 1-D; a mask over OTHER arrays / a 2-D x / an array rhs -> refused. Placed
-    // after the logical-VAR write so a pre-bound mask variable still takes the simpler branch.
-    if (lhsCall.children.size() == 2 && !ai.is2D && !ai.isND
-        && lhsCall.children[1]->type != NodeType::COLON_EXPR
+    // is a pure-elementwise LOGICAL array over x ITSELF (x(x<0)=0, A(A>lo & A<hi)=v, ...) and
+    // c is a SCALAR. The mask is FUSED into the scatter loop -- no temp vector: for each flat
+    // element i, if the per-element mask holds, x[i] = c. Works for a 1-D vector OR a 2-D / N-D
+    // matrix -- the buffer is column-major flat, the mask is flat-elementwise, and the write is
+    // flat, so it is rank-agnostic (bound on NUMEL). Restricted to a SELF-mask (the only array
+    // operand is x): every reference is to x so indexing is in bounds, AND the fusion is sound
+    // -- a per-element mask over x alone matches MATLAB's compute-all-then-scatter (setting x[i]
+    // cannot change x[j!=i]'s mask). A non-elementwise mask (A(A>mean(A))=0) is rejected by
+    // collectElementwise -> bridged, so fusion is never wrong. x writable; a mask over OTHER
+    // arrays / an array rhs -> refused. After the logical-VAR write (a pre-bound mask var takes
+    // that simpler branch).
+    if (lhsCall.children.size() == 2 && lhsCall.children[1]->type != NodeType::COLON_EXPR
         && lhsCall.children[1]->type != NodeType::IDENTIFIER) {
         const AbstractValue   maskAV = inferExpr(*lhsCall.children[1], types_, reg_, classes_);
         std::set<std::string> maskArrays;
@@ -1789,13 +1798,22 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
             const AbstractValue rhsScalar = inferExpr(rhs, types_, reg_, classes_);
             if (!rhsScalar.type.isConcrete() || !rhsScalar.type.shape.isScalar())
                 unsupported("logical-indexing write (inline mask): a scalar rhs only (v1)");
+            std::string numel;  // flat element count (1-D length / 2-D rows*cols / N-D product)
+            if (ai.isND) {
+                numel = ai.ndDims[0];
+                for (std::size_t i = 1; i < ai.ndDims.size(); ++i) numel += " * " + ai.ndDims[i];
+            } else if (ai.is2D) {
+                numel = ai.rowsVar + " * " + ai.colsVar;
+            } else {
+                numel = ai.lenVar;
+            }
             line("{");
             ++indent_;
             line("const " + cppScalarType(ai.dtype) + " _nk_c = " + emitExpr(rhs) + ";");
-            elementCtx_ = "_nk_i";  // whole x in the mask -> x[_nk_i]
+            elementCtx_ = "_nk_i";  // whole x in the mask -> x[_nk_i] (flat)
             const std::string maskExpr = emitExpr(*lhsCall.children[1]);
             elementCtx_.clear();
-            open("for (std::size_t _nk_i = 0; _nk_i < " + ai.lenVar + "; ++_nk_i)");
+            open("for (std::size_t _nk_i = 0; _nk_i < (" + numel + "); ++_nk_i)");
             line("if (" + maskExpr + ") " + ptr + "[_nk_i] = _nk_c;");
             close();
             --indent_;
