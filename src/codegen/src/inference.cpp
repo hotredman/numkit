@@ -312,6 +312,31 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
             }
             if (matsOk && vdt != ValueType::EMPTY)
                 return {InferredType::concrete(vdt, Shape::ndShape({0, 0})), ConstVal::unknown()};
+            // BLOCK-matrix literal [A B; C D]: a multi-row literal whose every row is a
+            // HORZCAT of >=1 matrices (the >1-block rows the single-matrix vertcat above
+            // does not match). Every element of every row is a 2-D matrix of a common
+            // dtype -> a (sum-of-row-heights) x (common-total-cols) runtime-dim 2-D.
+            ValueType blkdt = ValueType::EMPTY;
+            bool      blkOk = true;
+            for (const auto &rowN : expr.children) {
+                if (!rowN || rowN->children.empty()) { blkOk = false; break; }
+                for (const auto &el : rowN->children) {
+                    if (!el) { blkOk = false; break; }
+                    const AbstractValue ev    = inferExpr(*el, env, reg, classes);
+                    const bool          isMat =
+                        ev.type.isConcrete()
+                        && ((ev.type.shape.kind == ShapeKind::KnownDims && ev.type.shape.rows > 1
+                             && ev.type.shape.cols > 1)
+                            || (ev.type.shape.kind == ShapeKind::NDims
+                                && ev.type.shape.nd.size() == 2));
+                    if (!isMat) { blkOk = false; break; }
+                    if (blkdt == ValueType::EMPTY) blkdt = ev.type.dtype;
+                    else if (blkdt != ev.type.dtype) { blkOk = false; break; }  // no dtype mix
+                }
+                if (!blkOk) break;
+            }
+            if (blkOk && blkdt != ValueType::EMPTY)
+                return {InferredType::concrete(blkdt, Shape::ndShape({0, 0})), ConstVal::unknown()};
         }
         // v1: a single-row horzcat [a b ...] -> a 1-D array of the common dtype
         // (runtime length). Each element may be a 1-D array, a char/string literal,
