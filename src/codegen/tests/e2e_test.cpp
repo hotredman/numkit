@@ -10176,3 +10176,40 @@ TEST(CodegenE2E, Sortrows)
         engine.eval(std::string("x=[3 1 3 1 1 2 0 2];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// 2-D median(A) (phase N49): column-wise median -> a 1 x n row vector. The median producer was 1-D
+// (scalar) only; now native for a matrix (per-column sort + middle/mean-of-two-middles). Hardcoded
+// expected (matches the 1-D median test pattern). Even-length columns exercise the averaging path.
+TEST(CodegenE2E, Median2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  A = reshape(x, 4, 2);\n"  // col1=[3 1 4 8], col2=[5 2 9 6]
+        "  B = median(A);\n"         // [(3+4)/2, (5+6)/2] = [3.5 5.5]
+        "  r = B(1) + B(2)*10 + numel(B)*100;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_EQ(emitted.source.find("nk_call"), std::string::npos)
+        << "median(matrix) must lower to a native per-column sort+middle, not bridge";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_median2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_median2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[8] = {3, 1, 4, 8, 5, 2, 9, 6};\n"  // 4x2 col-major
+        "  double r = f(x, 8);\n"  // B=[3.5 5.5]: 3.5 + 55 + 200 = 258.5
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 258.5);  // 3.5 + 55 + 200
+}

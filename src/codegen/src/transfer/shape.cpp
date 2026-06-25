@@ -144,6 +144,30 @@ InferredType ismemberTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// median(x): a 1-D vector reduces to a scalar; a 2-D matrix reduces COLUMN-wise to a 1 x n row
+// vector. median is sort-based (exact, order-independent), so 2-D is native (unlike sum/mean, which
+// stay bridged on the shared vectorReductionTransfer). A scalar / N-D -> Dynamic.
+InferredType medianTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete() || args[0].type.dtype != ValueType::DOUBLE)
+        return InferredType::dynamic();
+    const Shape &s = args[0].type.shape;
+    switch (s.kind) {
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector -> scalar
+        return InferredType::scalar(ValueType::DOUBLE);
+    case ShapeKind::KnownDims:
+        if (s.rows > 1 && s.cols > 1)  // a true 2-D matrix -> column-wise -> 1 x n row vector
+            return InferredType::concrete(ValueType::DOUBLE, Shape::unknown());
+        return InferredType::dynamic();
+    case ShapeKind::NDims:
+        if (s.nd.size() == 2) return InferredType::concrete(ValueType::DOUBLE, Shape::unknown());
+        return InferredType::dynamic();
+    default: return InferredType::dynamic();
+    }
+}
+
 // sortrows(A): sort the ROWS of a 2-D matrix in ascending lexicographic order -> same shape. v1: a
 // true 2-D DOUBLE matrix (a vector/scalar/N-D -> Dynamic/bridged, so the emit never sees a non-2-D).
 InferredType sortrowsTransfer(const std::vector<ArgInfo> &args)
@@ -742,9 +766,9 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("cat", catTransfer);               // cat(dim,A,B) literal dim -> vert/horz concat
     reg.add("permute", permuteTransfer);        // permute(A,perm) -> A's dims reordered (same rank)
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
-    for (const char *n :
-         {"sum", "prod", "mean", "norm", "std", "var", "median", "trapz"})
+    for (const char *n : {"sum", "prod", "mean", "norm", "std", "var", "trapz"})
         reg.add(n, vectorReductionTransfer);
+    reg.add("median", medianTransfer);  // vector -> scalar; 2-D matrix -> column-wise row vector
     // max/min: 1-arg reduction (-> scalar) OR 2-arg elementwise max(a,b)/min(a,b) (native
     // via fmax/fmin). The single-output transfer; [m,i]=max(x) uses maxMinMultiTransfer.
     reg.add("max", maxMinTransfer);
