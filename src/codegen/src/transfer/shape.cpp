@@ -300,14 +300,29 @@ InferredType findTransfer(const std::vector<ArgInfo> &args)
 // scalar (diff -> empty), matrix / N-D input, or a 2-arg call -> Dynamic.
 InferredType diffTransfer(const std::vector<ArgInfo> &args)
 {
-    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
-    switch (args[0].type.shape.kind) {
-    case ShapeKind::RowVector:
-    case ShapeKind::ColVector:
-    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
-        return InferredType::concrete(args[0].type.dtype, Shape::unknown());
-    default: return InferredType::dynamic();
+    if (args.empty() || !args[0].type.isConcrete()) return InferredType::dynamic();
+    const Shape &s     = args[0].type.shape;
+    const bool   is2D  = (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
+                      || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
+    if (args.size() == 1) {
+        switch (s.kind) {
+        case ShapeKind::RowVector:
+        case ShapeKind::ColVector:
+        case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+            return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+        default:
+            // diff(A) on a 2-D matrix -> a runtime-dim 2-D (the emit drops one row, dim 1). Only
+            // when rows are statically known (the emit refuses a runtime-dim default-dim diff).
+            if (is2D) return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
+            return InferredType::dynamic();
+        }
     }
+    // diff(A, 1, dim): 1st-order difference along a literal dim 1|2 of a 2-D matrix -> runtime 2-D.
+    std::size_t order = 0, dim = 0;
+    if (args.size() == 3 && is2D && args[1].constant.asDim(order) && order == 1
+        && args[2].constant.asDim(dim) && (dim == 1 || dim == 2))
+        return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
+    return InferredType::dynamic();
 }
 
 // dot(a,b) -> scalar inner product (sum of a.*b for real). v1: two 1-D real
