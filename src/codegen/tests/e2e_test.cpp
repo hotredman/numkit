@@ -10686,3 +10686,58 @@ TEST(CodegenE2E, AnyAllReduceRank3)
         engine.eval(std::string("x=[1 0 1 1 1 0 0 0 1 1 0 1];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// Partial nargout (G1): `[a] = ff(n)` requests FEWER outputs than ff returns ([p,q]). The
+// monomorphic callee computes every output (one out-param each); the caller binds the first and
+// hands a throwaway out-param for the unrequested trailing output. `nargout` is not a value in the
+// compilable subset, so there is no nargout-gated behaviour to diverge on -> the bound output
+// matches MATLAB's. Also exercises a 2-of-3 partial request.
+TEST(CodegenE2E, PartialNargoutUserCall)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function out = g(n)\n"
+        "  [a] = ff(n);\n"        // request 1 of ff's 2 outputs (a = p = 2n)
+        "  [u, v] = gg(n);\n"     // request 2 of gg's 3 outputs (u = n, v = n+1)
+        "  out = a + u * 10 + v * 100;\n"  // n=5: a=10, u=5, v=6 -> 10 + 50 + 600 = 660
+        "end\n"
+        "function [p, q] = ff(n)\n"
+        "  p = n * 2;\n"
+        "  q = n + 1;\n"          // unrequested -> throwaway out-param
+        "end\n"
+        "function [a, b, c] = gg(n)\n"
+        "  a = n;\n"
+        "  b = n + 1;\n"
+        "  c = n + 2;\n"          // unrequested -> throwaway out-param
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("g"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_partialnargout_e2e.exe").string();
+    const std::string outTxt = (base / "nk_partialnargout_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double out = " + emitted.name + "(5.0);\n"  // 10 + 50 + 600 = 660
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", out);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 660.0);
+}
