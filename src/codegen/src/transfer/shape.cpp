@@ -160,19 +160,20 @@ InferredType catTransfer(const std::vector<ArgInfo> &args)
     auto okDim4 = [](const Shape &s) {
         return s.kind == ShapeKind::NDims && (s.nd.size() == 3 || s.nd.size() == 4);
     };
-    // N-operand (>2) cat is supported only for dim 3 -- the trailing-dim contiguous append
-    // (M = op0 pages ++ op1 pages ++ ...), which generalizes cleanly to any operand count.
-    // Every operand must be a 2-D or rank-3 DOUBLE -> a rank-3 result. Other dims with >2
-    // operands stay Dynamic (bridged): dim 1/2 already have the [A B C]/[A;B;C] bracket forms,
-    // and N-operand dim-4 is a separate brick.
+    // N-operand (>2) cat is supported for dim 3 AND dim 4 -- the trailing-dim contiguous
+    // append (M = op0 slabs ++ op1 slabs ++ ...), which generalizes cleanly to any operand
+    // count. dim 3: every operand 2-D or rank-3 DOUBLE -> a rank-3 result; dim 4: every operand
+    // rank-3 or rank-4 DOUBLE -> a rank-4 result. dim 1/2 with >2 operands stay Dynamic
+    // (bridged): the [A B C]/[A;B;C] bracket forms already cover those.
     if (args.size() > 3) {
-        if (dim != 3) return InferredType::dynamic();
-        for (std::size_t i = 1; i < args.size(); ++i)
-            if (!(args[i].type.isConcrete() && args[i].type.dtype == ValueType::DOUBLE
-                  && okDim3(args[i].type.shape)))
+        if (dim != 3 && dim != 4) return InferredType::dynamic();
+        for (std::size_t i = 1; i < args.size(); ++i) {
+            const bool shapeOk = dim == 3 ? okDim3(args[i].type.shape) : okDim4(args[i].type.shape);
+            if (!(args[i].type.isConcrete() && args[i].type.dtype == ValueType::DOUBLE && shapeOk))
                 return InferredType::dynamic();
-        return InferredType::concrete(ValueType::DOUBLE,
-                                      Shape::ndShape(std::vector<std::size_t>(3, 0)));
+        }
+        return InferredType::concrete(
+            ValueType::DOUBLE, Shape::ndShape(std::vector<std::size_t>(dim == 4 ? 4 : 3, 0)));
     }
     const bool bothOk = dim == 4 ? (okDim4(args[1].type.shape) && okDim4(args[2].type.shape))
                         : dim == 3 ? (okDim3(args[1].type.shape) && okDim3(args[2].type.shape))
