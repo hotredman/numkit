@@ -552,11 +552,18 @@ InferredType diffTransfer(const std::vector<ArgInfo> &args)
             return InferredType::dynamic();
         }
     }
-    // diff(A, 1, dim): 1st-order difference along a literal dim 1|2 of a 2-D matrix -> runtime 2-D.
-    std::size_t order = 0, dim = 0;
-    if (args.size() == 3 && is2D && args[1].constant.asDim(order) && order == 1
-        && args[2].constant.asDim(dim) && (dim == 1 || dim == 2))
-        return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
+    // diff(A, 1, dim): 1st-order difference along a literal dim. 2-D matrix dim 1|2 -> runtime 2-D.
+    // Rank-3 dim 1|2 -> runtime rank-3 (the differenced dim is non-trailing, so the rank is kept --
+    // dim 3 is SOUND-REFUSED: it can collapse the trailing dim to extent 1 = MATLAB rank-2).
+    const bool   isND3 = s.kind == ShapeKind::NDims && s.nd.size() == 3;
+    std::size_t  order = 0, dim = 0;
+    if (args.size() == 3 && args[1].constant.asDim(order) && order == 1
+        && args[2].constant.asDim(dim)) {
+        if (is2D && (dim == 1 || dim == 2))
+            return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
+        if (isND3 && (dim == 1 || dim == 2))
+            return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0, 0}));
+    }
     return InferredType::dynamic();
 }
 
