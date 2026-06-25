@@ -520,10 +520,26 @@ struct OneFn {
 
 // A C++-identifier-safe code for a type so distinct specialisations get
 // distinct symbols: dtype letter + shape tag (scalar = none).
+std::string escapeBase(const std::string &base);  // fwd (defined below; used by the struct typeCode)
+
 std::string typeCode(const InferredType &t)
 {
     if (!t.isConcrete()) return "X";
     if (t.dtype == ValueType::OBJECT) return "o" + std::to_string(t.classId);
+    if (t.dtype == ValueType::STRUCT) {
+        // Encode the layout so distinct structs (field NAMES + types) get distinct
+        // specializations -- the callee accesses fields by name, so two structs with the
+        // same field TYPES but different names are different callees. Each field: "F" +
+        // escaped-name length + escaped name + the field's own typeCode. escapeBase keeps
+        // it __-free (every '_' becomes "_0").
+        std::string sc = "s" + std::to_string(t.structLayout ? t.structLayout->fields.size() : 0);
+        if (t.structLayout)
+            for (const auto &f : t.structLayout->fields) {
+                const std::string en = escapeBase(f.first);
+                sc += "F" + std::to_string(en.size()) + en + typeCode(f.second);
+            }
+        return sc;
+    }
     std::string c;
     switch (t.dtype) {
     case ValueType::DOUBLE:  c = "d";   break;
@@ -1340,6 +1356,21 @@ void Emitter::appendCallArg(const ASTNode &arg, std::vector<InferredType> &argTy
                && isArrayVar(arg.strValue)) {
         const ArrayInfo &ai = arrays_.at(arg.strValue);
         argList += ai.dataExpr + ", " + ai.lenVar;  // ptr + len (local: .data()/.size())
+    } else if (av.type.isStruct() && arg.type == NodeType::IDENTIFIER) {
+        // Explode a struct arg into its field-locals (_nk_fld_<s>_<f>), matching the callee's
+        // exploded params. argTypes gets ONE struct entry (arity = paramNames); argList gets one
+        // entry per field. v1: all-scalar fields, a plain-identifier base.
+        if (!av.type.structLayout || av.type.structLayout->fields.empty())
+            unsupported("struct call argument '" + arg.strValue + "' has no fields (v1)");
+        bool firstF = true;
+        for (const auto &f : av.type.structLayout->fields) {
+            if (!isUnboxableScalarType(f.second))
+                unsupported("struct call argument field '" + arg.strValue + "." + f.first
+                            + "' must be a scalar (v1; array / nested struct fields deferred)");
+            if (!firstF) argList += ", ";
+            firstF = false;
+            argList += "_nk_fld_" + arg.strValue + "_" + f.first;
+        }
     } else {
         unsupported("call argument must be a scalar, object, or array variable (v1)");
     }
@@ -7586,9 +7617,28 @@ void Emitter::emitAssign(const ASTNode &s)
         const std::string fld = base.type.isObject() ? std::string() : structFieldLocal(lhs);
         if (!fld.empty()) {
             const AbstractValue rv = inferExpr(rhs, types_, reg_, classes_);
+            // After flattening the field write, accumulate the base's STRUCT type (a
+            // single-level base s.f only) so a WHOLESALE `s` reference -- e.g. a call arg --
+            // sees the layout. Mirrors the inference accumulation (G2.2); the emit env
+            // (types_) is separate, so it must be updated here too.
+            auto accumulateStruct = [&]() {
+                if (lhs.children[0]->type != NodeType::IDENTIFIER) return;
+                const std::string  &svar = lhs.children[0]->strValue;
+                const AbstractValue cur  = types_.has(svar) ? types_.get(svar)
+                                                            : AbstractValue::dynamic();
+                auto layout = std::make_shared<StructLayout>();
+                if (cur.type.isStruct() && cur.type.structLayout)
+                    layout->fields = cur.type.structLayout->fields;
+                bool found = false;
+                for (auto &fp : layout->fields)
+                    if (fp.first == lhs.strValue) { fp.second = rv.type; found = true; break; }
+                if (!found) layout->fields.emplace_back(lhs.strValue, rv.type);
+                types_.set(svar, {InferredType::structOf(std::move(layout)), ConstVal::unknown()});
+            };
             if (rv.type.isUnboxableScalar()) {
                 line(fld + " = " + emitExpr(rhs) + ";");  // scalar field
                 types_.set(fld, rv);
+                accumulateStruct();
                 return;
             }
             // Array field `s.v = x` (x a 1-D array VAR): the field-local vector
@@ -7599,6 +7649,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 const ArrayInfo &x = arrays_.at(rhs.strValue);
                 line(fld + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + " + x.lenVar + ");");
                 types_.set(fld, rv);
+                accumulateStruct();
                 return;
             }
             unsupported("struct field write (v1: a scalar, or a 1-D array var, field)");
@@ -8836,6 +8887,23 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
         } else if (p.type.isObject()) {
             // value class -> by value (value semantics); handle -> wrapper.
             sigParams.push_back(cppObjectType(p.type.classId, classes) + " " + p.name);
+        } else if (p.type.isStruct()) {
+            // A plain struct param explodes into one C++ param per field, named
+            // _nk_fld_<p>_<f> (the field-flatten convention the body's s.f reads). The
+            // struct itself is virtual -- no param of its own (p.name stays in paramSet, so
+            // the hoist skips it). v1: all-scalar fields (array / nested struct fields
+            // deferred). p.name was already entry-set to the STRUCT type at the loop top.
+            if (!p.type.structLayout)
+                unsupported("struct parameter '" + p.name + "' has no field layout");
+            for (const auto &f : p.type.structLayout->fields) {
+                if (!isUnboxableScalarType(f.second))
+                    unsupported("struct parameter field '" + p.name + "." + f.first
+                                + "' must be a scalar (v1; array / nested struct fields deferred)");
+                const std::string fld = "_nk_fld_" + p.name + "_" + f.first;
+                entry.set(fld, {f.second, ConstVal::unknown()});  // body reads s.f -> this field-local
+                paramSet.insert(fld);
+                sigParams.push_back(cppScalarType(f.second.dtype) + " " + fld);
+            }
         } else if (bridge && p.type.isDynamic()) {
             // Dynamic tier (DESIGN.md §10 C1): an un-typeable parameter is a boxed
             // nk_rt::val passed BY VALUE — MATLAB pass-by-value is a copy (val's
