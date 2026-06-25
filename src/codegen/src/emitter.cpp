@@ -6971,6 +6971,72 @@ void Emitter::emitMultiAssign(const ASTNode &s)
                    {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
         return;
     }
+    // [s, i] = sort(A) on a 2-D MATRIX -> sort each COLUMN independently: s = sorted columns,
+    // i = the per-column 1-based permutation (both same m x n shape). STABLE per column (ties keep
+    // ascending original row order, MATLAB); NaN-extremum comparator (NaN last asc / first desc).
+    // Column-major: each column j is the block [j*m, (j+1)*m). v1: a DOUBLE matrix var; both outputs
+    // ARRAY targets; ascending or 'descend'.
+    if (rhs.type == NodeType::CALL
+        && (rhs.children.size() == 2
+            || (rhs.children.size() == 3 && rhs.children[2]->type == NodeType::STRING_LITERAL))
+        && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "sort"
+        && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+        && s.returnNames.size() == 2
+        && (arrays_.at(rhs.children[1]->strValue).is2D
+            || (arrays_.at(rhs.children[1]->strValue).isND
+                && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const std::string &rn0 = s.returnNames[0];  // sorted values
+        const std::string &rn1 = s.returnNames[1];  // per-column 1-based permutation
+        if (rn0.empty() || rn0 == "~" || rn1.empty() || rn1 == "~")
+            unsupported("[s,i]=sort(matrix) with an ignored (~) output (v1)");
+        const ArrayInfo &A       = arrays_.at(rhs.children[1]->strValue);
+        const ArrayInfo &Ms      = arrays_.at(rn0);
+        const ArrayInfo &Mi      = arrays_.at(rn1);
+        const bool       descend = rhs.children.size() == 3 && rhs.children[2]->strValue == "descend";
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+        line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+        line("const double* _nk_d = " + A.dataExpr + ";");
+        if (Ms.isND && Ms.ndDims.size() == 2) {
+            line(Ms.ndDims[0] + " = _nk_m;");
+            line(Ms.ndDims[1] + " = _nk_n;");
+        }
+        if (Mi.isND && Mi.ndDims.size() == 2) {
+            line(Mi.ndDims[0] + " = _nk_m;");
+            line(Mi.ndDims[1] + " = _nk_n;");
+        }
+        line(rn0 + ".assign(_nk_m * _nk_n, 0.0);");
+        line(rn1 + ".assign(_nk_m * _nk_n, 0.0);");
+        line("std::vector<std::size_t> _nk_p(_nk_m);");
+        open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+        line("const std::size_t _nk_b = _nk_j * _nk_m;");
+        open("for (std::size_t _nk_r = 0; _nk_r < _nk_m; ++_nk_r)");
+        line("_nk_p[_nk_r] = _nk_r;");
+        close();
+        line("std::stable_sort(_nk_p.begin(), _nk_p.end(),");
+        line(descend
+                 ? "    [_nk_d, _nk_b](std::size_t _a, std::size_t _b){ return _nk_d[_nk_b + _a] > "
+                   "_nk_d[_nk_b + _b] || (_nk_d[_nk_b + _a] != _nk_d[_nk_b + _a] && _nk_d[_nk_b + _b] "
+                   "== _nk_d[_nk_b + _b]); });"
+                 : "    [_nk_d, _nk_b](std::size_t _a, std::size_t _b){ return _nk_d[_nk_b + _a] < "
+                   "_nk_d[_nk_b + _b] || (_nk_d[_nk_b + _b] != _nk_d[_nk_b + _b] && _nk_d[_nk_b + _a] "
+                   "== _nk_d[_nk_b + _a]); });");
+        open("for (std::size_t _nk_r = 0; _nk_r < _nk_m; ++_nk_r)");
+        line(rn0 + "[_nk_b + _nk_r] = _nk_d[_nk_b + _nk_p[_nk_r]];");
+        line(rn1 + "[_nk_b + _nk_r] = static_cast<double>(_nk_p[_nk_r] + 1);");
+        close();
+        close();
+        --indent_;
+        line("}");
+        // s and i share A's shape (DOUBLE m x n); re-affirm from the source's inferred type.
+        const AbstractValue _nk_at = inferExpr(*rhs.children[1], types_, reg_, classes_);
+        types_.set(rn0, {_nk_at.type, ConstVal::unknown()});
+        types_.set(rn1, {_nk_at.type, ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result

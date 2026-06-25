@@ -99,7 +99,16 @@ std::vector<InferredType> sortMultiTransfer(const std::vector<ArgInfo> &args)
     case ShapeKind::ColVector:
     case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
         return {args[0].type, InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
-    default: return {InferredType::dynamic(), InferredType::dynamic()};  // matrix -> next brick
+    case ShapeKind::KnownDims:
+        // [s,i]=sort(A) on a matrix sorts each column -> both outputs are the same m x n shape
+        // (sorted values + per-column 1-based permutation).
+        if (args[0].type.shape.rows > 1 && args[0].type.shape.cols > 1)
+            return {args[0].type, args[0].type};
+        return {InferredType::dynamic(), InferredType::dynamic()};
+    case ShapeKind::NDims:  // runtime-dim rank-2 matrix -> per-column, both outputs m x n
+        if (args[0].type.shape.nd.size() == 2) return {args[0].type, args[0].type};
+        return {InferredType::dynamic(), InferredType::dynamic()};
+    default: return {InferredType::dynamic(), InferredType::dynamic()};
     }
 }
 
