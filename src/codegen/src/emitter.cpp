@@ -4568,6 +4568,66 @@ void Emitter::emitAssign(const ASTNode &s)
                 }
             }
         }
+        // Native cummax/cummin(A, dim) along ANY dim 1|2|3 of a rank-3 array -> a fresh same-shape
+        // rank-3 array, running max/min along each fiber in the scan dim. EXACT (no rounding), so no
+        // bridge guard. Reuses the cumsum/cumprod stride/length scheme (dim d: element stride sd =
+        // prod(dims before d), length ld = size(A,d); fiber starts tile as blocks of sd*ld, idx =
+        // b + r + t*sd), with the single-output max/min NaN accumulator (seed on the fiber's first
+        // element t==0, update on a strict cmp, or when acc is NaN and the candidate is not -> the
+        // first non-NaN seeds it). 2-arg LITERAL dim 1|2|3 only (the 1-arg default dim is the first
+        // non-singleton -- ambiguous on a runtime-dim rank-3 -> stays bridged). v1: a DOUBLE rank-3
+        // var distinct from dst.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 3 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "cummax" || rhs.children[0]->strValue == "cummin")
+            && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0
+                || rhs.children[2]->numValue == 3.0)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+            && arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const std::string cmp  = rhs.children[0]->strValue == "cummax" ? ">" : "<";
+                const int         dimv = static_cast<int>(rhs.children[2]->numValue);
+                const std::string sd = dimv == 1 ? "1" : (dimv == 2 ? "_nk_m" : "_nk_m * _nk_n");
+                const std::string ld = dimv == 1 ? "_nk_m" : (dimv == 2 ? "_nk_n" : "_nk_p");
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                line("const std::size_t _nk_p = " + dimExpr(A, 2) + ";");
+                line(M.ndDims[0] + " = _nk_m;");
+                line(M.ndDims[1] + " = _nk_n;");
+                line(M.ndDims[2] + " = _nk_p;");
+                line("const std::size_t _nk_tot = _nk_m * _nk_n * _nk_p;");
+                line("const std::size_t _nk_sd = " + sd + ";");
+                line("const std::size_t _nk_ld = " + ld + ";");
+                line("const std::size_t _nk_blk = _nk_sd * _nk_ld;");
+                line(name + ".assign(_nk_tot, 0.0);");
+                open("for (std::size_t _nk_b = 0; _nk_b < _nk_tot; _nk_b += _nk_blk)");
+                open("for (std::size_t _nk_r = 0; _nk_r < _nk_sd; ++_nk_r)");
+                line("double _nk_acc = 0.0;");
+                open("for (std::size_t _nk_t = 0; _nk_t < _nk_ld; ++_nk_t)");
+                line("const std::size_t _nk_idx = _nk_b + _nk_r + _nk_t * _nk_sd;");
+                line("const double _nk_v = " + A.dataExpr + "[_nk_idx];");
+                line("if (_nk_t == 0 || _nk_v " + cmp + " _nk_acc"
+                     " || (_nk_acc != _nk_acc && _nk_v == _nk_v)) _nk_acc = _nk_v;");
+                line(name + "[_nk_idx] = _nk_acc;");
+                close();
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native cummax/cummin(x) -> running max/min, a SAME-LENGTH 1-D LOCAL. Exact
         // (no rounding), so it runs in every tier. The running accumulator uses the
         // single-output max/min NaN logic (update on the first element, on a strict

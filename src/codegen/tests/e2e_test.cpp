@@ -10421,3 +10421,48 @@ TEST(CodegenE2E, CumsumRank3Dim1Dim2)
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// rank-3 cummax/cummin along any dim 1|2|3 (phase N55): the cummax/cummin producers were 1-D + 2-D
+// only -> a rank-3 cumulative max/min was bridged; now native, reusing the N54 stride/length scheme
+// with the single-output max/min NaN accumulator. EXACT (associative) so it runs in every tier (no
+// bridge guard). Non-monotone input so the cumulative result differs from the input (catches stride
+// bugs). Bit-exact vs the interpreter. Completes the rank-3 cumulative family (cumsum/cumprod/
+// cummax/cummin along any dim).
+TEST(CodegenE2E, CummaxCumminRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"  // pages [4 7;2 1], [3 6;8 5], [9 1;2 7]
+        "  P = cummax(A, 1);\n"         // down columns: P(2,1,1)=4, P(2,2,1)=7
+        "  Q = cummin(A, 2);\n"         // across rows:  Q(1,2,1)=4, Q(2,2,3)=2
+        "  T = cummax(A, 3);\n"         // across pages: T(1,2,3)=max(7,6,1)=7
+        "  r = P(2,1,1) + P(2,2,1)*10 + Q(1,2,1)*100 + Q(2,2,3)*1000 + T(1,2,3)*10000"
+        " + numel(P)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cummmrank3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cummmrank3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12] = {4, 2, 7, 1, 3, 8, 6, 5, 9, 2, 1, 7};\n"  // 2x2x3 col-major
+        "  double r = f(x, 12);\n"  // 4 + 70 + 400 + 2000 + 70000 + 1200000 = 1272474
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1272474.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
