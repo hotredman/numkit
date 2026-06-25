@@ -6923,6 +6923,54 @@ void Emitter::emitMultiAssign(const ASTNode &s)
                    {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
         return;
     }
+    // [s, i] = sort(x[, 'descend']) on a 1-D vector -> sorted values s + the 1-based permutation i
+    // (which original position each sorted element came from). STABLE (std::stable_sort) so ties
+    // keep ascending original order, matching MATLAB. NaN-extremum comparator identical to the
+    // value-only 1-D sort (NaN last ascending / first descending). Sorts an index vector by the
+    // data, then gathers values + indices. v1: a single 1-D DOUBLE array var; the two outputs ARRAY
+    // targets; ascending or 'descend'. (A matrix [s,i]=sort is the next brick.)
+    if (rhs.type == NodeType::CALL
+        && (rhs.children.size() == 2
+            || (rhs.children.size() == 3 && rhs.children[2]->type == NodeType::STRING_LITERAL))
+        && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "sort"
+        && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+        && s.returnNames.size() == 2 && !arrays_.at(rhs.children[1]->strValue).is2D
+        && !arrays_.at(rhs.children[1]->strValue).isND
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const std::string &rn0 = s.returnNames[0];  // sorted values
+        const std::string &rn1 = s.returnNames[1];  // 1-based permutation indices
+        if (rn0.empty() || rn0 == "~" || rn1.empty() || rn1 == "~")
+            unsupported("[s,i]=sort with an ignored (~) output (v1)");
+        const ArrayInfo &xa      = arrays_.at(rhs.children[1]->strValue);
+        const bool       descend = rhs.children.size() == 3 && rhs.children[2]->strValue == "descend";
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_n = " + xa.lenVar + ";");
+        line("const double* _nk_d = " + xa.dataExpr + ";");
+        line("std::vector<std::size_t> _nk_p(_nk_n);");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+        line("_nk_p[_nk_i] = _nk_i;");
+        close();
+        line("std::stable_sort(_nk_p.begin(), _nk_p.end(),");
+        line(descend ? "    [_nk_d](std::size_t _a, std::size_t _b){ return _nk_d[_a] > _nk_d[_b] || "
+                       "(_nk_d[_a] != _nk_d[_a] && _nk_d[_b] == _nk_d[_b]); });"
+                     : "    [_nk_d](std::size_t _a, std::size_t _b){ return _nk_d[_a] < _nk_d[_b] || "
+                       "(_nk_d[_b] != _nk_d[_b] && _nk_d[_a] == _nk_d[_a]); });");
+        line(rn0 + ".assign(_nk_n, 0.0);");
+        line(rn1 + ".assign(_nk_n, 0.0);");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+        line(rn0 + "[_nk_i] = _nk_d[_nk_p[_nk_i]];");
+        line(rn1 + "[_nk_i] = static_cast<double>(_nk_p[_nk_i] + 1);");
+        close();
+        --indent_;
+        line("}");
+        types_.set(rn0,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        types_.set(rn1,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result

@@ -84,6 +84,25 @@ std::vector<InferredType> maxMinMultiTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// [s, i] = sort(x[, 'ascend'|'descend']): sorted values (same shape as x) + the 1-based
+// permutation indices (a DOUBLE array of the same shape). v1: a 1-D DOUBLE vector (a matrix
+// is the next brick); a numeric dim arg -> deferred.
+std::vector<InferredType> sortMultiTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.empty() || args.size() > 2 || !args[0].type.isConcrete()
+        || args[0].type.dtype != ValueType::DOUBLE)
+        return {InferredType::dynamic(), InferredType::dynamic()};
+    if (args.size() == 2 && args[1].type.dtype != ValueType::CHAR)
+        return {InferredType::dynamic(), InferredType::dynamic()};  // a numeric dim arg -> deferred
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+        return {args[0].type, InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
+    default: return {InferredType::dynamic(), InferredType::dynamic()};  // matrix -> next brick
+    }
+}
+
 // transpose (A.') / ctranspose (A'): swap the two dimensions. A row becomes a
 // column and vice-versa; a matrix's dims swap; a scalar is unchanged. The
 // dtype is preserved (ctranspose conjugates the VALUES of a complex operand
@@ -582,6 +601,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.addMulti("size", sizeMultiTransfer);
     reg.addMulti("max", maxMinMultiTransfer);  // [m,i]=max(x) -> {value, 1-based index}
     reg.addMulti("min", maxMinMultiTransfer);  // [m,i]=min(x) -> {value, 1-based index}
+    reg.addMulti("sort", sortMultiTransfer);   // [s,i]=sort(x) -> {sorted values, permutation}
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)

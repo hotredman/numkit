@@ -7526,8 +7526,8 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     TransferRegistry reg;
     registerStandardTransfers(reg);
     numkit::Lexer          lex("function y = f(x)\n"
-                               "  [s, idx] = sort(x);\n"  // bridged 2-output -> s,idx Dynamic
-                               "  y = s(1) + idx(1);\n"    // Dynamic indexing + arithmetic
+                               "  [u, ia] = unique(x);\n"  // bridged 2-output -> u,ia Dynamic
+                               "  y = u(1) + ia(1);\n"      // Dynamic indexing + arithmetic
                                "end\n");
     numkit::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
@@ -7542,7 +7542,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     const EmittedFunction emitted = emitFunction(
         *fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg, nullptr,
         bridge);
-    ASSERT_NE(emitted.source.find("nk_rt::call_dyn_multi(\"sort\""), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk_rt::call_dyn_multi(\"unique\""), std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
     std::filesystem::create_directories(base);
@@ -7554,7 +7554,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     std::string program = emitted.source +
         "#include <cstdio>\n"
         "int main() {\n"
-        "  const double xs[5] = {3, 1, 4, 5, 2};\n"  // distinct; sort -> s(1)=1, idx(1)=2
+        "  const double xs[5] = {3, 1, 4, 5, 2};\n"  // distinct; unique -> u(1)=1, ia(1)=2
         "  nk_val r = f(xs, 5);\n"
         "  const double v = nk_unbox_scalar(r);\n"
         "  nk_release(r);\n"
@@ -7583,7 +7583,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    EXPECT_DOUBLE_EQ(got[0], 3.0);  // sort: s(1)=1 (min), idx(1)=2 (its position); 1 + 2 = 3
+    EXPECT_DOUBLE_EQ(got[0], 3.0);  // unique: u(1)=1 (min), ia(1)=2 (its position); 1 + 2 = 3
 }
 
 // BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sign(x). `sign` is
@@ -9740,5 +9740,45 @@ TEST(CodegenE2E, ColumnArgMaxMin2D)
     numkit::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 4 1 5 9 2 6 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
+// [s,i]=sort(x) with a permutation-index output (phase N38): sorted values + the 1-based original
+// positions. The index output was bridged even for 1-D; now native (stable_sort an index vector,
+// so ties keep ascending original order -- MATLAB). Tie in the input checks stability. Bit-exact.
+TEST(CodegenE2E, SortWithIndex)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  [s, i] = sort(x);\n"            // x=[3 1 4 1 5]: s=[1 1 3 4 5], i=[2 4 1 3 5]
+        "  [sd, id] = sort(x, 'descend');\n"  // sd=[5 4 3 1 1], id=[5 3 1 2 4]
+        "  r = s(1) + i(1)*10 + s(5)*100 + i(5)*1000 + sd(1)*10000 + id(1)*100000"
+        " + numel(s)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_sortidx_e2e.exe").string();
+    const std::string outTxt = (base / "nk_sortidx_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {3, 1, 4, 1, 5};\n"  // tie: two 1s at positions 2 and 4
+        "  double r = f(x, 5);\n"  // 1 + 20 + 500 + 5000 + 50000 + 500000 + 5000000 = 5555521
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5555521.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
