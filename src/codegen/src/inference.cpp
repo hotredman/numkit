@@ -662,6 +662,15 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         if (lhs.type == NodeType::IDENTIFIER) {
             env.set(lhs.strValue, rhs);
             recordDecl(declOut, lhs.strValue, rhs.type);
+            // A struct-valued assignment (t = structReturningCall()) also DECLARES the
+            // per-field locals (_nk_fld_t_<f>) so they hoist and t.f reads work, and seeds
+            // them -- the caller-receipt (G2.4) passes them as the callee's out-param refs.
+            if (rhs.type.isStruct() && rhs.type.structLayout)
+                for (const auto &f : rhs.type.structLayout->fields) {
+                    const std::string fld = "_nk_fld_" + lhs.strValue + "_" + f.first;
+                    env.set(fld, {f.second, ConstVal::unknown()});
+                    recordDecl(declOut, fld, f.second);
+                }
         } else if (!lhs.children.empty()
                    && lhs.children[0]->type == NodeType::IDENTIFIER) {
             const std::string  &base = lhs.children[0]->strValue;
