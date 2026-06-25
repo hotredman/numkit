@@ -5743,6 +5743,57 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native sortrows(A) on a 2-D MATRIX -> rows sorted ascending lexicographically (by col 1,
+        // ties by col 2, ...). Sort an m-row index vector with a lexicographic comparator (per
+        // column, NaN-last: NaN sorts after numbers; equal/both-NaN -> next column), then gather the
+        // rows in the new order into a fresh same-shape matrix. STABLE so fully-equal rows keep
+        // their order. Column-major: A(i,k) = A[i + k*m]. !bridge_ guard. v1: a DOUBLE matrix var
+        // distinct from the dest.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_
+            && (arrays_.at(name).is2D
+                || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+            && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "sortrows"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[1]->strValue != name
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                line("const double* _nk_da = " + A.dataExpr + ";");
+                if (M.isND && M.ndDims.size() == 2) {
+                    line(M.ndDims[0] + " = _nk_m;");
+                    line(M.ndDims[1] + " = _nk_n;");
+                }
+                line("std::vector<std::size_t> _nk_p(_nk_m);");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                line("_nk_p[_nk_i] = _nk_i;");
+                close();
+                line("std::stable_sort(_nk_p.begin(), _nk_p.end(), [_nk_da, _nk_m, _nk_n]("
+                     "std::size_t _ri, std::size_t _rj){ for (std::size_t _k = 0; _k < _nk_n; ++_k) "
+                     "{ double _a = _nk_da[_ri + _k * _nk_m], _b = _nk_da[_rj + _k * _nk_m]; if (_a "
+                     "< _b || (_b != _b && _a == _a)) return true; if (_b < _a || (_a != _a && _b == "
+                     "_b)) return false; } return false; });");
+                line(name + ".assign(_nk_m * _nk_n, 0.0);");
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_n; ++_nk_k)");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                line(name + "[_nk_i + _nk_k * _nk_m] = _nk_da[_nk_p[_nk_i] + _nk_k * _nk_m];");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even
