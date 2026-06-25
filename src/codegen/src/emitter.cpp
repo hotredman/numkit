@@ -4707,6 +4707,63 @@ void Emitter::emitAssign(const ASTNode &s)
             }
             }
         }
+        // Native rot90(A, k) on a 2-D matrix with a LITERAL non-negative k -> rotate k*90deg CCW.
+        // By k%4: 0 = identity (m x n, B[i+j*m]=A[i+j*m]); 1 = 90 CCW (n x m, B[i+j*n]=A[j+(n-1-i)*m]);
+        // 2 = 180 (m x n, B[i+j*m]=A[(m-1-i)+(n-1-j)*m]); 3 = 270 CCW / 90 CW (n x m, B[i+j*n]=
+        // A[(m-1-j)+i*m]). Column-major, both tiers via dimExpr; a runtime dst gets its companions
+        // set. v1: a DOUBLE matrix var distinct from the dest. (Placed before the 1-arg form.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal
+            && (arrays_.at(name).is2D
+                || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+            && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "rot90"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[1]->strValue != name
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+            && rhs.children[2]->numValue >= 0.0) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const int  k    = static_cast<int>(rhs.children[2]->numValue) % 4;
+                const bool swap = (k == 1 || k == 3);  // result dims swap for 90/270
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");  // A rows
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");  // A cols
+                // result rows R / cols C: swapped (n x m) for 90/270, else m x n
+                const std::string R = swap ? "_nk_n" : "_nk_m";
+                const std::string C = swap ? "_nk_m" : "_nk_n";
+                if (M.isND && M.ndDims.size() == 2) {
+                    line(M.ndDims[0] + " = " + R + ";");
+                    line(M.ndDims[1] + " = " + C + ";");
+                }
+                line(name + ".assign(" + R + " * " + C + ", 0.0);");
+                // srcIdx into A (column-major, A is m x n) for result element (i, j):
+                std::string srcIdx;
+                if (k == 0)
+                    srcIdx = "_nk_i + _nk_j * _nk_m";
+                else if (k == 1)
+                    srcIdx = "_nk_j + (_nk_n - 1 - _nk_i) * _nk_m";
+                else if (k == 2)
+                    srcIdx = "(_nk_m - 1 - _nk_i) + (_nk_n - 1 - _nk_j) * _nk_m";
+                else  // k == 3
+                    srcIdx = "(_nk_m - 1 - _nk_j) + _nk_i * _nk_m";
+                open("for (std::size_t _nk_j = 0; _nk_j < " + C + "; ++_nk_j)");
+                open("for (std::size_t _nk_i = 0; _nk_i < " + R + "; ++_nk_i)");
+                line(name + "[_nk_i + _nk_j * " + R + "] = " + A.dataExpr + "[" + srcIdx + "];");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native rot90(A) on a 2-D matrix -> a 90deg-CCW rotation, dims swapped (A m x n ->
         // B n x m). Column-major: B[i + j*n] = A[j + (n-1-i)*m] (B(i,j) = A(j, n-1-i)). Both
         // tiers via dimExpr; a runtime dst gets its companions set (rows=n, cols=m). v1: the
