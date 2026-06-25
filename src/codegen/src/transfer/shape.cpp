@@ -69,8 +69,18 @@ std::vector<InferredType> maxMinMultiTransfer(const std::vector<ArgInfo> &args)
     case ShapeKind::ColVector:
     case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
         return {InferredType::scalar(ValueType::DOUBLE), InferredType::scalar(ValueType::DOUBLE)};
-    default:  // matrix / N-D reduces to a row, not two scalars -> deferred
+    case ShapeKind::KnownDims:
+        // a true 2-D matrix [m,i]=max(A) is column-wise -> two 1 x n row vectors (value + index).
+        if (args[0].type.shape.rows > 1 && args[0].type.shape.cols > 1)
+            return {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                    InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
         return {InferredType::dynamic(), InferredType::dynamic()};
+    case ShapeKind::NDims:  // runtime-dim rank-2 matrix -> column-wise -> two 1-D row vectors
+        if (args[0].type.shape.nd.size() == 2)
+            return {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                    InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
+        return {InferredType::dynamic(), InferredType::dynamic()};
+    default: return {InferredType::dynamic(), InferredType::dynamic()};
     }
 }
 
