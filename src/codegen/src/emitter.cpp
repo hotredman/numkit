@@ -8166,8 +8166,15 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         appendCallArg(*rhs.children[i], argTypes, argList);
     if (argTypes.size() != def->paramNames.size())
         unsupported("arity mismatch calling '" + name + "'");
-    if (s.returnNames.size() != def->returnNames.size())
-        unsupported("multi-assign must request all of '" + name + "'s outputs (v1)");
+    const std::size_t ncallee = def->returnNames.size();
+    if (s.returnNames.size() > ncallee)
+        unsupported("multi-assign requests more outputs than '" + name + "' returns");
+    // PARTIAL NARGOUT: requesting FEWER targets than the callee returns is allowed. The
+    // monomorphic callee always computes every output (its signature has one out-param per
+    // output), so the caller satisfies the full signature -- the unrequested TRAILING outputs
+    // get throwaway out-params, exactly like an explicit `~`. `nargout` is not a value in the
+    // compilable subset (a function branching on it falls outside it), so there is no
+    // nargout-gated behaviour to diverge on: the bound first-k outputs match MATLAB's. Sound.
 
     const std::vector<InferredType> outs = reg_.applyMulti(name, toArgInfos(argTypes));
     // Output 0 may be returned BY VALUE — a leading 1-D array (the callee's ABI
@@ -8176,17 +8183,21 @@ void Emitter::emitMultiAssign(const ASTNode &s)
     // every output is a reference out-arg (the all-scalar multi-output case).
     const InferredType out0 = !outs.empty() ? outs[0] : InferredType::dynamic();
     const bool         out0ByValue = isByValueReturnArrayType(out0);
-    // An ignored (~) output still has a reference out-param the callee writes, so
-    // it gets a throwaway local. The throwaways are scoped in a fresh block so
-    // repeated `[~,...] = f()` statements never collide on the throwaway name.
+    // An ignored (~) output, OR an unrequested trailing output (partial nargout), still has a
+    // reference out-param the callee writes, so it gets a throwaway local. The throwaways are
+    // scoped in a fresh block so repeated `[~,...] = f()` statements never collide on the name.
+    // The loop covers EVERY callee output (i < ncallee), not just the requested ones.
     std::vector<std::string> ignoreDecls;
-    for (std::size_t i = (out0ByValue ? 1 : 0); i < s.returnNames.size(); ++i) {
-        const std::string &rn = s.returnNames[i];
+    for (std::size_t i = (out0ByValue ? 1 : 0); i < ncallee; ++i) {
+        const bool          requested = i < s.returnNames.size();
+        const std::string   rn = requested ? s.returnNames[i] : std::string();  // unrequested -> ""
         const InferredType  ot = i < outs.size() ? outs[i] : InferredType::dynamic();
         if (!argList.empty()) argList += ", ";
-        if (rn.empty() || rn == "~") {
+        if (!requested || rn.empty() || rn == "~") {
+            // explicit ~ OR an unrequested trailing output -> a throwaway out-param.
             if (!isUnboxableScalarType(ot))
-                unsupported("ignored (~) multi-output must be a scalar output (v1): '" + name + "'");
+                unsupported("ignored / unrequested multi-output must be a scalar output (v1): '"
+                            + name + "'");
             const std::string tmp = "_nk_ignore_" + std::to_string(i);
             ignoreDecls.push_back(cppScalarType(ot.dtype) + " " + tmp + " = "
                                   + zeroLiteral(ot.dtype) + ";");
