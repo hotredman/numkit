@@ -3982,6 +3982,45 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native any(A) / all(A) on a 2-D MATRIX -> column-wise -> a LOGICAL 1 x n ROW vector (a
+        // 1-D LOGICAL LOCAL, uint8 buffer). result(j) = whether column j has ANY nonzero (any) or
+        // is ALL nonzero (all). NaN counts as nonzero (NaN != 0), matching MATLAB. EXACT -> every
+        // tier, no bridge guard. An empty column -> any false / all true (the seeds). Column-major.
+        // v1: a single DOUBLE/LOGICAL matrix var (KnownDims or runtime rank-2).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "any" || rhs.children[0]->strValue == "all")
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && (arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+                || arrays_.at(rhs.children[1]->strValue).dtype == ValueType::LOGICAL)) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const bool isAny = rhs.children[0]->strValue == "any";
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                line(name + ".assign(_nk_n, 0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                line(std::string("bool _nk_acc = ") + (isAny ? "false;" : "true;"));
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                line("const double _nk_v = static_cast<double>(" + A.dataExpr
+                     + "[_nk_i + _nk_j * _nk_m]);");
+                line(std::string("_nk_acc = _nk_acc ") + (isAny ? "|| _nk_v != 0.0;" : "&& _nk_v != 0.0;"));
+                close();
+                line(name + "[_nk_j] = _nk_acc;");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native max(A) / min(A) on a 2-D MATRIX -> column-wise reduction -> a 1 x n ROW vector
         // (a 1-D LOCAL). result(j) = the max/min over column j, NaN-skipping (seed on the column's
         // first element, update on a strict cmp OR when acc is NaN -> the first non-NaN seeds it;
