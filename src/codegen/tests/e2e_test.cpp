@@ -9538,3 +9538,42 @@ TEST(CodegenE2E, Sort2D)
         engine.eval(std::string("x=[3 1 2 6 4 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// 2-D unique(A) (phase N33): unique(A) flattens the matrix (column-major) and returns the sorted
+// distinct values as a 1-D column. The unique producer was 1-D only -> a matrix unique was bridged;
+// now native (sort the flat m*n buffer + dedupe). Duplicated input. Bit-exact vs the interpreter.
+TEST(CodegenE2E, Unique2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 3);\n"  // flat [3 1 3 2 1 5] (duplicates)
+        "  B = unique(A);\n"         // sorted distinct -> [1; 2; 3; 5]
+        "  r = B(1) + B(2)*10 + B(3)*100 + B(4)*1000 + numel(B)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_unique2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_unique2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6] = {3, 1, 3, 2, 1, 5};\n"  // 2x3 col-major, duplicated
+        "  double r = f(x, 6);\n"  // 1 + 20 + 300 + 5000 + 40000 = 45321
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 45321.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 3 2 1 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}

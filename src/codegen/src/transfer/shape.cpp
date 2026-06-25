@@ -480,6 +480,15 @@ InferredType uniqueTransfer(const std::vector<ArgInfo> &args)
     case ShapeKind::ColVector:
     case ShapeKind::Unknown:
         return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+    case ShapeKind::KnownDims:
+        // unique(A) on a matrix flattens (column-major) -> a 1-D column of sorted distinct values.
+        if (args[0].type.shape.rows > 1 && args[0].type.shape.cols > 1)
+            return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+        return InferredType::dynamic();
+    case ShapeKind::NDims:
+        if (args[0].type.shape.nd.size() == 2)
+            return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+        return InferredType::dynamic();
     default: return InferredType::dynamic();
     }
 }
