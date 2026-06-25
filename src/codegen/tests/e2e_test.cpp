@@ -8592,3 +8592,41 @@ TEST(CodegenE2E, MiddleScalarSliceRank3)
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// N-D fiber (phase N10): B = A(2,1,:) of a 2x2x3 -> rank-3 [1,1,3] (two fixed dims kept as
+// singletons). Strided. A=reshape([1..12],2,2,3); A(2,1,:) = [2 6 10] along dim 3.
+TEST(CodegenE2E, FiberSliceRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"  // 2x2x3
+        "  B = A(2,1,:);\n"             // [1,1,3] fiber
+        "  r = B(1,1,1) + B(1,1,2)*10 + B(1,1,3)*100 + numel(B)*1000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_fiber_e2e.exe").string();
+    const std::string outTxt = (base / "nk_fiber_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};\n"
+        "  double r = f(x, 12);\n"  // 2 + 60 + 1000 + 3000 = 4062
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4062.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
