@@ -252,6 +252,15 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                     && expr.children[2]->children.empty())
                     return {InferredType::concrete(base.type.dtype, Shape::ndShape({0, 0})),
                             ConstVal::unknown()};
+                // 2-D BOTH-RANGE read A(i1:i2, j1:j2): both subscripts step-1 ranges on a 2-D base
+                // -> a runtime-dim 2-D [(i2-i1+1), (j2-j1+1)] (a strided sub-block; the emit gathers
+                // per kept column). Combines the row + column range cases.
+                if (is2DSrc && nsub == 2 && expr.children[1]->type == NodeType::COLON_EXPR
+                    && expr.children[1]->children.size() == 2
+                    && expr.children[2]->type == NodeType::COLON_EXPR
+                    && expr.children[2]->children.size() == 2)
+                    return {InferredType::concrete(base.type.dtype, Shape::ndShape({0, 0})),
+                            ConstVal::unknown()};
                 if (base.type.shape.kind == ShapeKind::NDims && base.type.shape.nd.size() >= 3
                     && nsub == base.type.shape.nd.size()) {
                     const std::size_t r = base.type.shape.nd.size();
