@@ -489,10 +489,11 @@ InferredType trilTriuTransfer(const std::vector<ArgInfo> &args)
     return args[0].type;
 }
 
-// flip(A) or flip(A, dim): reverse along a dim -> SAME shape as A regardless of dim. A 1-or-2-arg
-// identity-shape transfer (the strict-1-arg identityShapeTransfer covers fliplr/flipud, which take
-// no dim). Typing flip(A, dim) concrete lets the 2-arg emit producer fire instead of bridging.
-InferredType flipTransfer(const std::vector<ArgInfo> &args)
+// A 1-or-2-arg identity-shape transfer: shape = args[0] regardless of an optional 2nd arg. Used
+// by flip(A[, dim]) and cumsum/cumprod(A[, dim]) -- typing the 2-arg form concrete lets the 2-arg
+// emit producer fire instead of bridging. (The strict-1-arg identityShapeTransfer covers fliplr/
+// flipud/cummax/cummin/gradient, which the codegen handles without a dim arg.)
+InferredType identityShape1or2Transfer(const std::vector<ArgInfo> &args)
 {
     if (args.empty() || args.size() > 2 || !args[0].type.isConcrete())
         return InferredType::dynamic();
@@ -543,9 +544,11 @@ void registerShapeTransfers(TransferRegistry &reg)
     for (const char *n : {"isnumeric", "isfloat", "isinteger", "ischar", "islogical"})
         reg.add(n, logicalQueryTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
-    for (const char *n : {"cumsum", "cumprod", "cummax", "cummin", "fliplr", "flipud", "gradient"})
-        reg.add(n, identityShapeTransfer);
-    reg.add("flip", flipTransfer);  // flip(A) or flip(A, dim) -- 1-or-2-arg identity shape
+    for (const char *n : {"cummax", "cummin", "fliplr", "flipud", "gradient"})
+        reg.add(n, identityShapeTransfer);  // strict 1-arg
+    // 1-or-2-arg identity shape (the optional 2nd arg is a dim): flip / cumsum / cumprod.
+    for (const char *n : {"flip", "cumsum", "cumprod"})
+        reg.add(n, identityShape1or2Transfer);
     reg.add("tril", trilTriuTransfer);  // tril(A[, k]) -- same shape, optional diag offset
     reg.add("triu", trilTriuTransfer);  // triu(A[, k])
     for (const char *n : {"upper", "lower"})  // char case transform (native, same shape)
