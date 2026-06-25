@@ -4161,6 +4161,77 @@ void Emitter::emitAssign(const ASTNode &s)
                 }
             }
         }
+        // Native any(A,dim) / all(A,dim) reduction along a LITERAL dim 1|2|3 of a rank-3 array -> a
+        // LOGICAL result with the dim collapsed: dim 1 -> [1,n,p], dim 2 -> [m,1,p] (rank-3, the
+        // singleton is non-trailing, kept), dim 3 -> [m,n] (rank-2, the trailing dim is fully
+        // removed). result = the reduced fiber has ANY nonzero (any) / is ALL nonzero (all); NaN
+        // counts as nonzero (NaN != 0), per MATLAB. Empty fiber -> any false / all true (the seeds).
+        // EXACT, every tier. Reuses the cumsum stride scheme: each fiber (stride sd, length ld)
+        // reduces to out[b/ld + r]. v1: a DOUBLE/LOGICAL rank-3 var.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && (arrays_.at(name).ndDims.size() == 2 || arrays_.at(name).ndDims.size() == 3)
+            && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "any" || rhs.children[0]->strValue == "all")
+            && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0
+                || rhs.children[2]->numValue == 3.0)
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+            && (arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+                || arrays_.at(rhs.children[1]->strValue).dtype == ValueType::LOGICAL)) {
+            const int dimv = static_cast<int>(rhs.children[2]->numValue);
+            // the dst rank must match the dim: dim 3 -> rank 2, dim 1|2 -> rank 3.
+            if ((dimv == 3) == (arrays_.at(name).ndDims.size() == 2)) {
+                const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+                const ArrayInfo    &M   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                    const bool        isAny = rhs.children[0]->strValue == "any";
+                    const std::string comb  = isAny ? "|| _nk_v != 0.0;" : "&& _nk_v != 0.0;";
+                    const std::string sd = dimv == 1 ? "1" : (dimv == 2 ? "_nk_m" : "_nk_m * _nk_n");
+                    const std::string ld = dimv == 1 ? "_nk_m" : (dimv == 2 ? "_nk_n" : "_nk_p");
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                    line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                    line("const std::size_t _nk_p = " + dimExpr(A, 2) + ";");
+                    line("const std::size_t _nk_tot = _nk_m * _nk_n * _nk_p;");
+                    line("const std::size_t _nk_sd = " + sd + ";");
+                    line("const std::size_t _nk_ld = " + ld + ";");
+                    line("const std::size_t _nk_blk = _nk_sd * _nk_ld;");
+                    if (dimv == 1) {
+                        line(M.ndDims[0] + " = 1;");
+                        line(M.ndDims[1] + " = _nk_n;");
+                        line(M.ndDims[2] + " = _nk_p;");
+                    } else if (dimv == 2) {
+                        line(M.ndDims[0] + " = _nk_m;");
+                        line(M.ndDims[1] + " = 1;");
+                        line(M.ndDims[2] + " = _nk_p;");
+                    } else {  // dim 3 -> rank-2 [m, n]
+                        line(M.ndDims[0] + " = _nk_m;");
+                        line(M.ndDims[1] + " = _nk_n;");
+                    }
+                    line(name + ".assign(_nk_tot / _nk_ld, 0);");
+                    open("for (std::size_t _nk_b = 0; _nk_b < _nk_tot; _nk_b += _nk_blk)");
+                    open("for (std::size_t _nk_r = 0; _nk_r < _nk_sd; ++_nk_r)");
+                    line(std::string("bool _nk_acc = ") + (isAny ? "false;" : "true;"));
+                    open("for (std::size_t _nk_t = 0; _nk_t < _nk_ld; ++_nk_t)");
+                    line("const double _nk_v = static_cast<double>(" + A.dataExpr
+                         + "[_nk_b + _nk_r + _nk_t * _nk_sd]);");
+                    line("_nk_acc = _nk_acc " + comb);
+                    close();
+                    line(name + "[_nk_b / _nk_ld + _nk_r] = _nk_acc;");
+                    close();
+                    close();
+                    --indent_;
+                    line("}");
+                    types_.set(name, res);
+                    return;
+                }
+            }
+        }
         // Native max(A, [], dim) / min(A, [], dim) on a 2-D MATRIX with a LITERAL dim 1|2 -> a 1-D
         // vector. dim 1 reduces each COLUMN (-> 1 x n, same as max(A)); dim 2 reduces each ROW
         // (-> m x 1). NaN-skipping (seed on the reduced line's first element). EXACT, every tier.

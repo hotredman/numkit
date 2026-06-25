@@ -10642,3 +10642,47 @@ TEST(CodegenE2E, MaxMinReduceRank3)
         engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// rank-3 any/all reduction along a dim (phase N60): any(A,dim)/all(A,dim) collapse the scan dim ->
+// a LOGICAL result, dim 1 [1,n,p], dim 2 [m,1,p] (rank-3), dim 3 [m,n] (rank-2). The any/all
+// reduction producer was 1-D + 2-D only -> a rank-3 reduction was bridged; now native (sibling of
+// the max/min reduction, OR/AND accumulator, LOGICAL uint8 output). Mixed 0/1 input. Bit-exact vs
+// the interpreter. Completes the rank-3 reduction family (max/min/any/all along any dim).
+TEST(CodegenE2E, AnyAllReduceRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"   // pages [1 1;0 1], [1 0;0 0], [1 0;1 1]
+        "  P = any(A, 1);\n"             // [1,2,3]: P(1,1,1)=any(1,0)=1, P(1,2,2)=any(0,0)=0
+        "  Q = all(A, 2);\n"            // [2,1,3]: Q(1,1,1)=1, Q(2,1,1)=all(0,1)=0, Q(2,1,3)=1
+        "  T = all(A, 3);\n"            // [2,2] rank-2: T(1,1)=all(1,1,1)=1, T(2,1)=all(0,0,1)=0
+        "  r = P(1,1,1)*1 + P(1,2,2)*2 + Q(1,1,1)*4 + Q(2,1,1)*8 + Q(2,1,3)*16 + T(1,1)*32"
+        " + T(2,1)*64 + numel(T)*100;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_anyallreducerank3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_anyallreducerank3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12] = {1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1};\n"  // 2x2x3 col-major, mixed 0/1
+        "  double r = f(x, 12);\n"  // 1 + 4 + 16 + 32 + 400 = 453
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 453.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 0 1 1 1 0 0 0 1 1 0 1];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}

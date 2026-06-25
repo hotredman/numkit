@@ -512,6 +512,14 @@ InferredType anyAllTransfer(const std::vector<ArgInfo> &args)
     std::size_t dim = 0;
     if (args.size() == 2 && is2D && args[1].constant.asDim(dim) && (dim == 1 || dim == 2))
         return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());
+    // rank-3 reduction: dim 1|2 keep the (non-trailing) singleton -> a LOGICAL rank-3; dim 3 removes
+    // the trailing dim entirely -> a LOGICAL rank-2. Both output ranks are deterministic, so sound.
+    const bool isND3 = s.kind == ShapeKind::NDims && s.nd.size() == 3;
+    if (args.size() == 2 && isND3 && args[1].constant.asDim(dim)) {
+        if (dim == 1 || dim == 2)
+            return InferredType::concrete(ValueType::LOGICAL, Shape::ndShape({0, 0, 0}));
+        if (dim == 3) return InferredType::concrete(ValueType::LOGICAL, Shape::ndShape({0, 0}));
+    }
     return InferredType::dynamic();
 }
 
