@@ -4216,6 +4216,76 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native max(A,[],dim) / min(A,[],dim) reduction along a LITERAL dim 1|2|3 of a rank-3 array
+        // -> the dim collapses: dim 1 -> [1,n,p], dim 2 -> [m,1,p] (rank-3, the singleton is non-
+        // trailing, kept), dim 3 -> [m,n] (rank-2, the trailing dim is fully removed). NaN-skipping
+        // per the single-output max/min accumulator (seed on the fiber first element, update on a
+        // strict cmp, or acc NaN & cand not). EXACT, every tier. Reuses the cumsum stride scheme:
+        // each fiber (stride sd, length ld) reduces to out[b/ld + r]. children: [max, A, [], dim].
+        // v1: a DOUBLE rank-3 var.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && (arrays_.at(name).ndDims.size() == 2 || arrays_.at(name).ndDims.size() == 3)
+            && rhs.type == NodeType::CALL && rhs.children.size() == 4
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "max" || rhs.children[0]->strValue == "min")
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[2]->type == NodeType::MATRIX_LITERAL && rhs.children[2]->children.empty()
+            && rhs.children[3]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[3]->numValue == 1.0 || rhs.children[3]->numValue == 2.0
+                || rhs.children[3]->numValue == 3.0)) {
+            const int dimv = static_cast<int>(rhs.children[3]->numValue);
+            // the dst rank must match the dim: dim 3 -> rank 2, dim 1|2 -> rank 3.
+            if ((dimv == 3) == (arrays_.at(name).ndDims.size() == 2)) {
+                const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+                const ArrayInfo    &M   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                    const std::string cmp = rhs.children[0]->strValue == "max" ? ">" : "<";
+                    const std::string sd = dimv == 1 ? "1" : (dimv == 2 ? "_nk_m" : "_nk_m * _nk_n");
+                    const std::string ld = dimv == 1 ? "_nk_m" : (dimv == 2 ? "_nk_n" : "_nk_p");
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                    line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                    line("const std::size_t _nk_p = " + dimExpr(A, 2) + ";");
+                    line("const std::size_t _nk_tot = _nk_m * _nk_n * _nk_p;");
+                    line("const std::size_t _nk_sd = " + sd + ";");
+                    line("const std::size_t _nk_ld = " + ld + ";");
+                    line("const std::size_t _nk_blk = _nk_sd * _nk_ld;");
+                    if (dimv == 1) {
+                        line(M.ndDims[0] + " = 1;");
+                        line(M.ndDims[1] + " = _nk_n;");
+                        line(M.ndDims[2] + " = _nk_p;");
+                    } else if (dimv == 2) {
+                        line(M.ndDims[0] + " = _nk_m;");
+                        line(M.ndDims[1] + " = 1;");
+                        line(M.ndDims[2] + " = _nk_p;");
+                    } else {  // dim 3 -> rank-2 [m, n]
+                        line(M.ndDims[0] + " = _nk_m;");
+                        line(M.ndDims[1] + " = _nk_n;");
+                    }
+                    line(name + ".assign(_nk_tot / _nk_ld, 0.0);");
+                    open("for (std::size_t _nk_b = 0; _nk_b < _nk_tot; _nk_b += _nk_blk)");
+                    open("for (std::size_t _nk_r = 0; _nk_r < _nk_sd; ++_nk_r)");
+                    line("double _nk_acc = 0.0;");
+                    open("for (std::size_t _nk_t = 0; _nk_t < _nk_ld; ++_nk_t)");
+                    line("const double _nk_v = " + A.dataExpr + "[_nk_b + _nk_r + _nk_t * _nk_sd];");
+                    line("if (_nk_t == 0 || _nk_v " + cmp + " _nk_acc"
+                         " || (_nk_acc != _nk_acc && _nk_v == _nk_v)) _nk_acc = _nk_v;");
+                    close();
+                    line(name + "[_nk_b / _nk_ld + _nk_r] = _nk_acc;");
+                    close();
+                    close();
+                    --indent_;
+                    line("}");
+                    types_.set(name, res);
+                    return;
+                }
+            }
+        }
         // Native max(A) / min(A) on a 2-D MATRIX -> column-wise reduction -> a 1 x n ROW vector
         // (a 1-D LOCAL). result(j) = the max/min over column j, NaN-skipping (seed on the column's
         // first element, update on a strict cmp OR when acc is NaN -> the first non-NaN seeds it;
