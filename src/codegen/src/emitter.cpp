@@ -9083,6 +9083,9 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
     for (const auto &[name, t] : ordered) {
         if (paramSet.count(name) || arrays.count(name) || promotedVars.count(name))
             continue;  // signature params / arrays / promoted loop counters
+        if (t.isStruct())
+            continue;  // a plain struct is VIRTUAL: no storage of its own -- its fields are
+                       // the _nk_fld_* locals, hoisted separately (G2 field-flattening).
         // A Dynamic local is allowed under bridging — it lives in the Dynamic
         // tier as a boxed nk_rt::val (DESIGN.md §10 C1). Without bridging there
         // is no runtime to hold it, so it stays the explicit refusal.

@@ -228,9 +228,14 @@ TEST(TypeLattice, StructEqualityAndJoin)
     EXPECT_EQ(s1, s2);  // value equality, not pointer identity
     EXPECT_NE(s1, s3);
     EXPECT_NE(s1, s4);
-    EXPECT_EQ(join(s1, s2), s1);            // identical layout -> itself
-    EXPECT_TRUE(join(s1, s3).isDynamic());  // differing field type -> boxed
-    EXPECT_TRUE(join(s1, s4).isDynamic());  // differing field set  -> boxed
+    EXPECT_EQ(join(s1, s2), s1);  // identical layout -> itself
+    // Width-union join: fields accumulate; {a} U {a,b} -> {a,b}; a common field with
+    // differing types takes the (Dynamic) join of those types.
+    EXPECT_EQ(join(s1, s4), s4);  // {a} U {a,b} -> {a,b}
+    const InferredType j13 = join(s1, s3);
+    EXPECT_TRUE(j13.isStruct());
+    ASSERT_NE(j13.structLayout->field("a"), nullptr);
+    EXPECT_TRUE(j13.structLayout->field("a")->isDynamic());  // double vs logical -> Dynamic field
     EXPECT_TRUE(join(s1, InferredType::scalar(ValueType::DOUBLE)).isDynamic());  // struct vs double
 }
 

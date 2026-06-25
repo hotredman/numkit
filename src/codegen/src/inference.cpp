@@ -671,12 +671,26 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 // unchanged — do NOT clobber the base to Dynamic.
                 recordDecl(declOut, base, cur.type);
             } else if (lhs.type == NodeType::FIELD_ACCESS) {
-                // Plain struct: flatten `s.f = rhs` to a synthesized scalar
-                // field-local (no struct type; field-flattening). The base var is
-                // not a value itself — only its fields are read/written.
+                // Plain struct: flatten `s.f = rhs` to a synthesized scalar field-local
+                // (field-flattening), AND accumulate s's STRUCT type (field f -> rhs's
+                // type) so a WHOLESALE reference to `s` (e.g. a call argument) can be
+                // typed and passed across the function ABI (G2). The two coexist: `s.f`
+                // reads the field-local; bare `s` reads the STRUCT type. The struct local
+                // is virtual (no storage) -- the emit hoist skips it (its fields ARE the
+                // field-locals).
                 const std::string fld = "_nk_fld_" + base + "_" + lhs.strValue;
                 env.set(fld, rhs);
                 recordDecl(declOut, fld, rhs.type);
+                auto layout = std::make_shared<StructLayout>();
+                if (cur.type.isStruct() && cur.type.structLayout)
+                    layout->fields = cur.type.structLayout->fields;  // extend the existing layout
+                bool found = false;
+                for (auto &fp : layout->fields)
+                    if (fp.first == lhs.strValue) { fp.second = rhs.type; found = true; break; }
+                if (!found) layout->fields.emplace_back(lhs.strValue, rhs.type);
+                const InferredType st = InferredType::structOf(std::move(layout));
+                env.set(base, {st, ConstVal::unknown()});
+                recordDecl(declOut, base, st);
             } else if (cur.type.isConcrete() && rhs.type.isConcrete()
                        && cur.type.dtype == rhs.type.dtype) {
                 // Indexed assign x(i)=rhs: base keeps its dtype. A 1-D x(i)=v
