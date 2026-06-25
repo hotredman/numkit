@@ -252,6 +252,21 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                                     base.type.dtype,
                                     Shape::ndShape(std::vector<std::size_t>(r, 0))),
                                 ConstVal::unknown()};
+                    // LEADING-scalar slice A(i,:,:): a scalar FIRST subscript + trailing bare colons
+                    // -> the first dim becomes 1 (KEPT; only TRAILING scalar dims drop, per N3), the
+                    // rest runtime. For r=3 a rank-3 [1, n, p]. (Strided -- the emit gathers.)
+                    bool leadScalar = expr.children[1]->type != NodeType::COLON_EXPR
+                                      && isScalarValue(argVals[0]);
+                    for (std::size_t i = 2; i <= r && leadScalar; ++i)
+                        if (expr.children[i]->type != NodeType::COLON_EXPR
+                            || !expr.children[i]->children.empty())
+                            leadScalar = false;
+                    if (leadScalar) {
+                        std::vector<std::size_t> d(r, 0);
+                        d[0] = 1;  // first dim fixed to a single value -> size 1, kept
+                        return {InferredType::concrete(base.type.dtype, Shape::ndShape(d)),
+                                ConstVal::unknown()};
+                    }
                 }
                 return indexResult(base, argVals);
             }
