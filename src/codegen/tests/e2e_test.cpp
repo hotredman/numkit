@@ -10466,3 +10466,48 @@ TEST(CodegenE2E, CummaxCumminRank3)
         engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// rank-3 circshift along any dim 1|2|3 (phase N56): circshift(A,k,dim) circularly shifts each fiber
+// along the scan dim. The circshift producer was 1-D + 2-D only -> a rank-3 shift was bridged; now
+// native, reusing the cumsum stride scheme with a per-fiber rotate (out[t]=A[mod(t-k,ld)]), built
+// into a temp for in-place safety. Shape-preserving. The explicit 3-arg form only. Bit-exact vs the
+// interpreter.
+TEST(CodegenE2E, CircshiftRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"  // pages [1 3;2 4], [5 7;6 8], [9 11;10 12]
+        "  B = circshift(A, 1, 1);\n"   // swap rows within each page: B(1,1,1)=2, B(1,2,3)=12
+        "  D = circshift(A, 1, 2);\n"   // swap columns within each page: D(1,1,1)=3
+        "  C = circshift(A, 1, 3);\n"   // pages -> [P3 P1 P2]: C(1,1,1)=9, C(2,2,3)=8
+        "  r = B(1,1,1) + B(1,2,3)*10 + D(1,1,1)*100 + C(1,1,1)*1000 + C(2,2,3)*10000"
+        " + numel(C)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_circshiftrank3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_circshiftrank3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12];\n"
+        "  for (int i = 0; i < 12; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 12);\n"  // 2 + 120 + 300 + 9000 + 80000 + 1200000 = 1289422
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1289422.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
