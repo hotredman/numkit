@@ -4378,51 +4378,72 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // Native cat(4, A, B): append along dim 4 -> rank-4 (m x n x p x (sA+sB); phase N15). The
-        // mirror of cat(3) one rank up -- a contiguous trailing-dim buffer append (M = A slabs ++
-        // B slabs). A rank-3 operand is one slab (m*n*p elems); a rank-4 operand has size(.,4)
-        // slabs. Operands share the leading dims m,n,p. v1: two DOUBLE rank-3/rank-4 vars distinct
-        // from the dest.
+        // Native cat(4, A, B, C, ...): append N operands along dim 4 -> rank-4 (m x n x p x
+        // sum(slabs); phase N15 + N19 N-operand). The mirror of N-operand cat(3) one rank up --
+        // a contiguous trailing-dim buffer append (M = op0 slabs ++ op1 slabs ++ ...). A rank-3
+        // operand is one slab (m*n*p elems); a rank-4 operand has size(.,4) slabs. Operands share
+        // the leading dims m,n,p. Running offset across operands; per-operand leading-dim guard.
+        // v1: >=2 DOUBLE rank-3/rank-4 array vars distinct from the dest.
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
             && arrays_.at(name).ndDims.size() == 4 && rhs.type == NodeType::CALL
-            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children.size() >= 4 && rhs.children[0]->type == NodeType::IDENTIFIER
             && rhs.children[0]->strValue == "cat"
             && rhs.children[1]->type == NodeType::NUMBER_LITERAL
-            && rhs.children[1]->numValue == 4.0
-            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
-            && rhs.children[3]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[3]->strValue)
-            && rhs.children[2]->strValue != name && rhs.children[3]->strValue != name) {
-            const ArrayInfo &A = arrays_.at(rhs.children[2]->strValue);
-            const ArrayInfo &B = arrays_.at(rhs.children[3]->strValue);
-            const bool aOk = A.isND && (A.ndDims.size() == 3 || A.ndDims.size() == 4);
-            const bool bOk = B.isND && (B.ndDims.size() == 3 || B.ndDims.size() == 4);
-            if (aOk && bOk && A.dtype == ValueType::DOUBLE && B.dtype == ValueType::DOUBLE) {
+            && rhs.children[1]->numValue == 4.0) {
+            const std::size_t nOps = rhs.children.size() - 2;
+            bool              allOk = true;
+            for (std::size_t i = 0; i < nOps && allOk; ++i) {
+                const ASTNode &c = *rhs.children[2 + i];
+                if (!(c.type == NodeType::IDENTIFIER && isArrayVar(c.strValue) && c.strValue != name)) {
+                    allOk = false;
+                    break;
+                }
+                const ArrayInfo &op = arrays_.at(c.strValue);
+                if (!(op.isND && (op.ndDims.size() == 3 || op.ndDims.size() == 4)
+                      && op.dtype == ValueType::DOUBLE))
+                    allOk = false;
+            }
+            if (allOk) {
                 const ArrayInfo    &M   = arrays_.at(name);
                 const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
-                const std::string   sa  = A.ndDims.size() == 4 ? dimExpr(A, 3) : std::string("1");
-                const std::string   sb  = B.ndDims.size() == 4 ? dimExpr(B, 3) : std::string("1");
+                const ArrayInfo    &A0  = arrays_.at(rhs.children[2]->strValue);
                 line("{");
                 ++indent_;
-                line("const std::size_t _nk_d0 = " + dimExpr(A, 0) + ";");
-                line("const std::size_t _nk_d1 = " + dimExpr(A, 1) + ";");
-                line("const std::size_t _nk_d2 = " + dimExpr(A, 2) + ";");
-                line("if (_nk_d0 != " + dimExpr(B, 0) + " || _nk_d1 != " + dimExpr(B, 1)
-                     + " || _nk_d2 != " + dimExpr(B, 2)
-                     + ") throw std::out_of_range(\"numkit: cat(4) leading dims must agree\");");
+                line("const std::size_t _nk_d0 = " + dimExpr(A0, 0) + ";");
+                line("const std::size_t _nk_d1 = " + dimExpr(A0, 1) + ";");
+                line("const std::size_t _nk_d2 = " + dimExpr(A0, 2) + ";");
                 line("const std::size_t _nk_sl = _nk_d0 * _nk_d1 * _nk_d2;");  // one-slab elems
-                line("const std::size_t _nk_sa = " + sa + ";");
-                line("const std::size_t _nk_sb = " + sb + ";");
+                std::string totalSlabs;
+                for (std::size_t i = 0; i < nOps; ++i) {
+                    const ArrayInfo &op = arrays_.at(rhs.children[2 + i]->strValue);
+                    if (i > 0)
+                        line("if (" + dimExpr(op, 0) + " != _nk_d0 || " + dimExpr(op, 1)
+                             + " != _nk_d1 || " + dimExpr(op, 2)
+                             + " != _nk_d2) throw std::out_of_range(\"numkit: cat(4) leading dims "
+                               "must agree\");");
+                    const std::string si =
+                        op.ndDims.size() == 4 ? dimExpr(op, 3) : std::string("1");
+                    line("const std::size_t _nk_s" + std::to_string(i) + " = " + si + ";");
+                    totalSlabs += (i ? " + " : "") + ("_nk_s" + std::to_string(i));
+                }
                 line(M.ndDims[0] + " = _nk_d0;");
                 line(M.ndDims[1] + " = _nk_d1;");
                 line(M.ndDims[2] + " = _nk_d2;");
-                line(M.ndDims[3] + " = _nk_sa + _nk_sb;");
-                line(name + ".assign(_nk_sl * (_nk_sa + _nk_sb), 0.0);");
-                open("for (std::size_t _nk_k = 0; _nk_k < _nk_sl * _nk_sa; ++_nk_k)");
-                line(name + "[_nk_k] = " + A.dataExpr + "[_nk_k];");
-                close();
-                open("for (std::size_t _nk_k = 0; _nk_k < _nk_sl * _nk_sb; ++_nk_k)");
-                line(name + "[_nk_sl * _nk_sa + _nk_k] = " + B.dataExpr + "[_nk_k];");
-                close();
+                line(M.ndDims[3] + " = " + totalSlabs + ";");
+                line(name + ".assign(_nk_sl * (" + totalSlabs + "), 0.0);");
+                line("std::size_t _nk_off = 0;");
+                for (std::size_t i = 0; i < nOps; ++i) {
+                    const ArrayInfo &op = arrays_.at(rhs.children[2 + i]->strValue);
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_n = _nk_sl * _nk_s" + std::to_string(i) + ";");
+                    open("for (std::size_t _nk_k = 0; _nk_k < _nk_n; ++_nk_k)");
+                    line(name + "[_nk_off + _nk_k] = " + op.dataExpr + "[_nk_k];");
+                    close();
+                    line("_nk_off += _nk_n;");
+                    --indent_;
+                    line("}");
+                }
                 --indent_;
                 line("}");
                 types_.set(name, res);
