@@ -9902,3 +9902,41 @@ TEST(CodegenE2E, UniqueWithIndices2D)
         engine.eval(std::string("x=[30 10 40 10 50 10];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// union(a,b) (phase N42): the sorted distinct values of [a b] (= unique of the concatenation).
+// Was bridged; now native (reuses the unique sort+dedupe on the concatenation). Bit-exact vs interp.
+TEST(CodegenE2E, UnionVectors)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  b = [2 4 6 1];\n"
+        "  c = union(x, b);\n"  // union([3 1 4 1 5],[2 4 6 1]) = [1 2 3 4 5 6]
+        "  r = c(1) + c(2)*10 + c(end)*100 + numel(c)*1000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_union_e2e.exe").string();
+    const std::string outTxt = (base / "nk_union_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {3, 1, 4, 1, 5};\n"
+        "  double r = f(x, 5);\n"  // c=[1 2 3 4 5 6]: 1 + 20 + 600 + 6000 = 6621
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 6621.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
