@@ -31,7 +31,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace numkit::codegen {
@@ -90,6 +92,8 @@ struct Shape {
 // Least upper bound of two shapes (used at control-flow merges).
 Shape joinShape(const Shape &a, const Shape &b);
 
+struct StructLayout;  // an anonymous struct's field layout (defined below InferredType)
+
 // ── Type lattice ──────────────────────────────────────────────────────
 enum class TypeKind : std::uint8_t {
     Bottom,    // no value reaches here (identity of join)
@@ -105,6 +109,11 @@ struct InferredType {
     // instance). -1 for every non-object type, so it never perturbs the
     // numeric path's equality / join. Indexes a ClassRegistry (classinfo.hpp).
     int       classId = -1;
+    // Field layout, meaningful ONLY when dtype == STRUCT (a plain struct value).
+    // null for every non-struct type, so it never perturbs the numeric path's
+    // equality / join. Shared + immutable (cheap to copy across the lattice). A
+    // field type may itself be a STRUCT, so the recursion goes through InferredType.
+    std::shared_ptr<const StructLayout> structLayout;
 
     // ── constructors ──
     static InferredType dynamic() { return {TypeKind::Dynamic, ValueType::EMPTY, {}}; }
@@ -120,11 +129,21 @@ struct InferredType {
     {
         return {TypeKind::Concrete, ValueType::OBJECT, Shape::scalar(), classId};
     }
+    // A plain (anonymous) struct value with the given field layout (name -> type).
+    // A scalar struct in v1 (struct arrays are a later tier). The layout is shared
+    // (cheap copy; null for every non-struct type).
+    static InferredType structOf(std::shared_ptr<const StructLayout> layout)
+    {
+        InferredType t{TypeKind::Concrete, ValueType::STRUCT, Shape::scalar()};
+        t.structLayout = std::move(layout);
+        return t;
+    }
 
     bool isDynamic()  const { return kind == TypeKind::Dynamic; }
     bool isConcrete() const { return kind == TypeKind::Concrete; }
     bool isBottom()   const { return kind == TypeKind::Bottom; }
     bool isObject()   const { return kind == TypeKind::Concrete && dtype == ValueType::OBJECT; }
+    bool isStruct()   const { return kind == TypeKind::Concrete && dtype == ValueType::STRUCT; }
 
     // True when this can be emitted as an unboxed C++ primitive scalar
     // (double / float / bool / intN / complex<double>) rather than a
@@ -135,6 +154,18 @@ struct InferredType {
     bool operator!=(const InferredType &o) const { return !(*this == o); }
 
     std::string str() const;  // human-readable, for debug / diagnostics
+};
+
+// An anonymous struct's field layout: ordered (name -> type) pairs in MATLAB field order.
+// Carried by a STRUCT InferredType via a shared_ptr (immutable once built). A field type may
+// itself be a STRUCT (nested s.a.b), so the recursion goes through InferredType. Two layouts
+// are equal iff they have the same fields (name AND type) in the same order.
+struct StructLayout {
+    std::vector<std::pair<std::string, InferredType>> fields;
+
+    const InferredType *field(const std::string &name) const;  // nullptr if absent
+    bool                operator==(const StructLayout &o) const;
+    bool                operator!=(const StructLayout &o) const { return !(*this == o); }
 };
 
 // Lattice join (least upper bound) — combine the two inferred types that

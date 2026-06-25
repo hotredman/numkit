@@ -188,3 +188,64 @@ TEST(ConstLattice, DrivesShapeFromValue)
     std::size_t dummy = 0;
     EXPECT_FALSE(ConstVal::unknown().asDim(dummy));
 }
+
+// ── Struct types (G2.1) ───────────────────────────────────────────────
+// A STRUCT InferredType carries a shared field layout (name -> type), supports field
+// lookup + a readable str, and is never an unboxable scalar.
+TEST(TypeLattice, StructLayoutBasics)
+{
+    auto lay = std::make_shared<StructLayout>();
+    lay->fields = {{"a", InferredType::scalar(ValueType::DOUBLE)},
+                   {"b", InferredType::concrete(ValueType::DOUBLE, Shape::dims(1, 3))}};
+    const InferredType s = InferredType::structOf(lay);
+
+    EXPECT_TRUE(s.isStruct());
+    EXPECT_TRUE(s.isConcrete());
+    EXPECT_FALSE(s.isObject());
+    EXPECT_FALSE(s.isUnboxableScalar());  // aggregates are not unboxable scalars
+    ASSERT_NE(s.structLayout, nullptr);
+    ASSERT_NE(s.structLayout->field("a"), nullptr);
+    EXPECT_EQ(*s.structLayout->field("a"), InferredType::scalar(ValueType::DOUBLE));
+    EXPECT_EQ(s.structLayout->field("missing"), nullptr);
+    EXPECT_NE(s.str().find("struct{a,b}"), std::string::npos);
+}
+
+// Two structs are equal iff identical layouts (value, not pointer); join keeps an
+// identical layout and collapses differing layouts / struct-vs-nonstruct to Dynamic.
+TEST(TypeLattice, StructEqualityAndJoin)
+{
+    auto mk = [](std::vector<std::pair<std::string, InferredType>> f) {
+        auto l    = std::make_shared<StructLayout>();
+        l->fields = std::move(f);
+        return InferredType::structOf(l);
+    };
+    const InferredType s1 = mk({{"a", InferredType::scalar(ValueType::DOUBLE)}});
+    const InferredType s2 = mk({{"a", InferredType::scalar(ValueType::DOUBLE)}});  // same layout, new ptr
+    const InferredType s3 = mk({{"a", InferredType::scalar(ValueType::LOGICAL)}});  // field type differs
+    const InferredType s4 = mk({{"a", InferredType::scalar(ValueType::DOUBLE)},
+                                {"b", InferredType::scalar(ValueType::DOUBLE)}});  // extra field
+
+    EXPECT_EQ(s1, s2);  // value equality, not pointer identity
+    EXPECT_NE(s1, s3);
+    EXPECT_NE(s1, s4);
+    EXPECT_EQ(join(s1, s2), s1);            // identical layout -> itself
+    EXPECT_TRUE(join(s1, s3).isDynamic());  // differing field type -> boxed
+    EXPECT_TRUE(join(s1, s4).isDynamic());  // differing field set  -> boxed
+    EXPECT_TRUE(join(s1, InferredType::scalar(ValueType::DOUBLE)).isDynamic());  // struct vs double
+}
+
+// A struct field may itself be a struct (nested s.a.b); equality recurses through it.
+TEST(TypeLattice, NestedStruct)
+{
+    auto inner    = std::make_shared<StructLayout>();
+    inner->fields = {{"b", InferredType::scalar(ValueType::DOUBLE)}};
+    auto outer    = std::make_shared<StructLayout>();
+    outer->fields = {{"a", InferredType::structOf(inner)}};
+    const InferredType s = InferredType::structOf(outer);
+
+    ASSERT_NE(s.structLayout->field("a"), nullptr);
+    EXPECT_TRUE(s.structLayout->field("a")->isStruct());
+    ASSERT_NE(s.structLayout->field("a")->structLayout->field("b"), nullptr);
+    EXPECT_EQ(*s.structLayout->field("a")->structLayout->field("b"),
+              InferredType::scalar(ValueType::DOUBLE));
+}
