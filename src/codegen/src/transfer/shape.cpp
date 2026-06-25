@@ -238,12 +238,21 @@ InferredType vectorReductionTransfer(const std::vector<ArgInfo> &args)
 InferredType maxMinTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.empty() || !args[0].type.isConcrete()) return InferredType::dynamic();
-    if (args.size() == 1) {  // vector reduction -> scalar
+    if (args.size() == 1) {  // reduction
         switch (args[0].type.shape.kind) {
         case ShapeKind::Scalar:
         case ShapeKind::RowVector:
-        case ShapeKind::ColVector: return InferredType::scalar(args[0].type.dtype);
-        default:                   return InferredType::dynamic();
+        case ShapeKind::ColVector: return InferredType::scalar(args[0].type.dtype);  // -> scalar
+        case ShapeKind::KnownDims:
+            // a true 2-D matrix max(A) is column-wise -> a 1 x n ROW vector (runtime length).
+            if (args[0].type.shape.rows > 1 && args[0].type.shape.cols > 1)
+                return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+            return InferredType::dynamic();
+        case ShapeKind::NDims:  // runtime-dim rank-2 matrix -> column-wise -> 1-D row vector
+            if (args[0].type.shape.nd.size() == 2)
+                return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+            return InferredType::dynamic();
+        default: return InferredType::dynamic();
         }
     }
     if (args.size() == 2 && args[1].type.isConcrete()) {  // elementwise max(a,b) / min(a,b)
