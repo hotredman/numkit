@@ -4322,27 +4322,37 @@ void Emitter::emitAssign(const ASTNode &s)
         }
         // Native flip/fliplr/flipud(A) on a 2-D MATRIX (KnownDims or runtime-dim) -> a fresh
         // same-shape matrix. fliplr reverses the COLUMN order, flipud (and flip's default
-        // dim-1) reverses the ROW order. Column-major, both tiers via dimExpr: fliplr
-        // M[i+j*m] = A[i+(n-1-j)*m]; flipud M[i+j*m] = A[(m-1-i)+j*m]. v1: a DOUBLE matrix
-        // var distinct from the dest (an in-place B=fliplr(B) would self-alias the read).
-        if (isArrayVar(name) && arrays_.at(name).isLocal
-            && (arrays_.at(name).is2D
-                || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
-            && rhs.type == NodeType::CALL && rhs.children.size() == 2
-            && rhs.children[0]->type == NodeType::IDENTIFIER
-            && (rhs.children[0]->strValue == "flip" || rhs.children[0]->strValue == "fliplr"
-                || rhs.children[0]->strValue == "flipud")
-            && rhs.children[1]->type == NodeType::IDENTIFIER
-            && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
-            && (arrays_.at(rhs.children[1]->strValue).is2D
-                || (arrays_.at(rhs.children[1]->strValue).isND
-                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))) {
+        // dim-1) reverses the ROW order. The 2-arg flip(A, dim) form with a LITERAL dim 1|2
+        // is also handled: dim 1 reverses rows (= flipud), dim 2 reverses columns (= fliplr).
+        // Column-major, both tiers via dimExpr: fliplr M[i+j*m] = A[i+(n-1-j)*m]; flipud
+        // M[i+j*m] = A[(m-1-i)+j*m]. v1: a DOUBLE matrix var distinct from the dest (an in-place
+        // B=flip(B) would self-alias the read).
+        {
+            const bool flipTwoArg =
+                rhs.type == NodeType::CALL && rhs.children.size() == 3
+                && rhs.children[0]->type == NodeType::IDENTIFIER
+                && rhs.children[0]->strValue == "flip"
+                && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+                && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0);
+            if (isArrayVar(name) && arrays_.at(name).isLocal
+                && (arrays_.at(name).is2D
+                    || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+                && rhs.type == NodeType::CALL && (rhs.children.size() == 2 || flipTwoArg)
+                && rhs.children[0]->type == NodeType::IDENTIFIER
+                && (rhs.children[0]->strValue == "flip" || rhs.children[0]->strValue == "fliplr"
+                    || rhs.children[0]->strValue == "flipud")
+                && rhs.children[1]->type == NodeType::IDENTIFIER
+                && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+                && (arrays_.at(rhs.children[1]->strValue).is2D
+                    || (arrays_.at(rhs.children[1]->strValue).isND
+                        && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))) {
             const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
             const ArrayInfo    &M   = arrays_.at(name);
             const std::string  &fn  = rhs.children[0]->strValue;
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete()) {
-                const bool flipRows = (fn == "flipud" || fn == "flip");  // flip -> dim 1 (rows)
+                const bool flipRows = flipTwoArg ? (rhs.children[2]->numValue == 1.0)
+                                                 : (fn == "flipud" || fn == "flip");  // dim 1 = rows
                 line("{");
                 ++indent_;
                 line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
@@ -4364,6 +4374,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("}");
                 types_.set(name, res);
                 return;
+            }
             }
         }
         // Native rot90(A) on a 2-D matrix -> a 90deg-CCW rotation, dims swapped (A m x n ->
