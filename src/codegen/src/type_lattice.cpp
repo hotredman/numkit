@@ -117,12 +117,27 @@ InferredType join(const InferredType &a, const InferredType &b)
         if (a.classId != b.classId) return InferredType::dynamic();
         return InferredType::object(a.classId);
     }
-    // Two struct values unify only if they have the IDENTICAL field layout; distinct
-    // layouts at a merge are type-unstable -> Dynamic (boxed). (A width/depth-subtyping
-    // join is a later refinement.)
+    // Two struct values join by WIDTH-UNION: the merged layout has every field of either
+    // side, and a field present in BOTH takes the join of its two types. This is exactly
+    // what struct accumulation needs -- a struct built incrementally (s.a=..; s.b=..) joins
+    // its partial layouts {a} and {a,b} to the full {a,b}; a field built on only one branch
+    // is still present (the field-locals are function-scoped). Identical layouts short-circuit.
     if (a.dtype == ValueType::STRUCT) {
-        if (!structLayoutEq(a.structLayout, b.structLayout)) return InferredType::dynamic();
-        return a;
+        if (structLayoutEq(a.structLayout, b.structLayout)) return a;
+        auto merged = std::make_shared<StructLayout>();
+        if (a.structLayout) merged->fields = a.structLayout->fields;
+        if (b.structLayout)
+            for (const auto &bf : b.structLayout->fields) {
+                bool found = false;
+                for (auto &mf : merged->fields)
+                    if (mf.first == bf.first) {
+                        mf.second = join(mf.second, bf.second);  // common field -> join types
+                        found     = true;
+                        break;
+                    }
+                if (!found) merged->fields.push_back(bf);
+            }
+        return InferredType::structOf(std::move(merged));
     }
     return InferredType::concrete(a.dtype, joinShape(a.shape, b.shape));
 }
