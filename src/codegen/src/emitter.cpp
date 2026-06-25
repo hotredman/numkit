@@ -4408,6 +4408,54 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native A(:,j,:) read: a MIDDLE-scalar strided slice of a rank-3 A -> a rank-3
+        // [m, 1, p] sub-array (phase N9, the sibling of N8). The fixed col j is kept as a
+        // singleton middle dim. STRIDED: B(i,1,k) = A(i,j,k); A flat = i + (j-1)*m + k*m*n,
+        // B flat (dims [m,1,p]) = i + k*m. v1: rank-3 DOUBLE A, colon + scalar j + colon, B
+        // distinct from A; bounds-checked j (end = size(A,2)).
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue) && rhs.children[0]->strValue != name
+            && arrays_.at(rhs.children[0]->strValue).isND
+            && arrays_.at(rhs.children[0]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[1]->type == NodeType::COLON_EXPR && rhs.children[1]->children.empty()
+            && rhs.children[2]->type != NodeType::COLON_EXPR
+            && rhs.children[3]->type == NodeType::COLON_EXPR && rhs.children[3]->children.empty()) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[0]->strValue);
+            const ArrayInfo    &B   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()
+                && inferExpr(*rhs.children[2], types_, reg_, classes_).type.shape.isScalar()) {
+                const std::string m = dimExpr(A, 0), n = dimExpr(A, 1), p = dimExpr(A, 2);
+                endStack_.push_back(n);  // `end` in the col index = size(A,2)
+                const std::string j = emitExpr(*rhs.children[2]);
+                endStack_.pop_back();
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + m + ";");
+                line("const std::size_t _nk_n = " + n + ";");
+                line("const std::size_t _nk_p = " + p + ";");
+                line("const std::ptrdiff_t _nk_j0 = static_cast<std::ptrdiff_t>(" + j + ") - 1;");
+                line("if (_nk_j0 < 0 || _nk_j0 >= static_cast<std::ptrdiff_t>(_nk_n))");
+                line("    throw std::out_of_range(\"numkit: column index out of bounds\");");
+                line(B.ndDims[0] + " = _nk_m;");
+                line(B.ndDims[1] + " = 1;");
+                line(B.ndDims[2] + " = _nk_p;");
+                line(name + ".assign(_nk_m * _nk_p, 0.0);");
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_p; ++_nk_k)");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                line(name + "[_nk_i + _nk_k * _nk_m] = " + A.dataExpr
+                     + "[_nk_i + static_cast<std::size_t>(_nk_j0) * _nk_m + _nk_k * _nk_m * _nk_n];");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even
