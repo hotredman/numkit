@@ -9126,3 +9126,46 @@ TEST(CodegenE2E, ColumnRangeReadWrite2D)
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// 2-D row-RANGE read+write (phase N23): B = A(2:3, :) extracts rows 2..3 of a 4x3 into a 2x3;
+// C(1:2, :)=B writes them into rows 1..2 of a fresh 4x3. STRIDED (a row block is not contiguous
+// in column-major -- per-column sub-run copy). Verified bit-exact against the interpreter.
+TEST(CodegenE2E, RowRangeReadWrite2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 4, 3);\n"  // 4x3, flat 1..12
+        "  B = A(2:3, :);\n"         // row-range READ -> 2x3 (rows 2,3 of each column)
+        "  C = zeros(4, 3);\n"
+        "  C(1:2, :) = B;\n"         // row-range WRITE -> rows 1,2 of each column of C <- B
+        "  r = B(1,1) + B(2,3)*10 + C(1,1)*100 + C(2,3)*1000 + C(4,3)*10000"
+        " + numel(B)*100000 + numel(C)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_rowrange2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_rowrange2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12];\n"
+        "  for (int i = 0; i < 12; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 12);\n"  // 2 + 110 + 200 + 11000 + 0 + 600000 + 12000000 = 12611312
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 12611312.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
