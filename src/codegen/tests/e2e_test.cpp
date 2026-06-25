@@ -9940,3 +9940,43 @@ TEST(CodegenE2E, UnionVectors)
         engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// intersect(a,b) / setdiff(a,b) (phase N43): sorted distinct common values / sorted distinct of a
+// not in b. Both were bridged; now native (sort-unique + binary_search membership, with v==v/v!=v
+// guards for MATLAB NaN-never-equal semantics). Bit-exact vs the interpreter.
+TEST(CodegenE2E, IntersectSetdiffVectors)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  b = [2 4 6 1];\n"
+        "  c = intersect(x, b);\n"  // [1 4]
+        "  d = setdiff(x, b);\n"    // [3 5]
+        "  r = c(1) + c(2)*10 + d(1)*100 + d(2)*1000 + numel(c)*10000 + numel(d)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_setdiff_e2e.exe").string();
+    const std::string outTxt = (base / "nk_setdiff_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {3, 1, 4, 1, 5};\n"
+        "  double r = f(x, 5);\n"  // 1 + 40 + 300 + 5000 + 20000 + 200000 = 225341
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 225341.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}

@@ -5891,6 +5891,59 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native intersect(a, b) / setdiff(a, b) on two 1-D vectors -> sorted distinct values. Build
+        // the sorted-unique ua (sort NaN-last + dedup, NaN kept distinct) and a sorted ub; then walk
+        // ua -- intersect keeps v when v is non-NaN (v==v) AND present in ub (binary_search, ub sorted
+        // by the same cmp); setdiff keeps v when v is NaN (v!=v, never in b) OR v is absent from ub.
+        // The v==v / v!=v guards give MATLAB NaN semantics (NaN never matches) and short-circuit
+        // before any NaN binary_search. !bridge_ guard. v1: two 1-D DOUBLE array vars; result a 1-D
+        // LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_ && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "intersect" || rhs.children[0]->strValue == "setdiff")
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && !arrays_.at(rhs.children[2]->strValue).is2D
+            && !arrays_.at(rhs.children[2]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &aa          = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &bb          = arrays_.at(rhs.children[2]->strValue);
+            const bool          isIntersect = rhs.children[0]->strValue == "intersect";
+            const AbstractValue res         = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("auto _nk_cmp = [](double _a, double _b){ return _a < _b || (_b != _b && _a == "
+                     "_a); };");
+                line("std::vector<double> _nk_ua(" + aa.dataExpr + ", " + aa.dataExpr + " + "
+                     + aa.lenVar + ");");
+                line("std::vector<double> _nk_ub(" + bb.dataExpr + ", " + bb.dataExpr + " + "
+                     + bb.lenVar + ");");
+                line("std::sort(_nk_ua.begin(), _nk_ua.end(), _nk_cmp);");
+                line("std::sort(_nk_ub.begin(), _nk_ub.end(), _nk_cmp);");
+                line("_nk_ua.erase(std::unique(_nk_ua.begin(), _nk_ua.end()), _nk_ua.end());");
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_ua.size(); ++_nk_i)");
+                line("const double _nk_v = _nk_ua[_nk_i];");
+                if (isIntersect)
+                    line("if (_nk_v == _nk_v && std::binary_search(_nk_ub.begin(), _nk_ub.end(), "
+                         "_nk_v, _nk_cmp)) "
+                         + name + ".push_back(_nk_v);");
+                else
+                    line("if (_nk_v != _nk_v || !std::binary_search(_nk_ub.begin(), _nk_ub.end(), "
+                         "_nk_v, _nk_cmp)) "
+                         + name + ".push_back(_nk_v);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native polyval(p, x) with x a vector -> the polynomial p (coeffs highest
         // degree first) evaluated at each x[i] by Horner, a same-length-as-x 1-D
         // LOCAL: out[i] = ((p[0]*x[i] + p[1])*x[i] + ...) + p[np-1]. Exact (a fused
