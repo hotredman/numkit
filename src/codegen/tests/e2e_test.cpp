@@ -8784,3 +8784,46 @@ TEST(CodegenE2E, ReshapeToRank4)
             .toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// cat(4) of rank-3 operands (phase N15): C = cat(4, A, B) stacks two 2x2x2 arrays along dim 4
+// -> 2x2x2x2. C(:,:,:,1)=A, C(:,:,:,2)=B. A,B built via reshape (chains N14+N15).
+TEST(CodegenE2E, Cat4StackRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 2);\n"   // 2x2x2 from [1..8]
+        "  B = reshape(y, 2, 2, 2);\n"   // 2x2x2 from [11..18]
+        "  C = cat(4, A, B);\n"          // 2x2x2x2
+        "  r = C(1,1,1,1) + C(2,2,2,1)*10 + C(1,1,1,2)*100 + C(2,2,2,2)*1000 + numel(C)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x, y)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())},
+         {"y", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cat4_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cat4_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[8] = {1, 2, 3, 4, 5, 6, 7, 8};\n"
+        "  double y[8] = {11, 12, 13, 14, 15, 16, 17, 18};\n"
+        "  double r = f(x, 8, y, 8);\n"  // 1 + 80 + 1100 + 18000 + 160000 = 179181
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 179181.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 3 4 5 6 7 8]; y=[11 12 13 14 15 16 17 18];\n") + body + "r",
+                    true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
