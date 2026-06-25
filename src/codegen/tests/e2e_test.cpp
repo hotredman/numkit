@@ -10213,3 +10213,41 @@ TEST(CodegenE2E, Median2D)
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 258.5);  // 3.5 + 55 + 200
 }
+
+// mode(x) 1-D scalar + mode(A) 2-D column-wise (phase N50): most frequent value, MATLAB tie ->
+// smallest. Was bridged; now native (sort + longest run, strictly-greater so ties keep the smaller;
+// NaN ignored). Hardcoded expected (mode is a stats fn; matches the median test pattern).
+TEST(CodegenE2E, Mode)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const EmittedFunction emitted = transpile(
+        "function r = f(x)\n"
+        "  a = mode(x);\n"            // [3 3 7 7 5 1]: tie 3&7 at 2 -> smallest 3
+        "  A = reshape(x, 3, 2);\n"
+        "  B = mode(A);\n"            // col1=[3 3 7]->3, col2=[7 5 1] all-distinct->1
+        "  r = a + B(1)*10 + B(2)*100 + numel(B)*1000;\n"
+        "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+    ASSERT_EQ(emitted.source.find("nk_call"), std::string::npos)
+        << "mode must lower to a native sort+longest-run, not bridge";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_mode_e2e.exe").string();
+    const std::string outTxt = (base / "nk_mode_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6] = {3, 3, 7, 7, 5, 1};\n"  // 1-D mode 3; 3x2 col modes [3 1]
+        "  double r = f(x, 6);\n"  // 3 + 30 + 100 + 2000 = 2133
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 2133.0);  // 3 + 30 + 100 + 2000
+}

@@ -144,10 +144,10 @@ InferredType ismemberTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
-// median(x): a 1-D vector reduces to a scalar; a 2-D matrix reduces COLUMN-wise to a 1 x n row
-// vector. median is sort-based (exact, order-independent), so 2-D is native (unlike sum/mean, which
-// stay bridged on the shared vectorReductionTransfer). A scalar / N-D -> Dynamic.
-InferredType medianTransfer(const std::vector<ArgInfo> &args)
+// median(x) / mode(x): a 1-D vector reduces to a scalar; a 2-D matrix reduces COLUMN-wise to a
+// 1 x n row vector. Both are sort-based (exact, order-independent), so 2-D is native (unlike sum/
+// mean, which stay bridged on the shared vectorReductionTransfer). A scalar / N-D -> Dynamic.
+InferredType statColumnReduceTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete() || args[0].type.dtype != ValueType::DOUBLE)
         return InferredType::dynamic();
@@ -768,7 +768,9 @@ void registerShapeTransfers(TransferRegistry &reg)
     // Vector reductions -> scalar (bridged; the emitter boxes the array arg).
     for (const char *n : {"sum", "prod", "mean", "norm", "std", "var", "trapz"})
         reg.add(n, vectorReductionTransfer);
-    reg.add("median", medianTransfer);  // vector -> scalar; 2-D matrix -> column-wise row vector
+    // vector -> scalar; 2-D matrix -> column-wise row vector (both native, sort-based).
+    reg.add("median", statColumnReduceTransfer);
+    reg.add("mode", statColumnReduceTransfer);
     // max/min: 1-arg reduction (-> scalar) OR 2-arg elementwise max(a,b)/min(a,b) (native
     // via fmax/fmin). The single-output transfer; [m,i]=max(x) uses maxMinMultiTransfer.
     reg.add("max", maxMinTransfer);
