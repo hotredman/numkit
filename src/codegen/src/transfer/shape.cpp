@@ -120,16 +120,18 @@ std::vector<InferredType> uniqueMultiTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 1 || !args[0].type.isConcrete() || args[0].type.dtype != ValueType::DOUBLE)
         return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
-    switch (args[0].type.shape.kind) {
-    case ShapeKind::RowVector:
-    case ShapeKind::ColVector:
-    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+    // unique flattens (column-major), so the outputs are 1-D for ANY rank: u/ia (length =
+    // #distinct) and ic (length = numel) are all 1-D DOUBLE (runtime -> Unknown).
+    const Shape &sh = args[0].type.shape;
+    const bool   ok = sh.kind == ShapeKind::RowVector || sh.kind == ShapeKind::ColVector
+                    || sh.kind == ShapeKind::Unknown
+                    || (sh.kind == ShapeKind::KnownDims && sh.rows > 1 && sh.cols > 1)
+                    || (sh.kind == ShapeKind::NDims && sh.nd.size() == 2);
+    if (ok)
         return {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
                 InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
                 InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
-    default:  // a matrix -> Dynamic (bridged); 1-D only for now
-        return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
-    }
+    return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
 }
 
 // transpose (A.') / ctranspose (A'): swap the two dimensions. A row becomes a

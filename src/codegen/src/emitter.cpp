@@ -7046,7 +7046,9 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "unique"
         && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
         && (s.returnNames.size() == 2 || s.returnNames.size() == 3)
-        && !arrays_.at(rhs.children[1]->strValue).is2D && !arrays_.at(rhs.children[1]->strValue).isND
+        // 1-D OR 2-D source (unique flattens column-major); reject only rank >= 3.
+        && !(arrays_.at(rhs.children[1]->strValue).isND
+             && arrays_.at(rhs.children[1]->strValue).ndDims.size() != 2)
         && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
         && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
         const bool         wantIc = s.returnNames.size() == 3;
@@ -7056,10 +7058,13 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         if (rnU.empty() || rnU == "~" || rnIa.empty() || rnIa == "~"
             || (wantIc && (rnIc.empty() || rnIc == "~")))
             unsupported("[u,ia,ic]=unique with an ignored (~) output (v1)");
-        const ArrayInfo &xa = arrays_.at(rhs.children[1]->strValue);
+        const ArrayInfo  &xa  = arrays_.at(rhs.children[1]->strValue);
+        // numel: a 2-D source flattens column-major (rows*cols); a 1-D source uses its length.
+        const std::string cnt =
+            (xa.is2D || xa.isND) ? (dimExpr(xa, 0) + " * " + dimExpr(xa, 1)) : xa.lenVar;
         line("{");
         ++indent_;
-        line("const std::size_t _nk_n = " + xa.lenVar + ";");
+        line("const std::size_t _nk_n = " + cnt + ";");
         line("const double* _nk_d = " + xa.dataExpr + ";");
         line("std::vector<std::size_t> _nk_p(_nk_n);");
         open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
