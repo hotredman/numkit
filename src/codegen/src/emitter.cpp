@@ -3792,6 +3792,44 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native median(A) on a 2-D MATRIX -> column-wise median -> a 1 x n ROW vector (a 1-D
+        // LOCAL). Per column: copy the contiguous column block, sort (NaN-last), then the middle
+        // (odd m) or the mean of the two middles (even m); any NaN in a column -> NaN (the sorted
+        // column's last element is NaN). Mirrors the 1-D median, per column. !bridge_ guard. v1: a
+        // DOUBLE matrix var; result a 1-D array LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_ && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "median"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                line("const double* _nk_da = " + A.dataExpr + ";");
+                line(name + ".assign(_nk_n, 0.0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                line("std::vector<double> _nk_t(_nk_da + _nk_j * _nk_m, _nk_da + (_nk_j + 1) * "
+                     "_nk_m);");
+                line("std::sort(_nk_t.begin(), _nk_t.end(),");
+                line("    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
+                line("if (_nk_m == 0 || _nk_t[_nk_m - 1] != _nk_t[_nk_m - 1]) " + name
+                     + "[_nk_j] = std::numeric_limits<double>::quiet_NaN();");
+                line("else if (_nk_m % 2 == 1) " + name + "[_nk_j] = _nk_t[_nk_m / 2];");
+                line("else " + name + "[_nk_j] = (_nk_t[_nk_m / 2 - 1] + _nk_t[_nk_m / 2]) / 2.0;");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native dot(a,b) -> sum of a[i]*b[i] (real inner product), but ONLY with
         // no bridge (order-dependent like sum -> the bridged path stays exact when
         // the bridge is on). A length-match guard then an accumulation loop. v1:
