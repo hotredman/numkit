@@ -4648,28 +4648,38 @@ void Emitter::emitAssign(const ASTNode &s)
             }
             }
         }
-        // Native flip(A, dim) on a rank-3 ARRAY -> a fresh same-shape rank-3 array, reversing along
-        // a LITERAL dim 1|2|3: dim 1 reverses rows within each page, dim 2 reverses columns, dim 3
-        // reverses the page order. Column-major: B[i + j*m + k*m*n] = A[i' + j'*m + k'*m*n] with the
-        // chosen axis coordinate reflected (m-1-i / n-1-j / p-1-k). A runtime-dim rank-3
-        // ndRuntimeLocal dest. v1: the 2-arg explicit-dim form (1-arg flip(A) on a rank-3 stays
-        // bridged -- first-non-singleton-dim ambiguity); a DOUBLE rank-3 var distinct from the dest.
-        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
-            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
-            && rhs.children.size() == 3 && rhs.children[0]->type == NodeType::IDENTIFIER
-            && rhs.children[0]->strValue == "flip"
-            && rhs.children[2]->type == NodeType::NUMBER_LITERAL
-            && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0
-                || rhs.children[2]->numValue == 3.0)
-            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
-            && rhs.children[1]->strValue != name && arrays_.at(rhs.children[1]->strValue).isND
-            && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
-            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+        // Native flip(A, dim) / fliplr(A) / flipud(A) on a rank-3 ARRAY -> a fresh same-shape rank-3
+        // array, reversing along a dim: dim 1 reverses rows within each page, dim 2 reverses
+        // columns, dim 3 reverses the page order. flip(A,dim) takes a LITERAL dim 1|2|3; fliplr(A)
+        // is dim 2 and flipud(A) is dim 1 (both UNAMBIGUOUS on a rank-3 -- no first-non-singleton
+        // issue, so the 1-arg forms are native here). Column-major: B[i + j*m + k*m*n] =
+        // A[i' + j'*m + k'*m*n] with the chosen axis coordinate reflected (m-1-i / n-1-j / p-1-k). A
+        // runtime-dim rank-3 ndRuntimeLocal dest. v1: a DOUBLE rank-3 var distinct from the dest.
+        // (1-arg flip(A) on a rank-3 stays bridged -- first-non-singleton-dim ambiguity.)
+        {
+            const std::string fn = (rhs.type == NodeType::CALL && !rhs.children.empty()
+                                    && rhs.children[0]->type == NodeType::IDENTIFIER)
+                                       ? rhs.children[0]->strValue
+                                       : std::string();
+            const bool flip3 = rhs.type == NodeType::CALL && rhs.children.size() == 3 && fn == "flip"
+                               && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+                               && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0
+                                   || rhs.children[2]->numValue == 3.0);
+            const bool lr2 = rhs.type == NodeType::CALL && rhs.children.size() == 2 && fn == "fliplr";
+            const bool ud2 = rhs.type == NodeType::CALL && rhs.children.size() == 2 && fn == "flipud";
+            if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+                && arrays_.at(name).ndDims.size() == 3 && (flip3 || lr2 || ud2)
+                && rhs.children[1]->type == NodeType::IDENTIFIER
+                && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+                && arrays_.at(rhs.children[1]->strValue).isND
+                && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+                && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
             const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
             const ArrayInfo    &M   = arrays_.at(name);
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()) {
-                const int d = static_cast<int>(rhs.children[2]->numValue);  // 1, 2, or 3
+                const int d = flip3 ? static_cast<int>(rhs.children[2]->numValue)
+                                    : (lr2 ? 2 : 1);  // fliplr -> dim 2, flipud -> dim 1
                 line("{");
                 ++indent_;
                 line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
@@ -4694,6 +4704,7 @@ void Emitter::emitAssign(const ASTNode &s)
                 line("}");
                 types_.set(name, res);
                 return;
+            }
             }
         }
         // Native rot90(A) on a 2-D matrix -> a 90deg-CCW rotation, dims swapped (A m x n ->
