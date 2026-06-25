@@ -4008,6 +4008,68 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native cumsum/cumprod(A[, dim]) on a 2-D MATRIX -> a fresh same-shape matrix, running
+        // accumulation along dim 1 (down each column, the default) or dim 2 (across each row).
+        // Like the 1-D form, ONLY with no bridge (order-dependent rounding -> the bridged path
+        // stays the exact tier when the bridge is on). Column-major per-column (dim 1) or per-row
+        // (dim 2) prefix scan. 1-arg -> dim 1; 2-arg cumsum(A, dim) with a LITERAL dim 1|2. v1: a
+        // DOUBLE matrix var distinct from the dest.
+        {
+            const bool cumTwoArg =
+                rhs.type == NodeType::CALL && rhs.children.size() == 3
+                && rhs.children[0]->type == NodeType::IDENTIFIER
+                && (rhs.children[0]->strValue == "cumsum" || rhs.children[0]->strValue == "cumprod")
+                && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+                && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0);
+            if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_
+                && (arrays_.at(name).is2D
+                    || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+                && rhs.type == NodeType::CALL && (rhs.children.size() == 2 || cumTwoArg)
+                && rhs.children[0]->type == NodeType::IDENTIFIER
+                && (rhs.children[0]->strValue == "cumsum" || rhs.children[0]->strValue == "cumprod")
+                && rhs.children[1]->type == NodeType::IDENTIFIER
+                && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+                && (arrays_.at(rhs.children[1]->strValue).is2D
+                    || (arrays_.at(rhs.children[1]->strValue).isND
+                        && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+                && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+                const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+                const ArrayInfo    &M   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                    const bool        isProd = rhs.children[0]->strValue == "cumprod";
+                    const bool        dim2   = cumTwoArg && rhs.children[2]->numValue == 2.0;
+                    const std::string seed   = isProd ? "1.0" : "0.0";
+                    const std::string op     = isProd ? "*=" : "+=";
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                    line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                    if (M.isND && M.ndDims.size() == 2) {  // runtime-dim dst: set its companions
+                        line(M.ndDims[0] + " = _nk_m;");
+                        line(M.ndDims[1] + " = _nk_n;");
+                    }
+                    line(name + ".assign(_nk_m * _nk_n, 0.0);");
+                    if (dim2) {  // dim 2: across each row -> outer over rows, inner over columns
+                        open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                        line("double _nk_acc = " + seed + ";");
+                        open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                    } else {  // dim 1 (default): down each column -> outer over columns, inner rows
+                        open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                        line("double _nk_acc = " + seed + ";");
+                        open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                    }
+                    line("_nk_acc " + op + " " + A.dataExpr + "[_nk_i + _nk_j * _nk_m];");
+                    line(name + "[_nk_i + _nk_j * _nk_m] = _nk_acc;");
+                    close();
+                    close();
+                    --indent_;
+                    line("}");
+                    types_.set(name, res);
+                    return;
+                }
+            }
+        }
         // Native cumsum/cumprod(x) -> running accumulation, a SAME-LENGTH 1-D
         // result, but ONLY with no bridge (order-dependent rounding -> the bridged
         // array-result path stays the exact tier when the bridge is on). cumsum:
