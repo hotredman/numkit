@@ -4136,6 +4136,61 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native max(A, [], dim) / min(A, [], dim) on a 2-D MATRIX with a LITERAL dim 1|2 -> a 1-D
+        // vector. dim 1 reduces each COLUMN (-> 1 x n, same as max(A)); dim 2 reduces each ROW
+        // (-> m x 1). NaN-skipping (seed on the reduced line's first element). EXACT, every tier.
+        // The middle arg must be an empty matrix []. v1: a DOUBLE matrix var.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 4
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "max" || rhs.children[0]->strValue == "min")
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[2]->type == NodeType::MATRIX_LITERAL
+            && rhs.children[2]->children.empty()  // the [] placeholder
+            && rhs.children[3]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[3]->numValue == 1.0 || rhs.children[3]->numValue == 2.0)) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const bool        dim2 = rhs.children[3]->numValue == 2.0;
+                const std::string cmp  = rhs.children[0]->strValue == "max" ? ">" : "<";
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                if (dim2) {  // row-wise: result length m, reduce across columns
+                    line(name + ".assign(_nk_m, 0.0);");
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                    line("double _nk_acc = 0.0;");
+                    open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                    line("const double _nk_v = " + A.dataExpr + "[_nk_i + _nk_j * _nk_m];");
+                    line("if (_nk_j == 0 || _nk_v " + cmp + " _nk_acc"
+                         " || (_nk_acc != _nk_acc && _nk_v == _nk_v)) _nk_acc = _nk_v;");
+                    close();
+                    line(name + "[_nk_i] = _nk_acc;");
+                    close();
+                } else {  // dim 1 column-wise: result length n, reduce down rows
+                    line(name + ".assign(_nk_n, 0.0);");
+                    open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                    line("double _nk_acc = 0.0;");
+                    open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+                    line("const double _nk_v = " + A.dataExpr + "[_nk_i + _nk_j * _nk_m];");
+                    line("if (_nk_i == 0 || _nk_v " + cmp + " _nk_acc"
+                         " || (_nk_acc != _nk_acc && _nk_v == _nk_v)) _nk_acc = _nk_v;");
+                    close();
+                    line(name + "[_nk_j] = _nk_acc;");
+                    close();
+                }
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native max(A) / min(A) on a 2-D MATRIX -> column-wise reduction -> a 1 x n ROW vector
         // (a 1-D LOCAL). result(j) = the max/min over column j, NaN-skipping (seed on the column's
         // first element, update on a strict cmp OR when acc is NaN -> the first non-NaN seeds it;

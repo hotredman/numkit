@@ -465,7 +465,19 @@ InferredType maxMinTransfer(const std::vector<ArgInfo> &args)
         if (sb.isScalar()) return InferredType::concrete(ValueType::DOUBLE, sa);
         return InferredType::dynamic();  // shape mismatch / implicit expansion -> bridged
     }
-    return InferredType::dynamic();  // 3+ args (max(x,[],dim), max(x,[],"all")) -> bridged
+    // max(A, [], dim) with a 2-D matrix A and a LITERAL dim 1|2 -> a 1-D vector (dim 1 -> 1 x n
+    // column-wise; dim 2 -> m x 1 row-wise). The middle [] arg is ignored here (max's 3-arg form is
+    // always max(A,[],dim)); the emit verifies it is an empty matrix. max(x,[],'all') / a non-
+    // literal dim -> Dynamic/bridged.
+    if (args.size() == 3 && args[0].type.dtype == ValueType::DOUBLE) {
+        const Shape &s     = args[0].type.shape;
+        const bool   is2D  = (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
+                          || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
+        std::size_t  dim = 0;
+        if (is2D && args[2].constant.asDim(dim) && (dim == 1 || dim == 2))
+            return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+    }
+    return InferredType::dynamic();  // other 3+ arg forms (max(x,[],"all"), …) -> bridged
 }
 
 // any / all over a VECTOR -> a LOGICAL scalar (true/false), regardless of the
