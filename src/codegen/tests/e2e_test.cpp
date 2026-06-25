@@ -9295,3 +9295,43 @@ TEST(CodegenE2E, Cumsum2D)
         engine.eval(std::string("x=1:6;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// 2-D cummax/cummin (phase N27): cummax(A) runs down each column (dim 1, the matrix default),
+// cummin(A,2) across each row (dim 2). The 1-D producer only matched vectors -> a matrix cummax
+// was bridged; now native. Non-monotonic input so the scans actually clamp. Bit-exact vs interp.
+TEST(CodegenE2E, Cummax2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 3);\n"  // [3 4 5; 1 1 9]
+        "  B = cummax(A);\n"         // dim 1 (down columns) -> [3 4 5; 3 4 9]
+        "  C = cummin(A, 2);\n"      // dim 2 (across rows)  -> [3 3 3; 1 1 1]
+        "  r = B(2,1) + B(2,3)*10 + C(1,3)*100 + C(2,1)*1000 + numel(B)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cummax2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cummax2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6] = {3, 1, 4, 1, 5, 9};\n"  // col-major 2x3: [3 4 5; 1 1 9]
+        "  double r = f(x, 6);\n"  // 3 + 90 + 300 + 1000 + 60000 = 61393
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 61393.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 4 1 5 9];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
