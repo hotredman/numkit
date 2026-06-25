@@ -1853,6 +1853,52 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // 2-D ROW-RANGE WRITE A(i1:i2, :) = B: write a 2-D (i2-i1+1) x cols matrix B into rows i1..i2
+    // of a 2-D A (phase N23, the write sibling of the 2-D row-range read). STRIDED (a row block is
+    // not contiguous in column-major): for each column j write the run A[(i1-1)+j*rows .. i2+j*rows)
+    // from B's column j. A writable; bounds-checked range (end = rows); a numel guard on B
+    // ((i2-i1+1)*cols). v1: 2-D DOUBLE A, a leading step-1 range i1:i2 + a trailing bare colon, rhs
+    // a distinct 2-D DOUBLE array var. Placed before the rank-3+ trailing-range write.
+    if ((ai.is2D || (ai.isND && ai.ndDims.size() == 2)) && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children.size() == 3
+        && lhsCall.children[1]->type == NodeType::COLON_EXPR && lhsCall.children[1]->children.size() == 2
+        && lhsCall.children[2]->type == NodeType::COLON_EXPR && lhsCall.children[2]->children.empty()
+        && rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue) && rhs.strValue != base
+        && (arrays_.at(rhs.strValue).is2D
+            || (arrays_.at(rhs.strValue).isND && arrays_.at(rhs.strValue).ndDims.size() == 2))
+        && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("row-range write to a read-only matrix parameter '" + base + "'");
+        const ArrayInfo  &B    = arrays_.at(rhs.strValue);  // value source
+        const std::string rows = dimExpr(ai, 0), cols = dimExpr(ai, 1);
+        const ASTNode    &rng  = *lhsCall.children[1];  // i1:i2
+        endStack_.push_back(rows);                      // `end` in the row index = rows
+        const std::string i1 = emitExpr(*rng.children[0]);
+        const std::string i2 = emitExpr(*rng.children[1]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_rows = " + rows + ";");
+        line("const std::size_t _nk_cols = " + cols + ";");
+        line("const std::ptrdiff_t _nk_i1 = static_cast<std::ptrdiff_t>(" + i1 + ");");
+        line("const std::ptrdiff_t _nk_i2 = static_cast<std::ptrdiff_t>(" + i2 + ");");
+        line("if (_nk_i1 < 1 || _nk_i2 > static_cast<std::ptrdiff_t>(_nk_rows) || _nk_i2 < _nk_i1)");
+        line("    throw std::out_of_range(\"numkit: row range out of bounds\");");
+        line("const std::size_t _nk_nr = static_cast<std::size_t>(_nk_i2 - _nk_i1 + 1);");
+        line("if ((" + dimExpr(B, 0) + " * " + dimExpr(B, 1) + ") != _nk_nr * _nk_cols)");
+        line("    throw std::out_of_range(\"numkit: row-range assignment size mismatch\");");
+        line("const std::size_t _nk_r0 = static_cast<std::size_t>(_nk_i1 - 1);");
+        open("for (std::size_t _nk_j = 0; _nk_j < _nk_cols; ++_nk_j)");
+        open("for (std::size_t _nk_r = 0; _nk_r < _nk_nr; ++_nk_r)");
+        line(ptr + "[(_nk_r0 + _nk_r) + _nk_j * _nk_rows] = " + B.dataExpr
+             + "[_nk_r + _nk_j * _nk_nr];");
+        close();
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
     // trailing-RANGE WRITE A(:,...,:,k1:k2) = B: write a rank-r array B into the contiguous
     // trailing-dim block k1..k2 of a rank-r A (r >= 3; phase N20 r=3 page-range + N21 r=4 slab-
     // range write, the WRITE sibling of the trailing-range read). Column-major: the leading
@@ -4633,6 +4679,58 @@ void Emitter::emitAssign(const ASTNode &s)
                 line(B.ndDims[1] + " = _nk_nc;");
                 line(name + ".assign(" + A.dataExpr + " + _nk_off, " + A.dataExpr
                      + " + _nk_off + _nk_nc * _nk_rows);");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
+        // Native 2-D ROW-RANGE read B = A(i1:i2, :): extract rows i1..i2 of a 2-D A as a runtime-
+        // dim 2-D (i2-i1+1) x cols sub-matrix (phase N23). STRIDED (a row block is not contiguous
+        // in column-major): for each column j the kept rows are the run A[(i1-1)+j*rows ..
+        // i2+j*rows). B a runtime-dim 2-D ndRuntimeLocal; bounds-checked range; `end` in the row
+        // index = rows. v1: 2-D DOUBLE A, a leading step-1 range i1:i2 + a trailing bare colon, B
+        // distinct.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 2 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 3 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue) && rhs.children[0]->strValue != name
+            && (arrays_.at(rhs.children[0]->strValue).is2D
+                || (arrays_.at(rhs.children[0]->strValue).isND
+                    && arrays_.at(rhs.children[0]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
+            && rhs.children[1]->type == NodeType::COLON_EXPR && rhs.children[1]->children.size() == 2
+            && rhs.children[2]->type == NodeType::COLON_EXPR && rhs.children[2]->children.empty()) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[0]->strValue);
+            const ArrayInfo    &B   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const std::string rows = dimExpr(A, 0), cols = dimExpr(A, 1);
+                const ASTNode    &rng  = *rhs.children[1];  // i1:i2
+                endStack_.push_back(rows);                  // `end` in the row index = rows
+                const std::string i1 = emitExpr(*rng.children[0]);
+                const std::string i2 = emitExpr(*rng.children[1]);
+                endStack_.pop_back();
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_rows = " + rows + ";");
+                line("const std::size_t _nk_cols = " + cols + ";");
+                line("const std::ptrdiff_t _nk_i1 = static_cast<std::ptrdiff_t>(" + i1 + ");");
+                line("const std::ptrdiff_t _nk_i2 = static_cast<std::ptrdiff_t>(" + i2 + ");");
+                line("if (_nk_i1 < 1 || _nk_i2 > static_cast<std::ptrdiff_t>(_nk_rows) || _nk_i2 < "
+                     "_nk_i1)");
+                line("    throw std::out_of_range(\"numkit: row range out of bounds\");");
+                line("const std::size_t _nk_nr = static_cast<std::size_t>(_nk_i2 - _nk_i1 + 1);");
+                line("const std::size_t _nk_r0 = static_cast<std::size_t>(_nk_i1 - 1);");
+                line(B.ndDims[0] + " = _nk_nr;");
+                line(B.ndDims[1] + " = _nk_cols;");
+                line(name + ".assign(_nk_nr * _nk_cols, 0.0);");
+                open("for (std::size_t _nk_j = 0; _nk_j < _nk_cols; ++_nk_j)");
+                open("for (std::size_t _nk_r = 0; _nk_r < _nk_nr; ++_nk_r)");
+                line(name + "[_nk_r + _nk_j * _nk_nr] = " + A.dataExpr
+                     + "[(_nk_r0 + _nk_r) + _nk_j * _nk_rows];");
+                close();
+                close();
                 --indent_;
                 line("}");
                 types_.set(name, res);
