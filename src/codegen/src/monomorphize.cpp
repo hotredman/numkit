@@ -50,8 +50,16 @@ std::vector<InferredType> inferFunctionReturns(const ASTNode &funcDef,
     // Seed the entry env: each parameter takes the matching argument's type
     // and constant facet (the constant flows into shape-from-value).
     TypeEnv env;
-    for (std::size_t i = 0; i < args.size(); ++i)
+    for (std::size_t i = 0; i < args.size(); ++i) {
         env.set(funcDef.paramNames[i], {args[i].type, args[i].constant});
+        // A STRUCT param also seeds its field-locals (_nk_fld_<p>_<f>) so the body's `s.f`
+        // reads them -- mirrors emitOneFunction's struct-param explosion (G2.3). Without
+        // this the body's field reads infer Dynamic and the return is mis-typed.
+        if (args[i].type.isStruct() && args[i].type.structLayout)
+            for (const auto &f : args[i].type.structLayout->fields)
+                env.set("_nk_fld_" + funcDef.paramNames[i] + "_" + f.first,
+                        {f.second, ConstVal::unknown()});
+    }
 
     inferStmt(*funcDef.children[0], env, reg, nullptr, classes);
 

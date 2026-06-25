@@ -10741,3 +10741,52 @@ TEST(CodegenE2E, PartialNargoutUserCall)
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 660.0);
 }
+
+// Struct across the function ABI (G2.3): a plain struct passed to a function explodes into
+// per-field params (_nk_fld_s_a, _nk_fld_s_b); the callee reads them via s.a / s.b. v1: all-
+// scalar fields. The first cross-ABI struct e2e -- builds a struct in g, passes it to ff,
+// reads its fields. The layout-aware mangle gives ff its own specialization.
+TEST(CodegenE2E, StructParamAcrossABI)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function out = g()\n"
+        "  s.a = 3;\n"
+        "  s.b = 4;\n"
+        "  out = ff(s);\n"  // ff(s) = s.a*10 + s.b = 34
+        "end\n"
+        "function r = ff(s)\n"
+        "  r = s.a * 10 + s.b;\n"
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted = emitProgram(*ft.find("g"), {}, ft, reg);
+    EXPECT_NE(emitted.source.find("_nk_fld_s_a"), std::string::npos)
+        << "the struct param must explode into per-field params";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_structparam_e2e.exe").string();
+    const std::string outTxt = (base / "nk_structparam_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double out = " + emitted.name + "();\n"  // 3*10 + 4 = 34
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", out);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 34.0);  // 3*10 + 4
+}
