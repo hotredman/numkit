@@ -9417,6 +9417,47 @@ TEST(CodegenE2E, ColumnMaxMin2D)
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
 
+// max(A,[],dim)/min(A,[],dim) row-/column-wise (phase N51): the explicit-dim 3-arg form. dim 2
+// reduces each row (-> m x 1), dim 1 each column (-> 1 x n). Was bridged (3-arg form); now native.
+// Bit-exact vs the interpreter.
+TEST(CodegenE2E, MaxMinWithDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 3, 3);\n"   // [3 1 2; 1 5 6; 4 9 5]
+        "  R2 = max(A, [], 2);\n"     // row max -> [3; 6; 9]
+        "  R1 = max(A, [], 1);\n"     // col max -> [4 9 6]
+        "  Mn = min(A, [], 2);\n"     // row min -> [1; 1; 4]
+        "  r = R2(1) + R2(2)*10 + R2(3)*100 + R1(1)*1000 + Mn(3)*10000 + numel(R2)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_maxmindim_e2e.exe").string();
+    const std::string outTxt = (base / "nk_maxmindim_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[9] = {3, 1, 4, 1, 5, 9, 2, 6, 5};\n"  // 3x3 col-major
+        "  double r = f(x, 9);\n"  // 3 + 60 + 900 + 4000 + 40000 + 300000 = 344963
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 344963.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 4 1 5 9 2 6 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
 // 2-D column-wise any(A)/all(A) (phase N30): any(A) is true per column that has a nonzero, all(A)
 // per column with no zero -> a LOGICAL 1 x n row vector. The 1-D->scalar IIFE only did vectors -> a
 // matrix any/all was bridged; now native (exact). Zero-containing columns. Bit-exact vs interp.
