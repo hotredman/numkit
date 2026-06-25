@@ -10097,3 +10097,43 @@ TEST(CodegenE2E, SetdiffWithIndices)
         engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// [u,ia,ib]=union(a,b) (phase N47): u = sorted distinct of [a b]; ia the a-sourced first-occurrence
+// indices, ib the b-sourced ones (|ia|+|ib|=|u|). Was bridged; now native (unique-multi over the
+// concatenation, split by |a|). Bit-exact vs the interpreter.
+TEST(CodegenE2E, UnionWithIndices)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  b = [20 40 10 40];\n"
+        "  [u, ia, ib] = union(x, b);\n"  // x=[30 10 40 10 50]: u=[10 20 30 40 50], ia=[2 1 3 5], ib=[1]
+        "  r = u(1) + u(2)*10 + ia(1)*100 + ia(2)*1000 + ib(1)*10000 + numel(u)*100000"
+        " + numel(ia)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_unionidx_e2e.exe").string();
+    const std::string outTxt = (base / "nk_unionidx_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {30, 10, 40, 10, 50};\n"
+        "  double r = f(x, 5);\n"  // 10 + 200 + 200 + 1000 + 10000 + 500000 + 4000000 = 4511410
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4511410.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
