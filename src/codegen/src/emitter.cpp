@@ -6879,6 +6879,50 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         types_.set(rn1, {InferredType::scalar(ValueType::DOUBLE), ConstVal::unknown()});
         return;
     }
+    // [m, i] = max(A) / min(A) on a 2-D MATRIX -> column-wise argmax/argmin: m and i are both
+    // 1 x n ROW vectors (1-D LOCALs), m(j) = the column-j extremum, i(j) = its 1-based row index
+    // (FIRST occurrence on ties, MATLAB). NaN-skipping (seed on the column's first row, update on a
+    // strict cmp or when acc is NaN and the candidate is not). EXACT -> every tier. Column-major.
+    // v1: a single DOUBLE matrix var (KnownDims or runtime rank-2); the two outputs ARRAY targets.
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 2
+        && rhs.children[0]->type == NodeType::IDENTIFIER
+        && (rhs.children[0]->strValue == "max" || rhs.children[0]->strValue == "min")
+        && rhs.children[1]->type == NodeType::IDENTIFIER
+        && isArrayVar(rhs.children[1]->strValue) && s.returnNames.size() == 2
+        && (arrays_.at(rhs.children[1]->strValue).is2D
+            || (arrays_.at(rhs.children[1]->strValue).isND
+                && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const std::string &rn0 = s.returnNames[0];  // value row vector
+        const std::string &rn1 = s.returnNames[1];  // 1-based index row vector
+        if (rn0.empty() || rn0 == "~" || rn1.empty() || rn1 == "~")
+            unsupported("[m,i]=max/min(matrix) with an ignored (~) output (v1)");
+        const ArrayInfo  &A   = arrays_.at(rhs.children[1]->strValue);
+        const std::string cmp = rhs.children[0]->strValue == "max" ? ">" : "<";
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+        line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+        line(rn0 + ".assign(_nk_n, 0.0);");
+        line(rn1 + ".assign(_nk_n, 0.0);");
+        open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+        line("double _nk_acc = 0.0; std::size_t _nk_idx = 0;");  // seeded on _nk_i == 0
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_m; ++_nk_i)");
+        line("const double _nk_v = " + A.dataExpr + "[_nk_i + _nk_j * _nk_m];");
+        line("if (_nk_i == 0 || _nk_v " + cmp + " _nk_acc || (_nk_acc != _nk_acc && _nk_v == _nk_v))");
+        line("    { _nk_acc = _nk_v; _nk_idx = _nk_i + 1; }");
+        close();
+        line(rn0 + "[_nk_j] = _nk_acc; " + rn1 + "[_nk_j] = static_cast<double>(_nk_idx);");
+        close();
+        --indent_;
+        line("}");
+        types_.set(rn0,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        types_.set(rn1,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result
