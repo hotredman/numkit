@@ -10511,3 +10511,47 @@ TEST(CodegenE2E, CircshiftRank3)
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// rank-3 sort along an explicit dim (phase N57): sort(A,dim[,dir]) sorts each fiber along the scan
+// dim. The sort producer was 1-D + 2-D only -> a rank-3 sort was bridged; now native, reusing the
+// cumsum stride scheme with a per-fiber gather/std::sort/scatter (NaN comparator: last ascending,
+// first descending, per MATLAB). Non-monotone input. Covers ascending dim 1/2 + descending dim 3.
+// Bit-exact vs the interpreter.
+TEST(CodegenE2E, SortRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"   // pages [4 7;2 1], [3 6;8 5], [9 1;2 7]
+        "  S = sort(A, 1);\n"            // down columns asc: S(1,1,1)=2, S(2,1,1)=4
+        "  T = sort(A, 2);\n"           // across rows asc:  T(2,1,1)=1, T(2,2,1)=2
+        "  U = sort(A, 3, 'descend');\n" // across pages desc: fiber A(2,1,:)=[2,8,2]->[8,2,2], U(2,1,1)=8
+        "  r = S(1,1,1) + S(2,1,1)*10 + T(2,1,1)*100 + T(2,2,1)*1000 + U(2,1,1)*10000"
+        " + numel(S)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_sortrank3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_sortrank3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12] = {4, 2, 7, 1, 3, 8, 6, 5, 9, 2, 1, 7};\n"  // 2x2x3 col-major
+        "  double r = f(x, 12);\n"  // 2 + 40 + 100 + 2000 + 80000 + 1200000 = 1282142
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 1282142.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}

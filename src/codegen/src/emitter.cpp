@@ -6122,6 +6122,75 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native sort(A, dim[, dir]) along a LITERAL dim 1|2|3 of a rank-3 array -> a fresh same-
+        // shape rank-3 array, each fiber along the scan dim sorted (ascending default / 'descend'),
+        // NaN at the extremum per MATLAB (last ascending / first descending). Reuses the cumsum
+        // stride scheme; each fiber is gathered into a temp, std::sort-ed (NaN comparator), scattered
+        // back. EXACT but !bridge_ (preserve the bridged tier when the bridge is on, like the 1-D/
+        // 2-D forms). The explicit-dim form only (the default-dim sort is the first non-singleton --
+        // ambiguous on a runtime-dim rank-3 -> bridged). children: [sort, A, dim] or [sort, A, dim,
+        // dir]. v1: a DOUBLE rank-3 var distinct from the dest.
+        {
+            const bool sortDim =
+                rhs.type == NodeType::CALL
+                && (rhs.children.size() == 3
+                    || (rhs.children.size() == 4
+                        && rhs.children[3]->type == NodeType::STRING_LITERAL))
+                && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "sort"
+                && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+                && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0
+                    || rhs.children[2]->numValue == 3.0);
+            if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+                && !bridge_ && arrays_.at(name).ndDims.size() == 3 && sortDim
+                && rhs.children[1]->type == NodeType::IDENTIFIER
+                && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+                && arrays_.at(rhs.children[1]->strValue).isND
+                && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+                && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+                const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+                const ArrayInfo    &M   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                    const int  dimv = static_cast<int>(rhs.children[2]->numValue);
+                    const bool descend =
+                        rhs.children.size() == 4 && rhs.children[3]->strValue == "descend";
+                    const std::string sd = dimv == 1 ? "1" : (dimv == 2 ? "_nk_m" : "_nk_m * _nk_n");
+                    const std::string ld = dimv == 1 ? "_nk_m" : (dimv == 2 ? "_nk_n" : "_nk_p");
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                    line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                    line("const std::size_t _nk_p = " + dimExpr(A, 2) + ";");
+                    line(M.ndDims[0] + " = _nk_m;");
+                    line(M.ndDims[1] + " = _nk_n;");
+                    line(M.ndDims[2] + " = _nk_p;");
+                    line("const std::size_t _nk_tot = _nk_m * _nk_n * _nk_p;");
+                    line("const std::size_t _nk_sd = " + sd + ";");
+                    line("const std::size_t _nk_ld = " + ld + ";");
+                    line("const std::size_t _nk_blk = _nk_sd * _nk_ld;");
+                    line(name + ".assign(_nk_tot, 0.0);");
+                    line("std::vector<double> _nk_f(_nk_ld);");
+                    open("for (std::size_t _nk_b = 0; _nk_b < _nk_tot; _nk_b += _nk_blk)");
+                    open("for (std::size_t _nk_r = 0; _nk_r < _nk_sd; ++_nk_r)");
+                    open("for (std::size_t _nk_t = 0; _nk_t < _nk_ld; ++_nk_t)");
+                    line("_nk_f[_nk_t] = " + A.dataExpr + "[_nk_b + _nk_r + _nk_t * _nk_sd];");
+                    close();
+                    line("std::sort(_nk_f.begin(), _nk_f.end(),");
+                    line(descend
+                             ? "    [](double _a, double _b){ return _a > _b || (_a != _a && _b == _b); });"
+                             : "    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
+                    open("for (std::size_t _nk_t = 0; _nk_t < _nk_ld; ++_nk_t)");
+                    line(name + "[_nk_b + _nk_r + _nk_t * _nk_sd] = _nk_f[_nk_t];");
+                    close();
+                    close();
+                    close();
+                    --indent_;
+                    line("}");
+                    types_.set(name, res);
+                    return;
+                }
+            }
+        }
         // Native sortrows(A) on a 2-D MATRIX -> rows sorted ascending lexicographically (by col 1,
         // ties by col 2, ...). Sort an m-row index vector with a lexicographic comparator (per
         // column, NaN-last: NaN sorts after numbers; equal/both-NaN -> next column), then gather the
