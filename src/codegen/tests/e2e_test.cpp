@@ -10376,3 +10376,48 @@ TEST(CodegenE2E, CumsumCumprodRank3Dim3)
         engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// rank-3 cumsum/cumprod along dim 1 and dim 2 (phase N54): the N53 producer was dim-3 only; now
+// generalized to any dim 1|2|3 via a single stride/length-parameterized loop (dim1 = contiguous
+// columns, dim2 = per-row within a page stride m, dim3 = across pages stride m*n). All shape-
+// preserving (no rank drop). Validates the dim-1/dim-2 strides + the cumprod path off dim 3.
+// Bit-exact vs the interpreter.
+TEST(CodegenE2E, CumsumRank3Dim1Dim2)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"  // pages [1 3;2 4], [5 7;6 8], [9 11;10 12]
+        "  E = cumsum(A, 1);\n"         // down columns: E(2,1,1)=3, E(2,2,1)=7, E(2,2,3)=23
+        "  F = cumsum(A, 2);\n"         // across rows:  F(2,2,3)=10+12=22
+        "  G = cumprod(A, 2);\n"        // across rows:  G(2,2,3)=10*12=120
+        "  r = E(2,1,1) + E(2,2,1)*10 + E(2,2,3)*100 + F(2,2,3)*1000 + G(2,2,3)*10000"
+        " + numel(E)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cumrank3d12_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cumrank3d12_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12];\n"
+        "  for (int i = 0; i < 12; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 12);\n"  // 3 + 70 + 2300 + 22000 + 1200000 + 12000000 = 13224373
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 13224373.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
