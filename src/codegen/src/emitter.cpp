@@ -2460,6 +2460,44 @@ void Emitter::emitAssign(const ASTNode &s)
     if (lhs.type == NodeType::IDENTIFIER) {
         const std::string &name = lhs.strValue;
 
+        // `t = f(args)` where f is a user function RETURNING A STRUCT (G2.4): emit a void
+        // call binding t's per-field locals (_nk_fld_t_<f>) as the callee's out-param refs
+        // (the inverse of the struct PARAM explosion). The callee fills them in place; the
+        // field-locals were declared by the inference (so they are hoisted). v1: all-scalar
+        // fields. A non-struct return / builtin / indexing falls through to the normal path.
+        if (rhs.type == NodeType::CALL && !rhs.children.empty()
+            && rhs.children[0]->type == NodeType::IDENTIFIER && ctx_ && ctx_->funcs
+            && !types_.has(rhs.children[0]->strValue)
+            && ctx_->funcs->has(rhs.children[0]->strValue)) {
+            const AbstractValue retAv = inferExpr(rhs, types_, reg_, classes_);
+            if (retAv.type.isStruct() && retAv.type.structLayout) {
+                const std::string &callee = rhs.children[0]->strValue;
+                const ASTNode     *def    = ctx_->funcs->find(callee);
+                std::vector<InferredType> argTypes;
+                std::string               argList;
+                for (std::size_t i = 1; i < rhs.children.size(); ++i)
+                    appendCallArg(*rhs.children[i], argTypes, argList);
+                if (argTypes.size() != def->paramNames.size())
+                    unsupported("arity mismatch calling '" + callee + "'");
+                // t's per-field locals as out-arg refs, in the return layout's field order.
+                for (const auto &f : retAv.type.structLayout->fields) {
+                    if (!isUnboxableScalarType(f.second))
+                        unsupported("struct-return field '" + name + "." + f.first
+                                    + "' must be a scalar (v1)");
+                    if (!argList.empty()) argList += ", ";
+                    const std::string fld = "_nk_fld_" + name + "_" + f.first;
+                    argList += fld;
+                    types_.set(fld, {f.second, ConstVal::unknown()});
+                }
+                const std::string mangled = mangle(callee, argTypes);
+                if (ctx_->seen.insert(mangled).second)
+                    ctx_->pending.push_back({def, argTypes, mangled});
+                line(mangled + "(" + argList + ");");
+                types_.set(name, {retAv.type, ConstVal::unknown()});
+                return;
+            }
+        }
+
         // Array initialised by a size constructor: `a = zeros(1,n)` / `ones`.
         // The OUTPUT out-param (caller-sized) becomes a fill loop over its
         // length; an owned-vector LOCAL is `a.assign(numel, fill)` (numel =
@@ -9033,6 +9071,24 @@ OneFn emitOneFunction(const ASTNode &funcDef, const std::vector<ParamSpec> &para
             // returned BY VALUE (value class) / handle wrapper — not an
             // out-param; the scalar-return path (return retName;) applies.
             retCpp = cppObjectType(retType.classId, classes);
+        } else if (retType.isStruct()) {
+            // A struct return (G2.4): the return var's per-field out-param REFERENCES are
+            // filled IN PLACE by the body -- `s.f = ..` flattens to `_nk_fld_<ret>_<f> = ..`,
+            // which IS the out-param ref (mirror of the array-output out-param + the struct
+            // PARAM explosion of G2.3). void return, no scalar return. v1: all-scalar fields.
+            if (!retType.structLayout)
+                unsupported("struct output '" + retName + "' has no field layout");
+            arrayReturn = true;  // void; body fills the out-params; no scalar return emitted
+            retCpp      = "void";
+            for (const auto &f : retType.structLayout->fields) {
+                if (!isUnboxableScalarType(f.second))
+                    unsupported("struct output field '" + retName + "." + f.first
+                                + "' must be a scalar (v1; array / nested struct fields deferred)");
+                const std::string fld = "_nk_fld_" + retName + "_" + f.first;
+                entry.set(fld, {f.second, ConstVal::unknown()});
+                paramSet.insert(fld);  // an out-param ref the body writes, not a hoisted local
+                sigParams.push_back(cppScalarType(f.second.dtype) + "& " + fld);
+            }
         } else if (bridge && retType.isDynamic()) {
             // Dynamic tier (DESIGN.md §10 C1): an un-typeable result is returned
             // BOXED as an owned nk_val — the path for a Dynamic VALUE to cross the
