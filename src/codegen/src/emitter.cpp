@@ -7037,6 +7037,62 @@ void Emitter::emitMultiAssign(const ASTNode &s)
         types_.set(rn1, {_nk_at.type, ConstVal::unknown()});
         return;
     }
+    // [u, ia, ic] = unique(x) on a 1-D vector -> sorted distinct values u, the FIRST-occurrence
+    // index ia (u = x(ia)), and the map ic (x = u(ic)); all 1-D DOUBLE LOCALs, 1-based. A stable
+    // index sort (NaN-extremum comparator) puts the first of each equal run at the smallest
+    // original index = first occurrence; NaN stays distinct (NaN != NaN). 2 outputs ([u,ia]) or 3
+    // ([u,ia,ic]). v1: a single 1-D DOUBLE array var. (A matrix unique stays bridged.)
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 2
+        && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "unique"
+        && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+        && (s.returnNames.size() == 2 || s.returnNames.size() == 3)
+        && !arrays_.at(rhs.children[1]->strValue).is2D && !arrays_.at(rhs.children[1]->strValue).isND
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const bool         wantIc = s.returnNames.size() == 3;
+        const std::string &rnU    = s.returnNames[0];  // sorted distinct values
+        const std::string &rnIa   = s.returnNames[1];  // first-occurrence indices (u = x(ia))
+        const std::string  rnIc   = wantIc ? s.returnNames[2] : std::string();  // map (x = u(ic))
+        if (rnU.empty() || rnU == "~" || rnIa.empty() || rnIa == "~"
+            || (wantIc && (rnIc.empty() || rnIc == "~")))
+            unsupported("[u,ia,ic]=unique with an ignored (~) output (v1)");
+        const ArrayInfo &xa = arrays_.at(rhs.children[1]->strValue);
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_n = " + xa.lenVar + ";");
+        line("const double* _nk_d = " + xa.dataExpr + ";");
+        line("std::vector<std::size_t> _nk_p(_nk_n);");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_n; ++_nk_i)");
+        line("_nk_p[_nk_i] = _nk_i;");
+        close();
+        line("std::stable_sort(_nk_p.begin(), _nk_p.end(),");
+        line("    [_nk_d](std::size_t _a, std::size_t _b){ return _nk_d[_a] < _nk_d[_b] || (_nk_d[_b] "
+             "!= _nk_d[_b] && _nk_d[_a] == _nk_d[_a]); });");
+        line(rnU + ".clear();");
+        line(rnIa + ".clear();");
+        if (wantIc) {
+            line(rnIc + ".assign(_nk_n, 0.0);");
+            line("std::size_t _nk_uk = 0;");
+        }
+        open("for (std::size_t _nk_s = 0; _nk_s < _nk_n; ++_nk_s)");
+        open("if (_nk_s == 0 || _nk_d[_nk_p[_nk_s]] != _nk_d[_nk_p[_nk_s - 1]])");
+        if (wantIc) line("if (_nk_s != 0) ++_nk_uk;");
+        line(rnU + ".push_back(_nk_d[_nk_p[_nk_s]]);");
+        line(rnIa + ".push_back(static_cast<double>(_nk_p[_nk_s] + 1));");
+        close();
+        if (wantIc) line(rnIc + "[_nk_p[_nk_s]] = static_cast<double>(_nk_uk + 1);");
+        close();
+        --indent_;
+        line("}");
+        types_.set(rnU,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        types_.set(rnIa,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        if (wantIc)
+            types_.set(rnIc, {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                              ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result

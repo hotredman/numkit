@@ -7526,8 +7526,9 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     TransferRegistry reg;
     registerStandardTransfers(reg);
     numkit::Lexer          lex("function y = f(x)\n"
-                               "  [u, ia] = unique(x);\n"  // bridged 2-output -> u,ia Dynamic
-                               "  y = u(1) + ia(1);\n"      // Dynamic indexing + arithmetic
+                               "  b = [50 20 70];\n"
+                               "  [tf, loc] = ismember(x, b);\n"  // bridged 2-output -> tf,loc Dynamic
+                               "  y = tf(1) + loc(1);\n"           // Dynamic indexing + arithmetic
                                "end\n");
     numkit::Parser         parser(lex.tokenize());
     auto                   root = parser.parse();
@@ -7542,7 +7543,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     const EmittedFunction emitted = emitFunction(
         *fn, {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}}, reg, nullptr,
         bridge);
-    ASSERT_NE(emitted.source.find("nk_rt::call_dyn_multi(\"unique\""), std::string::npos);
+    ASSERT_NE(emitted.source.find("nk_rt::call_dyn_multi(\"ismember\""), std::string::npos);
 
     auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
     std::filesystem::create_directories(base);
@@ -7554,8 +7555,8 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
     std::string program = emitted.source +
         "#include <cstdio>\n"
         "int main() {\n"
-        "  const double xs[5] = {3, 1, 4, 5, 2};\n"  // distinct; unique -> u(1)=1, ia(1)=2
-        "  nk_val r = f(xs, 5);\n"
+        "  const double xs[2] = {20, 90};\n"  // ismember([20 90],[50 20 70]): tf(1)=1, loc(1)=2
+        "  nk_val r = f(xs, 2);\n"
         "  const double v = nk_unbox_scalar(r);\n"
         "  nk_release(r);\n"
         "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
@@ -7583,7 +7584,7 @@ TEST(CodegenBridge, BridgedBuiltinMultiOutputRunsAndMatchesInterpreter)
         while (is >> v) got.push_back(v);
     }
     ASSERT_EQ(got.size(), 1u);
-    EXPECT_DOUBLE_EQ(got[0], 3.0);  // unique: u(1)=1 (min), ia(1)=2 (its position); 1 + 2 = 3
+    EXPECT_DOUBLE_EQ(got[0], 3.0);  // ismember: tf(1)=1 (20 in b), loc(1)=2 (its index); 1 + 2 = 3
 }
 
 // BRIDGED ARRAY result (DESIGN.md §6a, array layer): y = sign(x). `sign` is
@@ -9820,5 +9821,44 @@ TEST(CodegenE2E, SortWithIndex2D)
     numkit::StandardEngine engine;
     const double interp =
         engine.eval(std::string("x=[3 1 2 6 4 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
+
+// [u,ia,ic]=unique(x) (phase N40): u = sorted distinct, ia = first-occurrence index (u=x(ia)),
+// ic = the map (x=u(ic)). All three outputs were bridged; now native (stable index sort + dedupe).
+// Input has a tie (two 10s) to exercise first-occurrence ia + the ic map. Bit-exact vs interp.
+TEST(CodegenE2E, UniqueWithIndices)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  [u, ia, ic] = unique(x);\n"  // x=[30 10 40 10 50]: u=[10 30 40 50], ia=[2 1 3 5], ic=[2 1 3 1 4]
+        "  r = u(1) + u(2)*10 + ia(1)*100 + ia(2)*1000 + ic(1)*10000 + ic(4)*100000"
+        " + numel(u)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_uniqueidx_e2e.exe").string();
+    const std::string outTxt = (base / "nk_uniqueidx_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {30, 10, 40, 10, 50};\n"  // tie: two 10s at positions 2 and 4
+        "  double r = f(x, 5);\n"  // 10 + 300 + 200 + 1000 + 20000 + 100000 + 4000000 = 4121510
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4121510.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
