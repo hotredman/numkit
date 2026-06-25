@@ -480,27 +480,31 @@ InferredType maxMinTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();  // other 3+ arg forms (max(x,[],"all"), …) -> bridged
 }
 
-// any / all over a VECTOR -> a LOGICAL scalar (true/false), regardless of the
-// operand dtype. Only the vector->scalar single-output case is typed (the emitter
-// lowers it to a native inline short-circuit loop). Matrix / N-D / 2-arg -> Dynamic.
+// any / all: a VECTOR -> a LOGICAL scalar; a 2-D matrix -> a LOGICAL row vector (column-wise). The
+// 2-arg any(A, dim) form with a 2-D matrix A and a LITERAL dim 1|2 -> a LOGICAL 1-D vector (dim 1
+// -> 1 x n; dim 2 -> m x 1). The emitter lowers all to native inline loops. N-D / non-literal dim
+// -> Dynamic.
 InferredType anyAllTransfer(const std::vector<ArgInfo> &args)
 {
-    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
-    switch (args[0].type.shape.kind) {
-    case ShapeKind::Scalar:
-    case ShapeKind::RowVector:
-    case ShapeKind::ColVector: return InferredType::scalar(ValueType::LOGICAL);  // -> scalar
-    case ShapeKind::KnownDims:
-        // a true 2-D matrix any(A)/all(A) is column-wise -> a LOGICAL 1 x n ROW vector (runtime n).
-        if (args[0].type.shape.rows > 1 && args[0].type.shape.cols > 1)
-            return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());
-        return InferredType::dynamic();
-    case ShapeKind::NDims:  // runtime-dim rank-2 matrix -> column-wise -> 1-D LOGICAL row vector
-        if (args[0].type.shape.nd.size() == 2)
-            return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());
-        return InferredType::dynamic();
-    default: return InferredType::dynamic();
+    if (args.empty() || !args[0].type.isConcrete()) return InferredType::dynamic();
+    const Shape &s    = args[0].type.shape;
+    const bool   is2D = (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
+                      || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
+    if (args.size() == 1) {
+        switch (s.kind) {
+        case ShapeKind::Scalar:
+        case ShapeKind::RowVector:
+        case ShapeKind::ColVector: return InferredType::scalar(ValueType::LOGICAL);  // -> scalar
+        default:
+            if (is2D) return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());  // col-wise
+            return InferredType::dynamic();
+        }
     }
+    // any(A, dim) / all(A, dim): a 2-D matrix + a literal dim 1|2 -> a LOGICAL 1-D vector.
+    std::size_t dim = 0;
+    if (args.size() == 2 && is2D && args[1].constant.asDim(dim) && (dim == 1 || dim == 2))
+        return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());
+    return InferredType::dynamic();
 }
 
 // find(x) -> a 1-D DOUBLE vector of the 1-based positions of the nonzero
