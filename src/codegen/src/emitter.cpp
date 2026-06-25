@@ -7231,6 +7231,68 @@ void Emitter::emitMultiAssign(const ASTNode &s)
                               ConstVal::unknown()});
         return;
     }
+    // [c, ia, ib] = intersect(a, b) on two 1-D vectors -> c = sorted distinct common values, ia the
+    // FIRST-occurrence index in a (c = a(ia)), ib the first-occurrence index in b. Build sorted-
+    // unique ua + sorted ub; for each v in ua present in ub (binary_search, v==v so NaN is never
+    // common), push v and scan a/b for its first index. 2 outputs ([c,ia]) or 3 ([c,ia,ib]).
+    // !bridge_ guard. v1: two 1-D DOUBLE array vars.
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 3
+        && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "intersect"
+        && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+        && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+        && (s.returnNames.size() == 2 || s.returnNames.size() == 3) && !bridge_
+        && !arrays_.at(rhs.children[1]->strValue).is2D && !arrays_.at(rhs.children[1]->strValue).isND
+        && !arrays_.at(rhs.children[2]->strValue).is2D && !arrays_.at(rhs.children[2]->strValue).isND
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const bool         wantIb = s.returnNames.size() == 3;
+        const std::string &rnC    = s.returnNames[0];  // common values
+        const std::string &rnIa   = s.returnNames[1];  // first index in a
+        const std::string  rnIb   = wantIb ? s.returnNames[2] : std::string();  // first index in b
+        if (rnC.empty() || rnC == "~" || rnIa.empty() || rnIa == "~"
+            || (wantIb && (rnIb.empty() || rnIb == "~")))
+            unsupported("[c,ia,ib]=intersect with an ignored (~) output (v1)");
+        const ArrayInfo &aa = arrays_.at(rhs.children[1]->strValue);
+        const ArrayInfo &bb = arrays_.at(rhs.children[2]->strValue);
+        line("{");
+        ++indent_;
+        line("auto _nk_cmp = [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); };");
+        line("std::vector<double> _nk_ua(" + aa.dataExpr + ", " + aa.dataExpr + " + " + aa.lenVar
+             + ");");
+        line("std::vector<double> _nk_ub(" + bb.dataExpr + ", " + bb.dataExpr + " + " + bb.lenVar
+             + ");");
+        line("std::sort(_nk_ua.begin(), _nk_ua.end(), _nk_cmp);");
+        line("std::sort(_nk_ub.begin(), _nk_ub.end(), _nk_cmp);");
+        line("_nk_ua.erase(std::unique(_nk_ua.begin(), _nk_ua.end()), _nk_ua.end());");
+        line(rnC + ".clear();");
+        line(rnIa + ".clear();");
+        if (wantIb) line(rnIb + ".clear();");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_ua.size(); ++_nk_i)");
+        line("const double _nk_v = _nk_ua[_nk_i];");
+        open("if (_nk_v == _nk_v && std::binary_search(_nk_ub.begin(), _nk_ub.end(), _nk_v, _nk_cmp))");
+        line("std::size_t _nk_ja = 0; while (_nk_ja < " + aa.lenVar + " && !(" + aa.dataExpr
+             + "[_nk_ja] == _nk_v)) ++_nk_ja;");
+        line(rnC + ".push_back(_nk_v);");
+        line(rnIa + ".push_back(static_cast<double>(_nk_ja + 1));");
+        if (wantIb) {
+            line("std::size_t _nk_jb = 0; while (_nk_jb < " + bb.lenVar + " && !(" + bb.dataExpr
+                 + "[_nk_jb] == _nk_v)) ++_nk_jb;");
+            line(rnIb + ".push_back(static_cast<double>(_nk_jb + 1));");
+        }
+        close();
+        close();
+        --indent_;
+        line("}");
+        types_.set(rnC,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        types_.set(rnIa,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        if (wantIb)
+            types_.set(rnIb, {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                              ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result
