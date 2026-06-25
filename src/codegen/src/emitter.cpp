@@ -5944,6 +5944,45 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native single-output ismember(a, b) on two 1-D vectors -> a LOGICAL mask the length of a:
+        // tf(i) = a(i) is a member of b. Sort b once, then per element binary_search (NaN-last
+        // comparator); a(i) NaN -> false (v==v guard, MATLAB: NaN is never a member). Result a
+        // LOGICAL (uint8) LOCAL. !bridge_ guard. v1: two 1-D DOUBLE array vars. (Only the single-
+        // output form; [tf,loc]=ismember has no multi-transfer so it stays bridged.)
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_ && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "ismember"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && !arrays_.at(rhs.children[2]->strValue).is2D
+            && !arrays_.at(rhs.children[2]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &aa  = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &bb  = arrays_.at(rhs.children[2]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("auto _nk_cmp = [](double _a, double _b){ return _a < _b || (_b != _b && _a == "
+                     "_a); };");
+                line("std::vector<double> _nk_ub(" + bb.dataExpr + ", " + bb.dataExpr + " + "
+                     + bb.lenVar + ");");
+                line("std::sort(_nk_ub.begin(), _nk_ub.end(), _nk_cmp);");
+                line(name + ".assign(" + aa.lenVar + ", 0);");  // LOGICAL uint8 buffer
+                open("for (std::size_t _nk_i = 0; _nk_i < " + aa.lenVar + "; ++_nk_i)");
+                line("const double _nk_v = " + aa.dataExpr + "[_nk_i];");
+                line(name + "[_nk_i] = (_nk_v == _nk_v && std::binary_search(_nk_ub.begin(), "
+                     "_nk_ub.end(), _nk_v, _nk_cmp)) ? 1 : 0;");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native polyval(p, x) with x a vector -> the polynomial p (coeffs highest
         // degree first) evaluated at each x[i] by Horner, a same-length-as-x 1-D
         // LOCAL: out[i] = ((p[0]*x[i] + p[1])*x[i] + ...) + p[np-1]. Exact (a fused
