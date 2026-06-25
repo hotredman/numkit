@@ -9212,3 +9212,44 @@ TEST(CodegenE2E, BlockRangeReadWrite2D)
         engine.eval(std::string("x=1:16;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// 2-arg flip(A, dim) on a 2-D matrix (phase N25): flip(A,2) reverses columns (= fliplr),
+// flip(A,1) reverses rows (= flipud). The explicit-dim form was bridged (identityShapeTransfer
+// is strict-1-arg); now native. Verified bit-exact against the interpreter.
+TEST(CodegenE2E, FlipWithDim2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 3);\n"  // 2x3: [1 3 5; 2 4 6]
+        "  B = flip(A, 2);\n"        // reverse columns -> [5 3 1; 6 4 2]
+        "  C = flip(A, 1);\n"        // reverse rows    -> [2 4 6; 1 3 5]
+        "  r = B(1,1) + B(1,3)*10 + C(1,1)*100 + C(2,1)*1000 + numel(B)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_flipdim2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_flipdim2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6];\n"
+        "  for (int i = 0; i < 6; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 6);\n"  // 5 + 10 + 200 + 1000 + 60000 = 61215
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 61215.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=1:6;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
