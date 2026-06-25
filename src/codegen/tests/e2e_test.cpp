@@ -9498,3 +9498,43 @@ TEST(CodegenE2E, FlipRank3)
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// 2-D sort(A) (phase N32): sort(A) sorts each column ascending, sort(A,'descend') descending --
+// a same-shape matrix. The sort producer was 1-D only -> a matrix sort was bridged; now native
+// (per-column std::sort on the contiguous column blocks). Bit-exact vs the interpreter.
+TEST(CodegenE2E, Sort2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 3, 2);\n"     // [3 6; 1 4; 2 5]
+        "  B = sort(A);\n"             // each column ascending  -> [1 4; 2 5; 3 6]
+        "  C = sort(A, 'descend');\n"  // each column descending -> [3 6; 2 5; 1 4]
+        "  r = B(1,1) + B(3,1)*10 + B(1,2)*100 + C(1,1)*1000 + C(3,2)*10000 + numel(B)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_sort2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_sort2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6] = {3, 1, 2, 6, 4, 5};\n"  // 3x2 col-major
+        "  double r = f(x, 6);\n"  // 1 + 30 + 400 + 3000 + 40000 + 600000 = 643431
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 643431.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 2 6 4 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}

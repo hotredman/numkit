@@ -5586,6 +5586,53 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native sort(A) on a 2-D MATRIX -> sort each COLUMN independently into a fresh same-shape
+        // matrix (ascending default / 'descend'). Column-major: column j is the contiguous block
+        // [j*m, (j+1)*m), so copy A then std::sort each column's block with the NaN-extremum
+        // comparator (NaN last ascending / first descending, MATLAB order). EXACT but !bridge_
+        // (preserve the bridged array-result tier when the bridge is on, like the 1-D form). v1: a
+        // DOUBLE matrix var distinct from the dest; ascending or 'descend', single-output.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_
+            && (arrays_.at(name).is2D
+                || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+            && rhs.type == NodeType::CALL
+            && (rhs.children.size() == 2
+                || (rhs.children.size() == 3 && rhs.children[2]->type == NodeType::STRING_LITERAL))
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "sort"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[1]->strValue != name
+            && (arrays_.at(rhs.children[1]->strValue).is2D
+                || (arrays_.at(rhs.children[1]->strValue).isND
+                    && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A       = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M       = arrays_.at(name);
+            const AbstractValue res     = inferExpr(rhs, types_, reg_, classes_);
+            const bool          descend = rhs.children.size() == 3
+                                          && rhs.children[2]->strValue == "descend";
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                if (M.isND && M.ndDims.size() == 2) {  // runtime-dim dst: set its companions
+                    line(M.ndDims[0] + " = _nk_m;");
+                    line(M.ndDims[1] + " = _nk_n;");
+                }
+                line(name + ".assign(" + A.dataExpr + ", " + A.dataExpr + " + _nk_m * _nk_n);");
+                open("for (std::size_t _nk_j = 0; _nk_j < _nk_n; ++_nk_j)");
+                line("std::sort(" + name + ".begin() + _nk_j * _nk_m, " + name
+                     + ".begin() + (_nk_j + 1) * _nk_m,");
+                line(descend
+                         ? "    [](double _a, double _b){ return _a > _b || (_a != _a && _b == _b); });"
+                         : "    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even
