@@ -227,6 +227,21 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                 // hoists as a (r-1)-D local. r >= 3 only (r=2 A(:,k) is the column slice).
                 const AbstractValue base = env.get(name);
                 const std::size_t   nsub = expr.children.size() - 1;
+                // 2-D COLUMN-RANGE read A(:, j1:j2): a leading bare colon + a trailing step-1
+                // RANGE on a 2-D base -> a runtime-dim 2-D [rows, j2-j1+1] (columns j1..j2 are a
+                // contiguous column-major block). Typed here so the dest hoists as a runtime 2-D
+                // local; the emit copies the block. The rank-3+ trailing range is the page/slab
+                // range below (NDims only); this is its rank-2 sibling (a 2-D may be KnownDims).
+                const bool is2DSrc =
+                    (base.type.shape.kind == ShapeKind::KnownDims && base.type.shape.rows > 1
+                     && base.type.shape.cols > 1)
+                    || (base.type.shape.kind == ShapeKind::NDims && base.type.shape.nd.size() == 2);
+                if (is2DSrc && nsub == 2 && expr.children[1]->type == NodeType::COLON_EXPR
+                    && expr.children[1]->children.empty()
+                    && expr.children[2]->type == NodeType::COLON_EXPR
+                    && expr.children[2]->children.size() == 2)
+                    return {InferredType::concrete(base.type.dtype, Shape::ndShape({0, 0})),
+                            ConstVal::unknown()};
                 if (base.type.shape.kind == ShapeKind::NDims && base.type.shape.nd.size() >= 3
                     && nsub == base.type.shape.nd.size()) {
                     const std::size_t r = base.type.shape.nd.size();
