@@ -1810,6 +1810,50 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // page-RANGE WRITE A(:,:,k1:k2) = B: write a rank-3 m x n x (k2-k1+1) array B into the
+    // contiguous page block k1..k2 of a rank-3 A (phase N20, the WRITE sibling of the N7 page-
+    // range read). Column-major: pages k1..k2 are the CONTIGUOUS block A[(k1-1)*m*n .. k2*m*n]
+    // -> a straight copy from B. A writable; bounds-checked range (end = size(A,3)); a numel
+    // guard on B (m*n*(k2-k1+1)). v1: rank-3 DOUBLE A, two leading bare colons + a step-1 range
+    // k1:k2, rhs a distinct rank-3 DOUBLE array var. Placed before the N-D write branch.
+    if (ai.isND && ai.ndDims.size() == 3 && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children.size() == 4
+        && lhsCall.children[1]->type == NodeType::COLON_EXPR && lhsCall.children[1]->children.empty()
+        && lhsCall.children[2]->type == NodeType::COLON_EXPR && lhsCall.children[2]->children.empty()
+        && lhsCall.children[3]->type == NodeType::COLON_EXPR && lhsCall.children[3]->children.size() == 2
+        && rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue) && rhs.strValue != base
+        && arrays_.at(rhs.strValue).isND && arrays_.at(rhs.strValue).ndDims.size() == 3
+        && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE) {
+        if (!ai.isLocal && !ai.isOutput)
+            unsupported("page-range write to a read-only array parameter '" + base + "'");
+        const ArrayInfo  &B   = arrays_.at(rhs.strValue);  // value source
+        const std::string m = dimExpr(ai, 0), n = dimExpr(ai, 1), p = dimExpr(ai, 2);
+        const ASTNode    &rng = *lhsCall.children[3];  // k1:k2
+        endStack_.push_back(p);                        // `end` in the page index = size(A,3)
+        const std::string k1 = emitExpr(*rng.children[0]);
+        const std::string k2 = emitExpr(*rng.children[1]);
+        endStack_.pop_back();
+        line("{");
+        ++indent_;
+        line("const std::size_t _nk_pg = " + m + " * " + n + ";");
+        line("const std::ptrdiff_t _nk_k1 = static_cast<std::ptrdiff_t>(" + k1 + ");");
+        line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
+        line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + p
+             + ") || _nk_k2 < _nk_k1)");
+        line("    throw std::out_of_range(\"numkit: page range out of bounds\");");
+        line("const std::size_t _nk_np = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
+        line("if ((" + dimExpr(B, 0) + " * " + dimExpr(B, 1) + " * " + dimExpr(B, 2)
+             + ") != _nk_pg * _nk_np)");
+        line("    throw std::out_of_range(\"numkit: page-range assignment size mismatch\");");
+        line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_pg;");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_pg * _nk_np; ++_nk_i)");
+        line(ptr + "[_nk_off + _nk_i] = " + B.dataExpr + "[_nk_i];");
+        close();
+        --indent_;
+        line("}");
+        return;
+    }
+
     // GENERAL scalar/colon slice WRITE A(s_0..s_{r-1}) = rhs for a rank r >= 4 A (the WRITE
     // sibling of the rank-4+ general slice read). Each subscript is a bare colon or a scalar
     // (>=1 of each). The kept slice dims (colon -> size(A,k), scalar -> 1, trailing scalars
