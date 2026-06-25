@@ -166,6 +166,24 @@ std::vector<InferredType> uniqueMultiTransfer(const std::vector<ArgInfo> &args)
     return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
 }
 
+// [c, ia, ib] = intersect(a, b): c = sorted distinct common values; ia s.t. c = a(ia) (FIRST
+// occurrence in a -- probed); ib s.t. c = b(ib) (first occurrence in b). All three 1-D DOUBLE
+// (length = #common, runtime -> Unknown). v1: two 1-D DOUBLE vectors; else Dynamic.
+std::vector<InferredType> intersectMultiTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete()
+        || args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
+        return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
+    auto isVec = [](ShapeKind k) {
+        return k == ShapeKind::RowVector || k == ShapeKind::ColVector || k == ShapeKind::Unknown;
+    };
+    if (isVec(args[0].type.shape.kind) && isVec(args[1].type.shape.kind))
+        return {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
+    return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
+}
+
 // transpose (A.') / ctranspose (A'): swap the two dimensions. A row becomes a
 // column and vice-versa; a matrix's dims swap; a scalar is unchanged. The
 // dtype is preserved (ctranspose conjugates the VALUES of a complex operand
@@ -666,6 +684,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.addMulti("min", maxMinMultiTransfer);  // [m,i]=min(x) -> {value, 1-based index}
     reg.addMulti("sort", sortMultiTransfer);   // [s,i]=sort(x) -> {sorted values, permutation}
     reg.addMulti("unique", uniqueMultiTransfer);  // [u,ia,ic]=unique(x) -> {distinct, first-idx, map}
+    reg.addMulti("intersect", intersectMultiTransfer);  // [c,ia,ib]=intersect(a,b) -> {common, a-idx, b-idx}
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)
