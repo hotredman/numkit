@@ -144,6 +144,19 @@ InferredType ismemberTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// sortrows(A): sort the ROWS of a 2-D matrix in ascending lexicographic order -> same shape. v1: a
+// true 2-D DOUBLE matrix (a vector/scalar/N-D -> Dynamic/bridged, so the emit never sees a non-2-D).
+InferredType sortrowsTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete() || args[0].type.dtype != ValueType::DOUBLE)
+        return InferredType::dynamic();
+    const Shape &s = args[0].type.shape;
+    if ((s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
+        || (s.kind == ShapeKind::NDims && s.nd.size() == 2))
+        return args[0].type;  // same shape (rows reordered)
+    return InferredType::dynamic();
+}
+
 // [u, ia, ic] = unique(x): u = sorted distinct values; ia s.t. u = x(ia) (the FIRST occurrence,
 // numkit default -- probed); ic s.t. x = u(ic). All three are 1-D DOUBLE vectors (u/ia length =
 // #distinct, ic length = numel(x); all runtime -> Unknown). v1: a 1-D DOUBLE vector; a matrix ->
@@ -751,6 +764,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("intersect", setopBinaryTransfer);  // intersect(a,b) -> sorted distinct common values
     reg.add("setdiff", setopBinaryTransfer);    // setdiff(a,b) -> sorted distinct of a not in b
     reg.add("ismember", ismemberTransfer);      // tf=ismember(a,b) -> LOGICAL mask (a in b)
+    reg.add("sortrows", sortrowsTransfer);      // sortrows(A) -> rows sorted lexicographically
     reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})

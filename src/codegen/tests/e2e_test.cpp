@@ -10137,3 +10137,42 @@ TEST(CodegenE2E, UnionWithIndices)
         engine.eval(std::string("x=[30 10 40 10 50];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// sortrows(A) (phase N48): sort the rows of a matrix ascending lexicographically (by col 1, ties by
+// col 2). Was bridged; now native (stable lexicographic sort of a row-index vector + gather).
+// Bit-exact vs the interpreter.
+TEST(CodegenE2E, Sortrows)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 4, 2);\n"  // rows [3 1; 1 2; 3 0; 1 2]
+        "  B = sortrows(A);\n"       // -> [1 2; 1 2; 3 0; 3 1]
+        "  r = B(1,1) + B(1,2)*10 + B(4,1)*100 + B(4,2)*1000 + numel(B)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_sortrows_e2e.exe").string();
+    const std::string outTxt = (base / "nk_sortrows_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[8] = {3, 1, 3, 1, 1, 2, 0, 2};\n"  // 4x2 col-major
+        "  double r = f(x, 8);\n"  // B=[1 2; 1 2; 3 0; 3 1]: 1 + 20 + 300 + 1000 + 80000 = 81321
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 81321.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 3 1 1 2 0 2];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
