@@ -184,6 +184,22 @@ std::vector<InferredType> intersectMultiTransfer(const std::vector<ArgInfo> &arg
     return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
 }
 
+// [c, ia] = setdiff(a, b): c = sorted distinct values of a not in b; ia s.t. c = a(ia) (FIRST
+// occurrence in a). Both 1-D DOUBLE (length = #result). v1: two 1-D DOUBLE vectors; else Dynamic.
+std::vector<InferredType> setdiffMultiTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete()
+        || args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
+        return {InferredType::dynamic(), InferredType::dynamic()};
+    auto isVec = [](ShapeKind k) {
+        return k == ShapeKind::RowVector || k == ShapeKind::ColVector || k == ShapeKind::Unknown;
+    };
+    if (isVec(args[0].type.shape.kind) && isVec(args[1].type.shape.kind))
+        return {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
+    return {InferredType::dynamic(), InferredType::dynamic()};
+}
+
 // transpose (A.') / ctranspose (A'): swap the two dimensions. A row becomes a
 // column and vice-versa; a matrix's dims swap; a scalar is unchanged. The
 // dtype is preserved (ctranspose conjugates the VALUES of a complex operand
@@ -685,6 +701,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.addMulti("sort", sortMultiTransfer);   // [s,i]=sort(x) -> {sorted values, permutation}
     reg.addMulti("unique", uniqueMultiTransfer);  // [u,ia,ic]=unique(x) -> {distinct, first-idx, map}
     reg.addMulti("intersect", intersectMultiTransfer);  // [c,ia,ib]=intersect(a,b) -> {common, a-idx, b-idx}
+    reg.addMulti("setdiff", setdiffMultiTransfer);  // [c,ia]=setdiff(a,b) -> {a-not-in-b, a-idx}
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)
