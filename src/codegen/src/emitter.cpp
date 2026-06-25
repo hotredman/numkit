@@ -7293,6 +7293,62 @@ void Emitter::emitMultiAssign(const ASTNode &s)
                               ConstVal::unknown()});
         return;
     }
+    // [c, ia] = setdiff(a, b) on two 1-D vectors -> c = sorted distinct values of a not in b, ia the
+    // FIRST-occurrence index in a (c = a(ia)). Sort an index vector of a (stable, NaN-last) and walk
+    // it: at each new distinct value (a[p[s]] != a[p[s-1]], so each NaN is its own distinct with its
+    // own index -- multi-NaN correct), keep it when it is NaN (v!=v, never in b) OR absent from the
+    // sorted ub. This mirrors the unique-multi index logic, so ia is correct including duplicate
+    // NaNs. 2-output form. !bridge_ guard. v1: two 1-D DOUBLE array vars.
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 3
+        && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "setdiff"
+        && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+        && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+        && s.returnNames.size() == 2 && !bridge_
+        && !arrays_.at(rhs.children[1]->strValue).is2D && !arrays_.at(rhs.children[1]->strValue).isND
+        && !arrays_.at(rhs.children[2]->strValue).is2D && !arrays_.at(rhs.children[2]->strValue).isND
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const std::string &rnC  = s.returnNames[0];  // a-not-in-b values
+        const std::string &rnIa = s.returnNames[1];  // first index in a
+        if (rnC.empty() || rnC == "~" || rnIa.empty() || rnIa == "~")
+            unsupported("[c,ia]=setdiff with an ignored (~) output (v1)");
+        const ArrayInfo &aa = arrays_.at(rhs.children[1]->strValue);
+        const ArrayInfo &bb = arrays_.at(rhs.children[2]->strValue);
+        line("{");
+        ++indent_;
+        line("auto _nk_cmp = [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); };");
+        line("const double* _nk_da = " + aa.dataExpr + ";");
+        line("std::vector<double> _nk_ub(" + bb.dataExpr + ", " + bb.dataExpr + " + " + bb.lenVar
+             + ");");
+        line("std::sort(_nk_ub.begin(), _nk_ub.end(), _nk_cmp);");
+        line("std::vector<std::size_t> _nk_p(" + aa.lenVar + ");");
+        open("for (std::size_t _nk_i = 0; _nk_i < " + aa.lenVar + "; ++_nk_i)");
+        line("_nk_p[_nk_i] = _nk_i;");
+        close();
+        line("std::stable_sort(_nk_p.begin(), _nk_p.end(), [_nk_da](std::size_t _x, std::size_t _y){ "
+             "return _nk_da[_x] < _nk_da[_y] || (_nk_da[_y] != _nk_da[_y] && _nk_da[_x] == "
+             "_nk_da[_x]); });");
+        line(rnC + ".clear();");
+        line(rnIa + ".clear();");
+        open("for (std::size_t _nk_s = 0; _nk_s < " + aa.lenVar + "; ++_nk_s)");
+        open("if (_nk_s == 0 || _nk_da[_nk_p[_nk_s]] != _nk_da[_nk_p[_nk_s - 1]])");
+        line("const double _nk_v = _nk_da[_nk_p[_nk_s]];");
+        open("if (_nk_v != _nk_v || !std::binary_search(_nk_ub.begin(), _nk_ub.end(), _nk_v, "
+             "_nk_cmp))");
+        line(rnC + ".push_back(_nk_v);");
+        line(rnIa + ".push_back(static_cast<double>(_nk_p[_nk_s] + 1));");
+        close();
+        close();
+        close();
+        --indent_;
+        line("}");
+        types_.set(rnC,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        types_.set(rnIa,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result
