@@ -145,26 +145,30 @@ InferredType catTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 3) return InferredType::dynamic();  // dim + exactly two arrays (v1)
     std::size_t dim = 0;
-    if (!args[0].constant.asDim(dim) || (dim != 1 && dim != 2 && dim != 3))
-        return InferredType::dynamic();
+    if (!args[0].constant.asDim(dim) || dim < 1 || dim > 4) return InferredType::dynamic();
     auto isMat = [](const Shape &s) {
         return (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
                || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
     };
     // dim 1/2 -> a rank-2 result (vert/horz concat) of two 2-D matrices. dim 3 -> a rank-3
-    // result: stack/append along the new trailing dim (a contiguous buffer append), accepting
-    // 2-D OR rank-3 operands (two matrices -> m x n x 2; rank-3 ++ rank-3 -> m x n x (pA+pB)).
+    // result, dim 4 -> a rank-4 result: stack/append along the (new) trailing dim (a contiguous
+    // buffer append). dim 3 accepts 2-D OR rank-3 operands; dim 4 accepts rank-3 OR rank-4.
     auto okDim3 = [](const Shape &s) {
         return (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
                || (s.kind == ShapeKind::NDims && (s.nd.size() == 2 || s.nd.size() == 3));
     };
-    const bool bothOk = dim == 3 ? (okDim3(args[1].type.shape) && okDim3(args[2].type.shape))
-                                  : (isMat(args[1].type.shape) && isMat(args[2].type.shape));
+    auto okDim4 = [](const Shape &s) {
+        return s.kind == ShapeKind::NDims && (s.nd.size() == 3 || s.nd.size() == 4);
+    };
+    const bool bothOk = dim == 4 ? (okDim4(args[1].type.shape) && okDim4(args[2].type.shape))
+                        : dim == 3 ? (okDim3(args[1].type.shape) && okDim3(args[2].type.shape))
+                                   : (isMat(args[1].type.shape) && isMat(args[2].type.shape));
     if (args[1].type.isConcrete() && args[2].type.isConcrete() && bothOk
         && args[1].type.dtype == ValueType::DOUBLE && args[2].type.dtype == ValueType::DOUBLE)
         return InferredType::concrete(
-            ValueType::DOUBLE, Shape::ndShape(dim == 3 ? std::vector<std::size_t>{0, 0, 0}
-                                                       : std::vector<std::size_t>{0, 0}));
+            ValueType::DOUBLE, Shape::ndShape(std::vector<std::size_t>(dim == 4 ? 4 : dim == 3 ? 3
+                                                                                              : 2,
+                                                                       0)));
     return InferredType::dynamic();
 }
 
