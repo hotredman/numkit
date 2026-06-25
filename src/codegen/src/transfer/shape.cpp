@@ -473,9 +473,17 @@ InferredType maxMinTransfer(const std::vector<ArgInfo> &args)
         const Shape &s     = args[0].type.shape;
         const bool   is2D  = (s.kind == ShapeKind::KnownDims && s.rows > 1 && s.cols > 1)
                           || (s.kind == ShapeKind::NDims && s.nd.size() == 2);
+        const bool   isND3 = s.kind == ShapeKind::NDims && s.nd.size() == 3;
         std::size_t  dim = 0;
         if (is2D && args[2].constant.asDim(dim) && (dim == 1 || dim == 2))
             return InferredType::concrete(args[0].type.dtype, Shape::unknown());
+        // rank-3 reduction: dim 1|2 keep the (non-trailing) singleton -> rank-3; dim 3 removes the
+        // trailing dim entirely -> rank-2. Both output ranks are deterministic, so sound.
+        if (isND3 && args[2].constant.asDim(dim)) {
+            if (dim == 1 || dim == 2)
+                return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0, 0}));
+            if (dim == 3) return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0}));
+        }
     }
     return InferredType::dynamic();  // other 3+ arg forms (max(x,[],"all"), …) -> bridged
 }

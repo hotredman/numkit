@@ -10598,3 +10598,47 @@ TEST(CodegenE2E, DiffRank3Dim1Dim2)
         engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// rank-3 max/min reduction along a dim (phase N59): max(A,[],dim)/min(A,[],dim) collapse the scan
+// dim -> dim 1 [1,n,p], dim 2 [m,1,p] (rank-3), dim 3 [m,n] (rank-2, trailing dim fully removed).
+// The max/min reduction producer was 1-D + 2-D only -> a rank-3 reduction was bridged; now native,
+// reusing the cumsum stride scheme with a per-fiber NaN-skipping reduction to out[b/ld+r]. Covers
+// all three dims incl. the dim-3 rank-drop to 2-D. Non-monotone input. Bit-exact vs the interpreter.
+TEST(CodegenE2E, MaxMinReduceRank3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"   // pages [4 7;2 1], [3 6;8 5], [9 1;2 7]
+        "  P = max(A, [], 1);\n"         // [1,2,3]: P(1,1,1)=max(4,2)=4, P(1,1,2)=max(3,8)=8
+        "  Q = min(A, [], 2);\n"        // [2,1,3]: Q(2,1,1)=min(2,1)=1, Q(2,1,3)=min(2,7)=2
+        "  R = max(A, [], 3);\n"        // [2,2] rank-2: R(1,1)=max(4,3,9)=9, R(2,2)=max(1,5,7)=7
+        "  r = P(1,1,1) + P(1,1,2)*10 + Q(2,1,1)*100 + Q(2,1,3)*1000 + R(1,1)*10000"
+        " + R(2,2)*100000 + numel(R)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_maxminreducerank3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_maxminreducerank3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12] = {4, 2, 7, 1, 3, 8, 6, 5, 9, 2, 1, 7};\n"  // 2x2x3 col-major
+        "  double r = f(x, 12);\n"  // 4 + 80 + 100 + 2000 + 90000 + 700000 + 4000000 = 4792184
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 4792184.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[4 2 7 1 3 8 6 5 9 2 1 7];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
