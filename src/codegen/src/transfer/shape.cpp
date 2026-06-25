@@ -116,6 +116,10 @@ InferredType rot90Transfer(const std::vector<ArgInfo> &args)
         return InferredType::concrete(args[0].type.dtype, Shape::dims(s.cols, s.rows));
     if (s.kind == ShapeKind::NDims && s.nd.size() == 2)
         return InferredType::concrete(args[0].type.dtype, Shape::ndShape({s.nd[1], s.nd[0]}));
+    // rank-3: rotate each page in the (dim1,dim2) plane -> first two dims swap, dim 3 fixed.
+    if (s.kind == ShapeKind::NDims && s.nd.size() == 3)
+        return InferredType::concrete(args[0].type.dtype,
+                                      Shape::ndShape({s.nd[1], s.nd[0], s.nd[2]}));
     return InferredType::dynamic();
 }
 
