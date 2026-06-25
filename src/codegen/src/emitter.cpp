@@ -4831,6 +4831,67 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native circshift(A, k, dim) on a rank-3 array with a SCALAR shift along a LITERAL dim
+        // 1|2|3 -> a fresh same-shape rank-3 array, each fiber along the scan dim circularly shifted
+        // (a positive k toward higher indices, MATLAB: out[t] = A[mod(t-k, ld)]). Reuses the cumsum
+        // stride scheme (dim d: element stride sd, length ld; fiber starts tile as blocks of sd*ld,
+        // idx = b + r + t*sd). SAME shape (no rank change). Built into a temp first so an in-place
+        // A = circshift(A,k,dim) is aliasing-safe. The explicit 3-arg form only (the 2-arg default
+        // dim is the first non-singleton -- ambiguous on a runtime-dim rank-3 -> bridged). v1: a
+        // DOUBLE rank-3 array var, scalar k.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "circshift"
+            && rhs.children[3]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[3]->numValue == 1.0 || rhs.children[3]->numValue == 2.0
+                || rhs.children[3]->numValue == 3.0)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue)
+            && arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &B   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()
+                && inferExpr(*rhs.children[2], types_, reg_, classes_).type.shape.isScalar()) {
+                const int         dimv = static_cast<int>(rhs.children[3]->numValue);
+                const std::string sd = dimv == 1 ? "1" : (dimv == 2 ? "_nk_m" : "_nk_m * _nk_n");
+                const std::string ld = dimv == 1 ? "_nk_m" : (dimv == 2 ? "_nk_n" : "_nk_p");
+                const std::string k  = emitExpr(*rhs.children[2]);
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                line("const std::size_t _nk_p = " + dimExpr(A, 2) + ";");
+                line("const std::size_t _nk_tot = _nk_m * _nk_n * _nk_p;");
+                line("const std::size_t _nk_sd = " + sd + ";");
+                line("const std::size_t _nk_ld = " + ld + ";");
+                line("const std::size_t _nk_blk = _nk_sd * _nk_ld;");
+                line("const std::ptrdiff_t _nk_L = static_cast<std::ptrdiff_t>(_nk_ld);");
+                line("const std::ptrdiff_t _nk_k = static_cast<std::ptrdiff_t>(" + k + ");");
+                line("std::vector<double> _nk_out(_nk_tot);");
+                open("for (std::size_t _nk_b = 0; _nk_b < _nk_tot; _nk_b += _nk_blk)");
+                open("for (std::size_t _nk_r = 0; _nk_r < _nk_sd; ++_nk_r)");
+                open("for (std::size_t _nk_t = 0; _nk_t < _nk_ld; ++_nk_t)");
+                line("const std::size_t _nk_ts = static_cast<std::size_t>("
+                     "((static_cast<std::ptrdiff_t>(_nk_t) - _nk_k) % _nk_L + _nk_L) % _nk_L);");
+                line("_nk_out[_nk_b + _nk_r + _nk_t * _nk_sd] = " + A.dataExpr
+                     + "[_nk_b + _nk_r + _nk_ts * _nk_sd];");
+                close();
+                close();
+                close();
+                line(B.ndDims[0] + " = _nk_m;");
+                line(B.ndDims[1] + " = _nk_n;");
+                line(B.ndDims[2] + " = _nk_p;");
+                line(name + ".assign(_nk_out.begin(), _nk_out.end());");
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native gradient(y) -> numerical gradient, unit spacing, SAME length as y.
         // Edge points use one-sided differences, the interior centered: g[0]=y[1]-y[0];
         // g[i]=(y[i+1]-y[i-1])/2; g[n-1]=y[n-1]-y[n-2]; n==1 -> {0}; n==0 -> empty.

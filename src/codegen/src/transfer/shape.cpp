@@ -719,13 +719,18 @@ InferredType circshiftTransfer(const std::vector<ArgInfo> &args)
         return InferredType::dynamic();
     if (args[1].type.isConcrete() && args[1].type.shape.kind != ShapeKind::Scalar)
         return InferredType::dynamic();  // a per-dim shift vector -> deferred
-    // circshift(A, k, dim): only a known literal dim 1 or 2 is native (the emit needs the
-    // axis at compile time). A runtime dim, or any other literal, stays Dynamic (bridged --
-    // the runtime handles dim >= 3 as a no-op and dim <= 0 as the MATLAB subscript error).
-    if (args.size() == 3
-        && !(args[2].constant.isKnown()
-             && (args[2].constant.value == 1.0 || args[2].constant.value == 2.0)))
-        return InferredType::dynamic();
+    // circshift(A, k, dim): a known literal dim 1 or 2 is native for any operand (the emit needs the
+    // axis at compile time). dim 3 is native only for a rank-3 operand (rotate pages); for a <=2-D
+    // operand dim 3 is a no-op, left to the bridge. A runtime dim, or any other literal, stays
+    // Dynamic (bridged -- the runtime handles dim <= 0 as the MATLAB subscript error).
+    if (args.size() == 3) {
+        if (!args[2].constant.isKnown()) return InferredType::dynamic();
+        const double d     = args[2].constant.value;
+        const bool   isND3 = args[0].type.shape.kind == ShapeKind::NDims
+                          && args[0].type.shape.nd.size() == 3;
+        if (!(d == 1.0 || d == 2.0 || (d == 3.0 && isND3)))
+            return InferredType::dynamic();
+    }
     return args[0].type;
 }
 
