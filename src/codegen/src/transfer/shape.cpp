@@ -544,10 +544,11 @@ void registerShapeTransfers(TransferRegistry &reg)
     for (const char *n : {"isnumeric", "isfloat", "isinteger", "ischar", "islogical"})
         reg.add(n, logicalQueryTransfer);
     // Shape-preserving array->array builtins (bridged via the array-result path).
-    for (const char *n : {"cummax", "cummin", "fliplr", "flipud", "gradient"})
+    for (const char *n : {"fliplr", "flipud", "gradient"})
         reg.add(n, identityShapeTransfer);  // strict 1-arg
-    // 1-or-2-arg identity shape (the optional 2nd arg is a dim): flip / cumsum / cumprod.
-    for (const char *n : {"flip", "cumsum", "cumprod"})
+    // 1-or-2-arg identity shape (the optional 2nd arg is a dim): flip / cumsum / cumprod / cummax /
+    // cummin.
+    for (const char *n : {"flip", "cumsum", "cumprod", "cummax", "cummin"})
         reg.add(n, identityShape1or2Transfer);
     reg.add("tril", trilTriuTransfer);  // tril(A[, k]) -- same shape, optional diag offset
     reg.add("triu", trilTriuTransfer);  // triu(A[, k])
