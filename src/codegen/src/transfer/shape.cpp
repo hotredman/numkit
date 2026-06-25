@@ -110,17 +110,32 @@ InferredType transposeTransfer(const std::vector<ArgInfo> &args)
 // 1-arg 2-D case only.
 InferredType rot90Transfer(const std::vector<ArgInfo> &args)
 {
-    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args.empty() || args.size() > 2 || !args[0].type.isConcrete())
+        return InferredType::dynamic();
     const Shape &s = args[0].type.shape;
-    if (s.kind == ShapeKind::KnownDims)
-        return InferredType::concrete(args[0].type.dtype, Shape::dims(s.cols, s.rows));
-    if (s.kind == ShapeKind::NDims && s.nd.size() == 2)
-        return InferredType::concrete(args[0].type.dtype, Shape::ndShape({s.nd[1], s.nd[0]}));
-    // rank-3: rotate each page in the (dim1,dim2) plane -> first two dims swap, dim 3 fixed.
-    if (s.kind == ShapeKind::NDims && s.nd.size() == 3)
-        return InferredType::concrete(args[0].type.dtype,
-                                      Shape::ndShape({s.nd[1], s.nd[0], s.nd[2]}));
-    return InferredType::dynamic();
+    // 90/270-degree rotations swap the first two dims; 0/180 keep the shape.
+    auto swapped = [&]() -> InferredType {
+        if (s.kind == ShapeKind::KnownDims)
+            return InferredType::concrete(args[0].type.dtype, Shape::dims(s.cols, s.rows));
+        if (s.kind == ShapeKind::NDims && s.nd.size() == 2)
+            return InferredType::concrete(args[0].type.dtype, Shape::ndShape({s.nd[1], s.nd[0]}));
+        if (s.kind == ShapeKind::NDims && s.nd.size() == 3)  // rank-3: per-page, dim 3 fixed
+            return InferredType::concrete(args[0].type.dtype,
+                                          Shape::ndShape({s.nd[1], s.nd[0], s.nd[2]}));
+        return InferredType::dynamic();
+    };
+    auto same = [&]() -> InferredType {
+        if (s.kind == ShapeKind::KnownDims
+            || (s.kind == ShapeKind::NDims && (s.nd.size() == 2 || s.nd.size() == 3)))
+            return args[0].type;
+        return InferredType::dynamic();
+    };
+    if (args.size() == 1) return swapped();  // rot90(A) -> 90 CCW
+    // rot90(A, k) with a non-negative LITERAL k: k%4 == 0/2 keeps the shape, 1/3 swaps it. A
+    // non-literal / negative k -> Dynamic (bridged).
+    if (!args[1].constant.isKnown() || args[1].constant.value < 0) return InferredType::dynamic();
+    const std::size_t r = static_cast<std::size_t>(args[1].constant.value) % 4;
+    return (r == 0 || r == 2) ? same() : swapped();
 }
 
 // kron(A,B): Kronecker product. A m x n, B p x q -> (m*p) x (n*q). Both operands must be

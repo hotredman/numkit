@@ -9658,3 +9658,46 @@ TEST(CodegenE2E, Rot90Rank3)
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// rot90(A, k) with a literal k (phase N36): k=2 is 180deg (same shape), k=1 is 90 CCW and k=3 is
+// 270 CCW (both swap dims). The 2-arg rot90 was bridged (rot90Transfer was 1-arg only); now native
+// for a non-negative literal k. Verified bit-exact against the interpreter.
+TEST(CodegenE2E, Rot90WithK)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 3);\n"  // [1 3 5; 2 4 6]
+        "  B = rot90(A, 2);\n"       // 180 -> [6 4 2; 5 3 1] (2x3)
+        "  C = rot90(A, 1);\n"       // 90 CCW -> [5 6; 3 4; 1 2] (3x2)
+        "  D = rot90(A, 3);\n"       // 270 CCW -> [2 1; 4 3; 6 5] (3x2)
+        "  r = B(1,1) + B(2,3)*10 + C(1,1)*100 + C(3,2)*1000 + D(1,1)*10000 + D(3,2)*100000"
+        " + numel(C)*1000000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_rot90k_e2e.exe").string();
+    const std::string outTxt = (base / "nk_rot90k_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[6];\n"
+        "  for (int i = 0; i < 6; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 6);\n"  // 6 + 10 + 500 + 2000 + 20000 + 500000 + 6000000 = 6522516
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 6522516.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 3 4 5 6];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
