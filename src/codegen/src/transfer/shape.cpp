@@ -112,6 +112,26 @@ std::vector<InferredType> sortMultiTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// [u, ia, ic] = unique(x): u = sorted distinct values; ia s.t. u = x(ia) (the FIRST occurrence,
+// numkit default -- probed); ic s.t. x = u(ic). All three are 1-D DOUBLE vectors (u/ia length =
+// #distinct, ic length = numel(x); all runtime -> Unknown). v1: a 1-D DOUBLE vector; a matrix ->
+// Dynamic (stays bridged -- the bridged-multi-output e2e exemplar uses a matrix unique).
+std::vector<InferredType> uniqueMultiTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete() || args[0].type.dtype != ValueType::DOUBLE)
+        return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:  // a 1-D buffer of unknown length is still a vector
+        return {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                InferredType::concrete(ValueType::DOUBLE, Shape::unknown())};
+    default:  // a matrix -> Dynamic (bridged); 1-D only for now
+        return {InferredType::dynamic(), InferredType::dynamic(), InferredType::dynamic()};
+    }
+}
+
 // transpose (A.') / ctranspose (A'): swap the two dimensions. A row becomes a
 // column and vice-versa; a matrix's dims swap; a scalar is unchanged. The
 // dtype is preserved (ctranspose conjugates the VALUES of a complex operand
@@ -611,6 +631,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.addMulti("max", maxMinMultiTransfer);  // [m,i]=max(x) -> {value, 1-based index}
     reg.addMulti("min", maxMinMultiTransfer);  // [m,i]=min(x) -> {value, 1-based index}
     reg.addMulti("sort", sortMultiTransfer);   // [s,i]=sort(x) -> {sorted values, permutation}
+    reg.addMulti("unique", uniqueMultiTransfer);  // [u,ia,ic]=unique(x) -> {distinct, first-idx, map}
     reg.add("transpose", transposeTransfer);   // A.'
     reg.add("ctranspose", transposeTransfer);  // A'
     reg.add("rot90", rot90Transfer);           // rot90(A) -> 90deg rotation (dims swap)
