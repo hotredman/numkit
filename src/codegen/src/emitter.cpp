@@ -2564,19 +2564,22 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // reshape(x, d1, d2, d3) -> reinterpret x's flat data as a RANK-3 d1 x d2 x d3 array
-        // (same column-major buffer; phase N5). Copy x's elements, set the 3 dim companions
-        // from the args, numel-guard (d1*d2*d3 == numel(x)). v1: x a DOUBLE array var distinct
-        // from the dest (an in-place A=reshape(A,..) would self-alias the .assign -> refused).
+        // reshape(x, d1, ..., dN) -> reinterpret x's flat data as a RANK-N array (N = number of
+        // dim args >= 3; same column-major buffer; phases N5/N14). Copy x's elements, set the N
+        // dim companions from nk_rt::dim(arg), numel-guard (product == numel(x)). Rank-agnostic
+        // (covers rank-3, rank-4, ...). v1: x a DOUBLE array var distinct from the dest (an
+        // in-place A=reshape(A,..) would self-alias the .assign -> refused).
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
-            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
-            && rhs.children.size() == 5 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && arrays_.at(name).ndDims.size() >= 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == arrays_.at(name).ndDims.size() + 2
+            && rhs.children[0]->type == NodeType::IDENTIFIER
             && rhs.children[0]->strValue == "reshape"
             && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
             && rhs.children[1]->strValue != name
             && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
             const ArrayInfo    &M   = arrays_.at(name);
             const ArrayInfo    &x   = arrays_.at(rhs.children[1]->strValue);
+            const std::size_t   N   = M.ndDims.size();  // result rank = number of dim args
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete()) {
                 std::string xnumel;
@@ -2590,15 +2593,16 @@ void Emitter::emitAssign(const ASTNode &s)
                 }
                 line("{");
                 ++indent_;
-                line("const std::size_t _nk_d0 = nk_rt::dim(" + emitExpr(*rhs.children[2]) + ");");
-                line("const std::size_t _nk_d1 = nk_rt::dim(" + emitExpr(*rhs.children[3]) + ");");
-                line("const std::size_t _nk_d2 = nk_rt::dim(" + emitExpr(*rhs.children[4]) + ");");
+                for (std::size_t k = 0; k < N; ++k)
+                    line("const std::size_t _nk_d" + std::to_string(k) + " = nk_rt::dim("
+                         + emitExpr(*rhs.children[2 + k]) + ");");
+                std::string prod = "_nk_d0";
+                for (std::size_t k = 1; k < N; ++k) prod += " * _nk_d" + std::to_string(k);
                 line("const std::size_t _nk_xn = (" + xnumel + ");");
-                line("if (_nk_d0 * _nk_d1 * _nk_d2 != _nk_xn)");
+                line("if ((" + prod + ") != _nk_xn)");
                 line("    throw std::out_of_range(\"numkit: reshape element count mismatch\");");
-                line(M.ndDims[0] + " = _nk_d0;");
-                line(M.ndDims[1] + " = _nk_d1;");
-                line(M.ndDims[2] + " = _nk_d2;");
+                for (std::size_t k = 0; k < N; ++k)
+                    line(M.ndDims[k] + " = _nk_d" + std::to_string(k) + ";");
                 line(name + ".assign(" + x.dataExpr + ", " + x.dataExpr + " + _nk_xn);");
                 --indent_;
                 line("}");
