@@ -1810,6 +1810,96 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
+    // GENERAL scalar/colon slice WRITE A(s_0..s_{r-1}) = rhs for a rank r >= 4 A (the WRITE
+    // sibling of the rank-4+ general slice read). Each subscript is a bare colon or a scalar
+    // (>=1 of each). The kept slice dims (colon -> size(A,k), scalar -> 1, trailing scalars
+    // drop) describe a column-major region; rhs (a distinct array var) supplies the values in
+    // column-major order. STRIDED scatter: A flat = base(from the scalar subscripts, kept AND
+    // dropped) + sum over kept COLON dims of j_k * As_k; A[flat] = rhs[o]. Per-axis bounds
+    // checks on the scalars + a numel guard on rhs. v1: rank-4+ writable DOUBLE A, all bare-
+    // colon/scalar subscripts, rhs a distinct DOUBLE array var. Placed before the N-D write
+    // branch (which refuses colon subscripts).
+    if (ai.isND && ai.ndDims.size() >= 4 && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children.size() - 1 == ai.ndDims.size()
+        && rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue) && rhs.strValue != base
+        && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE) {
+        const std::size_t r = ai.ndDims.size();
+        std::vector<bool> colon(r, false);
+        int               lastCol = -1, scalarN = 0;
+        bool              allCS = true;
+        for (std::size_t k = 0; k < r; ++k) {
+            const ASTNode &s     = *lhsCall.children[k + 1];
+            const bool     isCol = s.type == NodeType::COLON_EXPR && s.children.empty();
+            colon[k]             = isCol;
+            if (isCol)
+                lastCol = static_cast<int>(k);
+            else if (s.type != NodeType::COLON_EXPR
+                     && inferExpr(s, types_, reg_, classes_).type.shape.isScalar())
+                ++scalarN;
+            else {
+                allCS = false;
+                break;
+            }
+        }
+        if (allCS && lastCol >= 0 && scalarN > 0) {
+            if (!ai.isLocal && !ai.isOutput)
+                unsupported("slice write to a read-only array parameter '" + base + "'");
+            const std::size_t keptRank = static_cast<std::size_t>(lastCol) + 1 < 2
+                                             ? 2u
+                                             : static_cast<std::size_t>(lastCol) + 1;
+            const ArrayInfo  &R        = arrays_.at(rhs.strValue);  // value source
+            line("{");
+            ++indent_;
+            line("const std::size_t _nk_As0 = 1;");  // A column-major strides
+            for (std::size_t k = 1; k < r; ++k)
+                line("const std::size_t _nk_As" + std::to_string(k) + " = _nk_As"
+                     + std::to_string(k - 1) + " * (" + dimExpr(ai, k - 1) + ");");
+            line("std::size_t _nk_base = 0;");  // fixed offset from the scalar subscripts
+            for (std::size_t k = 0; k < r; ++k) {
+                if (colon[k]) continue;
+                endStack_.push_back(dimExpr(ai, k));
+                const std::string sk = emitExpr(*lhsCall.children[k + 1]);
+                endStack_.pop_back();
+                line("{ const std::ptrdiff_t _nk_s = static_cast<std::ptrdiff_t>(" + sk + ") - 1;");
+                line("  if (_nk_s < 0 || _nk_s >= static_cast<std::ptrdiff_t>(" + dimExpr(ai, k)
+                     + ")) throw std::out_of_range(\"numkit: slice index out of bounds\");");
+                line("  _nk_base += static_cast<std::size_t>(_nk_s) * _nk_As" + std::to_string(k)
+                     + "; }");
+            }
+            for (std::size_t kk = 0; kk < keptRank; ++kk)  // kept (output) dims
+                line("const std::size_t _nk_Bd" + std::to_string(kk) + " = "
+                     + (colon[kk] ? dimExpr(ai, kk) : std::string("1")) + ";");
+            line("const std::size_t _nk_Bs0 = 1;");  // kept-region strides
+            for (std::size_t kk = 1; kk < keptRank; ++kk)
+                line("const std::size_t _nk_Bs" + std::to_string(kk) + " = _nk_Bs"
+                     + std::to_string(kk - 1) + " * _nk_Bd" + std::to_string(kk - 1) + ";");
+            std::string numel = "_nk_Bd0";
+            for (std::size_t kk = 1; kk < keptRank; ++kk) numel += " * _nk_Bd" + std::to_string(kk);
+            std::string rNumel;  // rhs element count
+            if (R.isND) {
+                rNumel = R.ndDims[0];
+                for (std::size_t i = 1; i < R.ndDims.size(); ++i) rNumel += " * " + R.ndDims[i];
+            } else if (R.is2D) {
+                rNumel = dimExpr(R, 0) + " * " + dimExpr(R, 1);
+            } else {
+                rNumel = R.lenVar;
+            }
+            line("if ((" + rNumel + ") != (" + numel + "))");
+            line("    throw std::out_of_range(\"numkit: slice assignment size mismatch\");");
+            open("for (std::size_t _nk_o = 0; _nk_o < (" + numel + "); ++_nk_o)");
+            line("std::size_t _nk_af = _nk_base;");
+            for (std::size_t kk = 0; kk < keptRank; ++kk)
+                if (colon[kk])
+                    line("_nk_af += ((_nk_o / _nk_Bs" + std::to_string(kk) + ") % _nk_Bd"
+                         + std::to_string(kk) + ") * _nk_As" + std::to_string(kk) + ";");
+            line(ptr + "[_nk_af] = " + R.dataExpr + "[_nk_o];");
+            close();
+            --indent_;
+            line("}");
+            return;
+        }
+    }
+
     // Rank-N (N>=3) AND runtime-dim 2-D write A(i,j,k,...) = v -> column-major
     // nk_rt::indexN_set. The companions in ai.ndDims give the per-axis sizes, so a
     // SCALAR-subscript element store works for any rank, including a runtime-dim 2-D
