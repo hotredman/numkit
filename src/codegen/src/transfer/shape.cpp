@@ -112,9 +112,10 @@ std::vector<InferredType> sortMultiTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
-// union(a, b): the sorted distinct values of [a, b] (= unique of the concatenation). v1: two 1-D
-// DOUBLE vectors -> a 1-D DOUBLE result (runtime length -> Unknown). Anything else -> Dynamic.
-InferredType unionTransfer(const std::vector<ArgInfo> &args)
+// Binary set op (union / intersect / setdiff) over two 1-D DOUBLE vectors -> a sorted distinct
+// 1-D DOUBLE result (runtime length -> Unknown). Anything else -> Dynamic. Shared because the
+// shape rule is identical; the per-op element selection lives in the emitter.
+InferredType setopBinaryTransfer(const std::vector<ArgInfo> &args)
 {
     if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete()
         || args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
@@ -674,7 +675,9 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("trace", traceTransfer);  // trace(A) -> sum of the diagonal (DOUBLE scalar)
     reg.add("cross", crossTransfer);  // cross(a,b) -> the 3-D cross product (1-D, len 3)
     reg.add("unique", uniqueTransfer);  // x -> sorted distinct 1-D (native sort + dedup)
-    reg.add("union", unionTransfer);    // union(a,b) -> sorted distinct of [a b] (= unique of concat)
+    reg.add("union", setopBinaryTransfer);      // union(a,b) -> sorted distinct of [a b]
+    reg.add("intersect", setopBinaryTransfer);  // intersect(a,b) -> sorted distinct common values
+    reg.add("setdiff", setopBinaryTransfer);    // setdiff(a,b) -> sorted distinct of a not in b
     reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})
