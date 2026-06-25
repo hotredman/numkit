@@ -286,6 +286,16 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                         && expr.children[3]->children.empty())
                         return {InferredType::concrete(base.type.dtype, Shape::ndShape({1, 1, 0})),
                                 ConstVal::unknown()};
+                    // A(i,:,k) (r==3): scalar, colon, scalar -> [1, n] (a 2-D ROW; the trailing
+                    // scalar k drops the page dim, the leading scalar i keeps a singleton first
+                    // dim). Strided.
+                    if (r == 3 && expr.children[1]->type != NodeType::COLON_EXPR
+                        && isScalarValue(argVals[0]) && expr.children[2]->type == NodeType::COLON_EXPR
+                        && expr.children[2]->children.empty()
+                        && expr.children[3]->type != NodeType::COLON_EXPR
+                        && isScalarValue(argVals[2]))
+                        return {InferredType::concrete(base.type.dtype, Shape::ndShape({1, 0})),
+                                ConstVal::unknown()};
                 }
                 return indexResult(base, argVals);
             }
