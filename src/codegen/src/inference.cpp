@@ -306,6 +306,42 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
                         && isScalarValue(argVals[2]))
                         return {InferredType::concrete(base.type.dtype, Shape::ndShape({0, 1})),
                                 ConstVal::unknown()};
+                    // GENERAL scalar/colon slice for rank r >= 4: every subscript a bare colon or
+                    // a scalar, >=1 of each. Output dim per subscript: colon -> size(A,k) (runtime,
+                    // 0), scalar -> 1. Then TRAILING scalar dims drop -> kept rank = max(lastColon
+                    // +1, 2). (Rank 2/3 keep their tested per-pattern cases above.) The emit gathers.
+                    if (r >= 4) {
+                        bool allCS    = true;
+                        int  lastCol  = -1;
+                        int  scalarN  = 0;
+                        for (std::size_t kk = 1; kk <= r; ++kk) {
+                            const bool isCol = expr.children[kk]->type == NodeType::COLON_EXPR
+                                               && expr.children[kk]->children.empty();
+                            if (isCol)
+                                lastCol = static_cast<int>(kk) - 1;
+                            else if (expr.children[kk]->type != NodeType::COLON_EXPR
+                                     && isScalarValue(argVals[kk - 1]))
+                                ++scalarN;
+                            else {
+                                allCS = false;
+                                break;
+                            }
+                        }
+                        if (allCS && lastCol >= 0 && scalarN > 0) {
+                            const std::size_t keptRank =
+                                static_cast<std::size_t>(lastCol) + 1 < 2
+                                    ? 2u
+                                    : static_cast<std::size_t>(lastCol) + 1;
+                            std::vector<std::size_t> d(keptRank, 0);
+                            for (std::size_t kk = 0; kk < keptRank; ++kk)
+                                d[kk] = (expr.children[kk + 1]->type == NodeType::COLON_EXPR
+                                         && expr.children[kk + 1]->children.empty())
+                                            ? 0
+                                            : 1;  // colon -> runtime, scalar -> singleton
+                            return {InferredType::concrete(base.type.dtype, Shape::ndShape(d)),
+                                    ConstVal::unknown()};
+                        }
+                    }
                 }
                 return indexResult(base, argVals);
             }
