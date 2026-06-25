@@ -7349,6 +7349,76 @@ void Emitter::emitMultiAssign(const ASTNode &s)
                    {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
         return;
     }
+    // [u, ia, ib] = union(a, b) on two 1-D vectors -> u = sorted distinct of [a b]; ia = the a-
+    // sourced first-occurrence indices, ib = the b-sourced ones. Construction = unique-multi over
+    // the concatenation [a b]: stable index sort, and at each new distinct value its first concat
+    // index k decides the source (k < |a| -> a-sourced, ia.push(k+1); else b-sourced, ib.push(k-
+    // |a|+1)). Sound incl. multi-NaN (the stable index sort gives each NaN its own concat index, so
+    // NaNs split by source exactly as MATLAB). 2-output [u,ia] drops ib (ia stays a-sourced).
+    // !bridge_ guard. v1: two 1-D DOUBLE array vars.
+    if (rhs.type == NodeType::CALL && rhs.children.size() == 3
+        && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "union"
+        && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+        && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+        && (s.returnNames.size() == 2 || s.returnNames.size() == 3) && !bridge_
+        && !arrays_.at(rhs.children[1]->strValue).is2D && !arrays_.at(rhs.children[1]->strValue).isND
+        && !arrays_.at(rhs.children[2]->strValue).is2D && !arrays_.at(rhs.children[2]->strValue).isND
+        && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+        && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE
+        && !(ctx_ && ctx_->funcs && ctx_->funcs->has(rhs.children[0]->strValue))) {
+        const bool         wantIb = s.returnNames.size() == 3;
+        const std::string &rnU    = s.returnNames[0];  // sorted distinct union
+        const std::string &rnIa   = s.returnNames[1];  // a-sourced first-occurrence indices
+        const std::string  rnIb   = wantIb ? s.returnNames[2] : std::string();  // b-sourced indices
+        if (rnU.empty() || rnU == "~" || rnIa.empty() || rnIa == "~"
+            || (wantIb && (rnIb.empty() || rnIb == "~")))
+            unsupported("[u,ia,ib]=union with an ignored (~) output (v1)");
+        const ArrayInfo &aa = arrays_.at(rhs.children[1]->strValue);
+        const ArrayInfo &bb = arrays_.at(rhs.children[2]->strValue);
+        line("{");
+        ++indent_;
+        line("std::vector<double> _nk_cv;");
+        line("_nk_cv.reserve(" + aa.lenVar + " + " + bb.lenVar + ");");
+        line("_nk_cv.insert(_nk_cv.end(), " + aa.dataExpr + ", " + aa.dataExpr + " + " + aa.lenVar
+             + ");");
+        line("_nk_cv.insert(_nk_cv.end(), " + bb.dataExpr + ", " + bb.dataExpr + " + " + bb.lenVar
+             + ");");
+        line("const std::size_t _nk_al = " + aa.lenVar + ";");
+        line("std::vector<std::size_t> _nk_p(_nk_cv.size());");
+        open("for (std::size_t _nk_i = 0; _nk_i < _nk_cv.size(); ++_nk_i)");
+        line("_nk_p[_nk_i] = _nk_i;");
+        close();
+        line("std::stable_sort(_nk_p.begin(), _nk_p.end(), [&_nk_cv](std::size_t _x, std::size_t _y){ "
+             "return _nk_cv[_x] < _nk_cv[_y] || (_nk_cv[_y] != _nk_cv[_y] && _nk_cv[_x] == "
+             "_nk_cv[_x]); });");
+        line(rnU + ".clear();");
+        line(rnIa + ".clear();");
+        if (wantIb) line(rnIb + ".clear();");
+        open("for (std::size_t _nk_s = 0; _nk_s < _nk_cv.size(); ++_nk_s)");
+        open("if (_nk_s == 0 || _nk_cv[_nk_p[_nk_s]] != _nk_cv[_nk_p[_nk_s - 1]])");
+        line("const double _nk_v = _nk_cv[_nk_p[_nk_s]]; const std::size_t _nk_k = _nk_p[_nk_s];");
+        line(rnU + ".push_back(_nk_v);");
+        open("if (_nk_k < _nk_al)");
+        line(rnIa + ".push_back(static_cast<double>(_nk_k + 1));");
+        close();
+        if (wantIb) {
+            open("if (_nk_k >= _nk_al)");
+            line(rnIb + ".push_back(static_cast<double>(_nk_k - _nk_al + 1));");
+            close();
+        }
+        close();
+        close();
+        --indent_;
+        line("}");
+        types_.set(rnU,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        types_.set(rnIa,
+                   {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()), ConstVal::unknown()});
+        if (wantIb)
+            types_.set(rnIb, {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                              ConstVal::unknown()});
+        return;
+    }
     // Bridged builtin multi-output (opt-in, DESIGN.md §10 C1): `[a, b, ...] =
     // builtin(args)` where builtin is NOT a compiled user function (nor a
     // variable). The runtime owns nargout and computes all outputs; each result
