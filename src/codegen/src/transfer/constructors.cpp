@@ -114,14 +114,14 @@ InferredType eyeTransfer(const std::vector<ArgInfo> &args)
 // and the []-placeholder form are deferred.
 InferredType reshapeTransfer(const std::vector<ArgInfo> &args)
 {
-    if ((args.size() != 3 && args.size() != 4) || !args[0].type.isConcrete())
-        return InferredType::dynamic();
-    // reshape(x, d1, d2, d3) -> a RANK-3 array (same column-major flat data). Always typed as a
-    // runtime-dim NDims rank-3 (the emit reads the dims from the args and guards numel); a scalar
-    // operand has no data to reinterpret -> Dynamic.
-    if (args.size() == 4) {
+    if (args.size() < 3 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    // reshape(x, d1, ..., dN) with N >= 3 dims -> a RANK-N array (same column-major flat data).
+    // Always typed as a runtime-dim NDims of rank N = nargs-1 (the emit reads the dims from the
+    // args and guards numel); a scalar operand has no data to reinterpret -> Dynamic.
+    if (args.size() >= 4) {
         if (args[0].type.shape.isScalar()) return InferredType::dynamic();
-        return InferredType::concrete(args[0].type.dtype, Shape::ndShape({0, 0, 0}));
+        return InferredType::concrete(
+            args[0].type.dtype, Shape::ndShape(std::vector<std::size_t>(args.size() - 1, 0)));
     }
     std::size_t m = 0, n = 0;
     if (args[1].constant.asDim(m) && args[2].constant.asDim(n))
