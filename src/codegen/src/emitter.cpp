@@ -4309,52 +4309,69 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // Native cat(3, A, B): stack two same-size 2-D matrices into an m x n x 2 array
-        // (phase N2). Concat along the new TRAILING dim is a CONTIGUOUS buffer append in
-        // column-major -- M = A_flat ++ B_flat (page 1 = A, page 2 = B). A rank-3
-        // ndRuntimeLocal; dims [m, n, 2]; same-size guard. v1: two DOUBLE 2-D matrix vars
-        // distinct from the dest.
+        // Native cat(3, A, B, C, ...): stack N same-leading-size matrices/pages into a rank-3
+        // array (phase N2 + N18 N-operand). Concat along the new TRAILING dim is a CONTIGUOUS
+        // buffer append in column-major -- M = op0 pages ++ op1 pages ++ ... A 2-D operand is
+        // one page; a rank-3 operand has size(.,3) pages. A rank-3 ndRuntimeLocal dest; dims
+        // [m, n, sum(pages)]; per-operand page-size guard; running offset across operands. v1:
+        // >=2 DOUBLE 2-D/rank-3 array vars distinct from the dest.
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
             && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
-            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children.size() >= 4 && rhs.children[0]->type == NodeType::IDENTIFIER
             && rhs.children[0]->strValue == "cat"
             && rhs.children[1]->type == NodeType::NUMBER_LITERAL
-            && rhs.children[1]->numValue == 3.0
-            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
-            && rhs.children[3]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[3]->strValue)
-            && rhs.children[2]->strValue != name && rhs.children[3]->strValue != name) {
-            const ArrayInfo &A = arrays_.at(rhs.children[2]->strValue);
-            const ArrayInfo &B = arrays_.at(rhs.children[3]->strValue);
-            // Accept 2-D OR rank-3 operands (a 2-D operand is one page; a rank-3 operand has
-            // size(.,3) pages). Concat along dim 3 appends pages: M = A pages ++ B pages.
-            const bool aOk = A.is2D || (A.isND && (A.ndDims.size() == 2 || A.ndDims.size() == 3));
-            const bool bOk = B.is2D || (B.isND && (B.ndDims.size() == 2 || B.ndDims.size() == 3));
-            if (aOk && bOk && A.dtype == ValueType::DOUBLE && B.dtype == ValueType::DOUBLE) {
+            && rhs.children[1]->numValue == 3.0) {
+            const std::size_t nOps = rhs.children.size() - 2;
+            bool              allOk = true;
+            for (std::size_t i = 0; i < nOps && allOk; ++i) {
+                const ASTNode &c = *rhs.children[2 + i];
+                if (!(c.type == NodeType::IDENTIFIER && isArrayVar(c.strValue) && c.strValue != name)) {
+                    allOk = false;
+                    break;
+                }
+                const ArrayInfo &op = arrays_.at(c.strValue);
+                if (!((op.is2D || (op.isND && (op.ndDims.size() == 2 || op.ndDims.size() == 3)))
+                      && op.dtype == ValueType::DOUBLE))
+                    allOk = false;
+            }
+            if (allOk) {
                 const ArrayInfo    &M   = arrays_.at(name);
                 const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
-                const std::string   pa  =
-                    (A.isND && A.ndDims.size() == 3) ? dimExpr(A, 2) : std::string("1");
-                const std::string pb =
-                    (B.isND && B.ndDims.size() == 3) ? dimExpr(B, 2) : std::string("1");
+                const ArrayInfo    &A0  = arrays_.at(rhs.children[2]->strValue);
                 line("{");
                 ++indent_;
-                line("const std::size_t _nk_ar = " + dimExpr(A, 0) + ";");
-                line("const std::size_t _nk_ac = " + dimExpr(A, 1) + ";");
-                line("if (_nk_ar != " + dimExpr(B, 0) + " || _nk_ac != " + dimExpr(B, 1)
-                     + ") throw std::out_of_range(\"numkit: cat(3) page sizes must agree\");");
+                line("const std::size_t _nk_ar = " + dimExpr(A0, 0) + ";");
+                line("const std::size_t _nk_ac = " + dimExpr(A0, 1) + ";");
                 line("const std::size_t _nk_pg = _nk_ar * _nk_ac;");  // one-page element count
-                line("const std::size_t _nk_pa = " + pa + ";");       // A page count
-                line("const std::size_t _nk_pb = " + pb + ";");       // B page count
+                std::string totalPages;
+                for (std::size_t i = 0; i < nOps; ++i) {
+                    const ArrayInfo  &op = arrays_.at(rhs.children[2 + i]->strValue);
+                    if (i > 0)
+                        line("if (" + dimExpr(op, 0) + " != _nk_ar || " + dimExpr(op, 1)
+                             + " != _nk_ac) throw std::out_of_range(\"numkit: cat(3) page sizes "
+                               "must agree\");");
+                    const std::string pi =
+                        (op.isND && op.ndDims.size() == 3) ? dimExpr(op, 2) : std::string("1");
+                    line("const std::size_t _nk_p" + std::to_string(i) + " = " + pi + ";");
+                    totalPages += (i ? " + " : "") + ("_nk_p" + std::to_string(i));
+                }
                 line(M.ndDims[0] + " = _nk_ar;");
                 line(M.ndDims[1] + " = _nk_ac;");
-                line(M.ndDims[2] + " = _nk_pa + _nk_pb;");
-                line(name + ".assign(_nk_pg * (_nk_pa + _nk_pb), 0.0);");
-                open("for (std::size_t _nk_k = 0; _nk_k < _nk_pg * _nk_pa; ++_nk_k)");
-                line(name + "[_nk_k] = " + A.dataExpr + "[_nk_k];");                   // A pages
-                close();
-                open("for (std::size_t _nk_k = 0; _nk_k < _nk_pg * _nk_pb; ++_nk_k)");
-                line(name + "[_nk_pg * _nk_pa + _nk_k] = " + B.dataExpr + "[_nk_k];"); // B pages
-                close();
+                line(M.ndDims[2] + " = " + totalPages + ";");
+                line(name + ".assign(_nk_pg * (" + totalPages + "), 0.0);");
+                line("std::size_t _nk_off = 0;");
+                for (std::size_t i = 0; i < nOps; ++i) {
+                    const ArrayInfo &op = arrays_.at(rhs.children[2 + i]->strValue);
+                    line("{");
+                    ++indent_;
+                    line("const std::size_t _nk_n = _nk_pg * _nk_p" + std::to_string(i) + ";");
+                    open("for (std::size_t _nk_k = 0; _nk_k < _nk_n; ++_nk_k)");
+                    line(name + "[_nk_off + _nk_k] = " + op.dataExpr + "[_nk_k];");
+                    close();
+                    line("_nk_off += _nk_n;");
+                    --indent_;
+                    line("}");
+                }
                 --indent_;
                 line("}");
                 types_.set(name, res);

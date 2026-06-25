@@ -143,7 +143,7 @@ InferredType kronTransfer(const std::vector<ArgInfo> &args)
 // -> Dynamic (bridged).
 InferredType catTransfer(const std::vector<ArgInfo> &args)
 {
-    if (args.size() != 3) return InferredType::dynamic();  // dim + exactly two arrays (v1)
+    if (args.size() < 3) return InferredType::dynamic();  // dim + >=2 arrays
     std::size_t dim = 0;
     if (!args[0].constant.asDim(dim) || dim < 1 || dim > 4) return InferredType::dynamic();
     auto isMat = [](const Shape &s) {
@@ -160,6 +160,20 @@ InferredType catTransfer(const std::vector<ArgInfo> &args)
     auto okDim4 = [](const Shape &s) {
         return s.kind == ShapeKind::NDims && (s.nd.size() == 3 || s.nd.size() == 4);
     };
+    // N-operand (>2) cat is supported only for dim 3 -- the trailing-dim contiguous append
+    // (M = op0 pages ++ op1 pages ++ ...), which generalizes cleanly to any operand count.
+    // Every operand must be a 2-D or rank-3 DOUBLE -> a rank-3 result. Other dims with >2
+    // operands stay Dynamic (bridged): dim 1/2 already have the [A B C]/[A;B;C] bracket forms,
+    // and N-operand dim-4 is a separate brick.
+    if (args.size() > 3) {
+        if (dim != 3) return InferredType::dynamic();
+        for (std::size_t i = 1; i < args.size(); ++i)
+            if (!(args[i].type.isConcrete() && args[i].type.dtype == ValueType::DOUBLE
+                  && okDim3(args[i].type.shape)))
+                return InferredType::dynamic();
+        return InferredType::concrete(ValueType::DOUBLE,
+                                      Shape::ndShape(std::vector<std::size_t>(3, 0)));
+    }
     const bool bothOk = dim == 4 ? (okDim4(args[1].type.shape) && okDim4(args[2].type.shape))
                         : dim == 3 ? (okDim3(args[1].type.shape) && okDim3(args[2].type.shape))
                                    : (isMat(args[1].type.shape) && isMat(args[2].type.shape));

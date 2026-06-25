@@ -8915,3 +8915,45 @@ TEST(CodegenE2E, GeneralSliceWriteRank4)
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// N-operand cat along dim 3 (phase N18): cat(3, A, B, C) stacks THREE 2x2 matrices into a
+// 2x2x3 array (page1=A, page2=B, page3=C) -- the trailing-dim contiguous append generalized
+// past two operands. Verified bit-exact against the interpreter.
+TEST(CodegenE2E, CatDim3ThreeOperands)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2);\n"   // 2x2, flat 1..4
+        "  B = A + 10;\n"            // flat 11..14
+        "  C = A + 20;\n"            // flat 21..24
+        "  M = cat(3, A, B, C);\n"   // 2x2x3, pages A|B|C
+        "  r = M(1,1,1) + M(2,2,1)*10 + M(1,1,2)*100 + M(2,2,3)*1000 + numel(M)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cat3x3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cat3x3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[4];\n"
+        "  for (int i = 0; i < 4; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 4);\n"  // 1 + 40 + 1100 + 24000 + 120000 = 145141
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 145141.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 3 4];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
