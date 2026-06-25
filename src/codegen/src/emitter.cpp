@@ -4322,6 +4322,63 @@ void Emitter::emitAssign(const ASTNode &s)
                 }
             }
         }
+        // Native diff(A, 1, dim) along dim 1 or 2 of a rank-3 array -> consecutive differences with
+        // that dim reduced by one (dim 1 -> [m-1, n, p], dim 2 -> [m, n-1, p]). EXACT (subtraction),
+        // no bridge guard. The reduced dim is NON-trailing so the rank is preserved (dim 3 is sound-
+        // refused: differencing the trailing dim can collapse it to extent 1 = MATLAB rank-2). The
+        // in/out shapes differ, so explicit (i,j,k) nests with the two layouts (out strides 1, rm,
+        // rm*rn; A strides 1, m, m*n). order 1, dim 1|2 only. v1: a DOUBLE rank-3 var distinct from
+        // the dest.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.children[0]->strValue == "diff"
+            && rhs.children[2]->type == NodeType::NUMBER_LITERAL && rhs.children[2]->numValue == 1.0
+            && rhs.children[3]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[3]->numValue == 1.0 || rhs.children[3]->numValue == 2.0)
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+            && arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const bool dim2 = rhs.children[3]->numValue == 2.0;
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                line("const std::size_t _nk_p = " + dimExpr(A, 2) + ";");
+                line(std::string("const std::size_t _nk_rm = ") + (dim2 ? "_nk_m;" : "_nk_m - 1;"));
+                line(std::string("const std::size_t _nk_rn = ") + (dim2 ? "_nk_n - 1;" : "_nk_n;"));
+                line("const std::size_t _nk_rmn = _nk_rm * _nk_rn;");
+                line(M.ndDims[0] + " = _nk_rm;");
+                line(M.ndDims[1] + " = _nk_rn;");
+                line(M.ndDims[2] + " = _nk_p;");
+                line(name + ".assign(_nk_rmn * _nk_p, 0.0);");
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_p; ++_nk_k)");
+                open("for (std::size_t _nk_j = 0; _nk_j < _nk_rn; ++_nk_j)");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_rm; ++_nk_i)");
+                line("const std::size_t _nk_pa = _nk_k * _nk_m * _nk_n;");  // A page offset
+                if (dim2)
+                    line(name + "[_nk_i + _nk_j * _nk_rm + _nk_k * _nk_rmn] = " + A.dataExpr
+                         + "[_nk_i + (_nk_j + 1) * _nk_m + _nk_pa] - " + A.dataExpr
+                         + "[_nk_i + _nk_j * _nk_m + _nk_pa];");
+                else
+                    line(name + "[_nk_i + _nk_j * _nk_rm + _nk_k * _nk_rmn] = " + A.dataExpr
+                         + "[(_nk_i + 1) + _nk_j * _nk_m + _nk_pa] - " + A.dataExpr
+                         + "[_nk_i + _nk_j * _nk_m + _nk_pa];");
+                close();
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native diff(x) -> consecutive differences (y[i] = x[i+1]-x[i], length
         // n-1), a runtime-sized 1-D LOCAL preserving x's dtype. EXACT (subtraction)
         // -> preferred over the bridged array-result path; works for double and
