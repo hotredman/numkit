@@ -1810,48 +1810,62 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         return;
     }
 
-    // page-RANGE WRITE A(:,:,k1:k2) = B: write a rank-3 m x n x (k2-k1+1) array B into the
-    // contiguous page block k1..k2 of a rank-3 A (phase N20, the WRITE sibling of the N7 page-
-    // range read). Column-major: pages k1..k2 are the CONTIGUOUS block A[(k1-1)*m*n .. k2*m*n]
-    // -> a straight copy from B. A writable; bounds-checked range (end = size(A,3)); a numel
-    // guard on B (m*n*(k2-k1+1)). v1: rank-3 DOUBLE A, two leading bare colons + a step-1 range
-    // k1:k2, rhs a distinct rank-3 DOUBLE array var. Placed before the N-D write branch.
-    if (ai.isND && ai.ndDims.size() == 3 && ai.dtype == ValueType::DOUBLE
-        && lhsCall.children.size() == 4
-        && lhsCall.children[1]->type == NodeType::COLON_EXPR && lhsCall.children[1]->children.empty()
-        && lhsCall.children[2]->type == NodeType::COLON_EXPR && lhsCall.children[2]->children.empty()
-        && lhsCall.children[3]->type == NodeType::COLON_EXPR && lhsCall.children[3]->children.size() == 2
+    // trailing-RANGE WRITE A(:,...,:,k1:k2) = B: write a rank-r array B into the contiguous
+    // trailing-dim block k1..k2 of a rank-r A (r >= 3; phase N20 r=3 page-range + N21 r=4 slab-
+    // range write, the WRITE sibling of the trailing-range read). Column-major: the leading
+    // (r-1) dims form a slab of size d0*..*d(r-2), and the trailing values k1..k2 are the
+    // CONTIGUOUS block A[(k1-1)*slab .. k2*slab] -> a straight copy from B. A writable; bounds-
+    // checked range (end = size(A,r)); a numel guard on B (slab*(k2-k1+1)). v1: rank-3/4 DOUBLE
+    // A, (r-1) leading bare colons + a step-1 range k1:k2, rhs a distinct rank-r DOUBLE array
+    // var. Placed before the N-D write branch.
+    if (ai.isND && ai.ndDims.size() >= 3 && ai.dtype == ValueType::DOUBLE
+        && lhsCall.children.size() == ai.ndDims.size() + 1
         && rhs.type == NodeType::IDENTIFIER && isArrayVar(rhs.strValue) && rhs.strValue != base
-        && arrays_.at(rhs.strValue).isND && arrays_.at(rhs.strValue).ndDims.size() == 3
+        && arrays_.at(rhs.strValue).isND
+        && arrays_.at(rhs.strValue).ndDims.size() == ai.ndDims.size()
         && arrays_.at(rhs.strValue).dtype == ValueType::DOUBLE) {
-        if (!ai.isLocal && !ai.isOutput)
-            unsupported("page-range write to a read-only array parameter '" + base + "'");
-        const ArrayInfo  &B   = arrays_.at(rhs.strValue);  // value source
-        const std::string m = dimExpr(ai, 0), n = dimExpr(ai, 1), p = dimExpr(ai, 2);
-        const ASTNode    &rng = *lhsCall.children[3];  // k1:k2
-        endStack_.push_back(p);                        // `end` in the page index = size(A,3)
-        const std::string k1 = emitExpr(*rng.children[0]);
-        const std::string k2 = emitExpr(*rng.children[1]);
-        endStack_.pop_back();
-        line("{");
-        ++indent_;
-        line("const std::size_t _nk_pg = " + m + " * " + n + ";");
-        line("const std::ptrdiff_t _nk_k1 = static_cast<std::ptrdiff_t>(" + k1 + ");");
-        line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
-        line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + p
-             + ") || _nk_k2 < _nk_k1)");
-        line("    throw std::out_of_range(\"numkit: page range out of bounds\");");
-        line("const std::size_t _nk_np = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
-        line("if ((" + dimExpr(B, 0) + " * " + dimExpr(B, 1) + " * " + dimExpr(B, 2)
-             + ") != _nk_pg * _nk_np)");
-        line("    throw std::out_of_range(\"numkit: page-range assignment size mismatch\");");
-        line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_pg;");
-        open("for (std::size_t _nk_i = 0; _nk_i < _nk_pg * _nk_np; ++_nk_i)");
-        line(ptr + "[_nk_off + _nk_i] = " + B.dataExpr + "[_nk_i];");
-        close();
-        --indent_;
-        line("}");
-        return;
+        const std::size_t r = ai.ndDims.size();
+        bool              ok = lhsCall.children[r]->type == NodeType::COLON_EXPR
+                  && lhsCall.children[r]->children.size() == 2;
+        for (std::size_t i = 1; i < r && ok; ++i)
+            if (!(lhsCall.children[i]->type == NodeType::COLON_EXPR
+                  && lhsCall.children[i]->children.empty()))
+                ok = false;
+        if (ok) {
+            if (!ai.isLocal && !ai.isOutput)
+                unsupported("range write to a read-only array parameter '" + base + "'");
+            const ArrayInfo  &B       = arrays_.at(rhs.strValue);  // value source
+            const std::string lastDim = dimExpr(ai, r - 1);
+            const ASTNode    &rng     = *lhsCall.children[r];  // k1:k2
+            endStack_.push_back(lastDim);                      // `end` in the range = size(A,r)
+            const std::string k1 = emitExpr(*rng.children[0]);
+            const std::string k2 = emitExpr(*rng.children[1]);
+            endStack_.pop_back();
+            line("{");
+            ++indent_;
+            std::string slabExpr, bNumel;
+            for (std::size_t i = 0; i + 1 < r; ++i) {
+                line("const std::size_t _nk_d" + std::to_string(i) + " = " + dimExpr(ai, i) + ";");
+                slabExpr += (i ? " * " : "") + ("_nk_d" + std::to_string(i));
+            }
+            for (std::size_t i = 0; i < r; ++i) bNumel += (i ? " * " : "") + dimExpr(B, i);
+            line("const std::size_t _nk_slab = " + slabExpr + ";");
+            line("const std::ptrdiff_t _nk_k1 = static_cast<std::ptrdiff_t>(" + k1 + ");");
+            line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
+            line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + lastDim
+                 + ") || _nk_k2 < _nk_k1)");
+            line("    throw std::out_of_range(\"numkit: range out of bounds\");");
+            line("const std::size_t _nk_nb = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
+            line("if ((" + bNumel + ") != _nk_slab * _nk_nb)");
+            line("    throw std::out_of_range(\"numkit: range assignment size mismatch\");");
+            line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_slab;");
+            open("for (std::size_t _nk_i = 0; _nk_i < _nk_slab * _nk_nb; ++_nk_i)");
+            line(ptr + "[_nk_off + _nk_i] = " + B.dataExpr + "[_nk_i];");
+            close();
+            --indent_;
+            line("}");
+            return;
+        }
     }
 
     // GENERAL scalar/colon slice WRITE A(s_0..s_{r-1}) = rhs for a rank r >= 4 A (the WRITE
@@ -4537,53 +4551,65 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
-        // Native page-RANGE read B = A(:,:,k1:k2): extract pages k1..k2 of a rank-3 A as a
-        // rank-3 m x n x (k2-k1+1) sub-array (phase N7). Column-major: pages k1..k2 are the
-        // CONTIGUOUS block A[(k1-1)*m*n .. k2*m*n] -> a straight copy. B a runtime-dim rank-3
-        // ndRuntimeLocal; bounds-checked range; `end` in the page index = size(A,3). v1: rank-3
-        // DOUBLE A, two leading bare colons + a step-1 range k1:k2, B distinct from A.
+        // Native trailing-RANGE read B = A(:,...,:,k1:k2): extract the contiguous trailing-dim
+        // block k1..k2 of a rank-r A (r >= 3) as a rank-r sub-array (phase N7 r=3 page-range +
+        // N21 r=4 slab-range). Column-major: the leading (r-1) dims form a "slab" of size
+        // d0*..*d(r-2), and the trailing-dim values k1..k2 are the CONTIGUOUS block
+        // A[(k1-1)*slab .. k2*slab] -> a straight copy. B a runtime-dim rank-r ndRuntimeLocal;
+        // bounds-checked range; `end` in the trailing index = size(A,r). v1: rank-3/4 DOUBLE A,
+        // (r-1) leading bare colons + a step-1 range k1:k2, B distinct from A.
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
-            && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
-            && rhs.children.size() == 4 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && rhs.type == NodeType::CALL && rhs.children[0]->type == NodeType::IDENTIFIER
             && isArrayVar(rhs.children[0]->strValue) && rhs.children[0]->strValue != name
             && arrays_.at(rhs.children[0]->strValue).isND
-            && arrays_.at(rhs.children[0]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[0]->strValue).ndDims.size() >= 3
+            && arrays_.at(rhs.children[0]->strValue).ndDims.size() == arrays_.at(name).ndDims.size()
             && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE
-            && rhs.children[1]->type == NodeType::COLON_EXPR && rhs.children[1]->children.empty()
-            && rhs.children[2]->type == NodeType::COLON_EXPR && rhs.children[2]->children.empty()
-            && rhs.children[3]->type == NodeType::COLON_EXPR
-            && rhs.children[3]->children.size() == 2) {
-            const ArrayInfo    &A   = arrays_.at(rhs.children[0]->strValue);
-            const ArrayInfo    &B   = arrays_.at(name);
-            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
-            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
-                const std::string m = dimExpr(A, 0), n = dimExpr(A, 1), p = dimExpr(A, 2);
-                const ASTNode    &rng = *rhs.children[3];  // k1:k2
-                endStack_.push_back(p);                    // `end` in the page index = size(A,3)
-                const std::string k1 = emitExpr(*rng.children[0]);
-                const std::string k2 = emitExpr(*rng.children[1]);
-                endStack_.pop_back();
-                line("{");
-                ++indent_;
-                line("const std::size_t _nk_m = " + m + ";");
-                line("const std::size_t _nk_n = " + n + ";");
-                line("const std::ptrdiff_t _nk_k1 = static_cast<std::ptrdiff_t>(" + k1 + ");");
-                line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
-                line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + p
-                     + ") || _nk_k2 < _nk_k1)");
-                line("    throw std::out_of_range(\"numkit: page range out of bounds\");");
-                line("const std::size_t _nk_np = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
-                line("const std::size_t _nk_pg = _nk_m * _nk_n;");
-                line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_pg;");
-                line(B.ndDims[0] + " = _nk_m;");
-                line(B.ndDims[1] + " = _nk_n;");
-                line(B.ndDims[2] + " = _nk_np;");
-                line(name + ".assign(" + A.dataExpr + " + _nk_off, " + A.dataExpr
-                     + " + _nk_off + _nk_np * _nk_pg);");
-                --indent_;
-                line("}");
-                types_.set(name, res);
-                return;
+            && rhs.children.size() == arrays_.at(rhs.children[0]->strValue).ndDims.size() + 1) {
+            const ArrayInfo  &A = arrays_.at(rhs.children[0]->strValue);
+            const std::size_t r = A.ndDims.size();
+            bool              ok = rhs.children[r]->type == NodeType::COLON_EXPR
+                      && rhs.children[r]->children.size() == 2;
+            for (std::size_t i = 1; i < r && ok; ++i)
+                if (!(rhs.children[i]->type == NodeType::COLON_EXPR
+                      && rhs.children[i]->children.empty()))
+                    ok = false;
+            if (ok) {
+                const ArrayInfo    &B   = arrays_.at(name);
+                const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                    const std::string lastDim = dimExpr(A, r - 1);  // size along the range dim
+                    const ASTNode    &rng     = *rhs.children[r];   // k1:k2
+                    endStack_.push_back(lastDim);                   // `end` in the range = size(A,r)
+                    const std::string k1 = emitExpr(*rng.children[0]);
+                    const std::string k2 = emitExpr(*rng.children[1]);
+                    endStack_.pop_back();
+                    line("{");
+                    ++indent_;
+                    std::string slabExpr;
+                    for (std::size_t i = 0; i + 1 < r; ++i) {  // leading r-1 dims form one slab
+                        line("const std::size_t _nk_d" + std::to_string(i) + " = " + dimExpr(A, i)
+                             + ";");
+                        slabExpr += (i ? " * " : "") + ("_nk_d" + std::to_string(i));
+                    }
+                    line("const std::size_t _nk_slab = " + slabExpr + ";");
+                    line("const std::ptrdiff_t _nk_k1 = static_cast<std::ptrdiff_t>(" + k1 + ");");
+                    line("const std::ptrdiff_t _nk_k2 = static_cast<std::ptrdiff_t>(" + k2 + ");");
+                    line("if (_nk_k1 < 1 || _nk_k2 > static_cast<std::ptrdiff_t>(" + lastDim
+                         + ") || _nk_k2 < _nk_k1)");
+                    line("    throw std::out_of_range(\"numkit: range out of bounds\");");
+                    line("const std::size_t _nk_nb = static_cast<std::size_t>(_nk_k2 - _nk_k1 + 1);");
+                    line("const std::size_t _nk_off = static_cast<std::size_t>(_nk_k1 - 1) * _nk_slab;");
+                    for (std::size_t i = 0; i + 1 < r; ++i)
+                        line(B.ndDims[i] + " = _nk_d" + std::to_string(i) + ";");
+                    line(B.ndDims[r - 1] + " = _nk_nb;");
+                    line(name + ".assign(" + A.dataExpr + " + _nk_off, " + A.dataExpr
+                         + " + _nk_off + _nk_nb * _nk_slab);");
+                    --indent_;
+                    line("}");
+                    types_.set(name, res);
+                    return;
+                }
             }
         }
         // Native A(i,:,:) read: a LEADING-scalar strided slice of a rank-3 A -> a rank-3
