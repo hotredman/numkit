@@ -62,12 +62,40 @@ bool InferredType::isUnboxableScalar() const
     }
 }
 
+const InferredType *StructLayout::field(const std::string &name) const
+{
+    for (const auto &f : fields)
+        if (f.first == name) return &f.second;
+    return nullptr;
+}
+
+bool StructLayout::operator==(const StructLayout &o) const
+{
+    if (fields.size() != o.fields.size()) return false;
+    for (std::size_t i = 0; i < fields.size(); ++i)
+        if (fields[i].first != o.fields[i].first || fields[i].second != o.fields[i].second)
+            return false;  // InferredType::!= recurses into nested struct layouts
+    return true;
+}
+
+// Equality of two (possibly null) shared struct layouts: same pointer (incl. both null)
+// is equal; one null is unequal; otherwise a deep field-by-field compare.
+static bool structLayoutEq(const std::shared_ptr<const StructLayout> &a,
+                           const std::shared_ptr<const StructLayout> &b)
+{
+    if (a == b) return true;
+    if (!a || !b) return false;
+    return *a == *b;
+}
+
 bool InferredType::operator==(const InferredType &o) const
 {
     if (kind != o.kind) return false;
     if (kind != TypeKind::Concrete) return true;  // Bottom/Dynamic carry no payload
-    // classId is -1 for non-object types, so this is a no-op there.
-    return dtype == o.dtype && shape == o.shape && classId == o.classId;
+    // classId is -1 for non-object types and structLayout is null for non-struct types,
+    // so both are no-ops on the numeric path.
+    return dtype == o.dtype && shape == o.shape && classId == o.classId
+           && structLayoutEq(structLayout, o.structLayout);
 }
 
 InferredType join(const InferredType &a, const InferredType &b)
@@ -89,6 +117,13 @@ InferredType join(const InferredType &a, const InferredType &b)
         if (a.classId != b.classId) return InferredType::dynamic();
         return InferredType::object(a.classId);
     }
+    // Two struct values unify only if they have the IDENTICAL field layout; distinct
+    // layouts at a merge are type-unstable -> Dynamic (boxed). (A width/depth-subtyping
+    // join is a later refinement.)
+    if (a.dtype == ValueType::STRUCT) {
+        if (!structLayoutEq(a.structLayout, b.structLayout)) return InferredType::dynamic();
+        return a;
+    }
     return InferredType::concrete(a.dtype, joinShape(a.shape, b.shape));
 }
 
@@ -101,6 +136,16 @@ std::string InferredType::str() const
             std::ostringstream os;
             if (dtype == ValueType::OBJECT) {
                 os << "object#" << classId;
+                return os.str();
+            }
+            if (dtype == ValueType::STRUCT) {
+                os << "struct{";
+                if (structLayout)
+                    for (std::size_t i = 0; i < structLayout->fields.size(); ++i) {
+                        if (i) os << ',';
+                        os << structLayout->fields[i].first;
+                    }
+                os << '}';
                 return os.str();
             }
             os << mtypeName(dtype);
