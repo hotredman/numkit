@@ -4410,19 +4410,24 @@ void Emitter::emitAssign(const ASTNode &s)
                 }
             }
         }
-        // Native cumsum/cumprod(A, 3) along dim 3 of a rank-3 array -> a fresh same-shape rank-3
-        // array, running accumulation along each dim-3 fiber (fixed i,j; varying page k). Like the
-        // 1-D/2-D forms, ONLY with no bridge (order-dependent rounding -> the bridged array-result
-        // path stays the exact tier when the bridge is on). Column-major: the fiber for a fixed
-        // (i,j) is the strided set {q + k*(m*n)} with q = i + j*m in [0, m*n) -> loop the page
-        // offset q outer, the page index k inner. Shape-preserving (no trailing-singleton drop). The
-        // 2-arg form with a LITERAL dim 3 only (dim 1|2 on a rank-3 stay bridged; the 1-arg default
-        // dim is dim 1, handled by the 2-D/bridge paths). v1: a DOUBLE rank-3 var distinct from dst.
+        // Native cumsum/cumprod(A, dim) along ANY dim 1|2|3 of a rank-3 array -> a fresh same-shape
+        // rank-3 array, running accumulation along each fiber in the scan dim. Like the 1-D/2-D
+        // forms, ONLY with no bridge (order-dependent rounding -> the bridged array-result path
+        // stays the exact tier when the bridge is on). Column-major (dims m,n,p): a scan along dim d
+        // has element stride sd = prod(dims before d) and length ld = size(A,d) -- dim1 sd=1 ld=m
+        // (contiguous columns), dim2 sd=m ld=n (per-row within a page), dim3 sd=m*n ld=p (across
+        // pages). The fiber starts tile as blocks of sd*ld: idx = b + r + t*sd for block base b
+        // (step sd*ld), residue r in [0,sd), position t in [0,ld). Shape-preserving (no rank drop).
+        // The 2-arg form with a LITERAL dim 1|2|3 only (the 1-arg default dim is the first non-
+        // singleton -- ambiguous on a runtime-dim rank-3 -> stays bridged). v1: a DOUBLE rank-3 var
+        // distinct from dst.
         if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
             && !bridge_ && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
             && rhs.children.size() == 3 && rhs.children[0]->type == NodeType::IDENTIFIER
             && (rhs.children[0]->strValue == "cumsum" || rhs.children[0]->strValue == "cumprod")
-            && rhs.children[2]->type == NodeType::NUMBER_LITERAL && rhs.children[2]->numValue == 3.0
+            && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+            && (rhs.children[2]->numValue == 1.0 || rhs.children[2]->numValue == 2.0
+                || rhs.children[2]->numValue == 3.0)
             && rhs.children[1]->type == NodeType::IDENTIFIER
             && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
             && arrays_.at(rhs.children[1]->strValue).isND
@@ -4435,6 +4440,10 @@ void Emitter::emitAssign(const ASTNode &s)
                 const bool        isProd = rhs.children[0]->strValue == "cumprod";
                 const std::string seed   = isProd ? "1.0" : "0.0";
                 const std::string op     = isProd ? "*=" : "+=";
+                const int         dimv   = static_cast<int>(rhs.children[2]->numValue);
+                // scan-dim element stride sd and length ld in terms of m,n,p
+                const std::string sd = dimv == 1 ? "1" : (dimv == 2 ? "_nk_m" : "_nk_m * _nk_n");
+                const std::string ld = dimv == 1 ? "_nk_m" : (dimv == 2 ? "_nk_n" : "_nk_p");
                 line("{");
                 ++indent_;
                 line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
@@ -4443,13 +4452,19 @@ void Emitter::emitAssign(const ASTNode &s)
                 line(M.ndDims[0] + " = _nk_m;");
                 line(M.ndDims[1] + " = _nk_n;");
                 line(M.ndDims[2] + " = _nk_p;");
-                line("const std::size_t _nk_pg = _nk_m * _nk_n;");
-                line(name + ".assign(_nk_pg * _nk_p, 0.0);");
-                open("for (std::size_t _nk_q = 0; _nk_q < _nk_pg; ++_nk_q)");
+                line("const std::size_t _nk_tot = _nk_m * _nk_n * _nk_p;");
+                line("const std::size_t _nk_sd = " + sd + ";");
+                line("const std::size_t _nk_ld = " + ld + ";");
+                line("const std::size_t _nk_blk = _nk_sd * _nk_ld;");
+                line(name + ".assign(_nk_tot, 0.0);");
+                open("for (std::size_t _nk_b = 0; _nk_b < _nk_tot; _nk_b += _nk_blk)");
+                open("for (std::size_t _nk_r = 0; _nk_r < _nk_sd; ++_nk_r)");
                 line("double _nk_acc = " + seed + ";");
-                open("for (std::size_t _nk_k = 0; _nk_k < _nk_p; ++_nk_k)");
-                line("_nk_acc " + op + " " + A.dataExpr + "[_nk_q + _nk_k * _nk_pg];");
-                line(name + "[_nk_q + _nk_k * _nk_pg] = _nk_acc;");
+                open("for (std::size_t _nk_t = 0; _nk_t < _nk_ld; ++_nk_t)");
+                line("const std::size_t _nk_idx = _nk_b + _nk_r + _nk_t * _nk_sd;");
+                line("_nk_acc " + op + " " + A.dataExpr + "[_nk_idx];");
+                line(name + "[_nk_idx] = _nk_acc;");
+                close();
                 close();
                 close();
                 --indent_;
