@@ -8706,3 +8706,42 @@ TEST(CodegenE2E, ColOfPageSliceRank3)
         engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// RANK-4 N-D (phase N13): zeros(2,2,2,2) + element r/w + permute + ndims/numel all at rank 4.
+// B = permute(A, [2 3 4 1]) -> B(i1,i2,i3,i4) = A(i4,i1,i2,i3). Verifies the rank-agnostic
+// foundation + rank-4 permute (the emit handles rank 2-4).
+TEST(CodegenE2E, Rank4FoundationAndPermute)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = zeros(2,2,2,2);\n"
+        "  A(1,1,1,1) = 1;\n"
+        "  A(2,1,1,1) = 2;\n"
+        "  A(2,2,2,2) = 16;\n"
+        "  B = permute(A, [2 3 4 1]);\n"  // B(i1,i2,i3,i4) = A(i4,i1,i2,i3)
+        "  s = B(1,1,1,1) + B(1,1,1,2)*10 + B(2,2,2,2)*100 + numel(B)*1000 + ndims(B)*100000;\n";
+    const EmittedFunction emitted =
+        transpile(std::string("function s = f()\n") + body + "end\n", {});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_rank4_e2e.exe").string();
+    const std::string outTxt = (base / "nk_rank4_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double s = f();\n"  // 1 + 20 + 1600 + 16000 + 400000 = 417621
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", s);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 417621.0);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string(body) + "s", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
