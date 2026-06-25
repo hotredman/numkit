@@ -606,11 +606,21 @@ InferredType logicalQueryTransfer(const std::vector<ArgInfo> &args)
 // are deferred -> Dynamic (the sound fallback).
 InferredType sortTransfer(const std::vector<ArgInfo> &args)
 {
-    if (args.empty() || args.size() > 2 || !args[0].type.isConcrete())
+    if (args.empty() || args.size() > 3 || !args[0].type.isConcrete())
         return InferredType::dynamic();
-    if (args.size() == 2 && args[1].type.dtype != ValueType::CHAR)
-        return InferredType::dynamic();  // a numeric dim arg -> deferred
-    return args[0].type;
+    if (args.size() == 1) return args[0].type;  // sort(A): shape-preserving
+    // sort(A, 'descend'): a CHAR direction, default dim -> shape-preserving (any rank).
+    if (args.size() == 2 && args[1].type.dtype == ValueType::CHAR) return args[0].type;
+    // sort(A, dim) numeric, or sort(A, dim, dir): native only for a rank-3 operand with a literal
+    // dim 1|2|3 (shape-preserving). For <=2-D a numeric dim is deferred -> Dynamic (no producer).
+    const bool  isND3 = args[0].type.shape.kind == ShapeKind::NDims
+                     && args[0].type.shape.nd.size() == 3;
+    std::size_t dim   = 0;
+    const bool  okDim = isND3 && args[1].constant.asDim(dim) && (dim == 1 || dim == 2 || dim == 3);
+    if (args.size() == 2 && okDim) return args[0].type;  // sort(A, dim)
+    if (args.size() == 3 && okDim && args[2].type.dtype == ValueType::CHAR)
+        return args[0].type;  // sort(A, dim, dir)
+    return InferredType::dynamic();
 }
 
 // polyval(p, x) -> the polynomial with coefficients p (highest degree first)
