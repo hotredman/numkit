@@ -112,6 +112,21 @@ std::vector<InferredType> sortMultiTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// union(a, b): the sorted distinct values of [a, b] (= unique of the concatenation). v1: two 1-D
+// DOUBLE vectors -> a 1-D DOUBLE result (runtime length -> Unknown). Anything else -> Dynamic.
+InferredType unionTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete()
+        || args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
+        return InferredType::dynamic();
+    auto isVec = [](ShapeKind k) {
+        return k == ShapeKind::RowVector || k == ShapeKind::ColVector || k == ShapeKind::Unknown;
+    };
+    if (isVec(args[0].type.shape.kind) && isVec(args[1].type.shape.kind))
+        return InferredType::concrete(ValueType::DOUBLE, Shape::unknown());
+    return InferredType::dynamic();
+}
+
 // [u, ia, ic] = unique(x): u = sorted distinct values; ia s.t. u = x(ia) (the FIRST occurrence,
 // numkit default -- probed); ic s.t. x = u(ic). All three are 1-D DOUBLE vectors (u/ia length =
 // #distinct, ic length = numel(x); all runtime -> Unknown). v1: a 1-D DOUBLE vector; a matrix ->
@@ -659,6 +674,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("trace", traceTransfer);  // trace(A) -> sum of the diagonal (DOUBLE scalar)
     reg.add("cross", crossTransfer);  // cross(a,b) -> the 3-D cross product (1-D, len 3)
     reg.add("unique", uniqueTransfer);  // x -> sorted distinct 1-D (native sort + dedup)
+    reg.add("union", unionTransfer);    // union(a,b) -> sorted distinct of [a b] (= unique of concat)
     reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})

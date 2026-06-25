@@ -5850,6 +5850,47 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native union(a, b) on two 1-D vectors -> the sorted distinct values of [a, b] (= unique
+        // of the concatenation). Concatenate into a temp, sort with the NaN-last comparator, then
+        // keep each element differing from the previous (NaN kept distinct, matching MATLAB union).
+        // !bridge_ keeps the bridged array-result tier when the bridge is on. v1: two 1-D DOUBLE
+        // array vars; result a 1-D array LOCAL.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !bridge_ && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::CALL && rhs.children.size() == 3
+            && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "union"
+            && rhs.children[1]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[1]->strValue)
+            && rhs.children[2]->type == NodeType::IDENTIFIER && isArrayVar(rhs.children[2]->strValue)
+            && !arrays_.at(rhs.children[1]->strValue).is2D
+            && !arrays_.at(rhs.children[1]->strValue).isND
+            && !arrays_.at(rhs.children[2]->strValue).is2D
+            && !arrays_.at(rhs.children[2]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE
+            && arrays_.at(rhs.children[2]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &aa  = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &bb  = arrays_.at(rhs.children[2]->strValue);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                line("{");
+                ++indent_;
+                line("std::vector<double> _nk_t;");
+                line("_nk_t.reserve(" + aa.lenVar + " + " + bb.lenVar + ");");
+                line("_nk_t.insert(_nk_t.end(), " + aa.dataExpr + ", " + aa.dataExpr + " + "
+                     + aa.lenVar + ");");
+                line("_nk_t.insert(_nk_t.end(), " + bb.dataExpr + ", " + bb.dataExpr + " + "
+                     + bb.lenVar + ");");
+                line("std::sort(_nk_t.begin(), _nk_t.end(),");
+                line("    [](double _a, double _b){ return _a < _b || (_b != _b && _a == _a); });");
+                line(name + ".clear();");
+                open("for (std::size_t _nk_i = 0; _nk_i < _nk_t.size(); ++_nk_i)");
+                line("if (_nk_i == 0 || _nk_t[_nk_i] != _nk_t[_nk_i - 1]) " + name
+                     + ".push_back(_nk_t[_nk_i]);");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native polyval(p, x) with x a vector -> the polynomial p (coeffs highest
         // degree first) evaluated at each x[i] by Horner, a same-length-as-x 1-D
         // LOCAL: out[i] = ((p[0]*x[i] + p[1])*x[i] + ...) + p[np-1]. Exact (a fused
