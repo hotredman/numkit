@@ -276,8 +276,17 @@ InferredType anyAllTransfer(const std::vector<ArgInfo> &args)
     switch (args[0].type.shape.kind) {
     case ShapeKind::Scalar:
     case ShapeKind::RowVector:
-    case ShapeKind::ColVector: return InferredType::scalar(ValueType::LOGICAL);
-    default:                   return InferredType::dynamic();
+    case ShapeKind::ColVector: return InferredType::scalar(ValueType::LOGICAL);  // -> scalar
+    case ShapeKind::KnownDims:
+        // a true 2-D matrix any(A)/all(A) is column-wise -> a LOGICAL 1 x n ROW vector (runtime n).
+        if (args[0].type.shape.rows > 1 && args[0].type.shape.cols > 1)
+            return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());
+        return InferredType::dynamic();
+    case ShapeKind::NDims:  // runtime-dim rank-2 matrix -> column-wise -> 1-D LOGICAL row vector
+        if (args[0].type.shape.nd.size() == 2)
+            return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());
+        return InferredType::dynamic();
+    default: return InferredType::dynamic();
     }
 }
 
