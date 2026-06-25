@@ -4410,6 +4410,54 @@ void Emitter::emitAssign(const ASTNode &s)
                 }
             }
         }
+        // Native cumsum/cumprod(A, 3) along dim 3 of a rank-3 array -> a fresh same-shape rank-3
+        // array, running accumulation along each dim-3 fiber (fixed i,j; varying page k). Like the
+        // 1-D/2-D forms, ONLY with no bridge (order-dependent rounding -> the bridged array-result
+        // path stays the exact tier when the bridge is on). Column-major: the fiber for a fixed
+        // (i,j) is the strided set {q + k*(m*n)} with q = i + j*m in [0, m*n) -> loop the page
+        // offset q outer, the page index k inner. Shape-preserving (no trailing-singleton drop). The
+        // 2-arg form with a LITERAL dim 3 only (dim 1|2 on a rank-3 stay bridged; the 1-arg default
+        // dim is dim 1, handled by the 2-D/bridge paths). v1: a DOUBLE rank-3 var distinct from dst.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && !bridge_ && arrays_.at(name).ndDims.size() == 3 && rhs.type == NodeType::CALL
+            && rhs.children.size() == 3 && rhs.children[0]->type == NodeType::IDENTIFIER
+            && (rhs.children[0]->strValue == "cumsum" || rhs.children[0]->strValue == "cumprod")
+            && rhs.children[2]->type == NodeType::NUMBER_LITERAL && rhs.children[2]->numValue == 3.0
+            && rhs.children[1]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+            && arrays_.at(rhs.children[1]->strValue).isND
+            && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 3
+            && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo    &A   = arrays_.at(rhs.children[1]->strValue);
+            const ArrayInfo    &M   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                const bool        isProd = rhs.children[0]->strValue == "cumprod";
+                const std::string seed   = isProd ? "1.0" : "0.0";
+                const std::string op     = isProd ? "*=" : "+=";
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                line("const std::size_t _nk_p = " + dimExpr(A, 2) + ";");
+                line(M.ndDims[0] + " = _nk_m;");
+                line(M.ndDims[1] + " = _nk_n;");
+                line(M.ndDims[2] + " = _nk_p;");
+                line("const std::size_t _nk_pg = _nk_m * _nk_n;");
+                line(name + ".assign(_nk_pg * _nk_p, 0.0);");
+                open("for (std::size_t _nk_q = 0; _nk_q < _nk_pg; ++_nk_q)");
+                line("double _nk_acc = " + seed + ";");
+                open("for (std::size_t _nk_k = 0; _nk_k < _nk_p; ++_nk_k)");
+                line("_nk_acc " + op + " " + A.dataExpr + "[_nk_q + _nk_k * _nk_pg];");
+                line(name + "[_nk_q + _nk_k * _nk_pg] = _nk_acc;");
+                close();
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native cumsum/cumprod(x) -> running accumulation, a SAME-LENGTH 1-D
         // result, but ONLY with no bridge (order-dependent rounding -> the bridged
         // array-result path stays the exact tier when the bridge is on). cumsum:

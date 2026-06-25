@@ -10331,3 +10331,48 @@ TEST(CodegenE2E, Mode)
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 2133.0);  // 3 + 30 + 100 + 2000
 }
+
+// rank-3 cumsum/cumprod along dim 3 (phase N53): cumsum(A,3)/cumprod(A,3) accumulate along each
+// dim-3 fiber (down the pages, fixed i,j). The cum producers were 1-D + 2-D only -> a rank-3 dim-3
+// scan was bridged; now native (per-page-offset prefix scan, stride m*n). Shape-preserving, so no
+// trailing-singleton rank drop. Bit-exact vs the interpreter. (diff(A,1,3) stays bridged: the
+// differenced trailing dim can collapse to extent 1, which MATLAB reports as rank 2 -- codegen
+// cannot soundly emit a fixed-rank-3 dst without static extent knowledge.)
+TEST(CodegenE2E, CumsumCumprodRank3Dim3)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 3);\n"  // pages [1 3;2 4], [5 7;6 8], [9 11;10 12]
+        "  B = cumsum(A, 3);\n"         // along pages: B(1,1,3)=1+5+9=15, B(2,2,3)=4+8+12=24
+        "  C = cumprod(A, 3);\n"        // along pages: C(1,1,3)=1*5*9=45, C(2,2,3)=4*8*12=384
+        "  r = B(1,1,1) + B(1,1,3)*10 + B(2,2,3)*100 + C(1,1,3)*1000 + C(2,2,3)*10000"
+        " + numel(B)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cumrank3dim3_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cumrank3dim3_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[12];\n"
+        "  for (int i = 0; i < 12; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 12);\n"  // 1 + 150 + 2400 + 45000 + 3840000 + 1200000 = 5087551
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5087551.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=1:12;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
