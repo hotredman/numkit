@@ -3982,6 +3982,73 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native diff(A[, 1, dim]) on a 2-D MATRIX -> consecutive differences along dim 1 (down
+        // columns -> (m-1) x n) or dim 2 (across rows -> m x (n-1)). EXACT (subtraction), no bridge
+        // guard. diff(A) defaults to dim 1 ONLY when rows are statically > 1 (a KnownDims matrix);
+        // a runtime-dim 2-D could be 1 x n (first-non-singleton-dim ambiguity) -> there an explicit
+        // dim is required via the 3-arg diff(A, 1, dim) form. Column-major. v1: a DOUBLE matrix var
+        // distinct from the dest; order 1 only.
+        {
+            const bool diff3Arg =
+                rhs.type == NodeType::CALL && rhs.children.size() == 4
+                && rhs.children[0]->type == NodeType::IDENTIFIER && rhs.children[0]->strValue == "diff"
+                && rhs.children[2]->type == NodeType::NUMBER_LITERAL
+                && rhs.children[2]->numValue == 1.0  // order 1
+                && rhs.children[3]->type == NodeType::NUMBER_LITERAL
+                && (rhs.children[3]->numValue == 1.0 || rhs.children[3]->numValue == 2.0);
+            const bool diff1Arg = rhs.type == NodeType::CALL && rhs.children.size() == 2
+                                  && rhs.children[0]->type == NodeType::IDENTIFIER
+                                  && rhs.children[0]->strValue == "diff";
+            if (isArrayVar(name) && arrays_.at(name).isLocal
+                && (arrays_.at(name).is2D
+                    || (arrays_.at(name).isND && arrays_.at(name).ndDims.size() == 2))
+                && (diff1Arg || diff3Arg) && rhs.children[1]->type == NodeType::IDENTIFIER
+                && isArrayVar(rhs.children[1]->strValue) && rhs.children[1]->strValue != name
+                && (arrays_.at(rhs.children[1]->strValue).is2D
+                    || (arrays_.at(rhs.children[1]->strValue).isND
+                        && arrays_.at(rhs.children[1]->strValue).ndDims.size() == 2))
+                && arrays_.at(rhs.children[1]->strValue).dtype == ValueType::DOUBLE) {
+                const ArrayInfo &A = arrays_.at(rhs.children[1]->strValue);
+                // 1-arg default-dim diff needs rows statically > 1 (A.is2D = KnownDims matrix); a
+                // runtime-dim 2-D 1-arg diff stays bridged (ambiguous first non-singleton dim).
+                if (diff3Arg || A.is2D) {
+                    const ArrayInfo    &M   = arrays_.at(name);
+                    const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+                    if (res.type.isConcrete() && !res.type.shape.isScalar()) {
+                        const bool dim2 = diff3Arg && rhs.children[3]->numValue == 2.0;
+                        line("{");
+                        ++indent_;
+                        line("const std::size_t _nk_m = " + dimExpr(A, 0) + ";");
+                        line("const std::size_t _nk_n = " + dimExpr(A, 1) + ";");
+                        line(std::string("const std::size_t _nk_rm = ")
+                             + (dim2 ? "_nk_m;" : "_nk_m - 1;"));  // result rows
+                        line(std::string("const std::size_t _nk_rn = ")
+                             + (dim2 ? "_nk_n - 1;" : "_nk_n;"));  // result cols
+                        if (M.isND && M.ndDims.size() == 2) {
+                            line(M.ndDims[0] + " = _nk_rm;");
+                            line(M.ndDims[1] + " = _nk_rn;");
+                        }
+                        line(name + ".assign(_nk_rm * _nk_rn, 0.0);");
+                        open("for (std::size_t _nk_j = 0; _nk_j < _nk_rn; ++_nk_j)");
+                        open("for (std::size_t _nk_i = 0; _nk_i < _nk_rm; ++_nk_i)");
+                        if (dim2)
+                            line(name + "[_nk_i + _nk_j * _nk_rm] = " + A.dataExpr
+                                 + "[_nk_i + (_nk_j + 1) * _nk_m] - " + A.dataExpr
+                                 + "[_nk_i + _nk_j * _nk_m];");
+                        else
+                            line(name + "[_nk_i + _nk_j * _nk_rm] = " + A.dataExpr
+                                 + "[(_nk_i + 1) + _nk_j * _nk_m] - " + A.dataExpr
+                                 + "[_nk_i + _nk_j * _nk_m];");
+                        close();
+                        close();
+                        --indent_;
+                        line("}");
+                        types_.set(name, res);
+                        return;
+                    }
+                }
+            }
+        }
         // Native diff(x) -> consecutive differences (y[i] = x[i+1]-x[i], length
         // n-1), a runtime-sized 1-D LOCAL preserving x's dtype. EXACT (subtraction)
         // -> preferred over the bridged array-result path; works for double and

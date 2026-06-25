@@ -9335,3 +9335,43 @@ TEST(CodegenE2E, Cummax2D)
         engine.eval(std::string("x=[3 1 4 1 5 9];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// 2-D diff (phase N28): diff(A,1,1) takes column differences (dim 1 -> (m-1) x n), diff(A,1,2)
+// row differences (dim 2 -> m x (n-1)). The 1-D diff producer only matched vectors -> a matrix
+// diff was bridged; now native. Powers-of-2 input so the differences vary. Bit-exact vs interp.
+TEST(CodegenE2E, Diff2D)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 3, 3);\n"  // [1 8 64; 2 16 128; 4 32 256]
+        "  B = diff(A, 1, 1);\n"     // dim 1 -> 2x3 [1 8 64; 2 16 128]
+        "  C = diff(A, 1, 2);\n"     // dim 2 -> 3x2 [7 56; 14 112; 28 224]
+        "  r = B(1,1) + B(2,3)*10 + C(1,1)*100 + C(3,2)*1000 + numel(B)*10000 + numel(C)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_diff2d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_diff2d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[9] = {1, 2, 4, 8, 16, 32, 64, 128, 256};\n"  // 3x3 col-major
+        "  double r = f(x, 9);\n"  // 1 + 1280 + 700 + 224000 + 60000 + 600000 = 885981
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 885981.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 4 8 16 32 64 128 256];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
