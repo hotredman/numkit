@@ -9980,3 +9980,42 @@ TEST(CodegenE2E, IntersectSetdiffVectors)
         engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// single-output tf=ismember(a,b) (phase N44): a LOGICAL mask the length of a (a(i) in b). Was
+// bridged; now native (sort b once + per-element binary_search). The 2-output [tf,loc]=ismember
+// stays bridged (no multi-transfer) -- it is the bridge exemplar. Bit-exact vs the interpreter.
+TEST(CodegenE2E, IsmemberMask)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  b = [2 4 6 1];\n"
+        "  tf = ismember(x, b);\n"  // x=[3 1 4 1 5]: [0 1 1 1 0]
+        "  r = tf(1) + tf(2)*10 + tf(3)*100 + tf(5)*1000 + numel(tf)*10000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_ismember_e2e.exe").string();
+    const std::string outTxt = (base / "nk_ismember_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[5] = {3, 1, 4, 1, 5};\n"
+        "  double r = f(x, 5);\n"  // tf=[0 1 1 1 0]: 0 + 10 + 100 + 0 + 50000 = 50110
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 50110.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[3 1 4 1 5];\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}

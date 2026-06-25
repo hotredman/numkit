@@ -128,6 +128,22 @@ InferredType setopBinaryTransfer(const std::vector<ArgInfo> &args)
     return InferredType::dynamic();
 }
 
+// ismember(a, b): a LOGICAL mask the shape of a -- tf(i) = a(i) is a member of b. v1: two 1-D
+// DOUBLE vectors -> a 1-D LOGICAL result. (Only the SINGLE-output form; [tf,loc]=ismember has no
+// addMulti entry, so it stays Dynamic/bridged -- and is the bridged-multi-output e2e exemplar.)
+InferredType ismemberTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 2 || !args[0].type.isConcrete() || !args[1].type.isConcrete()
+        || args[0].type.dtype != ValueType::DOUBLE || args[1].type.dtype != ValueType::DOUBLE)
+        return InferredType::dynamic();
+    auto isVec = [](ShapeKind k) {
+        return k == ShapeKind::RowVector || k == ShapeKind::ColVector || k == ShapeKind::Unknown;
+    };
+    if (isVec(args[0].type.shape.kind) && isVec(args[1].type.shape.kind))
+        return InferredType::concrete(ValueType::LOGICAL, Shape::unknown());
+    return InferredType::dynamic();
+}
+
 // [u, ia, ic] = unique(x): u = sorted distinct values; ia s.t. u = x(ia) (the FIRST occurrence,
 // numkit default -- probed); ic s.t. x = u(ic). All three are 1-D DOUBLE vectors (u/ia length =
 // #distinct, ic length = numel(x); all runtime -> Unknown). v1: a 1-D DOUBLE vector; a matrix ->
@@ -678,6 +694,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     reg.add("union", setopBinaryTransfer);      // union(a,b) -> sorted distinct of [a b]
     reg.add("intersect", setopBinaryTransfer);  // intersect(a,b) -> sorted distinct common values
     reg.add("setdiff", setopBinaryTransfer);    // setdiff(a,b) -> sorted distinct of a not in b
+    reg.add("ismember", ismemberTransfer);      // tf=ismember(a,b) -> LOGICAL mask (a in b)
     reg.add("polyval", polyvalTransfer);  // (p, x) -> p evaluated at x, shape of x (Horner)
     // x -> LOGICAL scalar query predicates (native: compile-time / numel / orientation).
     for (const char *n : {"isempty", "isscalar", "isreal", "isrow", "iscolumn", "isvector"})
