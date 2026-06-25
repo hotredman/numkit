@@ -4663,6 +4663,96 @@ void Emitter::emitAssign(const ASTNode &s)
                 return;
             }
         }
+        // Native GENERAL scalar/colon slice B = A(s_0..s_{r-1}) for a rank r >= 4 A (phases
+        // N8-N12 cover rank 3 per-pattern; this is the rank-4+ generalization). Each subscript
+        // is a bare colon or a scalar (>=1 of each). Output dim per kept subscript: colon ->
+        // size(A,k), scalar -> 1; trailing scalar dims drop (kept rank = lastColon+1, >=2).
+        // STRIDED gather: A flat = base(from scalar dims) + sum over kept COLON dims of j_k *
+        // As_k. v1: rank-4+ DOUBLE A, all bare-colon/scalar subscripts, B distinct from A.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && arrays_.at(name).ndRuntimeLocal
+            && rhs.type == NodeType::CALL && rhs.children.size() >= 5
+            && rhs.children[0]->type == NodeType::IDENTIFIER
+            && isArrayVar(rhs.children[0]->strValue) && rhs.children[0]->strValue != name
+            && arrays_.at(rhs.children[0]->strValue).isND
+            && arrays_.at(rhs.children[0]->strValue).ndDims.size() >= 4
+            && arrays_.at(rhs.children[0]->strValue).ndDims.size() == rhs.children.size() - 1
+            && arrays_.at(rhs.children[0]->strValue).dtype == ValueType::DOUBLE) {
+            const ArrayInfo  &A = arrays_.at(rhs.children[0]->strValue);
+            const std::size_t r = A.ndDims.size();
+            std::vector<bool> colon(r, false);
+            int               lastCol = -1, scalarN = 0;
+            bool              allCS = true;
+            for (std::size_t k = 0; k < r; ++k) {
+                const ASTNode &s     = *rhs.children[k + 1];
+                const bool     isCol = s.type == NodeType::COLON_EXPR && s.children.empty();
+                colon[k]             = isCol;
+                if (isCol)
+                    lastCol = static_cast<int>(k);
+                else if (s.type != NodeType::COLON_EXPR)
+                    ++scalarN;
+                else {
+                    allCS = false;  // a non-empty COLON (range) -> not handled here
+                    break;
+                }
+            }
+            const ArrayInfo    &B   = arrays_.at(name);
+            const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
+            bool scalarsOk = allCS && lastCol >= 0 && scalarN > 0 && res.type.isConcrete()
+                             && !res.type.shape.isScalar();
+            for (std::size_t k = 0; k < r && scalarsOk; ++k)
+                if (!colon[k]
+                    && !inferExpr(*rhs.children[k + 1], types_, reg_, classes_).type.shape.isScalar())
+                    scalarsOk = false;
+            const std::size_t keptRank =
+                lastCol >= 0 ? (static_cast<std::size_t>(lastCol) + 1 < 2
+                                    ? 2u
+                                    : static_cast<std::size_t>(lastCol) + 1)
+                             : 0;
+            if (scalarsOk && B.ndDims.size() == keptRank) {
+                line("{");
+                ++indent_;
+                line("const std::size_t _nk_As0 = 1;");  // A column-major strides
+                for (std::size_t k = 1; k < r; ++k)
+                    line("const std::size_t _nk_As" + std::to_string(k) + " = _nk_As"
+                         + std::to_string(k - 1) + " * (" + dimExpr(A, k - 1) + ");");
+                line("std::size_t _nk_base = 0;");  // fixed offset from the scalar subscripts
+                for (std::size_t k = 0; k < r; ++k) {
+                    if (colon[k]) continue;
+                    endStack_.push_back(dimExpr(A, k));
+                    const std::string sk = emitExpr(*rhs.children[k + 1]);
+                    endStack_.pop_back();
+                    line("{ const std::ptrdiff_t _nk_s = static_cast<std::ptrdiff_t>(" + sk + ") - 1;");
+                    line("  if (_nk_s < 0 || _nk_s >= static_cast<std::ptrdiff_t>(" + dimExpr(A, k)
+                         + ")) throw std::out_of_range(\"numkit: slice index out of bounds\");");
+                    line("  _nk_base += static_cast<std::size_t>(_nk_s) * _nk_As" + std::to_string(k)
+                         + "; }");
+                }
+                for (std::size_t kk = 0; kk < keptRank; ++kk)  // output (kept) dims
+                    line("const std::size_t _nk_Bd" + std::to_string(kk) + " = "
+                         + (colon[kk] ? dimExpr(A, kk) : std::string("1")) + ";");
+                line("const std::size_t _nk_Bs0 = 1;");  // output strides
+                for (std::size_t kk = 1; kk < keptRank; ++kk)
+                    line("const std::size_t _nk_Bs" + std::to_string(kk) + " = _nk_Bs"
+                         + std::to_string(kk - 1) + " * _nk_Bd" + std::to_string(kk - 1) + ";");
+                std::string numel = "_nk_Bd0";
+                for (std::size_t kk = 1; kk < keptRank; ++kk) numel += " * _nk_Bd" + std::to_string(kk);
+                for (std::size_t kk = 0; kk < keptRank; ++kk)
+                    line(B.ndDims[kk] + " = _nk_Bd" + std::to_string(kk) + ";");
+                line(name + ".assign((" + numel + "), 0.0);");
+                open("for (std::size_t _nk_o = 0; _nk_o < (" + numel + "); ++_nk_o)");
+                line("std::size_t _nk_af = _nk_base;");
+                for (std::size_t kk = 0; kk < keptRank; ++kk)
+                    if (colon[kk])
+                        line("_nk_af += ((_nk_o / _nk_Bs" + std::to_string(kk) + ") % _nk_Bd"
+                             + std::to_string(kk) + ") * _nk_As" + std::to_string(kk) + ";");
+                line(name + "[_nk_o] = " + A.dataExpr + "[_nk_af];");
+                close();
+                --indent_;
+                line("}");
+                types_.set(name, res);
+                return;
+            }
+        }
         // Native sort(x) ascending -> a sorted copy of x in a fresh 1-D LOCAL. The
         // comparator puts NaN last (MATLAB's order) and is a valid strict-weak-
         // ordering (NaN treated as the maximum), so std::sort stays well-defined even

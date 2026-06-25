@@ -8827,3 +8827,45 @@ TEST(CodegenE2E, Cat4StackRank3)
             .toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// GENERAL rank-4 scalar/colon slice (phase N16): A(:,:,:,2) drops the trailing scalar -> rank-3
+// [2,2,2] slab; A(2,:,:,:) keeps the leading scalar -> rank-4 [1,2,2,2]. A=reshape([1..16],2,2,2,2).
+TEST(CodegenE2E, GeneralSliceRank4)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  A = reshape(x, 2, 2, 2, 2);\n"  // 2x2x2x2
+        "  B = A(:,:,:,2);\n"              // [2,2,2] (slab 2 along dim 4; trailing scalar drops)
+        "  C = A(2,:,:,:);\n"             // [1,2,2,2] (leading scalar kept)
+        "  r = B(1,1,1) + B(2,2,2)*10 + C(1,1,1,1)*100 + C(1,2,2,2)*1000"
+        " + numel(B)*10000 + numel(C)*100000;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(x)\n") + body + "end\n",
+        {{"x", InferredType::concrete(ValueType::DOUBLE, Shape::rowVector())}});
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_genslice4_e2e.exe").string();
+    const std::string outTxt = (base / "nk_genslice4_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double x[16];\n"
+        "  for (int i = 0; i < 16; ++i) x[i] = i + 1;\n"
+        "  double r = f(x, 16);\n"  // 9 + 160 + 200 + 16000 + 80000 + 800000 = 896369
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 896369.0);
+    numkit::StandardEngine engine;
+    const double interp =
+        engine.eval(std::string("x=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16];\n") + body + "r", true)
+            .toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
