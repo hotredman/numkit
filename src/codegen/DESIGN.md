@@ -676,7 +676,7 @@ so a regression into silent mis-emission fails a test.
 | Construct | Why refused | Guard |
 |---|---|---|
 | CSL `c{:}` / `c{vec}` | multi-value (N args/outputs) — not a single `nk_val`; **also unimplemented in the interpreter itself** (errors "Cell index out of bounds" — `bugs/lang/cell-csl-expansion.md`), so compiling it would make codegen diverge from its own contract (the interpreter) | `CellCommaListRefusedUnderBridge` |
-| capturing closure `@(x) x+k` (k a local) | a compiled local can't bind through the runtime workspace `nk_eval` uses | `ClosureCapturingLocalRefusedUnderBridge` |
+| capturing closure `@(x) x+k` (k a local) | refused today (`ClosureCapturingLocalRefusedUnderBridge`). VIABLE but DEFERRED: a C-ABI `make_closure_captured(src, names, vals)` could bind the captured locals in a temp `Environment`, `eval(src, &scope)` so the closure's `snapshot(env)` captures them (no workspace pollution -- the snapshot is copied into the engine's `userFuncs_`). The free-var analysis (G5b `collectAnonRefIds`) already identifies the captures. Deferred for ~0 hot-path value: a closure created+called in compiled code would just be inlined; the real use (passing to a solver / `cellfun`) bridges the whole function anyway. | `ClosureCapturingLocalRefusedUnderBridge` |
 | nested anonymous function | inner param scope not modelled (v1) | (emit refusal) |
 | MUTUAL / POLYMORPHIC recursion | only DIRECT same-signature self-recursion is fixpoint-compiled (above); a mutual cycle (f↔g) or a self-call with a different arg signature breaks to Dynamic (no infinite monomorphisation) | — |
 | bare-LHS single target on a multi-output fn `c = f(x)` | MATLAB binds c to the first output; the BRACKET form `[c] = f(x)` already compiles (partial nargout, above), so this is sugar with a working workaround. Compiling the bare form needs the first-output type at the hoist, i.e. the FunctionTable threaded into the inference pass — deferred (low value) | — |
@@ -684,9 +684,9 @@ so a regression into silent mis-emission fails a test.
 | partial-nargout, object/array multi-output, closed-world polymorphism, 2-D `num2str` | each an under-specified or multi-value shape with no sound single-value lowering | (emit refusal) |
 
 **Remaining codegen work is no longer autonomous-brick-sized.** It is either
-(a) **multi-fire design** — a capture-binding protocol for capturing closures,
-multi-output user-function precision — each needing a design decision, not a
-mechanical brick; or
+(a) **low-value, deferred** — capturing closures (viable via `make_closure_captured`,
+zero hot-path value) and the bare-LHS `c = f(x)` multi-output sugar (workaround
+`[c] = f(x)` already compiles) — both assessed, both deferred; or
 (b) **additive transfer coverage** for niche builtins (low marginal value — an
 un-transferred builtin already bridges or refuses soundly). The structural
 frontier itself is closed. (CSL `c{:}` variadic expansion was investigated and
