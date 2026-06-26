@@ -174,6 +174,21 @@ TEST_P(CellTest, CellCommaListMixedCallArgs)
     EXPECT_DOUBLE_EQ(dd->doubleData()[5], 4.0);
 }
 
+// CSL: [a,b,c] = d{:} distributes the cell's contents to multiple LHS targets.
+// VM CELL_GET_MULTI (compileColonExpr -> COLON_ALL marker -> resolveIndices over
+// the cell numel) + TreeWalker execMultiAssign cell branch (resolveIndex colon).
+TEST_P(CellTest, CellCommaListMultiAssign)
+{
+    eval("d = {3, 8, 4};");
+    eval("[a, b, c] = d{:};");  // splice all -> a=3, b=8, c=4
+    EXPECT_DOUBLE_EQ(getVar("a"), 3.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 8.0);
+    EXPECT_DOUBLE_EQ(getVar("c"), 4.0);
+    eval("[x, y] = d{[1 3]};");  // vector subscript -> x=3, y=4
+    EXPECT_DOUBLE_EQ(getVar("x"), 3.0);
+    EXPECT_DOUBLE_EQ(getVar("y"), 4.0);
+}
+
 // CSL: {c{:}} re-wraps the selected cell contents into a new cell literal; mixed
 // {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
 TEST_P(CellTest, CellCommaListInCellLiteral)
