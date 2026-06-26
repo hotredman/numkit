@@ -7840,6 +7840,23 @@ void Emitter::emitAssign(const ASTNode &s)
         emitIndexWrite(lhs, rhs);
         return;
     }
+
+    // c{i} = rhs : cell content store on a Dynamic cell local (G4b). v1: a single
+    // unboxed-scalar subscript on a Dynamic VARIABLE; the runtime grows the cell
+    // when `i` is past the end (MATLAB auto-grow), so c={}; c{1}=..; c{2}=.. builds
+    // a cell imperatively. A 2-D / CSL c{:} / non-Dynamic target refuses -> the
+    // function stays interpreted (sound).
+    if (lhs.type == NodeType::CELL_INDEX && lhs.children.size() == 2
+        && lhs.children[0]->type == NodeType::IDENTIFIER
+        && types_.has(lhs.children[0]->strValue)
+        && inferExpr(*lhs.children[0], types_, reg_, classes_).type.isDynamic()) {
+        const AbstractValue iv = inferExpr(*lhs.children[1], types_, reg_, classes_);
+        if (!isUnboxableScalarType(iv.type))
+            unsupported("Dynamic tier: cell content store index must be an unboxed scalar (v1)");
+        line("nk_rt::cell_set(" + lhs.children[0]->strValue + ", " + emitExpr(*lhs.children[1])
+             + ", " + emitDynamicExpr(rhs) + ");");
+        return;
+    }
     unsupported("assignment lhs kind");
 }
 
@@ -8996,6 +9013,13 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "// integer/range check. Throws on a non-cell / out-of-range index.\n"
            "inline val cell_get(const val& c, double idx1) {\n"
            "    nk_error e; e.code = 0; return _checked(nk_cell_get(c.get(), idx1, &e), e); }\n"
+           "// Content store c{i} = v (G4). Mutates the cell in place, growing it if\n"
+           "// `idx1` (1-based, double) is past the end. A fresh local (null handle) is\n"
+           "// lazily made an empty cell first, so c{1}=v works without a prior c={}.\n"
+           "inline void cell_set(val& c, double idx1, const val& v) {\n"
+           "    if (!c.get()) c = val::cell({});\n"
+           "    nk_error e; e.code = 0; nk_cell_set(c.get(), idx1, v.get(), &e);\n"
+           "    if (e.code) throw std::runtime_error(e.message); }\n"
            "// Multi-output bridged call: `[o0, o1, ...] = name(args)`. Returns output\n"
            "// 0; outputs 1..nargout-1 are written (owned) into extra[0..nargout-2].\n"
            "// Args borrowed (their val owners release them). Errors throw.\n"

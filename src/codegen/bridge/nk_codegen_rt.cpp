@@ -412,6 +412,28 @@ nk_val nk_cell_get(nk_val c, double idx1, nk_error *err)
     }
 }
 
+void nk_cell_set(nk_val c, double idx1, nk_val v, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        Value       *cv = unwrap(c);
+        const Value *vv = unwrap(v);
+        if (!cv || !vv) throw std::runtime_error("nk_cell_set: null handle");
+        // Mirror the interpreter's resolveCellSlot: coerce an empty/unset slot to
+        // a cell, then grow to fit the (0-based) subscript and write the content.
+        if (cv->isEmpty()) *cv = Value::cell(0, 0);
+        if (!cv->isCell())
+            throw std::runtime_error("Cell contents indexing on a non-cell value");
+        const size_t coords[1] = {Value::checkedScalarIndex(idx1)};  // 1-based -> 0-based + int chk
+        const size_t linear    = cv->growCellTo(coords, 1, nullptr);
+        cv->cellAt(linear)     = *vv;  // deep-copy the content in
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+    } catch (...) {
+        setError(err, "unknown numkit error");
+    }
+}
+
 double nk_unbox_scalar(nk_val v)
 {
     try {
