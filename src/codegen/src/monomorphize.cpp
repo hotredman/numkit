@@ -172,6 +172,11 @@ void registerClassMethods(TransferRegistry &reg, const ClassRegistry &classes)
 
 void registerUserFunctions(TransferRegistry &reg, const FunctionTable &table)
 {
+    // Expose the table so the inference can tell a user fn from a builtin (e.g.
+    // the bare `c = f(x)` multi-output first-output projection). Borrowed -- the
+    // table must outlive the registry (it already backs the transfers below).
+    reg.setUserFunctions(&table);
+
     // Shared across all user-function transfers: the set of functions
     // currently being inferred, so a recursive (re-entrant) call returns
     // Dynamic instead of looping forever.

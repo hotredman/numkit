@@ -5253,6 +5253,58 @@ TEST(CodegenE2E, RecursiveCallCompilesAndRuns)
     EXPECT_DOUBLE_EQ(got[0], 120.0);  // fact(5) = 120
 }
 
+// Item 3 (b): a BARE-identifier single target on a MULTI-output user fn -- `c = f(x)`
+// binds c to f's FIRST output (MATLAB single-LHS). Same spec ABI as `[c, ~] = f` (the
+// bracket form already compiled); the unrequested 2nd output gets a throwaway out-param.
+// The inference types c as the first output so it hoists correctly. Standalone compile+run.
+TEST(CodegenE2E, BareLhsMultiOutputBindsFirstOutput)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *src =
+        "function r = g(x)\n"
+        "  c = f(x);\n"   // bare LHS; f is multi-output -> c = first output (a = x + 1)
+        "  r = c + 1;\n"
+        "end\n"
+        "function [a, b] = f(x)\n"
+        "  a = x + 1;\n"
+        "  b = x * 2;\n"
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("g"), {{"x", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
+    EXPECT_EQ(emitted.source.find("nk_rt::"), std::string::npos)
+        << "an all-scalar multi-output call must compile STANDALONE (no bridge)";
+    ASSERT_NE(emitted.source.find("_nk_ignore_1"), std::string::npos)
+        << "the unrequested 2nd output must get a throwaway out-param";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_barelhs_multiout_e2e.exe").string();
+    const std::string outTxt = (base / "nk_barelhs_multiout_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double out = " + emitted.name + "(5.0);\n"  // f(5)=[6,10]; c=6; r=7
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", out);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 7.0);  // c = f(5) first output = 6; r = 6 + 1
+}
+
 // CSL c{:} is a SOUND REFUSAL: a brace colon-subscript expands to a comma-separated
 // list (multi-value), which does not fit the single-nk_val Dynamic model. The cell
 // tier supports scalar-subscript content read/store (c{i}, c{i,j}); a colon
