@@ -77,6 +77,11 @@ NK_RT_API nk_val nk_cell_get_2d(nk_val c, double i1, double j1, nk_error *err);
  * cell handle in place; `v` is BORROWED (deep-copied in). SINGLE element only.
  * Non-integer idx / non-cell receiver -> *err set (no throw across the C frame). */
 NK_RT_API void nk_cell_set(nk_val c, double idx1, nk_val v, nk_error *err);
+/* 2-D content store c{i,j} = v -- 1-based (row, col) subscripts as doubles. GROWS
+ * the cell to fit (i,j) and coerces an empty/unset receiver to a cell (MATLAB
+ * auto-grow), so c={}; c{1,1}=..; c{2,2}=.. builds a 2-D cell. Mutates in place;
+ * `v` borrowed (deep-copied in). Non-integer subscript / non-cell -> *err set. */
+NK_RT_API void nk_cell_set_2d(nk_val c, double i1, double j1, nk_val v, nk_error *err);
 /* Build a named function handle @name (a handle to a builtin / engine-registered
  * function). Returns owned; NULL + *err on failure. The name resolves in the
  * runtime registry -- a co-compiled user spec is NOT there, so the codegen must

@@ -7877,20 +7877,28 @@ void Emitter::emitAssign(const ASTNode &s)
         return;
     }
 
-    // c{i} = rhs : cell content store on a Dynamic cell local (G4b). v1: a single
-    // unboxed-scalar subscript on a Dynamic VARIABLE; the runtime grows the cell
-    // when `i` is past the end (MATLAB auto-grow), so c={}; c{1}=..; c{2}=.. builds
-    // a cell imperatively. A 2-D / CSL c{:} / non-Dynamic target refuses -> the
-    // function stays interpreted (sound).
-    if (lhs.type == NodeType::CELL_INDEX && lhs.children.size() == 2
+    // c{i} = rhs / c{i,j} = rhs : cell content store on a Dynamic cell local (G4b).
+    // v1: one or two unboxed-scalar subscripts on a Dynamic VARIABLE; the runtime
+    // grows the cell when a subscript is past the end (MATLAB auto-grow), so
+    // c={}; c{1}=..; c{2}=.. (or c{1,1}=..; c{2,2}=..) builds a cell imperatively.
+    // A CSL c{:} / >2 subscripts / non-Dynamic target refuses -> interpreted (sound).
+    if (lhs.type == NodeType::CELL_INDEX && !lhs.children.empty()
         && lhs.children[0]->type == NodeType::IDENTIFIER
         && types_.has(lhs.children[0]->strValue)
         && inferExpr(*lhs.children[0], types_, reg_, classes_).type.isDynamic()) {
-        const AbstractValue iv = inferExpr(*lhs.children[1], types_, reg_, classes_);
-        if (!isUnboxableScalarType(iv.type))
-            unsupported("Dynamic tier: cell content store index must be an unboxed scalar (v1)");
-        line("nk_rt::cell_set(" + lhs.children[0]->strValue + ", " + emitExpr(*lhs.children[1])
-             + ", " + emitDynamicExpr(rhs) + ");");
+        const std::size_t nsub = lhs.children.size() - 1;
+        if (nsub != 1 && nsub != 2)
+            unsupported("Dynamic tier: cell content store supports 1 or 2 subscripts (v1)");
+        for (std::size_t k = 1; k <= nsub; ++k)
+            if (!isUnboxableScalarType(inferExpr(*lhs.children[k], types_, reg_, classes_).type))
+                unsupported("Dynamic tier: cell content store index must be unboxed scalar(s) (v1)");
+        const std::string cvar = lhs.children[0]->strValue;
+        if (nsub == 1)
+            line("nk_rt::cell_set(" + cvar + ", " + emitExpr(*lhs.children[1]) + ", "
+                 + emitDynamicExpr(rhs) + ");");
+        else
+            line("nk_rt::cell_set_2d(" + cvar + ", " + emitExpr(*lhs.children[1]) + ", "
+                 + emitExpr(*lhs.children[2]) + ", " + emitDynamicExpr(rhs) + ");");
         return;
     }
     unsupported("assignment lhs kind");
@@ -9064,6 +9072,12 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "inline void cell_set(val& c, double idx1, const val& v) {\n"
            "    if (!c.get()) c = val::cell({});\n"
            "    nk_error e; e.code = 0; nk_cell_set(c.get(), idx1, v.get(), &e);\n"
+           "    if (e.code) throw std::runtime_error(e.message); }\n"
+           "// 2-D content store c{i,j} = v (G4). Like cell_set but a (row, col)\n"
+           "// subscript; grows to fit. A fresh local is lazily made an empty cell.\n"
+           "inline void cell_set_2d(val& c, double i1, double j1, const val& v) {\n"
+           "    if (!c.get()) c = val::cell({});\n"
+           "    nk_error e; e.code = 0; nk_cell_set_2d(c.get(), i1, j1, v.get(), &e);\n"
            "    if (e.code) throw std::runtime_error(e.message); }\n"
            "// A named function handle @name (G5). Resolves in the runtime registry, so\n"
            "// the name is a builtin / engine function -- a co-compiled user spec is\n"
