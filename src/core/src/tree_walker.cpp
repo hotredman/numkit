@@ -2424,6 +2424,26 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
                 // Single struct or non-struct base — fall through to the
                 // generic execNode path so existing semantics apply.
             }
+            // CSL: c{:} / c{vec} over a cell expands to one rowElem per selected
+            // content (a brace colon/vector is a comma-separated list). c{i} (scalar)
+            // yields exactly one, matching the prior single-value path. Cell brace-
+            // index only; a multi-subscript c{i,j} falls through to the generic path.
+            if (elemNode->type == NodeType::CELL_INDEX && !elemNode->children.empty()) {
+                Value cellBase = execNode(elemNode->children[0].get(), env);
+                if (cellBase.isCell() && elemNode->children.size() == 2) {
+                    const ASTNode *sub = elemNode->children[1].get();
+                    if (sub->type == NodeType::COLON_EXPR && sub->children.empty()) {
+                        for (size_t i = 0; i < cellBase.numel(); ++i)
+                            pushElem(Value(cellBase.cellAt(i)), rowElems);  // c{:} -> all
+                    } else {
+                        Value idxv = execNode(sub, env);
+                        for (size_t id : Value::resolveIndices(idxv, cellBase.numel()))
+                            pushElem(Value(cellBase.cellAt(id)), rowElems);  // c{vec}/c{i}
+                    }
+                    continue;
+                }
+                // non-cell base or multi-subscript -> generic path below.
+            }
             auto val = execNode(elemNode.get(), env);
             pushElem(std::move(val), rowElems);
         }

@@ -103,6 +103,33 @@ TEST_P(CellTest, CellIndex)
     EXPECT_DOUBLE_EQ(getVar("r"), 20.0);
 }
 
+// CSL: [c{:}] / [c{vec}] expands the selected cell contents (a comma-separated
+// list) into the array literal. (TreeWalker for now -- the VM backend's cell-CSL
+// is a follow-up brick; gated so the VM run skips rather than fails.)
+TEST_P(CellTest, CellCommaListConcat)
+{
+    if (GetParam() != BackendParam::TreeWalker)
+        GTEST_SKIP() << "VM cell-CSL is a follow-up brick";
+    eval("c = {3, 8, 4};");
+    eval("v = [c{:}];");  // c{:} -> 3, 8, 4
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    ASSERT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 8.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 4.0);
+    eval("r = sum([c{:}]);");
+    EXPECT_DOUBLE_EQ(getVar("r"), 15.0);
+    eval("w = [0, c{:}, 100];");  // CSL mixed with literals -> 0 3 8 4 100
+    EXPECT_EQ(getVarPtr("w")->numel(), 5u);
+    EXPECT_DOUBLE_EQ(getVarPtr("w")->doubleData()[4], 100.0);
+    eval("u = [c{[1 3]}];");  // vector subscript -> 3, 4
+    auto *u = getVarPtr("u");
+    ASSERT_EQ(u->numel(), 2u);
+    EXPECT_DOUBLE_EQ(u->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[1], 4.0);
+}
+
 INSTANTIATE_DUAL(CellTest);
 
 // ============================================================
