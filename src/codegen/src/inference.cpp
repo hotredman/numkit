@@ -181,6 +181,19 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
     case NodeType::FIELD_ACCESS: {
         // obj.field : strValue = field name, children[0] = object expr.
         if (expr.children.empty()) return AbstractValue::dynamic();
+        // s(i).a : struct-ARRAY field read (SoA, G2.5) -> the field-array _nk_fld_s_a's ELEMENT
+        // type. The base is CALL(IDENTIFIER s, idx); s itself is not a value (only field-arrays
+        // exist), so this is matched BEFORE inferring the base as a normal expression.
+        if (expr.children[0]->type == NodeType::CALL && !expr.children[0]->children.empty()
+            && expr.children[0]->children[0]->type == NodeType::IDENTIFIER) {
+            const std::string sv  = expr.children[0]->children[0]->strValue;
+            const std::string fld = "_nk_fld_" + sv + "_" + expr.strValue;
+            if (env.has(fld)) {
+                const InferredType at = env.get(fld).type;  // the field-array (1-D)
+                if (at.isConcrete())
+                    return {InferredType::scalar(at.dtype), ConstVal::unknown()};
+            }
+        }
         const AbstractValue base = inferExpr(*expr.children[0], env, reg, classes);
         // Plain struct: a synthesized field-local from a prior `s.f = ...` (field-
         // flattening; no struct type), generalised to a NESTED chain s.a.b via the
@@ -752,6 +765,20 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 // Differing dtype / unknown base or rhs -> conservative.
                 env.set(base, AbstractValue::dynamic());
                 recordDecl(declOut, base, env.get(base).type);
+            }
+        } else if (lhs.type == NodeType::FIELD_ACCESS && !lhs.children.empty()
+                   && lhs.children[0]->type == NodeType::CALL
+                   && !lhs.children[0]->children.empty()
+                   && lhs.children[0]->children[0]->type == NodeType::IDENTIFIER) {
+            // s(i).a = v : struct-ARRAY field write (SoA, G2.5). The field-array _nk_fld_s_a is
+            // a 1-D vector of rhs's dtype, GROWABLE via the growth tier (s(i).a=v in a loop
+            // builds it). v1: a concrete scalar rhs, a plain-identifier struct-array base s(i).
+            if (rhs.type.isConcrete() && rhs.type.shape.isScalar()) {
+                const std::string sv  = lhs.children[0]->children[0]->strValue;
+                const std::string fld = "_nk_fld_" + sv + "_" + lhs.strValue;
+                const InferredType at = InferredType::concrete(rhs.type.dtype, Shape::unknown());
+                env.set(fld, {at, ConstVal::unknown()});
+                recordDecl(declOut, fld, at);
             }
         } else if (lhs.type == NodeType::FIELD_ACCESS && !lhs.children.empty()) {
             // Nested plain-struct field write s.a.b = rhs: children[0] is itself a
