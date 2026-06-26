@@ -139,7 +139,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (120 entries):** ✅ 105 fixed · 🔴 15 open = **4 bug** + 1 stub +
+**Tally (121 entries):** ✅ 105 fixed · 🔴 16 open = **5 bug** + 1 stub +
 1 missing-output + **8 missing-fn** + 1 perf (the 8 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
@@ -261,7 +261,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 4
+### 🔴 OPEN — bug (defect on an implemented function) — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -269,6 +269,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
+| [lang/cell-csl-expansion](lang/cell-csl-expansion.md) | P2 | `c{:}` / `c{vec}` comma-separated-list expansion errors "Cell index out of bounds" (interpreter has no CSL machinery; both backends). Blocks codegen CSL. Found via the codegen CSL audit (2026-06-26) |
 
 ### 🔴 OPEN — stub (option/branch throws "not supported") — 1
 
