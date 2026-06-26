@@ -57,6 +57,11 @@ NK_RT_API nk_val nk_box_string(const char *s);
  * element is deep-copied into the cell). For a brace literal {e1,...,en} in
  * compiled code. Returns owned; NULL on failure. */
 NK_RT_API nk_val nk_box_cell(const nk_val *elems, size_t n);
+/* Build an R x C cell from rows*cols boxed elements given in ROW-MAJOR (source)
+ * order; stored column-major (transposed in, mirroring the interpreter's
+ * execCellLiteral). Borrowed elements deep-copied. For a 2-D brace literal
+ * {a,b; c,d}. Returns owned; NULL on failure. */
+NK_RT_API nk_val nk_box_cell_2d(const nk_val *elems, size_t rows, size_t cols);
 /* Content extraction c{idx} -- a 1-based linear index passed as a double to
  * preserve the interpreter's integer/range check. Returns the content of cell
  * `idx` (owned). SINGLE element only: a CSL c{:} / c{vec} is multi-value and the
