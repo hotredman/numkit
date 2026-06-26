@@ -50,6 +50,9 @@ typedef struct nk_error {
 /* Box an unboxed value into a handle (boundary only — never a hot loop). */
 NK_RT_API nk_val nk_box_scalar(double v);
 NK_RT_API nk_val nk_box_array(const double *p, size_t len);  /* copies the data in */
+/* Box a NUL-terminated C string as a 1 x len CHAR row (one byte per code unit) -- for a
+ * bridged char ARG such as a sprintf format string. */
+NK_RT_API nk_val nk_box_string(const char *s);
 /* Complex array: `p` is interleaved re,im — `len` complex elements = 2*len
  * doubles, matching std::complex<double>[len] (codegen passes a
  * reinterpret_cast<const double*> of its std::complex buffer). */

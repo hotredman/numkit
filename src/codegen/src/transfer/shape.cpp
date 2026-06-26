@@ -815,6 +815,16 @@ InferredType num2strTransfer(const std::vector<ArgInfo> &args)
     }
 }
 
+// sprintf(fmt, args...) -> a CHAR row (1-D). The format (args[0]) must be a CHAR (a string);
+// the result is always a char row. BRIDGED (the runtime owns printf-style formatting); the
+// emit further requires the format to be a STRING_LITERAL (boxed via nk_box_string). G3b.
+InferredType sprintfTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.empty() || !args[0].type.isConcrete()) return InferredType::dynamic();
+    if (args[0].type.dtype != ValueType::CHAR) return InferredType::dynamic();  // fmt must be char
+    return InferredType::concrete(ValueType::CHAR, Shape::unknown());
+}
+
 } // namespace
 
 void registerShapeTransfers(TransferRegistry &reg)
@@ -883,6 +893,7 @@ void registerShapeTransfers(TransferRegistry &reg)
         reg.add(n, identityShapeTransfer);
     reg.add("sort", sortTransfer);  // sort(x[, 'ascend'|'descend']) -> same shape (native std::sort)
     reg.add("num2str", num2strTransfer);  // num2str(scalar/vec) -> CHAR row (bridged; G3)
+    reg.add("sprintf", sprintfTransfer);  // sprintf(fmt, args) -> CHAR row (bridged; G3b)
 }
 
 } // namespace numkit::codegen
