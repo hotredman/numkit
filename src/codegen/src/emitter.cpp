@@ -2375,7 +2375,12 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
         unsupported("index write form for '" + base
                     + "' (a 1-D scalar store, or A(i,j) on a matrix)");
 
+    // `end` in the LHS index resolves to the array's current length, so `x(end+1) = v`
+    // appends (index numel+1 -> grow by one). Pushed only around the index expression; the
+    // rhs has its own end-context (e.g. x(end+1) = y(end) indexes y).
+    endStack_.push_back(ai.lenVar);
     const std::string idxExpr = emitExpr(*lhsCall.children[1]);
+    endStack_.pop_back();
     const std::string rhsExpr = emitExpr(rhs);
     if (plan.boundsChecked) {
         if (ai.isLocal)
