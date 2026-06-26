@@ -157,10 +157,12 @@ enum class OpCode : uint8_t {
     CELL_GET_ND,   // dst, cell, base, ndims   R[dst] = R[cell]{R[base]..R[base+ndims-1]}
     CELL_SET_ND,   // cell, base, ndims, val   R[cell]{R[base]..R[base+ndims-1]} = R[val]
     // Incremental cell-literal builder for a row containing a comma-separated list:
-    // a=cellAcc (in/out, coerced to a 1x0 cell if unset), b=src, c=mode. mode 0 ->
-    // append R[src] as ONE element; mode 1 -> R[src] is a cell, append ALL its
-    // contents (column-major). Used to build {a, c{:}, b} on the VM.
-    CELL_APPEND_ELEM, // cellAcc, src, mode
+    // a=cellAcc (in/out, coerced to a 1x0 cell if unset), b=src, c=mode, d=subReg.
+    // mode 0 -> append R[src] as ONE element; mode 1 -> R[src] is a cell, append ALL
+    // its contents (c{:}); mode 2 -> R[src] is a cell, append the SELECTED contents
+    // resolveIndices(R[subReg], numel) (c{vec} / c{1:2}). All column-major. Used to
+    // build {a, c{:}, c{vec}, b} on the VM (and lowered f(a, c{:}, ...) call args).
+    CELL_APPEND_ELEM, // cellAcc, src, mode, subReg
 
     // ── Transpose ────────────────────────────────────────────
     CTRANSPOSE, // dst, src               R[dst] = R[src]' (conjugate)

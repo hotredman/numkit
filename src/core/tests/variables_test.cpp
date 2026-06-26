@@ -174,6 +174,42 @@ TEST_P(CellTest, CellCommaListMixedCallArgs)
     EXPECT_DOUBLE_EQ(dd->doubleData()[5], 4.0);
 }
 
+// CSL: c{vec} / c{1:2} (a syntactically-multi subscript) as a CALL ARG (lowered to a
+// {...} cell + CALL_VARARGS via CELL_APPEND_ELEM mode 2) and inside a cell literal.
+// Concat [c{vec}] is covered by CellCommaListConcat. Both backends.
+TEST_P(CellTest, CellCommaListVectorSubscript)
+{
+    eval("c = {3, 8, 4, 9};");
+    eval("m = max(c{[1 4]});");  // sole vector-subscript arg -> max(3, 9) = 9
+    EXPECT_DOUBLE_EQ(getVar("m"), 9.0);
+    eval("h = horzcat(c{1:3});");  // range subscript -> horzcat(3, 8, 4) = [3 8 4]
+    auto *h = getVarPtr("h");
+    ASSERT_NE(h, nullptr);
+    ASSERT_EQ(h->numel(), 3u);
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(h->doubleData()[2], 4.0);
+    eval("g = horzcat(0, c{[2 4]}, 100);");  // mixed plain + vector subscript -> [0 8 9 100]
+    auto *g = getVarPtr("g");
+    ASSERT_EQ(g->numel(), 4u);
+    EXPECT_DOUBLE_EQ(g->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(g->doubleData()[1], 8.0);
+    EXPECT_DOUBLE_EQ(g->doubleData()[3], 100.0);
+    eval("d = {c{1:2}};");  // cell literal, range subscript -> {3, 8}
+    auto *d = getVarPtr("d");
+    ASSERT_TRUE(d->isCell());
+    ASSERT_EQ(d->numel(), 2u);
+    EXPECT_DOUBLE_EQ(d->cellAt(0).toScalar(), 3.0);
+    EXPECT_DOUBLE_EQ(d->cellAt(1).toScalar(), 8.0);
+    eval("e = {0, c{[1 4]}, 5};");  // cell literal, mixed -> {0, 3, 9, 5}
+    auto *e = getVarPtr("e");
+    ASSERT_TRUE(e->isCell());
+    ASSERT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->cellAt(0).toScalar(), 0.0);
+    EXPECT_DOUBLE_EQ(e->cellAt(1).toScalar(), 3.0);
+    EXPECT_DOUBLE_EQ(e->cellAt(2).toScalar(), 9.0);
+    EXPECT_DOUBLE_EQ(e->cellAt(3).toScalar(), 5.0);
+}
+
 // CSL: [a,b,c] = d{:} distributes the cell's contents to multiple LHS targets.
 // VM CELL_GET_MULTI (compileColonExpr -> COLON_ALL marker -> resolveIndices over
 // the cell numel) + TreeWalker execMultiAssign cell branch (resolveIndex colon).
