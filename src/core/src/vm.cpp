@@ -1705,24 +1705,34 @@ enter_frame:
                 break;
             }
             case OpCode::CELL_APPEND_ELEM: {
-                // a=cellAcc (in/out), b=src, c=mode. mode 0 -> append R[src] as one
-                // element; mode 1 -> R[src] is a cell, append all of its contents
-                // (column-major). Builds {a, c{:}, b} on the VM where the count is
-                // runtime-variable, so the fixed-count CELL_LITERAL can't be used.
+                // a=cellAcc (in/out), b=src, c=mode, d=subReg (mode 2 only).
+                //   mode 0 -> append R[src] as ONE element;
+                //   mode 1 -> R[src] is a cell, append ALL of its contents (c{:});
+                //   mode 2 -> R[src] is a cell, append the SELECTED contents
+                //             resolveIndices(R[subReg], numel) (c{vec} / c{1:2}).
+                // All column-major. Builds {a, c{:}, c{vec}, b} on the VM where the
+                // element count is runtime-variable (the fixed-count CELL_LITERAL
+                // can't be used).
                 Value &acc = R[I.a];
                 if (!acc.isCell())
                     acc = Value::cell(1, 0);
                 size_t n = acc.numel();
-                if (I.c == 1) {
+                if (I.c == 1 || I.c == 2) {
                     const Value &src = R[I.b];
                     if (!src.isCell())
-                        throw std::runtime_error("c{:} expansion requires a cell array");
-                    size_t m = src.numel();
-                    auto grown = Value::cell(1, n + m);
+                        throw std::runtime_error("c{...} expansion requires a cell array");
+                    // mode 1: every element (c{:}); mode 2: the resolved subscript
+                    // (c{vec} / c{1:2}). resolveIndices handles colon / vector / range.
+                    std::vector<size_t> sel;
+                    if (I.c == 2)
+                        sel = Value::resolveIndices(R[I.d], src.numel());
+                    else
+                        for (size_t j = 0; j < src.numel(); ++j) sel.push_back(j);
+                    auto grown = Value::cell(1, n + sel.size());
                     for (size_t i = 0; i < n; ++i)
                         grown.cellAt(i) = std::move(acc.cellAt(i));
-                    for (size_t j = 0; j < m; ++j)
-                        grown.cellAt(n + j) = src.cellAt(j);
+                    for (size_t j = 0; j < sel.size(); ++j)
+                        grown.cellAt(n + j) = src.cellAt(sel[j]);
                     acc = std::move(grown);
                 } else {
                     auto grown = Value::cell(1, n + 1);

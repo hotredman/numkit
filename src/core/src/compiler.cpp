@@ -2308,29 +2308,44 @@ uint8_t Compiler::compileCellLiteral(const ASTNode *node)
             continue;
         }
 
-        // CSL row: a bare-colon cell brace-index element c{:} expands its contents
-        // into the row -- a comma-separated list whose count is runtime-variable, so
-        // it can't go through the fixed-count CELL_LITERAL. Build the row cell
-        // incrementally with CELL_APPEND_ELEM. v1: bare colon c{:} (a c{vec} subscript
-        // falls to the normal path, where it errors -- the documented limit).
-        auto isCellColonCsl = [](const ASTNode *e) {
+        // CSL row: a cell brace-index element with a multi-valued subscript expands
+        // its contents into the row -- a comma-separated list whose count is runtime-
+        // variable, so it can't go through the fixed-count CELL_LITERAL. Build the row
+        // cell incrementally with CELL_APPEND_ELEM. v1: bare colon c{:} (mode 1, all)
+        // and a SYNTACTICALLY-multi subscript c{1:2} / c{[1 3]} (mode 2, resolveIndices
+        // over subReg). A scalar/variable subscript c{i} stays the normal CELL_LITERAL
+        // path (single element -- the scalar/vector distinction is only known at runtime).
+        auto isCellBareColon = [](const ASTNode *e) {
             return e->type == NodeType::CELL_INDEX && e->children.size() == 2
                 && e->children[1]->type == NodeType::COLON_EXPR
                 && e->children[1]->children.empty();
         };
+        auto isCellMultiSub = [](const ASTNode *e) {
+            if (e->type != NodeType::CELL_INDEX || e->children.size() != 2)
+                return false;
+            const ASTNode *sub = e->children[1].get();
+            return (sub->type == NodeType::COLON_EXPR && !sub->children.empty())  // c{1:2}
+                || sub->type == NodeType::MATRIX_LITERAL;                          // c{[1 3]}
+        };
         bool hasCsl = false;
         for (auto &elem : row->children)
-            if (isCellColonCsl(elem.get())) { hasCsl = true; break; }
+            if (isCellBareColon(elem.get()) || isCellMultiSub(elem.get())) { hasCsl = true; break; }
         if (hasCsl) {
             uint8_t acc = tempReg();
             emitABC(OpCode::CELL_LITERAL, acc, 0, 0);  // seed an empty 1x0 cell
             for (auto &elem : row->children) {
-                if (isCellColonCsl(elem.get())) {
+                if (isCellBareColon(elem.get())) {
                     uint8_t cellReg = compileNode(elem->children[0].get());
-                    emitABC(OpCode::CELL_APPEND_ELEM, acc, cellReg, 1);  // append contents
+                    emitABC(OpCode::CELL_APPEND_ELEM, acc, cellReg, 1);  // all contents
+                } else if (isCellMultiSub(elem.get())) {
+                    uint8_t           cellReg = compileNode(elem->children[0].get());
+                    IndexContextGuard guard(*this, cellReg, 1);  // `end` -> cell numel
+                    uint8_t           subReg = compileNode(elem->children[1].get());
+                    emit(Instruction::make_abcde(OpCode::CELL_APPEND_ELEM, acc,
+                                                 cellReg, 2, subReg, 0));  // selected
                 } else {
                     uint8_t v = compileNode(elem.get());
-                    emitABC(OpCode::CELL_APPEND_ELEM, acc, v, 0);  // append one element
+                    emitABC(OpCode::CELL_APPEND_ELEM, acc, v, 0);  // one element
                 }
             }
             rowRegs.push_back(acc);
@@ -3165,38 +3180,54 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
     }
 
-    // Comma-separated-list call args f(a, c{:}, b): a bare-colon cell brace-index
-    // arg splices its contents into the call's argument list at runtime (CSL).
-    // Lower to CALL_VARARGS, which builds the runtime arg vector from a single cell
-    // and dispatches. v1: bare colon c{:} only (a c{vec} subscript falls through to
-    // the normal path, where the brace-colon errors -- the documented v1 limit);
-    // single output only (multi-output [a,b]=f(x,c{:}) has no varargs CALL_MULTI yet).
-    auto isCellColonCsl = [](const ASTNode *e) {
+    // Comma-separated-list call args f(a, c{:}, c{vec}, b): a cell brace-index arg
+    // with a multi-valued subscript splices its selected contents into the call's
+    // argument list at runtime (CSL). Lower to CALL_VARARGS, which builds the runtime
+    // arg vector from a single cell and dispatches. v1: bare colon c{:} (mode 1, all)
+    // and a SYNTACTICALLY-multi subscript c{1:2} / c{[1 3]} (mode 2, selected); a
+    // scalar/variable subscript c{i} stays the normal path (single value -- the
+    // scalar/vector distinction is only known at runtime, and f(c{i}) must stay cheap).
+    // Single output only (multi-output [a,b]=f(x,c{:}) has no varargs CALL_MULTI yet).
+    auto isCellBareColon = [](const ASTNode *e) {
         return e->type == NodeType::CELL_INDEX && e->children.size() == 2
             && e->children[1]->type == NodeType::COLON_EXPR
             && e->children[1]->children.empty();
     };
+    auto isCellMultiSub = [](const ASTNode *e) {
+        if (e->type != NodeType::CELL_INDEX || e->children.size() != 2)
+            return false;
+        const ASTNode *sub = e->children[1].get();
+        return (sub->type == NodeType::COLON_EXPR && !sub->children.empty())  // c{1:2}
+            || sub->type == NodeType::MATRIX_LITERAL;                          // c{[1 3]}
+    };
     bool anyCsl = false;
     for (size_t i = 1; i < node->children.size(); ++i)
-        if (isCellColonCsl(node->children[i].get())) { anyCsl = true; break; }
+        if (isCellBareColon(node->children[i].get())
+            || isCellMultiSub(node->children[i].get())) { anyCsl = true; break; }
     if (anyCsl) {
         uint8_t cellReg;
-        if (nargs == 1) {
+        if (nargs == 1 && isCellBareColon(node->children[1].get())) {
             // Sole c{:} arg IS the cell -> splice it directly, no intermediate build.
             cellReg = compileNode(node->children[1]->children[0].get());
         } else {
-            // Mixed f(a, c{:}, b): build a {a, c{:}, b} cell with CELL_APPEND_ELEM
-            // (reusing the cell-literal CSL machinery), then splice it. mode 1 =
-            // append a cell's contents (the c{:} args), mode 0 = append one element.
-            // Seeded via CELL_LITERAL so cellReg starts a fresh empty cell (the temp
-            // register may hold a stale Value).
+            // Mixed / vector-subscript: build a {a, c{:}, c{vec}, b} cell with
+            // CELL_APPEND_ELEM (reusing the cell-literal CSL machinery), then splice
+            // it. mode 1 = a cell's full contents (c{:}); mode 2 = its selected
+            // contents (c{vec}/c{1:2}, via subReg); mode 0 = one plain element. Seeded
+            // via CELL_LITERAL so cellReg starts a fresh empty cell.
             cellReg = tempReg();
             emitABC(OpCode::CELL_LITERAL, cellReg, 0, 0);
             for (size_t i = 1; i < node->children.size(); ++i) {
                 const ASTNode *arg = node->children[i].get();
-                if (isCellColonCsl(arg)) {
+                if (isCellBareColon(arg)) {
                     uint8_t src = compileNode(arg->children[0].get());
                     emitABC(OpCode::CELL_APPEND_ELEM, cellReg, src, 1);
+                } else if (isCellMultiSub(arg)) {
+                    uint8_t           src = compileNode(arg->children[0].get());
+                    IndexContextGuard guard(*this, src, 1);  // `end` -> cell numel
+                    uint8_t           subReg = compileNode(arg->children[1].get());
+                    emit(Instruction::make_abcde(OpCode::CELL_APPEND_ELEM, cellReg,
+                                                 src, 2, subReg, 0));
                 } else {
                     uint8_t v = compileNode(arg);
                     emitABC(OpCode::CELL_APPEND_ELEM, cellReg, v, 0);
