@@ -166,6 +166,10 @@ enum class OpCode : uint8_t {
     HORZCAT_APPEND_CSL, // a=dst, b=structArrReg, d=nameIdx
                   //                        when dst is a row vector / empty and val is a real
                   //                        scalar; falls back to a 2-elem horzcat otherwise
+    // Cell comma-separated-list: R[dst] = [R[dst], cell{sub}...] -- the selected cell
+    // contents (a=dst in/out, b=cellReg, c=subReg holding the ':' colon marker / vector
+    // / scalar; resolveIndices over the cell numel). For [c{:}] / [c{vec}] in a literal.
+    HORZCAT_APPEND_CELL_CSL, // a=dst, b=cellReg, c=subReg
     VERTCAT,      // dst, base, count       R[dst] = [R[base]; ...; R[base+count-1]]
     MATRIX_BUILD, // [reserved] compiler uses HORZCAT/VERTCAT instead
     CELL_LITERAL, // dst, base, count       {R[base]..R[base+count-1]}

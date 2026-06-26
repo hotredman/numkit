@@ -964,6 +964,23 @@ enter_frame:
                 dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
                 break;
             }
+            case OpCode::HORZCAT_APPEND_CELL_CSL: {
+                // a = dst (in/out), b = cell source, c = subscript (the ':' colon
+                // marker / a vector / a scalar). Append the SELECTED cell contents
+                // into dst -- a comma-separated list. resolveIndices handles the
+                // colon marker, vectors, and scalars uniformly (1-based, checked).
+                Value       &dst  = R[I.a];
+                const Value &cell = R[I.b];
+                const Value &sub  = R[I.c];
+                if (!cell.isCell())
+                    throw std::runtime_error("Cell contents indexing requires a cell array");
+                std::vector<Value> elems;
+                elems.push_back(dst);
+                for (size_t id : Value::resolveIndices(sub, cell.numel()))
+                    elems.push_back(cell.cellAt(id));
+                dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
+                break;
+            }
 
             // ── Array indexing ───────────────────────────────────
             case OpCode::INDEX_GET: {

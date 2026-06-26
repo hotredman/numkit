@@ -104,12 +104,9 @@ TEST_P(CellTest, CellIndex)
 }
 
 // CSL: [c{:}] / [c{vec}] expands the selected cell contents (a comma-separated
-// list) into the array literal. (TreeWalker for now -- the VM backend's cell-CSL
-// is a follow-up brick; gated so the VM run skips rather than fails.)
+// list) into the array literal. Both backends (TreeWalker + VM HORZCAT_APPEND_CELL_CSL).
 TEST_P(CellTest, CellCommaListConcat)
 {
-    if (GetParam() != BackendParam::TreeWalker)
-        GTEST_SKIP() << "VM cell-CSL is a follow-up brick";
     eval("c = {3, 8, 4};");
     eval("v = [c{:}];");  // c{:} -> 3, 8, 4
     auto *v = getVarPtr("v");
