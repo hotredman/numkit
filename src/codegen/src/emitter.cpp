@@ -1106,20 +1106,36 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         return "nk_rt::val::string(\"" + esc + "\")";
     }
     case NodeType::CELL_LITERAL: {
-        // a 1-row brace literal {e0, e1, ...} -> a Dynamic cell. The AST stores
-        // each row as a BLOCK child; v1 supports a single row ({} or {a,b,...}),
-        // a 2-D {a,b; c,d} is refused (-> interpreted fallback). Each element is
-        // boxed by emitDynamicExpr (scalar / Dynamic / array / string), so the
-        // whole Dynamic tier is reused with no per-element type tracking.
+        // a brace literal {...} -> a Dynamic cell. Each element is boxed by
+        // emitDynamicExpr (scalar / Dynamic / array / string), so the whole tier
+        // is reused with no per-element type tracking. The structure MIRRORS the
+        // interpreter's execCellLiteral: empty {} -> 0x0; children[0] not a BLOCK
+        // -> a 1xN row of direct elements; else each child is a row BLOCK (a 2-D
+        // {a,b; c,d} builds an RxC cell, column-major; a ragged literal -- a MATLAB
+        // error -- refuses to interpreted fallback).
         if (e.children.empty()) return "nk_rt::val::cell({})";  // {}
-        if (e.children.size() != 1 || !e.children[0] || e.children[0]->type != NodeType::BLOCK)
-            unsupported("Dynamic tier: only a 1-row cell literal {a,b,...} is supported (v1)");
-        std::string elems;
-        for (const auto &el : e.children[0]->children) {
-            if (!el) continue;
-            elems += (elems.empty() ? "" : ", ") + emitDynamicExpr(*el);
+        auto boxRow = [&](const std::vector<ASTNodePtr> &els, std::string &out) {
+            for (const auto &el : els) {
+                if (!el) unsupported("Dynamic tier: null cell element (v1)");
+                out += (out.empty() ? "" : ", ") + emitDynamicExpr(*el);
+            }
+        };
+        if (e.children[0]->type != NodeType::BLOCK) {  // children are elements directly (1 row)
+            std::string elems;
+            boxRow(e.children, elems);
+            return "nk_rt::val::cell({" + elems + "})";
         }
-        return "nk_rt::val::cell({" + elems + "})";
+        // row-block structure: validate rectangular, then emit ROW-MAJOR.
+        const std::size_t R = e.children.size();
+        const std::size_t C = e.children[0]->children.size();
+        for (const auto &row : e.children)
+            if (!row || row->type != NodeType::BLOCK || row->children.size() != C)
+                unsupported("Dynamic tier: ragged / malformed cell literal (v1)");
+        std::string elems;
+        for (const auto &row : e.children) boxRow(row->children, elems);
+        if (R == 1) return "nk_rt::val::cell({" + elems + "})";  // 1 x C
+        return "nk_rt::val::cell_2d({" + elems + "}, " + std::to_string(R) + ", "
+               + std::to_string(C) + ")";
     }
     case NodeType::CELL_INDEX: {
         // c{i} content extraction. v1: a single unboxed-scalar subscript (a CSL
@@ -8986,6 +9002,11 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "        std::vector<nk_val> ev; ev.reserve(elems.size());\n"
            "        for (const val& e : elems) ev.push_back(e.get());\n"
            "        return val(nk_box_cell(ev.data(), ev.size())); }\n"
+           "    static val cell_2d(std::initializer_list<val> elems, std::size_t rows,\n"
+           "                       std::size_t cols) {  // elems ROW-MAJOR; stored column-major\n"
+           "        std::vector<nk_val> ev; ev.reserve(elems.size());\n"
+           "        for (const val& e : elems) ev.push_back(e.get());\n"
+           "        return val(nk_box_cell_2d(ev.data(), rows, cols)); }\n"
            "    double to_scalar() const { return nk_unbox_scalar(h_); }\n"
            "    bool truth() const {\n"
            "        nk_error e; e.code = 0; int t = nk_truth(h_, &e);\n"

@@ -150,6 +150,25 @@ nk_val nk_box_cell(const nk_val *elems, size_t n)
     }
 }
 
+nk_val nk_box_cell_2d(const nk_val *elems, size_t rows, size_t cols)
+{
+    if (!elems && rows * cols != 0) return nullptr;
+    try {
+        Value c = Value::cell(rows, cols, nullptr);
+        // elems are ROW-MAJOR (source order); the cell is column-major. Place each
+        // at sub2ind(r,c), exactly as the interpreter's execCellLiteral does.
+        for (size_t r = 0; r < rows; ++r)
+            for (size_t cc = 0; cc < cols; ++cc) {
+                const Value *ev = unwrap(elems[r * cols + cc]);
+                if (!ev) return nullptr;
+                c.cellAt(c.dims().sub2ind(r, cc)) = *ev;  // deep-copy in (transposed)
+            }
+        return make(std::move(c));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 nk_val nk_box_complex_array(const double *p, size_t len)
 {
     if (!p && len != 0) return nullptr;  // p: interleaved re,im (2*len doubles)
