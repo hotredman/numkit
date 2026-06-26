@@ -1761,6 +1761,29 @@ enter_frame:
                 }
                 break;
             }
+            case OpCode::CELL_APPEND_SLICE_2D: {
+                // a=acc (in/out), b=cellSrc, c=rowSub, d=colSub. Append a 2-D cell
+                // slice c{r,cols} into acc -- resolveIndices per dim + sub2ind,
+                // column-major (matches the TreeWalker order).
+                Value &acc = R[I.a];
+                if (!acc.isCell())
+                    acc = Value::cell(1, 0);
+                const Value &src = R[I.b];
+                if (!src.isCell())
+                    throw std::runtime_error("c{r,:} expansion requires a cell array");
+                auto   rowIdx = Value::resolveIndices(R[I.c], src.dims().rows());
+                auto   colIdx = Value::resolveIndices(R[I.d], src.dims().cols());
+                size_t n      = acc.numel();
+                auto   grown  = Value::cell(1, n + rowIdx.size() * colIdx.size());
+                for (size_t i = 0; i < n; ++i)
+                    grown.cellAt(i) = std::move(acc.cellAt(i));
+                size_t k = n;
+                for (size_t c : colIdx)
+                    for (size_t r : rowIdx)
+                        grown.cellAt(k++) = src.cellAt(src.dims().sub2ind(r, c));
+                acc = std::move(grown);
+                break;
+            }
             case OpCode::CELL_GET: {
                 if (!R[I.b].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");

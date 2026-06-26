@@ -271,6 +271,39 @@ TEST_P(CellTest, CellCommaListConcat2D)
     EXPECT_DOUBLE_EQ(sl->doubleData()[1], 5.0);
 }
 
+// CSL: 2-D cell slice c{r,:} / c{:,j} as a CALL ARG (lowered to a {args} cell +
+// CALL_VARARGS via CELL_APPEND_SLICE_2D) and inside a cell literal. Both backends.
+TEST_P(CellTest, CellCommaListSlice2D)
+{
+    eval("c = {1, 2, 3; 4, 5, 6};");  // 2x3
+    eval("h = horzcat(c{1, :});");  // row 1 spliced as args -> [1 2 3]
+    auto *h = getVarPtr("h");
+    ASSERT_NE(h, nullptr);
+    ASSERT_EQ(h->numel(), 3u);
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(h->doubleData()[2], 3.0);
+    eval("g = horzcat(0, c{:, 2}, 9);");  // mixed: 0, col 2 (2,5), 9 -> [0 2 5 9]
+    auto *g = getVarPtr("g");
+    ASSERT_EQ(g->numel(), 4u);
+    EXPECT_DOUBLE_EQ(g->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(g->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(g->doubleData()[2], 5.0);
+    EXPECT_DOUBLE_EQ(g->doubleData()[3], 9.0);
+    eval("d = {c{1, :}};");  // cell literal -> {1, 2, 3}
+    auto *d = getVarPtr("d");
+    ASSERT_TRUE(d->isCell());
+    ASSERT_EQ(d->numel(), 3u);
+    EXPECT_DOUBLE_EQ(d->cellAt(0).toScalar(), 1.0);
+    EXPECT_DOUBLE_EQ(d->cellAt(2).toScalar(), 3.0);
+    eval("e = {0, c{:, 2}, 9};");  // mixed cell literal -> {0, 2, 5, 9}
+    auto *e = getVarPtr("e");
+    ASSERT_TRUE(e->isCell());
+    ASSERT_EQ(e->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e->cellAt(0).toScalar(), 0.0);
+    EXPECT_DOUBLE_EQ(e->cellAt(1).toScalar(), 2.0);
+    EXPECT_DOUBLE_EQ(e->cellAt(3).toScalar(), 9.0);
+}
+
 // CSL: {c{:}} re-wraps the selected cell contents into a new cell literal; mixed
 // {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
 TEST_P(CellTest, CellCommaListInCellLiteral)

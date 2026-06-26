@@ -2003,10 +2003,11 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         std::vector<Value> args;
         args.reserve(node->children.size() - 1);
         for (size_t i = 1; i < node->children.size(); ++i) {
-            // CSL: a single-subscript cell brace-index arg f(.., c{:}, ..) expands
+            // CSL: a cell brace-index arg f(.., c{:}, ..) / f(.., c{r,:}, ..) expands
             // its selected contents into the argument list (a comma-separated list).
             const ASTNode *a = node->children[i].get();
-            if (a->type == NodeType::CELL_INDEX && a->children.size() == 2) {
+            if (a->type == NodeType::CELL_INDEX
+                && (a->children.size() == 2 || a->children.size() == 3)) {
                 for (auto &v : cellBraceContents(a, env)) args.push_back(std::move(v));
                 continue;
             }
@@ -2541,7 +2542,8 @@ Value TreeWalker::execCellLiteral(const ASTNode *node, Environment *env)
     auto collectRow = [&](const std::vector<ASTNodePtr> &elems) {
         std::vector<Value> row;
         for (const auto &e : elems) {
-            if (e->type == NodeType::CELL_INDEX && e->children.size() == 2) {
+            if (e->type == NodeType::CELL_INDEX
+                && (e->children.size() == 2 || e->children.size() == 3)) {
                 for (auto &v : cellBraceContents(e.get(), env)) row.push_back(std::move(v));
             } else {
                 row.push_back(execNode(e.get(), env));

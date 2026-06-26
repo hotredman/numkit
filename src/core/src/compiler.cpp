@@ -2363,9 +2363,21 @@ uint8_t Compiler::compileCellLiteral(const ASTNode *node)
             return (sub->type == NodeType::COLON_EXPR && !sub->children.empty())  // c{1:2}
                 || sub->type == NodeType::MATRIX_LITERAL;                          // c{[1 3]}
         };
+        // 2-D slice c{r,:} / c{:,j}: a 3-child cell brace-index with >=1 syntactically-
+        // multi subscript (colon / range / vector). A scalar c{i,j} stays the normal
+        // CELL_LITERAL path (single element).
+        auto isCellSlice2D = [](const ASTNode *e) {
+            if (e->type != NodeType::CELL_INDEX || e->children.size() != 3)
+                return false;
+            auto isMulti = [](const ASTNode *s) {
+                return s->type == NodeType::COLON_EXPR || s->type == NodeType::MATRIX_LITERAL;
+            };
+            return isMulti(e->children[1].get()) || isMulti(e->children[2].get());
+        };
         bool hasCsl = false;
         for (auto &elem : row->children)
-            if (isCellBareColon(elem.get()) || isCellMultiSub(elem.get())) { hasCsl = true; break; }
+            if (isCellBareColon(elem.get()) || isCellMultiSub(elem.get())
+                || isCellSlice2D(elem.get())) { hasCsl = true; break; }
         if (hasCsl) {
             uint8_t acc = tempReg();
             emitABC(OpCode::CELL_LITERAL, acc, 0, 0);  // seed an empty 1x0 cell
@@ -2379,6 +2391,14 @@ uint8_t Compiler::compileCellLiteral(const ASTNode *node)
                     uint8_t           subReg = compileNode(elem->children[1].get());
                     emit(Instruction::make_abcde(OpCode::CELL_APPEND_ELEM, acc,
                                                  cellReg, 2, subReg, 0));  // selected
+                } else if (isCellSlice2D(elem.get())) {
+                    uint8_t           srcCell = compileNode(elem->children[0].get());
+                    IndexContextGuard guard(*this, srcCell, 2);  // `end` -> rows / cols
+                    uint8_t           rowReg = compileNode(elem->children[1].get());
+                    guard.setDim(1);
+                    uint8_t           colReg = compileNode(elem->children[2].get());
+                    emit(Instruction::make_abcde(OpCode::CELL_APPEND_SLICE_2D, acc,
+                                                 srcCell, rowReg, colReg, 0));
                 } else {
                     uint8_t v = compileNode(elem.get());
                     emitABC(OpCode::CELL_APPEND_ELEM, acc, v, 0);  // one element
@@ -3236,10 +3256,21 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         return (sub->type == NodeType::COLON_EXPR && !sub->children.empty())  // c{1:2}
             || sub->type == NodeType::MATRIX_LITERAL;                          // c{[1 3]}
     };
+    // 2-D slice c{r,:} / c{:,j}: a 3-child cell brace-index with >=1 syntactically-
+    // multi subscript (colon / range / vector). A scalar c{i,j} stays the normal path.
+    auto isCellSlice2D = [](const ASTNode *e) {
+        if (e->type != NodeType::CELL_INDEX || e->children.size() != 3)
+            return false;
+        auto isMulti = [](const ASTNode *s) {
+            return s->type == NodeType::COLON_EXPR || s->type == NodeType::MATRIX_LITERAL;
+        };
+        return isMulti(e->children[1].get()) || isMulti(e->children[2].get());
+    };
     bool anyCsl = false;
     for (size_t i = 1; i < node->children.size(); ++i)
         if (isCellBareColon(node->children[i].get())
-            || isCellMultiSub(node->children[i].get())) { anyCsl = true; break; }
+            || isCellMultiSub(node->children[i].get())
+            || isCellSlice2D(node->children[i].get())) { anyCsl = true; break; }
     if (anyCsl) {
         uint8_t cellReg;
         if (nargs == 1 && isCellBareColon(node->children[1].get())) {
@@ -3264,6 +3295,14 @@ uint8_t Compiler::compileCall(const ASTNode *node)
                     uint8_t           subReg = compileNode(arg->children[1].get());
                     emit(Instruction::make_abcde(OpCode::CELL_APPEND_ELEM, cellReg,
                                                  src, 2, subReg, 0));
+                } else if (isCellSlice2D(arg)) {
+                    uint8_t           src = compileNode(arg->children[0].get());
+                    IndexContextGuard guard(*this, src, 2);  // `end` -> rows / cols
+                    uint8_t           rowReg = compileNode(arg->children[1].get());
+                    guard.setDim(1);
+                    uint8_t           colReg = compileNode(arg->children[2].get());
+                    emit(Instruction::make_abcde(OpCode::CELL_APPEND_SLICE_2D, cellReg,
+                                                 src, rowReg, colReg, 0));
                 } else {
                     uint8_t v = compileNode(arg);
                     emitABC(OpCode::CELL_APPEND_ELEM, cellReg, v, 0);
@@ -4329,6 +4368,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CELL_SET_ND";
         case OpCode::CELL_APPEND_ELEM:
             return "CELL_APPEND_ELEM";
+        case OpCode::CELL_APPEND_SLICE_2D:
+            return "CELL_APPEND_SLICE_2D";
         case OpCode::TRY_BEGIN:
             return "TRY_BEGIN";
         case OpCode::TRY_END:
