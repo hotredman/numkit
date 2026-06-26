@@ -669,6 +669,7 @@ so a regression into silent mis-emission fails a test.
 | growable 1-D local (`x=[]`, `x(end+1)=v`) | owned `std::vector` + `index_set_grow` |
 | Dynamic value: binop/unop, condition-truth, indexing, call (typed+Dynamic+bridged), boxed return | `nk_rt::val` + `nk_binop`/`nk_unop`/`nk_truth`/`nk_index`/`call_dyn[v]` + boxed-`nk_val` return |
 | multi-output `[a,b]=f(x)` (user fn, all outputs) | reference out-params |
+| direct self-recursion `fact(n-1)` | return-type Bottom-fixpoint -> a direct typed self-call (standalone, no bridge) |
 
 **Sound refusals** (detected → interpreted fallback, never miscompiled):
 
@@ -677,14 +678,14 @@ so a regression into silent mis-emission fails a test.
 | CSL `c{:}` / `c{vec}` | multi-value (N args/outputs) — not a single `nk_val`; **also unimplemented in the interpreter itself** (errors "Cell index out of bounds" — `bugs/lang/cell-csl-expansion.md`), so compiling it would make codegen diverge from its own contract (the interpreter) | `CellCommaListRefusedUnderBridge` |
 | capturing closure `@(x) x+k` (k a local) | a compiled local can't bind through the runtime workspace `nk_eval` uses | `ClosureCapturingLocalRefusedUnderBridge` |
 | nested anonymous function | inner param scope not modelled (v1) | (emit refusal) |
-| recursion | monomorphiser breaks the recursive call to Dynamic; its boxed result would `call_dyn`-by-name an unresolvable compiled spec | `RecursiveCallRefusedUnderBridge` |
+| MUTUAL / POLYMORPHIC recursion | only DIRECT same-signature self-recursion is fixpoint-compiled (above); a mutual cycle (f↔g) or a self-call with a different arg signature breaks to Dynamic (no infinite monomorphisation) | — |
 | eval-family (`eval`/`evalin`/`assignin`/…) | code known only at runtime; mutate a workspace by name (§7) | (inference refusal) |
 | partial-nargout, object/array multi-output, closed-world polymorphism, 2-D `num2str` | each an under-specified or multi-value shape with no sound single-value lowering | (emit refusal) |
 
 **Remaining codegen work is no longer autonomous-brick-sized.** It is either
 (a) **multi-fire design** — a capture-binding protocol for capturing closures,
-multi-output user functions, recursion via a `Bottom`-fixpoint through the
-transfer layer — each needing a design decision, not a mechanical brick; or
+multi-output user-function precision — each needing a design decision, not a
+mechanical brick; or
 (b) **additive transfer coverage** for niche builtins (low marginal value — an
 un-transferred builtin already bridges or refuses soundly). The structural
 frontier itself is closed. (CSL `c{:}` variadic expansion was investigated and
