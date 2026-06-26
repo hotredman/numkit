@@ -71,6 +71,10 @@ enum class OpCode : uint8_t {
 
     // ── Function calls ───────────────────────────────────────
     CALL,          // dst, argBase, nargs, funcIdx, e=nargout  R[dst] = func(R[base..base+nargs-1])
+    // Variadic call f(c{:}): the sole argument is a cell whose contents are SPLICED
+    // as the call's args at runtime (comma-separated list). a=dst, b=cellReg,
+    // d=funcIdx, e=nargout. R[dst] = func(cell{1}, ..., cell{end}).
+    CALL_VARARGS,  // dst, cellReg, _, funcIdx, e=nargout
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)
     CALL_INDIRECT, // dst, fhReg, base, nargs         R[dst] = R[fhReg](R[base..base+nargs-1])
