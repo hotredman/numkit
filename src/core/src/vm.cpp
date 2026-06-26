@@ -2197,6 +2197,61 @@ enter_frame:
                 throw std::runtime_error(
                     "VM: f(c{:}) on an unsupported or undefined target '" + funcName + "' (v1)");
             }
+            case OpCode::CALL_VARARGS_MULTI: {
+                // [a,b]=f(x, c{:}): splice the cell's contents as the args of a
+                // MULTI-output call. a=outBase, b=cellReg, d=funcIdx, e=nout. v1: a
+                // user function or an external builtin (no class ctor / method /
+                // callback target). Mirrors CALL_VARARGS but distributes nout outputs.
+                uint8_t            outBase = I.a, nout = I.e;
+                int16_t            funcIdx = I.d;
+                const Value       &cell    = R[I.b];
+                if (!cell.isCell())
+                    throw std::runtime_error("Cell contents indexing requires a cell array");
+                std::vector<Value> argv;
+                argv.reserve(cell.numel());
+                for (size_t i = 0; i < cell.numel(); ++i)
+                    argv.push_back(cell.cellAt(i));
+                if (argv.size() > 255)
+                    throw std::runtime_error("Too many arguments from a c{:} expansion (v1)");
+                const std::string &funcName = chunk.strings[funcIdx];
+
+                const BytecodeChunk *targetChunk = nullptr;
+                if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx])
+                    targetChunk = resolvedFuncs[funcIdx];
+                if (!targetChunk)
+                    if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                        if (funcIdx >= (int16_t) resolvedFuncs.size())
+                            resolvedFuncs.resize(funcIdx + 1, nullptr);
+                        resolvedFuncs[funcIdx] = found;
+                        targetChunk            = found;
+                    }
+                if (!targetChunk)
+                    if (auto *uf = engine_.lookupUserFunction(funcName, currentCallEnv()))
+                        targetChunk = findCompiledFunc(uf->name);
+                if (targetChunk) {
+                    frame.ip       = ip + 1;
+                    returnCount_   = 0;
+                    pushCallFrame(*targetChunk, argv.empty() ? nullptr : argv.data(),
+                                  static_cast<uint8_t>(argv.size()), 0, nout, true,
+                                  outBase, nout);
+                    goto enter_frame;
+                }
+                if (const ExternalFunc *fnPtr = engine_.findExternal(funcName, currentCallEnv())) {
+                    Span<const Value> as(argv.empty() ? nullptr : argv.data(), argv.size());
+                    std::vector<Value> outBuf(nout);
+                    Span<Value>        os(outBuf.data(), nout);
+                    CallContext        ctx{&engine_, currentCallEnv()};
+                    (*fnPtr)(as, nout, os, ctx);
+                    for (uint8_t i = 0; i < nout; ++i)
+                        if (outBuf[i].isUnset())
+                            throw std::runtime_error("Too many output arguments.");
+                    for (size_t i = 0; i < nout; ++i)
+                        R[outBase + i] = std::move(outBuf[i]);
+                    break;
+                }
+                throw std::runtime_error(
+                    "VM: [..]=f(c{:}) on an unsupported or undefined target '" + funcName + "' (v1)");
+            }
 
             // ── Multi-return function call ──────────────────────
             case OpCode::CALL_MULTI: {

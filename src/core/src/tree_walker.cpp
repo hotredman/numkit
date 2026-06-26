@@ -1539,8 +1539,18 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
 
     std::vector<Value> args;
     args.reserve(node->children.size() - 1);
-    for (size_t i = 1; i < node->children.size(); ++i)
-        args.push_back(execNode(node->children[i].get(), env));
+    for (size_t i = 1; i < node->children.size(); ++i) {
+        // CSL arg [a,b]=f(.., c{:}, ..) / f(.., c{r,:}, ..): splice the selected
+        // contents into the argument list (mirrors the single-output buildArgs).
+        const ASTNode *a = node->children[i].get();
+        if (a->type == NodeType::CELL_INDEX
+            && (a->children.size() == 2 || a->children.size() == 3)) {
+            for (auto &v : cellBraceContents(a, env))
+                args.push_back(std::move(v));
+        } else {
+            args.push_back(execNode(a, env));
+        }
+    }
 
     auto *var = env->get(funcName);
     if (var && var->isFuncHandle())

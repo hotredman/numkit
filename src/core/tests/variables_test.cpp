@@ -304,6 +304,20 @@ TEST_P(CellTest, CellCommaListSlice2D)
     EXPECT_DOUBLE_EQ(e->cellAt(3).toScalar(), 9.0);
 }
 
+// CSL multi-output: [a,b]=f(c{:}) splices the cell as a multi-output call's args. VM
+// CALL_VARARGS_MULTI; TreeWalker arg building already expands. deal is the canonical idiom.
+TEST_P(CellTest, CellCommaListMultiOutputCall)
+{
+    eval("c = {10, 20, 30};");
+    eval("[a, b, d] = deal(c{:});");  // deal(10,20,30) -> a=10, b=20, d=30
+    EXPECT_DOUBLE_EQ(getVar("a"), 10.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 20.0);
+    EXPECT_DOUBLE_EQ(getVar("d"), 30.0);
+    eval("[p, q] = deal(c{1:2});");  // range subscript -> deal(10,20) -> p=10, q=20
+    EXPECT_DOUBLE_EQ(getVar("p"), 10.0);
+    EXPECT_DOUBLE_EQ(getVar("q"), 20.0);
+}
+
 // CSL: {c{:}} re-wraps the selected cell contents into a new cell literal; mixed
 // {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
 TEST_P(CellTest, CellCommaListInCellLiteral)
