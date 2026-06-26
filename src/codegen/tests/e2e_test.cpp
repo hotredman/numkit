@@ -5202,15 +5202,17 @@ TEST(CodegenE2E, IntegrationCapstone)
     EXPECT_DOUBLE_EQ(got[0], 2088.0);  // 2000 + 8 + 79 + 1
 }
 
-// RECURSION refuses cleanly under the bridge (P5): the monomorphiser breaks a
-// recursive call to Dynamic (a sound inference break); the recursive call's boxed
-// result would otherwise emit call_dyn-by-NAME, which cannot resolve the compiled
-// specialisation in a standalone artifact. So recursion is REFUSED (refuse-not-
-// miscompile), not silently miscompiled. (A precision upgrade -> unboxed recursion
-// via a Bottom-fixpoint needs Bottom to propagate through the transfer layer:
-// deferred.)
-TEST(CodegenE2E, RecursiveCallRefusedUnderBridge)
+// RECURSION now COMPILES (Rec.2 + Rec.3): the return-type fixpoint (⊥ seed ->
+// iterate) types the self-call concretely (fact: DOUBLE), so it leaves the Dynamic
+// tier and emits as a DIRECT typed self-call to the monomorphised spec -- a pure,
+// STANDALONE C++ recursion (no bridge, no runtime DLL). Was previously refused
+// (RecursiveCallRefusedUnderBridge). The compile+run gate proves it sound: a wrong
+// emit could not produce 120.
+TEST(CodegenE2E, RecursiveCallCompilesAndRuns)
 {
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
     const char *src =
         "function y = fact(n)\n"
         "  if n <= 1\n"
@@ -5228,12 +5230,27 @@ TEST(CodegenE2E, RecursiveCallRefusedUnderBridge)
     collectFunctions(*root, ft);
     registerUserFunctions(reg, ft);
 
-    BridgeOptions bridge;
-    bridge.enabled = true;
-    EXPECT_THROW(
-        emitProgram(*ft.find("fact"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg,
-                    nullptr, bridge),
-        std::runtime_error);
+    const EmittedFunction emitted =
+        emitProgram(*ft.find("fact"), {{"n", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg);
+    EXPECT_EQ(emitted.source.find("nk_rt::"), std::string::npos)
+        << "a typed self-call must compile STANDALONE (no Value-ABI bridge)";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_recursion_e2e.exe").string();
+    const std::string outTxt = (base / "nk_recursion_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double out = " + emitted.name + "(5.0);\n"  // 5! = 120
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", out);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 120.0);  // fact(5) = 120
 }
 
 // CSL c{:} is a SOUND REFUSAL: a brace colon-subscript expands to a comma-separated
