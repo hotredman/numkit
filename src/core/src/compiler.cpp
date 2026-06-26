@@ -3136,6 +3136,25 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
     }
 
+    // Sole-arg comma-separated-list call f(c{:}): the single argument is a cell
+    // whose contents are SPLICED as the call's args at runtime (CSL). Compile the
+    // cell + emit CALL_VARARGS. v1: exactly one arg, a bare colon c{:}; a mixed
+    // f(a, c{:}) or a c{vec} subscript falls through to the normal path (where the
+    // brace-colon would error -- the documented v1 limit).
+    if (nargs == 1) {
+        const ASTNode *arg = node->children[1].get();
+        if (arg->type == NodeType::CELL_INDEX && arg->children.size() == 2
+            && arg->children[1]->type == NodeType::COLON_EXPR
+            && arg->children[1]->children.empty()) {
+            uint8_t cellReg = compileNode(arg->children[0].get());
+            uint8_t dst     = tempReg();
+            int16_t funcIdx = addStringConstant(name);
+            emit(Instruction::make_abcde(OpCode::CALL_VARARGS, dst, cellReg, 0, funcIdx,
+                                         nargoutContext_));
+            return dst;
+        }
+    }
+
     // Compile arguments into consecutive registers
     std::vector<uint8_t> argRegs;
     for (size_t i = 1; i < node->children.size(); ++i) {
@@ -4100,6 +4119,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "LOAD_END";
         case OpCode::CALL:
             return "CALL";
+        case OpCode::CALL_VARARGS:
+            return "CALL_VARARGS";
         case OpCode::CALL_BUILTIN:
             return "CALL_BUILTIN";
         case OpCode::CTRANSPOSE:

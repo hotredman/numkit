@@ -127,12 +127,10 @@ TEST_P(CellTest, CellCommaListConcat)
     EXPECT_DOUBLE_EQ(u->doubleData()[1], 4.0);
 }
 
-// CSL: f(c{:}) expands the cell's contents into the argument list. (TreeWalker;
-// VM is a follow-up brick.)
+// CSL: f(c{:}) splices the cell's contents into the argument list. Both backends
+// (TreeWalker buildArgs + VM CALL_VARARGS). v1: a SOLE c{:} argument.
 TEST_P(CellTest, CellCommaListCallArgs)
 {
-    if (GetParam() != BackendParam::TreeWalker)
-        GTEST_SKIP() << "VM cell-CSL is a follow-up brick";
     eval("c = {3, 8};");
     eval("m = max(c{:});");  // max(3, 8) = 8 (a 2-arg builtin via CSL)
     EXPECT_DOUBLE_EQ(getVar("m"), 8.0);
