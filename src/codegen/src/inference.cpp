@@ -660,13 +660,28 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         const ASTNode &lhs = *stmt.children[0];
         const AbstractValue rhs = inferExpr(*stmt.children[1], env, reg, classes);
         if (lhs.type == NodeType::IDENTIFIER) {
-            env.set(lhs.strValue, rhs);
-            recordDecl(declOut, lhs.strValue, rhs.type);
+            AbstractValue rv = rhs;
+            // x = [] : MATLAB's empty matrix is 0x0 double. Type it as a growable DOUBLE 1-D
+            // (Unknown length) so a later x(i)=v / x(end+1)=v GROWS it -- otherwise [] (which
+            // infers Dynamic) would poison x's decl join to Dynamic and block the loop-build
+            // idiom. Localized to `x = []`; other [] uses (max(A,[],dim)) stay Dynamic.
+            {
+                const ASTNode &rn       = *stmt.children[1];
+                bool           emptyMat = rn.type == NodeType::MATRIX_LITERAL;
+                if (emptyMat)
+                    for (const auto &row : rn.children)
+                        if (row && !row->children.empty()) { emptyMat = false; break; }
+                if (emptyMat)
+                    rv = {InferredType::concrete(ValueType::DOUBLE, Shape::unknown()),
+                          ConstVal::unknown()};
+            }
+            env.set(lhs.strValue, rv);
+            recordDecl(declOut, lhs.strValue, rv.type);
             // A struct-valued assignment (t = structReturningCall()) also DECLARES the
             // per-field locals (_nk_fld_t_<f>) so they hoist and t.f reads work, and seeds
             // them -- the caller-receipt (G2.4) passes them as the callee's out-param refs.
-            if (rhs.type.isStruct() && rhs.type.structLayout)
-                for (const auto &f : rhs.type.structLayout->fields) {
+            if (rv.type.isStruct() && rv.type.structLayout)
+                for (const auto &f : rv.type.structLayout->fields) {
                     const std::string fld = "_nk_fld_" + lhs.strValue + "_" + f.first;
                     env.set(fld, {f.second, ConstVal::unknown()});
                     recordDecl(declOut, fld, f.second);

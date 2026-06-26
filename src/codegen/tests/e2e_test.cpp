@@ -10916,3 +10916,44 @@ TEST(CodegenE2E, AppendViaEndPlusOne)
     const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// Empty-init loop-build (GROWTH.3): x=[] types as a growable DOUBLE 1-D (MATLAB empty matrix is
+// 0x0 double), so the idiom x=[]; for i; x(end+1)=..; end compiles -- the keystone of the growth
+// feature. (Other [] uses, e.g. max(A,[],dim), stay Dynamic; the typing is localized to x = [].)
+TEST(CodegenE2E, EmptyInitLoopBuild)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  x = [];\n"
+        "  for i = 1:n\n"
+        "    x(end + 1) = i * i;\n"  // append i^2 each iteration
+        "  end\n"
+        "  r = numel(x) * 100 + x(1) + x(n) * 10;\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(n)\n") + body + "end\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+    EXPECT_NE(emitted.source.find(".clear()"), std::string::npos)
+        << "x = [] must empty the local vector";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_emptybuild_e2e.exe").string();
+    const std::string outTxt = (base / "nk_emptybuild_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f(3.0);\n"  // x=[1 4 9]: 3*100 + 1 + 9*10 = 391
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 391.0);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
