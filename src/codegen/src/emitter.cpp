@@ -2511,6 +2511,20 @@ void Emitter::emitAssign(const ASTNode &s)
             }
         }
 
+        // x = [] : empty a 1-D LOCAL vector (MATLAB empty matrix). The inference typed x as a
+        // DOUBLE 1-D growable owned vector; emit a clear (idempotent on a fresh hoist). Enables
+        // the loop-build idiom x=[]; for i; x(end+1)=..; end.
+        if (isArrayVar(name) && arrays_.at(name).isLocal && !arrays_.at(name).is2D
+            && !arrays_.at(name).isND && rhs.type == NodeType::MATRIX_LITERAL) {
+            bool emptyMat = true;
+            for (const auto &row : rhs.children)
+                if (row && !row->children.empty()) { emptyMat = false; break; }
+            if (emptyMat) {
+                line(name + ".clear();");
+                return;
+            }
+        }
+
         // Array initialised by a size constructor: `a = zeros(1,n)` / `ones`.
         // The OUTPUT out-param (caller-sized) becomes a fill loop over its
         // length; an owned-vector LOCAL is `a.assign(numel, fill)` (numel =
