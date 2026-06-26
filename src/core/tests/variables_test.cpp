@@ -149,8 +149,6 @@ TEST_P(CellTest, CellCommaListCallArgs)
 // {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
 TEST_P(CellTest, CellCommaListInCellLiteral)
 {
-    if (GetParam() != BackendParam::TreeWalker)
-        GTEST_SKIP() << "VM cell-literal CSL is a follow-up brick";
     eval("c = {3, 8, 4};");
     eval("d = {c{:}};");  // re-wrap the contents -> {3, 8, 4}
     auto *d = getVarPtr("d");
