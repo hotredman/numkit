@@ -401,6 +401,21 @@ void nk_unbox_complex_array(nk_val v, double *out, size_t len)
     }
 }
 
+void nk_unbox_char_array(nk_val v, uint16_t *out, size_t len)
+{
+    try {
+        const Value *val = unwrap(v);
+        const size_t nm  = val->numel();
+        // numkit stores a char as one byte (Latin1/ASCII code unit); zero-extend each to the
+        // codegen's uint16 char width. (getElementAsDouble does the same unsigned-char read.)
+        const char *d = val->charData();
+        for (size_t i = 0; i < len && i < nm; ++i)
+            out[i] = static_cast<uint16_t>(static_cast<unsigned char>(d[i]));
+    } catch (...) {
+        // leave `out` as the caller initialised it
+    }
+}
+
 size_t nk_numel(nk_val v)
 {
     try {

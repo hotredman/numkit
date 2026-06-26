@@ -59,6 +59,22 @@ TEST(Bridge, ArrayBuiltinSortRoundTrip)
     nk_release(s);
 }
 
+// G3: a CHAR-array result (num2str) unboxes its code units into a uint16 buffer (the codegen's
+// char width). The runtime owns the formatting; this exercises nk_unbox_char_array directly.
+TEST(Bridge, Num2strCharUnbox)
+{
+    nk_val x = nk_box_scalar(42.0);
+    nk_val r = nk_call("num2str", &x, 1, 1, nullptr, nullptr);  // '42'
+    ASSERT_NE(r, nullptr);
+    ASSERT_EQ(nk_numel(r), 2u);
+    uint16_t out[2] = {0, 0};
+    nk_unbox_char_array(r, out, 2);
+    EXPECT_EQ(out[0], static_cast<uint16_t>('4'));  // 52
+    EXPECT_EQ(out[1], static_cast<uint16_t>('2'));  // 50
+    nk_release(x);
+    nk_release(r);
+}
+
 // CX4a: complex array box/unbox round-trip (interleaved re,im). Also drives a
 // bridged complex builtin (fft) so a complex RESULT is unboxed via the new
 // path. (The codegen complex bridge, CX4b, builds on these C-ABI primitives.)
