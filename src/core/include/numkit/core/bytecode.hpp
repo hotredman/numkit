@@ -167,6 +167,11 @@ enum class OpCode : uint8_t {
     // resolveIndices(R[subReg], numel) (c{vec} / c{1:2}). All column-major. Used to
     // build {a, c{:}, c{vec}, b} on the VM (and lowered f(a, c{:}, ...) call args).
     CELL_APPEND_ELEM, // cellAcc, src, mode, subReg
+    // 2-D sibling of CELL_APPEND_ELEM mode 2: append a 2-D cell brace-index slice
+    // c{r,cols} into the accumulator. a=cellAcc (in/out, coerced to 1x0 if unset),
+    // b=cellSrc, c=rowSubReg, d=colSubReg -> resolveIndices per dim + sub2ind,
+    // column-major. Builds {a, c{r,:}, b} on the VM (cell literal + lowered call args).
+    CELL_APPEND_SLICE_2D, // cellAcc, cellSrc, rowSub, colSub
 
     // ── Transpose ────────────────────────────────────────────
     CTRANSPOSE, // dst, src               R[dst] = R[src]' (conjugate)
