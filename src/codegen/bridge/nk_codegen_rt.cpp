@@ -434,6 +434,24 @@ void nk_cell_set(nk_val c, double idx1, nk_val v, nk_error *err)
     }
 }
 
+nk_val nk_make_handle(const char *name, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        if (!name) throw std::runtime_error("nk_make_handle: null name");
+        // Build @name exactly as the interpreter does (it owns func-handle
+        // semantics). An unknown name still yields a handle that errors on CALL,
+        // matching MATLAB -- no need to pre-validate existence here.
+        return make(engine().eval(std::string("@") + name, true));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
+}
+
 double nk_unbox_scalar(nk_val v)
 {
     try {
