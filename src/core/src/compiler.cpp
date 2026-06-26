@@ -1874,9 +1874,10 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
     // struct array yields a single-value horzcat — same as the regular
     // path).
     auto isCslCandidate = [](const ASTNode *elem) {
-        return elem->type == NodeType::FIELD_ACCESS
-            && !elem->children.empty()
-            && elem->children[0]->type == NodeType::IDENTIFIER;
+        return (elem->type == NodeType::FIELD_ACCESS && !elem->children.empty()
+                && elem->children[0]->type == NodeType::IDENTIFIER)
+            // a single-subscript cell brace-index c{:} / c{vec} / c{i} (CSL)
+            || (elem->type == NodeType::CELL_INDEX && elem->children.size() == 2);
     };
 
     // Compile each row into a single register
@@ -1909,7 +1910,13 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
             uint8_t dst = tempReg();
             emitA(OpCode::LOAD_EMPTY, dst);
             for (auto &elem : row->children) {
-                if (isCslCandidate(elem.get())) {
+                if (elem->type == NodeType::CELL_INDEX && elem->children.size() == 2) {
+                    // cell CSL c{:} / c{vec} / c{i}: expand the selected contents.
+                    uint8_t           cellReg = compileNode(elem->children[0].get());
+                    IndexContextGuard guard(*this, cellReg, 1);  // `end` -> cell numel
+                    uint8_t           subReg = compileNode(elem->children[1].get());
+                    emitABC(OpCode::HORZCAT_APPEND_CELL_CSL, dst, cellReg, subReg);
+                } else if (isCslCandidate(elem.get())) {
                     uint8_t baseReg = compileNode(elem->children[0].get());
                     int16_t nameIdx = addStringConstant(elem->strValue);
                     emit(Instruction::make_abcde(
