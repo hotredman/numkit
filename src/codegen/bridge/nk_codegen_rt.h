@@ -62,6 +62,12 @@ NK_RT_API nk_val nk_box_cell(const nk_val *elems, size_t n);
  * `idx` (owned). SINGLE element only: a CSL c{:} / c{vec} is multi-value and the
  * codegen refuses it. Non-cell / out-of-range / non-integer idx -> NULL + *err. */
 NK_RT_API nk_val nk_cell_get(nk_val c, double idx1, nk_error *err);
+/* Content store c{idx} = v -- a 1-based linear index as a double. GROWS the cell
+ * if idx is past the end and coerces an empty/unset receiver to a cell (MATLAB
+ * auto-grow), so `c={}; c{1}=..; c{2}=..` builds a cell imperatively. Mutates the
+ * cell handle in place; `v` is BORROWED (deep-copied in). SINGLE element only.
+ * Non-integer idx / non-cell receiver -> *err set (no throw across the C frame). */
+NK_RT_API void nk_cell_set(nk_val c, double idx1, nk_val v, nk_error *err);
 /* Complex array: `p` is interleaved re,im — `len` complex elements = 2*len
  * doubles, matching std::complex<double>[len] (codegen passes a
  * reinterpret_cast<const double*> of its std::complex buffer). */
