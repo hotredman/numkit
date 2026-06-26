@@ -643,6 +643,52 @@ buffer cannot grow):
   caller passes companions matching the buffer it allocated (as for a 1-D
   `y = zeros(1,n)` output, and for const/runtime N-D outputs).
 
+## 10a. Dynamic-tier coverage + sound-refusal catalog (structural frontier complete, 2026-06-26)
+
+The Dynamic tier (§5, §6a; `Dynamic` is Contract 1's top) is the boxed-`nk_val`
+escape hatch that lets an un-typeable value flow through compiled code while the
+typed tiers stay fast. Its coverage is now **structurally complete** for the common
+surface: every construct below either **compiles** (a typed tier, or the Dynamic
+tier via the Value-ABI bridge) or is a **documented sound refusal** — detected at
+emit time, the enclosing function tiered to the interpreter, **never miscompiled**
+(Contract 2's fallback). Several refusals carry an `EXPECT_THROW` regression guard,
+so a regression into silent mis-emission fails a test.
+
+**Covered** (compiles natively or via the bridge):
+
+| Construct | Tier / mechanism |
+|---|---|
+| scalar real / int / bool | unboxed C++ scalar (the 97× win) |
+| 1-D / 2-D / N-D real array | `Value` container + hoisted data ptr |
+| complex scalar / array | `std::complex<double>` (+ interleaved-re,im C-ABI box) |
+| struct: scalar, ABI in/out, struct-arrays (SoA), const dynamic field | field-flatten `_nk_fld_*` + width-union STRUCT lattice |
+| cell: literals 1-D+2-D, read `c{i}`/`c{i,j}`, store `c{i}=v`/`c{i,j}=v` (auto-grow), slice `c(i)` | `nk_box_cell[_2d]` / `nk_cell_get[_2d]` / `nk_cell_set[_2d]`; slice rides `index_dyn` |
+| named function handle `@f` | `nk_make_handle`; call rides `index_dyn` → handle call |
+| capture-free closure `@(x)expr` | free-var analysis + `make_closure` (interpreter eval of the func2str source) |
+| formatting `num2str` / `sprintf` | bridged — interpreter owns the printf-style format; CHAR result via `bridge_to_vec_char` |
+| growable 1-D local (`x=[]`, `x(end+1)=v`) | owned `std::vector` + `index_set_grow` |
+| Dynamic value: binop/unop, condition-truth, indexing, call (typed+Dynamic+bridged), boxed return | `nk_rt::val` + `nk_binop`/`nk_unop`/`nk_truth`/`nk_index`/`call_dyn[v]` + boxed-`nk_val` return |
+| multi-output `[a,b]=f(x)` (user fn, all outputs) | reference out-params |
+
+**Sound refusals** (detected → interpreted fallback, never miscompiled):
+
+| Construct | Why refused | Guard |
+|---|---|---|
+| CSL `c{:}` / `c{vec}` | multi-value (expands to N args/outputs) — not a single `nk_val` | `CellCommaListRefusedUnderBridge` |
+| capturing closure `@(x) x+k` (k a local) | a compiled local can't bind through the runtime workspace `nk_eval` uses | `ClosureCapturingLocalRefusedUnderBridge` |
+| nested anonymous function | inner param scope not modelled (v1) | (emit refusal) |
+| recursion | monomorphiser breaks the recursive call to Dynamic; its boxed result would `call_dyn`-by-name an unresolvable compiled spec | `RecursiveCallRefusedUnderBridge` |
+| eval-family (`eval`/`evalin`/`assignin`/…) | code known only at runtime; mutate a workspace by name (§7) | (inference refusal) |
+| partial-nargout, object/array multi-output, closed-world polymorphism, 2-D `num2str` | each an under-specified or multi-value shape with no sound single-value lowering | (emit refusal) |
+
+**Remaining codegen work is no longer autonomous-brick-sized.** It is either
+(a) **multi-fire design** — CSL variadic expansion, a capture-binding protocol for
+capturing closures, multi-output user functions, recursion via a `Bottom`-fixpoint
+through the transfer layer — each needing a design decision, not a mechanical
+brick; or (b) **additive transfer coverage** for niche builtins (low marginal
+value — an un-transferred builtin already bridges or refuses soundly). The
+structural frontier itself is closed.
+
 ## 11. Build plan
 
 1. **Soundness foundation** ✅ — Contract 1 documented;
