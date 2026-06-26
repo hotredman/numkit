@@ -1902,8 +1902,9 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
     auto isCslCandidate = [](const ASTNode *elem) {
         return (elem->type == NodeType::FIELD_ACCESS && !elem->children.empty()
                 && elem->children[0]->type == NodeType::IDENTIFIER)
-            // a single-subscript cell brace-index c{:} / c{vec} / c{i} (CSL)
-            || (elem->type == NodeType::CELL_INDEX && elem->children.size() == 2);
+            // a cell brace-index: 1-D c{:} / c{vec} / c{i} or 2-D c{r,:} / c{:,j} (CSL)
+            || (elem->type == NodeType::CELL_INDEX
+                && (elem->children.size() == 2 || elem->children.size() == 3));
     };
 
     // Compile each row into a single register
@@ -1942,6 +1943,15 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
                     IndexContextGuard guard(*this, cellReg, 1);  // `end` -> cell numel
                     uint8_t           subReg = compileNode(elem->children[1].get());
                     emitABC(OpCode::HORZCAT_APPEND_CELL_CSL, dst, cellReg, subReg);
+                } else if (elem->type == NodeType::CELL_INDEX && elem->children.size() == 3) {
+                    // 2-D cell CSL c{r,:} / c{:,j}: expand the selected slice.
+                    uint8_t           cellReg = compileNode(elem->children[0].get());
+                    IndexContextGuard guard(*this, cellReg, 2);  // `end` -> rows / cols
+                    uint8_t           rowReg = compileNode(elem->children[1].get());
+                    guard.setDim(1);
+                    uint8_t           colReg = compileNode(elem->children[2].get());
+                    emit(Instruction::make_abcde(OpCode::HORZCAT_APPEND_CELL_CSL_2D,
+                                                 dst, cellReg, rowReg, colReg, 0));
                 } else if (isCslCandidate(elem.get())) {
                     uint8_t baseReg = compileNode(elem->children[0].get());
                     int16_t nameIdx = addStringConstant(elem->strValue);
@@ -4293,6 +4303,10 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "STRUCT_ELEM_SET";
         case OpCode::HORZCAT_APPEND_CSL:
             return "HORZCAT_APPEND_CSL";
+        case OpCode::HORZCAT_APPEND_CELL_CSL:
+            return "HORZCAT_APPEND_CELL_CSL";
+        case OpCode::HORZCAT_APPEND_CELL_CSL_2D:
+            return "HORZCAT_APPEND_CELL_CSL_2D";
         case OpCode::CELL_LITERAL:
             return "CELL_LITERAL";
         case OpCode::CELL_GET:

@@ -2282,24 +2282,36 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
 
 std::vector<Value> TreeWalker::cellBraceContents(const ASTNode *node, Environment *env)
 {
-    // SINGLE-subscript only (the caller gates on children.size() == 2). c{:} (a bare
-    // colon) -> all elements column-major; c{vec}/c{i} -> the indexed elements via
-    // the interpreter's own resolveIndices (1-based, bounds-checked; `end` resolves
-    // to numel through the index-context guard). The base is evaluated ONCE here.
+    // 1-D c{:} / c{vec} / c{i} -> the selected elements column-major; 2-D c{r,:} /
+    // c{:,j} -> resolveIndex per dim + sub2ind, column-major (mirrors execMultiAssign).
+    // 1-based, bounds-checked; `end` resolves per dim through the index-context guard.
+    // The base is evaluated ONCE here. 3-D+ is refused (same message as multi-assign).
     Value obj = execNode(node->children[0].get(), env);
     if (!obj.isCell())
         throw std::runtime_error("Cell contents indexing requires a cell array");
     std::vector<Value> out;
-    const ASTNode     *sub = node->children[1].get();
-    if (sub->type == NodeType::COLON_EXPR && sub->children.empty()) {
-        out.reserve(obj.numel());
-        for (size_t i = 0; i < obj.numel(); ++i)
-            out.push_back(obj.cellAt(i));
+    size_t             nidx = node->children.size() - 1;
+    if (nidx == 1) {
+        const ASTNode *sub = node->children[1].get();
+        if (sub->type == NodeType::COLON_EXPR && sub->children.empty()) {
+            out.reserve(obj.numel());
+            for (size_t i = 0; i < obj.numel(); ++i)
+                out.push_back(obj.cellAt(i));
+        } else {
+            IndexContextGuard guard(indexContextStack_, {&obj, 0, 1});
+            Value             idxv = execNode(sub, env);
+            for (size_t id : Value::resolveIndices(idxv, obj.numel()))
+                out.push_back(obj.cellAt(id));
+        }
+    } else if (nidx == 2) {
+        auto rowIdx = resolveIndex(node->children[1].get(), obj, 0, 2, env);
+        auto colIdx = resolveIndex(node->children[2].get(), obj, 1, 2, env);
+        for (size_t c : colIdx)
+            for (size_t r : rowIdx)
+                out.push_back(obj.cellAt(obj.dims().sub2ind(r, c)));
     } else {
-        IndexContextGuard guard(indexContextStack_, {&obj, 0, 1});
-        Value             idxv = execNode(sub, env);
-        for (size_t id : Value::resolveIndices(idxv, obj.numel()))
-            out.push_back(obj.cellAt(id));
+        throw std::runtime_error("Cell CSL with " + std::to_string(nidx)
+                                 + " indices not supported");
     }
     return out;
 }
@@ -2456,10 +2468,11 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
                 // Single struct or non-struct base — fall through to the
                 // generic execNode path so existing semantics apply.
             }
-            // CSL: a single-subscript cell brace-index c{:} / c{vec} / c{i} expands
-            // its selected contents into the row (a comma-separated list). A multi-
-            // subscript c{i,j} falls through to the generic single-value path.
-            if (elemNode->type == NodeType::CELL_INDEX && elemNode->children.size() == 2) {
+            // CSL: a cell brace-index c{:} / c{vec} / c{i} (1-D) or c{r,:} / c{:,j}
+            // (2-D) expands its selected contents into the row (a comma-separated
+            // list). 3-D+ falls through to the generic single-value path.
+            if (elemNode->type == NodeType::CELL_INDEX
+                && (elemNode->children.size() == 2 || elemNode->children.size() == 3)) {
                 for (auto &v : cellBraceContents(elemNode.get(), env))
                     pushElem(std::move(v), rowElems);
                 continue;

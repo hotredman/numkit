@@ -981,6 +981,24 @@ enter_frame:
                 dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
                 break;
             }
+            case OpCode::HORZCAT_APPEND_CELL_CSL_2D: {
+                // a=dst (in/out), b=cell, c=rowSub, d=colSub. Append a 2-D cell slice
+                // c{r,cols} into dst -- resolveIndices per dim + sub2ind, column-major
+                // (matches the TreeWalker order).
+                Value       &dst  = R[I.a];
+                const Value &cell = R[I.b];
+                if (!cell.isCell())
+                    throw std::runtime_error("Cell contents indexing requires a cell array");
+                auto rowIdx = Value::resolveIndices(R[I.c], cell.dims().rows());
+                auto colIdx = Value::resolveIndices(R[I.d], cell.dims().cols());
+                std::vector<Value> elems;
+                elems.push_back(dst);
+                for (size_t c : colIdx)
+                    for (size_t r : rowIdx)
+                        elems.push_back(cell.cellAt(cell.dims().sub2ind(r, c)));
+                dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
+                break;
+            }
 
             // ── Array indexing ───────────────────────────────────
             case OpCode::INDEX_GET: {
