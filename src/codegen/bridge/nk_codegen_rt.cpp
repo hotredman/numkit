@@ -514,6 +514,39 @@ nk_val nk_make_handle(const char *name, nk_error *err)
     }
 }
 
+nk_val nk_make_closure_captured(const char *src, const char **names, const nk_val *vals,
+                                size_t n, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        if (!src) throw std::runtime_error("nk_make_closure_captured: null source");
+        // Inject the captures into the workspace, eval `src` (the anon fn snapshots
+        // the workspace -> captures them BY VALUE, the normal @(...)-in-script path,
+        // well-tested on both backends), then `clear` them so the persistent
+        // workspace stays clean. Bridged evals never leave user-named vars, so the
+        // capture names do not collide; the snapshot is copied into the closure, so
+        // the later clear does not disturb it.
+        std::string clearCmd = "clear";
+        for (size_t i = 0; i < n; ++i) {
+            const Value *v = vals ? unwrap(vals[i]) : nullptr;
+            if (!names || !names[i] || !v)
+                throw std::runtime_error("nk_make_closure_captured: null name/value");
+            engine().setVariable(names[i], *v);
+            clearCmd += ' ';
+            clearCmd += names[i];
+        }
+        Value h = engine().eval(src, true);  // @(...)... snapshots the workspace -> captures
+        if (n > 0) engine().eval(clearCmd, true);
+        return make(std::move(h));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
+}
+
 double nk_unbox_scalar(nk_val v)
 {
     try {
