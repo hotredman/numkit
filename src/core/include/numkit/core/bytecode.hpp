@@ -185,6 +185,10 @@ enum class OpCode : uint8_t {
     // contents (a=dst in/out, b=cellReg, c=subReg holding the ':' colon marker / vector
     // / scalar; resolveIndices over the cell numel). For [c{:}] / [c{vec}] in a literal.
     HORZCAT_APPEND_CELL_CSL, // a=dst, b=cellReg, c=subReg
+    // 2-D variant: append the selected contents of a 2-D cell brace-index slice
+    // c{r,cols} into dst (a=dst in/out, b=cellReg, c=rowSubReg, d=colSubReg;
+    // resolveIndices per dim + sub2ind, column-major). For [c{1,:}] / [c{:,j}].
+    HORZCAT_APPEND_CELL_CSL_2D,
     VERTCAT,      // dst, base, count       R[dst] = [R[base]; ...; R[base+count-1]]
     MATRIX_BUILD, // [reserved] compiler uses HORZCAT/VERTCAT instead
     CELL_LITERAL, // dst, base, count       {R[base]..R[base+count-1]}

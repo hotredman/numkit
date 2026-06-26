@@ -243,6 +243,34 @@ TEST_P(CellTest, CellCommaListMultiAssign2D)
     EXPECT_DOUBLE_EQ(getVar("q"), 5.0);
 }
 
+// CSL: 2-D cell subscript [c{1,:}] / [c{:,j}] flattens a row/col slice (column-major)
+// into a vector. VM HORZCAT_APPEND_CELL_CSL_2D; TreeWalker cellBraceContents nidx==2.
+TEST_P(CellTest, CellCommaListConcat2D)
+{
+    eval("c = {1, 2, 3; 4, 5, 6};");  // 2x3
+    eval("r = [c{1, :}];");  // row 1 -> [1 2 3]
+    auto *r = getVarPtr("r");
+    ASSERT_NE(r, nullptr);
+    ASSERT_EQ(r->numel(), 3u);
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[2], 3.0);
+    eval("co = [c{:, 2}];");  // col 2, column-major -> [2 5]
+    auto *co = getVarPtr("co");
+    ASSERT_EQ(co->numel(), 2u);
+    EXPECT_DOUBLE_EQ(co->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(co->doubleData()[1], 5.0);
+    eval("mx = [0, c{1, :}, 9];");  // mixed with plain literals -> [0 1 2 3 9]
+    auto *mx = getVarPtr("mx");
+    ASSERT_EQ(mx->numel(), 5u);
+    EXPECT_DOUBLE_EQ(mx->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(mx->doubleData()[4], 9.0);
+    eval("sl = [c{2, 1:2}];");  // row 2, cols 1:2 -> [4 5]
+    auto *sl = getVarPtr("sl");
+    ASSERT_EQ(sl->numel(), 2u);
+    EXPECT_DOUBLE_EQ(sl->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(sl->doubleData()[1], 5.0);
+}
+
 // CSL: {c{:}} re-wraps the selected cell contents into a new cell literal; mixed
 // {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
 TEST_P(CellTest, CellCommaListInCellLiteral)
