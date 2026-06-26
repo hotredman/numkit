@@ -1205,12 +1205,27 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         if (nestedAnon)
             unsupported("Dynamic tier: nested anonymous function (v1)");
         const std::set<std::string> params(e.paramNames.begin(), e.paramNames.end());
+        // Free identifiers (excluding the anon's own params) split three ways: a
+        // co-compiled USER fn reference -> REFUSE (the runtime cannot resolve the
+        // compiled spec by name inside the closure); a captured enclosing LOCAL ->
+        // bind it by value (G5c); a builtin / global -> resolved by the runtime at
+        // call time (nothing to capture). v1 captures UNBOXABLE-SCALAR locals only
+        // (an array / Dynamic capture refuses -> interpreted fallback, sound).
+        std::vector<std::string> captures;
         for (const std::string &id : freeIds) {
             if (params.count(id)) continue;  // bound by the anon's own params
-            if (types_.has(id) || isArrayVar(id) || (ctx_ && ctx_->funcs && ctx_->funcs->has(id)))
-                unsupported("Dynamic tier: anonymous function captures '" + id
-                            + "' (an enclosing local or co-compiled function) -- not bindable "
-                              "through the runtime workspace (v1)");
+            if (ctx_ && ctx_->funcs && ctx_->funcs->has(id))
+                unsupported("Dynamic tier: closure references a co-compiled user function '" + id
+                            + "' (not resolvable by name in the runtime) (v1)");
+            if (isArrayVar(id))
+                unsupported("Dynamic tier: closure captures a non-scalar local '" + id + "' (v1)");
+            if (types_.has(id)) {
+                if (!isUnboxableScalarType(types_.get(id).type))
+                    unsupported("Dynamic tier: closure captures a non-scalar local '" + id
+                                + "' (v1)");
+                captures.push_back(id);  // an unboxable-scalar captured local
+            }
+            // else: a builtin / global -> resolved at call time (no capture).
         }
         if (e.strValue.empty())
             unsupported("Dynamic tier: anonymous function with no reconstructed source");
@@ -1218,7 +1233,15 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         const std::string esc = cEscape(e.strValue, ok);
         if (!ok)
             unsupported("Dynamic tier: anonymous function source has a non-printable byte (v1)");
-        return "nk_rt::make_closure(\"" + esc + "\")";
+        if (captures.empty())
+            return "nk_rt::make_closure(\"" + esc + "\")";  // capture-free (G5b)
+        // capturing (G5c): box each captured scalar local + bind it by name.
+        std::string names, vals;
+        for (const std::string &id : captures) {
+            names += (names.empty() ? "" : ", ") + ("\"" + id + "\"");
+            vals  += (vals.empty() ? "" : ", ") + ("nk_rt::val::scalar(" + id + ")");
+        }
+        return "nk_rt::make_closure_captured(\"" + esc + "\", {" + names + "}, {" + vals + "})";
     }
     default:
         unsupported("Dynamic tier: expression node kind");
@@ -9197,6 +9220,17 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "// -- the interpreter owns anon-fn semantics. `src` is the full @(...)... text.\n"
            "inline val make_closure(const char* src) {\n"
            "    nk_error e; e.code = 0; return _checked(nk_eval(src, &e), e); }\n"
+           "// A CAPTURING anonymous closure @(...)... (G5c). Each captured local (names[i])\n"
+           "// is boxed (vals[i]) and bound by value into the closure; the runtime evaluates\n"
+           "// the source with those bindings so the closure snapshots them. names.size() ==\n"
+           "// vals.size(). Throws on error.\n"
+           "inline val make_closure_captured(const char* src,\n"
+           "        std::initializer_list<const char*> names, std::initializer_list<val> vals) {\n"
+           "    std::vector<const char*> nm(names);\n"
+           "    std::vector<nk_val> vv; vv.reserve(vals.size());\n"
+           "    for (const val& v : vals) vv.push_back(v.get());\n"
+           "    nk_error e; e.code = 0;\n"
+           "    return _checked(nk_make_closure_captured(src, nm.data(), vv.data(), nm.size(), &e), e); }\n"
            "// Multi-output bridged call: `[o0, o1, ...] = name(args)`. Returns output\n"
            "// 0; outputs 1..nargout-1 are written (owned) into extra[0..nargout-2].\n"
            "// Args borrowed (their val owners release them). Errors throw.\n"

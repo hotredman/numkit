@@ -5338,19 +5338,18 @@ TEST(CodegenE2E, CellCommaListRefusedUnderBridge)
         std::runtime_error);
 }
 
-// G5b soundness guard: an anonymous function that CAPTURES an enclosing local is a
-// sound refusal. k is a compiled local; the closure @(t) t + k captures it, but a
-// compiled local cannot bind through the runtime workspace that make_closure
-// (nk_eval) uses -- so the codegen refuses and the function tiers to the
-// interpreter (which captures k correctly). A regression to silently creating the
-// closure (resolving k wrongly) would fail this EXPECT_THROW. (Capture-free
-// closures DO compile -- see BridgedCaptureFreeClosure.)
-TEST(CodegenE2E, ClosureCapturingLocalRefusedUnderBridge)
+// G5c soundness guard: a closure capturing a SCALAR local now compiles (see
+// BridgedCapturingClosure), but capturing a NON-SCALAR (array) local is still a v1
+// refusal -- make_closure_captured boxes captures with val::scalar, so an array
+// capture would be wrong. The closure @(t) t + k(1) captures the ARRAY k -> the
+// emit refuses and the function tiers to the interpreter (which captures correctly).
+// A regression to silently mis-capturing the array would fail this EXPECT_THROW.
+TEST(CodegenE2E, ClosureCapturingArrayLocalRefusedUnderBridge)
 {
     const char *src =
         "function r = f(x)\n"
-        "  k = x + 100;\n"
-        "  g = @(t) t + k;\n"  // captures k (an enclosing local) -> refused
+        "  k = [x, x + 1];\n"   // an ARRAY local
+        "  g = @(t) t + k(1);\n"  // captures the array k -> refused (v1: scalar captures only)
         "  r = g(5);\n"
         "end\n";
     numkit::Lexer  lex(src);
@@ -7737,6 +7736,79 @@ TEST(CodegenBridge, BridgedCaptureFreeClosureRunsAndMatchesInterpreter)
     const double interp = engine.eval("g = @(t) t*t + 1; g(3)", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
     EXPECT_DOUBLE_EQ(got[0], 10.0);  // 3*3 + 1
+}
+
+// Item 4 / G5c: a CAPTURING closure @(t) t + k where k is an enclosing local. The
+// codegen boxes k's current value and binds it by name (make_closure_captured); the
+// runtime evaluates the source with that binding so the closure snapshots k by value
+// (MATLAB semantics). g(5) then calls it via the Dynamic-index path. Diffs vs interp.
+TEST(CodegenBridge, BridgedCapturingClosureRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex("function r = f(x)\n  k = x + 100;\n  g = @(t) t + k;\n  r = g(5);\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &ch : root->children)
+        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::make_closure_captured(\"@(t)t+k\""), std::string::npos)
+        << "the capturing closure must bind k by value via make_closure_captured";
+    ASSERT_NE(emitted.source.find("nk_rt::val::scalar(k)"), std::string::npos)
+        << "the captured local k must be boxed by value";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_closure_cap_e2e.exe").string();
+    const std::string outTxt = (base / "nk_closure_cap_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  std::FILE* gf = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!gf) return 2;\n"
+        "  nk_val r = f(2.0);\n"  // k = 102; g = @(t) t + 102; g(5) = 107
+        "  std::fprintf(gf, \"%.17g\\n\", nk_unbox_scalar(r));\n"
+        "  nk_release(r);\n"
+        "  std::fclose(gf); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 1u);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval("k = 2 + 100; g = @(t) t + k; g(5)", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+    EXPECT_DOUBLE_EQ(got[0], 107.0);  // k = 102; g(5) = 5 + 102
 }
 
 // DYNAMIC TIER end-to-end (DESIGN.md §10 C1): an un-typeable value stays BOXED

@@ -87,6 +87,13 @@ NK_RT_API void nk_cell_set_2d(nk_val c, double i1, double j1, nk_val v, nk_error
  * runtime registry -- a co-compiled user spec is NOT there, so the codegen must
  * not pass one (it refuses @userFn at emit time). For @funcName in compiled code. */
 NK_RT_API nk_val nk_make_handle(const char *name, nk_error *err);
+/* Build an anonymous closure @(...)... that CAPTURES variables by value: each
+ * names[i] is bound to vals[i] (borrowed), then `src` (the full @(...)... source)
+ * is evaluated so the closure snapshots them -- the codegen Dynamic-tier capturing-
+ * closure path. Returns owned; NULL + *err on failure. (The bindings are removed
+ * after, so the runtime workspace is left clean.) */
+NK_RT_API nk_val nk_make_closure_captured(const char *src, const char **names,
+                                          const nk_val *vals, size_t n, nk_error *err);
 /* Complex array: `p` is interleaved re,im — `len` complex elements = 2*len
  * doubles, matching std::complex<double>[len] (codegen passes a
  * reinterpret_cast<const double*> of its std::complex buffer). */
