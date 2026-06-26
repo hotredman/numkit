@@ -101,6 +101,32 @@ TEST(Monomorphize, BottomIsAbsorbingInTransfers)
     EXPECT_TRUE(p->reg.applyMulti("f", {bot}).empty());
 }
 
+// Rec.2: DIRECT self-recursion now infers a CONCRETE return type via the Bottom-
+// fixpoint (it used to break to Dynamic). factorial: ⊥ seed -> else y = n * ⊥ = ⊥,
+// join(DOUBLE base-case, ⊥) = DOUBLE -> fixpoint DOUBLE (converges in 2 iters).
+TEST(Monomorphize, SelfRecursionInfersConcreteViaFixpoint)
+{
+    auto p = build("function y = fact(n)\n"
+                   "  if n <= 1\n    y = 1;\n  else\n    y = n * fact(n - 1);\n  end\n"
+                   "end\n");
+    ASSERT_TRUE(p->table.has("fact"));
+    const InferredType r = p->reg.apply("fact", {dbl()});  // the transfer runs the fixpoint
+    EXPECT_TRUE(r.isUnboxableScalar());
+    EXPECT_EQ(r.dtype, ValueType::DOUBLE);
+}
+
+// fib has TWO same-signature self-calls (fib(n-1) + fib(n-2)); both read the shared
+// estimate, and the fixpoint still converges to DOUBLE.
+TEST(Monomorphize, FibTwoSelfCallsConvergeToConcrete)
+{
+    auto p = build("function y = fib(n)\n"
+                   "  if n < 2\n    y = n;\n  else\n    y = fib(n - 1) + fib(n - 2);\n  end\n"
+                   "end\n");
+    const InferredType r = p->reg.apply("fib", {dbl()});
+    EXPECT_TRUE(r.isUnboxableScalar());
+    EXPECT_EQ(r.dtype, ValueType::DOUBLE);
+}
+
 // f calls g — the return type flows through the chain.
 TEST(Monomorphize, ChainedCall)
 {
@@ -121,13 +147,16 @@ TEST(Monomorphize, ArrayFlowsThrough)
     EXPECT_FALSE(r.shape.isScalar());
 }
 
-// Recursion re-enters a function being inferred -> Dynamic (sound break),
-// which propagates: y = f(x) + 1 with f(x) Dynamic -> Dynamic.
-TEST(Monomorphize, RecursionBreaksToDynamic)
+// A base-case-free self-recursion (y = f(x) + 1, no `if`) never returns. Under the
+// fixpoint (Rec.2) the self-call seeds ⊥ and the only contribution is f(x)+1 = ⊥+1
+// = ⊥ (⊥ absorbing in transfers) with no base-case branch to join a concrete type
+// -> the fixpoint converges to ⊥ (Bottom = "no value reaches here"), which is the
+// precise truth for a non-terminating function (vs the old coarser Dynamic break).
+TEST(Monomorphize, NonTerminatingRecursionInfersBottom)
 {
     auto p = build("function y = f(x)\n  y = f(x) + 1;\nend\n");
-    const InferredType r = inferFunctionReturn(*p->table.find("f"), {dbl()}, p->reg);
-    EXPECT_TRUE(r.isDynamic());
+    const InferredType r = p->reg.apply("f", {dbl()});
+    EXPECT_TRUE(r.isBottom());
 }
 
 // Wrong argument count -> Dynamic (MVP requires exact arity).
