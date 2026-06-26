@@ -2520,37 +2520,42 @@ Value TreeWalker::execCellLiteral(const ASTNode *node, Environment *env)
     if (node->children.empty())
         return Value::cell(0, 0);
 
-    bool is2D = !node->children.empty() && node->children[0]->type == NodeType::BLOCK;
+    // Collect-then-build (handles a comma-separated-list element c{:} / c{vec},
+    // whose run-time count is unknown at parse time -- it can't go through the old
+    // pre-sized path). Each element either contributes one value, or, for a single-
+    // subscript cell brace-index, its selected contents (CSL). Behaviour for a
+    // non-CSL literal is unchanged: row r, column c -> sub2ind(r,c), column-major.
+    auto collectRow = [&](const std::vector<ASTNodePtr> &elems) {
+        std::vector<Value> row;
+        for (const auto &e : elems) {
+            if (e->type == NodeType::CELL_INDEX && e->children.size() == 2) {
+                for (auto &v : cellBraceContents(e.get(), env)) row.push_back(std::move(v));
+            } else {
+                row.push_back(execNode(e.get(), env));
+            }
+        }
+        return row;
+    };
 
+    const bool                      is2D = node->children[0]->type == NodeType::BLOCK;
+    std::vector<std::vector<Value>> rows;
     if (!is2D) {
-        auto cell = Value::cell(1, node->children.size());
-        for (size_t i = 0; i < node->children.size(); ++i)
-            cell.cellAt(i) = execNode(node->children[i].get(), env);
-        return cell;
+        rows.push_back(collectRow(node->children));  // a 1-row literal of direct elements
+    } else {
+        for (const auto &rowNode : node->children) rows.push_back(collectRow(rowNode->children));
     }
 
-    size_t numRows = node->children.size();
-    size_t numCols = 0;
-
-    for (auto &rowNode : node->children) {
-        size_t cols = rowNode->children.size();
-        if (numCols == 0) {
-            numCols = cols;
-        } else if (cols != numCols) {
+    const size_t numRows = rows.size();
+    const size_t numCols = rows.empty() ? 0 : rows[0].size();
+    for (const auto &r : rows)
+        if (r.size() != numCols)
             throw std::runtime_error(
                 "Dimensions of cell arrays being concatenated are not consistent");
-        }
-    }
 
     auto cell = Value::cell(numRows, numCols);
-
-    for (size_t r = 0; r < numRows; ++r) {
-        auto &rowNode = node->children[r];
-        for (size_t c = 0; c < numCols; ++c) {
-            cell.cellAt(cell.dims().sub2ind(r, c)) = execNode(rowNode->children[c].get(), env);
-        }
-    }
-
+    for (size_t r = 0; r < numRows; ++r)
+        for (size_t c = 0; c < numCols; ++c)
+            cell.cellAt(cell.dims().sub2ind(r, c)) = std::move(rows[r][c]);
     return cell;
 }
 
