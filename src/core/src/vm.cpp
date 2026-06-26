@@ -1780,6 +1780,26 @@ enter_frame:
                     R[outBase + i] = R[I.b].cellAt(indices[i]);
                 break;
             }
+            case OpCode::CELL_GET_MULTI_2D: {
+                // a=outBase, b=cell, c=rowSub, d=colSub, e=nout. resolveIndices per
+                // dim + sub2ind, column-major (matches the TreeWalker order). Assigns
+                // up to nout selected contents (parity with the 1-D path's truncation).
+                if (!R[I.b].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                const Value &cell   = R[I.b];
+                auto         rowIdx = Value::resolveIndices(R[I.c], cell.dims().rows());
+                auto         colIdx = Value::resolveIndices(R[I.d], cell.dims().cols());
+                uint8_t      outBase = I.a, nout = I.e;
+                size_t       k = 0;
+                for (size_t c : colIdx) {
+                    for (size_t r : rowIdx) {
+                        if (k >= nout) break;
+                        R[outBase + k++] = cell.cellAt(cell.dims().sub2ind(r, c));
+                    }
+                    if (k >= nout) break;
+                }
+                break;
+            }
             case OpCode::CELL_SET: {
                 if (R[I.a].isEmpty())
                     R[I.a] = Value::cell(0, 0);
