@@ -225,6 +225,24 @@ TEST_P(CellTest, CellCommaListMultiAssign)
     EXPECT_DOUBLE_EQ(getVar("y"), 4.0);
 }
 
+// CSL: 2-D cell subscript [a,b]=c{r,:} / c{:,j} distributes a row/col slice (column-
+// major) to multiple LHS targets. VM CELL_GET_MULTI_2D (resolveIndices per dim +
+// sub2ind) matches the TreeWalker execMultiAssign nidx==2 branch. Both backends.
+TEST_P(CellTest, CellCommaListMultiAssign2D)
+{
+    eval("c = {1, 2, 3; 4, 5, 6};");  // 2x3
+    eval("[a, b, d] = c{1, :};");  // row 1 -> 1, 2, 3
+    EXPECT_DOUBLE_EQ(getVar("a"), 1.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 2.0);
+    EXPECT_DOUBLE_EQ(getVar("d"), 3.0);
+    eval("[x, y] = c{:, 2};");  // col 2, column-major -> 2, 5
+    EXPECT_DOUBLE_EQ(getVar("x"), 2.0);
+    EXPECT_DOUBLE_EQ(getVar("y"), 5.0);
+    eval("[p, q] = c{2, 1:2};");  // row 2, cols 1:2 -> 4, 5
+    EXPECT_DOUBLE_EQ(getVar("p"), 4.0);
+    EXPECT_DOUBLE_EQ(getVar("q"), 5.0);
+}
+
 // CSL: {c{:}} re-wraps the selected cell contents into a new cell literal; mixed
 // {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
 TEST_P(CellTest, CellCommaListInCellLiteral)

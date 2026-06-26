@@ -871,9 +871,35 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         }
     };
 
-    // Cell CSL: [a, b] = c{idx}
+    // Cell CSL: [a, b] = c{idx}  (1-D)  or  [a, b] = c{r, cols}  (2-D).
     if (rhsNode->type == NodeType::CELL_INDEX) {
+        size_t  nidx    = rhsNode->children.size() - 1;
         uint8_t cellReg = compileNode(rhsNode->children[0].get());
+
+        if (nidx == 2) {
+            // 2-D subscript [a,b]=c{r,:} / c{:,j}: resolveIndices per dim + sub2ind.
+            // Guard so `end` binds to the cell rows (dim 0) / cols (dim 1).
+            IndexContextGuard guard(*this, cellReg, 2);
+            uint8_t rowReg = compileNode(rhsNode->children[1].get());
+            guard.setDim(1);
+            uint8_t colReg = compileNode(rhsNode->children[2].get());
+            uint8_t outBase = nextReg_;
+            for (size_t i = 0; i < nout; ++i)
+                tempReg();
+            emit(Instruction::make_abcde(OpCode::CELL_GET_MULTI_2D,
+                                         outBase, cellReg, rowReg, colReg,
+                                         static_cast<uint8_t>(nout)));
+            distribute(outBase);
+            if (complex)
+                return nout ? outBase : 0;
+            return outRegs.empty() ? 0 : outRegs[0];
+        }
+        if (nidx != 1)  // 3-D+ cell CSL multi-assign — mirror the TreeWalker refusal.
+            throw std::runtime_error("Cell CSL with " + std::to_string(nidx)
+                                     + " indices not supported");
+
+        // 1-D subscript [a,b]=c{:} / c{vec}. Guard so `end` binds to the cell numel.
+        IndexContextGuard guard(*this, cellReg, 1);
         uint8_t idxReg = compileNode(rhsNode->children[1].get());
 
         uint8_t outBase = nextReg_;
@@ -4281,6 +4307,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CELL_SET_2D";
         case OpCode::CELL_GET_MULTI:
             return "CELL_GET_MULTI";
+        case OpCode::CELL_GET_MULTI_2D:
+            return "CELL_GET_MULTI_2D";
         case OpCode::CELL_GET_ND:
             return "CELL_GET_ND";
         case OpCode::CELL_SET_ND:
