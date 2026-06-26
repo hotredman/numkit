@@ -664,7 +664,7 @@ so a regression into silent mis-emission fails a test.
 | struct: scalar, ABI in/out, struct-arrays (SoA), const dynamic field | field-flatten `_nk_fld_*` + width-union STRUCT lattice |
 | cell: literals 1-D+2-D, read `c{i}`/`c{i,j}`, store `c{i}=v`/`c{i,j}=v` (auto-grow), slice `c(i)` | `nk_box_cell[_2d]` / `nk_cell_get[_2d]` / `nk_cell_set[_2d]`; slice rides `index_dyn` |
 | named function handle `@f` | `nk_make_handle`; call rides `index_dyn` → handle call |
-| capture-free closure `@(x)expr` | free-var analysis + `make_closure` (interpreter eval of the func2str source) |
+| anonymous closure `@(x)expr` -- capture-free OR capturing scalar locals `@(x) a*x+b` | free-var analysis (`collectAnonRefIds`); capture-free -> `make_closure`; captured scalar locals boxed by value -> `make_closure_captured` (the runtime snapshots them) |
 | formatting `num2str` / `sprintf` | bridged — interpreter owns the printf-style format; CHAR result via `bridge_to_vec_char` |
 | growable 1-D local (`x=[]`, `x(end+1)=v`) | owned `std::vector` + `index_set_grow` |
 | Dynamic value: binop/unop, condition-truth, indexing, call (typed+Dynamic+bridged), boxed return | `nk_rt::val` + `nk_binop`/`nk_unop`/`nk_truth`/`nk_index`/`call_dyn[v]` + boxed-`nk_val` return |
@@ -676,7 +676,7 @@ so a regression into silent mis-emission fails a test.
 | Construct | Why refused | Guard |
 |---|---|---|
 | CSL `c{:}` / `c{vec}` | multi-value (N args/outputs) — not a single `nk_val`; **also unimplemented in the interpreter itself** (errors "Cell index out of bounds" — `bugs/lang/cell-csl-expansion.md`), so compiling it would make codegen diverge from its own contract (the interpreter) | `CellCommaListRefusedUnderBridge` |
-| capturing closure `@(x) x+k` (k a local) | refused today (`ClosureCapturingLocalRefusedUnderBridge`). VIABLE but DEFERRED: a C-ABI `make_closure_captured(src, names, vals)` could bind the captured locals in a temp `Environment`, `eval(src, &scope)` so the closure's `snapshot(env)` captures them (no workspace pollution -- the snapshot is copied into the engine's `userFuncs_`). The free-var analysis (G5b `collectAnonRefIds`) already identifies the captures. Deferred for ~0 hot-path value: a closure created+called in compiled code would just be inlined; the real use (passing to a solver / `cellfun`) bridges the whole function anyway. | `ClosureCapturingLocalRefusedUnderBridge` |
+| capturing closure that captures a NON-scalar / Dynamic local, references a co-compiled user fn, or nests another anon | the SCALAR-capture case now COMPILES (covered row above -- `make_closure_captured` boxes each captured scalar local + the runtime snapshots it by value). Still refused: an array/Dynamic capture (v1 boxes with `val::scalar`), a co-compiled user-fn reference inside the body (unresolvable in the runtime), and a nested anon | `ClosureCapturingArrayLocalRefusedUnderBridge` |
 | nested anonymous function | inner param scope not modelled (v1) | (emit refusal) |
 | MUTUAL / POLYMORPHIC recursion | only DIRECT same-signature self-recursion is fixpoint-compiled (above); a mutual cycle (f↔g) or a self-call with a different arg signature breaks to Dynamic (no infinite monomorphisation) | — |
 | eval-family (`eval`/`evalin`/`assignin`/…) | code known only at runtime; mutate a workspace by name (§7) | (inference refusal) |
