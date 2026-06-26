@@ -601,6 +601,21 @@ std::string escapeBase(const std::string &base)
     return e;
 }
 
+// Escape a string's bytes for a C++ string literal. Returns false (via `ok`) if a byte is
+// not printable ASCII (a control byte would need octal/hex escaping we don't emit) -- the
+// caller refuses such a literal. Used to box a bridged CHAR ARG (e.g. a sprintf format).
+std::string cEscape(const std::string &s, bool &ok)
+{
+    ok = true;
+    std::string out;
+    for (unsigned char c : s) {
+        if (c < 32 || c > 126) { ok = false; return {}; }  // non-printable -> refuse
+        if (c == '\\' || c == '"') out += '\\';
+        out += static_cast<char>(c);
+    }
+    return out;
+}
+
 std::string mangle(const std::string &base, const std::vector<InferredType> &args)
 {
     std::string m = escapeBase(base);
@@ -6906,6 +6921,14 @@ void Emitter::emitAssign(const ASTNode &s)
                                      ? ("nk_box_complex_array(reinterpret_cast<const double*>("
                                         + aai.dataExpr + "), " + aai.lenVar + ")")
                                      : ("nk_box_array(" + aai.dataExpr + ", " + aai.lenVar + ")");
+                    } else if (arg.type == NodeType::STRING_LITERAL) {
+                        // a CHAR LITERAL arg (e.g. a sprintf format) boxes as a CHAR row.
+                        bool              ok  = false;
+                        const std::string esc = cEscape(arg.strValue, ok);
+                        if (!ok)
+                            unsupported("bridged call: char-literal arg with a non-printable byte "
+                                        "(v1)");
+                        boxed += "nk_box_string(\"" + esc + "\")";
                     } else {
                         if (inferExpr(arg, types_, reg_, classes_).type.dtype == ValueType::COMPLEX)
                             unsupported("bridged call: complex scalar argument (v1)");

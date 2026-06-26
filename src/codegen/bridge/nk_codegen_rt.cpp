@@ -119,6 +119,21 @@ nk_val nk_box_array(const double *p, size_t len)
     }
 }
 
+nk_val nk_box_string(const char *s)
+{
+    if (!s) return nullptr;
+    try {
+        size_t len = 0;
+        while (s[len]) ++len;
+        Value m = Value::matrix(1, len, numkit::ValueType::CHAR, nullptr);
+        char *d = m.charDataMut();  // one byte per code unit (Latin1/ASCII)
+        for (size_t i = 0; i < len; ++i) d[i] = s[i];
+        return make(std::move(m));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 nk_val nk_box_complex_array(const double *p, size_t len)
 {
     if (!p && len != 0) return nullptr;  // p: interleaved re,im (2*len doubles)
