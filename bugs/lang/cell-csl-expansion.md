@@ -1,6 +1,6 @@
 # lang.cell — `c{:}` comma-separated-list expansion errors ("Cell index out of bounds")
 
-- **Status:** ✅ FIXED (2026-06-26) for the common forms; rarer forms deferred (see below)
+- **Status:** ✅ FIXED (2026-06-27) — full 1-D + 2-D CSL surface, both backends; one deliberate gap (vector-variable subscript, see below)
 - **Severity:** P2 (a valid MATLAB form errors; CSL expansion is missing)
 - **Kind:** bug
 - **Found:** 2026-06-26 via the codegen CSL audit (multi-fire design item 1)
@@ -51,19 +51,37 @@ src/codegen/DESIGN.md §10a. **Codegen CSL support is BLOCKED on this interprete
 feature.**
 
 ## Fixed
-- Fixed 2026-06-26 for the COMMON forms, on BOTH backends:
-  - `[c{:}]` / `[c{vec}]` array-literal concatenation.
-  - `f(c{:})` SOLE-argument call (`max(c{:})`, `horzcat(c{:})`, `sum([c{:}])`, …).
-- TreeWalker: `cellBraceContents` (the selected contents as a list) feeds the
-  matrix-literal builder + the call-arg builder (`buildArgs`).
-- VM: opcode `HORZCAT_APPEND_CELL_CSL` (concat) + `CALL_VARARGS` (sole-arg call,
-  splices the cell contents as the call args). Commits e43b5d89 / c3357596 /
-  5676f0c7 / b55bb32d. Live guard: `BuiltinKnownBug.CellCommaListExpansion` +
-  `CellTest.CellCommaListConcat` / `CellCommaListCallArgs` (both backends).
-- DEFERRED (still error / single-value, documented v1 limits): mixed `f(a, c{:})`
-  (needs a per-arg CSL mask on the VM), `[a,b] = c{:}` multi-assign on the VM,
-  `{c{:}}` cell-literal (pre-sized 2-D path), a `c{vec}`/`c{i,:}` subscript in a
-  call arg. These remain to do; the bug stays partially open for them.
+- ✅ COMPLETE (2026-06-27) on BOTH backends across every CSL-consuming context, for
+  the full 1-D and 2-D subscript surface:
+  - **Concat** `[c{:}]` / `[c{vec}]` / `[c{1,:}]` / `[c{:,j}]`.
+  - **Call args** `f(c{:})` sole, mixed `f(a, c{:}, b)`, `f(c{vec})`, `f(c{1,:})`.
+  - **Cell literal** `{c{:}}` / `{c{vec}}` / `{c{1,:}}` / `{0, c{:}, 9}`.
+  - **Multi-assign** `[a,b] = c{:}` / `c{vec}` / `c{r,:}` / `c{:,j}`.
+  - **Multi-output call** `[a,b] = deal(c{:})` (and any named fn / builtin).
+- TreeWalker: `cellBraceContents` (1-D + 2-D) feeds the matrix-literal builder, the
+  cell-literal builder, the single- and multi-output call-arg builders, and
+  `execMultiAssign`.
+- VM opcodes: `HORZCAT_APPEND_CELL_CSL` / `_2D` (concat), `CELL_APPEND_ELEM` /
+  `CELL_APPEND_SLICE_2D` (cell-literal + lowered call args), `CALL_VARARGS` /
+  `CALL_VARARGS_MULTI` (call-arg splicing), `CELL_GET_MULTI` / `_2D` (multi-assign).
+  Commits e43b5d89 / c3357596 / 5676f0c7 / b55bb32d / cf0651d6 / be739aa1 / 9453ca73 /
+  8f8881e8 / f7da641d / 20472d63 / d32f644d / 43b32f4e. Live guards: the `CellTest`
+  `CellCommaList*` family (both backends) + `BuiltinKnownBug.CellCommaListExpansion`.
+
+## Deliberate residual gap (NOT a defect)
+A **vector-VARIABLE** subscript in a call arg or cell literal — `idx=[1 3]; f(c{idx})`
+or `{c{idx}}` — stays the single-value `CELL_GET` path and errors for a vector `idx`.
+This is a deliberate, sound refusal, not an oversight:
+1. The scalar-vs-vector nature of a variable subscript is only known at runtime, and
+   `f(c{i})` (scalar loop variable) is a hot pattern that must stay on the cheap path.
+2. The CSL call path (`CALL_VARARGS`) only dispatches user functions and external
+   builtins — it refuses class ctors / object methods / callback builtins. Routing an
+   ambiguous variable subscript through it would risk breaking `MyClass(c{i})` etc.
+The CSL detection is therefore scoped to **syntactically-multi** subscripts (bare
+colon, range `c{1:2}`, vector literal `c{[1 3]}`), where splicing is unambiguous.
+Workaround for a dynamic subset: `tmp = c(idx); f(tmp{:});` (concat and multi-assign
+already accept a variable subscript via `resolveIndices`, so `[c{idx}]` / `[a,b]=c{idx}`
+work directly).
 
 ## References
 - src/core/src/tree_walker.cpp (`execCellIndex`, `cellBraceContents`, `buildArgs`)
