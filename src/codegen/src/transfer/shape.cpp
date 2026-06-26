@@ -797,6 +797,24 @@ InferredType identityShape1or2Transfer(const std::vector<ArgInfo> &args)
     return args[0].type;
 }
 
+// num2str(x) -> a CHAR row (1-D, runtime length). v1: a 1-arg scalar/vector x -> a 1-D char
+// row; a matrix / N-D x (-> a 2-D char) is deferred -> Dynamic. The runtime owns the exact
+// format (the call is BRIDGED); the transfer only supplies the CHAR-array result TYPE so the
+// bridge unboxes a char array (bridge_to_vec_char). G3.
+InferredType num2strTransfer(const std::vector<ArgInfo> &args)
+{
+    if (args.size() != 1 || !args[0].type.isConcrete()) return InferredType::dynamic();
+    switch (args[0].type.shape.kind) {
+    case ShapeKind::Scalar:
+    case ShapeKind::RowVector:
+    case ShapeKind::ColVector:
+    case ShapeKind::Unknown:
+        return InferredType::concrete(ValueType::CHAR, Shape::unknown());
+    default:
+        return InferredType::dynamic();  // matrix / N-D x -> 2-D char, deferred
+    }
+}
+
 } // namespace
 
 void registerShapeTransfers(TransferRegistry &reg)
@@ -864,6 +882,7 @@ void registerShapeTransfers(TransferRegistry &reg)
     for (const char *n : {"upper", "lower"})  // char case transform (native, same shape)
         reg.add(n, identityShapeTransfer);
     reg.add("sort", sortTransfer);  // sort(x[, 'ascend'|'descend']) -> same shape (native std::sort)
+    reg.add("num2str", num2strTransfer);  // num2str(scalar/vec) -> CHAR row (bridged; G3)
 }
 
 } // namespace numkit::codegen

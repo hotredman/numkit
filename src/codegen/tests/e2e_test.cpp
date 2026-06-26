@@ -6875,6 +6875,75 @@ TEST(CodegenBridge, BridgedScalarCallRunsAndMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[1], 2.0);  // gamma(3) = 2! exactly
 }
 
+// G3: a bridged CHAR-array result (num2str) -- compiles in BRIDGED mode, links nk_codegen_rt,
+// unboxes the char array via bridge_to_vec_char (new C-ABI nk_unbox_char_array), RUNS, and
+// matches the interpreter (the bridge calls the same runtime num2str, so the format is the
+// interpreter's BY CONSTRUCTION -- no C++ format-replication, no divergence).
+TEST(CodegenBridge, BridgedNum2strCharArrayRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer lex("function r = f(x)\n  s = num2str(x);\n  r = s(1) + numel(s) * 1000;\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &c : root->children)
+        if (c && c->type == numkit::NodeType::FUNCTION_DEF) fn = c.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::bridge_to_vec_char(\"num2str\""), std::string::npos)
+        << "a CHAR-array bridged result must unbox via bridge_to_vec_char";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_bridged_num2str_e2e.exe").string();
+    const std::string outTxt = (base / "nk_bridged_num2str_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  std::fprintf(g, \"%.17g\\n\", f(42.0));\n"  // num2str(42)='42': '4'(52) + 2*1000 = 2052
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 1u);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval("s = num2str(42); s(1) + numel(s) * 1000", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+    EXPECT_DOUBLE_EQ(got[0], 2052.0);  // num2str(42)='42': '4'=52, numel=2 -> 52 + 2000
+}
+
 // DYNAMIC TIER end-to-end (DESIGN.md §10 C1): an un-typeable value stays BOXED
 // (nk_rt::val) and its operations dispatch to the runtime. `mod` has no codegen
 // transfer -> z is Dynamic; a Value-tier comparison steers a typed branch (the

@@ -20,6 +20,7 @@
 #define NK_CODEGEN_RT_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -107,6 +108,10 @@ NK_RT_API void   nk_unbox_array(nk_val v, double *out, size_t len);  /* copies m
  * Handles a REAL result too (imag = 0) — numkit may narrow a zero-imag complex
  * result back to a real array. */
 NK_RT_API void   nk_unbox_complex_array(nk_val v, double *out, size_t len);
+/* Char-array unbox: copies the result's char CODE UNITS (one per element) into
+ * `out` (a uint16 buffer, the codegen's char width); copies min(len,numel). For a
+ * CHAR result of num2str/sprintf/... — the runtime owns the formatting. */
+NK_RT_API void   nk_unbox_char_array(nk_val v, uint16_t *out, size_t len);
 NK_RT_API size_t nk_numel(nk_val v);
 
 /* Duplicate a handle: a new OWNED handle holding a copy of `v`'s value (the

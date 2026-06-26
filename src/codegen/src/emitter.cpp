@@ -6870,7 +6870,10 @@ void Emitter::emitAssign(const ASTNode &s)
             && !arrays_.at(name).isND  // 1-D dest only; an N-D bridge needs dim handling
             && (arrays_.at(name).isOutput || arrays_.at(name).isLocal)
             && (arrays_.at(name).dtype == ValueType::DOUBLE
-                || arrays_.at(name).dtype == ValueType::COMPLEX)
+                || arrays_.at(name).dtype == ValueType::COMPLEX
+                // a CHAR (uint16) result is bridged into a LOCAL only (num2str/sprintf/...);
+                // there is no bridge_into_char for a fixed output out-param.
+                || (arrays_.at(name).dtype == ValueType::CHAR && arrays_.at(name).isLocal))
             && rhs.type == NodeType::CALL && !rhs.children.empty()
             && rhs.children[0]->type == NodeType::IDENTIFIER
             // An elementwise-math call (sin/erf/…) lowers NATIVELY below — only
@@ -6885,7 +6888,8 @@ void Emitter::emitAssign(const ASTNode &s)
             const AbstractValue res = inferExpr(rhs, types_, reg_, classes_);
             if (res.type.isConcrete() && !res.type.shape.isScalar()
                 && (res.type.dtype == ValueType::DOUBLE
-                    || res.type.dtype == ValueType::COMPLEX)) {
+                    || res.type.dtype == ValueType::COMPLEX
+                    || res.type.dtype == ValueType::CHAR)) {
                 const ArrayInfo  &ai     = arrays_.at(name);
                 const std::string callee = rhs.children[0]->strValue;
                 const std::size_t nargs  = rhs.children.size() - 1;
@@ -6912,9 +6916,12 @@ void Emitter::emitAssign(const ASTNode &s)
                 // fills its fixed, caller-sized out-param (bridge_into). A COMPLEX
                 // result routes to the _cx variants (complex unbox).
                 const bool        cx   = res.type.dtype == ValueType::COMPLEX;
+                const bool        ch   = res.type.dtype == ValueType::CHAR;  // -> bridge_to_vec_char
                 const std::string fn   =
-                    ai.isLocal ? (cx ? "nk_rt::bridge_to_vec_cx(\"" : "nk_rt::bridge_to_vec(\"")
-                               : (cx ? "nk_rt::bridge_into_cx(\"" : "nk_rt::bridge_into(\"");
+                    ai.isLocal
+                        ? (ch ? "nk_rt::bridge_to_vec_char(\""
+                              : (cx ? "nk_rt::bridge_to_vec_cx(\"" : "nk_rt::bridge_to_vec(\""))
+                        : (cx ? "nk_rt::bridge_into_cx(\"" : "nk_rt::bridge_into(\"");
                 const std::string dest = ai.isLocal ? (", " + name + ");")
                                                     : (", " + name + ", " + ai.lenVar + ");");
                 if (nargs == 0) {
@@ -8818,6 +8825,17 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    if (!r || err.code) { nk_release(r);\n"
            "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
            "    out.resize(nk_numel(r)); nk_unbox_array(r, out.data(), out.size()); nk_release(r);\n"
+           "}\n"
+           "// Char-result variant: unbox a CHAR array result into an owned uint16 vector (the\n"
+           "// codegen's char width); the runtime owns the formatting (num2str/sprintf/...).\n"
+           "inline void bridge_to_vec_char(const char* name, nk_val* args, std::size_t nargs,\n"
+           "                               std::vector<std::uint16_t>& out) {\n"
+           "    nk_error err; err.code = 0;\n"
+           "    nk_val r = nk_call(name, args, nargs, 1, nullptr, &err);\n"
+           "    for (std::size_t i = 0; i < nargs; ++i) nk_release(args[i]);\n"
+           "    if (!r || err.code) { nk_release(r);\n"
+           "        throw std::runtime_error(err.code ? err.message : \"numkit bridged call failed\"); }\n"
+           "    out.resize(nk_numel(r)); nk_unbox_char_array(r, out.data(), out.size()); nk_release(r);\n"
            "}\n"
            "// Complex-result variants: unbox a complex array result via the\n"
            "// interleaved-re,im C ABI (reinterpret the std::complex buffer).\n"
