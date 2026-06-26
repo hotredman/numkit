@@ -1133,6 +1133,22 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
         return "nk_rt::cell_get(" + emitDynamicExpr(*e.children[0]) + ", "
                + emitExpr(*e.children[1]) + ")";
     }
+    case NodeType::ANON_FUNC: {
+        // @funcName -> a named function handle (G5a). Discriminator: NO body child
+        // (an anonymous @(params)expr always carries one). The name resolves in the
+        // runtime registry; a co-compiled user spec is NOT resolvable there -> refuse.
+        // @(params)expr CLOSURES are refused: a free variable that is a compiled
+        // local cannot bind through the interpreter workspace (unsound), and an
+        // anon fn fed to a solver bridges the whole function anyway.
+        if (!e.children.empty())
+            unsupported("Dynamic tier: @(params) closure creation (v1: only @funcName handles)");
+        if (e.strValue.empty())
+            unsupported("Dynamic tier: anonymous function handle with no name");
+        if (ctx_ && ctx_->funcs && ctx_->funcs->has(e.strValue))
+            unsupported("Dynamic tier: @" + e.strValue + " names a co-compiled user function "
+                        "(not resolvable by name in the runtime registry) (v1)");
+        return "nk_rt::make_handle(\"" + e.strValue + "\")";
+    }
     default:
         unsupported("Dynamic tier: expression node kind");
     }
@@ -9020,6 +9036,11 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    if (!c.get()) c = val::cell({});\n"
            "    nk_error e; e.code = 0; nk_cell_set(c.get(), idx1, v.get(), &e);\n"
            "    if (e.code) throw std::runtime_error(e.message); }\n"
+           "// A named function handle @name (G5). Resolves in the runtime registry, so\n"
+           "// the name is a builtin / engine function -- a co-compiled user spec is\n"
+           "// refused at emit time. The result is a Dynamic value (called via index_dyn).\n"
+           "inline val make_handle(const char* name) {\n"
+           "    nk_error e; e.code = 0; return _checked(nk_make_handle(name, &e), e); }\n"
            "// Multi-output bridged call: `[o0, o1, ...] = name(args)`. Returns output\n"
            "// 0; outputs 1..nargout-1 are written (owned) into extra[0..nargout-2].\n"
            "// Args borrowed (their val owners release them). Errors throw.\n"
