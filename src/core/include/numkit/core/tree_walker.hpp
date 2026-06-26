@@ -171,6 +171,11 @@ private:
     std::vector<Value> execSuperCall(const ASTNode *superRef, const ASTNode *callNode,
                                      Environment *env, size_t nargout);
     Value execCellIndex(const ASTNode *node, Environment *env);
+    // The SELECTED contents of a single-subscript cell brace-index node `c{sub}`
+    // as a comma-separated list: c{:} -> all elements (column-major); c{vec} ->
+    // the indexed elements; c{i} -> exactly one. Throws if the base is not a cell.
+    // Shared by every CSL-consuming site (array literal, call args, cell literal).
+    std::vector<Value> cellBraceContents(const ASTNode *node, Environment *env);
     Value execFieldAccess(const ASTNode *node, Environment *env);
     Value execMatrixLiteral(const ASTNode *node, Environment *env);
     Value execCellLiteral(const ASTNode *node, Environment *env);
