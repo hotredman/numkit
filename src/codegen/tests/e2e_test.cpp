@@ -10957,3 +10957,49 @@ TEST(CodegenE2E, EmptyInitLoopBuild)
     const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// Struct ARRAY s(i).f via SoA (G2.5): a struct array's fields are parallel GROWABLE arrays --
+// s(i).a maps to the field-array _nk_fld_s_a indexed at i. s(i).a=v grows _nk_fld_s_a (the growth
+// tier); s(i).a reads index it. v1: scalar fields, 1-D struct array, single index.
+// NB: built by explicit indexed writes (each unconditional), not a bare loop -- a struct array
+// built ONLY inside a loop is maybe-undef after it (the loop may run 0 times), the same
+// pre-existing limitation as any loop-built array without a pre-init (e.g. x=[]); such a struct
+// array has no pre-init syntax, so it stays bridged. Bit-exact vs the interpreter.
+TEST(CodegenE2E, StructArraySoA)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  s(1).a = 5;\n"   // _nk_fld_s_a = [5]
+        "  s(2).a = 6;\n"   // grows -> [5 6]
+        "  s(1).b = 70;\n"  // _nk_fld_s_b = [70]
+        "  s(2).b = 80;\n"  // grows -> [70 80]
+        "  r = s(1).a + s(2).a * 10 + s(1).b * 100 + s(2).b * 1000;\n";
+    const EmittedFunction emitted =
+        transpile(std::string("function r = f()\n") + body + "end\n", {});
+    EXPECT_NE(emitted.source.find("_nk_fld_s_a"), std::string::npos)
+        << "struct-array fields must flatten to parallel field-arrays";
+    EXPECT_NE(emitted.source.find("index_set_grow"), std::string::npos)
+        << "an out-of-range struct-array field store must grow the field-array";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_structarr_soa_e2e.exe").string();
+    const std::string outTxt = (base / "nk_structarr_soa_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f();\n"  // 5 + 6*10 + 70*100 + 80*1000 = 87065
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 87065.0);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string(body) + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}

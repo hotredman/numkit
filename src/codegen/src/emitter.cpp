@@ -926,6 +926,15 @@ std::string Emitter::emitExpr(const ASTNode &e)
     }
     case NodeType::FIELD_ACCESS: {  // obj.field read -> obj.field / obj->field
         if (e.children.empty()) unsupported("field access arity");
+        // s(i).a : struct-ARRAY field read (SoA, G2.5) -> index the field-array _nk_fld_s_a at
+        // i (s is not a value; only its field-arrays exist). Matched before inferring the base.
+        if (e.children[0]->type == NodeType::CALL && !e.children[0]->children.empty()
+            && e.children[0]->children[0]->type == NodeType::IDENTIFIER) {
+            const std::string sv  = e.children[0]->children[0]->strValue;
+            const std::string fld = "_nk_fld_" + sv + "_" + e.strValue;
+            if (isArrayVar(fld) && !types_.has(sv))
+                return emitIndexRead(fld, *e.children[0]);  // _nk_fld_s_a indexed by s(i)'s subscript
+        }
         const AbstractValue base = inferExpr(*e.children[0], types_, reg_, classes_);
         // Plain struct: the synthesized field-local (field-flattening), generalised
         // to a NESTED chain s.a.b via the chain helper. The immediate base being
@@ -7675,6 +7684,23 @@ void Emitter::emitAssign(const ASTNode &s)
 
     if (lhs.type == NodeType::FIELD_ACCESS) {  // obj.field = rhs
         if (lhs.children.empty()) unsupported("field write arity");
+        // s(i).a = v : struct-ARRAY field write (SoA, G2.5) -> _nk_fld_s_a(i) = v, GROWABLE
+        // (index_set_grow), so s(i).a=v in a loop builds the field-array. s is not a value;
+        // only its field-arrays exist -> matched before inferring the base / structFieldLocal.
+        if (lhs.children[0]->type == NodeType::CALL && lhs.children[0]->children.size() == 2
+            && lhs.children[0]->children[0]->type == NodeType::IDENTIFIER) {
+            const std::string sv  = lhs.children[0]->children[0]->strValue;
+            const std::string fld = "_nk_fld_" + sv + "_" + lhs.strValue;
+            if (isArrayVar(fld) && !types_.has(sv) && arrays_.at(fld).isLocal
+                && !arrays_.at(fld).is2D && !arrays_.at(fld).isND) {
+                const ArrayInfo &fa = arrays_.at(fld);
+                endStack_.push_back(fa.lenVar);
+                const std::string idx = emitExpr(*lhs.children[0]->children[1]);
+                endStack_.pop_back();
+                line("nk_rt::index_set_grow(" + fld + ", " + idx + ", " + emitExpr(rhs) + ");");
+                return;
+            }
+        }
         const AbstractValue base = inferExpr(*lhs.children[0], types_, reg_, classes_);
         // Plain struct: flatten `s.f = rhs` to a synthesized field-local (field-
         // flattening; no struct type), generalised to a NESTED chain s.a.b via the
