@@ -247,6 +247,11 @@ private:
     uint8_t compileIdentifier(const ASTNode *node);
     uint8_t compileAssign(const ASTNode *node);
     uint8_t compileMultiAssign(const ASTNode *node);
+    // Build a runtime {args...} cell from a call's argument nodes, expanding any
+    // cell-CSL arg (c{:} / c{vec} / c{r,:}) into its selected contents; returns the
+    // accumulator register. Shared by the CSL lowering in compileCall (mixed args)
+    // and compileCallMulti (multi-output). firstArg = index of the first arg child.
+    uint8_t buildCslArgCell(const ASTNode *node, size_t firstArg);
     uint8_t compileBinaryOp(const ASTNode *node);
     uint8_t compileUnaryOp(const ASTNode *node);
     uint8_t compileExprStmt(const ASTNode *node);
