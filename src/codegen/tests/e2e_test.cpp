@@ -10838,3 +10838,43 @@ TEST(CodegenE2E, StructReturnAcrossABI)
     ASSERT_EQ(got.size(), 1u);
     EXPECT_DOUBLE_EQ(got[0], 75.0);  // 5 + 7*10
 }
+
+// Growable 1-D local array (lifts the fixed-size limit): x(i)=v PAST the end of a LOCAL owned
+// vector grows it, zero-filling the gap (MATLAB semantics). x=1:3 then x(5)=99 -> [1 2 3 0 99].
+// The owned std::vector resizes; numel and later reads see the new length. (A param / output
+// raw buffer still cannot grow -> the throwing index_set.) Foundation for dynamic arrays + G2.5.
+TEST(CodegenE2E, GrowLocalVectorByIndex)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  x = 1:n;\n"
+        "  x(n + 2) = 99;\n"  // grow by 2: the gap x(n+1) becomes 0, x(n+2)=99
+        "  r = numel(x) * 1000 + x(n + 2) * 10 + x(n + 1);\n";
+    const EmittedFunction emitted = transpile(
+        std::string("function r = f(n)\n") + body + "end\n",
+        {{"n", InferredType::scalar(ValueType::DOUBLE)}});
+    EXPECT_NE(emitted.source.find("index_set_grow"), std::string::npos)
+        << "a 1-D local indexed store must use the growing helper";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_grow1d_e2e.exe").string();
+    const std::string outTxt = (base / "nk_grow1d_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f(3.0);\n"  // x=[1 2 3]->[1 2 3 0 99]: 5*1000 + 99*10 + 0 = 5990
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 5990.0);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string("n=3;\n") + body + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
