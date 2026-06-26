@@ -431,6 +431,28 @@ nk_val nk_cell_get(nk_val c, double idx1, nk_error *err)
     }
 }
 
+nk_val nk_cell_get_2d(nk_val c, double i1, double j1, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        const Value *cv = unwrap(c);
+        if (!cv) throw std::runtime_error("nk_cell_get_2d: null handle");
+        if (!cv->isCell())
+            throw std::runtime_error("Cell indexing {}-operator requires a cell array");
+        // Mirror execCellIndex nidx==2: checkedScalarIndex per subscript, then
+        // sub2indChecked (the bounds-checked column-major (r,c)->linear map).
+        const size_t r  = Value::checkedScalarIndex(i1);
+        const size_t cc = Value::checkedScalarIndex(j1);
+        return make(cv->cellAt(cv->dims().sub2indChecked(r, cc)));  // content (a copy)
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
+}
+
 void nk_cell_set(nk_val c, double idx1, nk_val v, nk_error *err)
 {
     if (err) { err->code = 0; err->message[0] = '\0'; }
