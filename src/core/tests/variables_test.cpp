@@ -145,6 +145,28 @@ TEST_P(CellTest, CellCommaListCallArgs)
     EXPECT_DOUBLE_EQ(getVar("p"), 11.0);
 }
 
+// CSL: {c{:}} re-wraps the selected cell contents into a new cell literal; mixed
+// {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
+TEST_P(CellTest, CellCommaListInCellLiteral)
+{
+    if (GetParam() != BackendParam::TreeWalker)
+        GTEST_SKIP() << "VM cell-literal CSL is a follow-up brick";
+    eval("c = {3, 8, 4};");
+    eval("d = {c{:}};");  // re-wrap the contents -> {3, 8, 4}
+    auto *d = getVarPtr("d");
+    ASSERT_NE(d, nullptr);
+    ASSERT_TRUE(d->isCell());
+    ASSERT_EQ(d->numel(), 3u);
+    EXPECT_DOUBLE_EQ(d->cellAt(0).toScalar(), 3.0);
+    EXPECT_DOUBLE_EQ(d->cellAt(2).toScalar(), 4.0);
+    eval("e = {0, c{:}, 9};");  // mixed -> {0, 3, 8, 4, 9}
+    auto *e = getVarPtr("e");
+    ASSERT_TRUE(e->isCell());
+    ASSERT_EQ(e->numel(), 5u);
+    EXPECT_DOUBLE_EQ(e->cellAt(0).toScalar(), 0.0);
+    EXPECT_DOUBLE_EQ(e->cellAt(4).toScalar(), 9.0);
+}
+
 INSTANTIATE_DUAL(CellTest);
 
 // ============================================================
