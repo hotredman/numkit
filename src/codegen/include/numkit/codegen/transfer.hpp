@@ -58,6 +58,8 @@ using TransferFn = std::function<InferredType(const std::vector<ArgInfo> &)>;
 // TransferFn for functions/methods that can produce several outputs.
 using MultiTransferFn = std::function<std::vector<InferredType>(const std::vector<ArgInfo> &)>;
 
+class FunctionTable;  // monomorphize.hpp — the co-compiled user functions
+
 // builtin name -> transfer function. A name with no entry yields Dynamic
 // (the sound fallback: unknown builtin -> boxed Value).
 class TransferRegistry {
@@ -67,6 +69,14 @@ public:
 
     bool         has(const std::string &name) const;
     std::size_t  size() const;
+
+    // The co-compiled user-function table (set by registerUserFunctions), so the
+    // inference can tell a USER function from a builtin -- e.g. to type a bare
+    // `c = f(x)` on a MULTI-output user fn as f's FIRST output (MATLAB single-LHS
+    // semantics), a projection a builtin like `size` does NOT share. Borrowed
+    // (same lifetime as the registry's user transfers); null until set.
+    void                 setUserFunctions(const FunctionTable *t) { userFuncs_ = t; }
+    const FunctionTable *userFunctions() const { return userFuncs_; }
 
     // Result type for a call to `name` with `args`; Dynamic if `name`
     // has no registered transfer.
@@ -81,6 +91,7 @@ public:
 private:
     std::unordered_map<std::string, TransferFn>      table_;
     std::unordered_map<std::string, MultiTransferFn> multiTable_;
+    const FunctionTable                             *userFuncs_ = nullptr;  // borrowed
 };
 
 // Populate a registry with every standard transfer (dispatches to the

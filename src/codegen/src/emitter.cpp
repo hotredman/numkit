@@ -2670,6 +2670,62 @@ void Emitter::emitAssign(const ASTNode &s)
             }
         }
 
+        // `c = f(args)` where f is a co-compiled MULTI-output user fn: MATLAB binds c to f's
+        // FIRST output. Emit the spec call exactly as `[c, ~, ...] = f` would (same ABI):
+        // output 0 is c (a ref out-arg, or the BY-VALUE return for a leading 1-D array),
+        // outputs 1.. get throwaway out-params (the monomorphic spec always computes them).
+        // The inference (inferStmt) typed c as output 0 so it hoists correctly. A single-output
+        // user fn (outs.size() <= 1) falls through to the normal scalar/array assignment path.
+        if (rhs.type == NodeType::CALL && !rhs.children.empty()
+            && rhs.children[0]->type == NodeType::IDENTIFIER && ctx_ && ctx_->funcs
+            && !types_.has(rhs.children[0]->strValue)
+            && ctx_->funcs->has(rhs.children[0]->strValue)) {
+            const std::string &callee = rhs.children[0]->strValue;
+            const ASTNode     *def    = ctx_->funcs->find(callee);
+            std::vector<InferredType> argTypes;
+            std::string               argList;
+            for (std::size_t i = 1; i < rhs.children.size(); ++i)
+                appendCallArg(*rhs.children[i], argTypes, argList);
+            const std::vector<InferredType> outs =
+                (def && argTypes.size() == def->paramNames.size())
+                    ? reg_.applyMulti(callee, toArgInfos(argTypes))
+                    : std::vector<InferredType>{};
+            if (outs.size() > 1) {  // a genuine multi-output user fn in single-LHS context
+                const InferredType out0        = outs[0];
+                const bool         out0ByValue = isByValueReturnArrayType(out0);
+                if (!out0ByValue && !isUnboxableScalarType(out0))
+                    unsupported("c = f(x): first output of multi-output '" + callee
+                                + "' must be a scalar or a by-value 1-D array (v1)");
+                std::vector<std::string> ignoreDecls;
+                for (std::size_t i = 1; i < outs.size(); ++i) {
+                    if (!isUnboxableScalarType(outs[i]))
+                        unsupported("c = f(x): trailing output of '" + callee
+                                    + "' must be a scalar (v1)");
+                    const std::string tmp = "_nk_ignore_" + std::to_string(i);
+                    ignoreDecls.push_back(cppScalarType(outs[i].dtype) + " " + tmp + " = "
+                                          + zeroLiteral(outs[i].dtype) + ";");
+                }
+                if (!out0ByValue) {  // output 0 -> a ref out-arg (c)
+                    if (!argList.empty()) argList += ", ";
+                    argList += name;
+                }
+                for (std::size_t i = 1; i < outs.size(); ++i)
+                    argList += (argList.empty() ? "" : ", ") + ("_nk_ignore_" + std::to_string(i));
+                const std::string mangled = mangle(callee, argTypes);
+                if (ctx_->seen.insert(mangled).second)
+                    ctx_->pending.push_back({def, argTypes, mangled});
+                open("");  // fresh scope for the throwaway locals (no cross-statement collision)
+                for (const std::string &d : ignoreDecls) line(d);
+                if (out0ByValue)
+                    line(name + " = " + mangled + "(" + argList + ");");
+                else
+                    line(mangled + "(" + argList + ");");
+                close();
+                types_.set(name, {out0, ConstVal::unknown()});
+                return;
+            }
+        }
+
         // x = [] : empty a 1-D LOCAL vector (MATLAB empty matrix). The inference typed x as a
         // DOUBLE 1-D growable owned vector; emit a clear (idempotent on a fresh hoist). Enables
         // the loop-build idiom x=[]; for i; x(end+1)=..; end.

@@ -3,6 +3,7 @@
 #include <numkit/codegen/inference.hpp>
 
 #include <numkit/codegen/classinfo.hpp>
+#include <numkit/codegen/monomorphize.hpp>  // FunctionTable (user-fn lookup for `c = f(x)`)
 
 #include <vector>
 
@@ -687,6 +688,27 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
         const AbstractValue rhs = inferExpr(*stmt.children[1], env, reg, classes);
         if (lhs.type == NodeType::IDENTIFIER) {
             AbstractValue rv = rhs;
+            // `c = f(x)` where f is a co-compiled MULTI-output USER function: MATLAB binds c
+            // to f's FIRST output. inferExpr projects a multi-out fn to Dynamic (the single-
+            // output transfer); recover the precise first-output type here so c hoists typed
+            // and the emit can bind it (emitAssign mirrors this). Scoped to a DIRECT call to a
+            // USER fn -- a builtin (size/max) has its own single-output semantics, and a NESTED
+            // f(x) sub-expression stays Dynamic (the emit cannot use a void multi-out spec as a
+            // value there) -> sound fallback.
+            if (rv.type.isDynamic()) {
+                const ASTNode &rn = *stmt.children[1];
+                if (rn.type == NodeType::CALL && !rn.children.empty() && rn.children[0]
+                    && rn.children[0]->type == NodeType::IDENTIFIER
+                    && !env.has(rn.children[0]->strValue) && reg.userFunctions()
+                    && reg.userFunctions()->has(rn.children[0]->strValue)) {
+                    std::vector<ArgInfo> ats;
+                    for (std::size_t i = 1; i < rn.children.size(); ++i)
+                        ats.push_back(inferExpr(*rn.children[i], env, reg, classes).asArg());
+                    const std::vector<InferredType> outs =
+                        reg.applyMulti(rn.children[0]->strValue, ats);
+                    if (outs.size() > 1) rv = {outs[0], ConstVal::unknown()};
+                }
+            }
             // x = [] : MATLAB's empty matrix is 0x0 double. Type it as a growable DOUBLE 1-D
             // (Unknown length) so a later x(i)=v / x(end+1)=v GROWS it -- otherwise [] (which
             // infers Dynamic) would poison x's decl join to Dynamic and block the loop-build
