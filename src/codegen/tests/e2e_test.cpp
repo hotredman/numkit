@@ -11003,3 +11003,44 @@ TEST(CodegenE2E, StructArraySoA)
     const double interp = engine.eval(std::string(body) + "r", true).toScalar();
     EXPECT_DOUBLE_EQ(got[0], interp);
 }
+
+// Constant dynamic field s.('f') (G2.6): a CONSTANT-string dynamic field folds to the same
+// field-local as s.f, so static and constant-dynamic field access interoperate (read AND write).
+// (A runtime name s.(var) needs runtime field dispatch -> stays bridged.) Low-value tail of the
+// structural list. Bit-exact vs the interpreter.
+TEST(CodegenE2E, ConstDynamicField)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    const char *body =
+        "  s.a = 5;\n"         // static write
+        "  x = s.('a');\n"     // constant dynamic read -> 5
+        "  s.('b') = 7;\n"     // constant dynamic write
+        "  y = s.b;\n"         // static read -> 7
+        "  r = x * 10 + y;\n";  // 57
+    const EmittedFunction emitted =
+        transpile(std::string("function r = f()\n") + body + "end\n", {});
+    EXPECT_NE(emitted.source.find("_nk_fld_s_a"), std::string::npos)
+        << "a constant dynamic field must fold to the static field-local";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_dynfield_e2e.exe").string();
+    const std::string outTxt = (base / "nk_dynfield_e2e_out.txt").string();
+    std::string       program = emitted.source +
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  double r = f();\n"  // 5*10 + 7 = 57
+        "  std::FILE* h = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!h) return 2;\n"
+        "  std::fprintf(h, \"%.17g\\n\", r);\n"
+        "  std::fclose(h); return 0;\n}\n";
+
+    const std::vector<double> got = compileRunReadDoubles(program, exe, outTxt);
+    ASSERT_EQ(got.size(), 1u);
+    EXPECT_DOUBLE_EQ(got[0], 57.0);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval(std::string(body) + "r", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+}
