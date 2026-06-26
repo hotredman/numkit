@@ -3165,23 +3165,49 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
     }
 
-    // Sole-arg comma-separated-list call f(c{:}): the single argument is a cell
-    // whose contents are SPLICED as the call's args at runtime (CSL). Compile the
-    // cell + emit CALL_VARARGS. v1: exactly one arg, a bare colon c{:}; a mixed
-    // f(a, c{:}) or a c{vec} subscript falls through to the normal path (where the
-    // brace-colon would error -- the documented v1 limit).
-    if (nargs == 1) {
-        const ASTNode *arg = node->children[1].get();
-        if (arg->type == NodeType::CELL_INDEX && arg->children.size() == 2
-            && arg->children[1]->type == NodeType::COLON_EXPR
-            && arg->children[1]->children.empty()) {
-            uint8_t cellReg = compileNode(arg->children[0].get());
-            uint8_t dst     = tempReg();
-            int16_t funcIdx = addStringConstant(name);
-            emit(Instruction::make_abcde(OpCode::CALL_VARARGS, dst, cellReg, 0, funcIdx,
-                                         nargoutContext_));
-            return dst;
+    // Comma-separated-list call args f(a, c{:}, b): a bare-colon cell brace-index
+    // arg splices its contents into the call's argument list at runtime (CSL).
+    // Lower to CALL_VARARGS, which builds the runtime arg vector from a single cell
+    // and dispatches. v1: bare colon c{:} only (a c{vec} subscript falls through to
+    // the normal path, where the brace-colon errors -- the documented v1 limit);
+    // single output only (multi-output [a,b]=f(x,c{:}) has no varargs CALL_MULTI yet).
+    auto isCellColonCsl = [](const ASTNode *e) {
+        return e->type == NodeType::CELL_INDEX && e->children.size() == 2
+            && e->children[1]->type == NodeType::COLON_EXPR
+            && e->children[1]->children.empty();
+    };
+    bool anyCsl = false;
+    for (size_t i = 1; i < node->children.size(); ++i)
+        if (isCellColonCsl(node->children[i].get())) { anyCsl = true; break; }
+    if (anyCsl) {
+        uint8_t cellReg;
+        if (nargs == 1) {
+            // Sole c{:} arg IS the cell -> splice it directly, no intermediate build.
+            cellReg = compileNode(node->children[1]->children[0].get());
+        } else {
+            // Mixed f(a, c{:}, b): build a {a, c{:}, b} cell with CELL_APPEND_ELEM
+            // (reusing the cell-literal CSL machinery), then splice it. mode 1 =
+            // append a cell's contents (the c{:} args), mode 0 = append one element.
+            // Seeded via CELL_LITERAL so cellReg starts a fresh empty cell (the temp
+            // register may hold a stale Value).
+            cellReg = tempReg();
+            emitABC(OpCode::CELL_LITERAL, cellReg, 0, 0);
+            for (size_t i = 1; i < node->children.size(); ++i) {
+                const ASTNode *arg = node->children[i].get();
+                if (isCellColonCsl(arg)) {
+                    uint8_t src = compileNode(arg->children[0].get());
+                    emitABC(OpCode::CELL_APPEND_ELEM, cellReg, src, 1);
+                } else {
+                    uint8_t v = compileNode(arg);
+                    emitABC(OpCode::CELL_APPEND_ELEM, cellReg, v, 0);
+                }
+            }
         }
+        uint8_t dst     = tempReg();
+        int16_t funcIdx = addStringConstant(name);
+        emit(Instruction::make_abcde(OpCode::CALL_VARARGS, dst, cellReg, 0, funcIdx,
+                                     nargoutContext_));
+        return dst;
     }
 
     // Compile arguments into consecutive registers
