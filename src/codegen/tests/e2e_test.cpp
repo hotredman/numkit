@@ -7015,6 +7015,81 @@ TEST(CodegenBridge, BridgedSprintfRunsAndMatchesInterpreter)
     EXPECT_DOUBLE_EQ(got[0], 3052.0);  // '42!': '4'=52, numel=3 -> 52 + 3000
 }
 
+// G4a: a cell literal {a,b,c} + content extraction c{i} as Dynamic values. The
+// brace literal builds a Dynamic cell (nk_box_cell; each element boxed by the
+// Dynamic tier, reusing it whole), c{i} extracts content (nk_cell_get), and the
+// Dynamic chain r = c{1}+c{2}+c{3} returns via the boxed-nk_val ABI (A3.5).
+// Compiles, links the runtime DLL, runs, and diffs against the interpreter.
+TEST(CodegenBridge, BridgedCellLiteralAndContentGetRunsAndMatchesInterpreter)
+{
+    if (!aot::available())
+        GTEST_SKIP() << "no external compiler configured for this build";
+
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    numkit::Lexer  lex("function r = f(x)\n  c = {x, x + 1, x * 10};\n"
+                       "  r = c{1} + c{2} + c{3};\nend\n");
+    numkit::Parser         parser(lex.tokenize());
+    auto                   root = parser.parse();
+    const numkit::ASTNode *fn   = nullptr;
+    for (const auto &ch : root->children)
+        if (ch && ch->type == numkit::NodeType::FUNCTION_DEF) fn = ch.get();
+    ASSERT_NE(fn, nullptr);
+
+    BridgeOptions bridge;
+    bridge.enabled       = true;
+    bridge.runtimeHeader = "nk_codegen_rt.h";
+    const EmittedFunction emitted =
+        emitFunction(*fn, {{"x", InferredType::scalar(ValueType::DOUBLE)}}, reg, nullptr, bridge);
+    ASSERT_NE(emitted.source.find("nk_rt::val::cell({"), std::string::npos)
+        << "the brace literal must build a Dynamic cell";
+    ASSERT_NE(emitted.source.find("nk_rt::cell_get("), std::string::npos)
+        << "c{i} must extract content via the runtime";
+
+    auto base = std::filesystem::temp_directory_path() / "numkit_codegen_aot";
+    std::filesystem::create_directories(base);
+    const std::string exe    = (base / "nk_cell_e2e.exe").string();
+    const std::string outTxt = (base / "nk_cell_e2e_out.txt").string();
+    std::error_code   ec;
+    std::filesystem::remove(outTxt, ec);
+
+    std::string program = emitted.source;
+    program +=
+        "#include <cstdio>\n"
+        "int main() {\n"
+        "  std::FILE* g = std::fopen(\"" + fwd(outTxt) + "\", \"w\");\n"
+        "  if (!g) return 2;\n"
+        "  nk_val r = f(5.0);\n"  // {5, 6, 50}: 5 + 6 + 50 = 61
+        "  std::fprintf(g, \"%.17g\\n\", nk_unbox_scalar(r));\n"
+        "  nk_release(r);\n"
+        "  std::fclose(g); return 0;\n}\n";
+
+    aot::CompileOptions opts;
+    opts.includeDirs = {NK_BRIDGE_DIR};
+    opts.defines     = {"NK_RT_USE_DLL"};
+    opts.linkLibs    = {NK_RT_IMPORT_LIB};
+    const auto r = aot::compileToExecutable(program, exe, opts);
+    ASSERT_EQ(r.status, aot::CompileStatus::Ok)
+        << "log:\n" << r.log << "\n--- generated source ---\n" << program;
+
+    std::filesystem::copy_file(NK_RT_SHARED_DLL, base / "nk_codegen_rt.dll",
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    ASSERT_FALSE(ec) << "copy nk_codegen_rt.dll: " << ec.message();
+    ASSERT_EQ(std::system(("\"" + exe + "\"").c_str()), 0);
+
+    std::vector<double> got;
+    {
+        std::ifstream is(outTxt);
+        double        v;
+        while (is >> v) got.push_back(v);
+    }
+    ASSERT_EQ(got.size(), 1u);
+    numkit::StandardEngine engine;
+    const double interp = engine.eval("c = {5, 6, 50}; c{1} + c{2} + c{3}", true).toScalar();
+    EXPECT_DOUBLE_EQ(got[0], interp);
+    EXPECT_DOUBLE_EQ(got[0], 61.0);  // {5, 6, 50}: 5 + 6 + 50
+}
+
 // DYNAMIC TIER end-to-end (DESIGN.md §10 C1): an un-typeable value stays BOXED
 // (nk_rt::val) and its operations dispatch to the runtime. `mod` has no codegen
 // transfer -> z is Dynamic; a Value-tier comparison steers a typed branch (the

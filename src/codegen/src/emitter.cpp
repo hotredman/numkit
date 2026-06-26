@@ -1097,6 +1097,42 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
                    ? ("nk_rt::call_dyn(\"" + callee.strValue + "\", {" + args + "})")
                    : ("nk_rt::call_dynv(\"" + callee.strValue + "\", {" + args + "})");
     }
+    case NodeType::STRING_LITERAL: {
+        // a char literal as a Dynamic value -> box via nk_box_string (printable
+        // ASCII only; cEscape refuses a non-printable byte, sound).
+        bool              ok  = false;
+        const std::string esc = cEscape(e.strValue, ok);
+        if (!ok) unsupported("Dynamic tier: char-literal with a non-printable byte (v1)");
+        return "nk_rt::val::string(\"" + esc + "\")";
+    }
+    case NodeType::CELL_LITERAL: {
+        // a 1-row brace literal {e0, e1, ...} -> a Dynamic cell. The AST stores
+        // each row as a BLOCK child; v1 supports a single row ({} or {a,b,...}),
+        // a 2-D {a,b; c,d} is refused (-> interpreted fallback). Each element is
+        // boxed by emitDynamicExpr (scalar / Dynamic / array / string), so the
+        // whole Dynamic tier is reused with no per-element type tracking.
+        if (e.children.empty()) return "nk_rt::val::cell({})";  // {}
+        if (e.children.size() != 1 || !e.children[0] || e.children[0]->type != NodeType::BLOCK)
+            unsupported("Dynamic tier: only a 1-row cell literal {a,b,...} is supported (v1)");
+        std::string elems;
+        for (const auto &el : e.children[0]->children) {
+            if (!el) continue;
+            elems += (elems.empty() ? "" : ", ") + emitDynamicExpr(*el);
+        }
+        return "nk_rt::val::cell({" + elems + "})";
+    }
+    case NodeType::CELL_INDEX: {
+        // c{i} content extraction. v1: a single unboxed-scalar subscript (a CSL
+        // c{:} / c{vec}, or a 2-D c{i,j}, is multi-value / higher-rank -> refused
+        // -> interpreted fallback). The base is boxed (a Dynamic cell local).
+        if (e.children.size() != 2)
+            unsupported("Dynamic tier: only a single-subscript c{i} is supported (v1)");
+        const AbstractValue iv = inferExpr(*e.children[1], types_, reg_, classes_);
+        if (!isUnboxableScalarType(iv.type))
+            unsupported("Dynamic tier: cell content index must be an unboxed scalar (v1)");
+        return "nk_rt::cell_get(" + emitDynamicExpr(*e.children[0]) + ", "
+               + emitExpr(*e.children[1]) + ")";
+    }
     default:
         unsupported("Dynamic tier: expression node kind");
     }
@@ -8912,6 +8948,11 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "        return val(nk_box_complex_matrix(reinterpret_cast<const double*>(p), r, c)); }\n"
            "    static val complex_array_nd(const std::complex<double>* p, std::initializer_list<std::size_t> dims) {\n"
            "        return val(nk_box_complex_array_nd(reinterpret_cast<const double*>(p), dims.begin(), (int)dims.size())); }\n"
+           "    static val string(const char* s) { return val(nk_box_string(s)); }\n"
+           "    static val cell(std::initializer_list<val> elems) {\n"
+           "        std::vector<nk_val> ev; ev.reserve(elems.size());\n"
+           "        for (const val& e : elems) ev.push_back(e.get());\n"
+           "        return val(nk_box_cell(ev.data(), ev.size())); }\n"
            "    double to_scalar() const { return nk_unbox_scalar(h_); }\n"
            "    bool truth() const {\n"
            "        nk_error e; e.code = 0; int t = nk_truth(h_, &e);\n"
@@ -8950,6 +8991,11 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "    for (const val& s : subs) sv.push_back(s.get());\n"
            "    nk_error e; e.code = 0;\n"
            "    return _checked(nk_index(a.get(), sv.data(), sv.size(), &e), e); }\n"
+           "// Content extraction c{i} -> a new Dynamic value (G4). `idx1` is the\n"
+           "// 1-based index as a double; the runtime applies the interpreter's\n"
+           "// integer/range check. Throws on a non-cell / out-of-range index.\n"
+           "inline val cell_get(const val& c, double idx1) {\n"
+           "    nk_error e; e.code = 0; return _checked(nk_cell_get(c.get(), idx1, &e), e); }\n"
            "// Multi-output bridged call: `[o0, o1, ...] = name(args)`. Returns output\n"
            "// 0; outputs 1..nargout-1 are written (owned) into extra[0..nargout-2].\n"
            "// Args borrowed (their val owners release them). Errors throw.\n"

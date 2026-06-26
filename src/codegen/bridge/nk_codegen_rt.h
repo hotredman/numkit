@@ -53,6 +53,15 @@ NK_RT_API nk_val nk_box_array(const double *p, size_t len);  /* copies the data 
 /* Box a NUL-terminated C string as a 1 x len CHAR row (one byte per code unit) -- for a
  * bridged char ARG such as a sprintf format string. */
 NK_RT_API nk_val nk_box_string(const char *s);
+/* Cell construction: build a 1 x n cell from n boxed elements (BORROWED; each
+ * element is deep-copied into the cell). For a brace literal {e1,...,en} in
+ * compiled code. Returns owned; NULL on failure. */
+NK_RT_API nk_val nk_box_cell(const nk_val *elems, size_t n);
+/* Content extraction c{idx} -- a 1-based linear index passed as a double to
+ * preserve the interpreter's integer/range check. Returns the content of cell
+ * `idx` (owned). SINGLE element only: a CSL c{:} / c{vec} is multi-value and the
+ * codegen refuses it. Non-cell / out-of-range / non-integer idx -> NULL + *err. */
+NK_RT_API nk_val nk_cell_get(nk_val c, double idx1, nk_error *err);
 /* Complex array: `p` is interleaved re,im — `len` complex elements = 2*len
  * doubles, matching std::complex<double>[len] (codegen passes a
  * reinterpret_cast<const double*> of its std::complex buffer). */
