@@ -130,6 +130,26 @@ TEST_P(CellTest, CellCommaListConcat)
     EXPECT_DOUBLE_EQ(u->doubleData()[1], 4.0);
 }
 
+// CSL: f(c{:}) expands the cell's contents into the argument list. (TreeWalker;
+// VM is a follow-up brick.)
+TEST_P(CellTest, CellCommaListCallArgs)
+{
+    if (GetParam() != BackendParam::TreeWalker)
+        GTEST_SKIP() << "VM cell-CSL is a follow-up brick";
+    eval("c = {3, 8};");
+    eval("m = max(c{:});");  // max(3, 8) = 8 (a 2-arg builtin via CSL)
+    EXPECT_DOUBLE_EQ(getVar("m"), 8.0);
+    eval("d = {3, 8, 4};");
+    eval("h = horzcat(d{:});");  // horzcat(3, 8, 4) = [3 8 4] (N-arg via CSL)
+    auto *h = getVarPtr("h");
+    ASSERT_NE(h, nullptr);
+    ASSERT_EQ(h->numel(), 3u);
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(h->doubleData()[2], 4.0);
+    eval("p = plus(c{:});");  // plus(3, 8) = 11
+    EXPECT_DOUBLE_EQ(getVar("p"), 11.0);
+}
+
 INSTANTIATE_DUAL(CellTest);
 
 // ============================================================

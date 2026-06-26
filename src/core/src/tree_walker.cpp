@@ -2002,8 +2002,16 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
     auto buildArgs = [&]() {
         std::vector<Value> args;
         args.reserve(node->children.size() - 1);
-        for (size_t i = 1; i < node->children.size(); ++i)
-            args.push_back(execNode(node->children[i].get(), env));
+        for (size_t i = 1; i < node->children.size(); ++i) {
+            // CSL: a single-subscript cell brace-index arg f(.., c{:}, ..) expands
+            // its selected contents into the argument list (a comma-separated list).
+            const ASTNode *a = node->children[i].get();
+            if (a->type == NodeType::CELL_INDEX && a->children.size() == 2) {
+                for (auto &v : cellBraceContents(a, env)) args.push_back(std::move(v));
+                continue;
+            }
+            args.push_back(execNode(a, env));
+        }
         return args;
     };
 
@@ -2272,6 +2280,30 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
     return obj.cellAt(idx);
 }
 
+std::vector<Value> TreeWalker::cellBraceContents(const ASTNode *node, Environment *env)
+{
+    // SINGLE-subscript only (the caller gates on children.size() == 2). c{:} (a bare
+    // colon) -> all elements column-major; c{vec}/c{i} -> the indexed elements via
+    // the interpreter's own resolveIndices (1-based, bounds-checked; `end` resolves
+    // to numel through the index-context guard). The base is evaluated ONCE here.
+    Value obj = execNode(node->children[0].get(), env);
+    if (!obj.isCell())
+        throw std::runtime_error("Cell contents indexing requires a cell array");
+    std::vector<Value> out;
+    const ASTNode     *sub = node->children[1].get();
+    if (sub->type == NodeType::COLON_EXPR && sub->children.empty()) {
+        out.reserve(obj.numel());
+        for (size_t i = 0; i < obj.numel(); ++i)
+            out.push_back(obj.cellAt(i));
+    } else {
+        IndexContextGuard guard(indexContextStack_, {&obj, 0, 1});
+        Value             idxv = execNode(sub, env);
+        for (size_t id : Value::resolveIndices(idxv, obj.numel()))
+            out.push_back(obj.cellAt(id));
+    }
+    return out;
+}
+
 Value TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
 {
     // Resolve the root once. When it is a bare identifier that is NOT a
@@ -2424,25 +2456,13 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
                 // Single struct or non-struct base — fall through to the
                 // generic execNode path so existing semantics apply.
             }
-            // CSL: c{:} / c{vec} over a cell expands to one rowElem per selected
-            // content (a brace colon/vector is a comma-separated list). c{i} (scalar)
-            // yields exactly one, matching the prior single-value path. Cell brace-
-            // index only; a multi-subscript c{i,j} falls through to the generic path.
-            if (elemNode->type == NodeType::CELL_INDEX && !elemNode->children.empty()) {
-                Value cellBase = execNode(elemNode->children[0].get(), env);
-                if (cellBase.isCell() && elemNode->children.size() == 2) {
-                    const ASTNode *sub = elemNode->children[1].get();
-                    if (sub->type == NodeType::COLON_EXPR && sub->children.empty()) {
-                        for (size_t i = 0; i < cellBase.numel(); ++i)
-                            pushElem(Value(cellBase.cellAt(i)), rowElems);  // c{:} -> all
-                    } else {
-                        Value idxv = execNode(sub, env);
-                        for (size_t id : Value::resolveIndices(idxv, cellBase.numel()))
-                            pushElem(Value(cellBase.cellAt(id)), rowElems);  // c{vec}/c{i}
-                    }
-                    continue;
-                }
-                // non-cell base or multi-subscript -> generic path below.
+            // CSL: a single-subscript cell brace-index c{:} / c{vec} / c{i} expands
+            // its selected contents into the row (a comma-separated list). A multi-
+            // subscript c{i,j} falls through to the generic single-value path.
+            if (elemNode->type == NodeType::CELL_INDEX && elemNode->children.size() == 2) {
+                for (auto &v : cellBraceContents(elemNode.get(), env))
+                    pushElem(std::move(v), rowElems);
+                continue;
             }
             auto val = execNode(elemNode.get(), env);
             pushElem(std::move(val), rowElems);
