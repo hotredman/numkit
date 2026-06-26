@@ -82,6 +82,25 @@ TEST(Monomorphize, RoutesThroughRegistry)
     EXPECT_EQ(r.dtype, ValueType::DOUBLE);
 }
 
+// Recursion (Bottom-fixpoint foundation, Rec.1): Bottom is ABSORBING in a
+// transfer. A ⊥ operand -- the seed of an unresolved recursive self-call --
+// propagates to ⊥, NOT Dynamic, so `n * ⊥` stays ⊥ and the return-type fixpoint
+// can converge (the join with the base case collapses ⊥ to the real type).
+// reg.apply / applyMulti short-circuit on any ⊥ arg, before the per-fn transfer.
+TEST(Monomorphize, BottomIsAbsorbingInTransfers)
+{
+    auto          p = build("function y = f(x)\n  y = x;\nend\n");
+    const ArgInfo bot(InferredType::bottom(), ConstVal::unknown());
+    // sanity: a normal binary op still types concretely (no ⊥ arg).
+    EXPECT_TRUE(p->reg.apply("plus", {dbl(), dbl()}).isConcrete());
+    // a ⊥ operand makes the result ⊥, in either position, builtin or user fn.
+    EXPECT_TRUE(p->reg.apply("plus", {bot, dbl()}).isBottom());
+    EXPECT_TRUE(p->reg.apply("times", {dbl(), bot}).isBottom());
+    EXPECT_TRUE(p->reg.apply("f", {bot}).isBottom());
+    // multi-output: a ⊥ arg yields "no info" (empty -> the caller defaults Dynamic).
+    EXPECT_TRUE(p->reg.applyMulti("f", {bot}).empty());
+}
+
 // f calls g — the return type flows through the chain.
 TEST(Monomorphize, ChainedCall)
 {
