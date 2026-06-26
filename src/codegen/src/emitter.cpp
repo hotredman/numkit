@@ -982,6 +982,32 @@ std::string Emitter::emitExpr(const ASTNode &e)
     }
 }
 
+// Collect identifiers referenced in `n` (value / callee position) into `out`, for
+// the anonymous-function capture check (G5b). A FIELD_ACCESS contributes only its
+// base (the field NAME, in strValue, is not a variable). A nested ANON_FUNC sets
+// `nestedAnon` (refused — its own param scope is not modeled here). Everything else
+// recurses into all children (so a CALL callee and a DYNAMIC_FIELD_ACCESS name expr
+// are both collected, which is what the capture check wants).
+static void collectAnonRefIds(const ASTNode &n, std::set<std::string> &out, bool &nestedAnon)
+{
+    switch (n.type) {
+    case NodeType::ANON_FUNC:
+        nestedAnon = true;
+        return;
+    case NodeType::IDENTIFIER:
+        out.insert(n.strValue);
+        return;
+    case NodeType::FIELD_ACCESS:  // s.field — the field name is not a variable
+        if (!n.children.empty() && n.children[0])
+            collectAnonRefIds(*n.children[0], out, nestedAnon);
+        return;
+    default:
+        for (const auto &c : n.children)
+            if (c) collectAnonRefIds(*c, out, nestedAnon);
+        return;
+    }
+}
+
 // Dynamic tier (DESIGN.md §10 C1): emit `e` as an nk_rt::val expression. An
 // operand the inference DID type is boxed at the boundary (val::scalar); a
 // Dynamic operand is already a val (binds by const-ref into binop/unop); an
@@ -1154,20 +1180,45 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
                + emitExpr(*e.children[2]) + ")";
     }
     case NodeType::ANON_FUNC: {
-        // @funcName -> a named function handle (G5a). Discriminator: NO body child
-        // (an anonymous @(params)expr always carries one). The name resolves in the
-        // runtime registry; a co-compiled user spec is NOT resolvable there -> refuse.
-        // @(params)expr CLOSURES are refused: a free variable that is a compiled
-        // local cannot bind through the interpreter workspace (unsound), and an
-        // anon fn fed to a solver bridges the whole function anyway.
-        if (!e.children.empty())
-            unsupported("Dynamic tier: @(params) closure creation (v1: only @funcName handles)");
+        // @funcName -> a named function handle (G5a): NO body child. The name
+        // resolves in the runtime registry; a co-compiled user spec is NOT there.
+        if (e.children.empty()) {
+            if (e.strValue.empty())
+                unsupported("Dynamic tier: anonymous function handle with no name");
+            if (ctx_ && ctx_->funcs && ctx_->funcs->has(e.strValue))
+                unsupported("Dynamic tier: @" + e.strValue + " names a co-compiled user function "
+                            "(not resolvable by name in the runtime registry) (v1)");
+            return "nk_rt::make_handle(\"" + e.strValue + "\")";
+        }
+        // @(params)expr -> a CAPTURE-FREE closure (G5b). The parser stored the
+        // func2str-normalized source in strValue; create it via the interpreter
+        // (make_closure -> nk_eval), which owns anon-fn semantics. SOUND ONLY when
+        // the body captures nothing the runtime workspace can't bind: REFUSE if any
+        // free identifier is an enclosing local (types_/arrays_) or a co-compiled
+        // user function (ctx_->funcs) -- those are not in the runtime workspace, so
+        // nk_eval would resolve them differently than the interpreter would capture
+        // them. A nested anonymous function is also refused (v1). Each such case
+        // falls back to the fully-interpreted tier (which captures correctly).
+        std::set<std::string> freeIds;
+        bool                  nestedAnon = false;
+        collectAnonRefIds(*e.children[0], freeIds, nestedAnon);
+        if (nestedAnon)
+            unsupported("Dynamic tier: nested anonymous function (v1)");
+        const std::set<std::string> params(e.paramNames.begin(), e.paramNames.end());
+        for (const std::string &id : freeIds) {
+            if (params.count(id)) continue;  // bound by the anon's own params
+            if (types_.has(id) || isArrayVar(id) || (ctx_ && ctx_->funcs && ctx_->funcs->has(id)))
+                unsupported("Dynamic tier: anonymous function captures '" + id
+                            + "' (an enclosing local or co-compiled function) -- not bindable "
+                              "through the runtime workspace (v1)");
+        }
         if (e.strValue.empty())
-            unsupported("Dynamic tier: anonymous function handle with no name");
-        if (ctx_ && ctx_->funcs && ctx_->funcs->has(e.strValue))
-            unsupported("Dynamic tier: @" + e.strValue + " names a co-compiled user function "
-                        "(not resolvable by name in the runtime registry) (v1)");
-        return "nk_rt::make_handle(\"" + e.strValue + "\")";
+            unsupported("Dynamic tier: anonymous function with no reconstructed source");
+        bool              ok  = false;
+        const std::string esc = cEscape(e.strValue, ok);
+        if (!ok)
+            unsupported("Dynamic tier: anonymous function source has a non-printable byte (v1)");
+        return "nk_rt::make_closure(\"" + esc + "\")";
     }
     default:
         unsupported("Dynamic tier: expression node kind");
@@ -9084,6 +9135,12 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "// refused at emit time. The result is a Dynamic value (called via index_dyn).\n"
            "inline val make_handle(const char* name) {\n"
            "    nk_error e; e.code = 0; return _checked(nk_make_handle(name, &e), e); }\n"
+           "// A capture-free anonymous closure @(params)expr (G5b). The codegen proved\n"
+           "// the body has no free variable that is an enclosing local / co-compiled fn,\n"
+           "// so evaluating the (func2str-normalized) source yields the correct closure\n"
+           "// -- the interpreter owns anon-fn semantics. `src` is the full @(...)... text.\n"
+           "inline val make_closure(const char* src) {\n"
+           "    nk_error e; e.code = 0; return _checked(nk_eval(src, &e), e); }\n"
            "// Multi-output bridged call: `[o0, o1, ...] = name(args)`. Returns output\n"
            "// 0; outputs 1..nargout-1 are written (owned) into extra[0..nargout-2].\n"
            "// Args borrowed (their val owners release them). Errors throw.\n"
