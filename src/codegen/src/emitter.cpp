@@ -233,9 +233,20 @@ std::string structFieldLocal(const ASTNode &fa)
 {
     std::string    suffix;
     const ASTNode *n = &fa;
-    while (n->type == NodeType::FIELD_ACCESS) {
+    // Walk FIELD_ACCESS (s.a) AND DYNAMIC_FIELD_ACCESS with a CONSTANT string name (s.('a')
+    // folds to the same field-local; a runtime name s.(var) -> "" = not flattenable). G2.6.
+    for (;;) {
+        std::string field;
+        if (n->type == NodeType::FIELD_ACCESS) {
+            field = n->strValue;
+        } else if (n->type == NodeType::DYNAMIC_FIELD_ACCESS && n->children.size() == 2
+                   && n->children[1] && n->children[1]->type == NodeType::STRING_LITERAL) {
+            field = n->children[1]->strValue;  // s.('a') : constant field name
+        } else {
+            break;
+        }
         if (n->children.empty() || !n->children[0]) return "";
-        suffix = "_" + n->strValue + suffix;
+        suffix = "_" + field + suffix;
         n      = n->children[0].get();
     }
     if (n->type != NodeType::IDENTIFIER) return "";
@@ -924,6 +935,7 @@ std::string Emitter::emitExpr(const ASTNode &e)
             return emitUserCall(callee.strValue, e);
         return emitBuiltinCall(callee.strValue, e);
     }
+    case NodeType::DYNAMIC_FIELD_ACCESS:  // s.('a') : a CONSTANT name folds via structFieldLocal
     case NodeType::FIELD_ACCESS: {  // obj.field read -> obj.field / obj->field
         if (e.children.empty()) unsupported("field access arity");
         // s(i).a : struct-ARRAY field read (SoA, G2.5) -> index the field-array _nk_fld_s_a at
@@ -7682,7 +7694,8 @@ void Emitter::emitAssign(const ASTNode &s)
         return;
     }
 
-    if (lhs.type == NodeType::FIELD_ACCESS) {  // obj.field = rhs
+    if (lhs.type == NodeType::FIELD_ACCESS
+        || lhs.type == NodeType::DYNAMIC_FIELD_ACCESS) {  // obj.field = rhs / s.('f') = rhs (G2.6)
         if (lhs.children.empty()) unsupported("field write arity");
         // s(i).a = v : struct-ARRAY field write (SoA, G2.5) -> _nk_fld_s_a(i) = v, GROWABLE
         // (index_set_grow), so s(i).a=v in a loop builds the field-array. s is not a value;

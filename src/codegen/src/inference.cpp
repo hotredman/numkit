@@ -111,9 +111,21 @@ std::string structFieldLocal(const ASTNode &fa)
 {
     std::string    suffix;
     const ASTNode *n = &fa;
-    while (n->type == NodeType::FIELD_ACCESS) {
+    // Walk FIELD_ACCESS (s.a) AND DYNAMIC_FIELD_ACCESS with a CONSTANT string name (s.('a')
+    // folds to the same field-local; a runtime name s.(var) -> "" = not flattenable). G2.6.
+    // MUST match emitter.cpp's copy.
+    for (;;) {
+        std::string field;
+        if (n->type == NodeType::FIELD_ACCESS) {
+            field = n->strValue;
+        } else if (n->type == NodeType::DYNAMIC_FIELD_ACCESS && n->children.size() == 2
+                   && n->children[1] && n->children[1]->type == NodeType::STRING_LITERAL) {
+            field = n->children[1]->strValue;  // s.('a') : constant field name
+        } else {
+            break;
+        }
         if (n->children.empty() || !n->children[0]) return "";
-        suffix = "_" + n->strValue + suffix;
+        suffix = "_" + field + suffix;
         n      = n->children[0].get();
     }
     if (n->type != NodeType::IDENTIFIER) return "";
@@ -178,6 +190,7 @@ AbstractValue inferExpr(const ASTNode &expr, const TypeEnv &env,
         return {reg.apply(fn, {a.asArg()}), ConstVal::unknown()};
     }
 
+    case NodeType::DYNAMIC_FIELD_ACCESS:  // s.('a') : a CONSTANT name folds via structFieldLocal
     case NodeType::FIELD_ACCESS: {
         // obj.field : strValue = field name, children[0] = object expr.
         if (expr.children.empty()) return AbstractValue::dynamic();
@@ -707,15 +720,20 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                 // Writing a field (`obj.f = rhs`) leaves the object's class
                 // unchanged — do NOT clobber the base to Dynamic.
                 recordDecl(declOut, base, cur.type);
-            } else if (lhs.type == NodeType::FIELD_ACCESS) {
-                // Plain struct: flatten `s.f = rhs` to a synthesized scalar field-local
-                // (field-flattening), AND accumulate s's STRUCT type (field f -> rhs's
-                // type) so a WHOLESALE reference to `s` (e.g. a call argument) can be
-                // typed and passed across the function ABI (G2). The two coexist: `s.f`
-                // reads the field-local; bare `s` reads the STRUCT type. The struct local
-                // is virtual (no storage) -- the emit hoist skips it (its fields ARE the
-                // field-locals).
-                const std::string fld = "_nk_fld_" + base + "_" + lhs.strValue;
+            } else if (lhs.type == NodeType::FIELD_ACCESS
+                       || (lhs.type == NodeType::DYNAMIC_FIELD_ACCESS && lhs.children.size() == 2
+                           && lhs.children[1]
+                           && lhs.children[1]->type == NodeType::STRING_LITERAL)) {
+                // Plain struct: flatten `s.f = rhs` (or `s.('f') = rhs`, a CONSTANT dynamic
+                // field -- G2.6) to a synthesized scalar field-local (field-flattening), AND
+                // accumulate s's STRUCT type (field f -> rhs's type) so a WHOLESALE reference to
+                // `s` (e.g. a call argument) can be typed and passed across the ABI (G2). The two
+                // coexist: `s.f` reads the field-local; bare `s` reads the STRUCT type. The
+                // struct local is virtual -- the emit hoist skips it (its fields ARE the locals).
+                const std::string fieldName = (lhs.type == NodeType::FIELD_ACCESS)
+                                                  ? lhs.strValue
+                                                  : lhs.children[1]->strValue;
+                const std::string fld = "_nk_fld_" + base + "_" + fieldName;
                 env.set(fld, rhs);
                 recordDecl(declOut, fld, rhs.type);
                 auto layout = std::make_shared<StructLayout>();
@@ -723,8 +741,8 @@ void inferStmt(const ASTNode &stmt, TypeEnv &env, const TransferRegistry &reg,
                     layout->fields = cur.type.structLayout->fields;  // extend the existing layout
                 bool found = false;
                 for (auto &fp : layout->fields)
-                    if (fp.first == lhs.strValue) { fp.second = rhs.type; found = true; break; }
-                if (!found) layout->fields.emplace_back(lhs.strValue, rhs.type);
+                    if (fp.first == fieldName) { fp.second = rhs.type; found = true; break; }
+                if (!found) layout->fields.emplace_back(fieldName, rhs.type);
                 const InferredType st = InferredType::structOf(std::move(layout));
                 env.set(base, {st, ConstVal::unknown()});
                 recordDecl(declOut, base, st);
