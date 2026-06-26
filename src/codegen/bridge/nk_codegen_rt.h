@@ -67,6 +67,10 @@ NK_RT_API nk_val nk_box_cell_2d(const nk_val *elems, size_t rows, size_t cols);
  * `idx` (owned). SINGLE element only: a CSL c{:} / c{vec} is multi-value and the
  * codegen refuses it. Non-cell / out-of-range / non-integer idx -> NULL + *err. */
 NK_RT_API nk_val nk_cell_get(nk_val c, double idx1, nk_error *err);
+/* 2-D content extraction c{i,j} -- 1-based (row, col) subscripts as doubles
+ * (sub2indChecked bounds-checks). Returns the content (owned). SINGLE element
+ * only. Non-cell / out-of-range / non-integer subscript -> NULL + *err. */
+NK_RT_API nk_val nk_cell_get_2d(nk_val c, double i1, double j1, nk_error *err);
 /* Content store c{idx} = v -- a 1-based linear index as a double. GROWS the cell
  * if idx is past the end and coerces an empty/unset receiver to a cell (MATLAB
  * auto-grow), so `c={}; c{1}=..; c{2}=..` builds a cell imperatively. Mutates the

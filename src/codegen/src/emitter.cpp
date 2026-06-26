@@ -1138,16 +1138,20 @@ std::string Emitter::emitDynamicExpr(const ASTNode &e)
                + std::to_string(C) + ")";
     }
     case NodeType::CELL_INDEX: {
-        // c{i} content extraction. v1: a single unboxed-scalar subscript (a CSL
-        // c{:} / c{vec}, or a 2-D c{i,j}, is multi-value / higher-rank -> refused
-        // -> interpreted fallback). The base is boxed (a Dynamic cell local).
-        if (e.children.size() != 2)
-            unsupported("Dynamic tier: only a single-subscript c{i} is supported (v1)");
-        const AbstractValue iv = inferExpr(*e.children[1], types_, reg_, classes_);
-        if (!isUnboxableScalarType(iv.type))
-            unsupported("Dynamic tier: cell content index must be an unboxed scalar (v1)");
-        return "nk_rt::cell_get(" + emitDynamicExpr(*e.children[0]) + ", "
-               + emitExpr(*e.children[1]) + ")";
+        // c{i} or c{i,j} content extraction. v1: one or two unboxed-scalar
+        // subscripts (a CSL c{:} / c{vec} is multi-value -> refused -> interpreted
+        // fallback). The base is boxed (a Dynamic cell local).
+        const std::size_t nsub = e.children.empty() ? 0 : e.children.size() - 1;
+        if (nsub != 1 && nsub != 2)
+            unsupported("Dynamic tier: cell content index supports 1 or 2 subscripts (v1)");
+        for (std::size_t k = 1; k <= nsub; ++k)
+            if (!isUnboxableScalarType(inferExpr(*e.children[k], types_, reg_, classes_).type))
+                unsupported("Dynamic tier: cell content index must be unboxed scalar(s) (v1)");
+        const std::string base = emitDynamicExpr(*e.children[0]);
+        if (nsub == 1)
+            return "nk_rt::cell_get(" + base + ", " + emitExpr(*e.children[1]) + ")";
+        return "nk_rt::cell_get_2d(" + base + ", " + emitExpr(*e.children[1]) + ", "
+               + emitExpr(*e.children[2]) + ")";
     }
     case NodeType::ANON_FUNC: {
         // @funcName -> a named function handle (G5a). Discriminator: NO body child
@@ -9050,6 +9054,10 @@ std::string bridgePrelude(const std::string &runtimeHeader)
            "// integer/range check. Throws on a non-cell / out-of-range index.\n"
            "inline val cell_get(const val& c, double idx1) {\n"
            "    nk_error e; e.code = 0; return _checked(nk_cell_get(c.get(), idx1, &e), e); }\n"
+           "// 2-D content extraction c{i,j} -> a new Dynamic value (G4). 1-based\n"
+           "// (row, col) subscripts as doubles. Throws on a non-cell / out-of-range.\n"
+           "inline val cell_get_2d(const val& c, double i1, double j1) {\n"
+           "    nk_error e; e.code = 0; return _checked(nk_cell_get_2d(c.get(), i1, j1, &e), e); }\n"
            "// Content store c{i} = v (G4). Mutates the cell in place, growing it if\n"
            "// `idx1` (1-based, double) is past the end. A fresh local (null handle) is\n"
            "// lazily made an empty cell first, so c{1}=v works without a prior c={}.\n"
