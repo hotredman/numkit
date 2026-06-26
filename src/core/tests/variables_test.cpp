@@ -145,6 +145,35 @@ TEST_P(CellTest, CellCommaListCallArgs)
     EXPECT_DOUBLE_EQ(getVar("p"), 11.0);
 }
 
+// CSL: mixed f(a, c{:}, b) splices the cell among plain args. On the VM this lowers
+// to a {a, c{:}, b} cell (CELL_APPEND_ELEM) + CALL_VARARGS; TreeWalker buildArgs
+// expands inline. Single output. Exercises c{:} leading / middle / trailing / doubled.
+TEST_P(CellTest, CellCommaListMixedCallArgs)
+{
+    eval("c = {3, 8, 4};");
+    eval("h = horzcat(1, c{:}, 9);");  // c{:} in the middle -> [1 3 8 4 9]
+    auto *h = getVarPtr("h");
+    ASSERT_NE(h, nullptr);
+    ASSERT_EQ(h->numel(), 5u);
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(h->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(h->doubleData()[4], 9.0);
+    eval("t = horzcat(c{:}, 100);");  // c{:} leading -> [3 8 4 100]
+    auto *t = getVarPtr("t");
+    ASSERT_EQ(t->numel(), 4u);
+    EXPECT_DOUBLE_EQ(t->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(t->doubleData()[3], 100.0);
+    eval("l = horzcat(0, c{:});");  // c{:} trailing -> [0 3 8 4]
+    auto *l = getVarPtr("l");
+    ASSERT_EQ(l->numel(), 4u);
+    EXPECT_DOUBLE_EQ(l->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(l->doubleData()[3], 4.0);
+    eval("dd = horzcat(c{:}, c{:});");  // two CSL args -> [3 8 4 3 8 4]
+    auto *dd = getVarPtr("dd");
+    ASSERT_EQ(dd->numel(), 6u);
+    EXPECT_DOUBLE_EQ(dd->doubleData()[5], 4.0);
+}
+
 // CSL: {c{:}} re-wraps the selected cell contents into a new cell literal; mixed
 // {0, c{:}, 9} splices in the middle. (TreeWalker; VM cell-literal CSL follows.)
 TEST_P(CellTest, CellCommaListInCellLiteral)
