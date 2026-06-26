@@ -2308,6 +2308,35 @@ uint8_t Compiler::compileCellLiteral(const ASTNode *node)
             continue;
         }
 
+        // CSL row: a bare-colon cell brace-index element c{:} expands its contents
+        // into the row -- a comma-separated list whose count is runtime-variable, so
+        // it can't go through the fixed-count CELL_LITERAL. Build the row cell
+        // incrementally with CELL_APPEND_ELEM. v1: bare colon c{:} (a c{vec} subscript
+        // falls to the normal path, where it errors -- the documented limit).
+        auto isCellColonCsl = [](const ASTNode *e) {
+            return e->type == NodeType::CELL_INDEX && e->children.size() == 2
+                && e->children[1]->type == NodeType::COLON_EXPR
+                && e->children[1]->children.empty();
+        };
+        bool hasCsl = false;
+        for (auto &elem : row->children)
+            if (isCellColonCsl(elem.get())) { hasCsl = true; break; }
+        if (hasCsl) {
+            uint8_t acc = tempReg();
+            emitABC(OpCode::CELL_LITERAL, acc, 0, 0);  // seed an empty 1x0 cell
+            for (auto &elem : row->children) {
+                if (isCellColonCsl(elem.get())) {
+                    uint8_t cellReg = compileNode(elem->children[0].get());
+                    emitABC(OpCode::CELL_APPEND_ELEM, acc, cellReg, 1);  // append contents
+                } else {
+                    uint8_t v = compileNode(elem.get());
+                    emitABC(OpCode::CELL_APPEND_ELEM, acc, v, 0);  // append one element
+                }
+            }
+            rowRegs.push_back(acc);
+            continue;
+        }
+
         // Compile row elements into consecutive registers → CELL_LITERAL
         std::vector<uint8_t> elemRegs;
         for (auto &elem : row->children)
@@ -4199,6 +4228,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CELL_GET_ND";
         case OpCode::CELL_SET_ND:
             return "CELL_SET_ND";
+        case OpCode::CELL_APPEND_ELEM:
+            return "CELL_APPEND_ELEM";
         case OpCode::TRY_BEGIN:
             return "TRY_BEGIN";
         case OpCode::TRY_END:

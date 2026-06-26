@@ -1704,6 +1704,35 @@ enter_frame:
                 R[I.a] = std::move(cell);
                 break;
             }
+            case OpCode::CELL_APPEND_ELEM: {
+                // a=cellAcc (in/out), b=src, c=mode. mode 0 -> append R[src] as one
+                // element; mode 1 -> R[src] is a cell, append all of its contents
+                // (column-major). Builds {a, c{:}, b} on the VM where the count is
+                // runtime-variable, so the fixed-count CELL_LITERAL can't be used.
+                Value &acc = R[I.a];
+                if (!acc.isCell())
+                    acc = Value::cell(1, 0);
+                size_t n = acc.numel();
+                if (I.c == 1) {
+                    const Value &src = R[I.b];
+                    if (!src.isCell())
+                        throw std::runtime_error("c{:} expansion requires a cell array");
+                    size_t m = src.numel();
+                    auto grown = Value::cell(1, n + m);
+                    for (size_t i = 0; i < n; ++i)
+                        grown.cellAt(i) = std::move(acc.cellAt(i));
+                    for (size_t j = 0; j < m; ++j)
+                        grown.cellAt(n + j) = src.cellAt(j);
+                    acc = std::move(grown);
+                } else {
+                    auto grown = Value::cell(1, n + 1);
+                    for (size_t i = 0; i < n; ++i)
+                        grown.cellAt(i) = std::move(acc.cellAt(i));
+                    grown.cellAt(n) = R[I.b];
+                    acc = std::move(grown);
+                }
+                break;
+            }
             case OpCode::CELL_GET: {
                 if (!R[I.b].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
@@ -2738,6 +2767,7 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::VERTCAT:
         return "in matrix construction";
     case OpCode::CELL_LITERAL:
+    case OpCode::CELL_APPEND_ELEM:
         return "in cell construction";
 
     // Indexing
