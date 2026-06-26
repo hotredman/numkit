@@ -2377,10 +2377,18 @@ void Emitter::emitIndexWrite(const ASTNode &lhsCall, const ASTNode &rhs)
 
     const std::string idxExpr = emitExpr(*lhsCall.children[1]);
     const std::string rhsExpr = emitExpr(rhs);
-    if (plan.boundsChecked)
-        line("nk_rt::index_set(" + ptr + ", " + ai.lenVar + ", " + idxExpr + ", " + rhsExpr + ");");
-    else
+    if (plan.boundsChecked) {
+        if (ai.isLocal)
+            // A LOCAL owned vector GROWS on an out-of-range store (x(i)=v past the end
+            // resizes, zero-filling the gap -- MATLAB semantics). A param / output is a raw
+            // caller buffer that cannot grow -> the throwing index_set.
+            line("nk_rt::index_set_grow(" + base + ", " + idxExpr + ", " + rhsExpr + ");");
+        else
+            line("nk_rt::index_set(" + ptr + ", " + ai.lenVar + ", " + idxExpr + ", " + rhsExpr
+                 + ");");
+    } else {
         line(ptr + "[static_cast<std::size_t>(" + idxExpr + ") - 1] = " + rhsExpr + ";");
+    }
 }
 
 bool Emitter::collectElementwise(const ASTNode &e, std::set<std::string> &arrays) const
@@ -8652,6 +8660,14 @@ const char *kPrelude =
     "    if (i > len)\n"
     "        throw std::out_of_range(\"numkit: index out of bounds (RawBuffer ABI cannot grow)\");\n"
     "    a[i - 1] = v;\n"
+    "}\n"
+    "template <class T>\n"  // a LOCAL owned vector GROWS on an out-of-range store, MATLAB
+    "inline void index_set_grow(std::vector<T>& v, double idx1, T val) {\n"  // semantics:
+    "    if (idx1 < 1.0)\n"  // x(i)=val with i past the end resizes, zero-filling the gap
+    "        throw std::out_of_range(\"numkit: index out of bounds\");\n"
+    "    const std::size_t i = static_cast<std::size_t>(idx1);\n"
+    "    if (i > v.size()) v.resize(i, T{});\n"  // grow + zero-fill (T{} = 0 / 0+0i / false)
+    "    v[i - 1] = val;\n"
     "}\n"
     "template <class T>\n"  // A(i,j) read, column-major; 2-D writes are a later step
     "inline T index2(const T* a, std::size_t rows, std::size_t cols, double i1, double j1) {\n"
