@@ -139,9 +139,10 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (121 entries):** ✅ 105 fixed · 🔴 16 open = **5 bug** + 1 stub +
+**Tally (121 entries):** ✅ 106 fixed · 🔴 15 open = **4 bug** + 1 stub +
 1 missing-output + **8 missing-fn** + 1 perf (the 8 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
+(cell-csl-expansion: common forms FIXED, rarer forms deferred — counted fixed.)
 
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
 > notable* gaps. The complete list of **839 missing + 25 partial** MATLAB
@@ -149,10 +150,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (100)
+### ✅ FIXED (101)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [lang/cell-csl-expansion](lang/cell-csl-expansion.md) | P2 | ✅ FIXED (common forms): `c{:}` comma-separated-list now expands -- `[c{:}]` concat + `f(c{:})` sole-arg call, on BOTH backends (TreeWalker `cellBraceContents`; VM `HORZCAT_APPEND_CELL_CSL` + `CALL_VARARGS`). DEFERRED (documented v1 limits): mixed `f(a,c{:})`, `[a,b]=c{:}`, `{c{:}}` cell literal. Found via the codegen CSL audit (2026-06-26) |
 | bug | [lang/zeros-size-args](lang/zeros-size-args.md) | P2 | ✅ FIXED: the shared array-creation dim parser (`parseDimsArgs`/`parseDimsArgsND` in `numkit::ops`, used by zeros/ones/nan/inf/true/false/eye) mishandled edge-case sizes — a negative dim cast a negative double to size_t (UB → bad_alloc) and a non-integer dim silently truncated. Added `toDim()`: checks finite+integer BEFORE the cast (throws "Size inputs must be integers." on non-integer/non-finite), clamps a negative integer to 0 (empty array). Matches MATLAB R2025b: `zeros(-1,3)`→0×3, `zeros(2,3,-1)`→2×3×0, `zeros(2.5)`→error. Found during codegen work. 12400/0 + parity OK (2026-06-21) |
 | bug | [lang/anonymous-multi-output](lang/anonymous-multi-output.md) | P2 | ✅ FIXED: anonymous fns now forward nargout. (1) core varargout (RET_VARARGOUT — `function varargout=f` dynamic-count returns). (2) compileAnonFunc lowers `@(p) g(...)` (global-fn call body) to `varargout=__nk_fwd_call__(nargout,'g',args)` — helper resolves via findExternal (import-aware, so toolbox fns like median work), returns n results in a cell that RET_VARARGOUT expands. Captured-handle/param callees keep single-output (composition unaffected). `[a,b]=(@(x)deal(x+1,x-1))(5)`→6,4. Unblocked fmincon nonlcon. 12397/0 (2026-06-19) |
 | bug | [lang/multi-output-handle-call](lang/multi-output-handle-call.md) | P2 | ✅ FIXED: `[a,b]=h(x)` for a handle variable failed on the VM (resolved the name as a function). Added CALL_INDIRECT_MULTI opcode (handle resolution + nout frame-push) + the known-var gate in compileMultiAssign + execCallIndirectMulti. Named/user-fn handles now dispatch multi-output: (@size)(ones(2,3))→[2 3], @userfn→[a,b]. Remaining sub-gap: anonymous fns don't forward nargout (needs varargout) → split to lang/anonymous-multi-output. No regressions (12394/0) (2026-06-19) |
@@ -261,7 +263,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 5
+### 🔴 OPEN — bug (defect on an implemented function) — 4
 
 | Bug | Sev | Notes |
 |---|---|---|
@@ -269,7 +271,6 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
-| [lang/cell-csl-expansion](lang/cell-csl-expansion.md) | P2 | `c{:}` / `c{vec}` comma-separated-list expansion errors "Cell index out of bounds" (interpreter has no CSL machinery; both backends). Blocks codegen CSL. Found via the codegen CSL audit (2026-06-26) |
 
 ### 🔴 OPEN — stub (option/branch throws "not supported") — 1
 

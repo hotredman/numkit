@@ -398,12 +398,12 @@ TEST_F(BuiltinKnownBug, ZerosNonIntegerDimThrows)
     EXPECT_THROW(eval("zeros(1e300);"), std::exception);  // > size_t: error, not UB->empty
 }
 
-// bugs/lang/cell-csl-expansion.md — c{:} comma-separated-list expansion (OPEN).
-// A bare-colon brace index should expand to a CSL (multiple values) spliced into
-// the surrounding context; numkit errors "Cell index out of bounds" instead.
-// DISABLED until the interpreter grows CSL machinery (both backends). When fixed,
-// drop DISABLED_ for a live guard. Also unblocks codegen CSL (DESIGN.md §10a).
-TEST_F(BuiltinKnownBug, DISABLED_CellCommaListExpansion)
+// bugs/lang/cell-csl-expansion.md — c{:} comma-separated-list expansion (FIXED; live
+// guard). A bare-colon brace index expands to a CSL spliced into the surrounding
+// context: [c{:}] concatenation + f(c{:}) sole-arg call, on BOTH backends (TreeWalker
+// cellBraceContents + VM HORZCAT_APPEND_CELL_CSL / CALL_VARARGS). (Deferred forms:
+// mixed f(a,c{:}), [a,b]=c{:}, {c{:}} cell literal -- see the bug md.)
+TEST_F(BuiltinKnownBug, CellCommaListExpansion)
 {
     eval("c = {3, 8, 4};");
     EXPECT_DOUBLE_EQ(evalScalar("sum([c{:}])"), 15.0);  // [c{:}] = [3 8 4], sum = 15

@@ -1,6 +1,6 @@
 # lang.cell — `c{:}` comma-separated-list expansion errors ("Cell index out of bounds")
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-06-26) for the common forms; rarer forms deferred (see below)
 - **Severity:** P2 (a valid MATLAB form errors; CSL expansion is missing)
 - **Kind:** bug
 - **Found:** 2026-06-26 via the codegen CSL audit (multi-fire design item 1)
@@ -50,7 +50,22 @@ refuses `c{:}` — `CellCommaListRefusedUnderBridge`, documented in
 src/codegen/DESIGN.md §10a. **Codegen CSL support is BLOCKED on this interpreter
 feature.**
 
+## Fixed
+- Fixed 2026-06-26 for the COMMON forms, on BOTH backends:
+  - `[c{:}]` / `[c{vec}]` array-literal concatenation.
+  - `f(c{:})` SOLE-argument call (`max(c{:})`, `horzcat(c{:})`, `sum([c{:}])`, …).
+- TreeWalker: `cellBraceContents` (the selected contents as a list) feeds the
+  matrix-literal builder + the call-arg builder (`buildArgs`).
+- VM: opcode `HORZCAT_APPEND_CELL_CSL` (concat) + `CALL_VARARGS` (sole-arg call,
+  splices the cell contents as the call args). Commits e43b5d89 / c3357596 /
+  5676f0c7 / b55bb32d. Live guard: `BuiltinKnownBug.CellCommaListExpansion` +
+  `CellTest.CellCommaListConcat` / `CellCommaListCallArgs` (both backends).
+- DEFERRED (still error / single-value, documented v1 limits): mixed `f(a, c{:})`
+  (needs a per-arg CSL mask on the VM), `[a,b] = c{:}` multi-assign on the VM,
+  `{c{:}}` cell-literal (pre-sized 2-D path), a `c{vec}`/`c{i,:}` subscript in a
+  call arg. These remain to do; the bug stays partially open for them.
+
 ## References
-- src/core/src/tree_walker.cpp (`execCellIndex`)
+- src/core/src/tree_walker.cpp (`execCellIndex`, `cellBraceContents`, `buildArgs`)
 - src/codegen/DESIGN.md §10a (sound-refusal catalog) + `CellCommaListRefusedUnderBridge`
 - MATLAB: comma-separated lists (`doc "comma-separated lists"`)
