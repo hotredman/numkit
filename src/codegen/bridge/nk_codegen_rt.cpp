@@ -475,6 +475,27 @@ void nk_cell_set(nk_val c, double idx1, nk_val v, nk_error *err)
     }
 }
 
+void nk_cell_set_2d(nk_val c, double i1, double j1, nk_val v, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        Value       *cv = unwrap(c);
+        const Value *vv = unwrap(v);
+        if (!cv || !vv) throw std::runtime_error("nk_cell_set_2d: null handle");
+        if (cv->isEmpty()) *cv = Value::cell(0, 0);
+        if (!cv->isCell())
+            throw std::runtime_error("Cell contents indexing on a non-cell value");
+        // Mirror resolveCellSlot nidx==2: grow to fit the 0-based (row, col).
+        const size_t coords[2] = {Value::checkedScalarIndex(i1), Value::checkedScalarIndex(j1)};
+        const size_t linear    = cv->growCellTo(coords, 2, nullptr);
+        cv->cellAt(linear)     = *vv;  // deep-copy the content in
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+    } catch (...) {
+        setError(err, "unknown numkit error");
+    }
+}
+
 nk_val nk_make_handle(const char *name, nk_error *err)
 {
     if (err) { err->code = 0; err->message[0] = '\0'; }
