@@ -134,6 +134,22 @@ nk_val nk_box_string(const char *s)
     }
 }
 
+nk_val nk_box_cell(const nk_val *elems, size_t n)
+{
+    if (!elems && n != 0) return nullptr;
+    try {
+        Value c = Value::cell(1, n, nullptr);  // a 1 x n cell row
+        for (size_t i = 0; i < n; ++i) {
+            const Value *ev = unwrap(elems[i]);
+            if (!ev) return nullptr;       // a null element handle is UB to deref
+            c.cellAt(i)     = *ev;         // deep-copy the element content in
+        }
+        return make(std::move(c));
+    } catch (...) {
+        return nullptr;
+    }
+}
+
 nk_val nk_box_complex_array(const double *p, size_t len)
 {
     if (!p && len != 0) return nullptr;  // p: interleaved re,im (2*len doubles)
@@ -363,6 +379,30 @@ nk_val nk_index(nk_val a, const nk_val *subs, size_t nsubs, nk_error *err)
             counts[k] = lists[k].size();
         }
         return make(av->indexGetND(ptrs.data(), counts.data(), static_cast<int>(nsubs), nullptr));
+    } catch (const std::exception &e) {
+        setError(err, e.what());
+        return nullptr;
+    } catch (...) {
+        setError(err, "unknown numkit error");
+        return nullptr;
+    }
+}
+
+nk_val nk_cell_get(nk_val c, double idx1, nk_error *err)
+{
+    if (err) { err->code = 0; err->message[0] = '\0'; }
+    try {
+        const Value *cv = unwrap(c);
+        if (!cv) throw std::runtime_error("nk_cell_get: null handle");
+        if (!cv->isCell())
+            throw std::runtime_error("Cell indexing {}-operator requires a cell array");
+        // checkedScalarIndex is the interpreter's own 1-based->0-based + integer
+        // check (execCellIndex uses it); add an explicit upper bound (cellAt does
+        // not) so an out-of-range index is a clean error, never UB.
+        const size_t i0 = Value::checkedScalarIndex(idx1);
+        if (i0 >= cv->numel())
+            throw std::runtime_error("cell content index out of range");
+        return make(cv->cellAt(i0));  // content extraction (a copy of the element)
     } catch (const std::exception &e) {
         setError(err, e.what());
         return nullptr;
