@@ -5236,6 +5236,39 @@ TEST(CodegenE2E, RecursiveCallRefusedUnderBridge)
         std::runtime_error);
 }
 
+// CSL c{:} is a SOUND REFUSAL: a brace colon-subscript expands to a comma-separated
+// list (multi-value), which does not fit the single-nk_val Dynamic model. The cell
+// tier supports scalar-subscript content read/store (c{i}, c{i,j}); a colon
+// subscript is not an unboxable scalar, so emitDynamicExpr / emitAssign refuse it
+// -> the function tiers to the interpreter, never miscompiled. This guard locks in
+// that boundary (a regression to silent mis-emission would fail the EXPECT_THROW).
+// Supporting CSL would need variadic arg/output expansion in compiled code --
+// deferred, ~0 hot-path value.
+TEST(CodegenE2E, CellCommaListRefusedUnderBridge)
+{
+    const char *src =
+        "function r = f(x)\n"
+        "  c = {x, x + 1, x + 2};\n"
+        "  v = [c{:}];\n"  // c{:} -> a comma-separated list (multi-value) -> refused
+        "  r = sum(v);\n"
+        "end\n";
+    numkit::Lexer  lex(src);
+    numkit::Parser parser(lex.tokenize());
+    auto           root = parser.parse();
+    TransferRegistry reg;
+    registerStandardTransfers(reg);
+    FunctionTable ft;
+    collectFunctions(*root, ft);
+    registerUserFunctions(reg, ft);
+
+    BridgeOptions bridge;
+    bridge.enabled = true;
+    EXPECT_THROW(
+        emitProgram(*ft.find("f"), {{"x", InferredType::scalar(ValueType::DOUBLE)}}, ft, reg,
+                    nullptr, bridge),
+        std::runtime_error);
+}
+
 // Interproc array RETURN, complex 1-D variant: a callee returning a complex 1-D
 // array returns std::vector<std::complex<double>> by value (emit-level — the run
 // pipeline is proven by InterprocArrayReturn above).
