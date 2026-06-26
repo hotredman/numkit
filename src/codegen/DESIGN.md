@@ -668,7 +668,7 @@ so a regression into silent mis-emission fails a test.
 | formatting `num2str` / `sprintf` | bridged — interpreter owns the printf-style format; CHAR result via `bridge_to_vec_char` |
 | growable 1-D local (`x=[]`, `x(end+1)=v`) | owned `std::vector` + `index_set_grow` |
 | Dynamic value: binop/unop, condition-truth, indexing, call (typed+Dynamic+bridged), boxed return | `nk_rt::val` + `nk_binop`/`nk_unop`/`nk_truth`/`nk_index`/`call_dyn[v]` + boxed-`nk_val` return |
-| multi-output `[a,b]=f(x)` (user fn) incl. PARTIAL nargout `[a]=f(x)` + ignored `[~,b]=f(x)` | reference out-params; unrequested/ignored trailing outputs get throwaway refs |
+| multi-output `[a,b]=f(x)` (user fn) incl. PARTIAL nargout `[a]=f(x)`, ignored `[~,b]=f(x)`, and BARE-LHS `c=f(x)` (binds c to the first output) | reference out-params; unrequested/ignored trailing outputs get throwaway refs |
 | direct self-recursion `fact(n-1)` | return-type Bottom-fixpoint -> a direct typed self-call (standalone, no bridge) |
 
 **Sound refusals** (detected → interpreted fallback, never miscompiled):
@@ -679,7 +679,6 @@ so a regression into silent mis-emission fails a test.
 | capturing closure `@(x) x+k` (k a local) | refused today (`ClosureCapturingLocalRefusedUnderBridge`). VIABLE but DEFERRED: a C-ABI `make_closure_captured(src, names, vals)` could bind the captured locals in a temp `Environment`, `eval(src, &scope)` so the closure's `snapshot(env)` captures them (no workspace pollution -- the snapshot is copied into the engine's `userFuncs_`). The free-var analysis (G5b `collectAnonRefIds`) already identifies the captures. Deferred for ~0 hot-path value: a closure created+called in compiled code would just be inlined; the real use (passing to a solver / `cellfun`) bridges the whole function anyway. | `ClosureCapturingLocalRefusedUnderBridge` |
 | nested anonymous function | inner param scope not modelled (v1) | (emit refusal) |
 | MUTUAL / POLYMORPHIC recursion | only DIRECT same-signature self-recursion is fixpoint-compiled (above); a mutual cycle (f↔g) or a self-call with a different arg signature breaks to Dynamic (no infinite monomorphisation) | — |
-| bare-LHS single target on a multi-output fn `c = f(x)` | MATLAB binds c to the first output; the BRACKET form `[c] = f(x)` already compiles (partial nargout, above), so this is sugar with a working workaround. Compiling the bare form needs the first-output type at the hoist, i.e. the FunctionTable threaded into the inference pass — deferred (low value) | — |
 | eval-family (`eval`/`evalin`/`assignin`/…) | code known only at runtime; mutate a workspace by name (§7) | (inference refusal) |
 | partial-nargout, object/array multi-output, closed-world polymorphism, 2-D `num2str` | each an under-specified or multi-value shape with no sound single-value lowering | (emit refusal) |
 
