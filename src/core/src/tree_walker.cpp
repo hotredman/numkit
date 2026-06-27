@@ -333,6 +333,17 @@ static std::string describeNode(const ASTNode *node)
 
 Value TreeWalker::execNode(const ASTNode *node, Environment *env)
 {
+    // Single-value sink: collapse any comma-separated list the expression produced.
+    // The isCsl() guard keeps the hot path a single branch + move (collapseCsl, which
+    // takes the value by copy, only runs for an actual CSL). See dev-docs/CSL_FIRST_CLASS.md.
+    Value v = execNodeExpand(node, env);
+    if (v.isCsl())
+        return collapseCsl(std::move(v));
+    return v;
+}
+
+Value TreeWalker::execNodeExpand(const ASTNode *node, Environment *env)
+{
     if (!node)
         return Value();
 

@@ -145,7 +145,13 @@ private:
     void displayValue(const std::string &name, const Value &val);
 
     // Core dispatch
+    // execNode is the single-value entry point: it collapses any comma-separated list
+    // the expression produced (CSL of 1 -> the element; 0/>1 -> error), so every
+    // operand / condition / index / assignment-RHS gets a single value and a CSL can
+    // never leak. Splice contexts (call args, [..], {..}, multi-assign, varargout) call
+    // execNodeExpand instead, which preserves a CSL so they can flatten it.
     Value execNode(const ASTNode *node, Environment *env);
+    Value execNodeExpand(const ASTNode *node, Environment *env);
     Value execNodeInner(const ASTNode *node, Environment *env);
     Value execBlock(const ASTNode *node, Environment *env);
     bool tryEvalFast(const ASTNode *expr, Environment *env, Value &out);
