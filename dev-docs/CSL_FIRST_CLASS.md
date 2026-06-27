@@ -52,8 +52,8 @@ reads it as a single value. We do **not** guard every opcode. Instead:
 
 ## Brick sequence
 1. **Value CSL kind** — storage + API. *(DONE)*
-2. **`COLLAPSE` opcode + `nk::collapse` helper** — VM opcode + Value-level collapse
-   (1->elem, else throw). Inert until producers emit CSL.
+2. **`COLLAPSE` opcode + `collapseCsl` helper** — VM opcode + Value-level collapse
+   (1->elem, else throw; non-CSL pass-through). Inert until producers emit CSL. *(DONE 8a10353b)*
 3. **TreeWalker producers + collapsers** — `c{:}`/`c{idx}` return CSL; add `collapse` at
    single-value `execNode` sites. Splicers updated to flatten. Suite green (TW only).
 4. **TreeWalker splicers parity** — matrix/cell/call/multi-assign/varargout flatten CSL;
