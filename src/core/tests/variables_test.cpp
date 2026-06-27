@@ -338,6 +338,28 @@ TEST_P(CellTest, CellCommaListInCellLiteral)
     EXPECT_DOUBLE_EQ(e->cellAt(4).toScalar(), 9.0);
 }
 
+// First-class CSL: {c{idx}} with a VARIABLE vector subscript flattens into the cell
+// literal -- the gap the context-opcode campaign left (the VM restricted call-arg /
+// cell-literal CSL to syntactically-multi subscripts). Now both backends route through
+// the producer (CELL_GET -> CSL) + the consumer (CELL_APPEND_FLATTEN). Brick 6a.
+TEST_P(CellTest, CellLiteralVariableSubscript)
+{
+    eval("c = {10, 20, 30}; idx = [1 3];");
+    eval("d = {c{idx}};");  // -> {10, 30}
+    auto *d = getVarPtr("d");
+    ASSERT_NE(d, nullptr);
+    ASSERT_TRUE(d->isCell());
+    ASSERT_EQ(d->numel(), 2u);
+    EXPECT_DOUBLE_EQ(d->cellAt(0).toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(d->cellAt(1).toScalar(), 30.0);
+    eval("e = {0, c{idx}, 99};");  // mixed plain + variable-subscript CSL -> {0, 10, 30, 99}
+    auto *e2 = getVarPtr("e");
+    ASSERT_EQ(e2->numel(), 4u);
+    EXPECT_DOUBLE_EQ(e2->cellAt(0).toScalar(), 0.0);
+    EXPECT_DOUBLE_EQ(e2->cellAt(1).toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(e2->cellAt(3).toScalar(), 99.0);
+}
+
 INSTANTIATE_DUAL(CellTest);
 
 // ============================================================

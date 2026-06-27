@@ -1789,6 +1789,32 @@ enter_frame:
                 acc = std::move(grown);
                 break;
             }
+            case OpCode::CELL_APPEND_FLATTEN: {
+                // a=acc (in/out), b=elem. First-class cell-literal builder: if R[elem] is
+                // a CSL, append all its items; else append it as one element. Driven by
+                // the runtime value, so {a, c{idx}, b} flattens for any subscript.
+                Value &acc = R[I.a];
+                if (!acc.isCell())
+                    acc = Value::cell(1, 0);
+                size_t       n    = acc.numel();
+                const Value &elem = R[I.b];
+                if (elem.isCsl()) {
+                    size_t m     = elem.cslCount();
+                    auto   grown = Value::cell(1, n + m);
+                    for (size_t i = 0; i < n; ++i)
+                        grown.cellAt(i) = std::move(acc.cellAt(i));
+                    for (size_t j = 0; j < m; ++j)
+                        grown.cellAt(n + j) = elem.cslAt(j);
+                    acc = std::move(grown);
+                } else {
+                    auto grown = Value::cell(1, n + 1);
+                    for (size_t i = 0; i < n; ++i)
+                        grown.cellAt(i) = std::move(acc.cellAt(i));
+                    grown.cellAt(n) = elem;
+                    acc = std::move(grown);
+                }
+                break;
+            }
             case OpCode::CELL_GET: {
                 if (!R[I.b].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
@@ -1831,8 +1857,31 @@ enter_frame:
             case OpCode::CELL_GET_2D: {
                 if (!R[I.b].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
-                size_t r = Value::checkedScalarIndex(R[I.c].toScalar()), c = Value::checkedScalarIndex(R[I.e].toScalar());
-                R[I.a] = R[I.b].cellAt(R[I.b].dims().sub2ind(r, c));
+                const Value &cell = R[I.b];
+                const Value &rsub = R[I.c];
+                const Value &csub = R[I.e];
+                // Hot path: both scalar c{i,j} -> the bare element.
+                if (rsub.isDoubleScalar() && csub.isDoubleScalar()) {
+                    size_t r = Value::checkedScalarIndex(rsub.scalarVal());
+                    size_t c = Value::checkedScalarIndex(csub.scalarVal());
+                    R[I.a] = cell.cellAt(cell.dims().sub2ind(r, c));
+                    break;
+                }
+                // Multi-select slice c{r,:} / c{:,j}: resolveIndices per dim, column-
+                // major. 1 selected -> bare element; N!=1 -> a CSL (collapsed in a
+                // single-value context, flattened by a splice consumer).
+                auto rows = Value::resolveIndices(rsub, cell.dims().rows());
+                auto cols = Value::resolveIndices(csub, cell.dims().cols());
+                if (rows.size() * cols.size() == 1) {
+                    R[I.a] = cell.cellAt(cell.dims().sub2ind(rows[0], cols[0]));
+                } else {
+                    Value  csl = Value::csl(rows.size() * cols.size());
+                    size_t k   = 0;
+                    for (size_t c : cols)
+                        for (size_t r : rows)
+                            csl.cslAt(k++) = cell.cellAt(cell.dims().sub2ind(r, c));
+                    R[I.a] = std::move(csl);
+                }
                 break;
             }
             case OpCode::CELL_GET_MULTI: {

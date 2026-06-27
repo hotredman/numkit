@@ -178,6 +178,11 @@ enum class OpCode : uint8_t {
     // b=cellSrc, c=rowSubReg, d=colSubReg -> resolveIndices per dim + sub2ind,
     // column-major. Builds {a, c{r,:}, b} on the VM (cell literal + lowered call args).
     CELL_APPEND_SLICE_2D, // cellAcc, cellSrc, rowSub, colSub
+    // First-class cell-literal builder: a=cellAcc (in/out, coerced to 1x0 if unset),
+    // b=elem. If R[elem] is a comma-separated list, append ALL its items (column-major);
+    // otherwise append R[elem] as ONE element. Driven by the runtime VALUE (isCsl), not
+    // the compile-time subscript shape, so {c{idx}} with a variable idx flattens too.
+    CELL_APPEND_FLATTEN, // cellAcc, elem
 
     // ── Transpose ────────────────────────────────────────────
     CTRANSPOSE, // dst, src               R[dst] = R[src]' (conjugate)
