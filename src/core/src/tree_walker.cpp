@@ -1551,16 +1551,14 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     std::vector<Value> args;
     args.reserve(node->children.size() - 1);
     for (size_t i = 1; i < node->children.size(); ++i) {
-        // CSL arg [a,b]=f(.., c{:}, ..) / f(.., c{r,:}, ..): splice the selected
-        // contents into the argument list (mirrors the single-output buildArgs).
-        const ASTNode *a = node->children[i].get();
-        if (a->type == NodeType::CELL_INDEX
-            && (a->children.size() == 2 || a->children.size() == 3)) {
-            for (auto &v : cellBraceContents(a, env))
-                args.push_back(std::move(v));
-        } else {
-            args.push_back(execNode(a, env));
-        }
+        // CSL arg [a,b]=f(.., c{:}, ..): splice a comma-separated list (c{:} / c{idx}
+        // / c{r,:}, or any CSL producer) into the argument list; non-CSL is one arg.
+        Value v = execNodeExpand(node->children[i].get(), env);
+        if (v.isCsl())
+            for (size_t k = 0; k < v.cslCount(); ++k)
+                args.push_back(std::move(v.cslAt(k)));
+        else
+            args.push_back(std::move(v));
     }
 
     auto *var = env->get(funcName);
@@ -2024,15 +2022,16 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         std::vector<Value> args;
         args.reserve(node->children.size() - 1);
         for (size_t i = 1; i < node->children.size(); ++i) {
-            // CSL: a cell brace-index arg f(.., c{:}, ..) / f(.., c{r,:}, ..) expands
-            // its selected contents into the argument list (a comma-separated list).
-            const ASTNode *a = node->children[i].get();
-            if (a->type == NodeType::CELL_INDEX
-                && (a->children.size() == 2 || a->children.size() == 3)) {
-                for (auto &v : cellBraceContents(a, env)) args.push_back(std::move(v));
-                continue;
-            }
-            args.push_back(execNode(a, env));
+            // CSL: an argument expression may expand to a comma-separated list
+            // (c{:} / c{idx} / c{r,:}, and any future CSL producer). execNodeExpand
+            // preserves a CSL; splice its elements into the argument list. A non-CSL
+            // value is a single argument.
+            Value v = execNodeExpand(node->children[i].get(), env);
+            if (v.isCsl())
+                for (size_t k = 0; k < v.cslCount(); ++k)
+                    args.push_back(std::move(v.cslAt(k)));
+            else
+                args.push_back(std::move(v));
         }
         return args;
     };
