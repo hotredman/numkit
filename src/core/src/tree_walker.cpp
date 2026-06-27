@@ -2235,31 +2235,27 @@ Value TreeWalker::execIndexAccess(const Value &var, const ASTNode *callNode, Env
 // ============================================================
 Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
 {
+    size_t nidx = node->children.size() - 1;
+
+    // 1-D / 2-D brace index: gather the selected items (cellBraceContents handles colon
+    // / vector / range / 2-D slice, evaluating the base once). A single selected element
+    // returns the bare element (the hot c{i} scalar path); a multi-select returns a CSL
+    // transient that splice contexts flatten and single-value contexts collapse (via the
+    // execNode wrapper). See dev-docs/CSL_FIRST_CLASS.md.
+    if (nidx == 1 || nidx == 2) {
+        std::vector<Value> items = cellBraceContents(node, env);
+        if (items.size() == 1)
+            return std::move(items[0]);
+        Value out = Value::csl(items.size());
+        for (size_t i = 0; i < items.size(); ++i)
+            out.cslAt(i) = std::move(items[i]);
+        return out;
+    }
+
+    // 3-D+ : scalar N-D brace read only (no CSL form yet).
     auto obj = execNode(node->children[0].get(), env);
     if (!obj.isCell())
         throw std::runtime_error("Cell indexing {}-operator requires a cell array");
-
-    size_t nidx = node->children.size() - 1;
-
-    if (nidx == 1) {
-        IndexContextGuard guard(indexContextStack_, {&obj, 0, 1});
-        Value idx = execNode(node->children[1].get(), env);
-        return obj.cellAt(Value::checkedScalarIndex(idx.toScalar()));
-    }
-    if (nidx == 2) {
-        Value ridx, cidx;
-        {
-            IndexContextGuard guard(indexContextStack_, {&obj, 0, 2});
-            ridx = execNode(node->children[1].get(), env);
-        }
-        {
-            IndexContextGuard guard(indexContextStack_, {&obj, 1, 2});
-            cidx = execNode(node->children[2].get(), env);
-        }
-        size_t r = Value::checkedScalarIndex(ridx.toScalar());
-        size_t c = Value::checkedScalarIndex(cidx.toScalar());
-        return obj.cellAt(obj.dims().sub2indChecked(r, c));
-    }
     if (nidx == 3) {
         Value ridx, cidx, pidx;
         {
