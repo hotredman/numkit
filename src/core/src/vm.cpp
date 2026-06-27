@@ -478,6 +478,11 @@ enter_frame:
                     R[I.a] = R[I.b];
                 }
                 break;
+            case OpCode::COLLAPSE:
+                // Collapse a CSL reaching a single-value sink (no-op on a non-CSL).
+                // Emitted only by the dataflow pass; inert until producers make CSLs.
+                R[I.a] = collapseCsl(std::move(R[I.b]));
+                break;
             case OpCode::COLON_ALL:
                 R[I.a] = Value::fromString(":", engine_.mr_);
                 break;

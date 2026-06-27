@@ -293,6 +293,21 @@ Value Value::csl(size_t n, std::pmr::memory_resource *mr)
     m.heap_ = h;
     return m;
 }
+Value collapseCsl(Value v)
+{
+    if (!v.isCsl())
+        return v;  // pass-through: a non-CSL value is already a single value
+    size_t n = v.cslCount();
+    if (n == 1)
+        return std::move(v.cslAt(0));  // unwrap the sole element
+    throw std::runtime_error(
+        n == 0
+            ? "Insufficient number of values: a comma-separated list expanded to 0 "
+              "values where 1 is required"
+            : "Too many values: a comma-separated list expanded to " + std::to_string(n)
+                  + " values where 1 is required");
+}
+
 Value Value::stringScalar(const std::string &s, std::pmr::memory_resource *mr)
 {
     if (!mr) mr = std::pmr::get_default_resource();
