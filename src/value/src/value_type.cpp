@@ -25,6 +25,7 @@ const char *mtypeName(ValueType t)
     case ValueType::SINGLE:       return "single";
     case ValueType::STRING:       return "string";
     case ValueType::OBJECT:       return "object"; // generic; class(obj) reads the real class name
+    case ValueType::CSL:          return "comma-separated list";
     }
     return "unknown";
 }

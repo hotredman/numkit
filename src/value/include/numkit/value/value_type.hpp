@@ -28,7 +28,12 @@ enum class ValueType : uint8_t {
     UINT64,
     SINGLE,
     STRING,
-    OBJECT   // class instance (builtin now, user classdef later); see OBJECT_MODEL.md
+    OBJECT,  // class instance (builtin now, user classdef later); see OBJECT_MODEL.md
+    CSL      // comma-separated list — a TRANSIENT value-list produced by c{:} / c{idx} /
+             // s.field expansion that splicing contexts (call args, [..], {..}, multi-
+             // assign) flatten. Never stored in a variable; a single-value context must
+             // collapse it (1 elem -> the elem; N -> "too many values"). Reuses
+             // HeapObject::cellData for storage. See dev-docs/CSL_FIRST_CLASS.md.
 };
 
 const char *mtypeName(ValueType t);
