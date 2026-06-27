@@ -86,6 +86,14 @@ the `CellTest` `CellCommaList*` + `CallArgVariableSubscript` + `CellLiteralVaria
 tests. **The whole CSL surface (1-D + 2-D; concat / call-arg / cell-literal / multi-assign;
 single + multi output; syntactic AND variable subscripts) is first-class on both backends.**
 
+## Known minor limitation (not a first-class-CSL regression)
+A bare `c{:}` as a top-level statement errors ("too many values") instead of MATLAB's
+per-element display (`ans = 10` / `ans = 20` / ...). This is a single-value sink (the
+statement evaluator), so the CSL collapses. numkit never supported the per-element-display
+form (it errored before too, with a less clear message); displaying a CSL at the prompt is
+a niche feature, tracked here, not blocking. All consuming-context forms (concat / call /
+cell-literal / multi-assign) are first-class and correct.
+
 ## References
 - dev-docs/CSL_FIRST_CLASS.md (first-class CSL design + brick log)
 - src/core/src/tree_walker.cpp (`execCellIndex`, `execNode` / `execNodeExpand`, splicers)
