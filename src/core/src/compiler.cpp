@@ -494,6 +494,19 @@ int16_t Compiler::addStringConstant(const std::string &s)
 
 uint8_t Compiler::compileNode(const ASTNode *node)
 {
+    // Single-value sink: a brace cell-index c{sub} may produce a comma-separated list
+    // once the producer emits one; collapse it in place so single-value contexts never
+    // see a CSL. COLLAPSE is a runtime no-op on a non-CSL, so this is inert until the
+    // CELL_GET producer is flipped (brick 5b). Splice contexts call compileNodeExpand
+    // directly and skip this. See dev-docs/CSL_FIRST_CLASS.md.
+    uint8_t reg = compileNodeExpand(node);
+    if (node && node->type == NodeType::CELL_INDEX)
+        emitAB(OpCode::COLLAPSE, reg, reg);
+    return reg;
+}
+
+uint8_t Compiler::compileNodeExpand(const ASTNode *node)
+{
     if (!node)
         return 0;
 
