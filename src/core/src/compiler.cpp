@@ -4213,6 +4213,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "LOAD_STRING";
         case OpCode::MOVE:
             return "MOVE";
+        case OpCode::COLLAPSE:
+            return "COLLAPSE";
         case OpCode::ADD:
             return "ADD";
         case OpCode::SUB:

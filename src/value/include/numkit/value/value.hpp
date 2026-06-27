@@ -697,6 +697,13 @@ private:
 // component exactly zero. bugs/math/complex-zero-imag-narrowing.md.
 Value narrowComplex(Value v, std::pmr::memory_resource *mr);
 
+// Collapse a comma-separated list reaching a SINGLE-VALUE context: a CSL with exactly
+// one element yields that element; 0 or >1 elements throw (MATLAB "not enough" / "too
+// many" values). A non-CSL value passes through unchanged, so this is safe to apply at
+// any single-value sink (assignment RHS, operator operand, condition, index value). The
+// VM COLLAPSE opcode is a thin wrapper. See dev-docs/CSL_FIRST_CLASS.md.
+Value collapseCsl(Value v);
+
 // ── Inline template bodies ──────────────────────────────────────
 // Kept in the header because they're tiny — each one is a single
 // thunk into Value::makeContiguous. The compile-time cost per TU is
