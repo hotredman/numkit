@@ -2007,27 +2007,21 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
         }
 
         if (hasCsl) {
-            // Build dst incrementally with HORZCAT_APPEND/_CSL. Seed dst
-            // as the first element (or empty if first is CSL).
+            // Build dst incrementally. Seed as empty, then append each element.
             uint8_t dst = tempReg();
             emitA(OpCode::LOAD_EMPTY, dst);
             for (auto &elem : row->children) {
-                if (elem->type == NodeType::CELL_INDEX && elem->children.size() == 2) {
-                    // cell CSL c{:} / c{vec} / c{i}: expand the selected contents.
-                    uint8_t           cellReg = compileNode(elem->children[0].get());
-                    IndexContextGuard guard(*this, cellReg, 1);  // `end` -> cell numel
-                    uint8_t           subReg = compileNode(elem->children[1].get());
-                    emitABC(OpCode::HORZCAT_APPEND_CELL_CSL, dst, cellReg, subReg);
-                } else if (elem->type == NodeType::CELL_INDEX && elem->children.size() == 3) {
-                    // 2-D cell CSL c{r,:} / c{:,j}: expand the selected slice.
-                    uint8_t           cellReg = compileNode(elem->children[0].get());
-                    IndexContextGuard guard(*this, cellReg, 2);  // `end` -> rows / cols
-                    uint8_t           rowReg = compileNode(elem->children[1].get());
-                    guard.setDim(1);
-                    uint8_t           colReg = compileNode(elem->children[2].get());
-                    emit(Instruction::make_abcde(OpCode::HORZCAT_APPEND_CELL_CSL_2D,
-                                                 dst, cellReg, rowReg, colReg, 0));
+                if (elem->type == NodeType::CELL_INDEX) {
+                    // cell CSL c{:} / c{vec} / c{idx} / c{r,:}: compileNodeExpand
+                    // preserves a CSL (CELL_GET / CELL_GET_2D produce one for a
+                    // multi-select, incl. a variable subscript); the `end` context is
+                    // set up inside compileCellIndex. HORZCAT_APPEND_FLATTEN appends all
+                    // of a CSL or one of a non-CSL at runtime. See CSL_FIRST_CLASS.md.
+                    uint8_t v = compileNodeExpand(elem.get());
+                    emitAB(OpCode::HORZCAT_APPEND_FLATTEN, dst, v);
                 } else if (isCslCandidate(elem.get())) {
+                    // struct-array field [s.field] -- a different (not-yet-first-class)
+                    // producer, still on the campaign HORZCAT_APPEND_CSL.
                     uint8_t baseReg = compileNode(elem->children[0].get());
                     int16_t nameIdx = addStringConstant(elem->strValue);
                     emit(Instruction::make_abcde(
@@ -4272,6 +4266,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "HORZCAT";
         case OpCode::HORZCAT_APPEND:
             return "HORZCAT_APPEND";
+        case OpCode::HORZCAT_APPEND_FLATTEN:
+            return "HORZCAT_APPEND_FLATTEN";
         case OpCode::VERTCAT:
             return "VERTCAT";
         case OpCode::INDEX_GET:
