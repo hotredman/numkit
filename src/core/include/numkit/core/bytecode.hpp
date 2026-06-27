@@ -80,6 +80,11 @@ enum class OpCode : uint8_t {
     // as the call's args at runtime (comma-separated list). a=dst, b=cellReg,
     // d=funcIdx, e=nargout. R[dst] = func(cell{1}, ..., cell{end}).
     CALL_VARARGS,  // dst, cellReg, _, funcIdx, e=nargout
+    // First-class call with possible CSL args: a=dst, b=argBase, c=nargs, d=funcIdx,
+    // e=nargout. Flattens any CSL arg register into a runtime arg vector, then runs the
+    // full CALL target dispatch (user fn / ctor / method / m-file / callback / external).
+    // Emitted only when an arg could be a CSL, so the hot CALL is untouched.
+    CALL_FLATTEN,  // dst, argBase, nargs, funcIdx, e=nargout
     CALL_VARARGS_MULTI, // outBase, cellReg, _, funcIdx, e=nout  ([a,b]=f(c{:}))
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)

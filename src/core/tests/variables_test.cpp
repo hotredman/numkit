@@ -360,6 +360,30 @@ TEST_P(CellTest, CellLiteralVariableSubscript)
     EXPECT_DOUBLE_EQ(e2->cellAt(3).toScalar(), 99.0);
 }
 
+// First-class CSL: f(c{idx}) with a VARIABLE vector subscript -- the LAST gap the
+// context-opcode campaign left (the VM restricted call-arg CSL to syntactically-multi
+// subscripts). compileCall now routes any brace-index arg through CALL_FLATTEN, which
+// flattens a CSL arg into the runtime arg list for ANY call target. Both backends. 6c.
+TEST_P(CellTest, CallArgVariableSubscript)
+{
+    eval("c = {10, 20, 30}; idx = [1 3];");
+    eval("h = horzcat(c{idx});");  // f(c{idx}) -> horzcat(10, 30) = [10 30]
+    auto *h = getVarPtr("h");
+    ASSERT_NE(h, nullptr);
+    ASSERT_EQ(h->numel(), 2u);
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 10.0);
+    EXPECT_DOUBLE_EQ(h->doubleData()[1], 30.0);
+    eval("g = horzcat(0, c{idx}, 99);");  // mixed plain + variable CSL -> [0 10 30 99]
+    auto *g = getVarPtr("g");
+    ASSERT_EQ(g->numel(), 4u);
+    EXPECT_DOUBLE_EQ(g->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(g->doubleData()[3], 99.0);
+    eval("m = max(c{idx});");  // sole variable-subscript arg -> max(10, 30) = 30
+    EXPECT_DOUBLE_EQ(getVar("m"), 30.0);
+    eval("s = c{2};");  // scalar c{i} still a single value (CALL_FLATTEN fast path / collapse)
+    EXPECT_DOUBLE_EQ(getVar("s"), 20.0);
+}
+
 INSTANTIATE_DUAL(CellTest);
 
 // ============================================================

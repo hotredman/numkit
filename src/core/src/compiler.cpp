@@ -3303,23 +3303,31 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     // and a SYNTACTICALLY-multi subscript c{1:2} / c{[1 3]} (mode 2, selected); a
     // scalar/variable subscript c{i} stays the normal path (single value -- the
     // scalar/vector distinction is only known at runtime, and f(c{i}) must stay cheap).
-    // Single output here; multi-output [a,b]=f(x,c{:}) is handled in compileCallMulti.
-    bool anyCsl = false;
+    // First-class call args: if any argument is a brace cell-index c{sub} (which may
+    // produce a comma-separated list at runtime -- including a variable subscript, the
+    // case the campaign opcodes could not splice), compile every arg with
+    // compileNodeExpand (preserving a CSL) into consecutive registers and emit
+    // CALL_FLATTEN, which flattens any CSL arg into the runtime arg list and runs the
+    // full target dispatch (all call targets). A call with no brace-index arg uses the
+    // hot normal CALL below, untouched. Single output here; multi-output is in
+    // compileCallMulti. See dev-docs/CSL_FIRST_CLASS.md.
+    bool anyBraceArg = false;
     for (size_t i = 1; i < node->children.size(); ++i)
-        if (isAnyCellCsl(node->children[i].get())) { anyCsl = true; break; }
-    if (anyCsl) {
-        uint8_t cellReg;
-        if (nargs == 1 && isCellBareColon(node->children[1].get())) {
-            // Sole c{:} arg IS the cell -> splice it directly, no intermediate build.
-            cellReg = compileNode(node->children[1]->children[0].get());
-        } else {
-            // Mixed / vector / 2-D subscript: build a {args...} cell (expanding each
-            // CSL arg into its selected contents) and splice that. See buildCslArgCell.
-            cellReg = buildCslArgCell(node, 1);
+        if (node->children[i]->type == NodeType::CELL_INDEX) { anyBraceArg = true; break; }
+    if (anyBraceArg) {
+        std::vector<uint8_t> argRegs;
+        for (size_t i = 1; i < node->children.size(); ++i)
+            argRegs.push_back(compileNodeExpand(node->children[i].get()));
+        uint8_t argBase = nextReg_;
+        for (size_t i = 0; i < argRegs.size(); ++i) {
+            uint8_t slot = tempReg();
+            if (argRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, argRegs[i]);
         }
         uint8_t dst     = tempReg();
         int16_t funcIdx = addStringConstant(name);
-        emit(Instruction::make_abcde(OpCode::CALL_VARARGS, dst, cellReg, 0, funcIdx,
+        emit(Instruction::make_abcde(OpCode::CALL_FLATTEN, dst, argBase,
+                                     static_cast<uint8_t>(argRegs.size()), funcIdx,
                                      nargoutContext_));
         return dst;
     }
@@ -4294,6 +4302,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CALL";
         case OpCode::CALL_VARARGS:
             return "CALL_VARARGS";
+        case OpCode::CALL_FLATTEN:
+            return "CALL_FLATTEN";
         case OpCode::CALL_VARARGS_MULTI:
             return "CALL_VARARGS_MULTI";
         case OpCode::CALL_BUILTIN:
