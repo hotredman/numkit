@@ -76,10 +76,6 @@ enum class OpCode : uint8_t {
 
     // ── Function calls ───────────────────────────────────────
     CALL,          // dst, argBase, nargs, funcIdx, e=nargout  R[dst] = func(R[base..base+nargs-1])
-    // Variadic call f(c{:}): the sole argument is a cell whose contents are SPLICED
-    // as the call's args at runtime (comma-separated list). a=dst, b=cellReg,
-    // d=funcIdx, e=nargout. R[dst] = func(cell{1}, ..., cell{end}).
-    CALL_VARARGS,  // dst, cellReg, _, funcIdx, e=nargout
     // First-class call with possible CSL args: a=dst, b=argBase, c=nargs, d=funcIdx,
     // e=nargout. Flattens any CSL arg register into a runtime arg vector, then runs the
     // full CALL target dispatch (user fn / ctor / method / m-file / callback / external).
@@ -88,7 +84,6 @@ enum class OpCode : uint8_t {
     // Multi-output sibling of CALL_FLATTEN: a=outBase, b=argBase, c=nargs, d=funcIdx,
     // e=nout. Flattens any CSL arg, then runs the CALL_MULTI dispatch. ([a,b]=f(x,c{idx}))
     CALL_FLATTEN_MULTI,
-    CALL_VARARGS_MULTI, // outBase, cellReg, _, funcIdx, e=nout  ([a,b]=f(c{:}))
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)
     CALL_INDIRECT, // dst, fhReg, base, nargs         R[dst] = R[fhReg](R[base..base+nargs-1])
@@ -174,18 +169,6 @@ enum class OpCode : uint8_t {
     CELL_GET_MULTI_2D,
     CELL_GET_ND,   // dst, cell, base, ndims   R[dst] = R[cell]{R[base]..R[base+ndims-1]}
     CELL_SET_ND,   // cell, base, ndims, val   R[cell]{R[base]..R[base+ndims-1]} = R[val]
-    // Incremental cell-literal builder for a row containing a comma-separated list:
-    // a=cellAcc (in/out, coerced to a 1x0 cell if unset), b=src, c=mode, d=subReg.
-    // mode 0 -> append R[src] as ONE element; mode 1 -> R[src] is a cell, append ALL
-    // its contents (c{:}); mode 2 -> R[src] is a cell, append the SELECTED contents
-    // resolveIndices(R[subReg], numel) (c{vec} / c{1:2}). All column-major. Used to
-    // build {a, c{:}, c{vec}, b} on the VM (and lowered f(a, c{:}, ...) call args).
-    CELL_APPEND_ELEM, // cellAcc, src, mode, subReg
-    // 2-D sibling of CELL_APPEND_ELEM mode 2: append a 2-D cell brace-index slice
-    // c{r,cols} into the accumulator. a=cellAcc (in/out, coerced to 1x0 if unset),
-    // b=cellSrc, c=rowSubReg, d=colSubReg -> resolveIndices per dim + sub2ind,
-    // column-major. Builds {a, c{r,:}, b} on the VM (cell literal + lowered call args).
-    CELL_APPEND_SLICE_2D, // cellAcc, cellSrc, rowSub, colSub
     // First-class cell-literal builder: a=cellAcc (in/out, coerced to 1x0 if unset),
     // b=elem. If R[elem] is a comma-separated list, append ALL its items (column-major);
     // otherwise append R[elem] as ONE element. Driven by the runtime VALUE (isCsl), not
@@ -205,18 +188,10 @@ enum class OpCode : uint8_t {
     HORZCAT_APPEND_CSL, // a=dst, b=structArrReg, d=nameIdx
                   //                        when dst is a row vector / empty and val is a real
                   //                        scalar; falls back to a 2-elem horzcat otherwise
-    // Cell comma-separated-list: R[dst] = [R[dst], cell{sub}...] -- the selected cell
-    // contents (a=dst in/out, b=cellReg, c=subReg holding the ':' colon marker / vector
-    // / scalar; resolveIndices over the cell numel). For [c{:}] / [c{vec}] in a literal.
     // First-class concat builder: a=dst (in/out), b=elem. If R[elem] is a CSL,
     // horzcat-append all its items; else append the one value. Driven by the runtime
     // value, so [a, c{idx}, b] flattens for any subscript. See CSL_FIRST_CLASS.md.
     HORZCAT_APPEND_FLATTEN, // a=dst, b=elem
-    HORZCAT_APPEND_CELL_CSL, // a=dst, b=cellReg, c=subReg
-    // 2-D variant: append the selected contents of a 2-D cell brace-index slice
-    // c{r,cols} into dst (a=dst in/out, b=cellReg, c=rowSubReg, d=colSubReg;
-    // resolveIndices per dim + sub2ind, column-major). For [c{1,:}] / [c{:,j}].
-    HORZCAT_APPEND_CELL_CSL_2D,
     VERTCAT,      // dst, base, count       R[dst] = [R[base]; ...; R[base+count-1]]
     MATRIX_BUILD, // [reserved] compiler uses HORZCAT/VERTCAT instead
     CELL_LITERAL, // dst, base, count       {R[base]..R[base+count-1]}
