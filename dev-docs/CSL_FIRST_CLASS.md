@@ -43,18 +43,34 @@ matrix literal, cell literal) flatten CSL values. cellBraceContents is now an in
 gather helper of the producer only. Audit confirmed TW already handled the vector-variable
 gap, so this was a behaviour-preserving unification (suite-proven). The real gap is VM-only.
 
-## VM plan — DATAFLOW approach (chosen)
-The register file holds Values; a CSL in a register is a landmine for every opcode that
-reads it as a single value. We do **not** guard every opcode. Instead:
-- **Producers** (`CELL_GET[_2D]` when N!=1) write a CSL into their dst register.
-- The **compiler runs a dataflow pass** marking which registers may hold a CSL (only
-  producer outputs that flow directly into a splice context). Everywhere else it emits an
-  explicit `COLLAPSE` opcode (CSL->element or error) so downstream opcodes never see a CSL.
-- **Splice consumers** (`CALL`/`CALL_MULTI` arg scan, `HORZCAT`, `CELL_LITERAL`,
-  multi-assign distribute) flatten CSL operands. The call ABI becomes: scan the arg
-  registers, flatten any CSL into a runtime arg vector, dispatch. Keep a fast path when
-  the dataflow proves no arg register holds a CSL (the common case) so hot calls are
-  unaffected.
+## VM plan — LOCAL compile-context approach (chosen; refined after the VM audit)
+**VM audit finding:** the real VM gap for a variable subscript is only `f(c{idx})` and
+`{c{idx}}` (concat + multi-assign already route any subscript through resolveIndices).
+A CSL never crosses a statement (the VM compiles per-statement) and is never stored, so
+its lifetime is local. That kills the need for a global dataflow pass: the **compiler
+already knows each child's context**, exactly like the TreeWalker (execNodeExpand vs
+execNode). Mirror that:
+- Split `compileNode` into `compileNodeExpand` (the dispatcher; the result register may
+  hold a CSL when the node is a brace-index) and `compileNode` = `compileNodeExpand` +,
+  when the compiled node is a brace-index that is not provably scalar, emit `COLLAPSE` on
+  the result register. So single-value contexts (operands, conditions, index values,
+  assignment RHS) collapse locally; splice contexts call `compileNodeExpand` and skip it.
+- **Producer:** `CELL_GET`/`CELL_GET_2D` (or a sibling) emit a CSL into dst when the
+  resolved subscript selects N!=1; a scalar selects the bare element (hot path). A literal
+  scalar subscript `c{1}` is provably single -> no COLLAPSE needed.
+- **Splice consumers** flatten a CSL operand register: matrix literal (`HORZCAT`), cell
+  literal (`CELL_LITERAL`), call args (`CALL`/`CALL_MULTI` scan args -> runtime arg
+  vector), multi-assign distribute. Keep a fast path: only scan/flatten when an operand
+  register is actually a CSL (cheap isCsl check; the campaign already proved the splice
+  mechanics).
+- Once the consumers flatten CSL values, the campaign opcodes
+  (HORZCAT_APPEND_CELL_CSL[_2D], CELL_APPEND_ELEM, CELL_APPEND_SLICE_2D,
+  CALL_VARARGS[_MULTI]) become redundant and are deleted.
+
+DE-RISK like the TW side: land the compileNode/compileNodeExpand split + COLLAPSE
+insertion INERT first (CELL_GET still single-valued -> COLLAPSE is a no-op -> suite
+proves zero change), THEN flip the producer to emit CSL, THEN convert consumers one at a
+time. User chose this full path (2026-06-27) over a narrow 2-context fix.
 
 ## Brick sequence
 1. **Value CSL kind** — storage + API. *(DONE)*
