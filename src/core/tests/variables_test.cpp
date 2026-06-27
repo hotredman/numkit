@@ -384,6 +384,16 @@ TEST_P(CellTest, CallArgVariableSubscript)
     EXPECT_DOUBLE_EQ(getVar("s"), 20.0);
 }
 
+// First-class CSL: multi-output [a,b]=f(x, c{idx}) with a VARIABLE subscript, via
+// CALL_FLATTEN_MULTI. Both backends. Brick 7a.
+TEST_P(CellTest, MultiOutputCallVariableSubscript)
+{
+    eval("c = {10, 20, 30}; idx = [1 3];");
+    eval("[a, b] = deal(c{idx});");  // deal(10, 30) -> a=10, b=30
+    EXPECT_DOUBLE_EQ(getVar("a"), 10.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 30.0);
+}
+
 INSTANTIATE_DUAL(CellTest);
 
 // ============================================================

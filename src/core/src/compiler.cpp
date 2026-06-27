@@ -1048,26 +1048,36 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         }
     }
 
-    // CSL multi-output [a,b]=f(x, c{:}): a cell-CSL arg splices its contents into the
-    // argument list of a MULTI-output call. Build a {args...} cell (reusing the
-    // single-output lowering's buildCslArgCell) and emit CALL_VARARGS_MULTI. v1: a
-    // plain named-function callee only -- a handle/variable callee with a CSL arg falls
-    // through to the normal path (rare). The funcName resolves at runtime like CALL_MULTI.
+    // First-class multi-output call args [a,b]=f(x, c{idx}): if any arg is a brace cell-
+    // index (a potential CSL, incl. a variable subscript), compile every arg with
+    // compileNodeExpand (preserving a CSL) into consecutive registers and emit
+    // CALL_FLATTEN_MULTI, which flattens any CSL arg into the runtime arg list and runs
+    // the full CALL_MULTI target dispatch. A plain named-function callee only -- a
+    // handle/variable callee falls through to the normal path. See CSL_FIRST_CLASS.md.
     if (callNode->children[0]->type == NodeType::IDENTIFIER) {
-        bool anyCsl = false;
+        bool anyBraceArg = false;
         for (size_t i = 1; i < callNode->children.size(); ++i)
-            if (isAnyCellCsl(callNode->children[i].get())) { anyCsl = true; break; }
+            if (callNode->children[i]->type == NodeType::CELL_INDEX) { anyBraceArg = true; break; }
         const std::string &fname = callNode->children[0]->strValue;
         const bool calleeIsVar = varRegisters_.find(fname) != varRegisters_.end()
                                  || engine_.workspaceEnv().getLocal(fname) != nullptr;
-        if (anyCsl && !calleeIsVar) {
-            uint8_t cellReg = buildCslArgCell(callNode, 1);
+        if (anyBraceArg && !calleeIsVar) {
+            std::vector<uint8_t> argRegs;
+            for (size_t i = 1; i < callNode->children.size(); ++i)
+                argRegs.push_back(compileNodeExpand(callNode->children[i].get()));
+            uint8_t argBase = nextReg_;
+            for (size_t i = 0; i < argRegs.size(); ++i) {
+                uint8_t slot = tempReg();
+                if (argRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, argRegs[i]);
+            }
             uint8_t outBase = nextReg_;
             for (size_t i = 0; i < nout; ++i)
                 tempReg();
             int16_t funcIdx = addStringConstant(fname);
-            emit(Instruction::make_abcde(OpCode::CALL_VARARGS_MULTI, outBase, cellReg,
-                                         0, funcIdx, static_cast<uint8_t>(nout)));
+            emit(Instruction::make_abcde(OpCode::CALL_FLATTEN_MULTI, outBase, argBase,
+                                         static_cast<uint8_t>(argRegs.size()), funcIdx,
+                                         static_cast<uint8_t>(nout)));
             distribute(outBase);
             if (complex)
                 return nout ? outBase : 0;
@@ -4304,6 +4314,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CALL_VARARGS";
         case OpCode::CALL_FLATTEN:
             return "CALL_FLATTEN";
+        case OpCode::CALL_FLATTEN_MULTI:
+            return "CALL_FLATTEN_MULTI";
         case OpCode::CALL_VARARGS_MULTI:
             return "CALL_VARARGS_MULTI";
         case OpCode::CALL_BUILTIN:
