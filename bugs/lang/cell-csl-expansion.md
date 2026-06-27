@@ -1,6 +1,6 @@
 # lang.cell — `c{:}` comma-separated-list expansion errors ("Cell index out of bounds")
 
-- **Status:** ✅ FIXED (2026-06-27) — full 1-D + 2-D CSL surface, both backends; one deliberate gap (vector-variable subscript, see below)
+- **Status:** ✅ FIXED (2026-06-27) — fully closed: first-class CSL on both backends; the former vector-variable-subscript gap is closed too (see "Gap closed" below)
 - **Severity:** P2 (a valid MATLAB form errors; CSL expansion is missing)
 - **Kind:** bug
 - **Found:** 2026-06-26 via the codegen CSL audit (multi-fire design item 1)
@@ -68,22 +68,26 @@ feature.**
   8f8881e8 / f7da641d / 20472d63 / d32f644d / 43b32f4e. Live guards: the `CellTest`
   `CellCommaList*` family (both backends) + `BuiltinKnownBug.CellCommaListExpansion`.
 
-## Deliberate residual gap (NOT a defect)
-A **vector-VARIABLE** subscript in a call arg or cell literal — `idx=[1 3]; f(c{idx})`
-or `{c{idx}}` — stays the single-value `CELL_GET` path and errors for a vector `idx`.
-This is a deliberate, sound refusal, not an oversight:
-1. The scalar-vs-vector nature of a variable subscript is only known at runtime, and
-   `f(c{i})` (scalar loop variable) is a hot pattern that must stay on the cheap path.
-2. The CSL call path (`CALL_VARARGS`) only dispatches user functions and external
-   builtins — it refuses class ctors / object methods / callback builtins. Routing an
-   ambiguous variable subscript through it would risk breaking `MyClass(c{i})` etc.
-The CSL detection is therefore scoped to **syntactically-multi** subscripts (bare
-colon, range `c{1:2}`, vector literal `c{[1 3]}`), where splicing is unambiguous.
-Workaround for a dynamic subset: `tmp = c(idx); f(tmp{:});` (concat and multi-assign
-already accept a variable subscript via `resolveIndices`, so `[c{idx}]` / `[a,b]=c{idx}`
-work directly).
+## Gap closed (2026-06-27) — first-class CSL
+The former deliberate gap — a **vector-VARIABLE** subscript in a call arg or cell
+literal (`idx=[1 3]; f(c{idx})` or `{c{idx}}`) — is now closed on **both backends** by
+the first-class CSL rework (dev-docs/CSL_FIRST_CLASS.md). A comma-separated list is a
+transient `Value` (`ValueType::CSL`): the producer (`c{sub}`) emits one for a multi-
+select (any subscript, including a runtime variable); splicing contexts flatten it; a
+single-value context collapses it (1 → the element; 0 / >1 → "too many values"). The VM
+mirrors the TreeWalker via the `compileNode` / `compileNodeExpand` split. `f(c{idx})` and
+`[a,b]=f(x,c{idx})` route through `CALL_FLATTEN` / `CALL_FLATTEN_MULTI`, which flatten CSL
+args and run the FULL target dispatch (incl. class ctors / object methods), so
+`MyClass(c{idx})` works without regressing the hot `f(c{i})` scalar path (a no-CSL fast
+path keeps it cheap). The old syntactically-multi restriction and its campaign opcodes
+(`CALL_VARARGS`, `CELL_APPEND_ELEM`, `HORZCAT_APPEND_CELL_CSL`, …) are deleted. Guards:
+the `CellTest` `CellCommaList*` + `CallArgVariableSubscript` + `CellLiteralVariableSubscript`
++ `MultiOutputCallVariableSubscript` families, both backends; `CslValue.*` value-level
+tests. **The whole CSL surface (1-D + 2-D; concat / call-arg / cell-literal / multi-assign;
+single + multi output; syntactic AND variable subscripts) is first-class on both backends.**
 
 ## References
-- src/core/src/tree_walker.cpp (`execCellIndex`, `cellBraceContents`, `buildArgs`)
-- src/codegen/DESIGN.md §10a (sound-refusal catalog) + `CellCommaListRefusedUnderBridge`
+- dev-docs/CSL_FIRST_CLASS.md (first-class CSL design + brick log)
+- src/core/src/tree_walker.cpp (`execCellIndex`, `execNode` / `execNodeExpand`, splicers)
+- src/core/src/vm.cpp (`CELL_GET` producer, `CALL_FLATTEN` / `HORZCAT_APPEND_FLATTEN` / `CELL_APPEND_FLATTEN`)
 - MATLAB: comma-separated lists (`doc "comma-separated lists"`)
