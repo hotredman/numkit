@@ -200,6 +200,10 @@ enum class OpCode : uint8_t {
     // Cell comma-separated-list: R[dst] = [R[dst], cell{sub}...] -- the selected cell
     // contents (a=dst in/out, b=cellReg, c=subReg holding the ':' colon marker / vector
     // / scalar; resolveIndices over the cell numel). For [c{:}] / [c{vec}] in a literal.
+    // First-class concat builder: a=dst (in/out), b=elem. If R[elem] is a CSL,
+    // horzcat-append all its items; else append the one value. Driven by the runtime
+    // value, so [a, c{idx}, b] flattens for any subscript. See CSL_FIRST_CLASS.md.
+    HORZCAT_APPEND_FLATTEN, // a=dst, b=elem
     HORZCAT_APPEND_CELL_CSL, // a=dst, b=cellReg, c=subReg
     // 2-D variant: append the selected contents of a 2-D cell brace-index slice
     // c{r,cols} into dst (a=dst in/out, b=cellReg, c=rowSubReg, d=colSubReg;

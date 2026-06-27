@@ -969,6 +969,23 @@ enter_frame:
                 dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
                 break;
             }
+            case OpCode::HORZCAT_APPEND_FLATTEN: {
+                // a=dst (in/out), b=elem. First-class concat builder: if R[elem] is a
+                // comma-separated list, horzcat-append each item; else append the one
+                // value. Driven by the runtime value, so [a, c{idx}, b] flattens for any
+                // subscript. See dev-docs/CSL_FIRST_CLASS.md.
+                Value             &dst  = R[I.a];
+                const Value       &elem = R[I.b];
+                std::vector<Value> elems;
+                elems.push_back(dst);
+                if (elem.isCsl())
+                    for (size_t k = 0; k < elem.cslCount(); ++k)
+                        elems.push_back(elem.cslAt(k));
+                else
+                    elems.push_back(elem);
+                dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
+                break;
+            }
             case OpCode::HORZCAT_APPEND_CELL_CSL: {
                 // a = dst (in/out), b = cell source, c = subscript (the ':' colon
                 // marker / a vector / a scalar). Append the SELECTED cell contents
