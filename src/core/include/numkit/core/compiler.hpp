@@ -239,7 +239,14 @@ private:
     int16_t addStringConstant(const std::string &s);
 
     // Compile AST nodes — return register holding result
+    // compileNode is the single-value entry: it compiles the node, then (when the node
+    // is a brace cell-index that may yield a comma-separated list) emits COLLAPSE on the
+    // result register, so operands / conditions / index values / assignment RHS never
+    // see a CSL. Splice contexts (call args, [..], {..}, multi-assign) call
+    // compileNodeExpand instead, which leaves a CSL for the consumer to flatten.
+    // Mirrors the TreeWalker execNode / execNodeExpand split. See CSL_FIRST_CLASS.md.
     uint8_t compileNode(const ASTNode *node);
+    uint8_t compileNodeExpand(const ASTNode *node);
     uint8_t compileBlock(const ASTNode *node);
     uint8_t compileNumber(const ASTNode *node);
     uint8_t compileString(const ASTNode *node);
