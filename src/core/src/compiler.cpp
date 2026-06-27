@@ -2419,43 +2419,23 @@ uint8_t Compiler::compileCellLiteral(const ASTNode *node)
             continue;
         }
 
-        // CSL row: a cell brace-index element with a multi-valued subscript expands
-        // its contents into the row -- a comma-separated list whose count is runtime-
-        // variable, so it can't go through the fixed-count CELL_LITERAL. Build the row
-        // cell incrementally with CELL_APPEND_ELEM. v1: bare colon c{:} (mode 1, all)
-        // and a SYNTACTICALLY-multi subscript c{1:2} / c{[1 3]} (mode 2, resolveIndices
-        // over subReg). A scalar/variable subscript c{i} stays the normal CELL_LITERAL
-        // path (single element -- the scalar/vector distinction is only known at runtime).
-        // Element classifiers are the file-scope isCell* helpers.
-        bool hasCsl = false;
+        // CSL row: any cell brace-index element c{sub} may expand to a comma-separated
+        // list whose count is runtime-variable, so the row can't go through the fixed-
+        // count CELL_LITERAL. First-class build: compile each element with
+        // compileNodeExpand (preserving a CSL -- CELL_GET produces one for a multi-select,
+        // including a variable subscript), then CELL_APPEND_FLATTEN, which appends all of
+        // a CSL or one of a non-CSL at runtime. Handles {c{:}} / {c{vec}} / {c{idx}}
+        // (variable) / {0, c{:}, 9} uniformly. A row with no brace index keeps the fast
+        // fixed-count path below. See dev-docs/CSL_FIRST_CLASS.md.
+        bool hasBraceIndex = false;
         for (auto &elem : row->children)
-            if (isCellBareColon(elem.get()) || isCellMultiSub(elem.get())
-                || isCellSlice2D(elem.get())) { hasCsl = true; break; }
-        if (hasCsl) {
+            if (elem->type == NodeType::CELL_INDEX) { hasBraceIndex = true; break; }
+        if (hasBraceIndex) {
             uint8_t acc = tempReg();
             emitABC(OpCode::CELL_LITERAL, acc, 0, 0);  // seed an empty 1x0 cell
             for (auto &elem : row->children) {
-                if (isCellBareColon(elem.get())) {
-                    uint8_t cellReg = compileNode(elem->children[0].get());
-                    emitABC(OpCode::CELL_APPEND_ELEM, acc, cellReg, 1);  // all contents
-                } else if (isCellMultiSub(elem.get())) {
-                    uint8_t           cellReg = compileNode(elem->children[0].get());
-                    IndexContextGuard guard(*this, cellReg, 1);  // `end` -> cell numel
-                    uint8_t           subReg = compileNode(elem->children[1].get());
-                    emit(Instruction::make_abcde(OpCode::CELL_APPEND_ELEM, acc,
-                                                 cellReg, 2, subReg, 0));  // selected
-                } else if (isCellSlice2D(elem.get())) {
-                    uint8_t           srcCell = compileNode(elem->children[0].get());
-                    IndexContextGuard guard(*this, srcCell, 2);  // `end` -> rows / cols
-                    uint8_t           rowReg = compileNode(elem->children[1].get());
-                    guard.setDim(1);
-                    uint8_t           colReg = compileNode(elem->children[2].get());
-                    emit(Instruction::make_abcde(OpCode::CELL_APPEND_SLICE_2D, acc,
-                                                 srcCell, rowReg, colReg, 0));
-                } else {
-                    uint8_t v = compileNode(elem.get());
-                    emitABC(OpCode::CELL_APPEND_ELEM, acc, v, 0);  // one element
-                }
+                uint8_t v = compileNodeExpand(elem.get());  // preserve a CSL
+                emitAB(OpCode::CELL_APPEND_FLATTEN, acc, v);
             }
             rowRegs.push_back(acc);
             continue;
@@ -4408,6 +4388,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CELL_APPEND_ELEM";
         case OpCode::CELL_APPEND_SLICE_2D:
             return "CELL_APPEND_SLICE_2D";
+        case OpCode::CELL_APPEND_FLATTEN:
+            return "CELL_APPEND_FLATTEN";
         case OpCode::TRY_BEGIN:
             return "TRY_BEGIN";
         case OpCode::TRY_END:
