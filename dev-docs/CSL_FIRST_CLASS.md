@@ -37,6 +37,12 @@ Natural fit: `execNode` returns a Value, which may now be a CSL.
 - **Collapsers:** a `collapse(Value&&)` helper applied at every `execNode` call in a
   single-value position (assignment RHS, operator operands, `if`/`while` cond, index).
 
+**TreeWalker status: DONE (bricks 3a/3b).** execNode collapses centrally; execCellIndex
+produces a CSL for a multi-select; all four splice contexts (call args single + multi,
+matrix literal, cell literal) flatten CSL values. cellBraceContents is now an internal
+gather helper of the producer only. Audit confirmed TW already handled the vector-variable
+gap, so this was a behaviour-preserving unification (suite-proven). The real gap is VM-only.
+
 ## VM plan — DATAFLOW approach (chosen)
 The register file holds Values; a CSL in a register is a landmine for every opcode that
 reads it as a single value. We do **not** guard every opcode. Instead:
