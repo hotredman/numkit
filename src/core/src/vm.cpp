@@ -1792,8 +1792,27 @@ enter_frame:
             case OpCode::CELL_GET: {
                 if (!R[I.b].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
-                size_t i = Value::checkedScalarIndex(R[I.c].toScalar());
-                R[I.a] = R[I.b].cellAt(i);
+                const Value &cell = R[I.b];
+                const Value &sub  = R[I.c];
+                // Hot path: a scalar numeric subscript c{i} -> the bare element, no CSL,
+                // no resolveIndices allocation.
+                if (sub.isDoubleScalar()) {
+                    R[I.a] = cell.cellAt(Value::checkedScalarIndex(sub.scalarVal()));
+                    break;
+                }
+                // Multi-select c{:} / c{vec} / c{range}: one selected index is still a
+                // bare single value; N!=1 is a comma-separated list. In a single-value
+                // context the compiler-inserted COLLAPSE collapses it (brick 5a); splice
+                // consumers flatten it. See dev-docs/CSL_FIRST_CLASS.md.
+                auto ids = Value::resolveIndices(sub, cell.numel());
+                if (ids.size() == 1) {
+                    R[I.a] = cell.cellAt(ids[0]);
+                } else {
+                    Value csl = Value::csl(ids.size());
+                    for (size_t k = 0; k < ids.size(); ++k)
+                        csl.cslAt(k) = cell.cellAt(ids[k]);
+                    R[I.a] = std::move(csl);
+                }
                 break;
             }
             case OpCode::CELL_GET_OR_CREATE: {
