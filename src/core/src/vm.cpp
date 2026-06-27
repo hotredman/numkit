@@ -2232,6 +2232,146 @@ enter_frame:
                 }
             }
 
+            case OpCode::CALL_FLATTEN: {
+                // First-class call with possible CSL args: flatten any comma-separated
+                // list arg into a runtime arg vector, then run the SAME full target
+                // dispatch as CALL (user fn / ctor / object method / m-file / callback /
+                // external) over AB/NF. Emitted only when an arg could be a CSL, so the
+                // hot no-CSL CALL is untouched. pushCallFrame copies args, so flatArgs may
+                // die after the goto. See dev-docs/CSL_FIRST_CLASS.md.
+                uint8_t argBase = I.b, na = I.c;
+                uint8_t nargout_val = I.e;
+                int16_t funcIdx = I.d;
+                // Fast path: no arg is actually a CSL (the common f(c{i}) scalar case) ->
+                // use the contiguous arg registers directly, no copy. Only build the
+                // flattened vector when a CSL is present.
+                bool anyCsl = false;
+                for (uint8_t i = 0; i < na; ++i)
+                    if (R[argBase + i].isCsl()) { anyCsl = true; break; }
+                std::vector<Value> flatArgs;
+                const Value       *AB;
+                uint8_t            NF;
+                if (!anyCsl) {
+                    AB = na ? &R[argBase] : nullptr;
+                    NF = na;
+                } else {
+                    flatArgs.reserve(na);
+                    for (uint8_t i = 0; i < na; ++i) {
+                        const Value &a = R[argBase + i];
+                        if (a.isCsl())
+                            for (size_t k = 0; k < a.cslCount(); ++k)
+                                flatArgs.push_back(a.cslAt(k));
+                        else
+                            flatArgs.push_back(a);
+                    }
+                    AB = flatArgs.empty() ? nullptr : flatArgs.data();
+                    NF = static_cast<uint8_t>(flatArgs.size());
+                }
+
+                const BytecodeChunk *targetChunk = nullptr;
+                if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx])
+                    targetChunk = resolvedFuncs[funcIdx];
+                if (!targetChunk) {
+                    const std::string &funcName = chunk.strings[funcIdx];
+                    if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                        if (funcIdx >= (int16_t) resolvedFuncs.size())
+                            resolvedFuncs.resize(funcIdx + 1, nullptr);
+                        resolvedFuncs[funcIdx] = found;
+                        targetChunk = found;
+                    }
+                }
+                if (targetChunk) {
+                    frame.ip = ip + 1;
+                    pushCallFrame(*targetChunk, AB, NF, I.a, nargout_val);
+                    goto enter_frame;
+                }
+
+                {
+                    const std::string &ctorName = chunk.strings[funcIdx];
+                    if (const BuiltinClass *cls = engine_.findClass(ctorName);
+                        cls && cls->construct) {
+                        engine_.enforceCtorAccess(ctorName);
+                        if (const UserFunction *cuf = engine_.classCtor(ctorName)) {
+                            if (const BytecodeChunk *cc =
+                                    engine_.ensureClassMethodChunk(*cuf)) {
+                                Value seed = engine_.makeDefaultInstance(ctorName);
+                                frame.ip = ip + 1;
+                                pushCallFrame(*cc, AB, NF, I.a, nargout_val,
+                                              false, 0, 0, ctorName, /*isCtor=*/true,
+                                              &seed);
+                                goto enter_frame;
+                            }
+                        }
+                        Span<const Value> as(AB, NF);
+                        CallContext ctx{&engine_, currentCallEnv()};
+                        R[I.a] = cls->construct(as, ctx);
+                        break;
+                    }
+                }
+
+                if (NF >= 1 && AB[0].isObject()) {
+                    const std::string &mnm = chunk.strings[funcIdx];
+                    const BuiltinClass *cls = engine_.findClass(AB[0].objectClassName());
+                    if (cls) {
+                        auto fit = cls->methodFns.find(mnm);
+                        if (fit != cls->methodFns.end()) {
+                            const BytecodeChunk *mc = engine_.ensureClassMethodChunk(*fit->second);
+                            if (mc) {
+                                engine_.enforceMethodAccess(AB[0].objectClassName(), mnm);
+                                frame.ip = ip + 1;
+                                pushCallFrame(*mc, AB, NF, I.a, nargout_val, false, 0, 0,
+                                              fit->second->ownerClass, false);
+                                goto enter_frame;
+                            }
+                        }
+                        if (cls->methods.count(mnm)) {
+                            Value self = AB[0];
+                            Span<const Value> rest((NF > 1) ? &AB[1] : nullptr, NF - 1);
+                            Value out[1];
+                            CallContext ctx{&engine_, currentCallEnv()};
+                            cls->methods.at(mnm)(self, rest, nargout_val, Span<Value>(out, 1),
+                                                 ctx);
+                            R[I.a] = std::move(out[0]);
+                            break;
+                        }
+                    }
+                }
+
+                {
+                    const std::string &funcName = chunk.strings[funcIdx];
+                    if (auto *uf =
+                            engine_.lookupUserFunction(funcName, currentCallEnv())) {
+                        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
+                            frame.ip = ip + 1;
+                            returnCount_ = 0;
+                            pushCallFrame(*found, AB, NF, 0, 1, true, I.a, 1);
+                            goto enter_frame;
+                        }
+                    }
+                    if (CallbackBuiltin *cb = engine_.callbackBuiltin(funcName)) {
+                        Span<const Value> as(AB, NF);
+                        if (auto cont = cb->tryStart(as, nargout_val, &R[I.a], engine_)) {
+                            frame.ip = ip + 1;
+                            if (startContinuation(std::move(cont)))
+                                goto enter_frame;
+                            break;
+                        }
+                    }
+                    const ExternalFunc *fnPtr = engine_.findExternal(
+                        funcName, currentCallEnv());
+                    if (fnPtr) {
+                        Span<const Value> as(AB, NF);
+                        Value             ob[1];
+                        Span<Value>       os(ob, 1);
+                        CallContext       ctx{&engine_, currentCallEnv()};
+                        (*fnPtr)(as, nargout_val, os, ctx);
+                        R[I.a] = std::move(ob[0]);
+                        break;
+                    }
+                    throw std::runtime_error("VM: undefined function '" + funcName + "'");
+                }
+            }
+
             case OpCode::CALL_VARARGS: {
                 // f(c{:}): splice the SOLE cell argument's contents as the call's
                 // args (a comma-separated list). a=dst, b=cellReg, d=funcIdx,
