@@ -278,6 +278,21 @@ Value Value::cellND(const size_t *dims, int nd, std::pmr::memory_resource *mr)
     m.heap_ = h;
     return m;
 }
+Value Value::csl(size_t n, std::pmr::memory_resource *mr)
+{
+    // A comma-separated list is stored exactly like a 1xn cell (shared cellData
+    // backing); only the type tag distinguishes it. Producers fill the slots via
+    // cslAt()/cellAt(); splicing contexts read cslCount() + cslAt().
+    if (!mr) mr = std::pmr::get_default_resource();
+    Value m;
+    auto *h = new HeapObject();
+    h->type = ValueType::CSL;
+    h->dims = {1, n};
+    h->mr = mr;
+    h->cellData = new std::pmr::vector<Value>(n, mr);
+    m.heap_ = h;
+    return m;
+}
 Value Value::stringScalar(const std::string &s, std::pmr::memory_resource *mr)
 {
     if (!mr) mr = std::pmr::get_default_resource();
@@ -2400,6 +2415,14 @@ bool Value::isChar() const
 bool Value::isCell() const
 {
     return type() == ValueType::CELL;
+}
+bool Value::isCsl() const
+{
+    return type() == ValueType::CSL;
+}
+size_t Value::cslCount() const
+{
+    return (isHeap() && heap_->cellData) ? heap_->cellData->size() : 0;
 }
 bool Value::isStruct() const
 {

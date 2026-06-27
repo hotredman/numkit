@@ -156,6 +156,9 @@ public:
     static Value cell3D(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr = nullptr);
     // ND CELL constructor — picks 2D / 3D / true-ND backing as needed.
     static Value cellND(const size_t *dims, int nd, std::pmr::memory_resource *mr = nullptr);
+    // CSL (comma-separated list) — a transient n-element value-list (see ValueType::CSL).
+    // Storage mirrors a 1xn CELL (HeapObject::cellData); only the type tag differs.
+    static Value csl(size_t n, std::pmr::memory_resource *mr = nullptr);
     static Value structure(std::pmr::memory_resource *mr = nullptr);
     // N×M struct array — every element is an independent map<string, Value>.
     // numel() == rows*cols == size of the underlying structArray vector.
@@ -315,6 +318,7 @@ public:
     bool isFuncHandle() const;
     bool isString() const;
     bool isObject() const;
+    bool isCsl() const;  // comma-separated list (transient value-list); see ValueType::CSL
 
     // ── OBJECT accessors (see object.hpp) ────────────────────
     // Class name of an OBJECT ("" otherwise). objectIsHandle: the
@@ -469,6 +473,13 @@ public:
     // ── Cell ─────────────────────────────────────────────────
     Value &cellAt(size_t i);
     const Value &cellAt(size_t i) const;
+    // ── CSL (comma-separated list) ───────────────────────────
+    // Element access + count for a transient value-list. Storage is the
+    // shared cellData backing, so cellAt() also works; these read the count
+    // without the isCell() type assumption and document CSL intent at call sites.
+    size_t cslCount() const;
+    Value &cslAt(size_t i) { return cellAt(i); }
+    const Value &cslAt(size_t i) const { return cellAt(i); }
     // Grow a cell so subscript `coords` (length `nd`) is in bounds,
     // preserving existing contents and lifting the rank if needed.
     // Coerces an empty/unset receiver to a cell. Returns the column-major
