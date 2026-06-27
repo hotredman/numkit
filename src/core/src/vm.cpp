@@ -2563,6 +2563,89 @@ enter_frame:
                 }
             }
 
+            case OpCode::CALL_FLATTEN_MULTI: {
+                // First-class multi-output call with possible CSL args: flatten any CSL
+                // arg into a runtime arg vector, then run the CALL_MULTI target dispatch
+                // (compiled user fn / object method / m-file / external) over AB/NF.
+                // a=outBase, b=argBase, c=nargs, d=funcIdx, e=nout.
+                uint8_t outBase = I.a, argBase = I.b, na = I.c, nout = I.e;
+                int16_t funcIdx = I.d;
+                const std::string &funcName = chunk.strings[funcIdx];
+                bool anyCsl = false;
+                for (uint8_t i = 0; i < na; ++i)
+                    if (R[argBase + i].isCsl()) { anyCsl = true; break; }
+                std::vector<Value> flatArgs;
+                const Value       *AB;
+                uint8_t            NF;
+                if (!anyCsl) {
+                    AB = na ? &R[argBase] : nullptr;
+                    NF = na;
+                } else {
+                    flatArgs.reserve(na);
+                    for (uint8_t i = 0; i < na; ++i) {
+                        const Value &a = R[argBase + i];
+                        if (a.isCsl())
+                            for (size_t k = 0; k < a.cslCount(); ++k)
+                                flatArgs.push_back(a.cslAt(k));
+                        else
+                            flatArgs.push_back(a);
+                    }
+                    AB = flatArgs.empty() ? nullptr : flatArgs.data();
+                    NF = static_cast<uint8_t>(flatArgs.size());
+                }
+
+                if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                    frame.ip = ip + 1;
+                    returnCount_ = 0;
+                    pushCallFrame(*found, AB, NF, 0, nout, true, outBase, nout);
+                    goto enter_frame;
+                }
+                if (NF >= 1 && AB[0].isObject()) {
+                    const BuiltinClass *cls = engine_.findClass(AB[0].objectClassName());
+                    if (cls && cls->methods.count(funcName)) {
+                        Value              self = AB[0];
+                        Span<const Value>  rest((NF > 1) ? &AB[1] : nullptr, NF - 1);
+                        std::vector<Value> outBuf(nout);
+                        CallContext        ctx{&engine_, currentCallEnv()};
+                        cls->methods.at(funcName)(self, rest, nout,
+                                                  Span<Value>(outBuf.data(), nout), ctx);
+                        for (uint8_t i = 0; i < nout; ++i)
+                            if (outBuf[i].isUnset())
+                                throw std::runtime_error("Too many output arguments.");
+                        for (size_t i = 0; i < nout; ++i)
+                            R[outBase + i] = std::move(outBuf[i]);
+                        break;
+                    }
+                }
+                {
+                    if (auto *uf =
+                            engine_.lookupUserFunction(funcName, currentCallEnv())) {
+                        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
+                            frame.ip = ip + 1;
+                            returnCount_ = 0;
+                            pushCallFrame(*found, AB, NF, 0, nout, true, outBase, nout);
+                            goto enter_frame;
+                        }
+                    }
+                    const ExternalFunc *fnPtr = engine_.findExternal(
+                        funcName, currentCallEnv());
+                    if (fnPtr) {
+                        std::vector<Value> outBuf(nout);
+                        Span<const Value>  as(AB, NF);
+                        Span<Value>        os(outBuf.data(), nout);
+                        CallContext        ctx{&engine_, currentCallEnv()};
+                        (*fnPtr)(as, nout, os, ctx);
+                        for (uint8_t i = 0; i < nout; ++i)
+                            if (outBuf[i].isUnset())
+                                throw std::runtime_error("Too many output arguments.");
+                        for (size_t i = 0; i < nout; ++i)
+                            R[outBase + i] = std::move(outBuf[i]);
+                        break;
+                    }
+                    throw std::runtime_error("VM: undefined function '" + funcName + "'");
+                }
+            }
+
             // ── Indirect function call (func handle) or array indexing ─
             case OpCode::CALL_METHOD: {
                 // a=dst, b=objReg, c=argBase, d=nameIdx, e=nargs.

@@ -85,6 +85,9 @@ enum class OpCode : uint8_t {
     // full CALL target dispatch (user fn / ctor / method / m-file / callback / external).
     // Emitted only when an arg could be a CSL, so the hot CALL is untouched.
     CALL_FLATTEN,  // dst, argBase, nargs, funcIdx, e=nargout
+    // Multi-output sibling of CALL_FLATTEN: a=outBase, b=argBase, c=nargs, d=funcIdx,
+    // e=nout. Flattens any CSL arg, then runs the CALL_MULTI dispatch. ([a,b]=f(x,c{idx}))
+    CALL_FLATTEN_MULTI,
     CALL_VARARGS_MULTI, // outBase, cellReg, _, funcIdx, e=nout  ([a,b]=f(c{:}))
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)
