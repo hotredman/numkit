@@ -986,41 +986,6 @@ enter_frame:
                 dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
                 break;
             }
-            case OpCode::HORZCAT_APPEND_CELL_CSL: {
-                // a = dst (in/out), b = cell source, c = subscript (the ':' colon
-                // marker / a vector / a scalar). Append the SELECTED cell contents
-                // into dst -- a comma-separated list. resolveIndices handles the
-                // colon marker, vectors, and scalars uniformly (1-based, checked).
-                Value       &dst  = R[I.a];
-                const Value &cell = R[I.b];
-                const Value &sub  = R[I.c];
-                if (!cell.isCell())
-                    throw std::runtime_error("Cell contents indexing requires a cell array");
-                std::vector<Value> elems;
-                elems.push_back(dst);
-                for (size_t id : Value::resolveIndices(sub, cell.numel()))
-                    elems.push_back(cell.cellAt(id));
-                dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
-                break;
-            }
-            case OpCode::HORZCAT_APPEND_CELL_CSL_2D: {
-                // a=dst (in/out), b=cell, c=rowSub, d=colSub. Append a 2-D cell slice
-                // c{r,cols} into dst -- resolveIndices per dim + sub2ind, column-major
-                // (matches the TreeWalker order).
-                Value       &dst  = R[I.a];
-                const Value &cell = R[I.b];
-                if (!cell.isCell())
-                    throw std::runtime_error("Cell contents indexing requires a cell array");
-                auto rowIdx = Value::resolveIndices(R[I.c], cell.dims().rows());
-                auto colIdx = Value::resolveIndices(R[I.d], cell.dims().cols());
-                std::vector<Value> elems;
-                elems.push_back(dst);
-                for (size_t c : colIdx)
-                    for (size_t r : rowIdx)
-                        elems.push_back(cell.cellAt(cell.dims().sub2ind(r, c)));
-                dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
-                break;
-            }
 
             // ── Array indexing ───────────────────────────────────
             case OpCode::INDEX_GET: {
@@ -1744,68 +1709,6 @@ enter_frame:
                 R[I.a] = std::move(cell);
                 break;
             }
-            case OpCode::CELL_APPEND_ELEM: {
-                // a=cellAcc (in/out), b=src, c=mode, d=subReg (mode 2 only).
-                //   mode 0 -> append R[src] as ONE element;
-                //   mode 1 -> R[src] is a cell, append ALL of its contents (c{:});
-                //   mode 2 -> R[src] is a cell, append the SELECTED contents
-                //             resolveIndices(R[subReg], numel) (c{vec} / c{1:2}).
-                // All column-major. Builds {a, c{:}, c{vec}, b} on the VM where the
-                // element count is runtime-variable (the fixed-count CELL_LITERAL
-                // can't be used).
-                Value &acc = R[I.a];
-                if (!acc.isCell())
-                    acc = Value::cell(1, 0);
-                size_t n = acc.numel();
-                if (I.c == 1 || I.c == 2) {
-                    const Value &src = R[I.b];
-                    if (!src.isCell())
-                        throw std::runtime_error("c{...} expansion requires a cell array");
-                    // mode 1: every element (c{:}); mode 2: the resolved subscript
-                    // (c{vec} / c{1:2}). resolveIndices handles colon / vector / range.
-                    std::vector<size_t> sel;
-                    if (I.c == 2)
-                        sel = Value::resolveIndices(R[I.d], src.numel());
-                    else
-                        for (size_t j = 0; j < src.numel(); ++j) sel.push_back(j);
-                    auto grown = Value::cell(1, n + sel.size());
-                    for (size_t i = 0; i < n; ++i)
-                        grown.cellAt(i) = std::move(acc.cellAt(i));
-                    for (size_t j = 0; j < sel.size(); ++j)
-                        grown.cellAt(n + j) = src.cellAt(sel[j]);
-                    acc = std::move(grown);
-                } else {
-                    auto grown = Value::cell(1, n + 1);
-                    for (size_t i = 0; i < n; ++i)
-                        grown.cellAt(i) = std::move(acc.cellAt(i));
-                    grown.cellAt(n) = R[I.b];
-                    acc = std::move(grown);
-                }
-                break;
-            }
-            case OpCode::CELL_APPEND_SLICE_2D: {
-                // a=acc (in/out), b=cellSrc, c=rowSub, d=colSub. Append a 2-D cell
-                // slice c{r,cols} into acc -- resolveIndices per dim + sub2ind,
-                // column-major (matches the TreeWalker order).
-                Value &acc = R[I.a];
-                if (!acc.isCell())
-                    acc = Value::cell(1, 0);
-                const Value &src = R[I.b];
-                if (!src.isCell())
-                    throw std::runtime_error("c{r,:} expansion requires a cell array");
-                auto   rowIdx = Value::resolveIndices(R[I.c], src.dims().rows());
-                auto   colIdx = Value::resolveIndices(R[I.d], src.dims().cols());
-                size_t n      = acc.numel();
-                auto   grown  = Value::cell(1, n + rowIdx.size() * colIdx.size());
-                for (size_t i = 0; i < n; ++i)
-                    grown.cellAt(i) = std::move(acc.cellAt(i));
-                size_t k = n;
-                for (size_t c : colIdx)
-                    for (size_t r : rowIdx)
-                        grown.cellAt(k++) = src.cellAt(src.dims().sub2ind(r, c));
-                acc = std::move(grown);
-                break;
-            }
             case OpCode::CELL_APPEND_FLATTEN: {
                 // a=acc (in/out), b=elem. First-class cell-literal builder: if R[elem] is
                 // a CSL, append all its items; else append it as one element. Driven by
@@ -2370,117 +2273,6 @@ enter_frame:
                     }
                     throw std::runtime_error("VM: undefined function '" + funcName + "'");
                 }
-            }
-
-            case OpCode::CALL_VARARGS: {
-                // f(c{:}): splice the SOLE cell argument's contents as the call's
-                // args (a comma-separated list). a=dst, b=cellReg, d=funcIdx,
-                // e=nargout. v1: the target is a user function or an external
-                // builtin; a class ctor / object method with a CSL arg refuses.
-                int16_t            funcIdx     = I.d;
-                uint8_t            nargout_val = I.e;
-                const Value       &cell        = R[I.b];
-                if (!cell.isCell())
-                    throw std::runtime_error("Cell contents indexing requires a cell array");
-                // Build the runtime arg list from the cell contents (column-major).
-                // pushCallFrame COPIES args, so argv may be destroyed after the goto.
-                std::vector<Value> argv;
-                argv.reserve(cell.numel());
-                for (size_t i = 0; i < cell.numel(); ++i)
-                    argv.push_back(cell.cellAt(i));
-                if (argv.size() > 255)
-                    throw std::runtime_error("Too many arguments from a c{:} expansion (v1)");
-                const std::string &funcName = chunk.strings[funcIdx];
-
-                // User function: compiled-cache, then m-file lookup.
-                const BytecodeChunk *targetChunk = nullptr;
-                if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx])
-                    targetChunk = resolvedFuncs[funcIdx];
-                if (!targetChunk) {
-                    if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
-                        if (funcIdx >= (int16_t) resolvedFuncs.size())
-                            resolvedFuncs.resize(funcIdx + 1, nullptr);
-                        resolvedFuncs[funcIdx] = found;
-                        targetChunk            = found;
-                    }
-                }
-                if (!targetChunk)
-                    if (auto *uf = engine_.lookupUserFunction(funcName, currentCallEnv()))
-                        targetChunk = findCompiledFunc(uf->name);
-                if (targetChunk) {
-                    frame.ip = ip + 1;
-                    pushCallFrame(*targetChunk, argv.empty() ? nullptr : argv.data(),
-                                  static_cast<uint8_t>(argv.size()), I.a, nargout_val);
-                    goto enter_frame;
-                }
-
-                // External (builtin) function.
-                if (const ExternalFunc *fnPtr = engine_.findExternal(funcName, currentCallEnv())) {
-                    Span<const Value> as(argv.empty() ? nullptr : argv.data(), argv.size());
-                    Value             ob[1];
-                    Span<Value>       os(ob, 1);
-                    CallContext       ctx{&engine_, currentCallEnv()};
-                    (*fnPtr)(as, nargout_val, os, ctx);
-                    R[I.a] = std::move(ob[0]);
-                    break;
-                }
-                throw std::runtime_error(
-                    "VM: f(c{:}) on an unsupported or undefined target '" + funcName + "' (v1)");
-            }
-            case OpCode::CALL_VARARGS_MULTI: {
-                // [a,b]=f(x, c{:}): splice the cell's contents as the args of a
-                // MULTI-output call. a=outBase, b=cellReg, d=funcIdx, e=nout. v1: a
-                // user function or an external builtin (no class ctor / method /
-                // callback target). Mirrors CALL_VARARGS but distributes nout outputs.
-                uint8_t            outBase = I.a, nout = I.e;
-                int16_t            funcIdx = I.d;
-                const Value       &cell    = R[I.b];
-                if (!cell.isCell())
-                    throw std::runtime_error("Cell contents indexing requires a cell array");
-                std::vector<Value> argv;
-                argv.reserve(cell.numel());
-                for (size_t i = 0; i < cell.numel(); ++i)
-                    argv.push_back(cell.cellAt(i));
-                if (argv.size() > 255)
-                    throw std::runtime_error("Too many arguments from a c{:} expansion (v1)");
-                const std::string &funcName = chunk.strings[funcIdx];
-
-                const BytecodeChunk *targetChunk = nullptr;
-                if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx])
-                    targetChunk = resolvedFuncs[funcIdx];
-                if (!targetChunk)
-                    if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
-                        if (funcIdx >= (int16_t) resolvedFuncs.size())
-                            resolvedFuncs.resize(funcIdx + 1, nullptr);
-                        resolvedFuncs[funcIdx] = found;
-                        targetChunk            = found;
-                    }
-                if (!targetChunk)
-                    if (auto *uf = engine_.lookupUserFunction(funcName, currentCallEnv()))
-                        targetChunk = findCompiledFunc(uf->name);
-                if (targetChunk) {
-                    frame.ip       = ip + 1;
-                    returnCount_   = 0;
-                    pushCallFrame(*targetChunk, argv.empty() ? nullptr : argv.data(),
-                                  static_cast<uint8_t>(argv.size()), 0, nout, true,
-                                  outBase, nout);
-                    goto enter_frame;
-                }
-                if (const ExternalFunc *fnPtr = engine_.findExternal(funcName, currentCallEnv())) {
-                    Span<const Value> as(argv.empty() ? nullptr : argv.data(), argv.size());
-                    std::vector<Value> outBuf(nout);
-                    Span<Value>        os(outBuf.data(), nout);
-                    CallContext        ctx{&engine_, currentCallEnv()};
-                    (*fnPtr)(as, nout, os, ctx);
-                    for (uint8_t i = 0; i < nout; ++i)
-                        if (outBuf[i].isUnset())
-                            throw std::runtime_error("Too many output arguments.");
-                    for (size_t i = 0; i < nout; ++i)
-                        R[outBase + i] = std::move(outBuf[i]);
-                    break;
-                }
-                throw std::runtime_error(
-                    "VM: [..]=f(c{:}) on an unsupported or undefined target '" + funcName + "' (v1)");
             }
 
             // ── Multi-return function call ──────────────────────
@@ -3206,7 +2998,6 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::VERTCAT:
         return "in matrix construction";
     case OpCode::CELL_LITERAL:
-    case OpCode::CELL_APPEND_ELEM:
         return "in cell construction";
 
     // Indexing

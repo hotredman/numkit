@@ -4243,14 +4243,10 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "LOAD_END";
         case OpCode::CALL:
             return "CALL";
-        case OpCode::CALL_VARARGS:
-            return "CALL_VARARGS";
         case OpCode::CALL_FLATTEN:
             return "CALL_FLATTEN";
         case OpCode::CALL_FLATTEN_MULTI:
             return "CALL_FLATTEN_MULTI";
-        case OpCode::CALL_VARARGS_MULTI:
-            return "CALL_VARARGS_MULTI";
         case OpCode::CALL_BUILTIN:
             return "CALL_BUILTIN";
         case OpCode::CTRANSPOSE:
@@ -4311,10 +4307,6 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "STRUCT_ELEM_SET";
         case OpCode::HORZCAT_APPEND_CSL:
             return "HORZCAT_APPEND_CSL";
-        case OpCode::HORZCAT_APPEND_CELL_CSL:
-            return "HORZCAT_APPEND_CELL_CSL";
-        case OpCode::HORZCAT_APPEND_CELL_CSL_2D:
-            return "HORZCAT_APPEND_CELL_CSL_2D";
         case OpCode::CELL_LITERAL:
             return "CELL_LITERAL";
         case OpCode::CELL_GET:
@@ -4335,10 +4327,6 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CELL_GET_ND";
         case OpCode::CELL_SET_ND:
             return "CELL_SET_ND";
-        case OpCode::CELL_APPEND_ELEM:
-            return "CELL_APPEND_ELEM";
-        case OpCode::CELL_APPEND_SLICE_2D:
-            return "CELL_APPEND_SLICE_2D";
         case OpCode::CELL_APPEND_FLATTEN:
             return "CELL_APPEND_FLATTEN";
         case OpCode::TRY_BEGIN:
