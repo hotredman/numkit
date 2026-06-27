@@ -248,6 +248,20 @@ TEST_P(PointObjectTest, ConstructAndGet)
     EXPECT_DOUBLE_EQ(evalScalar("p.y"), 4.0);
 }
 
+// First-class CSL into a class constructor: Point(c{:}) / Point(c{idx}) splice the cell
+// contents as ctor args. Exercises the full-target dispatch (CALL_FLATTEN on the VM, the
+// TreeWalker arg builder otherwise) -- the claim that a CSL arg works for ctors, and a
+// scalar brace-index ctor arg does NOT regress. Both backends.
+TEST_P(PointObjectTest, ConstructFromCsl)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("c = {3, 4}; p = Point(c{:}); p.x"), 3.0);  // c{:} -> Point(3,4)
+    EXPECT_DOUBLE_EQ(evalScalar("p.y"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d = {7, 8, 9}; idx = [1 3]; q = Point(d{idx}); q.x"), 7.0);  // variable subscript
+    EXPECT_DOUBLE_EQ(evalScalar("q.y"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("e = {5, 6}; r = Point(e{1}, e{2}); r.x"), 5.0);  // scalar brace-index, no regression
+    EXPECT_DOUBLE_EQ(evalScalar("r.y"), 6.0);
+}
+
 TEST_P(PointObjectTest, ClassName)
 {
     engine.eval("p = Point(3, 4);");

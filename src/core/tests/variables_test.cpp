@@ -394,6 +394,35 @@ TEST_P(CellTest, MultiOutputCallVariableSubscript)
     EXPECT_DOUBLE_EQ(getVar("b"), 30.0);
 }
 
+// First-class CSL single-value-context semantics + `end`. A comma-separated list reaching
+// a single-value sink collapses: exactly one element yields it, otherwise it errors
+// (multi -> "too many values"; empty -> "not enough"). `end` resolves inside a CSL
+// subscript. Both backends (TreeWalker collapse at execNode / VM COLLAPSE opcode).
+TEST_P(CellTest, CslSingleValueAndEnd)
+{
+    eval("c = {10, 20, 30};");
+    // scalar brace-index is a single value, not a CSL
+    eval("s = c{2};");
+    EXPECT_DOUBLE_EQ(getVar("s"), 20.0);
+    // multi-element CSL in a single-value context -> error (too many)
+    EXPECT_THROW(eval("x = c{:};"), std::exception);
+    EXPECT_THROW(eval("x = c{[1 3]};"), std::exception);
+    EXPECT_THROW(eval("x = c{2:end};"), std::exception);
+    // empty CSL in a single-value context -> error (not enough)
+    eval("ix = [];");
+    EXPECT_THROW(eval("x = c{ix};"), std::exception);
+    // `end` resolves inside a CSL splice: [c{2:end}] -> [20 30]
+    eval("w = [c{2:end}];");
+    auto *w = getVarPtr("w");
+    ASSERT_NE(w, nullptr);
+    ASSERT_EQ(w->numel(), 2u);
+    EXPECT_DOUBLE_EQ(w->doubleData()[0], 20.0);
+    EXPECT_DOUBLE_EQ(w->doubleData()[1], 30.0);
+    // scalar `end` -> a single value
+    eval("q = c{end};");
+    EXPECT_DOUBLE_EQ(getVar("q"), 30.0);
+}
+
 INSTANTIATE_DUAL(CellTest);
 
 // ============================================================
