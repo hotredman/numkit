@@ -2485,17 +2485,16 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
                 // Single struct or non-struct base — fall through to the
                 // generic execNode path so existing semantics apply.
             }
-            // CSL: a cell brace-index c{:} / c{vec} / c{i} (1-D) or c{r,:} / c{:,j}
-            // (2-D) expands its selected contents into the row (a comma-separated
-            // list). 3-D+ falls through to the generic single-value path.
-            if (elemNode->type == NodeType::CELL_INDEX
-                && (elemNode->children.size() == 2 || elemNode->children.size() == 3)) {
-                for (auto &v : cellBraceContents(elemNode.get(), env))
-                    pushElem(std::move(v), rowElems);
-                continue;
-            }
-            auto val = execNode(elemNode.get(), env);
-            pushElem(std::move(val), rowElems);
+            // CSL: an element may expand to a comma-separated list (c{:} / c{idx} /
+            // c{r,:}, or any CSL producer) -> splice its elements into the row. A
+            // non-CSL element is a single row entry. (Struct-array field CSL is handled
+            // by the field-access branch above, which continues before reaching here.)
+            Value val = execNodeExpand(elemNode.get(), env);
+            if (val.isCsl())
+                for (size_t k = 0; k < val.cslCount(); ++k)
+                    pushElem(std::move(val.cslAt(k)), rowElems);
+            else
+                pushElem(std::move(val), rowElems);
         }
         if (!rowElems.empty())
             rows.push_back(std::move(rowElems));
@@ -2558,12 +2557,14 @@ Value TreeWalker::execCellLiteral(const ASTNode *node, Environment *env)
     auto collectRow = [&](const std::vector<ASTNodePtr> &elems) {
         std::vector<Value> row;
         for (const auto &e : elems) {
-            if (e->type == NodeType::CELL_INDEX
-                && (e->children.size() == 2 || e->children.size() == 3)) {
-                for (auto &v : cellBraceContents(e.get(), env)) row.push_back(std::move(v));
-            } else {
-                row.push_back(execNode(e.get(), env));
-            }
+            // CSL: an element may expand to a comma-separated list (c{:} / c{idx} /
+            // c{r,:}, or any CSL producer) -> splice its elements; non-CSL is one entry.
+            Value v = execNodeExpand(e.get(), env);
+            if (v.isCsl())
+                for (size_t k = 0; k < v.cslCount(); ++k)
+                    row.push_back(std::move(v.cslAt(k)));
+            else
+                row.push_back(std::move(v));
         }
         return row;
     };
