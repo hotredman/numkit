@@ -695,9 +695,9 @@ TEST_P(HorzcatGrowRewrite, ColumnVectorAppendFallsBackToHorzcat)
     // A is 3x1 (column). The fast path in HORZCAT_APPEND must NOT
     // misinterpret this as "append one element to a row vector"
     // and call appendScalar — that would yield a 1x4 instead of
-    // numkit-m's broadcast-to-column behaviour. Confirm the
+    // numkit's broadcast-to-column behaviour. Confirm the
     // fallback path runs and produces a 3x2 (MATLAB raises
-    // dim-mismatch here; numkit-m chooses to broadcast — that is
+    // dim-mismatch here; numkit chooses to broadcast — that is
     // a separate question not in scope for this rewrite).
     eval(R"(
         A = [1; 2; 3];

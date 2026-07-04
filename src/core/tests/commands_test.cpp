@@ -590,7 +590,7 @@ INSTANTIATE_DUAL(CommandNonRegressionTest);
 // version
 // ============================================================
 //
-// numkit-m has no SemVer — `version` returns the compile-time
+// numkit has no SemVer — `version` returns the compile-time
 // build stamp as ISO-8601 "YYYY-MM-DD HH:MM:SS".
 
 class VersionTest : public DualEngineTest {};

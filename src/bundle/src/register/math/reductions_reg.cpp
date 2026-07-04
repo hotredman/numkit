@@ -87,7 +87,7 @@ NK_UNARY_ADAPTER_HINT(log,     log)
 //   sum(X, outtype)         — scalar reduce with explicit output type
 //   sum(X, dim, outtype)    — reduce along dim with explicit output type
 // outtype ∈ {'default', 'double', 'native'}:
-//   'default' — DOUBLE (current numkit-m behaviour for all input types)
+//   'default' — DOUBLE (current numkit behaviour for all input types)
 //   'double'  — same as default
 //   'native'  — preserve input element class (integer types saturate;
 //               LOGICAL/CHAR/COMPLEX rejected — matches MATLAB).

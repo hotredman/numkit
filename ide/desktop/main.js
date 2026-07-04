@@ -316,7 +316,7 @@ ipcMain.handle('fs:listTree', async (_e, root) => {
       if (total >= TREE_MAX_ENTRIES) { truncated = true; break; }
       // Skip obvious junk that shouldn't clutter the tree.
       if (d.name.startsWith('.DS_Store')) continue;
-      // Skip well-known noise dirs: every numkit-m worktree has these
+      // Skip well-known noise dirs: every numkit worktree has these
       // at the root and walking them was the proven cause of Electron
       // renderer OOM (the serialised tree exceeded V8's heap when a
       // user mounted a folder with a populated node_modules / build-*).

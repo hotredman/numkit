@@ -345,8 +345,8 @@ function buildGhTree(flat) {
 }
 
 /* GitHub browser pane — replaces the regular tree UI when source === 'github'. */
-function GitHubBrowser({ onOpenFile, defaultRepo }) {
-  const [repoUrl, setRepoUrl] = usePersistedState('numkit.ide.fb.github.repoUrl', defaultRepo || '');
+function GitHubBrowser({ onOpenFile }) {
+  const [repoUrl, setRepoUrl] = usePersistedState('numkit.ide.fb.github.repoUrl', '');
   const [branch, setBranch]   = usePersistedState('numkit.ide.fb.github.branch', '');
   const [tree, setTree]       = useState([]);
   const [branches, setBranches] = useState([]);
@@ -479,7 +479,7 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
         )}
         {!loading && tree.length === 0 && !error && (
           <div style={{ padding: 16, textAlign: 'center', color: 'var(--fg-3)', fontSize: 11, lineHeight: 1.5 }}>
-            Enter a GitHub repo<br/>(e.g. <code>numkit/numkit-m</code>) and press Load.
+            Enter a GitHub repo<br/>(e.g. <code>owner/repo</code>) and press Load.
           </div>
         )}
         {tree.map((node) => (
@@ -843,7 +843,7 @@ export default function Sidebar({
 
       {/* GitHub source — owns its own search/tree below */}
       {isGithub && (
-        <GitHubBrowser onOpenFile={onOpenFile} defaultRepo="numkit/numkit-m" />
+        <GitHubBrowser onOpenFile={onOpenFile} />
       )}
 
       {!isGithub && (

@@ -1,6 +1,6 @@
 # tools/parity/ — MATLAB-parity validation harness
 
-Cross-engine validation for numkit-m: every public function is checked against
+Cross-engine validation for numkit: every public function is checked against
 **MATLAB R2025b** (and **Octave 11.1.0** when it ships the function) for
 correctness, and timed for performance. This is **artefact #2 of the mandatory
 4-artefact rule** (see `CLAUDE.md`).

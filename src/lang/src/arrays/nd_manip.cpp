@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/lang/arrays/nd_manip.cpp
 //
-// Phase 6: N-D array manipulation. numkit-m's Value is capped at
+// Phase 6: N-D array manipulation. numkit's Value is capped at
 // 3D so the perm vector must have length 2 or 3. The general
 // approach: compute output dims from input dims via the permutation,
 // then iterate over output indices and compute the corresponding

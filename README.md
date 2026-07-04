@@ -6,15 +6,6 @@ A lightweight interpreter for a matrix-oriented scripting language — scalars a
 
 ## Web IDE
 
-<a href="https://numkit.github.io/numkit-m/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/numkit-ide-logo-dark.svg">
-    <img src="brand/numkit-ide-logo-light.svg" alt="Launch Numkit IDE in browser" width="280">
-  </picture>
-</a>
-
-**[Launch IDE in Browser →](https://numkit.github.io/numkit-m/)**
-
 Numkit IDE is built with React + Vite and runs the C++ engine via WebAssembly:
 
 - **Syntax highlighting** — keywords, builtins, constants, strings, comments

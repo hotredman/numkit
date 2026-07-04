@@ -1,17 +1,15 @@
-# numkit-m repo notes for Claude
+# numkit repo notes for Claude
 
 ## STOP — read first
 
-This repo is worked on by **three parallel Claude sessions** (core / ide / lib).
-Before doing anything, read [COORDINATION.md](dev-docs/COORDINATION.md). It
-defines:
+This repo **can** be split across parallel Claude sessions (core / ide / lib
+territories), but that model is **currently dormant — normally you are the
+single session working on `main`**. The territory / worktree protocol is kept
+in [COORDINATION.md](dev-docs/COORDINATION.md) as reference for if it is
+revived (territory ownership, shared-surface test rules, build isolation,
+commit/branch protocol).
 
-- which territory each session owns (core engine / libs toolbox / IDE)
-- shared-surface rules (when full-suite tests are mandatory)
-- build isolation (separate worktrees, separate build dirs)
-- commit/branch protocol
-
-If `git status` shows unstaged changes outside your territory, **stop and
+Either way: if `git status` shows unstaged changes you did not make, **stop and
 surface to the user**. Do not silently work on top of someone else's work.
 
 ## Project quick facts
@@ -151,5 +149,5 @@ to ✅ FIXED with the commit hash, and update the index row (keep the md).
 ## Memory
 
 Auto-memory at
-`C:/Users/User/.claude/projects/c--Users-User-Projects-numkit-m/memory/`.
+`C:/Users/User/.claude/projects/C--Users-User-Projects-megahard-numkit/memory/`.
 Always check `MEMORY.md` index for context before non-trivial work.

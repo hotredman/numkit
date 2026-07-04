@@ -3,17 +3,17 @@
 % Compares the two canonical MATLAB patterns for building a vector
 % element-by-element:
 %
-%   Pattern A:  A = [A, i]     — concatenation (HORZCAT in numkit-m)
+%   Pattern A:  A = [A, i]     — concatenation (HORZCAT in numkit)
 %   Pattern B:  A(end+1) = i   — indexed assign with grow-by-one
 %   Pattern C:  A(i) = i       — same as B but with an explicit counter
 %
 % In MATLAB / Octave both paths are JIT-optimised so the cost is similar.
-% In numkit-m, pattern B and C route through VM INDEX_SET which uses
+% In numkit, pattern B and C route through VM INDEX_SET which uses
 % appendScalar with geometric capacity — amortised O(1) per append.
 % Pattern A still goes through HORZCAT, which allocates a fresh buffer
 % each iteration (O(N²) total). The ratio between A and B here is a
 % good proxy for how much a compiler-level `A = [A, x]` rewrite would
-% buy us in numkit-m.
+% buy us in numkit.
 % Pull toolbox functions (signal, stats, graphics, io) into scope so we
 % can call them by short name (fft, butter, plot, std, ...). Without this,
 % we'd need fully qualified names like signal.transforms.fft(...).

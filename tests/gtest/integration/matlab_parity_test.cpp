@@ -288,7 +288,7 @@ TEST_P(MatlabParity, MultiStatementClearNamedRemovesVar)
 TEST_P(MatlabParity, FunctionDefsAreForwardReferenceable)
 {
     // Call the function at the top of the script, define it lower down.
-    // MATLAB (and now numkit-m's split execution with a pre-registration
+    // MATLAB (and now numkit's split execution with a pre-registration
     // pass) allows this because the AST gets scanned for FUNCTION_DEF
     // nodes before any statement runs.
     eval(R"(
