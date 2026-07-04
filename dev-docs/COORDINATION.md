@@ -1,15 +1,21 @@
 # Parallel Worker Coordination
 
-> **Status (2026-06): ACTIVE — parallel multi-worktree model.** Work runs in
-> three worktrees, one chat per directory/territory:
-> `numkit-m-core` (`core-dev`, owns `core/`), `numkit-m-ide` (`ide-dev`, owns
-> `ide/` + `wasm/`), `numkit-m-lib` (`lib-dev`, owns `toolboxes/`). `numkit-m/` is
-> the **base** — it holds the shared `.git` and stays on `main` (the
-> integration branch + the user's view); it is not a work dir.
+> **Status: DORMANT — the repo currently runs in single-session mode on `main`.**
+> This document describes the parallel multi-worktree model for if/when it is
+> revived; it is **not active today** (one worktree, one chat, on `main`). When
+> active, work runs in three worktrees, one chat per territory: `numkit-core`
+> (`core-dev`, owns `src/core/`), `numkit-ide` (`ide-dev`, owns `ide/` +
+> `wasm/`), `numkit-lib` (`lib-dev`, owns `src/toolboxes/`). The base worktree
+> (`C:/Users/User/Projects/megahard/numkit`) holds the shared `.git` and stays on
+> `main` (the integration branch + the user's view); it is not a work dir.
 >
-> **HARD RULE: a chat merges/pushes its branch into `main` ONLY on the user's
-> explicit command — never auto-fast-forward.** Each chat commits to its own
-> branch, pushes that branch for visibility, and waits.
+> **Note:** the territory paths below predate the `src/` layering refactor — the
+> C++ engine and libraries now live under `src/` (`src/core/`, `src/toolboxes/`,
+> `src/lang/`, `src/math/`, …); `ide/` and `wasm/` remain top-level.
+>
+> **HARD RULE (when active): a chat merges/pushes its branch into `main` ONLY on
+> the user's explicit command — never auto-fast-forward.** Each chat commits to
+> its own branch, pushes that branch for visibility, and waits.
 
 This repository can be worked on by **multiple parallel Claude sessions**
 ("workers"), each owning a defined territory. Read this before touching
@@ -25,13 +31,13 @@ merge cadence; workers only push their own feature branches.
 
 | Worker | Territory (exclusive write) | Branch | Worktree path |
 |---|---|---|---|
-| **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `core-dev` | `numkit-m-core/` |
-| **LIBS** | all of `toolboxes/` (MATLAB toolboxes — pure-compute + file I/O via `fs/`: signal / stats / image / comm / control / wavelet / graphics / builtin / audio / graph / io / optim / ode) and (planned) `runtime/` (language-runtime libs: eval / who / clear / import / workspace — to be extracted from `builtin`): `include/`, `src/`, `tests/`, `benchmarks/`, per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `lib-dev` | `numkit-m-lib/` |
-| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `brand/` · scripts in `scripts/`: dev / desktop / deploy / build-desktop / build (the `--wasm` path) | `ide-dev` | `numkit-m-ide/` |
+| **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `core-dev` | `numkit-core/` |
+| **LIBS** | all of `toolboxes/` (MATLAB toolboxes — pure-compute + file I/O via `fs/`: signal / stats / image / comm / control / wavelet / graphics / builtin / audio / graph / io / optim / ode) and (planned) `runtime/` (language-runtime libs: eval / who / clear / import / workspace — to be extracted from `builtin`): `include/`, `src/`, `tests/`, `benchmarks/`, per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `lib-dev` | `numkit-lib/` |
+| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `brand/` · scripts in `scripts/`: dev / desktop / deploy / build-desktop / build (the `--wasm` path) | `ide-dev` | `numkit-ide/` |
 
-`numkit-m/` (the base, on `main`) is the integration target, not a worker.
+`numkit/` (the base, on `main`) is the integration target, not a worker.
 
-Currently a single LIBS worker (`lib-dev` in `numkit-m-lib/`) owns all of
+Currently a single LIBS worker (`lib-dev` in `numkit-lib/`) owns all of
 `toolboxes/`. If `toolboxes/` work ever needs to fan out across concurrent chats, split
 by lib name — each chat owning disjoint libs (never the same lib as another),
 on its own branch + worktree. Example split:
@@ -72,10 +78,10 @@ and run the full test suite.
 **One-time setup** (run from the main worktree):
 
 ```bash
-cd C:/Users/User/Projects/numkit-m
-git worktree add ../numkit-m-ide          feature/ide
-git worktree add ../numkit-m-libs-signal  feature/libs-signal
-git worktree add ../numkit-m-libs-image   feature/libs-image
+cd C:/Users/User/Projects/megahard/numkit
+git worktree add ../numkit-ide          feature/ide
+git worktree add ../numkit-libs-signal  feature/libs-signal
+git worktree add ../numkit-libs-image   feature/libs-image
 # ... add more as needed
 ```
 
@@ -85,7 +91,7 @@ Branches are shared, file states are independent, builds are independent.
 **Tearing down a worktree** when its branch is merged:
 
 ```bash
-git worktree remove ../numkit-m-libs-signal
+git worktree remove ../numkit-libs-signal
 git branch -d feature/libs-signal   # local
 git push origin --delete feature/libs-signal   # remote (if pushed)
 ```
@@ -156,7 +162,7 @@ The **user** initiates merges, not the worker. Two options:
 
 **Local merge:**
 ```bash
-cd C:/Users/User/Projects/numkit-m   # main worktree
+cd C:/Users/User/Projects/megahard/numkit   # main worktree
 git fetch
 git merge --no-ff origin/feature/libs-signal
 # resolve conflicts if any, then:
@@ -173,7 +179,7 @@ gh pr create --base main --head feature/libs-signal --title "..."
 After `main` advances, other live feature branches should rebase:
 
 ```bash
-cd ../numkit-m-libs-image
+cd ../numkit-libs-image
 git fetch
 git rebase origin/main
 # resolve any conflicts
@@ -224,9 +230,9 @@ CMake's preset `binaryDir = ${sourceDir}/build-*`, so each worktree builds
 into its own tree:
 
 ```
-numkit-m/build/desktop-fast/                ← main worktree's build
-numkit-m-libs-signal/build/desktop-fast/    ← LIBS-signal's build
-numkit-m-ide/build/browser/                 ← IDE's WASM build
+numkit/build/desktop-fast/                ← main worktree's build
+numkit-libs-signal/build/desktop-fast/    ← LIBS-signal's build
+numkit-ide/build/browser/                 ← IDE's WASM build
 ```
 
 **Never** run `cmake` / `cmake --build` from one worktree's source dir
@@ -242,7 +248,7 @@ test, then `git restore <path>` to undo. Don't work in the other tree.
 ## Memory writes
 
 Each session writes its own memory files under
-`C:/Users/User/.claude/projects/c--Users-User-Projects-numkit-m/memory/`.
+`C:/Users/User/.claude/projects/C--Users-User-Projects-megahard-numkit/memory/`.
 
 Naming is **semantic, not prefixed**: `project_signal_perf.md`,
 `feedback_no_premature_renames.md`, etc. Each worker writes about its own

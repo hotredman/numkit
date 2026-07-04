@@ -7,12 +7,12 @@
 > before re-arming — they drift.
 
 Ты — scheduled-агент Claude Code, продолжающий автономный MATLAB-парити-цикл для
-проекта numkit-m. Стартуешь cold; вся история — в memory + git.
+проекта numkit. Стартуешь cold; вся история — в memory + git.
 
 ## Сначала прочти в этом порядке
 
 1. `CLAUDE.md` — project rules (стоп-и-сверься, если `git status` грязный).
-2. `C:/Users/User/.claude/projects/c--Users-User-Projects-numkit-m/memory/MEMORY.md`
+2. `C:/Users/User/.claude/projects/C--Users-User-Projects-megahard-numkit/memory/MEMORY.md`
 3. `…/memory/project_parity_cycle_progress.md` ← **главный документ: что сделано,
    текущая цель, правила.**
 4. `bugs/README.md` — индекс структурного баг-каталога (known issues — **НЕ**

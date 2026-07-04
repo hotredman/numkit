@@ -140,7 +140,7 @@ if(NUMKIT_COVERAGE)
     endif()
     add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
     add_link_options(-fprofile-instr-generate)
-    message(STATUS "numkit-m: source-coverage instrumentation ON (llvm-cov)")
+    message(STATUS "numkit: source-coverage instrumentation ON (llvm-cov)")
 endif()
 
 add_subdirectory(src/value)   # L0:   Value substrate (numkit_value) — STL-only

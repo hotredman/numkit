@@ -3869,7 +3869,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                             });
 
     // ── version ───────────────────────────────────────────────
-    // numkit-m doesn't carry a SemVer; the build's link-time stamp
+    // numkit doesn't carry a SemVer; the build's link-time stamp
     // serves as our "version". The timestamp lives in a tiny
     // separate TU (version_string.cpp) that gets recompiled on
     // every build via the `numkit_build_info` CMake target — so the

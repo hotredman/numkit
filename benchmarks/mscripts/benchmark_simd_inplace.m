@@ -1,9 +1,9 @@
 % Benchmark SIMD (inplace) — same kernels as benchmark_simd.m but the
 % output buffer `z` is pre-allocated once and written via slice assign
-% `z(:) = rhs`. On a sane MATLAB / Octave / numkit-m this should avoid
+% `z(:) = rhs`. On a sane MATLAB / Octave / numkit this should avoid
 % the per-iteration output allocation and isolate the cost of the
 % actual vectorised op. Cross-check for the hypothesis that the native
-% numkit-m slowdown vs WASM on benchmark_simd.m is driven by allocator
+% numkit slowdown vs WASM on benchmark_simd.m is driven by allocator
 % churn around the 8 MB output.
 % Pull toolbox functions (signal, stats, graphics, io) into scope so we
 % can call them by short name (fft, butter, plot, std, ...). Without this,

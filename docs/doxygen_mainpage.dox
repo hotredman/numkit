@@ -5,11 +5,11 @@
 // pages so the public function catalog becomes discoverable from the
 // "Namespaces" tab.
 
-/// @mainpage numkit-m — C++ MATLAB-compatible runtime
+/// @mainpage numkit — C++ MATLAB-compatible runtime
 ///
 /// @section nav Quick navigation
 ///
-/// numkit-m is a C++ runtime with a MATLAB-compatible script engine
+/// numkit is a C++ runtime with a MATLAB-compatible script engine
 /// and a public C++ library API. Most of the **API surface is free
 /// functions inside `numkit::<lib>` namespaces** — not classes.
 ///
@@ -64,9 +64,9 @@
 ///
 /// @section trademark Compatibility &amp; trademark
 ///
-/// numkit-m is built for compatibility with **MATLAB R2025b**
+/// numkit is built for compatibility with **MATLAB R2025b**
 /// semantics. MATLAB is a registered trademark of The MathWorks, Inc.
-/// numkit-m is an independent project and is **not affiliated with,
+/// numkit is an independent project and is **not affiliated with,
 /// endorsed by, or sponsored by** The MathWorks, Inc.; references to
 /// MATLAB describe interoperability only.
 
@@ -77,7 +77,7 @@
 // The pages are linked from the "Namespaces" tab.
 
 /// @namespace numkit
-/// @brief Root namespace for the numkit-m library.
+/// @brief Root namespace for the numkit library.
 ///
 /// Top-level. Most user-facing API lives in the sub-namespaces listed
 /// on the @ref index "main page".

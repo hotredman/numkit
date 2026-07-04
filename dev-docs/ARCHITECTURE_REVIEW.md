@@ -1,4 +1,4 @@
-# Architecture Review — numkit-m (2026-06-13)
+# Architecture Review — numkit (2026-06-13)
 
 Point-in-time review taken right after the Phase-3-A layering refactor closed
 out (11 guarded layers, lock-free compute, no `Engine` in compute signatures).

@@ -9,7 +9,7 @@
 # public C++ API and backends/ structure.
 #
 # Dependency policy (project decision — see project_architecture memory):
-#   numkit-m writes its own numerical algorithms. No third-party
+#   numkit writes its own numerical algorithms. No third-party
 #   numerical libs (no FFTW, no pocketfft, no OpenBLAS, no Accelerate).
 #   The one exception is Google Highway — it is a SIMD-intrinsics
 #   abstraction, not an algorithm library. Its only job is to let us
@@ -50,7 +50,7 @@ option(NUMKIT_WITH_MATIO
     "Enable binary .mat file support (MAT4 / MAT5 / MAT7) via matio"
     ${_numkit_matio_default})
 
-message(STATUS "numkit-m feature flags:")
+message(STATUS "numkit feature flags:")
 message(STATUS "  NUMKIT_WITH_SIMD    = ${NUMKIT_WITH_SIMD}")
 message(STATUS "  NUMKIT_WITH_THREADS = ${NUMKIT_WITH_THREADS}")
 message(STATUS "  NUMKIT_WITH_MATIO   = ${NUMKIT_WITH_MATIO}")

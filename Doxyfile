@@ -1,4 +1,4 @@
-# Doxyfile for numkit-m
+# Doxyfile for numkit
 #
 # Generates API documentation for the public headers of toolboxes/*/include/.
 # HTML output renders LaTeX formulas via MathJax (no toolchain needed for
@@ -13,7 +13,7 @@
 # Via CMake: `cmake --build <preset> --target docs` (see cmake/Doxygen.cmake).
 
 # ── Project ──────────────────────────────────────────────────────────
-PROJECT_NAME           = "numkit-m"
+PROJECT_NAME           = "numkit"
 PROJECT_NUMBER         = "1.0.0"
 PROJECT_BRIEF          = "C++ MATLAB-compatible runtime — public C++ API"
 PROJECT_LOGO           = brand/numkit-logo-light.svg

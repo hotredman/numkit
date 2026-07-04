@@ -1517,7 +1517,7 @@ TEST_P(FileIoTest, SscanfCharMatrixShape)
     // Column-major fill: 'abcdef' into [2 3] yields
     //   a c e
     //   b d f
-    // numkit-m uses linear indexing for char arrays (column-major), so
+    // numkit uses linear indexing for char arrays (column-major), so
     // A(1)='a' A(2)='b' A(3)='c' A(4)='d' A(5)='e' A(6)='f'.
     eval("A = sscanf('abcdef', '%c', [2 3]);");
     EXPECT_TRUE(evalBool("tf = ischar(A);"));
@@ -1595,7 +1595,7 @@ TEST_P(FileIoTest, TextscanCommaSeparatedWithMixedFormat)
 
 TEST_P(FileIoTest, TextscanSkipsHeaderLines)
 {
-    // Multi-line content has to go through a fid — numkit-m single-quoted
+    // Multi-line content has to go through a fid — numkit single-quoted
     // strings don't carry embedded newlines.
     fs->files()["hdr.txt"] = "# metadata\n# more meta\n1 2\n3 4\n5 6\n";
     eval("fid = fopen('hdr.txt', 'r');");

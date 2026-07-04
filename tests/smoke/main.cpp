@@ -1,4 +1,4 @@
-// example/main.cpp — numkit-m console runner.
+// example/main.cpp — numkit console runner.
 //
 // Two modes:
 //   numkit_example               interactive REPL with multi-line input support
@@ -121,7 +121,7 @@ int runScript(const std::string &path)
 int runRepl()
 {
     StandardEngine engine;
-    std::cout << "numkit-m REPL  (type 'quit' or 'exit' to leave)\n\n";
+    std::cout << "numkit REPL  (type 'quit' or 'exit' to leave)\n\n";
 
     std::string accum;
     std::string line;

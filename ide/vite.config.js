@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/numkit-m/',      // ← add this line
   build: {
     outDir: 'dist',
     // Sourcemaps default ON. Cost: +1.4 MB to the dist (Electron renderer

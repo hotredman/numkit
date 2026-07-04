@@ -131,7 +131,7 @@ export default function StatusBar({
       {buildVersion && (
         <>
           <span className="status-sep" />
-          <span className="status-item" title="numkit-m engine build timestamp">
+          <span className="status-item" title="numkit engine build timestamp">
             build {buildVersion}
           </span>
         </>

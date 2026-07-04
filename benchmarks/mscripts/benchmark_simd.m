@@ -1,8 +1,8 @@
 % Benchmark SIMD — Library function performance
-% Exercises the MATLAB functions that numkit-m vectorised via Google
+% Exercises the MATLAB functions that numkit vectorised via Google
 % Highway in the Phase 8 work: abs, sin, cos, exp, log, + - .* ./,
 % matrix multiply, and FFT. Works identically in MATLAB, Octave, and
-% the numkit-m IDE — run it in each and compare totals to see where
+% the numkit IDE — run it in each and compare totals to see where
 % the interpreter + library stack stands against the reference
 % implementations.
 %

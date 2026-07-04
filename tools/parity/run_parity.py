@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Parity harness for numkit-m.
+Parity harness for numkit.
 
 Runs a function spec against three engines (numkit native, MATLAB R2025b,
 Octave 11.1.0), compares output for correctness, measures wall-clock time,

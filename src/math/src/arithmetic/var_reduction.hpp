@@ -9,7 +9,7 @@
 // a fully vector-parallel inner loop:
 //   pass 1: SIMD sum  → mean
 //   pass 2: SIMD sum-of-squared-deviations → variance / (N or N-1)
-// At numkit-m's 1e-12 test tolerances the precision delta is invisible.
+// At numkit's 1e-12 test tolerances the precision delta is invisible.
 
 #pragma once
 

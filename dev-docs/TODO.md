@@ -1,4 +1,4 @@
-# numkit-m — engineering TODO / tech-debt
+# numkit — engineering TODO / tech-debt
 
 Tracked, non-urgent improvements that are deliberately out of scope for the
 change that surfaced them. Each entry is self-contained: a session should be
