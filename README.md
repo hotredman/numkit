@@ -202,7 +202,7 @@ int main()
 }
 ```
 
-Every documented function in `toolboxes/<lib>/include/numkit/<lib>/...` is a
+Every documented function in `src/toolboxes/<lib>/include/numkit/<lib>/...` is a
 pure C++ entry point following the same signature pattern: `Value fn(
 memory_resource *mr, ...)` — single-output functions return a `Value`,
 multi-output ones return `std::tuple<Value, Value, ...>` (here `butter`
@@ -350,53 +350,49 @@ level coverage is in **[PROGRESS.md](tools/parity/PROGRESS.md)**.
 
 ## Project Structure
 
+The C++ engine and numerical libraries live under `src/` as a **layered
+dependency DAG** (L0 foundation → engine / compute → runtime → bundle),
+enforced by `tools/check_layering.py`. Everything else — tests, the IDE,
+tooling, docs — stays at the repo root.
+
 ```
-core/                                 # Runtime: parser → AST → VM / TreeWalker
-    include/numkit/core/              # Public headers (namespace numkit)
-        engine.hpp · value.hpp · environment.hpp · vm.hpp · compiler.hpp
-        tree_walker.hpp · ast.hpp · lexer.hpp · parser.hpp
-        debugger.hpp · debug_session.hpp · figure_manager.hpp
-        scratch.hpp · vfs.hpp · types.hpp · branding.hpp
-    src/                              # Implementations matching the headers
-    tests/                            # Frontend / backend / debugger tests
+src/                          # C++ engine + numerical libraries (layered; ns numkit::*)
+    value/       # L0    Value substrate: Value · dims · FnHandle · scratch · span
+    fs/          # L0    Virtual filesystem + FsContext (cwd / path resolution)
+    ops/         # L0.5  Kernel home — raw numeric kernels: binary_ops · reductions ·
+                 #       compare · fft · conv · rng · la_solve · root/RK/NM solver kernels
+    core/        # L1    Engine: lexer → parser → AST → (TreeWalker | bytecode VM),
+                 #       Engine · Environment · CallContext · debugger / debug_session
+    figure/      # L0.5  FigureManager — figure/axes/dataset state (header-only)
+    math/        # L2    numkit::math — arithmetic · trig · exp_log · complex · special ·
+                 #       poly · interp · discrete · geom · integration · random · permutations
+    lang/        # L2    numkit::lang — strings · arrays · types · bitwise · operators
+    graphics/    #       Plotting service (plot / imshow / …) via GraphicsContext
+    scriptgraph/ # L2    AST-lowering / node-graph for the IDE script graph (core-aware)
+    runtime/     # L2    Engine-bound: eval/evalin · workspace (who/clear/…) ·
+                 #       save/load · str2func/func2str  (the one core-dependent library)
+    toolboxes/   # L2    signal · stats · image · comm · control · wavelet · audio ·
+                 #       linalg · optim · ode · io   (each: include/ src/ tests/)
+    codegen/     #       AOT compiler: type inference → monomorphize → emit (DESIGN.md)
+    bundle/      # L3    StandardEngine + installStandardLibrary + ALL registration
+                 #       (src/register/<domain>/*_reg.cpp — the core×compute glue)
 
-toolboxes/                                 # Domain libraries (one per H2 in PROGRESS.md)
-    builtin/                          # Base layer — language fundamentals + math
-        include/numkit/builtin/{language,math,programming}/
-        src/{language,math,programming}/
-    signal/                           # DSP toolbox (12 sub-domains)
-    stats/                            # Statistics
-    image/                            # Image processing
-    comm/                             # Communications
-    control/                          # Control systems
-    wavelet/                          # Wavelet transforms
-    graphics/                         # Plotting commands
-    io/                               # File I/O
-    optim/                            # Optimization (fzero / fminbnd / fminsearch)
-    <each lib>/{include,src,tests}/   # Same layout per library
-
-tests/                                # Top-level integration & cross-cutting tests
-examples/                             # 80 MATLAB-style example scripts (IDE source-of-truth)
-
-wasm/                                 # WebAssembly REPL bindings (Emscripten)
-ide/                                  # Numkit IDE — React + Vite frontend
-    src/components/                   # IDE.jsx · Console · Figures · FileBrowser · …
-    src/engine.js                     # WASM engine wrapper
-    desktop/                          # Electron shell
-    public/examples/                  # mirror of /examples (regenerated on build)
-
-tools/                                # Dev tooling
-    parity/                           # Parity harness (run_parity.py) + 1500+ specs
-        PROGRESS.md                   # Live function-by-function parity map
-        BENCHMARK.md                  # Per-function timings vs MATLAB / Octave
-    maintenance/                      # check_api.py · check_vfs_invariant
-scripts/                              # build / dev / deploy / desktop wrappers (sh + bat)
-
-docs/                                 # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
-dev-docs/                             # Developer / AI coding + design/process docs (flat; index in dev-docs/README.md)
-    LIBRARY_API.md · CALLBACK_PAUSABILITY.md · FORMAT_HOMES.md
-    NAMESPACE_DESIGN.md · OBJECT_MODEL.md · VM_CALLBACKS_PLAN.md · COORDINATION.md · PARITY_AGENT_PROMPT.md
-bugs/                                 # Structured bug catalog (one file per bug) + PARITY_GAPS.md
+tests/       # Top-level integration & cross-cutting tests
+examples/    # 80 MATLAB-style example scripts (IDE source-of-truth)
+wasm/        # WebAssembly REPL bindings (Emscripten)
+ide/         # Numkit IDE — React + Vite frontend + Electron shell (desktop/)
+benchmarks/  # Micro-benchmarks (per layer + SIMD)
+tools/       # Dev tooling
+    parity/          # Parity harness (run_parity.py) + 1500+ specs
+        PROGRESS.md  #   Live function-by-function parity map
+        BENCHMARK.md #   Per-function timings vs MATLAB / Octave
+    check_layering.py     # Layer-DAG guard (11 layers, zero exemptions)
+    maintenance/          # check_api.py · check_vfs_invariant.sh
+scripts/     # build / dev / deploy / desktop wrappers (sh + bat)
+docs/        # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
+dev-docs/    # Developer / AI design + process docs (index: dev-docs/README.md)
+bugs/        # Structured bug catalog (one file per bug) + PARITY_GAPS.md
+brand/  ·  cmake/  ·  third_party/
 ```
 
 ## License
