@@ -73,6 +73,24 @@ const PRELOAD = path.join(__dirname, 'preload.js');
 let mainWindow = null;
 let viteProcess = null;
 
+// Single-instance guard. A second `run-desktop` should focus + reload the
+// EXISTING window (picking up a rebuilt desktop/dist) rather than spawn a
+// second process that contends with the first for the userData lock and dies
+// ("Unable to move the cache: Access is denied") — which would leave the user
+// staring at the ORIGINAL, now-stale window. Without this, relaunching never
+// actually replaces the old build.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      mainWindow.webContents.reloadIgnoringCache();
+    }
+  });
+}
+
 function createWindow(url) {
   mainWindow = new BrowserWindow({
     width: 1400,
