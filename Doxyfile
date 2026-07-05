@@ -23,7 +23,7 @@ OUTPUT_LANGUAGE        = English
 # ── Input ────────────────────────────────────────────────────────────
 # Only the public include trees of each lib. Implementation .cpp files
 # under toolboxes/*/src are excluded (they're not user-facing API).
-INPUT                  = docs/doxygen_mainpage.dox \
+INPUT                  = doxygen/doxygen_mainpage.dox \
                          src/math/include               \
                          src/lang/include               \
                          src/toolboxes/audio/include    \
