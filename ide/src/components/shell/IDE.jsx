@@ -38,8 +38,37 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     return () => window.removeEventListener('mousedown', h);
   }, [ctxMenu]);
 
+  const stripRef = useRef(null);
+
+  // Mouse wheel → horizontal scroll (the 30px strip has no room for a
+  // scrollbar). Native non-passive listener so preventDefault sticks.
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (el.scrollWidth <= el.clientWidth || e.deltaX !== 0) return;
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Keep the active tab in view when it changes or tabs are added/removed, so
+  // opening a file or clicking an off-screen tab scrolls it into reach.
+  useEffect(() => {
+    const strip = stripRef.current;
+    const active = strip && strip.querySelector('.editor-tab.is-active');
+    if (!strip || !active) return;
+    const s = strip.getBoundingClientRect();
+    const a = active.getBoundingClientRect();
+    if (a.left < s.left) strip.scrollLeft -= s.left - a.left;
+    else if (a.right > s.right) strip.scrollLeft += a.right - s.right;
+  }, [activeTab, tabs.length]);
+
   return (
     <div className="editor-tabs">
+      <div className="editor-tabs-scroll" ref={stripRef}>
       {tabs.map((tab) => {
         const isActive = tab.id === activeTab;
         return (
@@ -75,6 +104,7 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
           </div>
         );
       })}
+      </div>
       <div className="editor-actions">
         <button title="New tab" onClick={onNew}>
           <svg width="12" height="12" viewBox="0 0 12 12">

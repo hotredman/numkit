@@ -323,7 +323,18 @@ input, select { font-family: inherit; color: inherit; }
   background: var(--bg-1);
   border-bottom: 1px solid var(--line);
   height: 30px;
+  overflow: hidden;
 }
+/* Horizontally-scrollable tab area. When more tabs are open than fit, the strip
+   scrolls (mouse wheel + active-tab auto-scroll) instead of clipping the
+   rightmost tabs unreachably. Scrollbar hidden — a 30px strip has no room. */
+.editor-tabs-scroll {
+  display: flex; align-items: stretch;
+  flex: 1 1 auto; min-width: 0;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+}
+.editor-tabs-scroll::-webkit-scrollbar { display: none; }
 .editor-tab {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 0 10px;
@@ -331,6 +342,8 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-2);
   border-right: 1px solid var(--line-soft);
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .editor-tab.is-active {
   background: var(--bg-2);
@@ -907,6 +920,7 @@ input, select { font-family: inherit; color: inherit; }
 
 .editor-actions {
   margin-left: auto;
+  flex-shrink: 0;
   display: flex; align-items: center; gap: 2px;
   padding: 0 6px;
   border-left: 1px solid var(--line-soft);
