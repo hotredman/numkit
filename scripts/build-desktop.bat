@@ -6,7 +6,7 @@ set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
 :: cmake's `browser` preset writes to ${sourceDir}/build/browser/ (since the
 :: May 7 chore commit 50cc70df that consolidated all build-<preset>/ dirs
-:: under a single build/<preset>/ tree). deploy.sh / deploy.bat already track
+:: under a single build/<preset>/ tree). build-web.sh / build-web.bat already track
 :: this path; this script previously had the legacy dashed name and silently
 :: copied the May-6 stale WASM into ide/public/ on every run.
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
@@ -97,6 +97,9 @@ if "%NEED_IDE_INSTALL%"=="1" (
 
 echo [4/5] Building static files...
 cd /d "%IDE_DIR%"
+:: --base ./ : the desktop shell loads dist\index.html over file://, which only
+:: resolves RELATIVE asset/fetch paths. vite.config.js already defaults to
+:: base './', so this is an explicit guarantee for the packaged desktop build.
 call npx vite build --base ./
 if errorlevel 1 (
     echo Vite build failed!

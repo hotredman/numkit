@@ -5,7 +5,7 @@ set PROJECT_DIR=%~dp0..\
 set IDE_DIR=%PROJECT_DIR%ide
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 set DEPLOY_DIR=%PROJECT_DIR%deploy
-set EMSDK=C:\Users\User\Repo\emsdk
+if not defined EMSDK set "EMSDK=C:\Users\User\Repo\emsdk"
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
 echo === Numkit IDE Static Build -- output to deploy\ ===
@@ -63,5 +63,6 @@ echo.> "%DEPLOY_DIR%\.nojekyll"
 echo.
 echo === Build complete! Static IDE site in deploy\ ===
 echo.
-echo deploy\ is gitignored. GitHub Pages is served from the separate IDE
-echo repo, not this one -- upload deploy\ to your host or serve it locally.
+echo deploy\ is gitignored. Serve it from any static host -- the base is
+echo relative, so it works at the web root or a sub-path. Preview locally
+echo with "npm run preview" from the ide\ folder.

@@ -4,12 +4,12 @@ setlocal
 :: This script lives in scripts/. cd to the repo root so `cmake --preset`
 :: finds CMakePresets.json there -- without this, cmake reads presets from the
 :: caller's CWD (e.g. scripts/) and dies "Could not read presets ...
-:: scripts/CMakePresets.json". Callers (build-desktop.bat / deploy.bat) use
+:: scripts/CMakePresets.json". Callers (build-desktop.bat / build-web.bat) use
 :: absolute paths, so this cd is safe whether or not it persists after return.
 cd /d "%~dp0.."
 
 set PROJECT_DIR=%~dp0..\
-set EMSDK=C:\Users\User\Repo\emsdk
+if not defined EMSDK set "EMSDK=C:\Users\User\Repo\emsdk"
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
 if "%1"=="--wasm" goto wasm
