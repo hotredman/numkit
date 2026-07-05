@@ -60,7 +60,13 @@ console.error = (...a) => { logToFile('error', ...a); origErr(...a); };
 
 const IDE_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(__dirname, 'dist');
-const IS_PROD = fs.existsSync(path.join(DIST_DIR, 'index.html'));
+// run-desktop.bat sets NUMKIT_DESKTOP_DEV=1 to force live/dev mode (Vite dev
+// server on the CURRENT source) even when a prebuilt desktop/dist exists —
+// otherwise Electron would silently load that static bundle and ignore every
+// code change since it was built ("run launches an old build"). A packaged app
+// never sets this, so it still loads its own bundled dist/.
+const FORCE_DEV = process.env.NUMKIT_DESKTOP_DEV === '1';
+const IS_PROD = !FORCE_DEV && fs.existsSync(path.join(DIST_DIR, 'index.html'));
 const PRELOAD = path.join(__dirname, 'preload.js');
 
 let mainWindow = null;
@@ -150,15 +156,18 @@ function createWindow(url) {
 // ── Dev mode: start Vite and detect URL ──
 
 function startVite() {
-  const NODE_EXE = path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'nodejs', 'node.exe');
   const VITE_BIN = path.join(IDE_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
 
   return new Promise((resolve, reject) => {
     console.log('[Numkit IDE] Dev mode — starting Vite');
 
-    viteProcess = spawn(NODE_EXE, [VITE_BIN, '--host', '127.0.0.1'], {
+    // Run Vite through THIS Electron binary acting as Node
+    // (ELECTRON_RUN_AS_NODE), so the launcher depends only on Electron — which
+    // is already here — instead of a system Node install at a hard-coded path.
+    viteProcess = spawn(process.execPath, [VITE_BIN, '--host', '127.0.0.1'], {
       cwd: IDE_DIR,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     });
 
     viteProcess.on('error', (err) => {
