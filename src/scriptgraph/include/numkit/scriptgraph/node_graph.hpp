@@ -18,7 +18,7 @@
 //     branches (if/elseif/else, switch cases) are tracked via
 //     branchPartitions — index boundaries inside childNodeIds.
 //
-// See docs/plans/graph_view_mvp.md (TBD) for the full spec.
+// See dev-docs/graph_view_mvp.md (TBD) for the full spec.
 
 #pragma once
 

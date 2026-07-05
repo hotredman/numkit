@@ -83,9 +83,9 @@ tools/probe_tmp/
 ide/public/examples/
 
 # ── Local deploy output ───────────────────────────────
-# deploy.{bat,sh} build the IDE static site into deploy/ for local preview
+# build-web.{bat,sh} build the IDE static site into deploy/ for local preview
 # or manual upload. GitHub Pages is NOT served from this repo (the IDE repo
-# owns deploys), so this output is never committed. docs/ now holds only the
+# owns deploys), so this output is never committed. doxygen/ now holds only the
 # Doxygen source (doxygen_mainpage.dox) and is no longer a deploy target.
 deploy/
 

@@ -267,7 +267,7 @@ smoke after public-API changes.
 **You are LIBS-`<area>`?** Touch `toolboxes/<area>/` (whatever areas you own
 this session). Use the parity harness. Never touch `core/` or `ide/`.
 
-**You are IDE?** Touch `ide/`, `wasm/`, `docs/`, `brand/`, deploy/dev
+**You are IDE?** Touch `ide/`, `wasm/`, `doxygen/`, `brand/`, deploy/dev
 scripts. Never touch `core/` or `toolboxes/`.
 
 **You see uncommitted changes outside your territory?** Surface them to

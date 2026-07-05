@@ -465,7 +465,7 @@ treat trademark use in *published* docs with care.
 - **One centralized compatibility statement.** The factual claim
   "compatible with MATLAB R2025b semantics", with the trademark
   attribution, lives **once** on the Doxygen main page
-  (`docs/doxygen_mainpage.dox`) — it is not repeated in every `@brief`.
+  (`doxygen/doxygen_mainpage.dox`) — it is not repeated in every `@brief`.
 - **Nominative mentions are allowed but sparing.** Where naming the
   reference is genuinely the clearest thing to say — a `@see`, a
   one-line compatibility note on a specific quirk — a factual mention

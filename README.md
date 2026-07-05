@@ -381,8 +381,8 @@ tools/       # Dev tooling
         BENCHMARK.md #   Per-function timings vs MATLAB / Octave
     check_layering.py     # Layer-DAG guard (11 layers, zero exemptions)
     maintenance/          # check_api.py · check_vfs_invariant.sh
-scripts/     # build / dev / deploy / desktop wrappers (sh + bat)
-docs/        # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
+scripts/     # build-* / run-* / test wrappers (see scripts/README.md)
+doxygen/     # Doxygen API-reference source (doxygen_mainpage.dox → build/docs/html)
 dev-docs/    # Developer / AI design + process docs (index: dev-docs/README.md)
 bugs/        # Structured bug catalog (one file per bug) + PARITY_GAPS.md
 brand/  ·  cmake/  ·  third_party/

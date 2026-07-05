@@ -1,4 +1,4 @@
-// docs/doxygen_mainpage.dox
+// doxygen/doxygen_mainpage.dox
 //
 // This file is read by Doxygen only (file pattern `*.dox` is ignored
 // by C++ compilation). It adds a landing page and namespace summary
