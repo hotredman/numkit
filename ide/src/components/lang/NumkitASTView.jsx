@@ -50,6 +50,7 @@ import ReactFlow, {
 import ELK from 'elkjs/lib/elk.bundled.js';
 import 'reactflow/dist/style.css';
 
+import { useFitOnResize } from './useFitOnResize';
 import {
   CATEGORIES, categoryOf, categoryColor, defaultFilters,
   hasAnyChildren, valueText, eachAstChild,
@@ -238,6 +239,12 @@ function NumkitASTViewInner({ source, engine, onNavigate, cursorLine }) {
   const nodesInitialized = useNodesInitialized();
   const reactFlow        = useReactFlow();
 
+  // Re-fit when the pane resizes — `fitView` only fits once (see
+  // useFitOnResize). Without this a sibling-pane / Figures / window
+  // resize leaves the tree clipped and not flush to the pane edges.
+  const containerRef = useRef(null);
+  useFitOnResize(containerRef, reactFlow, laidOut);
+
   // Lower source → AST JSON.
   useEffect(() => {
     if (!engine || typeof engine.buildAST !== 'function') {
@@ -357,7 +364,7 @@ function NumkitASTViewInner({ source, engine, onNavigate, cursorLine }) {
 
   return (
     <ASTViewContext.Provider value={{ onToggleCollapse, onNavigate: onNavigateSafe }}>
-      <div className="numkit-ast-view">
+      <div className="numkit-ast-view" ref={containerRef}>
         <ASTFilterBar filters={filters} onChange={setFilters}
                       onCollapseAll={() => setCollapsed(collectCollapsibleIds(ast, filters))}
                       onExpandAll={() => setCollapsed(new Set())} />

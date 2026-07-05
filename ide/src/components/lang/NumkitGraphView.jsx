@@ -51,6 +51,7 @@ import ReactFlow, {
 } from 'reactflow';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import 'reactflow/dist/style.css';
+import { useFitOnResize } from './useFitOnResize';
 
 const elk = new ELK();
 
@@ -491,6 +492,12 @@ function NumkitGraphViewInner({ source, engine }) {
   const nodesInitialized = useNodesInitialized();
   const reactFlow        = useReactFlow();
 
+  // Re-fit the graph when the pane resizes — React Flow's `fitView`
+  // prop only fits once, so a later resize (sibling pane / Figures /
+  // window) would leave the viewport stale and the graph off-edge.
+  const containerRef = useRef(null);
+  useFitOnResize(containerRef, reactFlow, laidOut);
+
   // ── Source → graph IR ───────────────────────────────────────────
   useEffect(() => {
     if (!engine || typeof engine.buildScriptGraph !== 'function') {
@@ -602,7 +609,7 @@ function NumkitGraphViewInner({ source, engine }) {
   }
 
   return (
-    <div className="numkit-graph-view">
+    <div className="numkit-graph-view" ref={containerRef}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
