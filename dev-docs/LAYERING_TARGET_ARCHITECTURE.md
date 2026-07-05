@@ -505,7 +505,7 @@ to keep its diff semantic + reviewable.
   the ~6 absolute `${CMAKE_CURRENT_SOURCE_DIR}/<layer>/src` include roots +
   `bundle/src/version_string.cpp`), `tools/check_layering.py` LAYER_DIRS (+ the
   toolbox scan path + the `io/src/text/type.cpp` exempt path), `Doxyfile` INPUT,
-  `scripts/build.sh|build-web.sh`, `.gitignore`. Per-layer CMakeLists are unchanged
+  `scripts/build-engine.sh|build-web.sh`, `.gitignore`. Per-layer CMakeLists are unchanged
   (all relative to `CMAKE_CURRENT_SOURCE_DIR`). **Its own coordinated branch** —
   9 top-level `git mv`s are a huge shared surface; freeze the ide/lib worktrees
   and land together (COORDINATION.md). Build is the detector.
