@@ -54,5 +54,5 @@ touch "${DEPLOY_DIR}/.nojekyll"
 
 echo ""
 echo "Build complete! Static IDE site in deploy/ (gitignored)."
-echo "GitHub Pages is served from the separate IDE repo, not this one --"
-echo "upload deploy/ to your host or serve it locally."
+echo "Serve it from any static host — the base is relative, so it works at the"
+echo "web root OR a sub-path. Preview locally with: (cd ide && npm run preview)."

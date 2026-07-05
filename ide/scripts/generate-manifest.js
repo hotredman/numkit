@@ -3,8 +3,8 @@
  * generate-manifest.js
  *
  * Single source of truth for example .m files: ../../examples/.
- * GitHub Pages browses that tree directly (linked from README); the
- * Vite build needs them inside ide/public/examples/. Rather than
+ * The repo README references that tree; the Vite build needs the same
+ * files inside ide/public/examples/. Rather than
  * keeping two copies in git that silently drift (we got bitten once
  * — see commit a975c106), this script:
  *
@@ -17,7 +17,7 @@
  *      into BOTH trees so they never disagree.
  *
  * Triggered automatically via package.json `predev` / `prebuild`,
- * and explicitly by deploy.sh / deploy.bat. Idempotent (~50 ms).
+ * and explicitly by build-web.sh / build-web.bat. Idempotent (~50 ms).
  *
  * The destination tree (ide/public/examples/) is in .gitignore — it
  * is regenerated on every build.
