@@ -1018,6 +1018,16 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                       default: return null;
                     }
                   };
+                  // Normalise the per-pane flex-grow fractions so they always
+                  // sum to the pane count (>= 1). Without this a single pane left
+                  // with a persisted fraction < 1 — e.g. 0.69 after dragging a
+                  // split divider then closing the other pane — fails to fill the
+                  // row: when the grow values sum to < 1, CSS distributes only
+                  // that fraction of the free space and leaves the rest as dead
+                  // space on the right. Scaling by paneCount/total keeps the
+                  // user's drag ratios intact for real splits.
+                  const fracTotal = active.reduce((s, k) => s + (paneFracs[k] || 1), 0) || 1;
+                  const growFor = (key) => ((paneFracs[key] || 1) * active.length) / fracTotal;
                   return (
                     <div className="editor-multi-pane" ref={multiPaneRef}>
                       {active.map((key, i) => (
@@ -1028,7 +1038,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                               onDoubleClick={resetPaneFracs} />
                           )}
                           <div className="editor-pane"
-                               style={{ flex: `${paneFracs[key] || 1} 1 0` }}>
+                               style={{ flex: `${growFor(key)} 1 0` }}>
                             {renderPane(key)}
                           </div>
                         </Fragment>
