@@ -123,7 +123,7 @@ cmake --preset=portable         # reference build, no optimizations
 cmake --build --preset=portable
 ```
 
-Or use the wrapper scripts: `./scripts/build.sh` (Linux/macOS) or `scripts/build.bat` (Windows).
+Or use the wrapper scripts: `./scripts/build-engine.sh` (Linux/macOS) or `scripts/build-engine.bat` (Windows).
 
 ### Run Tests
 
@@ -143,7 +143,7 @@ npm install
 npm run build
 ```
 
-Or: `./scripts/build.sh --wasm` / `scripts/build.bat --wasm`.
+Or: `./scripts/build-engine.sh --wasm` / `scripts/build-engine.bat --wasm`.
 
 ---
 

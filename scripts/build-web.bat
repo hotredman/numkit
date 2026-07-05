@@ -22,7 +22,7 @@ if errorlevel 1 (
 if exist "%EMCC_DIR%\emcc.bat" (
     if not exist "%WASM_DIST%\numkit_ide.wasm" (
         echo Building WASM...
-        call "%~dp0build.bat" --wasm
+        call "%~dp0build-engine.bat" --wasm
         if errorlevel 1 exit /b 1
     )
     echo Copying WASM files into ide\public\...

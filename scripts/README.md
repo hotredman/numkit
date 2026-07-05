@@ -1,41 +1,41 @@
 # scripts/
 
 Thin wrappers around the project's two toolchains — the **C++ engine** (CMake)
-and the **IDE** (npm / Vite / Electron). `.sh` = Linux/macOS/git-bash, `.bat` =
-Windows; where only one flavour exists, that path is currently used on that
-platform only (desktop packaging is Windows-only today).
+and the **IDE** (npm / Vite / Electron). Naming: `build-*` produces an artifact,
+`run-*` launches something. `.sh` = Linux/macOS/git-bash, `.bat` = Windows; where
+only one flavour exists, that path is currently used on that platform only
+(desktop packaging is Windows-only today).
 
 ## Engine (C++ / CMake)
 
 | Script | Does |
 |---|---|
-| `build.{sh,bat}` | Configure + build the engine. `--fast` → `desktop-fast` preset (Highway SIMD), `--wasm` → `browser` preset (Emscripten; needs `EMSDK`), no arg → `portable`. |
+| `build-engine.{sh,bat}` | Configure + build the engine. `--fast` → `desktop-fast` preset (Highway SIMD), `--wasm` → `browser` preset (Emscripten; needs `EMSDK`), no arg → `portable`. |
 | `test.sh` | Build `desktop-fast` + run the gtest suite via `ctest --preset=desktop-fast`. Args pass through, e.g. `test.sh -R Haart`. |
 | `coverage.ps1` | Ninja + clang-cl coverage build → `llvm-cov` report (enters a VS Dev Shell first). |
 
 ## IDE (npm / Vite / Electron)
 
-The IDE is **one** Vite app delivered three ways. What decides asset/fetch
+The IDE is **one** Vite app delivered several ways. What decides asset/fetch
 resolution is **where `index.html` lands** — i.e. what `base` /
-`import.meta.env.BASE_URL` resolves against — not "dev vs server". Note that a
-dev server and a hosted build are *both* HTTP servers; the real split is
-HTTP-vs-`file://` and source-vs-built:
+`import.meta.env.BASE_URL` resolves against — *not* "dev vs server" (a dev server
+and a hosted build are both HTTP servers). The real axes are source-vs-built and
+HTTP-vs-`file://`:
 
 ```
-                 live source (Vite dev, HMR)      built dist/ (vite build)
-  over HTTP      dev.{sh,bat}                      build-web.{sh,bat}  -> deploy/
-  (a server)     desktop.bat  (Electron window,    served by any static host
-                 spawns the SAME dev server)        (web root OR a sub-path)
-                     BASE_URL = /                       BASE_URL = ./
-  over file://       --                             build-desktop.bat -> packaged
-  (no server)                                        .exe (Electron loadFile)
-                                                         BASE_URL = ./
+Vite DEV server — live source, HMR                        BASE_URL = /
+   run-web.{sh,bat}      browser dev server at :3000
+   run-desktop.bat       Electron window pointed at that same dev server
+
+vite build → dist/ — static bundle                        BASE_URL = ./ (relative)
+   build-web.{sh,bat}    → deploy/ ; host anywhere over HTTP (root OR sub-path)
+   build-desktop.bat     → packaged .exe ; Electron loadFile over file://
 ```
 
 | Script | Does | Transport |
 |---|---|---|
-| `dev.{sh,bat}` | Copy WASM → `ide/public/`, run the Vite **dev server** (source + HMR) at `:3000`. | HTTP, root |
-| `desktop.bat` *(win)* | Launch the Electron shell in **dev mode** — `main.js` spawns the same Vite dev server and loads the window from it. | HTTP, root |
+| `run-web.{sh,bat}` | Copy WASM → `ide/public/`, run the Vite **dev server** (source + HMR) at `:3000`. | HTTP, root |
+| `run-desktop.bat` *(win)* | Launch the Electron shell in **dev mode** — `main.js` spawns the same Vite dev server and loads the window from it. | HTTP, root |
 | `build-web.{sh,bat}` | Build the static site (WASM + `vite build`) into `deploy/` (gitignored). Host it anywhere. *(Was `deploy.*` — it no longer deploys, it just builds a bundle.)* | HTTP, root or sub-path |
 | `build-desktop.bat` *(win)* | Full desktop build: WASM + `vite build --base ./` + `electron-builder --win portable` → `.exe`. | file:// |
 
