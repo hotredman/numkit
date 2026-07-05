@@ -46,6 +46,7 @@ import ReactFlow, {
   Position,
   useNodesInitialized,
   useReactFlow,
+  useStoreApi,
 } from 'reactflow';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import 'reactflow/dist/style.css';
@@ -238,6 +239,40 @@ function NumkitASTViewInner({ source, engine, onNavigate, cursorLine }) {
   const tokenRef = useRef(0);
   const nodesInitialized = useNodesInitialized();
   const reactFlow        = useReactFlow();
+  const storeApi         = useStoreApi();
+
+  // Force React Flow to (re)measure every node whenever the node set
+  // changes. Without this the AST pane renders blank (opacity 0) for large
+  // trees: RF measures each node exactly once, when its ResizeObserver first
+  // observes it, and that initial callback can fire before RF has recorded
+  // its container element — so updateNodeDimensions bails. The static AST
+  // nodes never resize again, so RF never retries, `useNodesInitialized()`
+  // stays false forever, and Phase 2 (ELK layout → opacity 1) never runs.
+  //
+  // Must run on EVERY change, not just the first: Phase 2 re-emits fresh node
+  // objects carrying their ELK positions, which resets RF's per-node
+  // measurement again. Several delayed passes cover the window in which the
+  // node DOM elements settle after a `setNodes` (a single pass can miss
+  // late-rendered nodes, leaving them stuck hidden). `updateNodeDimensions`
+  // only writes RF's internal store, so it never feeds back into `nodes`.
+  // (`useUpdateNodeInternals` is unreliable here — it rAF-defers and
+  // re-queries each node by id, landing on the stale pre-measure state;
+  // driving the store action synchronously over the live elements does not.)
+  useEffect(() => {
+    if (nodes.length === 0) return undefined;
+    const remeasure = () => {
+      const { domNode, updateNodeDimensions } = storeApi.getState();
+      if (!domNode) return;
+      const updates = [...domNode.querySelectorAll('.react-flow__node')].map((el) => ({
+        id: el.getAttribute('data-id'),
+        nodeElement: el,
+        forceUpdate: true,
+      }));
+      if (updates.length) updateNodeDimensions(updates);
+    };
+    const timers = [0, 60, 140, 280, 500].map((ms) => setTimeout(remeasure, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [nodes, storeApi]);
 
   // Re-fit when the pane resizes — `fitView` only fits once (see
   // useFitOnResize). Without this a sibling-pane / Figures / window
