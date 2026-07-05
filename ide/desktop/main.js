@@ -18,6 +18,13 @@ const http = require('http');
 // we set it at module top.
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --expose-gc');
 
+// Never serve a stale renderer. Chromium can disk-cache the file:// bundle
+// across launches, so after a rebuild `run-desktop` could reload the OLD code
+// even though desktop/dist is fresh ("run launches an old build"). Disabling
+// the HTTP cache — and clearing it on startup below — guarantees every launch
+// loads the current desktop/dist. Negligible cost for a local IDE.
+app.commandLine.appendSwitch('disable-http-cache');
+
 // ── File-based main-process logger ──────────────────────────────
 // electron-builder packs `--win portable` exes as the GUI subsystem,
 // so stdout/stderr are detached from any launching terminal. The
@@ -229,6 +236,10 @@ app.whenReady().then(async () => {
       },
     });
   });
+
+  // Clear any renderer cache persisted from a previous launch so a rebuilt
+  // desktop/dist is always picked up (paired with --disable-http-cache above).
+  try { await session.defaultSession.clearCache(); } catch { /* best effort */ }
 
   let loadTarget;
 
