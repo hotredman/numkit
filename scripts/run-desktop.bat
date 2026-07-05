@@ -6,6 +6,11 @@ set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 
+:: run-desktop ONLY runs — it launches the app against the CURRENT source via
+:: the Vite dev server (NUMKIT_DESKTOP_DEV below), never a prebuilt bundle. So
+:: code changes show up on every launch with no build step. To produce a
+:: static/packaged build, use build-desktop.bat.
+
 :: Check Node.js
 where node >nul 2>&1
 if errorlevel 1 (
@@ -13,8 +18,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Copy WASM artifacts if available (reused as-is; run-desktop never rebuilds
-:: the engine — use build-desktop.bat for that).
+:: Copy WASM artifacts if available (reused as-is; the engine is built by
+:: build-engine.bat / build-desktop.bat, never here).
 if exist "%WASM_DIST%\numkit_ide.wasm" (
     copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
     copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
@@ -30,25 +35,6 @@ if not exist "%IDE_DIR%\node_modules" (
     call npm install
 )
 
-:: ── Rebuild the renderer bundle so we ALWAYS launch the current code ──
-:: Electron runs in production mode whenever desktop\dist\index.html exists
-:: (see main.js IS_PROD) and loads that STATIC bundle. Without this step
-:: run-desktop would relaunch whatever was last built and silently ignore
-:: every code change since — the classic "it's running an old build" trap.
-:: Only the JS/CSS bundle is rebuilt here (~10 s); WASM is reused from the
-:: copy above. For a full WASM rebuild + packaged .exe, use build-desktop.bat.
-echo.
-echo Building current renderer bundle...
-cd /d "%IDE_DIR%"
-call npx vite build --base ./
-if errorlevel 1 (
-    echo Vite build failed!
-    exit /b 1
-)
-if exist "%DESKTOP_DIR%\dist" rmdir /s /q "%DESKTOP_DIR%\dist"
-xcopy /e /i /q "%IDE_DIR%\dist" "%DESKTOP_DIR%\dist" >nul
-echo Renderer bundle ready.
-
 :: Install Electron if needed
 if not exist "%DESKTOP_DIR%\node_modules" (
     echo Installing Electron...
@@ -57,8 +43,12 @@ if not exist "%DESKTOP_DIR%\node_modules" (
 )
 
 echo.
-echo Starting Numkit IDE...
+echo Starting Numkit IDE (live source via Vite dev server)...
 echo.
 
+:: Force live/dev mode so Electron loads the Vite dev server (current source)
+:: instead of a stale prebuilt desktop\dist. Electron manages the Vite process
+:: and kills it on exit (main.js window-all-closed).
+set NUMKIT_DESKTOP_DEV=1
 cd /d "%DESKTOP_DIR%"
 node_modules\electron\dist\electron.exe .
