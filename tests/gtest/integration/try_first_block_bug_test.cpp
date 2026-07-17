@@ -2,7 +2,7 @@
 //
 // Regression test for the compiler register-allocation overflow bug
 // that surfaced while running the audio_cepstral parity spec via
-// numkit_smoke. Symptom seen by users: "Not a double array" thrown
+// numkit. Symptom seen by users: "Not a double array" thrown
 // from inside a try-block on a perfectly legal index expression like
 // `mc(2, 2)` on a previously-assigned matrix.
 //

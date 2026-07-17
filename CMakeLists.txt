@@ -18,7 +18,7 @@ if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(/MP)
 endif()
 
-option(NUMKIT_BUILD_EXAMPLE    "Build example executable"              ON)
+option(NUMKIT_BUILD_CLI        "Build the numkit interpreter CLI"        ON)
 option(NUMKIT_BUILD_TESTS      "Build tests"                           ON)
 option(NUMKIT_BUILD_BENCHMARKS "Build Google Benchmark micro-benches"  OFF)
 option(NUMKIT_BUILD_SHARED     "Build shared library"                  OFF)
@@ -206,12 +206,12 @@ target_link_libraries(numkit PUBLIC
     $<BUILD_INTERFACE:numkit_ops>
     $<BUILD_INTERFACE:numkit_fs>)
 
-# The `numkit build` CLI front end (codegen driver, DESIGN.md §8 M4) — a tool
-# that transpiles a numkit source file to C++. Built after numkit so it links
-# it; skipped under Emscripten (no native CLI in a WASM build).
-if(NOT EMSCRIPTEN)
-    add_subdirectory(src/codegen/tools)
-endif()
+# Product executables (apps/): the `numkit` interpreter CLI and the
+# `numkit_codegen` AOT transpiler CLI (codegen driver, DESIGN.md §8 M4). Both
+# are thin wrappers over the `numkit` lib, so built after it is defined.
+# numkit_codegen is skipped under Emscripten (no native C++ compiler in a WASM
+# build); the interpreter still builds as a Node-runnable .js. See apps/CMakeLists.txt.
+add_subdirectory(apps)
 
 # ── Architectural layering guard ────────────────────────────────────
 #
@@ -412,8 +412,8 @@ foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_math_obj numkit_lang_ob
     numkit_configure_layer(${_obj})
 endforeach()
 
-# Smoke binary (numkit_smoke) is now owned by tests/smoke/CMakeLists.txt;
-# add_subdirectory(tests) below pulls it in via tests/CMakeLists.txt.
+# The `numkit` interpreter CLI is owned by apps/numkit/CMakeLists.txt (pulled
+# in via add_subdirectory(apps) above); tests/ owns only numkit_gtest now.
 
 # ──────────────────────────────────────────────
 # Тесты (Google Test)
@@ -435,9 +435,8 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
 
     enable_testing()
 
-    # tests/ owns numkit_gtest (in tests/gtest/) and numkit_smoke (in
-    # tests/smoke/). Per-component tests/ dirs contribute their gtest
-    # sources via target_sources(numkit_gtest PRIVATE ...).
+    # tests/ owns numkit_gtest (in tests/gtest/). Per-component tests/ dirs
+    # contribute their gtest sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(src/core/tests)
     add_subdirectory(src/math/tests)

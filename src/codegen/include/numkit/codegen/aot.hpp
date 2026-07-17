@@ -61,7 +61,17 @@ CompileResult compileToExecutable(const std::string &cppSource,
 // hand-written reference (brick 7). The source should export a symbol
 // (e.g. extern "C" __declspec(dllexport) on Windows).
 CompileResult compileToSharedLibrary(const std::string &cppSource,
-                                     const std::string &libPath,
-                                     const CompileOptions &opts = {});
+                                      const std::string &libPath,
+                                      const CompileOptions &opts = {});
+
+// Run the executable at `exePath` (typically produced by compileToExecutable)
+// and capture its combined stdout+stderr. Synchronous. Returns the exit code
+// (0 on success) and the captured output. Native-only — under Emscripten a
+// process spawn is meaningless, so this returns -1 with an explanatory `log`.
+struct RunResult {
+    int         exitCode = -1;
+    std::string log;      // captured stdout+stderr
+};
+RunResult runExecutable(const std::string &exePath);
 
 } // namespace numkit::codegen::aot

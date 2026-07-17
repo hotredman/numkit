@@ -69,7 +69,7 @@ Hand-run `.m` scripts that measure performance from the language side
 Run with the smoke runner (each starts with `clear`):
 
 ```sh
-build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/mscripts/benchmark_interp.m
+build/desktop-fast/apps/numkit/Release/numkit.exe benchmarks/mscripts/benchmark_interp.m
 ```
 
 These use `import compat.*` and so are numkit-only.
@@ -83,7 +83,7 @@ MATLAB / Octave / numkit to compare the scalar-loop cost:
 ```sh
 matlab -batch "run('src/core/benchmarks/iir_filter_ref.m')"   # ~3.9 ns/sample (JIT)
 octave-cli src/core/benchmarks/iir_filter_ref.m
-build/desktop-fast/tests/smoke/Release/numkit_smoke.exe src/core/benchmarks/iir_filter_ref.m  # ~150
+build/desktop-fast/apps/numkit/Release/numkit.exe src/core/benchmarks/iir_filter_ref.m  # ~150
 ```
 
 The interpreter-overhead theme of `benchmark_interp.m` is being migrated into

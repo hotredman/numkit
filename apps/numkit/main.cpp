@@ -1,14 +1,14 @@
-// example/main.cpp — numkit console runner.
+// apps/numkit/main.cpp — numkit console runner (the interpreter CLI).
 //
 // Two modes:
-//   numkit_example               interactive REPL with multi-line input support
-//   numkit_example script.m      batch: read file, evaluate, print output, exit
-//   numkit_example -h | --help   usage
+//   numkit                   interactive REPL with multi-line input support
+//   numkit script.m          batch: read file, evaluate, print output, exit
+//   numkit -h | --help       usage
 //
 // Builds natively (portable / desktop-fast / bench presets) and under
 // Emscripten (browser / bench-wasm presets). When compiled to WASM,
 // launch via Node with filesystem access:
-//   node build-browser/example/numkit_example.js path/to/script.m
+//   node build/browser/apps/numkit/numkit.js path/to/script.m
 
 #include <numkit/core/engine.hpp>
 #include <numkit/bundle/standard_engine.hpp>   // StandardEngine — Engine + standard library
@@ -103,7 +103,7 @@ int runScript(const std::string &path)
 {
     std::ifstream f(path, std::ios::binary);
     if (!f) {
-        std::cerr << "numkit_example: cannot open '" << path << "'\n";
+        std::cerr << "numkit: cannot open '" << path << "'\n";
         return 1;
     }
     std::ostringstream ss;

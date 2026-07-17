@@ -1,7 +1,7 @@
 clear
 import compat.*
 % sqrt / realsqrt smoke — now SIMD-backed (Highway hn::Sqrt = vsqrtpd).
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/sqrt_realsqrt_smoke.m
 
 fprintf('--- sqrt vector (SIMD body + tail), perfect squares are exact ---\n');

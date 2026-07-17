@@ -4,7 +4,7 @@ import compat.*
 % non-NaN operand; NaN only if both are NaN). numkit previously returned
 % NaN: the VM scalar fast path used (a>=b)?a:b, the Value-level used
 % std::max/std::min (NaN-order-dependent). Fixed to std::fmax/std::fmin.
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/minmax_nan_smoke.m
 
 fprintf('--- scalar 2-arg (fast path) ---\n');

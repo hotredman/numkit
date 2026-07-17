@@ -5,6 +5,7 @@
 #include <numkit/codegen/aot_config.hpp>
 
 #include <cstdlib>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -45,6 +46,28 @@ bool fileExists(const std::string &path)
     return static_cast<bool>(is);
 }
 
+// The C++ compiler used at runtime. An env override (NUMKIT_CXX) wins over the
+// build-time-captured compiler (NUMKIT_CODEGEN_AOT_CXX): a user (or the IDE)
+// can `setenv('NUMKIT_CXX', ...)` to redirect AOT compilation to a different
+// toolchain without reconfiguring CMake. An env-overridden compiler is treated
+// as self-sufficient (no vcvars shell) — the build-time MSVC+vcvars path only
+// applies when the build-time compiler is in use. Returns empty when neither
+// is set, in which case compileImpl reports Unavailable (as before).
+std::string resolveCxx()
+{
+    if (const char *env = std::getenv("NUMKIT_CXX"))
+        if (env[0] != '\0')
+            return env;
+    return NUMKIT_CODEGEN_AOT_CXX;
+}
+
+// True when the build-time compiler is MSVC AND the user did not override it
+// (an env-overridden compiler is always driven directly, never via vcvars).
+bool useMsvcVcvars(const std::string &cxx)
+{
+    return NUMKIT_CODEGEN_AOT_IS_MSVC != 0 && cxx == NUMKIT_CODEGEN_AOT_CXX;
+}
+
 } // namespace
 
 bool available() { return NUMKIT_CODEGEN_AOT_AVAILABLE != 0; }
@@ -58,7 +81,8 @@ CompileResult compileImpl(const std::string &cppSource, const std::string &outPa
                           bool sharedLib, const CompileOptions &opts)
 {
     CompileResult r;
-    if (!available()) {
+    const std::string cxx = resolveCxx();
+    if (cxx.empty() || !available()) {
         r.status = CompileStatus::Unavailable;
         return r;
     }
@@ -71,7 +95,7 @@ CompileResult compileImpl(const std::string &cppSource, const std::string &outPa
         return r;
     }
 
-    const bool  isMsvc = NUMKIT_CODEGEN_AOT_IS_MSVC != 0;
+    const bool  isMsvc = useMsvcVcvars(cxx);
     std::string cmd;
 
 #ifdef _WIN32
@@ -94,7 +118,7 @@ CompileResult compileImpl(const std::string &cppSource, const std::string &outPa
         for (const auto &d : opts.includeDirs) inc += " -I\"" + toNative(d) + "\"";
         for (const auto &d : opts.defines) def += " -D" + d;
         for (const auto &l : opts.linkLibs) libs += " \"" + toNative(l) + "\"";
-        b += "\"" + toNative(NUMKIT_CODEGEN_AOT_CXX) + "\" -O2 -std=c++17 "
+        b += "\"" + toNative(cxx) + "\" -O2 -std=c++17 "
              + (sharedLib ? "-shared -fPIC " : "") + inc + def + " \"" + toNative(src) + "\" -o \""
              + toNative(outPath) + "\"" + libs + "\r\n";
     }
@@ -114,7 +138,7 @@ CompileResult compileImpl(const std::string &cppSource, const std::string &outPa
     for (const auto &d : opts.includeDirs) inc += " -I'" + d + "'";
     for (const auto &d : opts.defines) def += " -D" + d;
     for (const auto &l : opts.linkLibs) libs += " '" + l + "'";
-    cmd = std::string(NUMKIT_CODEGEN_AOT_CXX) + " -O2 -std=c++17 "
+    cmd = cxx + " -O2 -std=c++17 "
           + (sharedLib ? "-shared -fPIC " : "") + inc + def + " '" + src + "' -o '" + outPath
           + "'" + libs + " > '" + log + "' 2>&1";
 #endif
@@ -123,7 +147,7 @@ CompileResult compileImpl(const std::string &cppSource, const std::string &outPa
     const int rc = std::system(cmd.c_str());
     r.log        = readFile(log);
     r.status = (rc == 0 && fileExists(outPath)) ? CompileStatus::Ok
-                                                : CompileStatus::CompileError;
+                                                 : CompileStatus::CompileError;
     return r;
 }
 
@@ -136,9 +160,56 @@ CompileResult compileToExecutable(const std::string &cppSource, const std::strin
 }
 
 CompileResult compileToSharedLibrary(const std::string &cppSource, const std::string &libPath,
-                                     const CompileOptions &opts)
+                                      const CompileOptions &opts)
 {
     return compileImpl(cppSource, libPath, /*sharedLib=*/true, opts);
+}
+
+RunResult runExecutable(const std::string &exePath)
+{
+    RunResult r;
+#ifdef __EMSCRIPTEN__
+    (void)exePath;
+    r.log = "aot: runExecutable is not available under Emscripten — a native "
+            "process cannot be spawned from a WASM module. Use the desktop IDE "
+            "or the native `numkit` CLI for compile-and-run.";
+    return r;
+#else
+    if (exePath.empty() || !fileExists(exePath)) {
+        r.log = "aot: executable not found: " + exePath;
+        return r;
+    }
+    // Capture combined stdout+stderr via a pipe. popen returns the child's
+    // stdout; `2>&1` merges stderr into that stream. Quote the exe path on
+    // Windows (cmd /c strips the outer quotes, so wrap once more — same
+    // trick as compileImpl).
+    std::string cmd;
+#  ifdef _WIN32
+    cmd = "\"\"" + toNative(exePath) + "\" 2>&1\"";
+#  else
+    cmd = "'" + exePath + "' 2>&1";
+#  endif
+#  ifdef _WIN32
+    FILE *pipe = _popen(cmd.c_str(), "rt");
+#  else
+    FILE *pipe = ::popen(cmd.c_str(), "r");
+#  endif
+    if (!pipe) {
+        r.log = "aot: failed to launch executable: " + exePath;
+        return r;
+    }
+    std::ostringstream ss;
+    char buf[4096];
+    while (std::fgets(buf, sizeof(buf), pipe))
+        ss << buf;
+#  ifdef _WIN32
+    r.exitCode = _pclose(pipe);
+#  else
+    r.exitCode = ::pclose(pipe);
+#  endif
+    r.log = ss.str();
+    return r;
+#endif
 }
 
 } // namespace numkit::codegen::aot
