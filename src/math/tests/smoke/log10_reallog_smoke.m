@@ -1,7 +1,7 @@
 clear
 import compat.*
 % log10 / reallog smoke — now SIMD-backed (Highway hn::Log10 / hn::Log).
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/log10_reallog_smoke.m
 
 fprintf('--- log10 exact at powers of 10 (vector hits SIMD body) ---\n');

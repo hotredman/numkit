@@ -2,7 +2,7 @@ clear
 import compat.*
 % complex-promotion smoke — sqrt/log/log2/log10 of a negative scalar must
 % return a complex result (MATLAB parity), not real NaN.
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/complex_promotion_smoke.m
 
 show = @(n, z) fprintf('%-13s real=%.15g  imag=%.15g  isreal=%d\n', n, real(z), imag(z), isreal(z));

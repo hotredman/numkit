@@ -2,7 +2,7 @@ clear
 import compat.*
 % pow2 smoke — 2^x now SIMD-backed (ported SLEEF xexp2: integer-exact
 % reduction + single-double polynomial). 2-arg pow2(f,e)=f*2^e unchanged.
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/pow2_smoke.m
 
 fprintf('--- pow2 vector (SIMD body + tail): integer exponents exact ---\n');

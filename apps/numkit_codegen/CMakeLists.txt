@@ -1,4 +1,4 @@
-# codegen/tools/CMakeLists.txt
+# apps/numkit_codegen/CMakeLists.txt
 #
 # numkit_codegen — the `numkit build` CLI front end (DESIGN.md §8 M4). It
 # transpiles a numkit source file's entry function to C++. The driver core

@@ -86,6 +86,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE":    "Release",
         "NUMKIT_BUILD_REPL": "ON",
+        "NUMKIT_BUILD_CLI":   "OFF",
         "NUMKIT_WITH_SIMD":    "ON",
         "CMAKE_CXX_FLAGS":     "-msimd128 -mrelaxed-simd -fexceptions",
         "CMAKE_EXE_LINKER_FLAGS": "-fexceptions"
@@ -116,7 +117,7 @@
       "cacheVariables": {
         "NUMKIT_BUILD_REPL":        "OFF",
         "NUMKIT_BUILD_TESTS":       "OFF",
-        "NUMKIT_BUILD_EXAMPLE":     "OFF",
+        "NUMKIT_BUILD_CLI":          "OFF",
         "NUMKIT_BUILD_BENCHMARKS":  "ON",
         "NUMKIT_INSTALL":           "OFF",
         "NUMKIT_WITH_SIMD":           "ON",

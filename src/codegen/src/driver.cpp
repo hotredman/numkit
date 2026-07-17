@@ -154,4 +154,50 @@ std::string transpileToPlugin(const std::string &source, const std::string &entr
                         });
 }
 
+// Parse the return type out of an EmittedFunction signature of the form
+// `<retty> <name>(<params>)`. The emitter uses fixed-width / single-token
+// types (double, float, std::complex<double>, bool, int8_t..int64_t,
+// uint8_t..uint64_t, void) — none contain spaces — so the return type is the
+// substring before the last space that precedes the first `(`.
+namespace {
+std::string parseRetType(const std::string &signature)
+{
+    const auto paren = signature.find('(');
+    if (paren == std::string::npos) return "";
+    const std::string head = signature.substr(0, paren);  // "<retty> <name>"
+    const auto sp = head.rfind(' ');
+    if (sp == std::string::npos) return "";
+    return head.substr(0, sp);
+}
+} // namespace
+
+std::string buildHarnessMain(const EmittedFunction &em)
+{
+    const std::string &retty = parseRetType(em.signature);
+    std::string body;
+    if (retty == "void") {
+        body = "    " + em.name + "();\n";
+    } else if (retty == "double" || retty == "float" || retty == "bool" ||
+               retty == "int8_t" || retty == "int16_t" || retty == "int32_t" ||
+               retty == "int64_t" || retty == "uint8_t" || retty == "uint16_t" ||
+               retty == "uint32_t" || retty == "uint64_t") {
+        body = "    " + retty + " _r = " + em.name + "();\n"
+               "    std::printf(\"%.17g\\n\", static_cast<double>(_r));\n";
+    } else if (retty == "std::complex<double>") {
+        body = "    std::complex<double> _r = " + em.name + "();\n"
+               "    std::printf(\"%.17g%+.17gi\\n\", _r.real(), _r.imag());\n";
+    } else {
+        throw std::runtime_error(
+            "numkit build: cannot build a run harness for return type '" + retty +
+            "' (v1 supports only scalar / complex / void returns). Use `coder` / "
+            "`-o` to get the C++ and write your own main().");
+    }
+    return "#include <cstdio>\n"
+           "#include <complex>\n"
+           "int main() {\n" +
+           body +
+           "    return 0;\n"
+           "}\n";
+}
+
 } // namespace numkit::codegen::driver

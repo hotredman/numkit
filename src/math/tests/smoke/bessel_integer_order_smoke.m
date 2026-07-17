@@ -4,7 +4,7 @@ import compat.*
 
 % BUG #36 regression guard — integer-order Bessel J/Y/I/K should
 % agree on desktop (std::cyl_bessel_*) and WASM (portable shim).
-% Smoke probes the values; same script run via numkit_smoke.exe
+% Smoke probes the values; same script run via numkit.exe
 % (desktop) and via the WASM REPL must print identical numbers.
 
 fprintf('=== Bessel integer order — BUG #36 cross-platform guard ===\n\n');

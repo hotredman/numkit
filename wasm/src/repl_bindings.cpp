@@ -20,6 +20,9 @@
 #include <numkit/scriptgraph/ast_serialize.hpp>
 #include <numkit/scriptgraph/lowering.hpp>
 #include <numkit/scriptgraph/serialize.hpp>
+#include <numkit/codegen/driver.hpp>
+#include <numkit/codegen/emitter.hpp>
+#include <numkit/fs/branding.hpp>
 
 // ════════════════════════════════════════════════════════════════
 // Helper: format Value for variable preview
@@ -1498,6 +1501,39 @@ std::string buildAST(const std::string &source) {
     }
 }
 
+/** Transpile a numkit source's entry function to a C++ translation unit
+ *  (the codegen driver, DESIGN.md §8 M4). Pure C++ — works under WASM,
+ *  so the browser IDE can show the generated C++ for a demo. Compile-and-
+ *  run is NOT possible in the browser (no native compiler) — the desktop
+ *  IDE spawns the native toolchain for that. `entry` may be empty (the
+ *  source's sole top-level function); `argsSpec` is a MATLAB-Coder `-args`
+ *  style type spec ("double[], double"). Returns the C++ source, or a
+ *  JSON error object on failure (same shape as buildAST/buildScriptGraph). */
+std::string generateCpp(const std::string &source,
+                        const std::string &entry,
+                        const std::string &argsSpec) {
+    try {
+        const auto paramTypes = numkit::codegen::driver::parseTypeSpec(argsSpec);
+        numkit::codegen::BridgeOptions bridgeOpts;
+        const numkit::codegen::EmittedFunction em =
+            numkit::codegen::driver::transpileSource(source, entry, paramTypes, bridgeOpts);
+        return em.source;
+    } catch (const std::exception &e) {
+        return jsonError(e.what());
+    } catch (...) {
+        return jsonError("unknown exception during codegen");
+    }
+}
+
+/** Read a process env var from the WASM module's environment (what
+ *  setenv/getenv in the numkit console see). The IDE uses this to forward
+ *  NUMKIT_CXX / NUMKIT_INTERP — set in the console via setenv, or seeded
+ *  from the IDE Settings on startup — to the Electron main process for a
+ *  native compile/run spawn. Returns "" when the var is unset. */
+std::string getEnv(const std::string &name) {
+    return numkit::envGet(name.c_str());
+}
+
 EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_execute",   &repl_execute);
@@ -1534,6 +1570,11 @@ EMSCRIPTEN_BINDINGS(numkit_ide) {
     // Script-graph visualizer — pure analysis pass, no engine state.
     emscripten::function("buildScriptGraph",           &buildScriptGraph);
     emscripten::function("buildAST",                   &buildAST);
+    // Codegen + env bridge for the IDE's "generate C++" demo and the
+    // desktop compile-and-run flow (the latter spawns a native compiler
+    // via the Electron main process, reading NUMKIT_CXX through getEnv).
+    emscripten::function("generateCpp",                &generateCpp);
+    emscripten::function("getEnv",                     &getEnv);
     // Legacy (kept for backward compat)
     emscripten::function("repl_debug_execute",         &repl_debug_execute);
 }

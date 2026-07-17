@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-NUMKIT_EXE = ROOT / "build" / "desktop-fast" / "tests" / "smoke" / "Release" / "numkit_smoke.exe"
+NUMKIT_EXE = ROOT / "build" / "desktop-fast" / "apps" / "numkit" / "Release" / "numkit.exe"
 MATLAB_EXE = "matlab"  # on PATH
 OCTAVE_EXE = r"C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin\octave-cli.exe"
 PROGRESS_MD = ROOT / "tools" / "parity" / "PROGRESS.md"
@@ -43,7 +43,7 @@ BENCHMARK_MD = ROOT / "tools" / "parity" / "BENCHMARK.md"
 
 
 def _numkit_stale() -> tuple[float, float, str] | None:
-    """Detect a stale numkit_smoke.exe — the prebuilt binary the harness drives.
+    """Detect a stale numkit.exe — the prebuilt binary the harness drives.
 
     The harness runs every spec against NUMKIT_EXE; it never rebuilds it. If the
     binary is older than the newest *library* source under src/, any function
@@ -55,7 +55,7 @@ def _numkit_stale() -> tuple[float, float, str] | None:
     Returns (exe_mtime, newest_src_mtime, newest_src_relpath) when stale, else
     None. Also None when the binary is absent — run_chunk reports that case.
     tests/ and benchmarks/ are pruned: they compile into the gtest / bench
-    targets, not numkit_smoke, so editing them must not flag the binary stale.
+    targets, not numkit, so editing them must not flag the binary stale.
     """
     if not NUMKIT_EXE.exists():
         return None
@@ -90,14 +90,14 @@ def _warn_if_numkit_stale() -> None:
     exe_rel = str(NUMKIT_EXE.relative_to(ROOT)).replace("\\", "/")
     print(
         f"\n{bar}\n"
-        f"  WARNING: numkit_smoke.exe is STALE — numkit parity will under-report.\n"
+        f"  WARNING: numkit.exe is STALE — numkit parity will under-report.\n"
         f"  The harness drives this prebuilt binary and never rebuilds it. Functions\n"
         f"  added/changed since it was built are NOT registered in it and show as a\n"
         f"  spurious 'FAIL  N/A  rows=0' (a staleness artifact, NOT a real gap).\n"
         f"    binary : {exe_rel}  (built  {fmt(exe_m)})\n"
         f"    newest : {src_rel}  (edited {fmt(src_m)})\n"
         f"  Rebuild, then re-run parity:\n"
-        f"    cmake --build build/desktop-fast --target numkit_smoke --config Release\n"
+        f"    cmake --build build/desktop-fast --target numkit_cli --config Release\n"
         f"{bar}\n",
         file=sys.stderr, flush=True)
 
