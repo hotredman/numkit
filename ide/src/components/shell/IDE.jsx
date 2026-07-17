@@ -39,6 +39,15 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
   }, [ctxMenu]);
 
   const stripRef = useRef(null);
+  const [overflow, setOverflow] = useState(false);
+
+  const scrollTabs = (dir) => {
+    const el = stripRef.current;
+    // Instant scroll — native smooth scrollBy is a no-op in the Electron/Chromium
+    // shell here, so `behavior: 'smooth'` would leave the buttons doing nothing.
+    // scrollLeft clamps at the ends, so clicking past an edge is a harmless no-op.
+    if (el) el.scrollLeft += dir * Math.max(120, el.clientWidth * 0.8);
+  };
 
   // Mouse wheel → horizontal scroll (the 30px strip has no room for a
   // scrollbar). Native non-passive listener so preventDefault sticks.
@@ -65,6 +74,17 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     if (a.left < s.left) strip.scrollLeft -= s.left - a.left;
     else if (a.right > s.right) strip.scrollLeft += a.right - s.right;
   }, [activeTab, tabs.length]);
+
+  // Show the ‹ › buttons only when the strip actually overflows.
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return undefined;
+    const update = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [tabs.length]);
 
   return (
     <div className="editor-tabs">
@@ -106,6 +126,22 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
       })}
       </div>
       <div className="editor-actions">
+        {overflow && (
+          <>
+            <button title="Scroll tabs left" onClick={() => scrollTabs(-1)}>
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <path d="M7.5 2.5 4 6l3.5 3.5" stroke="currentColor" strokeWidth="1.4"
+                  fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button title="Scroll tabs right" onClick={() => scrollTabs(1)}>
+              <svg width="12" height="12" viewBox="0 0 12 12">
+                <path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.4"
+                  fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </>
+        )}
         <button title="New tab" onClick={onNew}>
           <svg width="12" height="12" viewBox="0 0 12 12">
             <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
