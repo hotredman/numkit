@@ -82,7 +82,21 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
   // initial mount — Composite3DPlot's onBBox would otherwise lose to
   // this reset (child effects run before parent effects, so the auto-
   // fill viewport gets clobbered back to the placeholder before the
-  // user sees anything).
+  const toolbarRef = useRef(null);
+  const [toolbarWidth, setToolbarWidth] = useState(600);
+
+  useEffect(() => {
+    if (!toolbarRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w && Math.abs(w - toolbarWidth) > 5) setToolbarWidth(w);
+    });
+    ro.observe(toolbarRef.current);
+    return () => ro.disconnect();
+  }, [toolbarWidth]);
+
+  const isCompact = toolbarWidth < 540;
+
   const lastFigureIdRef = useRef(figure.id);
   useEffect(() => {
     if (!is3D) return;
@@ -767,7 +781,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
           </div>
         )}
 
-        <div className="fw-toolbar">
+        <div className="fw-toolbar" ref={toolbarRef}>
           {/* 🏠 Reset — full reset of viewport AND display state. For
               subplot it fans out to every cell. Standalone toolbar
               button (not a popover) for one-click access. */}
@@ -779,7 +793,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <path d="M1 6l5-5 5 5 M2 5v6h8V5"
                     stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
             </svg>
-            reset
+            {!isCompact && ' reset'}
           </button>
           {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
               Per-series rows live in the right-click menu only; the
@@ -789,7 +803,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M2 2L10 10 M2 6V2H6 M10 6v4H6" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
               </svg>
-              fit ▾
+              {!isCompact && ' fit'} ▾
             </button>
             {fitOpen && (
               <div className="fw-pop">
@@ -863,7 +877,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <button className="ve-btn"
                       onClick={() => setViewOpen((o) => !o)}
                       title="Camera presets">
-                view ▾
+                {!isCompact && 'view '}▾
               </button>
               {viewOpen && (
                 <div className="fw-pop">
@@ -920,7 +934,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M2 1v10h10" stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
-              axes ▾
+              {!isCompact && ' axes'} ▾
             </button>
             {axesOpen && (
               <div className="fw-pop">
@@ -1031,7 +1045,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
                 <path d="M4 0v12 M8 0v12 M0 4h12 M0 8h12"
                       stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
-              grid ▾
+              {!isCompact && ' grid'} ▾
             </button>
             {gridOpen && (
               <div className="fw-pop">
@@ -1092,7 +1106,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
                 <path d="M2 3h8M2 6h5M2 9h6"
                       stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
               </svg>
-              decoration ▾
+              {!isCompact && ' decoration'} ▾
             </button>
             {displayOpen && (
               <div className="fw-pop">
@@ -1176,7 +1190,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
                 <rect x="7" y="3" width="2" height="6" fill="currentColor"/>
                 <rect x="9" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
               </svg>
-              colormap ▾
+              {!isCompact && ' colormap'} ▾
             </button>
             {cmapOpen && (
               <div className="fw-pop">
@@ -1223,11 +1237,11 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
           </div>
 
           <div className="ve-tools-group" ref={saveRef}>
-            <button className="ve-btn" onClick={() => setSaveOpen((o) => !o)}>
+            <button className="ve-btn" onClick={() => setSaveOpen((o) => !o)} title="Save / export figure">
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M6 1v8M3 6l3 3 3-3M2 11h8" stroke="currentColor" fill="none" strokeLinecap="round"/>
               </svg>
-              save / export ▾
+              {!isCompact && ' save / export'} ▾
             </button>
             {saveOpen && (
               <div className="fw-pop fw-pop-right">

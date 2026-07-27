@@ -2373,10 +2373,11 @@ input, select { font-family: inherit; color: inherit; }
   z-index: 100;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  padding: 6px 10px;
-  min-height: 40px;
+  flex-wrap: nowrap !important;
+  gap: 4px;
+  padding: 0 8px;
+  height: 38px;
+  min-height: 38px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -2390,15 +2391,13 @@ input, select { font-family: inherit; color: inherit; }
 .fw-toolbar .ve-tools-group {
   display: inline-flex;
   align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
+  flex-shrink: 0;
   position: relative;
 }
-.fw-toolbar > .ve-btn {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
+.fw-toolbar .ve-btn {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  white-space: nowrap;
 }
 
 /* sgtitle strip — figure-level super-title above the canvas. The
