@@ -252,12 +252,24 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
   });
 
   const fig = useMemo(() => {
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    curves.forEach((c) => {
+      c.x.forEach((v) => { if (v < xMin) xMin = v; if (v > xMax) xMax = v; });
+      c.y.forEach((v) => { if (v < yMin) yMin = v; if (v > yMax) yMax = v; });
+    });
+    if (xMin === Infinity || xMax === -Infinity) { xMin = -1; xMax = 1; }
+    if (yMin === Infinity || yMax === -Infinity) { yMin = -1; yMax = 1; }
+    if (xMin === xMax) { xMin -= 0.5; xMax += 0.5; }
+    if (yMin === yMax) { yMin -= 0.5; yMax += 0.5; }
+
     return {
       kind: 'composite',
       id: `inline_${mAxis}_${plotType}`,
       title: '',
       xLabel: xLabel,
       yLabel: '',
+      xRange: [xMin, xMax],
+      yRange: [yMin, yMax],
       grid: true,
       layers: curves.map((c) => ({
         kind: 'series',
