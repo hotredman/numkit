@@ -82,16 +82,16 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
   // initial mount — Composite3DPlot's onBBox would otherwise lose to
   // this reset (child effects run before parent effects, so the auto-
   // fill viewport gets clobbered back to the placeholder before the
-  const toolbarRef = useRef(null);
+  const containerRef = useRef(null);
   const [toolbarWidth, setToolbarWidth] = useState(600);
 
   useEffect(() => {
-    if (!toolbarRef.current) return;
+    if (!containerRef.current) return;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect?.width;
-      if (w && Math.abs(w - toolbarWidth) > 5) setToolbarWidth(w);
+      if (w && Math.abs(w - toolbarWidth) > 3) setToolbarWidth(w);
     });
-    ro.observe(toolbarRef.current);
+    ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, [toolbarWidth]);
 
@@ -768,6 +768,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
 
   const windowNode = (
     <div className={`fw-window ${maximized ? 'is-max' : ''} ${embedded ? 'is-embedded' : ''}`}
+      ref={containerRef}
       role="dialog" aria-label={`Figure ${figure.id}`}>
         {!embedded && (
           <div className="fw-titlebar">
@@ -810,7 +811,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
           </div>
         )}
 
-        <div className="fw-toolbar" ref={toolbarRef}>
+        <div className="fw-toolbar">
           {/* 🏠 Reset — full reset of viewport AND display state. For
               subplot it fans out to every cell. Standalone toolbar
               button (not a popover) for one-click access. */}
