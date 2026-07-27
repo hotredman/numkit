@@ -297,14 +297,14 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
   }
 
   return (
-    <div className="ve-plot" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div className="ve-plot" style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '100%', minWidth: 0, height: '100%', minHeight: 0 }}>
       <PlotControls rows={rows} cols={cols}
         mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
         mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
         pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
         plotType={plotType} setPlotType={setPlotType}
         onClose={onClose} />
-      <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', width: '100%', maxWidth: '100%' }}>
         <FigureWindow figure={fig} embedded={true} onClose={onClose} />
       </div>
     </div>

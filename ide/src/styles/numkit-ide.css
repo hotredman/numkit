@@ -2303,6 +2303,8 @@ input, select { font-family: inherit; color: inherit; }
 .fw-window {
   width: min(1280px, 94vw);
   height: min(820px, 90vh);
+  min-width: 0;
+  max-width: 100%;
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -2321,8 +2323,8 @@ input, select { font-family: inherit; color: inherit; }
 .fw-window.is-embedded {
   width: 100% !important;
   height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   border: none !important;
@@ -2375,6 +2377,9 @@ input, select { font-family: inherit; color: inherit; }
   gap: 6px 8px;
   padding: 6px 10px;
   min-height: 40px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line-soft);
