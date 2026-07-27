@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
