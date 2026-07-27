@@ -2393,7 +2393,7 @@ input, select { font-family: inherit; color: inherit; }
   flex-shrink: 0;
   position: relative;
 }
-.fw-toolbar .ve-tools-spacer { display: none; }
+
 /* sgtitle strip — figure-level super-title above the canvas. The
    FigureWindow JSX always emits an `.fw-supertitle` div so the
    .fw-window grid keeps 6 children mapping to its 6 rows; when the
