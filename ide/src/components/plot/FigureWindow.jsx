@@ -95,18 +95,36 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
     return () => ro.disconnect();
   }, [toolbarWidth]);
 
-  const showLabel = (btnIndex) => {
-    if (toolbarWidth >= 620) return true;                   // All 7 buttons full
-    if (btnIndex === 7 && toolbarWidth < 620) return false; // save / export -> icon
-    if (btnIndex === 6 && toolbarWidth < 540) return false; // colormap -> icon
-    if (btnIndex === 5 && toolbarWidth < 470) return false; // decoration -> icon
-    if (btnIndex === 4 && toolbarWidth < 400) return false; // grid -> icon
-    if (btnIndex === 3 && toolbarWidth < 340) return false; // axes -> icon
-    if (btnIndex === 2 && toolbarWidth < 300) return false; // view -> icon
-    if (btnIndex === 1 && toolbarWidth < 260) return false; // fit -> icon
-    if (btnIndex === 0 && toolbarWidth < 220) return false; // reset -> icon
-    return true;
-  };
+  const expandedButtons = useMemo(() => {
+    const list = [
+      { id: 'reset', iconW: 28, textDelta: 36 },
+      { id: 'fit', iconW: 32, textDelta: 24 },
+    ];
+    if (is3D && !isSubplot) {
+      list.push({ id: 'view', iconW: 32, textDelta: 32 });
+    }
+    list.push(
+      { id: 'axes', iconW: 32, textDelta: 36 },
+      { id: 'grid', iconW: 32, textDelta: 30 },
+      { id: 'decoration', iconW: 32, textDelta: 72 },
+      { id: 'colormap', iconW: 32, textDelta: 68 },
+      { id: 'save', iconW: 32, textDelta: 88 }
+    );
+
+    const baseWidth = list.reduce((sum, b) => sum + b.iconW, 0) + (list.length - 1) * 4 + 20;
+    let currentWidth = baseWidth;
+    const expanded = {};
+
+    for (const b of list) {
+      if (currentWidth + b.textDelta <= toolbarWidth) {
+        expanded[b.id] = true;
+        currentWidth += b.textDelta;
+      } else {
+        expanded[b.id] = false;
+      }
+    }
+    return expanded;
+  }, [toolbarWidth, is3D, isSubplot]);
 
   const lastFigureIdRef = useRef(figure.id);
   useEffect(() => {
@@ -804,7 +822,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <path d="M1 6l5-5 5 5 M2 5v6h8V5"
                     stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
             </svg>
-            {showLabel(0) && ' reset'}
+            {expandedButtons.reset && ' reset'}
           </button>
           {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
               Per-series rows live in the right-click menu only; the
@@ -814,7 +832,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M2 2L10 10 M2 6V2H6 M10 6v4H6" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
               </svg>
-              {showLabel(1) && ' fit'} ▾
+              {expandedButtons.fit && ' fit'} ▾
             </button>
             {fitOpen && (
               <div className="fw-pop">
@@ -888,7 +906,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <button className="ve-btn"
                       onClick={() => setViewOpen((o) => !o)}
                       title="Camera presets">
-                {showLabel(2) && 'view '}▾
+                {expandedButtons.view && 'view '}▾
               </button>
               {viewOpen && (
                 <div className="fw-pop">
@@ -945,7 +963,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M2 1v10h10" stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
-              {showLabel(3) && ' axes'} ▾
+              {expandedButtons.axes && ' axes'} ▾
             </button>
             {axesOpen && (
               <div className="fw-pop">
@@ -1056,7 +1074,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
                 <path d="M4 0v12 M8 0v12 M0 4h12 M0 8h12"
                       stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
-              {showLabel(4) && ' grid'} ▾
+              {expandedButtons.grid && ' grid'} ▾
             </button>
             {gridOpen && (
               <div className="fw-pop">
@@ -1117,7 +1135,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
                 <path d="M2 3h8M2 6h5M2 9h6"
                       stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
               </svg>
-              {showLabel(5) && ' decoration'} ▾
+              {expandedButtons.decoration && ' decoration'} ▾
             </button>
             {displayOpen && (
               <div className="fw-pop">
@@ -1201,7 +1219,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
                 <rect x="7" y="3" width="2" height="6" fill="currentColor"/>
                 <rect x="9" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
               </svg>
-              {showLabel(6) && ' colormap'} ▾
+              {expandedButtons.colormap && ' colormap'} ▾
             </button>
             {cmapOpen && (
               <div className="fw-pop">
@@ -1252,7 +1270,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M6 1v8M3 6l3 3 3-3M2 11h8" stroke="currentColor" fill="none" strokeLinecap="round"/>
               </svg>
-              {showLabel(7) && ' save / export'} ▾
+              {expandedButtons.save && ' save / export'} ▾
             </button>
             {saveOpen && (
               <div className="fw-pop fw-pop-right">
