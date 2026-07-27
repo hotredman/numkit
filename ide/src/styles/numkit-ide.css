@@ -2373,7 +2373,7 @@ input, select { font-family: inherit; color: inherit; }
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 8px;
-  padding: 5px 14px;
+  padding: 6px 10px;
   min-height: 40px;
   box-sizing: border-box;
   background: var(--bg-1);
@@ -2382,7 +2382,13 @@ input, select { font-family: inherit; color: inherit; }
   font-size: 11.5px;
   overflow: visible !important;
 }
-.fw-toolbar .ve-tools-spacer { flex: 1 1 0px; min-width: 8px; }
+.fw-toolbar .ve-tools-group {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.fw-toolbar .ve-tools-spacer { display: none; }
 /* sgtitle strip — figure-level super-title above the canvas. The
    FigureWindow JSX always emits an `.fw-supertitle` div so the
    .fw-window grid keeps 6 children mapping to its 6 rows; when the
