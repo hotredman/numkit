@@ -18,12 +18,12 @@ export function useStatChooser() {
 }
 
 /** Toolbar button (Σ ▾) opening the shared stat chooser. */
-export function StatChooserButton({ visible, setVisible }) {
+export function StatChooserButton({ visible, setVisible, disabled = false }) {
   return (
     <ChooserButton
       label={<>Σ <span className="ve-caret">▾</span></>}
-      title="choose statistics"
-      defs={STAT_BAR} visible={visible} setVisible={setVisible} />
+      title={disabled ? 'statistics unavailable for non-numeric data' : 'choose statistics'}
+      defs={STAT_BAR} visible={visible} setVisible={setVisible} disabled={disabled} />
   );
 }
 

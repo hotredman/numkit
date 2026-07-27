@@ -510,14 +510,25 @@ function NumkitGraphViewInner({ source, engine }) {
       setError(null);
       return;
     }
-    const result = engine.buildScriptGraph(source);
-    if (result && result.error) {
-      setError(result.error);
-      setGraph(null);
-    } else {
-      setGraph(result);
-      setError(null);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await engine.buildScriptGraph(source);
+        if (cancelled) return;
+        if (result && result.error) {
+          setError(result.error);
+          setGraph(null);
+        } else {
+          setGraph(result);
+          setError(null);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(err?.message || String(err));
+        setGraph(null);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [source, engine]);
 
   // ── Phase 1: graph → unmeasured nodes (rendered with opacity 0) ──

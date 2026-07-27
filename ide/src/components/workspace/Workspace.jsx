@@ -150,11 +150,11 @@ export function VariableEditor({ variable, onClose, engine }) {
       return;
     }
     setLoading(true);
-    const handle = setTimeout(() => {
+    const handle = setTimeout(async () => {
       try {
         // Cheap dimension probe first.
         const sh = (typeof engine.getVarShape === 'function')
-          ? engine.getVarShape(variable.name)
+          ? await engine.getVarShape(variable.name)   // may be Promise (native) or value (WASM)
           : null;
         if (sh && !sh.error) {
           const numel = sh.rows * sh.cols;
@@ -169,7 +169,7 @@ export function VariableEditor({ variable, onClose, engine }) {
           }
         }
         // Small enough: full fetch.
-        const r = engine.getVarData(variable.name);
+        const r = await engine.getVarData(variable.name);   // may be Promise (native) or value (WASM)
         if (!r) { setLoading(false); return; }
         if (r.error) { setLoadError(r.error); setLoading(false); return; }
         if (Array.isArray(r.data) && r.data.length > 0) {
@@ -199,12 +199,14 @@ export function VariableEditor({ variable, onClose, engine }) {
     if (page === loadedPageRef.current) return;
     loadedPageRef.current = page;
     if (!engine || typeof engine.getVarPage !== 'function') return;
-    try {
-      const r = engine.getVarPage(variable.name, page);
-      if (r && !r.error && Array.isArray(r.data)) setData(r.data);
-    } catch (e) {
-      setLoadError(e?.message || String(e));
-    }
+    (async () => {
+      try {
+        const r = await engine.getVarPage(variable.name, page);   // may be Promise (native)
+        if (r && !r.error && Array.isArray(r.data)) setData(r.data);
+      } catch (e) {
+        setLoadError(e?.message || String(e));
+      }
+    })();
   }, [page, variable.name, engine, shape.tileMode, isStructLike]);
 
   /* ─── slice cache (for InlinePlot in both modes) ─── */
@@ -255,9 +257,10 @@ export function VariableEditor({ variable, onClose, engine }) {
       tileCache.current.set(key, 'pending');
       const r0 = tR * TILE, c0 = tC * TILE;
       // Defer to a microtask so React's render pass isn't blocked.
-      Promise.resolve().then(() => {
+      // `await` handles both WASM (sync value) and native (Promise).
+      Promise.resolve().then(async () => {
         try {
-          const res = engine.getVarTile(variable.name, r0, c0, TILE, TILE, page);
+          const res = await engine.getVarTile(variable.name, r0, c0, TILE, TILE, page);
           if (!res || res.error || !Array.isArray(res.data)) {
             tileCache.current.set(key, 'error');
           } else {
@@ -288,8 +291,8 @@ export function VariableEditor({ variable, onClose, engine }) {
       return;
     }
     let cancelled = false;
-    setTimeout(() => {
-      const s = engine.getVarStats(variable.name, page);   // per-slice stats
+    setTimeout(async () => {
+      const s = await engine.getVarStats(variable.name, page);   // may be Promise (native)
       if (cancelled) return;
       if (s && !s.error) setTileStats(s);
     }, 0);
@@ -364,11 +367,11 @@ export function VariableEditor({ variable, onClose, engine }) {
     </div>
   );
 
-  // ── Struct / cell layout — drill-in inspector, no matrix toolbar ──
+  // ── Struct / cell layout — drill-in inspector ──
   if (isStructLike) {
     return (
       <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className={`ve-window ve-window-struct ${maximized ? 'is-max' : ''}`}
+        <div className={`ve-window ${maximized ? 'is-max' : ''}`}
           role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
           <div className="ve-titlebar">
             <div className="ve-title-left">
@@ -377,12 +380,13 @@ export function VariableEditor({ variable, onClose, engine }) {
               </span>
               <span className="ve-name">{variable.name}</span>
               <span className="ve-dim">{variable.size}</span>
+              <span className="ve-meta" title={`${variable.bytes} B`}>
+                {variable.bytes} B · {variable.size}
+              </span>
             </div>
             {titleButtons}
           </div>
-          <div className="ve-struct-body">
-            <StructInspector key={variable.name} variable={variable} engine={engine} />
-          </div>
+          <StructInspector key={variable.name} variable={variable} engine={engine} onEscape={onClose} />
         </div>
       </div>
     );
