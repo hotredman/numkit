@@ -2273,10 +2273,12 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-plot-close:hover { background: var(--bg-3); color: var(--fg-0); }
 .ve-plot-chart-wrap {
-  flex: 1; min-height: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   display: flex; align-items: center; justify-content: center;
   padding: 4px 6px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .ve-plot-svg { display: block; }
 .ve-plot-meta {
