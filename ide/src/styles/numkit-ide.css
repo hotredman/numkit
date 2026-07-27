@@ -2390,8 +2390,15 @@ input, select { font-family: inherit; color: inherit; }
 .fw-toolbar .ve-tools-group {
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   position: relative;
+}
+.fw-toolbar > .ve-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* sgtitle strip — figure-level super-title above the canvas. The
