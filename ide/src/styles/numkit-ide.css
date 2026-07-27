@@ -2366,13 +2366,17 @@ input, select { font-family: inherit; color: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fw-toolbar {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
   font-size: 11.5px;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.fw-toolbar::-webkit-scrollbar { display: none; }
 .fw-toolbar .ve-tools-spacer { flex: 1; }
 /* sgtitle strip — figure-level super-title above the canvas. The
    FigureWindow JSX always emits an `.fw-supertitle` div so the
@@ -2641,7 +2645,12 @@ input, select { font-family: inherit; color: inherit; }
   cursor: pointer;
   font-family: var(--font-mono);
   display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.ve-btn svg { flex-shrink: 0; }
 .ve-btn:hover { background: var(--bg-3); }
 .ve-btn.is-active { color: var(--accent); border-color: var(--accent); }
 .ve-btn:disabled,
