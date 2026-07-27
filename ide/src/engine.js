@@ -188,6 +188,100 @@ function tryParseValue(s) {
 // itself stays free of diagnostic bookkeeping.
 let warnedStaleWasm = false;
 
+// ── Native Electron engine ─────────────────────────────────────────────────
+//
+// Used in Electron where `numkit_repl.exe` runs as a persistent child
+// process and all I/O goes through IPC (preload.js → main.js → pipe).
+//
+// This engine is fully autonomous — it does NOT depend on WASM, tempFS,
+// or VFS adapters.  Every method proxies through `nfs` (window.nativeFS).
+//
+// Debug actions are mapped from the numeric enum the IDE uses to the
+// string names the native pipe protocol expects.
+const _DEBUG_ACTIONS = ['continue', 'step_over', 'step_into', 'step_out'];
+
+export function createNativeEngine(nfs) {
+  // Latest workspace received from native REPL (__VARS__: marker).
+  let nativeVars = {};
+
+  function applyVars(vars) {
+    if (vars && typeof vars === 'object') nativeVars = vars;
+  }
+
+  return {
+    type: 'native',
+
+    // ── Initialisation ──────────────────────────────────────────────
+    init() { return 'Numkit IDE — Desktop Mode'; },
+
+    // ── Code execution ──────────────────────────────────────────────
+    async execute(code) {
+      const result = await nfs.runRepl(code);
+      if (result.vars) applyVars(result.vars);
+      const raw = (result.stdout || '') + (result.stderr ? '\n' + result.stderr : '');
+      const { cleanOutput, figures, closedFigureIds, closeAllFigures, errorLine } =
+        extractMarkers(raw);
+      return {
+        output: cleanOutput, figures, closedFigureIds, closeAllFigures, errorLine,
+        notFound:        result.notFound        || false,
+        sessionRestarted: result.sessionRestarted || false,
+      };
+    },
+
+    // Alias for IDE.jsx full-script path.
+    async runScript(code) { return this.execute(code); },
+
+    // ── Workspace ───────────────────────────────────────────────────
+    getVars()   { return nativeVars; },
+    workspace() {
+      const keys = Object.keys(nativeVars);
+      return keys.length ? keys.join(', ') : 'No variables.';
+    },
+
+    // ── Reset ────────────────────────────────────────────────────────
+    async reset() {
+      if (nfs.resetRepl) await nfs.resetRepl();
+      nativeVars = {};
+      return 'Workspace cleared.';
+    },
+
+    // ── Autocomplete — built from current native workspace names ────
+    complete(partial) {
+      if (!partial) return [...Object.keys(nativeVars)];
+      return Object.keys(nativeVars).filter(n => n.startsWith(partial));
+    },
+
+    // ── Variable introspection — all through IPC ────────────────────
+    getVarShape(name)                       { return nfs.getVarShape(name); },
+    getVarData(name)                        { return nfs.getVarData(name); },
+    getVarPage(name, page)                  { return nfs.getVarPage(name, page); },
+    getVarTile(name, r0, c0, rows, cols, pg){ return nfs.getVarTile(name, r0, c0, rows, cols, pg); },
+    getVarStats(name, page)                 { return nfs.getVarStats(name, page); },
+    inspectPath(name, path)                 { return nfs.inspectPath(name, path); },
+
+    // Figure tile — not available through native REPL pipe currently.
+    getFigureTile()        { return null; },
+    getFigureDisplayTile() { return null; },
+
+    // ── Debug — routed through native REPL debug sub-protocol ───────
+    get hasDebugger()                 { return true; },
+    debugSetBreakpoints(lines)        { return nfs.debugSetBreakpoints(lines); },
+    debugStart(code)                  { return nfs.debugStart(code); },
+    debugResume(action)               { return nfs.debugStep(_DEBUG_ACTIONS[action] ?? 'continue'); },
+    debugStop()                       { return nfs.debugStop(); },
+
+    // ── AST / graph ──────────────────────────────────────────────────
+    buildScriptGraph(src) { return nfs.buildScriptGraph ? nfs.buildScriptGraph(src) : { error: 'buildScriptGraph not available' }; },
+    buildAST(src)         { return nfs.buildAST ? nfs.buildAST(src) : { error: 'buildAST not available' }; },
+
+    // ── VFS / script-origin — no-ops (native binary reads files directly) ──
+    registerFs()        {},
+    pushScriptOrigin()  {},
+    popScriptOrigin()   {},
+    version()           { return null; },
+  };
+}
+
 // ── WASM engine wrapper ──
 export async function createWasmEngine(createModule) {
   const Module = await createModule({
@@ -654,3 +748,145 @@ export function createFallbackEngine() {
     version() { return null; },
   };
 }
+
+// ── Native REPL engine wrapper ─────────────────────────────────────────────
+//
+// Used in Electron when numkit_repl --ide-session is available.
+// ALL code execution (REPL lines + Run button) goes through the persistent
+// native process so the workspace is shared and preserved between runs.
+//
+// Delegates to wasmEngine for:
+//   • autocomplete (complete) — augmented with native variable names
+//   • debug (debugStart / debugResume / debugStop / debugSetBreakpoints)
+//   • VFS / script-origin management
+//   • buildAST / buildScriptGraph
+//   • getVarData / getVarPage / inspectPath / getVarShape / getVarTile / getVarStats
+//
+// getVars() returns the latest workspace received from __VARS__: markers.
+//
+// reset() sends __RESET__ to the native session (clears the C++ workspace)
+// and returns the same reset greeting as wasmEngine.reset() for UI consistency.
+export function createNativeReplEngine(wasmEngine) {
+  // Last workspace received from the native session.
+  let nativeVars = {};
+  // Variable names in the native session — used to augment WASM autocomplete.
+  const nativeVarNames = new Set();
+
+  // Parse the __VARS__: JSON blob from the native repl and update state.
+  function applyVars(vars) {
+    if (vars && typeof vars === 'object') {
+      nativeVars = vars;
+      nativeVarNames.clear();
+      for (const k of Object.keys(vars)) nativeVarNames.add(k);
+    }
+  }
+
+  // Shared result handler: parse output through extractMarkers, update vars.
+  function processResult(result) {
+    if (result.vars) applyVars(result.vars);
+    const raw = (result.stdout || '') + (result.stderr ? '\n' + result.stderr : '');
+    const { cleanOutput, figures, closedFigureIds, closeAllFigures, errorLine } =
+      extractMarkers(raw);
+    return {
+      output: cleanOutput,
+      figures,
+      closedFigureIds,
+      closeAllFigures,
+      errorLine,
+      notFound:        result.notFound        || false,
+      sessionRestarted: result.sessionRestarted || false,
+    };
+  }
+
+  return {
+    type: 'native+wasm',
+
+    // ── Initialisation ──────────────────────────────────────────
+    init() {
+      // Keep WASM initialised for autocomplete + debug.
+      return wasmEngine.init();
+    },
+
+    // ── Code execution — always native ──────────────────────────
+    // execute() is the shared path for both REPL single-lines and
+    // full scripts. Returns { output, figures, ..., notFound?, sessionRestarted? }.
+    async execute(code) {
+      if (!window.nativeFS?.runRepl) {
+        // Fallback: shouldn't happen in Electron, but be safe.
+        return wasmEngine.execute(code);
+      }
+      const result = await window.nativeFS.runRepl(code);
+      return processResult(result);
+    },
+
+    // Alias used by IDE.jsx runCode() for the full-script path.
+    // Same implementation — kept as a separate named method so IDE.jsx
+    // can detect Electron vs WASM mode cleanly (engine.runScript check).
+    async runScript(code) {
+      return this.execute(code);
+    },
+
+    // ── Workspace ────────────────────────────────────────────────
+    getVars() {
+      return nativeVars;
+    },
+
+    workspace() {
+      // Delegate to WASM for the text-format workspace view; in practice
+      // the IDE uses getVars() for the panel — this is a rarely-called path.
+      return wasmEngine.workspace();
+    },
+
+    // ── Reset ────────────────────────────────────────────────────
+    async reset() {
+      if (window.nativeFS?.resetRepl) await window.nativeFS.resetRepl();
+      nativeVars = {};
+      nativeVarNames.clear();
+      return wasmEngine.reset(); // also reset WASM for autocomplete cleanliness
+    },
+
+    // ── Autocomplete — WASM + native var names ────────────────────
+    complete(partial) {
+      const wasmSuggestions = wasmEngine.complete(partial) || [];
+      const nativeSuggestions = partial
+        ? [...nativeVarNames].filter(n => n.startsWith(partial))
+        : [...nativeVarNames];
+      // Merge, deduplicate, stable order (WASM first, then native extras).
+      const seen = new Set(wasmSuggestions);
+      const extras = nativeSuggestions.filter(n => !seen.has(n));
+      return [...wasmSuggestions, ...extras];
+    },
+
+    // ── Debug — always WASM ───────────────────────────────────────
+    get hasDebugger() { return wasmEngine.hasDebugger; },
+    debugSetBreakpoints(lines) { return wasmEngine.debugSetBreakpoints(lines); },
+    debugStart(code)           { return wasmEngine.debugStart(code); },
+    debugResume(action)        { return wasmEngine.debugResume(action); },
+    debugStop()                { return wasmEngine.debugStop(); },
+
+    // ── VFS / script-origin — delegate to WASM ────────────────────
+    registerFs(...a)           { return wasmEngine.registerFs?.(...a); },
+    pushScriptOrigin(...a)     { return wasmEngine.pushScriptOrigin(...a); },
+    popScriptOrigin()          { return wasmEngine.popScriptOrigin(); },
+
+    // ── Variable inspection — delegate to WASM ────────────────────
+    // WASM workspace is empty in native mode, so these return null/error
+    // for variables that only exist in the native session. Future work:
+    // mirror var data back from native repl for full editor support.
+    getVarData(name)           { return wasmEngine.getVarData(name); },
+    getVarPage(name, page)     { return wasmEngine.getVarPage(name, page); },
+    getVarShape(name)          { return wasmEngine.getVarShape(name); },
+    getVarTile(n, r, c, rr, cc, pg) { return wasmEngine.getVarTile(n, r, c, rr, cc, pg); },
+    getVarStats(name, page)    { return wasmEngine.getVarStats(name, page); },
+    inspectPath(name, path)    { return wasmEngine.inspectPath(name, path); },
+    getFigureTile(...a)        { return wasmEngine.getFigureTile?.(...a) ?? null; },
+    getFigureDisplayTile(...a) { return wasmEngine.getFigureDisplayTile?.(...a) ?? null; },
+
+    // ── AST / graph — delegate to WASM ───────────────────────────
+    buildAST(src)              { return wasmEngine.buildAST(src); },
+    buildScriptGraph(src)      { return wasmEngine.buildScriptGraph(src); },
+
+    version()                  { return wasmEngine.version?.() ?? null; },
+  };
+}
+

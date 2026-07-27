@@ -1948,9 +1948,8 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: var(--r-lg);
   box-shadow: 0 24px 80px oklch(0.05 0.01 220 / 0.6),
               0 0 0 1px oklch(0.78 0.16 145 / 0.08);
-  display: grid;
-  /* titlebar · toolbar · statsbar (auto: 0 when empty) · address · body · status */
-  grid-template-rows: 38px 40px auto 28px 1fr 22px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
@@ -1962,18 +1961,19 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Struct / cell layout has only two rows (titlebar + tree body) — the
-   matrix template's 5 rows (toolbar / address / status) don't apply, so
-   the tree would otherwise be crammed into the 40px "toolbar" row while
-   the 1fr body row sat empty. Override to titlebar + fill. */
-.ve-window-struct {
-  grid-template-rows: 38px 1fr;
+.ve-main-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-1);
 }
 /* Title bar: meta lives in title-left and can truncate. Buttons are
    pinned to the modal's top-right corner (anchored on .ve-window, not
    the title-bar) so they stay reachable even if the title-bar layout
    gets weird. */
-.ve-titlebar { gap: 8px; }
+.ve-titlebar { flex-shrink: 0; height: 38px; gap: 8px; }
 .ve-title-left {
   min-width: 0; flex: 1 1 auto; overflow: hidden;
   white-space: nowrap; text-overflow: ellipsis;
@@ -1989,6 +1989,7 @@ input, select { font-family: inherit; color: inherit; }
 
 /* Body holds table + optional inline plot */
 .ve-body {
+  flex: 1 1 0%;
   display: grid;
   grid-template-columns: 1fr;
   min-height: 0;
@@ -2037,19 +2038,19 @@ input, select { font-family: inherit; color: inherit; }
   min-height: 0;
 }
 
-/* Breadcrumb path bar */
-.ve-crumbs {
+/* Dedicated Breadcrumb path bar */
+.ve-crumbs-bar {
   flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-0);
+}
+.ve-crumbs {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 2px;
-  /* 14px to match .ve-toolbar / .ve-address below it so the whole
-     inspector chrome (breadcrumb · notation toolbar · cell address)
-     shares one left edge. */
   padding: 6px 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg-0);
+  background: transparent;
   font-family: var(--font-mono);
   font-size: 12px;
 }
@@ -2628,6 +2629,29 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-btn:hover { background: var(--bg-3); }
 .ve-btn.is-active { color: var(--accent); border-color: var(--accent); }
+.ve-btn:disabled,
+.ve-btn:disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--bg-2);
+  border-color: var(--line);
+  color: var(--fg-3);
+}
+.ve-tools-group.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.ve-segmented button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.ve-precision-num.is-disabled {
+  opacity: 0.5;
+}
+.ve-toolbar input[type="range"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 /* 3-D / N-D slice navigator — MATLAB A(:,:,k3,…) per-dimension spinners. */
 .ve-slice-nav { font-family: var(--font-mono); font-size: 11px; }
 .ve-slice-expr { color: var(--fg-3); }
@@ -2704,6 +2728,8 @@ select.ve-btn.fw-cmap-select {
 
 /* Table */
 .ve-table-wrap {
+  height: 100%;
+  min-height: 0;
   overflow: auto;
   background: var(--bg-1);
   font-family: var(--font-mono);
@@ -2726,17 +2752,21 @@ select.ve-btn.fw-cmap-select {
   border-bottom: 1px solid var(--line);
   border-right: 1px solid var(--line-soft);
   font-size: 11px;
-  z-index: 2;
+  z-index: 10;
 }
-.ve-table thead th.is-active { color: var(--accent); background: oklch(0.78 0.16 145 / 0.08); }
+.ve-table thead th.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+}
 .ve-corner {
-  position: sticky; left: 0;
+  position: sticky; left: 0; top: 0;
   background: var(--bg-2) !important;
-  z-index: 3 !important;
+  z-index: 20 !important;
   text-align: center !important;
   color: var(--fg-3) !important;
   font-size: 10.5px !important;
   border-right: 1px solid var(--line) !important;
+  border-bottom: 1px solid var(--line) !important;
 }
 .ve-rowhead {
   position: sticky; left: 0;
@@ -2748,10 +2778,13 @@ select.ve-btn.fw-cmap-select {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line-soft);
   font-size: 11px;
-  z-index: 1;
+  z-index: 10;
   min-width: 50px;
 }
-.ve-rowhead.is-active { color: var(--accent); background: oklch(0.78 0.16 145 / 0.08); }
+.ve-rowhead.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+}
 .ve-table tbody td {
   padding: 4px 12px;
   text-align: right;
@@ -2974,3 +3007,241 @@ select.ve-btn.fw-cmap-select {
   white-space: nowrap;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
+
+/* ===========================================================
+   PREFERENCES MODAL
+   Uses .fw-overlay + .fw-window as the shell (same as FigureWindow).
+   .prefs-window overrides the grid to a simpler 3-row layout:
+   titlebar | body (scrollable) | footer.
+   =========================================================== */
+
+.prefs-window {
+  width: min(1100px, 92vw) !important;
+  height: min(720px, 88vh) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: none !important;
+}
+
+.prefs-window.is-max {
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.prefs-layout {
+  flex: 1 1 0%;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.prefs-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prefs-sidebar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: none;
+  color: var(--fg-2);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms, color 120ms;
+}
+
+.prefs-sidebar-nav:hover:not(.is-disabled) {
+  background: var(--bg-3);
+  color: var(--fg-0);
+}
+
+.prefs-sidebar-nav.is-active {
+  background: var(--bg-1);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.prefs-sidebar-nav.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.prefs-main-pane {
+  flex: 1;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.prefs-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.prefs-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+
+.prefs-section-divider {
+  height: 1px;
+  background: var(--line-soft);
+  margin-bottom: 16px;
+}
+
+.prefs-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.prefs-row + .prefs-row {
+  margin-top: 12px;
+}
+
+.prefs-row-label {
+  font-size: 12px;
+  color: var(--fg-1);
+  font-family: var(--font-ui);
+}
+
+.prefs-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.prefs-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 9px;
+  outline: none;
+  transition: border-color 120ms;
+}
+.prefs-input:focus {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px oklch(0.74 0.13 200 / 0.15);
+}
+.prefs-input::placeholder {
+  color: var(--fg-3);
+  font-style: italic;
+}
+
+.prefs-pick-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.prefs-hint {
+  font-size: 10.5px;
+  color: var(--fg-3);
+  line-height: 1.45;
+  font-family: var(--font-ui);
+}
+
+.prefs-hint-resolved {
+  color: var(--accent-2);
+  opacity: 0.85;
+}
+.prefs-hint-resolved code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  word-break: break-all;
+}
+
+.prefs-row-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prefs-status {
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.prefs-status-explicit { color: var(--accent); }
+.prefs-status-auto     { color: var(--accent-2); }
+.prefs-status-path     { color: var(--fg-3); }
+
+.prefs-browser-note {
+  color: var(--warn);
+  padding: 8px 10px;
+  background: oklch(0.78 0.15 70 / 0.08);
+  border: 1px solid oklch(0.78 0.15 70 / 0.25);
+  border-radius: var(--r-sm);
+}
+
+.prefs-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--bg-2);
+}
+
+.prefs-footer-spacer { flex: 1; }
+
+.prefs-restore-btn {
+  color: var(--fg-3);
+  font-size: 10.5px;
+}
+.prefs-restore-btn:hover {
+  color: var(--fg-1);
+}
+
+.prefs-save-btn {
+  background: var(--accent-2) !important;
+  color: #fff !important;
+  font-weight: 600;
+  border-color: transparent !important;
+}
+.prefs-save-btn:hover {
+  opacity: 0.88;
+}
+
+/* ===========================================================
+   BUILD & RUN toolbar button
+   =========================================================== */
+.tool-build-run {
+  color: var(--accent-2);
+}
+.tool-build-run:disabled {
+  opacity: 0.45;
+}
+.tool-build-run:not(:disabled):hover {
+  background: oklch(0.74 0.13 200 / 0.12);
+}
+

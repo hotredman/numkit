@@ -7,6 +7,7 @@ import ConsolePane from './ConsolePane';
 import Toolbar from './Toolbar';
 import StatusBar from './StatusBar';
 import ResizeHandle from './ResizeHandle';
+import PreferencesModal from './PreferencesModal';
 import { WorkspacePanel, VariableEditor } from '../workspace/Workspace';
 import ReferencePanel from '../reference/Reference';
 import { ALL_DOCS } from '../reference/refData';
@@ -408,6 +409,12 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // New modals from mockup
   const [openVar, setOpenVar]         = useState(null);
   const [openFigure, setOpenFigure]   = useState(null);
+  // Preferences modal
+  const [prefsOpen, setPrefsOpen]     = useState(false);
+  // Build & Run state — true while codegen IPC is in flight
+  const [isBuildRunning, setIsBuildRunning] = useState(false);
+  // Run state — true while runCode is in flight (prevents concurrent runs)
+  const [isRunning, setIsRunning] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
@@ -524,6 +531,9 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   }, []);
 
   const runCode = useCallback(async (code) => {
+    if (isRunning) return; // guard against concurrent runs
+    setIsRunning(true);
+    try {
     const activeTabObj = tabs.find((t) => t.id === activeTab);
     const { adapter, origin, fallbackUsed } = pickRunOrigin(activeTabObj?.source, vfsAdapters);
 
@@ -545,11 +555,85 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       if (idx > 0) scriptDir = activeTabObj.vfsPath.slice(0, idx);
       else if (idx === 0) scriptDir = '/';
     }
-    if (origin) engine.pushScriptOrigin(origin, scriptDir);
-    let result;
+
     const t0 = performance.now();
-    try { result = engine.execute(code); }
-    finally { if (origin) engine.popScriptOrigin(); }
+    let result;
+
+    // ── Electron: route through persistent native REPL session ──
+    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.runRepl) {
+      const r = await window.nativeFS.runRepl(code);
+      setExecTimeMs(performance.now() - t0);
+      setErrorLine(r.errorLine ?? null);   // highlight failing line; null = clear
+
+      if (r.notFound) {
+        addOutput([{
+          type: 'warning',
+          text: '[Run] numkit_repl.exe not found. Configure the path in Settings (gear icon).',
+        }]);
+        setConsoleNotify(true);
+        return;
+      }
+      if (r.sessionRestarted) {
+        addOutput([{
+          type: 'system',
+          text: '[!] REPL session crashed and was automatically restarted. Workspace has been reset.',
+        }]);
+        setConsoleNotify(true);
+      }
+
+      // stdout is already stripped of figure markers by _flush(); display as-is.
+      const rawOutput = (r.stdout || '') + (r.stderr ? '\n' + r.stderr : '');
+      const items = [];
+      for (const line of rawOutput.split('\n')) {
+        if (!line && items.length === 0) continue; // skip leading blank
+        if (line === '__CLEAR__') { setOutput([]); continue; }
+        items.push({
+          type: /^Error/.test(line) ? 'error'
+              : /^Warning:/.test(line) ? 'warning'
+              : 'result',
+          text: line,
+        });
+      }
+      // Trim trailing empty lines.
+      while (items.length && items[items.length - 1].text.trim() === '') items.pop();
+      if (items.length) { addOutput(items); setConsoleNotify(true); }
+
+      // Update workspace panel from native session state.
+      if (r.vars && typeof r.vars === 'object') setVariables(r.vars);
+
+      // Update figures from native REPL output (extracted by _flush()).
+      if (r.closeAll) setFigures([]);
+      else if (r.closedFigureIds?.length) {
+        const closed = new Set(r.closedFigureIds);
+        setFigures((prev) => prev.filter((f) => !closed.has(f.id)));
+      }
+      if (r.figures?.length) {
+        setFigures((prev) => {
+          const map = new Map(prev.map((f) => [f.id, f]));
+          for (const fig of r.figures) map.set(fig.id, fig);
+          const list = Array.from(map.values());
+          if (list.length > FIGURE_CAP) {
+            console.warn(`[IDE] Capped figures at ${FIGURE_CAP} (native run); dropped ${list.length - FIGURE_CAP} oldest.`);
+            return list.slice(-FIGURE_CAP);
+          }
+          return list;
+        });
+        setPanels((p) => ({ ...p, figures: true }));
+      }
+
+      if (adapter) adapter.flush().then((wasDirty) => {
+        if (mountedRef.current && wasDirty) setVfsRefreshKey((k) => k + 1);
+      });
+      return;
+    }
+
+    // ── Browser: WASM engine ──────────────────────────────────────
+    if (origin) engine.pushScriptOrigin(origin, scriptDir);
+    try {
+      result = engine.execute(code);
+    } finally {
+      if (origin) engine.popScriptOrigin();
+    }
     setExecTimeMs(performance.now() - t0);
     setErrorLine(null);
 
@@ -577,12 +661,6 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         const map = new Map(prev.map((f) => [f.id, f]));
         for (const fig of result.figures) map.set(fig.id, fig);
         const list = Array.from(map.values());
-        // Hard cap to keep the renderer alive when scripts forget to
-        // `close all` between runs. Each figure can hold a Z matrix or
-        // long x/y arrays — accumulating without bound is the second
-        // most common path to V8 OOM after console output. Drop oldest
-        // (by arrival order: Map preserves insertion order) and warn so
-        // the user notices.
         if (list.length > FIGURE_CAP) {
           const dropped = list.length - FIGURE_CAP;
           console.warn(`[IDE] Capped figures at ${FIGURE_CAP}; dropped ${dropped} oldest.`
@@ -597,13 +675,16 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     setVariables(engine.getVars());
 
     if (adapter) adapter.flush().then((wasDirty) => {
-      // Only refresh the Sidebar tree if the script actually wrote
-      // something. Otherwise rebuilding triggers a recursive listTree
-      // IPC walk over the entire mounted folder for nothing — proven
-      // OOM source on populated local-folder mounts.
       if (mountedRef.current && wasDirty) setVfsRefreshKey((k) => k + 1);
     });
-  }, [engine, addOutput, tabs, activeTab, vfsAdapters]);
+    } finally {
+      setIsRunning(false);
+    }
+  }, [engine, addOutput, tabs, activeTab, vfsAdapters, isRunning]);
+
+
+
+
 
   /* ─────────────── debug ─────────────── */
   const toggleBreakpoint = useCallback((line) => {
@@ -681,18 +762,21 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       setDebugState(null);
       addOutput([{ type: 'system', text: '✓ Debug completed' }]);
       setConsoleNotify(true);
-      setVariables(engine.getVars());
+      // Prefer vars from the debug result (native path sends __VARS__: on completion).
+      if (result.vars && typeof result.vars === 'object') setVariables(result.vars);
+      else setVariables(engine.getVars());
     } else if (result.status === 'error') {
       setDebugLine(null);
       setDebugState(null);
       if (result.line) setErrorLine(result.line);
       addOutput([{ type: 'error', text: `Error: ${result.message}` }]);
       setConsoleNotify(true);
-      setVariables(engine.getVars());
+      if (result.vars && typeof result.vars === 'object') setVariables(result.vars);
+      else setVariables(engine.getVars());
     }
   }, [engine, addOutput]);
 
-  const debugStart = useCallback(() => {
+  const debugStart = useCallback(async () => {
     const tab = tabs.find((t) => t.id === activeTab);
     if (!tab || !tab.code.trim()) return;
     setPanels((p) => ({ ...p, terminal: true }));
@@ -700,19 +784,19 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     addOutput([{ type: 'system', text: `── Debug ${tab.name} ──` }]);
     setConsoleNotify(true);
     const t0 = performance.now();
-    const result = engine.debugStart(tab.code);
+    const result = await engine.debugStart(tab.code);
     setExecTimeMs(performance.now() - t0);
     handleDebugResult(result);
   }, [tabs, activeTab, engine, addOutput, handleDebugResult]);
 
-  const debugResume = useCallback((action = 0) => {
+  const debugResume = useCallback(async (action = 0) => {
     if (!debugState || debugState.status !== 'paused') return;
-    const result = engine.debugResume(action);
+    const result = await engine.debugResume(action);
     handleDebugResult(result);
   }, [debugState, engine, handleDebugResult]);
 
-  const debugStop = useCallback(() => {
-    engine.debugStop?.();
+  const debugStop = useCallback(async () => {
+    await engine.debugStop?.();
     setDebugLine(null);
     setDebugState(null);
     addOutput([{ type: 'system', text: '■ Debug stopped' }]);
@@ -774,6 +858,65 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     runCode(tab.code);
     setTabs((p) => p.map((t) => (t.id === activeTab ? { ...t, modified: false } : t)));
   }, [tabs, activeTab, addOutput, runCode]);
+
+  // Build & Run — transpile + AOT-compile + run the active tab via
+  // numkit_codegen --run. Requires the Electron IPC bridge; gracefully
+  // degrades in browser mode with an explanatory console message.
+  const handleBuildRun = useCallback(async () => {
+    const tab = tabs.find((t) => t.id === activeTab);
+    if (!tab || !tab.code.trim()) return;
+
+    setPanels((p) => ({ ...p, terminal: true }));
+    setBottomTab('console');
+    setConsoleNotify(true);
+
+    if (!window.nativeFS?.runCodegen) {
+      addOutput([{
+        type: 'warning',
+        text: '[Build & Run] Not available in browser mode — requires the Electron desktop app.',
+      }]);
+      return;
+    }
+
+    setIsBuildRunning(true);
+    addOutput([{ type: 'system', text: `── Build & Run ${tab.name} ──` }]);
+
+    let result;
+    try {
+      result = await window.nativeFS.runCodegen(tab.code);
+    } catch (err) {
+      addOutput([{ type: 'error', text: `[Build & Run] IPC error: ${err?.message || err}` }]);
+      setIsBuildRunning(false);
+      return;
+    }
+
+    if (result.notFound) {
+      addOutput([{
+        type: 'warning',
+        text: '[Build & Run] numkit_codegen not found. Set the path in Settings (⚙ Settings → Code Generator).',
+      }]);
+    } else {
+      // stderr contains the compiler log ("compiled → /tmp/…") and any
+      // codegen diagnostics; stdout is the program's own output.
+      if (result.stderr) {
+        for (const line of result.stderr.trimEnd().split('\n')) {
+          if (!line) continue;
+          addOutput([{ type: 'system', text: line }]);
+        }
+      }
+      if (result.stdout) {
+        for (const line of result.stdout.trimEnd().split('\n')) {
+          addOutput([{ type: 'result', text: line }]);
+        }
+      }
+      if (result.exitCode !== 0) {
+        addOutput([{ type: 'error', text: `[Build & Run] exited with code ${result.exitCode}` }]);
+      }
+    }
+
+    setIsBuildRunning(false);
+    setConsoleNotify(true);
+  }, [tabs, activeTab, addOutput]);
 
   const handleOpenFile = useCallback((filename, content, vfsPath, source) => {
     const existing = tabs.find((t) => t.vfsPath && t.vfsPath === vfsPath);
@@ -915,6 +1058,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         theme={themeName}
         onToggleTheme={toggleTheme}
         onRun={runActiveTab}
+        onBuildRun={handleBuildRun}
         onDebug={debugStart}
         onStop={debugStop}
         onSave={handleSave}
@@ -927,7 +1071,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
           addOutput([{ type: 'system', text: 'Workspace cleared.' }]);
           setConsoleNotify(true);
         }}
+        onOpenPreferences={() => setPrefsOpen(true)}
         isDebugging={isDebugging}
+        isBuildRunning={isBuildRunning}
+        isRunning={isRunning}
         canRun={Boolean(activeTabData?.code?.trim())}
       />
 
@@ -1177,6 +1324,9 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       {openFigure && (
         <FigureWindow figure={openFigure} engine={engine}
           onClose={() => setOpenFigure(null)} />
+      )}
+      {prefsOpen && (
+        <PreferencesModal onClose={() => setPrefsOpen(false)} />
       )}
 
       {showSaveDialog && (

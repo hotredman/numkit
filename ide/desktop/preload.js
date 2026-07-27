@@ -44,4 +44,69 @@ contextBridge.exposeInMainWorld('nativeFS', {
     // the mounted root itself.
     revealInExplorer: (root, path)     => ipcRenderer.invoke('shell:reveal', root, path || ''),
     showItemInFolder: (root, path)     => ipcRenderer.invoke('shell:showItem', root, path),
+
+    // ── External tools ──────────────────────────────────────────────
+    // Open a native file-picker dialog and return the selected path,
+    // or null if cancelled. Used by PreferencesModal to browse for
+    // the numkit / numkit_codegen / C++ compiler executables.
+    pickFile: (opts) => ipcRenderer.invoke('fs:pickFile', opts),
+
+    // Push the current tool paths from the renderer-side settings
+    // store into main.js memory so subsequent spawns use them.
+    updateSettings: (settings) => ipcRenderer.invoke('settings:update', settings),
+
+    // Ask main.js to resolve the exe paths it would actually use right
+    // now (applying the priority chain: explicit setting → next to IDE
+    // exe → PATH). Used by PreferencesModal to show the effective path
+    // even when the stored setting is empty.
+    resolveSettings: () => ipcRenderer.invoke('settings:resolve'),
+
+    // ── Persistent REPL session ──────────────────────────────────
+    // Execute code in the long-lived numkit_repl --ide-session process.
+    // Returns { stdout, stderr, vars, exitCode, notFound?, sessionRestarted? }
+    runRepl: (code) => ipcRenderer.invoke('repl:run', code),
+
+    // Send __RESET__ to the REPL session (clear all, workspace wiped).
+    resetRepl: () => ipcRenderer.invoke('repl:reset'),
+
+    // Kill the REPL process entirely (it will restart on next runRepl).
+    killRepl: () => ipcRenderer.invoke('repl:kill'),
+
+    // Transpile + AOT-compile + run the given source code string via
+    // numkit_codegen --run.  Returns a promise that resolves to
+    //   { stdout: string, stderr: string, exitCode: number, notFound?: true }
+    // The main process writes the code to a temp file, spawns the
+    // configured codegen binary, collects stdout/stderr, cleans up,
+    // and resolves when the child exits.
+    runCodegen: (code, opts) => ipcRenderer.invoke('codegen:run', code, opts),
+
+    // ── Var introspection ──────────────────────────────────────────────────
+    // All of these route through the persistent native REPL process via the
+    // pipe protocol (__INSPECT__, __GET_SHAPE__, etc.).  They return
+    // Promises that resolve with the parsed JSON object from the response.
+    // If the process is not running it is spawned on demand.
+    getVarShape:  (name)                      => ipcRenderer.invoke('repl:getVarShape', name),
+    getVarData:   (name)                      => ipcRenderer.invoke('repl:getVarData',  name),
+    getVarPage:   (name, page)                => ipcRenderer.invoke('repl:getVarPage',  name, page),
+    getVarTile:   (name, r0, c0, rows, cols, page) =>
+                  ipcRenderer.invoke('repl:getVarTile', name, r0, c0, rows, cols, page),
+    getVarStats:  (name, page)                => ipcRenderer.invoke('repl:getVarStats', name, page),
+    inspectPath:  (name, path)                => ipcRenderer.invoke('repl:inspectPath', name, path),
+
+    // ── AST & Script Graph analysis ──────────────────────────────────────
+    buildAST:         (source) => ipcRenderer.invoke('repl:buildAST', source),
+    buildScriptGraph: (source) => ipcRenderer.invoke('repl:buildScriptGraph', source),
+
+    // ── Debugger ──────────────────────────────────────────────────────────
+    // Set breakpoint lines (stored for the next debugStart call).
+    debugSetBreakpoints: (lines)   => ipcRenderer.invoke('repl:debugSetBreakpoints', lines),
+    // Start a debug session with stored breakpoints. Resolves with
+    //   { status:'paused', pauseState, output, figures, ... }  on first pause,
+    //   { status:'completed'|'error', output, vars, ... }      on completion.
+    debugStart:          (code)    => ipcRenderer.invoke('repl:debugStart', code),
+    // Step the paused debugger: action = 'continue'|'step_over'|'step_into'|'step_out'
+    // Returns the same shape as debugStart.
+    debugStep:           (action)  => ipcRenderer.invoke('repl:debugStep', action),
+    // Stop the debug session (sends __DEBUG_CMD__:stop).
+    debugStop:           ()        => ipcRenderer.invoke('repl:debugStop'),
 });

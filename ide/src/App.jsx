@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import IDE from './components/shell/IDE';
 import ErrorBoundary from './components/ui/ErrorBoundary';
-import { createWasmEngine, createFallbackEngine } from './engine';
+import { createWasmEngine, createNativeEngine, createFallbackEngine } from './engine';
+import { loadSettings } from './settings';
 import tempFS from './temporary';
 import { installVfsAdapters, installLocalAdapter } from './fs/vfs-adapter';
 import './styles/numkit-ide.css';
@@ -25,7 +26,11 @@ if (typeof window !== 'undefined' && !window.__numkitGlobalErrorsBound) {
 }
 
 /**
- * App — initialises Temporary FS + numkit engine (WASM or fallback).
+ * App — initialises the numkit engine.
+ *
+ * Two distinct paths, no overlap:
+ *   Electron  →  createNativeEngine(nativeFS)   — instant, no WASM / tempFS
+ *   Browser   →  createWasmEngine() + tempFS    — full browser stack
  */
 export default function App() {
   const [engine, setEngine] = useState(null);
@@ -38,22 +43,52 @@ export default function App() {
     let cancelled = false;
 
     async function init() {
-      // ── 1. Init Temporary FS ──
-      try {
-        setInitMessage('Initialising file system...');
-        await tempFS.init();
-        if (!cancelled) setFsReady(true);
-      } catch (e) {
-        console.error('[TemporaryFS] Init failed:', e);
-        if (!cancelled) setFsReady(true); // continue anyway
-      }
+      const isElectron = typeof window.nativeFS !== 'undefined';
 
-      // ── 2. Init Engine ──
-      try {
-        const hasWasm = window.__WASM_GLUE_LOADED__ === true
-                     && typeof window.createNumkitIdeModule === 'function';
+      if (isElectron) {
+        // ─────────────────────────────────────────────────────────────
+        // Electron: native REPL binary handles everything.
+        // No WASM, no IndexedDB tempFS, no VFS adapters needed.
+        // ─────────────────────────────────────────────────────────────
+        console.log('[App] Electron mode — using native engine');
 
-        if (hasWasm) {
+        // Push persisted settings (localStorage) to main.js so
+        // resolveExe() finds the user-configured interpreter path
+        // from the very first REPL spawn.
+        const nfs = window.nativeFS;
+        if (typeof nfs.updateSettings === 'function') {
+          const saved = loadSettings();
+          nfs.updateSettings(saved);
+        }
+
+        const eng = createNativeEngine(nfs);
+        const greeting = eng.init();
+        if (cancelled) return;
+        setEngine(eng);
+        setFsReady(true);
+        setStatus('ready');
+        setInitMessage(greeting);
+      } else {
+        // ─────────────────────────────────────────────────────────────
+        // Browser: WASM engine + IndexedDB tempFS + VFS adapters.
+        // ─────────────────────────────────────────────────────────────
+
+        // 1. Init Temporary FS (IndexedDB-backed scratch storage)
+        try {
+          setInitMessage('Initialising file system...');
+          await tempFS.init();
+          if (!cancelled) setFsReady(true);
+        } catch (e) {
+          console.error('[TemporaryFS] Init failed:', e);
+          if (!cancelled) setFsReady(true); // continue anyway
+        }
+
+        // 2. Init Engine
+        try {
+          const hasWasm = window.__WASM_GLUE_LOADED__ === true
+                       && typeof window.createNumkitIdeModule === 'function';
+          if (!hasWasm) throw new Error('WASM glue not loaded');
+
           setInitMessage('Loading WebAssembly...');
           const eng = await createWasmEngine(window.createNumkitIdeModule);
           if (cancelled) return;
@@ -66,9 +101,7 @@ export default function App() {
           const greeting = eng.init();
 
           // Mirror tempFS (and local, if mounted) into sync callbacks the
-          // engine can invoke from csvread/csvwrite. Failures here must not
-          // block the REPL — user can still run code, just without file I/O
-          // routed to the IDE's virtual filesystems.
+          // engine can invoke from csvread/csvwrite.
           try {
             const adapters = await installVfsAdapters(eng);
             if (!cancelled) setVfsAdapters(adapters);
@@ -79,16 +112,14 @@ export default function App() {
           setEngine(eng);
           setStatus('ready');
           setInitMessage(greeting);
-        } else {
-          throw new Error('WASM glue not loaded');
+        } catch (err) {
+          if (cancelled) return;
+          console.log('[REPL] Using fallback engine:', err.message);
+          const eng = createFallbackEngine();
+          setEngine(eng);
+          setStatus('fallback');
+          setInitMessage('Running in demo mode (no WASM binary detected).');
         }
-      } catch (err) {
-        if (cancelled) return;
-        console.log('[REPL] Using fallback engine:', err.message);
-        const eng = createFallbackEngine();
-        setEngine(eng);
-        setStatus('fallback');
-        setInitMessage('Running in demo mode (no WASM binary detected).');
       }
     }
 

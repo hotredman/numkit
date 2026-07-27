@@ -22,16 +22,16 @@ export function useChooser(storageKey, load, save) {
  *  `lockedLabel` renders a disabled always-on row. */
 export function ChooserButton({
   className = 've-btn', label, title = 'choose columns',
-  defs, visible, setVisible, lockedLabel,
+  defs, visible, setVisible, lockedLabel, disabled = false,
 }) {
   const [menu, setMenu] = useState(null);
   return (
     <>
-      <button className={className} title={title}
-        onClick={(e) => setMenu({ x: e.clientX, y: e.clientY })}>
+      <button className={className} title={title} disabled={disabled}
+        onClick={(e) => { if (!disabled) setMenu({ x: e.clientX, y: e.clientY }); }}>
         {label}
       </button>
-      {menu && (
+      {menu && !disabled && (
         <ContextMenu x={menu.x} y={menu.y} onClose={() => setMenu(null)}
           items={buildChooserItems({ defs, visible, setVisible, lockedLabel })} />
       )}

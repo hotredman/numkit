@@ -1,5 +1,5 @@
 {
-  "name": "numkit-ide-desktop",
+  "name": "numkit_ide",
   "version": "2.1.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "com.numkit.ide",
-    "productName": "Numkit IDE",
+    "productName": "numkit_ide",
     "directories": {
       "output": "release"
     },
@@ -33,7 +33,7 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "numkit-ide-${version}.exe"
+      "artifactName": "numkit_ide.exe"
     }
   },
   "devDependencies": {

@@ -292,17 +292,26 @@ function NumkitASTViewInner({ source, engine, onNavigate, cursorLine }) {
       setError(null);
       return;
     }
-    const result = engine.buildAST(source);
-    if (result && result.error) {
-      setError(result.error);
-      setAst(null);
-    } else {
-      setAst(result);
-      setError(null);
-      // Reset collapsed set on a source change — old IDs may have
-      // become stale.
-      setCollapsed(new Set());
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await engine.buildAST(source);
+        if (cancelled) return;
+        if (result && result.error) {
+          setError(result.error);
+          setAst(null);
+        } else {
+          setAst(result);
+          setError(null);
+          setCollapsed(new Set());
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(err?.message || String(err));
+        setAst(null);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [source, engine]);
 
   // Pick the deepest visible AST node containing the editor caret —

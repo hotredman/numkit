@@ -2,7 +2,7 @@
 #
 # Two siblings, both thin argv/embind wrappers over the `numkit` engine lib
 # (defined above this add_subdirectory in the root CMakeLists.txt):
-#   apps/numkit/            numkit        — the interpreter / REPL / .m runner.
+#   apps/numkit/            numkit_repl   — the interpreter / REPL / .m runner.
 #   apps/numkit_codegen/    numkit_codegen — the AOT transpiler CLI (codegen
 #                                            driver, DESIGN.md §8 M4); native
 #                                            only — a C++ compiler is not
