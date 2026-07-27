@@ -108,7 +108,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
       { id: 'grid', iconW: 32, textDelta: 30 },
       { id: 'decoration', iconW: 32, textDelta: 72 },
       { id: 'colormap', iconW: 32, textDelta: 68 },
-      { id: 'save', iconW: 32, textDelta: 88 }
+      { id: 'save', iconW: 32, textDelta: 48 }
     );
 
     const baseWidth = list.reduce((sum, b) => sum + b.iconW, 0) + (list.length - 1) * 4 + 20;
@@ -1271,7 +1271,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M6 1v8M3 6l3 3 3-3M2 11h8" stroke="currentColor" fill="none" strokeLinecap="round"/>
               </svg>
-              {expandedButtons.save && ' save / export'} ▾
+              {expandedButtons.save && ' export'} ▾
             </button>
             {saveOpen && (
               <div className="fw-pop fw-pop-right">
