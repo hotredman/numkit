@@ -1181,7 +1181,7 @@ input, select { font-family: inherit; color: inherit; }
   min-width: 180px;
   max-height: min(560px, 75vh);
   overflow-y: auto;
-  z-index: 200;
+  z-index: 1000 !important;
   display: flex; flex-direction: column; gap: 4px;
 }
 .fw-pop-right { left: auto; right: 0; }
@@ -2366,17 +2366,17 @@ input, select { font-family: inherit; color: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fw-toolbar {
+  position: relative;
+  z-index: 100;
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
   font-size: 11.5px;
-  flex-wrap: nowrap !important;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  overflow: visible !important;
 }
-.fw-toolbar::-webkit-scrollbar { display: none; }
 .fw-toolbar .ve-tools-spacer { flex: 1; }
 /* sgtitle strip — figure-level super-title above the canvas. The
    FigureWindow JSX always emits an `.fw-supertitle` div so the
