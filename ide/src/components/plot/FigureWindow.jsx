@@ -735,44 +735,46 @@ export default function FigureWindow({ figure: rawFigure, onClose, engine = null
   const windowNode = (
     <div className={`fw-window ${maximized ? 'is-max' : ''} ${embedded ? 'is-embedded' : ''}`}
       role="dialog" aria-label={`Figure ${figure.id}`}>
-        <div className="fw-titlebar">
-          <div className="fw-title-left">
-            <span className="ve-tag" style={{
-              color: 'var(--accent)',
-              background: 'rgba(127,217,154,0.10)',
-              borderColor: 'rgba(127,217,154,0.30)',
-            }}>▦ figure</span>
-            <span className="fw-name">Figure {figure.id}</span>
-            <span className="ve-dim">{figure.title}</span>
-            <span className="fw-meta">
-              {isSubplot
-                ? `subplot ${figure.grid[0]}×${figure.grid[1]} · ${figure.cells.length} axes`
-                : isPolar
-                  ? `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.theta?.length ?? 0), 0)} points`
-                  : isHeatmap
-                    ? `${heatmapLayer.z?.length ?? 0} × ${heatmapLayer.z?.[0]?.length ?? 0} cells · range [${Number(heatmapLayer.cmin).toPrecision(3)} … ${Number(heatmapLayer.cmax).toPrecision(3)}]${hasSeries ? ` · ${seriesLayers.length} overlay${seriesLayers.length === 1 ? '' : 's'}` : ''}`
-                    : `${seriesLayers.length} series · ${seriesLayers.reduce((s, x) => s + (x.x?.length ?? 0), 0)} points`}
-            </span>
+        {!embedded && (
+          <div className="fw-titlebar">
+            <div className="fw-title-left">
+              <span className="ve-tag" style={{
+                color: 'var(--accent)',
+                background: 'rgba(127,217,154,0.10)',
+                borderColor: 'rgba(127,217,154,0.30)',
+              }}>▦ figure</span>
+              <span className="fw-name">Figure {figure.id}</span>
+              <span className="ve-dim">{figure.title}</span>
+              <span className="fw-meta">
+                {isSubplot
+                  ? `subplot ${figure.grid[0]}×${figure.grid[1]} · ${figure.cells.length} axes`
+                  : isPolar
+                    ? `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.theta?.length ?? 0), 0)} points`
+                    : isHeatmap
+                      ? `${heatmapLayer.z?.length ?? 0} × ${heatmapLayer.z?.[0]?.length ?? 0} cells · range [${Number(heatmapLayer.cmin).toPrecision(3)} … ${Number(heatmapLayer.cmax).toPrecision(3)}]${hasSeries ? ` · ${seriesLayers.length} overlay${seriesLayers.length === 1 ? '' : 's'}` : ''}`
+                      : `${seriesLayers.length} series · ${seriesLayers.reduce((s, x) => s + (x.x?.length ?? 0), 0)} points`}
+              </span>
+            </div>
+            <div className="fw-title-right">
+              <button className="ve-close" onClick={() => setMaximized((m) => !m)}
+                title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
+                {maximized ? (
+                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+                    <rect x="1.5" y="3.5" width="7" height="7"
+                      stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
+                    <rect x="3.5" y="1.5" width="7" height="7"
+                      stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
+                  </svg>
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+                    <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
+                  </svg>
+                )}
+              </button>
+              <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
+            </div>
           </div>
-          <div className="fw-title-right">
-            <button className="ve-close" onClick={() => setMaximized((m) => !m)}
-              title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
-              {maximized ? (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="3.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                  <rect x="3.5" y="1.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                </svg>
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
-                </svg>
-              )}
-            </button>
-            <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
-          </div>
-        </div>
+        )}
 
         <div className="fw-toolbar">
           {/* 🏠 Reset — full reset of viewport AND display state. For
