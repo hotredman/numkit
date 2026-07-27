@@ -284,12 +284,13 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
 
   const wrapRef = useRef(null);
   const [W, setW] = useState(480);
+  const H = useMemo(() => Math.max(160, Math.round((W * 9) / 16)), [W]);
 
   useEffect(() => {
     if (!wrapRef.current) return;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0].contentRect.width;
-      if (w && Math.abs(w - W) > 1) setW(Math.max(280, Math.round(w)));
+      if (w && Math.abs(w - W) > 1) setW(Math.max(240, Math.round(w)));
     });
     ro.observe(wrapRef.current);
     return () => ro.disconnect();
@@ -317,8 +318,8 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
         pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
         plotType={plotType} setPlotType={setPlotType}
         onClose={onClose} />
-      <div ref={wrapRef} className="ve-plot-chart-wrap" style={{ width: '100%', height: 230, position: 'relative' }}>
-        <CompositePlot figure={fig} width={W} height={230} />
+      <div ref={wrapRef} className="ve-plot-chart-wrap" style={{ width: '100%', height: H, position: 'relative', aspectRatio: '16 / 9' }}>
+        <CompositePlot figure={fig} width={W} height={H} />
       </div>
       <div className="ve-plot-legend">
         {curves.slice(0, 8).map((c) => (
