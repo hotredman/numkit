@@ -1222,8 +1222,6 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
             )}
           </div>
 
-          <div className="ve-tools-spacer" />
-
           <div className="ve-tools-group" ref={saveRef}>
             <button className="ve-btn" onClick={() => setSaveOpen((o) => !o)}>
               <svg width="11" height="11" viewBox="0 0 12 12">
