@@ -115,11 +115,13 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
     let currentWidth = baseWidth;
     const expanded = {};
 
+    let canExpand = true;
     for (const b of list) {
-      if (currentWidth + b.textDelta <= toolbarWidth) {
+      if (canExpand && currentWidth + b.textDelta <= toolbarWidth) {
         expanded[b.id] = true;
         currentWidth += b.textDelta;
       } else {
+        canExpand = false;
         expanded[b.id] = false;
       }
     }
