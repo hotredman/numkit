@@ -2318,6 +2318,17 @@ input, select { font-family: inherit; color: inherit; }
   animation: scalein 160ms ease;
   transition: width 140ms ease, height 140ms ease, border-radius 140ms ease;
 }
+.fw-window.is-embedded {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: var(--r-md);
+  box-shadow: none;
+  border: 1px solid var(--line);
+  margin: 0;
+  animation: none;
+}
 .fw-window.is-max {
   width:  100vw;
   height: 100vh;

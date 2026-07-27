@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import CompositePlot from '../plot/CompositePlot';
+import FigureWindow from '../plot/FigureWindow';
 
 export function SaveAsMenu({ onPick, onClose }) {
   useEffect(() => {
@@ -168,39 +168,12 @@ function PlotControls({ rows, cols,
                         mAxis, setMAxis, mSel, setMSel,
                         mXMode, setMXMode, mXSrc, setMXSrc,
                         pickerQuery, setPickerQuery,
-                        plotType, setPlotType,
                         onClose }) {
   return (
     <>
       <div className="ve-plot-head">
         <span className="ve-plot-title">inline plot</span>
         <span className="ve-plot-spacer" />
-        <div className="ve-plot-type-wrap" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '8px' }}>
-          <span className="ve-plot-lbl">type</span>
-          <select
-            className="ve-btn ve-plot-type-select"
-            value={plotType}
-            onChange={(e) => setPlotType(e.target.value)}
-            style={{
-              background: 'var(--bg-2)',
-              color: 'var(--fg-0)',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--r-sm)',
-              fontSize: '11px',
-              padding: '2px 6px',
-              fontFamily: 'var(--font-mono)',
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          >
-            <option value="line">📈 line</option>
-            <option value="stem">📍 stem</option>
-            <option value="bar">📊 bar</option>
-            <option value="scatter">🔴 scatter</option>
-            <option value="area">🏔️ area</option>
-            <option value="stairs">🪜 stairs</option>
-          </select>
-        </div>
         <button className="ve-plot-close" onClick={onClose} title="Hide plot">×</button>
       </div>
       <MultiPickerControls mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
@@ -219,7 +192,6 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
   const [mXMode, setMXMode] = useState('index');
   const [mXSrc, setMXSrc]   = useState(() => ({ axis: defaultAxis(rows, cols), idx: 0 }));
   const [pickerQuery, setPickerQuery] = useState('');
-  const [plotType, setPlotType] = useState('line');
 
   useEffect(() => {
     const def = defaultAxis(rows, cols);
@@ -264,8 +236,8 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
 
     return {
       kind: 'composite',
-      id: `inline_${mAxis}_${plotType}`,
-      title: '',
+      id: `1`,
+      title: `${mAxis} ${[...mSel].map((k) => k + 1).join(', ')}`,
       xLabel: xLabel,
       yLabel: '',
       xRange: [xMin, xMax],
@@ -273,28 +245,14 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
       grid: true,
       layers: curves.map((c) => ({
         kind: 'series',
-        mode: plotType,
+        mode: 'line',
         name: c.name,
         x: c.x,
         y: c.y,
         color: c.color,
       })),
     };
-  }, [curves, plotType, xLabel, mAxis]);
-
-  const wrapRef = useRef(null);
-  const [W, setW] = useState(480);
-  const H = useMemo(() => Math.max(160, Math.round((W * 9) / 16)), [W]);
-
-  useEffect(() => {
-    if (!wrapRef.current) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0].contentRect.width;
-      if (w && Math.abs(w - W) > 1) setW(Math.max(240, Math.round(w)));
-    });
-    ro.observe(wrapRef.current);
-    return () => ro.disconnect();
-  }, [W]);
+  }, [curves, xLabel, mAxis, mSel]);
 
   if (curves.length === 0 || curves.every((c) => c.y.length === 0)) {
     return (
@@ -303,7 +261,6 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
           mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
           mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
           pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
-          plotType={plotType} setPlotType={setPlotType}
           onClose={onClose} />
         <div className="ve-plot-empty">no numeric data to plot — pick at least one {mAxis}</div>
       </div>
@@ -311,21 +268,14 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
   }
 
   return (
-    <div className="ve-plot">
+    <div className="ve-plot" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <PlotControls rows={rows} cols={cols}
         mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
         mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
         pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
-        plotType={plotType} setPlotType={setPlotType}
         onClose={onClose} />
-      <div ref={wrapRef} className="ve-plot-chart-wrap" style={{ width: '100%', height: H, position: 'relative', aspectRatio: '16 / 9' }}>
-        <CompositePlot figure={fig} width={W} height={H} />
-      </div>
-      <div className="ve-plot-legend">
-        {curves.slice(0, 8).map((c) => (
-          <span key={c.name} className="ve-plot-legend-item"><i style={{ background: c.color }} />{c.name} <em>n={c.y.length}</em></span>
-        ))}
-        {curves.length > 8 && <span className="ve-plot-legend-more">+{curves.length - 8} more</span>}
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+        <FigureWindow figure={fig} embedded={true} onClose={onClose} />
       </div>
     </div>
   );

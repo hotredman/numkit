@@ -43,7 +43,16 @@ function isPlaceholder3D(v) {
 }
 
 
-export default function FigureWindow({ figure, onClose, engine = null }) {
+export default function FigureWindow({ figure: rawFigure, onClose, engine = null, embedded = false }) {
+  const [seriesModeOverride, setSeriesModeOverride] = useState(null);
+
+  const figure = useMemo(() => {
+    if (!seriesModeOverride || !rawFigure || !Array.isArray(rawFigure.layers)) return rawFigure;
+    return {
+      ...rawFigure,
+      layers: rawFigure.layers.map((l) => (l.kind === 'series' ? { ...l, mode: seriesModeOverride } : l)),
+    };
+  }, [rawFigure, seriesModeOverride]);
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
   const isComposite = figure.kind === 'composite';
@@ -723,10 +732,9 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   const fmtVp = (n) => Number.isFinite(n) ? Number(n.toPrecision(5)).toString() : '—';
 
-  return (
-    <div className="fw-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`fw-window ${maximized ? 'is-max' : ''}`}
-        role="dialog" aria-label={`Figure ${figure.id}`}>
+  const windowNode = (
+    <div className={`fw-window ${maximized ? 'is-max' : ''} ${embedded ? 'is-embedded' : ''}`}
+      role="dialog" aria-label={`Figure ${figure.id}`}>
         <div className="fw-titlebar">
           <div className="fw-title-left">
             <span className="ve-tag" style={{
@@ -780,6 +788,24 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             </svg>
             reset
           </button>
+          {hasSeries && (
+            <div className="ve-tools-group">
+              <select
+                className="ve-btn"
+                value={seriesModeOverride || seriesLayers[0]?.mode || 'line'}
+                onChange={(e) => setSeriesModeOverride(e.target.value)}
+                title="Change series plot type"
+                style={{ cursor: 'pointer', outline: 'none' }}
+              >
+                <option value="line">📈 line</option>
+                <option value="stem">📍 stem</option>
+                <option value="bar">📊 bar</option>
+                <option value="scatter">🔴 scatter</option>
+                <option value="area">🏔️ area</option>
+                <option value="stairs">🪜 stairs</option>
+              </select>
+            </div>
+          )}
           {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
               Per-series rows live in the right-click menu only; the
               toolbar version is global by design. */}
@@ -1470,9 +1496,15 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           <span className="ve-sep" />
           <span>dbl-click · reset</span>
           <span className="ve-sep" />
-          <span>0 · reset · Esc · close</span>
         </div>
       </div>
+  );
+
+  if (embedded) return windowNode;
+
+  return (
+    <div className="fw-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+      {windowNode}
     </div>
   );
 }
