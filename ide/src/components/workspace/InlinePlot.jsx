@@ -168,12 +168,39 @@ function PlotControls({ rows, cols,
                         mAxis, setMAxis, mSel, setMSel,
                         mXMode, setMXMode, mXSrc, setMXSrc,
                         pickerQuery, setPickerQuery,
+                        plotType, setPlotType,
                         onClose }) {
   return (
     <>
       <div className="ve-plot-head">
         <span className="ve-plot-title">inline plot</span>
         <span className="ve-plot-spacer" />
+        <div className="ve-plot-type-wrap" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '8px' }}>
+          <span className="ve-plot-lbl">type</span>
+          <select
+            className="ve-btn ve-plot-type-select"
+            value={plotType}
+            onChange={(e) => setPlotType(e.target.value)}
+            style={{
+              background: 'var(--bg-2)',
+              color: 'var(--fg-0)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--r-sm)',
+              fontSize: '11px',
+              padding: '2px 6px',
+              fontFamily: 'var(--font-mono)',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="line">📈 line</option>
+            <option value="stem">📍 stem</option>
+            <option value="bar">📊 bar</option>
+            <option value="scatter">🔴 scatter</option>
+            <option value="area">🏔️ area</option>
+            <option value="stairs">🪜 stairs</option>
+          </select>
+        </div>
         <button className="ve-plot-close" onClick={onClose} title="Hide plot">×</button>
       </div>
       <MultiPickerControls mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
@@ -192,6 +219,7 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
   const [mXMode, setMXMode] = useState('index');
   const [mXSrc, setMXSrc]   = useState(() => ({ axis: defaultAxis(rows, cols), idx: 0 }));
   const [pickerQuery, setPickerQuery] = useState('');
+  const [plotType, setPlotType] = useState('line');
 
   useEffect(() => {
     const def = defaultAxis(rows, cols);
@@ -245,14 +273,14 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
       grid: true,
       layers: curves.map((c) => ({
         kind: 'series',
-        mode: 'line',
+        mode: plotType,
         name: c.name,
         x: c.x,
         y: c.y,
         color: c.color,
       })),
     };
-  }, [curves, xLabel, mAxis, mSel]);
+  }, [curves, plotType, xLabel, mAxis, mSel]);
 
   if (curves.length === 0 || curves.every((c) => c.y.length === 0)) {
     return (
@@ -261,6 +289,7 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
           mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
           mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
           pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
+          plotType={plotType} setPlotType={setPlotType}
           onClose={onClose} />
         <div className="ve-plot-empty">no numeric data to plot — pick at least one {mAxis}</div>
       </div>
@@ -273,6 +302,7 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
         mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
         mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
         pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
+        plotType={plotType} setPlotType={setPlotType}
         onClose={onClose} />
       <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
         <FigureWindow figure={fig} embedded={true} onClose={onClose} />

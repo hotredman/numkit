@@ -43,16 +43,7 @@ function isPlaceholder3D(v) {
 }
 
 
-export default function FigureWindow({ figure: rawFigure, onClose, engine = null, embedded = false }) {
-  const [seriesModeOverride, setSeriesModeOverride] = useState(null);
-
-  const figure = useMemo(() => {
-    if (!seriesModeOverride || !rawFigure || !Array.isArray(rawFigure.layers)) return rawFigure;
-    return {
-      ...rawFigure,
-      layers: rawFigure.layers.map((l) => (l.kind === 'series' ? { ...l, mode: seriesModeOverride } : l)),
-    };
-  }, [rawFigure, seriesModeOverride]);
+export default function FigureWindow({ figure, onClose, engine = null, embedded = false }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
   const isComposite = figure.kind === 'composite';
@@ -790,24 +781,6 @@ export default function FigureWindow({ figure: rawFigure, onClose, engine = null
             </svg>
             reset
           </button>
-          {hasSeries && (
-            <div className="ve-tools-group">
-              <select
-                className="ve-btn"
-                value={seriesModeOverride || seriesLayers[0]?.mode || 'line'}
-                onChange={(e) => setSeriesModeOverride(e.target.value)}
-                title="Change series plot type"
-                style={{ cursor: 'pointer', outline: 'none' }}
-              >
-                <option value="line">📈 line</option>
-                <option value="stem">📍 stem</option>
-                <option value="bar">📊 bar</option>
-                <option value="scatter">🔴 scatter</option>
-                <option value="area">🏔️ area</option>
-                <option value="stairs">🪜 stairs</option>
-              </select>
-            </div>
-          )}
           {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
               Per-series rows live in the right-click menu only; the
               toolbar version is global by design. */}
