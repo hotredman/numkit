@@ -2210,7 +2210,7 @@ input, select { font-family: inherit; color: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   padding: 4px;
-  z-index: 10;
+  z-index: 1000;
   box-shadow: 0 12px 32px oklch(0.05 0.01 220 / 0.5);
   font-family: var(--font-mono);
 }
@@ -2516,7 +2516,7 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 6px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.4);
   padding: 8px;
-  z-index: 200;
+  z-index: 1000;
   display: flex; flex-direction: column; gap: 6px;
 }
 .ve-multi-pop-head { display: flex; align-items: center; gap: 6px; }
