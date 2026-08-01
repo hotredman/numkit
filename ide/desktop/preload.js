@@ -91,6 +91,7 @@ contextBridge.exposeInMainWorld('nativeFS', {
     getVarTile:   (name, r0, c0, rows, cols, page) =>
                   ipcRenderer.invoke('repl:getVarTile', name, r0, c0, rows, cols, page),
     getVarStats:  (name, page)                => ipcRenderer.invoke('repl:getVarStats', name, page),
+    getVarFigure: (name, opts)                => ipcRenderer.invoke('repl:getVarFigure', name, opts),
     inspectPath:  (name, path)                => ipcRenderer.invoke('repl:inspectPath', name, path),
 
     // ── AST & Script Graph analysis ──────────────────────────────────────

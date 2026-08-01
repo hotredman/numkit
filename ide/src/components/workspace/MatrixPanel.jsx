@@ -210,6 +210,7 @@ export function MatrixPanel({
   rows, cols, name, type,
   getCellValue, getSlice, stats,
   dims, page = 0, setPage,
+  engine,
   readOnly = false,
   onCommit, onEscape, onSave,
   saveDisabled = false,
@@ -413,7 +414,6 @@ export function MatrixPanel({
                 <rect x="6.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 60)"/>
                 <rect x="9.5" y="0.5" width="2" height="11" fill="oklch(0.6 0.1 30)"/>
               </svg>
-              heatmap
             </button>
             <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
               title={isComplex ? 'Inline plot is disabled for complex numbers' : 'Toggle inline plot'}
@@ -422,7 +422,6 @@ export function MatrixPanel({
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
               </svg>
-              plot
             </button>
             <button className="ve-btn" title="Copy as CSV" onClick={() => {
               const lines = [];
@@ -441,21 +440,17 @@ export function MatrixPanel({
                 <rect x="2" y="2" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
                 <rect x="3.5" y="0.5" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
               </svg>
-              copy csv
             </button>
             {onSave && (
               <div className="ve-saveas-wrap">
                 <button className="ve-btn ve-saveas-trigger"
-                  title={saveDisabled ? 'save disabled for huge matrices' : 'Save variable to file'}
+                  title={saveDisabled ? 'save disabled for huge matrices' : 'Export variable data'}
                   disabled={saveDisabled}
                   onClick={() => setSaveOpen((s) => !s)}>
                   <svg width="11" height="11" viewBox="0 0 12 12">
-                    <path d="M2 2h6l2 2v6H2z M4 2v3h4V2 M4 8h4v2H4z" stroke="currentColor" fill="none"/>
+                    <path d="M6 1v8M3 6l3 3 3-3M2 11h8" stroke="currentColor" fill="none" strokeLinecap="round"/>
                   </svg>
-                  save as
-                  <svg width="8" height="8" viewBox="0 0 8 8" style={{ marginLeft: 2 }}>
-                    <path d="M1 2.5 L4 5.5 L7 2.5" stroke="currentColor" fill="none" strokeWidth="1.2" strokeLinecap="round"/>
-                  </svg>
+                  ▾
                 </button>
                 {saveOpen && (
                   <SaveAsMenu onClose={() => setSaveOpen(false)}
@@ -495,7 +490,8 @@ export function MatrixPanel({
               onMouseDown={startDragDivider}
               onDoubleClick={() => setPlotWidth(520)}
               title="Drag to resize · double-click to reset" />
-            <InlinePlot getSlice={getSlice} rows={rows} cols={cols}
+            <InlinePlot getSlice={getSlice} rows={rows} cols={cols} varName={name} engine={engine}
+              isSparse={type && type.includes('sparse')}
               onClose={() => setShowPlot(false)} />
           </>
         )}

@@ -366,6 +366,15 @@ int runIdeSession()
             continue;
         }
 
+        // __GET_FIGURE__:<name>\t<optsJSON>
+        if (line.size() > 15 && line.compare(0, 15, "__GET_FIGURE__:") == 0) {
+            auto p = numkit::ide::parseTabParams(line, 15);
+            const std::string opts = (p.size() > 1) ? p[1] : "{}";
+            sendInspect("__FIGURE_DATA__:", numkit::ide::getVarFigureJSON(engine, p[0], opts));
+            accum.clear();
+            continue;
+        }
+
         // __GET_TILE__:<name>\t<r0>\t<c0>\t<rows>\t<cols>\t<page>
         if (line.size() > 13 && line.compare(0, 13, "__GET_TILE__:") == 0) {
             auto p = numkit::ide::parseTabParams(line, 13);

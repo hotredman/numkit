@@ -257,6 +257,11 @@ export function createNativeEngine(nfs) {
     getVarPage(name, page)                  { return nfs.getVarPage(name, page); },
     getVarTile(name, r0, c0, rows, cols, pg){ return nfs.getVarTile(name, r0, c0, rows, cols, pg); },
     getVarStats(name, page)                 { return nfs.getVarStats(name, page); },
+    async getVarFigure(name, opts) { 
+      if (!nfs.getVarFigure) return null;
+      const res = await nfs.getVarFigure(name, opts);
+      return res?.figures?.[0] || null;
+    },
     inspectPath(name, path)                 { return nfs.inspectPath(name, path); },
 
     // Figure tile — not available through native REPL pipe currently.
@@ -424,6 +429,17 @@ export async function createWasmEngine(createModule) {
       } catch (e) {
         console.warn('[engine] getVarPage failed for', name, e);
         return { error: e?.message || String(e) };
+      }
+    },
+
+    getVarFigure(name, opts) {
+      if (typeof Module.repl_get_var_figure !== 'function') return null;
+      try {
+        const raw = Module.repl_get_var_figure(name, JSON.stringify(opts || {}));
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('[engine] getVarFigure failed for', name, e);
+        return null;
       }
     },
 
