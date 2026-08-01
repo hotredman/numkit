@@ -2508,14 +2508,15 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-multi-label { color: var(--fg-3); font-size: 10.5px; }
 .ve-multi-pop {
-  position: absolute; top: calc(100% + 4px); right: 0;
-  width: 360px;
+  position: absolute; top: calc(100% + 4px); left: 0; right: auto;
+  width: min(300px, 90vw);
+  max-width: calc(100vw - 32px);
   background: var(--bg-3);
   border: 1px solid var(--line);
   border-radius: 6px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.4);
   padding: 8px;
-  z-index: 100;
+  z-index: 200;
   display: flex; flex-direction: column; gap: 6px;
 }
 .ve-multi-pop-head { display: flex; align-items: center; gap: 6px; }
