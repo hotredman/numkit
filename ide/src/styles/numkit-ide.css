@@ -2615,6 +2615,8 @@ input, select { font-family: inherit; color: inherit; }
   display: flex; align-items: center;
   gap: 14px;
   padding: 0 14px;
+  position: relative;
+  z-index: 10;
   /* Self-sufficient height. In the top-level VariableEditor the toolbar
      sits in a fixed 40px grid row of .ve-window; in the struct/cell
      inspector it's a flex child with no backing row, so without this it

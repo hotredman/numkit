@@ -141,6 +141,7 @@ describe('VariableEditor — struct inspector render smoke', () => {
     const { container } = render(
       <VE variable={structVar} onClose={() => {}} engine={engine} />,
     );
+    console.log("CONTAINER:", container.innerHTML);
     // Struct layout uses the dedicated window modifier + breadcrumb.
     expect(container.querySelector('.ve-window-struct')).toBeTruthy();
     expect(container.querySelector('.ve-crumbs')).toBeTruthy();

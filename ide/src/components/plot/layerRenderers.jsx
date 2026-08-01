@@ -257,6 +257,90 @@ export function renderLayer(ly, idx, ctx) {
                   </g>
                 );
               }
+              if (mode === 'contour') {
+                const Xs = ly.surfaceGrid?.Xs || [];
+                const Ys = ly.surfaceGrid?.Ys || [];
+                const Z = ly.surfaceGrid?.Z || [];
+                const Nc = Xs.length, Nr = Ys.length;
+                if (Nc >= 2 && Nr >= 2) {
+                  let zmn = Infinity, zmx = -Infinity;
+                  for (let r = 0; r < Nr; r++) {
+                    for (let c = 0; c < Nc; c++) {
+                      const v = Z[r] ? Z[r][c] : NaN;
+                      if (Number.isFinite(v)) { if (v < zmn) zmn = v; if (v > zmx) zmx = v; }
+                    }
+                  }
+                  if (Number.isFinite(zmn)) {
+                    let levels = ly.levels;
+                    if (!Array.isArray(levels) || levels.length === 0) {
+                      const n = ly.n || 10;
+                      const step = (zmx - zmn) / (n + 1);
+                      levels = [];
+                      for (let i = 1; i <= n; i++) levels.push(zmn + i * step);
+                    }
+
+                    const interp = (a, b, va, vb, L) => {
+                      if (Math.abs(vb - va) < 1e-15) return a;
+                      return a + (L - va) / (vb - va) * (b - a);
+                    };
+
+                    const colorAt = (t) => {
+                      const h = (1 - Math.max(0, Math.min(1, t))) * 240;
+                      return `hsl(${h}, 100%, 45%)`;
+                    };
+                    const zSpan = zmx - zmn;
+                    const norm = (v) => (zSpan > 0 ? (v - zmn) / zSpan : 0.5);
+
+                    const paths = [];
+                    for (const L of levels) {
+                      const col = colorAt(norm(L));
+                      let d = '';
+                      for (let r = 0; r + 1 < Nr; r++) {
+                        for (let c = 0; c + 1 < Nc; c++) {
+                          const vTL = Z[r][c], vTR = Z[r][c + 1];
+                          const vBL = Z[r + 1][c], vBR = Z[r + 1][c + 1];
+                          if (!Number.isFinite(vTL) || !Number.isFinite(vTR)
+                           || !Number.isFinite(vBL) || !Number.isFinite(vBR)) continue;
+                          let code = 0;
+                          if (vTL > L) code |= 1;
+                          if (vTR > L) code |= 2;
+                          if (vBR > L) code |= 4;
+                          if (vBL > L) code |= 8;
+                          if (code === 0 || code === 15) continue;
+
+                          const xL = Xs[c], xR = Xs[c + 1];
+                          const yT = Ys[r], yB = Ys[r + 1];
+                          const T  = [interp(xL, xR, vTL, vTR, L), yT];
+                          const RE = [xR, interp(yT, yB, vTR, vBR, L)];
+                          const B  = [interp(xL, xR, vBL, vBR, L), yB];
+                          const LE = [xL, interp(yT, yB, vTL, vBL, L)];
+                          const segs = [];
+                          switch (code) {
+                            case 1: case 14: segs.push([LE, T]); break;
+                            case 2: case 13: segs.push([T, RE]); break;
+                            case 3: case 12: segs.push([LE, RE]); break;
+                            case 4: case 11: segs.push([RE, B]); break;
+                            case 6: case 9:  segs.push([T, B]); break;
+                            case 7: case 8:  segs.push([LE, B]); break;
+                            case 5:  segs.push([LE, T], [RE, B]); break;
+                            case 10: segs.push([LE, B], [T, RE]); break;
+                          }
+                          for (const [a, b] of segs) {
+                            const px1 = sx(a[0]), py1 = mySy(a[1]);
+                            const px2 = sx(b[0]), py2 = mySy(b[1]);
+                            if (Number.isFinite(px1) && Number.isFinite(py1) &&
+                                Number.isFinite(px2) && Number.isFinite(py2)) {
+                              d += `M${px1.toFixed(1)},${py1.toFixed(1)} L${px2.toFixed(1)},${py2.toFixed(1)} `;
+                            }
+                          }
+                        }
+                      }
+                      if (d) paths.push(<path key={L} d={d} stroke={col} fill="none" strokeWidth={w} />);
+                    }
+                    if (paths.length > 0) return <g key={`ly${idx}`} opacity={op}>{paths}</g>;
+                  }
+                }
+              }
               if (mode === 'errorbar') {
                 // Three SVG elements per data point:
                 //   • centre dot (the y value)

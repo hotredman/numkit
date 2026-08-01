@@ -412,6 +412,149 @@ inline std::string getInspectPathJSON(numkit::Engine& engine,
     catch(...){return "{\"error\":\"unknown\"}";}
 }
 
+inline std::string getVarFigureJSON(numkit::Engine& engine,
+                                    const std::string& name,
+                                    const std::string& optsJSON)
+{
+    try {
+        numkit::Value rootStore;
+        if(!detail::resolveVar(engine,name,rootStore))
+            return "{\"error\":\"variable '"+detail::escapeJSON(name)+"' not found\"}";
+        
+        bool isSpy = optsJSON.find("\"mode\":\"spy\"") != std::string::npos;
+        bool isSurf = optsJSON.find("\"mode\":\"surf\"") != std::string::npos || optsJSON.find("\"mode\":\"mesh\"") != std::string::npos;
+        bool isContour = optsJSON.find("\"mode\":\"contour\"") != std::string::npos;
+        
+        const auto& d = rootStore.dims();
+        size_t rows = d.rows(), cols = d.cols();
+        if (rows == 0 || cols == 0 || !rootStore.isNumeric()) {
+             return "{\"error\":\"invalid data for figure\"}";
+        }
+        
+        std::ostringstream os; os.precision(5);
+        if (isSpy) {
+            size_t maxPts = 50000;
+            os << "{\"kind\":\"composite\",\"id\":\"fig_" << name << "\",\"title\":\"" << name << " spy\",\"xLabel\":\"col\",\"yLabel\":\"row\",";
+            os << "\"xRange\":[0," << cols << "],\"yRange\":[0," << rows << "],\"yDir\":\"reverse\",\"layers\":[{";
+            os << "\"kind\":\"series\",\"mode\":\"scatter\",\"name\":\"non-zeros\",\"marker\":\".\",\"x\":[";
+            std::vector<size_t> xs, ys;
+            size_t added = 0;
+            for(size_t c=0; c<cols && added<maxPts; c++) {
+                for(size_t r=0; r<rows && added<maxPts; r++) {
+                    double v = rootStore.elemAsDouble(r + c*rows);
+                    if (v != 0.0 && !std::isnan(v)) {
+                        xs.push_back(c + 1);
+                        ys.push_back(r + 1);
+                        added++;
+                    }
+                }
+            }
+            for(size_t i=0; i<xs.size(); ++i) { if(i) os << ","; os << xs[i]; }
+            os << "],\"y\":[";
+            for(size_t i=0; i<ys.size(); ++i) { if(i) os << ","; os << ys[i]; }
+            os << "]}]}";
+        } else if (isSurf) {
+            size_t rStep = std::max<size_t>(1, rows / 60);
+            size_t cStep = std::max<size_t>(1, cols / 60);
+            size_t outRows = (rows + rStep - 1) / rStep;
+            size_t outCols = (cols + cStep - 1) / cStep;
+            
+            os << "{\"kind\":\"composite3d\",\"id\":\"fig_" << name << "\",\"title\":\"" << name << "\",\"xLabel\":\"col\",\"yLabel\":\"row\",\"zLabel\":\"val\",";
+            os << "\"xRange\":[1," << cols << "],\"yRange\":[1," << rows << "],\"layers\":[{";
+            os << "\"kind\":\"series\",\"mode\":\"" << (optsJSON.find("\"mode\":\"mesh\"") != std::string::npos ? "mesh" : "surface") << "\",\"name\":\"" << name << "\",\"surfaceGrid\":{";
+            os << "\"Xs\":[";
+            for(size_t c=0; c<outCols; ++c) { if(c>0) os<<","; os << (c*cStep+1); }
+            os << "],\"Ys\":[";
+            for(size_t r=0; r<outRows; ++r) { if(r>0) os<<","; os << (r*rStep+1); }
+            os << "],\"Z\":[";
+            for(size_t c=0; c<outCols; ++c) {
+                if (c>0) os << ",";
+                os << "[";
+                size_t srcC = c * cStep;
+                for(size_t r=0; r<outRows; ++r) {
+                    if (r>0) os << ",";
+                    size_t srcR = r * rStep;
+                    double v = rootStore.elemAsDouble(srcR + srcC*rows);
+                    if (std::isnan(v)) os << "null";
+                    else os << v;
+                }
+                os << "]";
+            }
+            os << "]}}]}";
+        } else {
+            size_t rStep = std::max<size_t>(1, rows / 250);
+            size_t cStep = std::max<size_t>(1, cols / 250);
+            size_t outRows = (rows + rStep - 1) / rStep;
+            size_t outCols = (cols + cStep - 1) / cStep;
+            
+            os << "{\"kind\":\"composite\",\"id\":\"fig_" << name << "\",\"title\":\"" << name << "\",\"xLabel\":\"col\",\"yLabel\":\"row\",";
+            os << "\"xRange\":[1," << cols << "],\"yRange\":[1," << rows << "],\"yDir\":\"reverse\",\"layers\":[{";
+            if (isContour) {
+                os << "\"kind\":\"series\",\"mode\":\"contour\",\"name\":\"" << name << "\",\"surfaceGrid\":{";
+                os << "\"Xs\":[";
+                for(size_t c=0; c<outCols; ++c) { if(c>0) os<<","; os << (c*cStep+1); }
+                os << "],\"Ys\":[";
+                for(size_t r=0; r<outRows; ++r) { if(r>0) os<<","; os << (r*rStep+1); }
+                os << "],\"Z\":[";
+                for(size_t c=0; c<outCols; ++c) {
+                    if (c>0) os << ",";
+                    os << "[";
+                    size_t srcC = c * cStep;
+                    for(size_t r=0; r<outRows; ++r) {
+                        if (r>0) os << ",";
+                        size_t srcR = r * rStep;
+                        double v = rootStore.elemAsDouble(srcR + srcC*rows);
+                        if (std::isnan(v)) os << "null";
+                        else os << v;
+                    }
+                    os << "]";
+                }
+                os << "]}}]}";
+            } else {
+                double cmin = std::numeric_limits<double>::infinity();
+                double cmax = -std::numeric_limits<double>::infinity();
+                for(size_t r=0; r<outRows; ++r) {
+                    size_t srcR = r * rStep;
+                    for(size_t c=0; c<outCols; ++c) {
+                        size_t srcC = c * cStep;
+                        double v = rootStore.elemAsDouble(srcR + srcC*rows);
+                        if(std::isfinite(v)) {
+                            if (v < cmin) cmin = v;
+                            if (v > cmax) cmax = v;
+                        }
+                    }
+                }
+                if(cmin > cmax) { cmin = 0; cmax = 1; }
+                if(cmin == cmax) { cmax = cmin + 1; }
+
+                os << "\"kind\":\"heatmap\",\"name\":\"" << name << "\",\"cminOrig\":" << cmin << ",\"cmaxOrig\":" << cmax << ",\"originalRows\":" << rows << ",\"originalCols\":" << cols << ",\"z\":[";
+                for(size_t r=0; r<outRows; ++r) {
+                    if (r>0) os << ",";
+                    os << "[";
+                    size_t srcR = r * rStep;
+                    for(size_t c=0; c<outCols; ++c) {
+                        if (c>0) os << ",";
+                        size_t srcC = c * cStep;
+                        double v = rootStore.elemAsDouble(srcR + srcC*rows);
+                        if (std::isnan(v)) {
+                            os << "null";
+                        } else {
+                            int idx = 0;
+                            if (v >= cmax) idx = 255;
+                            else if (v > cmin) idx = static_cast<int>(255.0 * (v - cmin) / (cmax - cmin));
+                            os << idx;
+                        }
+                    }
+                    os << "]";
+                }
+                os << "]}]}";
+            }
+        }
+        return os.str();
+    } catch(const std::exception& e){return std::string("{\"error\":\"")+detail::escapeJSON(e.what())+"\"}";}
+    catch(...){return "{\"error\":\"unknown\"}";}
+}
+
 // Parse tab-separated params from a protocol line after the prefix.
 // e.g. "__GET_TILE__:A\t0\t0\t50\t50\t0" with prefixLen=14 -> ["A","0","0","50","50","0"]
 inline std::vector<std::string> parseTabParams(const std::string& line, size_t prefixLen)

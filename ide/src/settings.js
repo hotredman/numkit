@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   interpreterPath: '', // path to numkit_repl / numkit_repl.exe
   codegenPath:     '', // path to numkit_codegen / numkit_codegen.exe
   cxxPath:         '', // NUMKIT_CXX override; '' = leave env var unchanged
+  plotAspectRatio: '16:9',
 });
 
 /**
@@ -54,10 +55,14 @@ export function loadSettings() {
  */
 export function saveSettings(settings) {
   try {
+    const nextSettings = { ...DEFAULT_SETTINGS, ...settings, version: SETTINGS_VERSION };
     localStorage.setItem(
       SETTINGS_KEY,
-      JSON.stringify({ ...DEFAULT_SETTINGS, ...settings, version: SETTINGS_VERSION }),
+      JSON.stringify(nextSettings),
     );
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('numkitSettingsChanged', { detail: nextSettings }));
+    }
   } catch (_) {
     // Quota exceeded or storage disabled — silent; we'd rather skip
     // persistence than crash the UI.

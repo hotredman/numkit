@@ -43,7 +43,7 @@ function isPlaceholder3D(v) {
 }
 
 
-export default function FigureWindow({ figure, onClose, engine = null, embedded = false }) {
+export default function FigureWindow({ figure, onClose, engine = null, embedded = false, aspectRatio = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
   const isComposite = figure.kind === 'composite';
@@ -557,11 +557,19 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
     const r = el.getBoundingClientRect();
     if (!r.width) return;
     setSize((prev) => {
-      const w = Math.max(400, Math.round(r.width  - 32));
-      const h = Math.max(300, Math.round(r.height - 32));
+      let w = Math.max(400, Math.round(r.width  - 32));
+      let h = Math.max(300, Math.round(r.height - 32));
+      if (aspectRatio) {
+        const targetW = h * aspectRatio;
+        if (targetW <= w) {
+          w = Math.round(targetW);
+        } else {
+          h = Math.round(w / aspectRatio);
+        }
+      }
       return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
     });
-  }, []);
+  }, [aspectRatio]);
 
   // Re-measure on resize signals: window resize (modal is 85vw / 80vh) plus
   // ResizeObserver in modern browsers.
@@ -572,8 +580,16 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
       const r = el.getBoundingClientRect();
       if (!r.width) return;
       setSize((prev) => {
-        const w = Math.max(400, Math.round(r.width  - 32));
-        const h = Math.max(300, Math.round(r.height - 32));
+        let w = Math.max(400, Math.round(r.width  - 32));
+        let h = Math.max(300, Math.round(r.height - 32));
+        if (aspectRatio) {
+          const targetW = h * aspectRatio;
+          if (targetW <= w) {
+            w = Math.round(targetW);
+          } else {
+            h = Math.round(w / aspectRatio);
+          }
+        }
         return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
       });
     };
@@ -587,7 +603,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
       ro?.disconnect();
       window.removeEventListener('resize', remeasure);
     };
-  }, []);
+  }, [aspectRatio]);
 
   // Local downloadBlob for CSV/TSV/JSON paths below — image exports go through
   // plotUtils helpers so they share the light-theme + variable-resolution
@@ -1273,7 +1289,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M6 1v8M3 6l3 3 3-3M2 11h8" stroke="currentColor" fill="none" strokeLinecap="round"/>
               </svg>
-              {expandedButtons.save && ' export'} ▾
+              {expandedButtons.save && ' save'} ▾
             </button>
             {saveOpen && (
               <div className="fw-pop fw-pop-right">
@@ -1313,7 +1329,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
         <div className="fw-supertitle">{figure.superTitle || ''}</div>
 
         <div className="fw-canvas-wrap" ref={wrapRef}>
-          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {renderFigure(figure, {
               width: size.w, height: size.h,
               viewport, setViewport,

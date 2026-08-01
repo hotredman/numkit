@@ -1004,6 +1004,7 @@ class ReplSession {
   getVarPage(name, page)                         { return this.query(`__GET_PAGE__:${name}\t${page}`); }
   getVarTile(name, r0, c0, rows, cols, page = 0) { return this.query(`__GET_TILE__:${name}\t${r0}\t${c0}\t${rows}\t${cols}\t${page}`); }
   getVarStats(name, page = -1)                   { return this.query(`__GET_STATS__:${name}\t${page}`); }
+  getVarFigure(name, opts = {})                  { return this.query(`__GET_FIGURE__:${name}\t${JSON.stringify(opts)}`); }
   inspectPath(name, path)                        { return this.query(`__INSPECT_PATH__:${name}\t${path || ''}`); }
 
   async buildAST(source) {
@@ -1088,6 +1089,7 @@ ipcMain.handle('repl:getVarData',    (_e, name)                        => replSe
 ipcMain.handle('repl:getVarPage',    (_e, name, page)                  => replSession.getVarPage(name, page));
 ipcMain.handle('repl:getVarTile',    (_e, name, r0, c0, rows, cols, page) => replSession.getVarTile(name, r0, c0, rows, cols, page));
 ipcMain.handle('repl:getVarStats',   (_e, name, page)                  => replSession.getVarStats(name, page));
+ipcMain.handle('repl:getVarFigure',  (_e, name, opts)                  => replSession.getVarFigure(name, opts));
 ipcMain.handle('repl:inspectPath',   (_e, name, path)                  => replSession.inspectPath(name, path));
 ipcMain.handle('repl:buildAST',         (_e, source)                      => replSession.buildAST(source));
 ipcMain.handle('repl:buildScriptGraph', (_e, source)                      => replSession.buildScriptGraph(source));

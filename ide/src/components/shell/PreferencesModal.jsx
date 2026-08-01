@@ -272,6 +272,30 @@ export default function PreferencesModal({ onClose }) {
                 <div className="prefs-hint">
                   Theme selection (Dark/Light/High-Contrast) and UI scaling options will be configured here.
                 </div>
+                <div style={{ marginTop: '20px' }}>
+                  <div className="prefs-section-title">Plot Settings</div>
+                  <div className="prefs-section-divider" />
+                  <div className="prefs-row">
+                    <div className="prefs-row-header">
+                      <label className="prefs-row-label">Plot Aspect Ratio</label>
+                    </div>
+                    <div className="prefs-input-row">
+                      <select
+                        className="prefs-input"
+                        value={draft.plotAspectRatio || '16:9'}
+                        onChange={(e) => set('plotAspectRatio', e.target.value)}
+                        style={{ cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
+                      >
+                        <option value="4:3">4:3</option>
+                        <option value="16:9">16:9</option>
+                        <option value="16:10">16:10</option>
+                      </select>
+                    </div>
+                    <span className="prefs-hint">
+                      Base aspect ratio for inline plots and the Figures panel previews.
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </div>

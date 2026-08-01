@@ -371,7 +371,7 @@ export function VariableEditor({ variable, onClose, engine }) {
   if (isStructLike) {
     return (
       <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className={`ve-window ${maximized ? 'is-max' : ''}`}
+        <div className={`ve-window ve-window-struct ${maximized ? 'is-max' : ''}`}
           role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
           <div className="ve-titlebar">
             <div className="ve-title-left">
@@ -422,6 +422,7 @@ export function VariableEditor({ variable, onClose, engine }) {
         </div>
 
         <MatrixPanel
+          engine={engine}
           rows={rows} cols={cols} name={variable.name} type={variable.type}
           getCellValue={getCellValue} getSlice={getSlice} stats={stats}
           dims={shape.dims} page={page} setPage={setPage}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import FigureWindow from '../plot/FigureWindow';
 
 export function SaveAsMenu({ onPick, onClose }) {
@@ -165,6 +165,7 @@ function MultiPickerControls({ mAxis, setMAxis, mSel, setMSel, rows, cols,
 }
 
 function PlotControls({ rows, cols,
+                        dimMode, setDimMode,
                         mAxis, setMAxis, mSel, setMSel,
                         mXMode, setMXMode, mXSrc, setMXSrc,
                         pickerQuery, setPickerQuery,
@@ -174,6 +175,30 @@ function PlotControls({ rows, cols,
     <>
       <div className="ve-plot-head">
         <span className="ve-plot-title">inline plot</span>
+        <div className="ve-plot-tabs" style={{ display: 'flex', gap: '2px', marginLeft: '12px' }}>
+          {['1d', '2d', '3d'].map((mode) => (
+            <button key={mode}
+              className={`ve-btn ${dimMode === mode ? 'is-active' : ''}`}
+              onClick={() => {
+                setDimMode(mode);
+                if (mode === '1d') setPlotType('line');
+                if (mode === '2d') setPlotType('imagesc');
+                if (mode === '3d') setPlotType('surf');
+              }}
+              style={{
+                background: dimMode === mode ? 'var(--bg-3)' : 'transparent',
+                color: dimMode === mode ? 'var(--fg-1)' : 'var(--fg-3)',
+                border: 'none',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                cursor: 'pointer',
+              }}>
+              {mode}
+            </button>
+          ))}
+        </div>
         <span className="ve-plot-spacer" />
         <div className="ve-plot-type-wrap" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '8px' }}>
           <span className="ve-plot-lbl">type</span>
@@ -193,33 +218,80 @@ function PlotControls({ rows, cols,
               outline: 'none',
             }}
           >
-            <option value="line">📈 line</option>
-            <option value="stem">📍 stem</option>
-            <option value="bar">📊 bar</option>
-            <option value="scatter">🔴 scatter</option>
-            <option value="area">🏔️ area</option>
-            <option value="stairs">🪜 stairs</option>
+            {dimMode === '1d' && (
+              <>
+                <option value="line">📈 line</option>
+                <option value="stem">📍 stem</option>
+                <option value="bar">📊 bar</option>
+                <option value="scatter">🔴 scatter</option>
+                <option value="area">🏔️ area</option>
+                <option value="stairs">🪜 stairs</option>
+              </>
+            )}
+            {dimMode === '2d' && (
+              <>
+                <option value="imagesc">🔲 imagesc</option>
+                <option value="contour">〰️ contour</option>
+                <option value="spy">🔍 spy</option>
+              </>
+            )}
+            {dimMode === '3d' && (
+              <>
+                <option value="surf">🌊 surf</option>
+                <option value="mesh">🌐 mesh</option>
+              </>
+            )}
           </select>
         </div>
         <button className="ve-plot-close" onClick={onClose} title="Hide plot">×</button>
       </div>
-      <MultiPickerControls mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
-        rows={rows} cols={cols}
-        mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
-        pickerQuery={pickerQuery} setPickerQuery={setPickerQuery} />
+      {dimMode === '1d' && (
+        <MultiPickerControls mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
+          rows={rows} cols={cols}
+          mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
+          pickerQuery={pickerQuery} setPickerQuery={setPickerQuery} />
+      )}
     </>
   );
 }
 
-export function InlinePlot({ getSlice, rows, cols, onClose }) {
+export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, onClose }) {
   const defaultAxis = (r, c) => (c >= r ? 'row' : 'col');
 
+  const [dimMode, setDimMode] = useState(() => isSparse ? '2d' : '1d');
   const [mAxis, setMAxis] = useState(() => defaultAxis(rows, cols));
   const [mSel, setMSel]   = useState(() => new Set([0]));
   const [mXMode, setMXMode] = useState('index');
   const [mXSrc, setMXSrc]   = useState(() => ({ axis: defaultAxis(rows, cols), idx: 0 }));
   const [pickerQuery, setPickerQuery] = useState('');
-  const [plotType, setPlotType] = useState('line');
+  const [plotType, setPlotType] = useState(() => isSparse ? 'spy' : 'line');
+
+  const [engineFig, setEngineFig] = useState(null);
+  const [engineLoading, setEngineLoading] = useState(false);
+
+  useEffect(() => {
+    if (dimMode === '1d' || !engine || typeof engine.getVarFigure !== 'function') {
+      setEngineFig(null);
+      setEngineLoading(false);
+      return;
+    }
+    let active = true;
+    setEngineLoading(true);
+    // Ask the C++ engine to generate the figure JSON (e.g., downsampling for imagesc/surf)
+    const req = engine.getVarFigure(varName, { mode: plotType });
+    Promise.resolve(req).then((res) => {
+      if (active) {
+        setEngineFig(res);
+        setEngineLoading(false);
+      }
+    }).catch((err) => {
+      if (active) {
+        console.error('getVarFigure error:', err);
+        setEngineLoading(false);
+      }
+    });
+    return () => { active = false; };
+  }, [dimMode, plotType, engine, varName]);
 
   useEffect(() => {
     const def = defaultAxis(rows, cols);
@@ -282,30 +354,55 @@ export function InlinePlot({ getSlice, rows, cols, onClose }) {
     };
   }, [curves, plotType, xLabel, mAxis, mSel]);
 
-  if (curves.length === 0 || curves.every((c) => c.y.length === 0)) {
-    return (
-      <div className="ve-plot">
-        <PlotControls rows={rows} cols={cols}
-          mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
-          mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
-          pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
-          plotType={plotType} setPlotType={setPlotType}
-          onClose={onClose} />
-        <div className="ve-plot-empty">no numeric data to plot — pick at least one {mAxis}</div>
-      </div>
-    );
+  const [aspectStr, setAspectStr] = useState(() => {
+    try {
+      // Need loadSettings here without importing it at top level if not already imported
+      const raw = localStorage.getItem('numkit.ide.settings');
+      if (raw) return JSON.parse(raw).plotAspectRatio || '16:9';
+    } catch (e) {}
+    return '16:9';
+  });
+
+  useEffect(() => {
+    const onSettings = (e) => setAspectStr(e.detail?.plotAspectRatio || '16:9');
+    window.addEventListener('numkitSettingsChanged', onSettings);
+    return () => window.removeEventListener('numkitSettingsChanged', onSettings);
+  }, []);
+
+  const aspect = (() => {
+    if (aspectStr === '4:3') return 4 / 3;
+    if (aspectStr === '16:10') return 16 / 10;
+    return 16 / 9;
+  })();
+
+  let content = null;
+  if (dimMode === '1d') {
+    if (curves.length === 0 || curves.every((c) => c.y.length === 0)) {
+      content = <div className="ve-plot-empty">no numeric data to plot — pick at least one {mAxis}</div>;
+    } else {
+      content = <FigureWindow figure={fig} embedded={true} onClose={onClose} aspectRatio={aspect} />;
+    }
+  } else {
+    if (engineLoading) {
+      content = <div className="ve-plot-empty">generating figure...</div>;
+    } else if (!engineFig) {
+      content = <div className="ve-plot-empty">failed to generate {dimMode} figure</div>;
+    } else {
+      content = <FigureWindow figure={engineFig} embedded={true} onClose={onClose} aspectRatio={aspect} />;
+    }
   }
 
   return (
     <div className="ve-plot" style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '100%', minWidth: 0, height: '100%', minHeight: 0 }}>
       <PlotControls rows={rows} cols={cols}
+        dimMode={dimMode} setDimMode={setDimMode}
         mAxis={mAxis} setMAxis={setMAxis} mSel={mSel} setMSel={setMSel}
         mXMode={mXMode} setMXMode={setMXMode} mXSrc={mXSrc} setMXSrc={setMXSrc}
         pickerQuery={pickerQuery} setPickerQuery={setPickerQuery}
         plotType={plotType} setPlotType={setPlotType}
         onClose={onClose} />
       <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', width: '100%', maxWidth: '100%' }}>
-        <FigureWindow figure={fig} embedded={true} onClose={onClose} />
+        {content}
       </div>
     </div>
   );
