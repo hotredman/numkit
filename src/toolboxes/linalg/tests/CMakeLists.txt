@@ -26,6 +26,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/chol_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/schur_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/svd_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions_general_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
 
