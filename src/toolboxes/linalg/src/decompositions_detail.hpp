@@ -36,7 +36,7 @@ std::size_t cholUpperFactor(const T *a, T *r, std::size_t n) {
             }
         }
         if constexpr (detail::is_complex_v<T>) {
-            if (s.real() <= 0.0) return j + 1;
+            if (s.real() <= 0.0 || std::abs(s.imag()) > 1e-12 * (1.0 + std::abs(s.real()))) return j + 1;
             r[j + j * n] = T(std::sqrt(s.real()), 0.0);
         } else {
             if (s <= 0.0) return j + 1;
@@ -45,6 +45,10 @@ std::size_t cholUpperFactor(const T *a, T *r, std::size_t n) {
         const T inv_diag = T(1) / r[j + j * n];
         for (std::size_t i = j + 1; i < n; ++i) {
             T t = a[j + i * n];
+            if constexpr (detail::is_complex_v<T>) {
+                const T a_ji = a[i + j * n];
+                if (std::abs(t - std::conj(a_ji)) > 1e-12 * (1.0 + std::abs(t))) return j + 1;
+            }
             for (std::size_t k = 0; k < j; ++k) {
                 if constexpr (detail::is_complex_v<T>) {
                     t -= std::conj(r[k + j * n]) * r[k + i * n];

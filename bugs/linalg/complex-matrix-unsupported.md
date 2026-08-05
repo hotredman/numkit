@@ -20,7 +20,7 @@ matrices everywhere. (`trace` — a trivial diagonal sum — was fixed
 | `svd(B)` | Not a double array | `S(1,1)=5.6289` |
 | `qr(B)` ✅ FIXED 2026-08-05 | complex Q,R | complex Q,R |
 | `lu(B)` ✅ FIXED 2026-08-05 | complex L,U,P | complex L,U,P |
-| `chol([2 1i;-1i 2])` | Not a double array | `[1.4142, 0.7071i; 0, …]` |
+| `chol([2 1i;-1i 2])` ✅ FIXED 2026-08-05 | `[1.4142, 0.7071i; 0, 1.2247]` | `[1.4142, 0.7071i; 0, …]` |
 | `rank(B)` | Not a double array | `2` |
 | `pinv(B)` | Not a double array | complex pseudo-inverse |
 | `B\b` (square & LSQ) ✅ FIXED 2026-08-05 | complex solve | complex solve |
