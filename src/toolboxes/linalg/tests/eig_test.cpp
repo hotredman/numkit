@@ -85,10 +85,11 @@ TEST_F(EigTest, EigAsymmetricVDForRealEigvalsWorks)
     EXPECT_NEAR(evalScalar("max(max(abs(A*V - V*D)))"), 0.0, 1e-10);
 }
 
-TEST_F(EigTest, EigAsymmetricVDForComplexEigvalsThrows)
+TEST_F(EigTest, EigAsymmetricVDForComplexEigvalsWorks)
 {
-    // Phase 2c-3a does NOT support complex eigenvectors -- throws cleanly.
-    EXPECT_THROW(eval("[V, D] = eig([0 -1; 1 0]);"), std::exception);
+    // Phase 1.4 supports complex eigenvectors via complex Schur decomposition.
+    eval("A = [0 -1; 1 0]; [V, D] = eig(A);");
+    EXPECT_NEAR(evalScalar("max(max(abs(A*V - V*D)))"), 0.0, 1e-10);
 }
 
 TEST_F(EigTest, EigNonSquareRejected)
