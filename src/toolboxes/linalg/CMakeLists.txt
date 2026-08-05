@@ -27,6 +27,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/schur_convert.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/ordschur.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/qz.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/gsvd.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)
