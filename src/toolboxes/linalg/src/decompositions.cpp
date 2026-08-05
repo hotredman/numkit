@@ -27,45 +27,7 @@ namespace numkit::linalg {
 // Cholesky
 // ────────────────────────────────────────────────────────────────────────
 
-// Shared raw-buffer kernels (declared in decompositions_detail.hpp) —
-// file-scope external linkage so decompositions_reg.cpp can reach them.
-
-// Build upper-triangular R (column-major, n×n) such that R'·R = A, reading
-// the upper triangle of A. Returns the 1-based column index where the
-// factorization broke down (non-positive pivot), or 0 on success. On
-// failure the leading (return−1)×(return−1) block of r is a valid factor.
-std::size_t cholUpperFactor(const double *a, double *r, std::size_t n)
-{
-    std::fill(r, r + n * n, 0.0);
-    for (std::size_t j = 0; j < n; ++j) {
-        double s = a[j + j * n];
-        for (std::size_t k = 0; k < j; ++k)
-            s -= r[k + j * n] * r[k + j * n];
-        if (s <= 0.0)
-            return j + 1; // 1-based failure column (MATLAB chol's p)
-        r[j + j * n] = std::sqrt(s);
-        const double inv_diag = 1.0 / r[j + j * n];
-        for (std::size_t i = j + 1; i < n; ++i) {
-            double t = a[j + i * n];
-            for (std::size_t k = 0; k < j; ++k)
-                t -= r[k + j * n] * r[k + i * n];
-            r[j + i * n] = t * inv_diag;
-        }
-    }
-    return 0;
-}
-
-// Transpose a square k×k column-major matrix into a fresh Value (used to
-// turn the upper factor R into the lower factor L = R').
-Value transposeSquare(const double *src, std::size_t k, std::pmr::memory_resource *mr)
-{
-    Value out = Value::matrix(k, k, ValueType::DOUBLE, mr);
-    double *d = out.doubleDataMut();
-    for (std::size_t col = 0; col < k; ++col)
-        for (std::size_t row = 0; row < k; ++row)
-            d[row + col * k] = src[col + row * k];
-    return out;
-}
+// Shared raw-buffer kernels (defined as inline templates in decompositions_detail.hpp)
 
 Value chol(const Value &A, std::pmr::memory_resource *mr)
 {
@@ -78,13 +40,21 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
         throw Error("chol: matrix must be square",
                     0, 0, "chol", "", "numkit:chol:notSquare");
     if (m == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return Value::matrix(0, 0, A.type(), mr);
 
-    auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (cholUpperFactor(A.doubleData(), R.doubleDataMut(), n) != 0)
-        throw Error("chol: matrix is not positive-definite",
-                    0, 0, "chol", "", "numkit:chol:notPosDef");
-    return R;
+    if (A.isComplex()) {
+        auto R = Value::complexMatrix(n, n, mr);
+        if (cholUpperFactor(A.complexData(), R.complexDataMut(), n) != 0)
+            throw Error("chol: matrix is not positive-definite",
+                        0, 0, "chol", "", "numkit:chol:notPosDef");
+        return detail::narrow_if_real(R);
+    } else {
+        auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
+        if (cholUpperFactor(A.doubleData(), R.doubleDataMut(), n) != 0)
+            throw Error("chol: matrix is not positive-definite",
+                        0, 0, "chol", "", "numkit:chol:notPosDef");
+        return R;
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────
