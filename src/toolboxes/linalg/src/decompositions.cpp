@@ -434,24 +434,30 @@ namespace {
 
 // One-sided Jacobi SVD: rotates columns of A until they become orthogonal.
 // Caller normalises columns and assembles U, S, V.
-void jacobiSvdInplace(double *A, std::size_t m, std::size_t n,
-                      double *V, std::size_t maxSweeps, double tol)
+template <typename T>
+void jacobiSvdInplace(T *A, std::size_t m, std::size_t n,
+                      T *V, std::size_t maxSweeps, double tol)
 {
-    std::fill(V, V + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i) V[i + i * n] = 1.0;
+    std::fill(V, V + n * n, T(0));
+    for (std::size_t i = 0; i < n; ++i) V[i + i * n] = T(1);
 
-    auto colDot = [&](std::size_t p, std::size_t q) {
-        double s = 0.0;
-        for (std::size_t i = 0; i < m; ++i)
-            s += A[i + p * m] * A[i + q * m];
+    auto colDot = [&](std::size_t p, std::size_t q) -> T {
+        T s(0);
+        for (std::size_t i = 0; i < m; ++i) {
+            if constexpr (detail::is_complex_v<T>) {
+                s += std::conj(A[i + p * m]) * A[i + q * m];
+            } else {
+                s += A[i + p * m] * A[i + q * m];
+            }
+        }
         return s;
     };
-    auto rotateCols = [&](double *M, std::size_t leadDim, std::size_t nrows,
-                          std::size_t p, std::size_t q, double c, double s) {
+    auto rotateCols = [&](T *M, std::size_t leadDim, std::size_t nrows,
+                          std::size_t p, std::size_t q, double c, T s) {
         for (std::size_t i = 0; i < nrows; ++i) {
-            const double mip = M[i + p * leadDim];
-            const double miq = M[i + q * leadDim];
-            M[i + p * leadDim] = c * mip - s * miq;
+            const T mip = M[i + p * leadDim];
+            const T miq = M[i + q * leadDim];
+            M[i + p * leadDim] = c * mip - detail::conj_if_complex(s) * miq;
             M[i + q * leadDim] = s * mip + c * miq;
         }
     };
@@ -460,25 +466,34 @@ void jacobiSvdInplace(double *A, std::size_t m, std::size_t n,
         double off = 0.0;
         for (std::size_t p = 0; p + 1 < n; ++p) {
             for (std::size_t q = p + 1; q < n; ++q) {
-                const double alpha = colDot(p, p);
-                const double beta  = colDot(q, q);
-                const double gamma = colDot(p, q);
+                const double alpha = detail::real_part(colDot(p, p));
+                const double beta  = detail::real_part(colDot(q, q));
+                const T gamma_val  = colDot(p, q);
+                const double abs_gamma = detail::abs_val(gamma_val);
 
                 const double scale = std::sqrt(alpha * beta);
-                if (std::fabs(gamma) <= tol * scale) continue;
-                off += gamma * gamma;
+                if (abs_gamma <= tol * scale) continue;
+                off += abs_gamma * abs_gamma;
 
-                double c, s;
+                double c, s_real;
                 if (alpha == beta) {
                     c = 0.7071067811865476;
-                    s = (gamma >= 0.0 ? 1.0 : -1.0) * c;
+                    s_real = c;
                 } else {
-                    const double tau = (beta - alpha) / (2.0 * gamma);
+                    const double tau = (beta - alpha) / (2.0 * abs_gamma);
                     const double t = (tau >= 0.0)
                         ? 1.0 / (tau + std::sqrt(1.0 + tau * tau))
                         : 1.0 / (tau - std::sqrt(1.0 + tau * tau));
                     c = 1.0 / std::sqrt(1.0 + t * t);
-                    s = t * c;
+                    s_real = t * c;
+                }
+
+                T s;
+                if constexpr (detail::is_complex_v<T>) {
+                    T phase = (abs_gamma > 0.0) ? (gamma_val / abs_gamma) : T(1.0, 0.0);
+                    s = s_real * phase;
+                } else {
+                    s = s_real * (gamma_val >= 0.0 ? 1.0 : -1.0);
                 }
 
                 rotateCols(A, m, m, p, q, c, s);
@@ -502,9 +517,103 @@ svd_decompose(const Value &A, std::pmr::memory_resource *mr)
 
     if (m_in == 0 || n_in == 0) {
         return std::make_tuple(
-            Value::matrix(m_in, m_in, ValueType::DOUBLE, mr),
-            Value::matrix(m_in, n_in, ValueType::DOUBLE, mr),
-            Value::matrix(n_in, n_in, ValueType::DOUBLE, mr));
+            detail::make_matrix<double>(m_in, m_in, mr),
+            detail::make_matrix<double>(m_in, n_in, mr),
+            detail::make_matrix<double>(n_in, n_in, mr));
+    }
+
+    if (A.isComplex()) {
+        const bool transposed = (m_in < n_in);
+        const std::size_t m = transposed ? n_in : m_in;
+        const std::size_t n = transposed ? m_in : n_in;
+
+        ScratchArena scratch(mr);
+        ScratchVec<Complex> A_work(m * n, &scratch);
+        ScratchVec<Complex> V_work(n * n, &scratch);
+
+        const Complex *A_data = A.complexData();
+        if (!transposed) {
+            std::copy(A_data, A_data + m * n, A_work.begin());
+        } else {
+            // Conjugate transpose (Hermitian transpose) for m_in < n_in
+            for (std::size_t j = 0; j < n_in; ++j)
+                for (std::size_t i = 0; i < m_in; ++i)
+                    A_work[j + i * n_in] = std::conj(A_data[i + j * m_in]);
+        }
+
+        jacobiSvdInplace(A_work.data(), m, n, V_work.data(), 64, 1e-13);
+
+        ScratchVec<double> sigma(n, &scratch);
+        ScratchVec<std::size_t> order(n, &scratch);
+        for (std::size_t k = 0; k < n; ++k) {
+            double s = 0.0;
+            for (std::size_t i = 0; i < m; ++i)
+                s += detail::abs_sq(A_work[i + k * m]);
+            sigma[k] = std::sqrt(s);
+            order[k] = k;
+        }
+        std::sort(order.begin(), order.end(),
+                  [&](std::size_t a, std::size_t b) { return sigma[a] > sigma[b]; });
+
+        auto Uout = Value::complexMatrix(m, m, mr);
+        auto Sout = Value::matrix(m, n, ValueType::DOUBLE, mr);
+        auto Vout = Value::complexMatrix(n, n, mr);
+        Complex *U = Uout.complexDataMut();
+        double *S = Sout.doubleDataMut();
+        Complex *V = Vout.complexDataMut();
+        std::fill(U, U + m * m, Complex(0.0, 0.0));
+        std::fill(S, S + m * n, 0.0);
+        std::fill(V, V + n * n, Complex(0.0, 0.0));
+
+        for (std::size_t k = 0; k < n; ++k) {
+            const std::size_t src = order[k];
+            S[k + k * m] = sigma[src];
+            if (sigma[src] > 0.0) {
+                const double inv_s = 1.0 / sigma[src];
+                for (std::size_t i = 0; i < m; ++i)
+                    U[i + k * m] = A_work[i + src * m] * inv_s;
+            }
+            for (std::size_t i = 0; i < n; ++i)
+                V[i + k * n] = V_work[i + src * n];
+        }
+
+        // Gram-Schmidt completion for m > n.
+        for (std::size_t k = n; k < m; ++k) {
+            for (std::size_t i = 0; i < m; ++i) {
+                ScratchVec<Complex> v(m, Complex(0.0, 0.0), &scratch);
+                v[i] = Complex(1.0, 0.0);
+                for (std::size_t kk = 0; kk < k; ++kk) {
+                    Complex dot(0.0, 0.0);
+                    for (std::size_t r = 0; r < m; ++r)
+                        dot += std::conj(U[r + kk * m]) * v[r];
+                    for (std::size_t r = 0; r < m; ++r)
+                        v[r] -= dot * U[r + kk * m];
+                }
+                double nv = 0.0;
+                for (std::size_t r = 0; r < m; ++r) nv += detail::abs_sq(v[r]);
+                if (nv > 1e-20) {
+                    nv = std::sqrt(nv);
+                    for (std::size_t r = 0; r < m; ++r)
+                        U[r + k * m] = v[r] / nv;
+                    break;
+                }
+            }
+        }
+
+        if (!transposed) {
+            return std::make_tuple(detail::narrow_if_real(Uout, mr),
+                                   std::move(Sout),
+                                   detail::narrow_if_real(Vout, mr));
+        }
+        auto S_out_tr = Value::matrix(m_in, n_in, ValueType::DOUBLE, mr);
+        double *St = S_out_tr.doubleDataMut();
+        std::fill(St, St + m_in * n_in, 0.0);
+        const std::size_t k_diag = std::min(m_in, n_in);
+        for (std::size_t k = 0; k < k_diag; ++k)
+            St[k + k * m_in] = S[k + k * m];
+        return std::make_tuple(detail::narrow_if_real(Vout, mr),
+                               std::move(S_out_tr),
+                               detail::narrow_if_real(Uout, mr));
     }
 
     const bool transposed = (m_in < n_in);
