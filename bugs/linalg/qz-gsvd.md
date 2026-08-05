@@ -1,6 +1,6 @@
 # linalg.qz / gsvd — generalized decompositions missing
 
-- **Status:** 🔴 OPEN
+- **Status:** 🟢 CLOSED
 - **Severity:** P2 (missing functions)
 - **Kind:** missing-fn
 - **Found:** 2026-06-04 via missing-fn sweep
