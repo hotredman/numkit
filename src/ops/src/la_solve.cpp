@@ -1,30 +1,51 @@
-// toolboxes/builtin/src/language/operators/la_solve.cpp
+// ops/src/la_solve.cpp
 
 #include <numkit/ops/la_solve.hpp>
-
 #include <numkit/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <cstdint>
 
 namespace numkit::ops {
 
 namespace {
 
+using Complex = std::complex<double>;
+
+template <typename T>
+constexpr bool is_complex_v = false;
+template <typename T>
+constexpr bool is_complex_v<std::complex<T>> = true;
+
+template <typename T>
+inline double abs_val(const T &x) {
+    if constexpr (is_complex_v<T>) return std::abs(x);
+    else return std::fabs(x);
+}
+
+template <typename T>
+inline double abs_sq(const T &x) {
+    if constexpr (is_complex_v<T>) return std::norm(x);
+    else return x * x;
+}
+
+template <typename T>
+inline T conj_val(const T &x) {
+    if constexpr (is_complex_v<T>) return std::conj(x);
+    else return x;
+}
+
 // ── LU with partial pivoting (square A, n×n) ─────────────────────────
-//
-// Decomposes A in place into combined L (unit-diagonal, below) and U
-// (above). piv[k] = row that was swapped into row k at step k.
-// Returns false if a zero pivot is encountered (singular).
-bool lu_partial_pivot(double *A, std::int32_t *piv, std::size_t n)
+template <typename T>
+bool lu_partial_pivot(T *A, std::int32_t *piv, std::size_t n)
 {
     for (std::size_t k = 0; k < n; ++k) {
-        // Pivot search: largest |A[i,k]| for i in [k, n).
         std::size_t pivot_row = k;
-        double pivot_val = std::fabs(A[k + k * n]);
+        double pivot_val = abs_val(A[k + k * n]);
         for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = std::fabs(A[i + k * n]);
+            const double v = abs_val(A[i + k * n]);
             if (v > pivot_val) { pivot_val = v; pivot_row = i; }
         }
         if (pivot_val == 0.0) return false;
@@ -33,9 +54,9 @@ bool lu_partial_pivot(double *A, std::int32_t *piv, std::size_t n)
             for (std::size_t j = 0; j < n; ++j)
                 std::swap(A[k + j * n], A[pivot_row + j * n]);
         }
-        const double inv_pivot = 1.0 / A[k + k * n];
+        const T inv_pivot = T(1) / A[k + k * n];
         for (std::size_t i = k + 1; i < n; ++i) {
-            const double factor = A[i + k * n] * inv_pivot;
+            const T factor = A[i + k * n] * inv_pivot;
             A[i + k * n] = factor;
             for (std::size_t j = k + 1; j < n; ++j)
                 A[i + j * n] -= factor * A[k + j * n];
@@ -44,7 +65,6 @@ bool lu_partial_pivot(double *A, std::int32_t *piv, std::size_t n)
     return true;
 }
 
-// Apply piv to a length-n column: bx[k] <-> bx[piv[k]] in step order.
 inline void apply_piv(const std::int32_t *piv, double *bx, std::size_t n)
 {
     for (std::size_t k = 0; k < n; ++k) {
@@ -53,125 +73,133 @@ inline void apply_piv(const std::int32_t *piv, double *bx, std::size_t n)
     }
 }
 
-// Solve LU·x = P·b in place. LU has unit-diagonal L below, U above.
-void lu_solve_one(const double *LU, const std::int32_t *piv,
-                  double *bx, std::size_t n)
+inline void apply_piv(const std::int32_t *piv, Complex *bx, std::size_t n)
+{
+    for (std::size_t k = 0; k < n; ++k) {
+        const std::size_t p = static_cast<std::size_t>(piv[k]);
+        if (p != k) std::swap(bx[k], bx[p]);
+    }
+}
+
+template <typename T>
+void lu_solve_one(const T *LU, const std::int32_t *piv,
+                  T *bx, std::size_t n)
 {
     apply_piv(piv, bx, n);
-    // Forward solve: L·z = P·b (L unit-diagonal)
     for (std::size_t i = 1; i < n; ++i) {
-        double s = bx[i];
+        T s = bx[i];
         for (std::size_t k = 0; k < i; ++k) s -= LU[i + k * n] * bx[k];
         bx[i] = s;
     }
-    // Backward solve: U·x = z
     for (std::size_t i = n; i-- > 0;) {
-        double s = bx[i];
+        T s = bx[i];
         for (std::size_t k = i + 1; k < n; ++k) s -= LU[i + k * n] * bx[k];
         bx[i] = s / LU[i + i * n];
     }
 }
 
 // ── QR via Householder (tall A, m×n with m >= n) ─────────────────────
-//
-// In-place: A becomes the upper-triangular R (top n×n) plus garbage below;
-// B (m×nrhs) becomes Q^T·B (only first n rows are used). Then back-solve
-// R·X = (Q^T·B)[0:n] gives the least-squares solution X (n×nrhs).
-//
-// Returns false if a zero column-norm is hit (rank-deficient A) or if
-// the resulting R has a zero diagonal entry.
-bool qr_solve_house(double *A, std::size_t m, std::size_t n, double *B, std::size_t nrhs, double *X, std::pmr::memory_resource *mr)
+template <typename T>
+bool qr_solve_house(T *A, std::size_t m, std::size_t n, T *B, std::size_t nrhs, T *X, std::pmr::memory_resource *mr)
 {
-    ScratchVec<double> v(m, mr);
+    ScratchVec<T> v(m, mr);
 
     for (std::size_t k = 0; k < n; ++k) {
-        // Compute ||A[k:m, k]||
         double norm_sq = 0.0;
         for (std::size_t i = k; i < m; ++i) {
-            const double e = A[i + k * m];
-            norm_sq += e * e;
+            norm_sq += abs_sq(A[i + k * m]);
         }
         if (norm_sq == 0.0) return false;
 
-        const double xk    = A[k + k * m];
-        const double norm  = std::sqrt(norm_sq);
-        // Choose sign of alpha to avoid cancellation in (xk - alpha).
-        const double alpha = (xk >= 0.0) ? -norm : norm;
+        const T xk = A[k + k * m];
+        const double norm = std::sqrt(norm_sq);
 
-        // Build full Householder vector v[k:m]: v[k] = xk - alpha, v[i>k] = A[i+k*m].
+        T alpha;
+        if constexpr (is_complex_v<T>) {
+            double ax = std::abs(xk);
+            T phase = (ax > 0.0) ? (xk / ax) : T(1.0, 0.0);
+            alpha = -phase * norm;
+        } else {
+            alpha = (xk >= 0.0) ? -norm : norm;
+        }
+
         v[k] = xk - alpha;
         for (std::size_t i = k + 1; i < m; ++i) v[i] = A[i + k * m];
 
-        double v_norm_sq = v[k] * v[k];
-        for (std::size_t i = k + 1; i < m; ++i) v_norm_sq += v[i] * v[i];
+        double v_norm_sq = abs_sq(v[k]);
+        for (std::size_t i = k + 1; i < m; ++i) v_norm_sq += abs_sq(v[i]);
         if (v_norm_sq == 0.0) {
             A[k + k * m] = alpha;
             continue;
         }
         const double tau = 2.0 / v_norm_sq;
 
-        // Apply H = I - tau·v·v^T to A[k:m, k+1:n] (skip column k — we'll
-        // overwrite its diagonal with alpha and don't need the rest).
         for (std::size_t j = k + 1; j < n; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i) dot += v[i] * A[i + j * m];
-            const double s = tau * dot;
+            T dot(0);
+            for (std::size_t i = k; i < m; ++i) dot += conj_val(v[i]) * A[i + j * m];
+            const T s = T(tau) * dot;
             for (std::size_t i = k; i < m; ++i) A[i + j * m] -= s * v[i];
         }
-        // Apply H to B[k:m, :]
         for (std::size_t j = 0; j < nrhs; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i) dot += v[i] * B[i + j * m];
-            const double s = tau * dot;
+            T dot(0);
+            for (std::size_t i = k; i < m; ++i) dot += conj_val(v[i]) * B[i + j * m];
+            const T s = T(tau) * dot;
             for (std::size_t i = k; i < m; ++i) B[i + j * m] -= s * v[i];
         }
 
-        A[k + k * m] = alpha;  // Diagonal entry of R.
+        A[k + k * m] = alpha;
     }
 
-    // Back-solve R·X = (Q^T·B)[0:n, :] where R is upper-triangular n×n
-    // stored in the top of A (column-major, leading-dim m).
     for (std::size_t j = 0; j < nrhs; ++j) {
         for (std::size_t i = n; i-- > 0;) {
-            double s = B[i + j * m];
+            T s = B[i + j * m];
             for (std::size_t k = i + 1; k < n; ++k)
                 s -= A[i + k * m] * X[k + j * n];
-            const double r_ii = A[i + i * m];
-            if (r_ii == 0.0) return false;
+            const T r_ii = A[i + i * m];
+            if (abs_val(r_ii) == 0.0) return false;
             X[i + j * n] = s / r_ii;
         }
     }
     return true;
 }
 
-} // anonymous namespace
-
-bool la_solve(const double *A, std::size_t m, std::size_t n, const double *B, std::size_t nrhs, double *X, std::pmr::memory_resource *mr)
+template <typename T>
+bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::size_t nrhs, T *X, std::pmr::memory_resource *mr)
 {
     if (m < n || m == 0 || n == 0 || nrhs == 0) return false;
 
     ScratchArena arena(mr);
 
     if (m == n) {
-        // Square: LU with partial pivoting.
-        ScratchVec<double> A_lu(n * n, &arena);
+        ScratchVec<T> A_lu(n * n, &arena);
         std::copy(A, A + n * n, A_lu.begin());
         ScratchVec<std::int32_t> piv(n, &arena);
         if (!lu_partial_pivot(A_lu.data(), piv.data(), n)) return false;
         for (std::size_t j = 0; j < nrhs; ++j) {
-            double *xj = X + j * n;
+            T *xj = X + j * n;
             for (std::size_t i = 0; i < n; ++i) xj[i] = B[i + j * n];
             lu_solve_one(A_lu.data(), piv.data(), xj, n);
         }
         return true;
     }
 
-    // Tall (m > n): QR via Householder + back-solve.
-    ScratchVec<double> A_qr(m * n, &arena);
-    ScratchVec<double> B_qr(m * nrhs, &arena);
+    ScratchVec<T> A_qr(m * n, &arena);
+    ScratchVec<T> B_qr(m * nrhs, &arena);
     std::copy(A, A + m * n, A_qr.begin());
     std::copy(B, B + m * nrhs, B_qr.begin());
     return qr_solve_house(A_qr.data(), m, n, B_qr.data(), nrhs, X, &arena);
+}
+
+} // anonymous namespace
+
+bool la_solve(const double *A, std::size_t m, std::size_t n, const double *B, std::size_t nrhs, double *X, std::pmr::memory_resource *mr)
+{
+    return la_solve_impl(A, m, n, B, nrhs, X, mr);
+}
+
+bool la_solve(const std::complex<double> *A, std::size_t m, std::size_t n, const std::complex<double> *B, std::size_t nrhs, std::complex<double> *X, std::pmr::memory_resource *mr)
+{
+    return la_solve_impl(A, m, n, B, nrhs, X, mr);
 }
 
 } // namespace numkit::ops

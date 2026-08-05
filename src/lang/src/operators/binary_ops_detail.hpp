@@ -77,6 +77,22 @@ void copyColumnMajorDouble(const Value &v, double *dst)
     }
 }
 
+inline Value narrowIfReal(const Value &val, std::pmr::memory_resource *mr) {
+    if (!val.isComplex()) return val;
+    const std::complex<double> *cd = val.complexData();
+    const std::size_t num = val.numel();
+    for (std::size_t i = 0; i < num; ++i) {
+        if (std::abs(cd[i].imag()) > 1e-14 * (1.0 + std::abs(cd[i].real())))
+            return val;
+    }
+    const std::size_t rows = val.dims().rows();
+    const std::size_t cols = val.dims().cols();
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t i = 0; i < num; ++i) od[i] = cd[i].real();
+    return out;
+}
+
 // Solve A·X = B via la_solve, packed up as Value math. A is m×n, B is m×k.
 // Output is n×k. Uses scratch arena; final result is placed on `mr`.
 Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::memory_resource *mr)
@@ -95,6 +111,32 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
                     std::string("numkit:") + opname + ":wide");
 
     ScratchArena arena(mr);
+
+    if (A.isComplex() || B.isComplex()) {
+        using Complex = std::complex<double>;
+        ScratchVec<Complex> A_buf(m * n, &arena);
+        ScratchVec<Complex> B_buf(m * k, &arena);
+        if (A.isComplex()) {
+            std::copy(A.complexData(), A.complexData() + m * n, A_buf.begin());
+        } else {
+            const double *ad = A.doubleData();
+            for (std::size_t i = 0; i < m * n; ++i) A_buf[i] = Complex(ad[i], 0.0);
+        }
+        if (B.isComplex()) {
+            std::copy(B.complexData(), B.complexData() + m * k, B_buf.begin());
+        } else {
+            const double *bd = B.doubleData();
+            for (std::size_t i = 0; i < m * k; ++i) B_buf[i] = Complex(bd[i], 0.0);
+        }
+        Value X = Value::complexMatrix(n, k, mr);
+        if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), k, X.complexDataMut(), &arena))
+            throw Error(std::string(opname)
+                        + ": matrix is singular or rank-deficient",
+                        0, 0, opname, "",
+                        std::string("numkit:") + opname + ":singular");
+        return narrowIfReal(X, mr);
+    }
+
     ScratchVec<double> A_buf(m * n, &arena);
     ScratchVec<double> B_buf(m * k, &arena);
     copyColumnMajorDouble(A, A_buf.data());

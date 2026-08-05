@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <complex>
 #include <cstddef>
 #include <memory_resource>
 
@@ -32,6 +33,11 @@ namespace numkit::ops {
 bool la_solve(const double *A, std::size_t m, std::size_t n,
               const double *B, std::size_t nrhs,
               double *X,
+              std::pmr::memory_resource *mr);
+
+bool la_solve(const std::complex<double> *A, std::size_t m, std::size_t n,
+              const std::complex<double> *B, std::size_t nrhs,
+              std::complex<double> *X,
               std::pmr::memory_resource *mr);
 
 } // namespace numkit::ops

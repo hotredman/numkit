@@ -1,6 +1,7 @@
 // toolboxes/builtin/src/lang/operators/binary_ops.cpp
 
 #include <numkit/lang/operators/binary_ops.hpp>
+#include <numkit/lang/operators/unary_ops.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -222,31 +223,27 @@ Value mrdivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
         return mrdivide(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
-    if (a.isComplex() || b.isComplex())
-        return elementwiseComplex(a, b, std::divides<Complex>{}, p);
     {
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateDiv(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    if (a.type() == ValueType::DOUBLE && b.isScalar())
+    if (b.isScalar()) {
+        if (a.isComplex() || b.isComplex())
+            return elementwiseComplex(a, b, std::divides<Complex>{}, p);
         return elementwiseDouble(a, b, std::divides<double>{}, p);
-    if (a.isScalar() && b.isScalar())
-        return Value::scalar(a.toScalar() / b.toScalar(), p);
+    }
     if (a.isScalar() && !b.isScalar()) {
         // Per MATLAB R2025b: `2 / [1 2; 3 4]` errors with "Matrix
-        // dimensions must agree". Match that behavior — do NOT silently
-        // expand to scalar·inv(B).
+        // dimensions must agree". Match that behavior.
         throw Error("mrdivide: matrix dimensions must agree",
                     0, 0, "mrdivide", "", "numkit:mrdivide:dim");
     }
     // Matrix right division: X = A / B  ↔  X · B = A.
-    // Standard identity: X = (B' \ A')'. Same LU/QR primitives as mldivide.
-    {
-        Value Bt = transposeDouble(b, p);
-        Value At = transposeDouble(a, p);
-        Value Y  = matrixSolve(Bt, At, "mrdivide", p);
-        return transposeDouble(Y, p);
-    }
+    // Standard identity: X = (B' \ A')'.
+    Value Bt = ctranspose(b, p);
+    Value At = ctranspose(a, p);
+    Value Y  = mldivide(Bt, At, p);
+    return ctranspose(Y, p);
 }
 
 Value mldivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
@@ -256,16 +253,22 @@ Value mldivide(const Value &a, const Value &b, std::pmr::memory_resource *mr)
         return emptyArithResult(a, b, p);
     if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
         return mldivide(coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p), p);
-    if (a.isComplex() || b.isComplex())
-        throw Error("mldivide: complex matrix systems not yet supported",
-                    0, 0, "mldivide", "", "numkit:mldivide:complex");
-    if (a.isScalar() && b.isScalar())
+    if (a.isScalar() && b.isScalar()) {
+        if (a.isComplex() || b.isComplex()) {
+            Complex ca = a.isComplex() ? a.complexData()[0] : Complex(a.doubleData()[0], 0.0);
+            Complex cb = b.isComplex() ? b.complexData()[0] : Complex(b.doubleData()[0], 0.0);
+            Complex res = cb / ca;
+            return narrowIfReal(Value::complexScalar(res.real(), res.imag(), p), p);
+        }
         return Value::scalar(b.toScalar() / a.toScalar(), p);
+    }
     if (a.isScalar() && !b.isScalar()) {
         // Scalar A: X = B / A elementwise.
+        if (a.isComplex() || b.isComplex())
+            return elementwiseComplex(b, a, std::divides<Complex>{}, p);
         return elementwiseDouble(b, a, std::divides<double>{}, p);
     }
-    // Matrix left division: A·X = B.  Square → LU; tall → QR (LSQ).
+    // Matrix left division: A·X = B via matrixSolve (square LU or rectangular QR LSQ).
     return matrixSolve(a, b, "mldivide", p);
 }
 
