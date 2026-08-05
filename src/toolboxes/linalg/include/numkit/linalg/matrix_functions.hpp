@@ -16,13 +16,23 @@ namespace numkit::linalg {
 Value expm(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Matrix logarithm for symmetric positive-definite A.
-///
-/// Via eigendecomposition: `logm(A) = V · diag(log(eig)) · V'`.
-/// General logm requires complex Schur (deferred).
 Value logm_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Matrix square root for symmetric PSD A.
 Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Matrix square root for general square matrix A (`R = sqrtm(A)`).
+/// Via Björck–Hammarling recurrence on Schur form.
+Value sqrtm(const Value &A, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Matrix logarithm for general square matrix A (`L = logm(A)`).
+/// Via Schur decomposition and inverse scaling-and-squaring.
+Value logm(const Value &A, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Solve Sylvester equation `A · X + X · B = C` (`X = sylvester(A, B, C)`).
+/// Via Bartels–Stewart algorithm on Schur forms.
+Value sylvester(const Value &A, const Value &B, const Value &C,
+                std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Action of matrix exponential on a vector (`w = expmv(t, A, v)`).
 ///

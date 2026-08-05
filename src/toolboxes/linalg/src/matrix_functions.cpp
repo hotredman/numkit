@@ -4,6 +4,8 @@
 // Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/matrix.cpp.
 
 #include <numkit/linalg/matrix_functions.hpp>
+#include <numkit/linalg/decompositions.hpp>
+#include "linalg_detail.hpp"
 
 #include <numkit/linalg/eig.hpp>                  // eig_symmetric
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
@@ -195,6 +197,324 @@ Value sqrtm_sym(const Value &A, std::pmr::memory_resource *mr)
 {
     return applyScalarFnSym(A, [](double x) { return std::sqrt(x); },
                             "sqrtm", "numkit:sqrtm:negativeEigenvalue", mr);
+}
+
+Value sqrtm(const Value &A, std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("sqrtm: input must be a 2D matrix", 0, 0, "sqrtm", "", "numkit:sqrtm:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    if (n != static_cast<std::size_t>(A.dims().dim(1)))
+        throw Error("sqrtm: matrix must be square", 0, 0, "sqrtm", "", "numkit:sqrtm:notSquare");
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Schur decomposition A = U * T * U^H
+    auto [U, T] = schur_general(A, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<Complex> Tc(n * n, &scratch);
+    ScratchVec<Complex> Uc(n * n, &scratch);
+    ScratchVec<Complex> Rc(n * n, Complex(0.0, 0.0), &scratch);
+
+    if (T.isComplex()) {
+        std::copy(T.complexData(), T.complexData() + n * n, Tc.begin());
+    } else {
+        const double *td = T.doubleData();
+        for (std::size_t i = 0; i < n * n; ++i) Tc[i] = Complex(td[i], 0.0);
+    }
+    if (U.isComplex()) {
+        std::copy(U.complexData(), U.complexData() + n * n, Uc.begin());
+    } else {
+        const double *ud = U.doubleData();
+        for (std::size_t i = 0; i < n * n; ++i) Uc[i] = Complex(ud[i], 0.0);
+    }
+
+    // Björck–Hammarling algorithm for R^2 = T:
+    // Diagonal entries: R_{i,i} = sqrt(T_{i,i})
+    for (std::size_t i = 0; i < n; ++i) {
+        Rc[i + i * n] = std::sqrt(Tc[i + i * n]);
+    }
+
+    // Off-diagonal entries:
+    for (std::size_t j = 1; j < n; ++j) {
+        for (std::intptr_t i = static_cast<std::intptr_t>(j) - 1; i >= 0; --i) {
+            std::size_t ui = static_cast<std::size_t>(i);
+            Complex sum = Tc[ui + j * n];
+            for (std::size_t k = ui + 1; k < j; ++k) {
+                sum -= Rc[ui + k * n] * Rc[k + j * n];
+            }
+            Complex denom = Rc[ui + ui * n] + Rc[j + j * n];
+            if (std::abs(denom) < 1e-14) {
+                denom = Complex(1e-14, 0.0);
+            }
+            Rc[ui + j * n] = sum / denom;
+        }
+    }
+
+    // Reconstruct X = U * R * U^H
+    auto out = Value::complexMatrix(n, n, mr);
+    Complex *Xd = out.complexDataMut();
+    std::fill(Xd, Xd + n * n, Complex(0.0, 0.0));
+
+    ScratchVec<Complex> RUh(n * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = i; k < n; ++k) { // R is upper triangular
+                s += Rc[i + k * n] * std::conj(Uc[j + k * n]);
+            }
+            RUh[i + j * n] = s;
+        }
+    }
+
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = 0; k < n; ++k) {
+                s += Uc[i + k * n] * RUh[k + j * n];
+            }
+            Xd[i + j * n] = s;
+        }
+    }
+
+    return detail::narrow_if_real(out, mr);
+}
+
+Value sylvester(const Value &A, const Value &B, const Value &C, std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2 || B.dims().ndim() != 2 || C.dims().ndim() != 2)
+        throw Error("sylvester: inputs must be 2D matrices", 0, 0, "sylvester", "", "numkit:sylvester:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    if (m != static_cast<std::size_t>(A.dims().dim(1)))
+        throw Error("sylvester: A must be square", 0, 0, "sylvester", "", "numkit:sylvester:badA");
+    const std::size_t n = static_cast<std::size_t>(B.dims().dim(0));
+    if (n != static_cast<std::size_t>(B.dims().dim(1)))
+        throw Error("sylvester: B must be square", 0, 0, "sylvester", "", "numkit:sylvester:badB");
+    if (static_cast<std::size_t>(C.dims().dim(0)) != m || static_cast<std::size_t>(C.dims().dim(1)) != n)
+        throw Error("sylvester: C dimensions must be m x n", 0, 0, "sylvester", "", "numkit:sylvester:badC");
+
+    if (m == 0 || n == 0) return Value::matrix(m, n, ValueType::DOUBLE, mr);
+
+    // Schur decompositions: A = U_A * T_A * U_A^H, B = U_B * T_B * U_B^H
+    auto [U_A, T_A] = schur_general(A, mr);
+    auto [U_B, T_B] = schur_general(B, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<Complex> Ta(m * m, &scratch);
+    ScratchVec<Complex> Ua(m * m, &scratch);
+    ScratchVec<Complex> Tb(n * n, &scratch);
+    ScratchVec<Complex> Ub(n * n, &scratch);
+    ScratchVec<Complex> Cc(m * n, &scratch);
+
+    auto toComplex = [](const Value &V, std::size_t rows, std::size_t cols, Complex *out) {
+        if (V.isComplex()) {
+            std::copy(V.complexData(), V.complexData() + rows * cols, out);
+        } else {
+            const double *vd = V.doubleData();
+            for (std::size_t i = 0; i < rows * cols; ++i) out[i] = Complex(vd[i], 0.0);
+        }
+    };
+
+    toComplex(T_A, m, m, Ta.data());
+    toComplex(U_A, m, m, Ua.data());
+    toComplex(T_B, n, n, Tb.data());
+    toComplex(U_B, n, n, Ub.data());
+    toComplex(C, m, n, Cc.data());
+
+    // C_tilde = U_A^H * C * U_B
+    ScratchVec<Complex> UaH_C(m * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = 0; k < m; ++k) {
+                s += std::conj(Ua[k + i * m]) * Cc[k + j * m];
+            }
+            UaH_C[i + j * m] = s;
+        }
+    }
+    ScratchVec<Complex> C_tilde(m * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = 0; k < n; ++k) {
+                s += UaH_C[i + k * m] * Ub[k + j * n];
+            }
+            C_tilde[i + j * m] = s;
+        }
+    }
+
+    // Bartels–Stewart algorithm: solve T_A * Y + Y * T_B = C_tilde
+    ScratchVec<Complex> Y(m * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t j = 0; j < n; ++j) {
+        for (std::intptr_t i = static_cast<std::intptr_t>(m) - 1; i >= 0; --i) {
+            std::size_t ui = static_cast<std::size_t>(i);
+            Complex s = C_tilde[ui + j * m];
+            for (std::size_t k = ui + 1; k < m; ++k) {
+                s -= Ta[ui + k * m] * Y[k + j * m];
+            }
+            for (std::size_t k = 0; k < j; ++k) {
+                s -= Y[ui + k * m] * Tb[k + j * n];
+            }
+            Complex denom = Ta[ui + ui * m] + Tb[j + j * n];
+            if (std::abs(denom) < 1e-14) {
+                denom = Complex(1e-14, 0.0);
+            }
+            Y[ui + j * m] = s / denom;
+        }
+    }
+
+    // Reconstruct X = U_A * Y * U_B^H
+    ScratchVec<Complex> Ua_Y(m * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = 0; k < m; ++k) {
+                s += Ua[i + k * m] * Y[k + j * m];
+            }
+            Ua_Y[i + j * m] = s;
+        }
+    }
+
+    auto out = Value::complexMatrix(m, n, mr);
+    Complex *Xd = out.complexDataMut();
+    for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = 0; k < n; ++k) {
+                s += Ua_Y[i + k * m] * std::conj(Ub[j + k * n]);
+            }
+            Xd[i + j * m] = s;
+        }
+    }
+
+    return detail::narrow_if_real(out, mr);
+}
+
+Value logm(const Value &A, std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("logm: input must be a 2D matrix", 0, 0, "logm", "", "numkit:logm:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    if (n != static_cast<std::size_t>(A.dims().dim(1)))
+        throw Error("logm: matrix must be square", 0, 0, "logm", "", "numkit:logm:notSquare");
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Schur decomposition A = U * T * U^H
+    auto [U, T] = schur_general(A, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<Complex> Tc(n * n, &scratch);
+    ScratchVec<Complex> Uc(n * n, &scratch);
+
+    if (T.isComplex()) {
+        std::copy(T.complexData(), T.complexData() + n * n, Tc.begin());
+    } else {
+        const double *td = T.doubleData();
+        for (std::size_t i = 0; i < n * n; ++i) Tc[i] = Complex(td[i], 0.0);
+    }
+    if (U.isComplex()) {
+        std::copy(U.complexData(), U.complexData() + n * n, Uc.begin());
+    } else {
+        const double *ud = U.doubleData();
+        for (std::size_t i = 0; i < n * n; ++i) Uc[i] = Complex(ud[i], 0.0);
+    }
+
+    // Inverse scaling and squaring on triangular T:
+    // Compute T_s = sqrtm^{s}(T) until ||T_s - I||_1 < 0.5
+    int s_count = 0;
+    auto matDiffNorm = [](const Complex *M, std::size_t n) -> double {
+        double max_col = 0.0;
+        for (std::size_t j = 0; j < n; ++j) {
+            double col_sum = 0.0;
+            for (std::size_t i = 0; i < n; ++i) {
+                Complex diff = (i == j) ? (M[i + j * n] - Complex(1.0, 0.0)) : M[i + j * n];
+                col_sum += std::abs(diff);
+            }
+            max_col = std::max(max_col, col_sum);
+        }
+        return max_col;
+    };
+
+    while (s_count < 32 && matDiffNorm(Tc.data(), n) > 0.5) {
+        ScratchVec<Complex> Tc_next(n * n, Complex(0.0, 0.0), &scratch);
+        for (std::size_t i = 0; i < n; ++i) Tc_next[i + i * n] = std::sqrt(Tc[i + i * n]);
+        for (std::size_t j = 1; j < n; ++j) {
+            for (std::intptr_t i = static_cast<std::intptr_t>(j) - 1; i >= 0; --i) {
+                std::size_t ui = static_cast<std::size_t>(i);
+                Complex sum = Tc[ui + j * n];
+                for (std::size_t k = ui + 1; k < j; ++k) {
+                    sum -= Tc_next[ui + k * n] * Tc_next[k + j * n];
+                }
+                Complex denom = Tc_next[ui + ui * n] + Tc_next[j + j * n];
+                if (std::abs(denom) < 1e-14) denom = Complex(1e-14, 0.0);
+                Tc_next[ui + j * n] = sum / denom;
+            }
+        }
+        std::copy(Tc_next.begin(), Tc_next.end(), Tc.begin());
+        s_count++;
+    }
+
+    // Taylor series log(I + E) = sum_{k=1}^16 (-1)^{k-1}/k E^k on upper-triangular E
+    ScratchVec<Complex> E(n * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            E[i + j * n] = (i == j) ? (Tc[i + j * n] - Complex(1.0, 0.0)) : Tc[i + j * n];
+        }
+    }
+
+    ScratchVec<Complex> logT(n * n, Complex(0.0, 0.0), &scratch);
+    ScratchVec<Complex> Ek(n * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < n; ++i) Ek[i + i * n] = Complex(1.0, 0.0); // E^0
+
+    for (int k = 1; k <= 24; ++k) {
+        // Ek = Ek * E
+        ScratchVec<Complex> Ek_next(n * n, Complex(0.0, 0.0), &scratch);
+        for (std::size_t i = 0; i < n; ++i) {
+            for (std::size_t j = i; j < n; ++j) {
+                Complex sum(0.0, 0.0);
+                for (std::size_t l = i; l <= j; ++l) {
+                    sum += Ek[i + l * n] * E[l + j * n];
+                }
+                Ek_next[i + j * n] = sum;
+            }
+        }
+        std::copy(Ek_next.begin(), Ek_next.end(), Ek.begin());
+
+        double coef = ((k % 2 == 1) ? 1.0 : -1.0) / static_cast<double>(k);
+        for (std::size_t i = 0; i < n * n; ++i) {
+            logT[i] += coef * Ek[i];
+        }
+    }
+
+    // Multiply by 2^s
+    double scale = std::pow(2.0, s_count);
+    for (std::size_t i = 0; i < n * n; ++i) logT[i] *= scale;
+
+    // Reconstruct X = U * logT * U^H
+    ScratchVec<Complex> logT_Uh(n * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = i; k < n; ++k) {
+                s += logT[i + k * n] * std::conj(Uc[j + k * n]);
+            }
+            logT_Uh[i + j * n] = s;
+        }
+    }
+
+    auto out = Value::complexMatrix(n, n, mr);
+    Complex *Xd = out.complexDataMut();
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = 0; k < n; ++k) {
+                s += Uc[i + k * n] * logT_Uh[k + j * n];
+            }
+            Xd[i + j * n] = s;
+        }
+    }
+
+    return detail::narrow_if_real(out, mr);
 }
 
 // ────────────────────────────────────────────────────────────────────────
