@@ -18,12 +18,12 @@ matrices everywhere. (`trace` — a trivial diagonal sum — was fixed
 | `inv(B)` ✅ FIXED 2026-08-05 | (complex inverse) | (complex inverse) |
 | `eig(B)` | Not a double array | `[-0.2474+0.5460i, 5.2474-0.5460i]` |
 | `svd(B)` | Not a double array | `S(1,1)=5.6289` |
-| `qr(B)` | Not a double array | complex Q,R |
+| `qr(B)` ✅ FIXED 2026-08-05 | complex Q,R | complex Q,R |
 | `lu(B)` ✅ FIXED 2026-08-05 | complex L,U,P | complex L,U,P |
 | `chol([2 1i;-1i 2])` | Not a double array | `[1.4142, 0.7071i; 0, …]` |
 | `rank(B)` | Not a double array | `2` |
 | `pinv(B)` | Not a double array | complex pseudo-inverse |
-| `B\b` (square) ✅ FIXED 2026-08-05 | complex solve | complex solve |
+| `B\b` (square & LSQ) ✅ FIXED 2026-08-05 | complex solve | complex solve |
 
 ## Root cause
 The linalg kernels read `x.doubleData()` (real storage) with no
