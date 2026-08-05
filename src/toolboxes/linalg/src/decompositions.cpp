@@ -166,102 +166,118 @@ Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
 namespace {
 
 // Householder QR with explicit Q construction. Decomposes m×n A
-// (m >= n) into Q (m×m orthogonal) and R (m×n upper-triangular).
-void qrFullHouseholder(const double *A_in, std::size_t m, std::size_t n,
-                       double *Qout, double *Rout,
+// (m >= n) into Q (m×m orthogonal/unitary) and R (m×n upper-triangular).
+template <typename T>
+void qrFullHouseholder(const T *A_in, std::size_t m, std::size_t n,
+                       T *Qout, T *Rout,
                        std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    ScratchVec<double> R_work(m * n, &scratch);
-    ScratchVec<double> V(m * n, 0.0, &scratch);
-    ScratchVec<double> tau(n, 0.0, &scratch);
+    ScratchVec<T> R_work(m * n, &scratch);
+    ScratchVec<T> V(m * n, T(0), &scratch);
+    ScratchVec<T> tau(n, T(0), &scratch);
     std::copy(A_in, A_in + m * n, R_work.begin());
 
     for (std::size_t k = 0; k < n; ++k) {
         double norm_sq = 0.0;
         for (std::size_t i = k; i < m; ++i) {
-            const double e = R_work[i + k * m];
-            norm_sq += e * e;
+            norm_sq += detail::abs_sq(R_work[i + k * m]);
         }
         if (norm_sq == 0.0) {
-            tau[k] = 0.0;
+            tau[k] = T(0);
             continue;
         }
-        const double xk = R_work[k + k * m];
+        const T xk = R_work[k + k * m];
         const double norm = std::sqrt(norm_sq);
-        const double alpha = (xk >= 0.0) ? -norm : norm;
+
+        T alpha;
+        if constexpr (detail::is_complex_v<T>) {
+            const double abs_xk = std::abs(xk);
+            const T phase = (abs_xk > 0.0) ? (xk / abs_xk) : T(1.0, 0.0);
+            alpha = -phase * norm;
+        } else {
+            alpha = (xk >= 0.0) ? -norm : norm;
+        }
+
         V[k + k * m] = xk - alpha;
         for (std::size_t i = k + 1; i < m; ++i)
             V[i + k * m] = R_work[i + k * m];
+
         double v_norm_sq = 0.0;
         for (std::size_t i = k; i < m; ++i)
-            v_norm_sq += V[i + k * m] * V[i + k * m];
+            v_norm_sq += detail::abs_sq(V[i + k * m]);
+
         if (v_norm_sq == 0.0) {
             R_work[k + k * m] = alpha;
-            tau[k] = 0.0;
+            tau[k] = T(0);
             continue;
         }
-        tau[k] = 2.0 / v_norm_sq;
+        tau[k] = T(2.0 / v_norm_sq);
         for (std::size_t j = k + 1; j < n; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i)
-                dot += V[i + k * m] * R_work[i + j * m];
-            const double s = tau[k] * dot;
+            T dot = T(0);
+            for (std::size_t i = k; i < m; ++i) {
+                if constexpr (detail::is_complex_v<T>) {
+                    dot += std::conj(V[i + k * m]) * R_work[i + j * m];
+                } else {
+                    dot += V[i + k * m] * R_work[i + j * m];
+                }
+            }
+            const T s = tau[k] * dot;
             for (std::size_t i = k; i < m; ++i)
                 R_work[i + j * m] -= s * V[i + k * m];
         }
         R_work[k + k * m] = alpha;
         for (std::size_t i = k + 1; i < m; ++i)
-            R_work[i + k * m] = 0.0;
+            R_work[i + k * m] = T(0);
     }
 
     for (std::size_t j = 0; j < n; ++j)
         for (std::size_t i = 0; i < m; ++i)
-            Rout[i + j * m] = (i <= j) ? R_work[i + j * m] : 0.0;
+            Rout[i + j * m] = (i <= j) ? R_work[i + j * m] : T(0);
 
-    std::fill(Qout, Qout + m * m, 0.0);
+    std::fill(Qout, Qout + m * m, T(0));
     for (std::size_t i = 0; i < m; ++i)
-        Qout[i + i * m] = 1.0;
+        Qout[i + i * m] = T(1);
+
     for (std::size_t kk = n; kk-- > 0;) {
         const std::size_t k = kk;
-        if (tau[k] == 0.0) continue;
+        if (detail::abs_sq(tau[k]) == 0.0) continue;
         for (std::size_t j = 0; j < m; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i)
-                dot += V[i + k * m] * Qout[i + j * m];
-            const double s = tau[k] * dot;
+            T dot = T(0);
+            for (std::size_t i = k; i < m; ++i) {
+                if constexpr (detail::is_complex_v<T>) {
+                    dot += std::conj(V[i + k * m]) * Qout[i + j * m];
+                } else {
+                    dot += V[i + k * m] * Qout[i + j * m];
+                }
+            }
+            const T s = tau[k] * dot;
             for (std::size_t i = k; i < m; ++i)
                 Qout[i + j * m] -= s * V[i + k * m];
         }
     }
 }
 
-// Column-pivoted Householder QR: A·P = Q·R, columns pivoted by decreasing
-// 2-norm of the not-yet-triangularized part (LAPACK xGEQP3 order). `permOut[k]`
-// is the original column index now in position k. The pivot norms are
-// recomputed exactly each step (robust; matches MATLAB's pivot order in
-// non-degenerate cases). The reflector is identical to the unpivoted path, so
-// Q/R share MATLAB's sign convention.
-void qrPivotedHouseholder(const double *A_in, std::size_t m, std::size_t n,
-                          double *Qout, double *Rout, std::size_t *permOut,
+// Column-pivoted Householder QR: A·P = Q·R
+template <typename T>
+void qrPivotedHouseholder(const T *A_in, std::size_t m, std::size_t n,
+                          T *Qout, T *Rout, std::size_t *permOut,
                           std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
-    ScratchVec<double> R_work(m * n, &scratch);
-    ScratchVec<double> V(m * n, 0.0, &scratch);
-    ScratchVec<double> tau(n, 0.0, &scratch);
+    ScratchVec<T> R_work(m * n, &scratch);
+    ScratchVec<T> V(m * n, T(0), &scratch);
+    ScratchVec<T> tau(n, T(0), &scratch);
     std::copy(A_in, A_in + m * n, R_work.begin());
     for (std::size_t j = 0; j < n; ++j) permOut[j] = j;
 
     for (std::size_t k = 0; k < n; ++k) {
-        // Pivot: column j >= k with the largest sub-column norm (ties → lowest j).
         std::size_t pj = k;
         double pmax = -1.0;
         for (std::size_t j = k; j < n; ++j) {
             double s = 0.0;
             for (std::size_t i = k; i < m; ++i) {
-                const double e = R_work[i + j * m];
-                s += e * e;
+                s += detail::abs_sq(R_work[i + j * m]);
             }
             if (s > pmax) { pmax = s; pj = j; }
         }
@@ -270,44 +286,64 @@ void qrPivotedHouseholder(const double *A_in, std::size_t m, std::size_t n,
                 std::swap(R_work[i + k * m], R_work[i + pj * m]);
             std::swap(permOut[k], permOut[pj]);
         }
-        // Householder reflector for column k (same convention as unpivoted QR).
         double norm_sq = 0.0;
         for (std::size_t i = k; i < m; ++i) {
-            const double e = R_work[i + k * m]; norm_sq += e * e;
+            norm_sq += detail::abs_sq(R_work[i + k * m]);
         }
-        if (norm_sq == 0.0) { tau[k] = 0.0; continue; }
-        const double xk = R_work[k + k * m];
+        if (norm_sq == 0.0) { tau[k] = T(0); continue; }
+        const T xk = R_work[k + k * m];
         const double norm = std::sqrt(norm_sq);
-        const double alpha = (xk >= 0.0) ? -norm : norm;
+
+        T alpha;
+        if constexpr (detail::is_complex_v<T>) {
+            const double abs_xk = std::abs(xk);
+            const T phase = (abs_xk > 0.0) ? (xk / abs_xk) : T(1.0, 0.0);
+            alpha = -phase * norm;
+        } else {
+            alpha = (xk >= 0.0) ? -norm : norm;
+        }
+
         V[k + k * m] = xk - alpha;
         for (std::size_t i = k + 1; i < m; ++i) V[i + k * m] = R_work[i + k * m];
         double v_norm_sq = 0.0;
-        for (std::size_t i = k; i < m; ++i) v_norm_sq += V[i + k * m] * V[i + k * m];
-        if (v_norm_sq == 0.0) { R_work[k + k * m] = alpha; tau[k] = 0.0; continue; }
-        tau[k] = 2.0 / v_norm_sq;
+        for (std::size_t i = k; i < m; ++i) v_norm_sq += detail::abs_sq(V[i + k * m]);
+        if (v_norm_sq == 0.0) { R_work[k + k * m] = alpha; tau[k] = T(0); continue; }
+        tau[k] = T(2.0 / v_norm_sq);
         for (std::size_t j = k + 1; j < n; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i) dot += V[i + k * m] * R_work[i + j * m];
-            const double s = tau[k] * dot;
+            T dot = T(0);
+            for (std::size_t i = k; i < m; ++i) {
+                if constexpr (detail::is_complex_v<T>) {
+                    dot += std::conj(V[i + k * m]) * R_work[i + j * m];
+                } else {
+                    dot += V[i + k * m] * R_work[i + j * m];
+                }
+            }
+            const T s = tau[k] * dot;
             for (std::size_t i = k; i < m; ++i) R_work[i + j * m] -= s * V[i + k * m];
         }
         R_work[k + k * m] = alpha;
-        for (std::size_t i = k + 1; i < m; ++i) R_work[i + k * m] = 0.0;
+        for (std::size_t i = k + 1; i < m; ++i) R_work[i + k * m] = T(0);
     }
 
     for (std::size_t j = 0; j < n; ++j)
         for (std::size_t i = 0; i < m; ++i)
-            Rout[i + j * m] = (i <= j) ? R_work[i + j * m] : 0.0;
+            Rout[i + j * m] = (i <= j) ? R_work[i + j * m] : T(0);
 
-    std::fill(Qout, Qout + m * m, 0.0);
-    for (std::size_t i = 0; i < m; ++i) Qout[i + i * m] = 1.0;
+    std::fill(Qout, Qout + m * m, T(0));
+    for (std::size_t i = 0; i < m; ++i) Qout[i + i * m] = T(1);
     for (std::size_t kk = n; kk-- > 0;) {
         const std::size_t k = kk;
-        if (tau[k] == 0.0) continue;
+        if (detail::abs_sq(tau[k]) == 0.0) continue;
         for (std::size_t j = 0; j < m; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k; i < m; ++i) dot += V[i + k * m] * Qout[i + j * m];
-            const double s = tau[k] * dot;
+            T dot = T(0);
+            for (std::size_t i = k; i < m; ++i) {
+                if constexpr (detail::is_complex_v<T>) {
+                    dot += std::conj(V[i + k * m]) * Qout[i + j * m];
+                } else {
+                    dot += V[i + k * m] * Qout[i + j * m];
+                }
+            }
+            const T s = tau[k] * dot;
             for (std::size_t i = k; i < m; ++i) Qout[i + j * m] -= s * V[i + k * m];
         }
     }
@@ -327,6 +363,12 @@ qr_decompose(const Value &A, std::pmr::memory_resource *mr)
         throw Error("qr: number of rows must be >= number of columns "
                     "(wide matrices via row-pivoted QR are deferred)",
                     0, 0, "qr", "", "numkit:qr:wide");
+    if (A.isComplex()) {
+        auto Q = Value::complexMatrix(m, m, mr);
+        auto R = Value::complexMatrix(m, n, mr);
+        qrFullHouseholder(A.complexData(), m, n, Q.complexDataMut(), R.complexDataMut(), mr);
+        return std::make_tuple(detail::narrow_if_real(Q, mr), detail::narrow_if_real(R, mr));
+    }
     auto Q = Value::matrix(m, m, ValueType::DOUBLE, mr);
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
     qrFullHouseholder(A.doubleData(), m, n, Q.doubleDataMut(), R.doubleDataMut(), mr);
@@ -344,15 +386,18 @@ Value qr_R_only(const Value &A, std::pmr::memory_resource *mr)
         throw Error("qr: number of rows must be >= number of columns",
                     0, 0, "qr", "", "numkit:qr:wide");
     ScratchArena scratch(mr);
+    if (A.isComplex()) {
+        ScratchVec<detail::Complex> Q_unused(m * m, &scratch);
+        auto R = Value::complexMatrix(m, n, mr);
+        qrFullHouseholder(A.complexData(), m, n, Q_unused.data(), R.complexDataMut(), mr);
+        return detail::narrow_if_real(R, mr);
+    }
     ScratchVec<double> Q_unused(m * m, &scratch);
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
     qrFullHouseholder(A.doubleData(), m, n, Q_unused.data(), R.doubleDataMut(), mr);
     return R;
 }
 
-// Column-pivoted QR (the [Q,R,P] form). Returns Q (m×m) and R (m×n) and fills
-// `perm` (0-based, length n) with the column permutation: A·P = Q·R where
-// column k of A·P is original column perm[k].
 std::tuple<Value, Value>
 qr_pivoted(const Value &A, std::vector<std::size_t> &perm,
            std::pmr::memory_resource *mr)
@@ -366,9 +411,16 @@ qr_pivoted(const Value &A, std::vector<std::size_t> &perm,
         throw Error("qr: number of rows must be >= number of columns "
                     "(wide matrices via row-pivoted QR are deferred)",
                     0, 0, "qr", "", "numkit:qr:wide");
+    perm.assign(n, 0);
+    if (A.isComplex()) {
+        auto Q = Value::complexMatrix(m, m, mr);
+        auto R = Value::complexMatrix(m, n, mr);
+        qrPivotedHouseholder(A.complexData(), m, n,
+                             Q.complexDataMut(), R.complexDataMut(), perm.data(), mr);
+        return std::make_tuple(detail::narrow_if_real(Q, mr), detail::narrow_if_real(R, mr));
+    }
     auto Q = Value::matrix(m, m, ValueType::DOUBLE, mr);
     auto R = Value::matrix(m, n, ValueType::DOUBLE, mr);
-    perm.assign(n, 0);
     qrPivotedHouseholder(A.doubleData(), m, n,
                          Q.doubleDataMut(), R.doubleDataMut(), perm.data(), mr);
     return std::make_tuple(std::move(Q), std::move(R));
