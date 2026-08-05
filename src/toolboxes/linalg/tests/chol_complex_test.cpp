@@ -68,14 +68,40 @@ TEST(CholComplexTest, CholNonHermitianThrows) {
     EXPECT_THROW(chol(A), Error);
 }
 
-TEST(CholComplexTest, CholNonPositiveDefiniteThrows) {
-    // A = [1 2i; -2i 1] (Hermitian but det = -3 < 0, indef)
-    Value A = Value::complexMatrix(2, 2);
+TEST(CholComplexTest, CholHermitian3x3) {
+    // A (3x3 Hermitian positive definite matrix)
+    // A = [ 4,        1-1i,     0.5i ]
+    //     [ 1+1i,     3,        1-2i ]
+    //     [ -0.5i,    1+2i,     5    ]
+    Value A = Value::complexMatrix(3, 3);
     auto *ad = A.complexDataMut();
-    ad[0] = std::complex<double>(1.0, 0.0);
-    ad[1] = std::complex<double>(0.0, -2.0);
-    ad[2] = std::complex<double>(0.0, 2.0);
-    ad[3] = std::complex<double>(1.0, 0.0);
+    ad[0] = std::complex<double>(4.0, 0.0);   ad[3] = std::complex<double>(1.0, -1.0);  ad[6] = std::complex<double>(0.0, 0.5);
+    ad[1] = std::complex<double>(1.0, 1.0);   ad[4] = std::complex<double>(3.0, 0.0);   ad[7] = std::complex<double>(1.0, -2.0);
+    ad[2] = std::complex<double>(0.0, -0.5);  ad[5] = std::complex<double>(1.0, 2.0);   ad[8] = std::complex<double>(5.0, 0.0);
 
-    EXPECT_THROW(chol(A), Error);
+    Value R = chol(A);
+    EXPECT_EQ(R.dims().rows(), 3);
+    EXPECT_EQ(R.dims().cols(), 3);
+    ASSERT_TRUE(R.isComplex());
+
+    const auto *rd = R.complexData();
+    // Verify R is upper triangular (rd[1] == 0, rd[2] == 0, rd[5] == 0)
+    EXPECT_NEAR(rd[1].real(), 0.0, 1e-14);
+    EXPECT_NEAR(rd[1].imag(), 0.0, 1e-14);
+    EXPECT_NEAR(rd[2].real(), 0.0, 1e-14);
+    EXPECT_NEAR(rd[2].imag(), 0.0, 1e-14);
+    EXPECT_NEAR(rd[5].real(), 0.0, 1e-14);
+    EXPECT_NEAR(rd[5].imag(), 0.0, 1e-14);
+
+    // Verify reconstruction R^H * R = A
+    for (size_t i = 0; i < 3; ++i) {
+        for (size_t j = 0; j < 3; ++j) {
+            std::complex<double> sum(0.0, 0.0);
+            for (size_t k = 0; k < 3; ++k) {
+                sum += std::conj(rd[k + i * 3]) * rd[k + j * 3];
+            }
+            EXPECT_NEAR(sum.real(), ad[i + j * 3].real(), 1e-14);
+            EXPECT_NEAR(sum.imag(), ad[i + j * 3].imag(), 1e-14);
+        }
+    }
 }
