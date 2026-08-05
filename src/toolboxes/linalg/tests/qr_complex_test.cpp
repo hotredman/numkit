@@ -1,6 +1,6 @@
 // toolboxes/linalg/tests/qr_complex_test.cpp
 //
-// Unit tests for complex QR decomposition (unpivoted, pivoted) and rectangular least squares.
+// Unit tests for complex QR decomposition (unpivoted, pivoted, R-only) and rectangular least squares.
 
 #include <gtest/gtest.h>
 #include <numkit/linalg/decompositions.hpp>
@@ -59,6 +59,32 @@ TEST(ComplexQrTest, QrUnpivotedComplex3x2) {
             double expected_re = (i == j) ? 1.0 : 0.0;
             EXPECT_NEAR(sum.real(), expected_re, 1e-14);
             EXPECT_NEAR(sum.imag(), 0.0, 1e-14);
+        }
+    }
+}
+
+TEST(ComplexQrTest, QrROnlyComplex) {
+    Value A = Value::complexMatrix(3, 2);
+    auto *ad = A.complexDataMut();
+    ad[0] = std::complex<double>(1.0, 1.0);
+    ad[1] = std::complex<double>(3.0, 0.0);
+    ad[2] = std::complex<double>(0.0, 0.0);
+    ad[3] = std::complex<double>(2.0, 0.0);
+    ad[4] = std::complex<double>(4.0, -1.0);
+    ad[5] = std::complex<double>(1.0, 2.0);
+
+    auto [Q, R_full] = qr_decompose(A);
+    Value R_only = qr_R_only(A);
+
+    EXPECT_EQ(R_only.dims().rows(), 3);
+    EXPECT_EQ(R_only.dims().cols(), 2);
+
+    for (size_t i = 0; i < 3; ++i) {
+        for (size_t j = 0; j < 2; ++j) {
+            std::complex<double> v1 = R_full.isComplex() ? R_full.complexData()[i + j * 3] : std::complex<double>(R_full.doubleData()[i + j * 3], 0.0);
+            std::complex<double> v2 = R_only.isComplex() ? R_only.complexData()[i + j * 3] : std::complex<double>(R_only.doubleData()[i + j * 3], 0.0);
+            EXPECT_NEAR(v1.real(), v2.real(), 1e-14);
+            EXPECT_NEAR(v1.imag(), v2.imag(), 1e-14);
         }
     }
 }
@@ -146,5 +172,54 @@ TEST(ComplexQrTest, MldivideComplexRectangular) {
         }
         EXPECT_NEAR(ah_res.real(), 0.0, 1e-13);
         EXPECT_NEAR(ah_res.imag(), 0.0, 1e-13);
+    }
+}
+
+TEST(ComplexQrTest, MldivideComplexMultiColumnRHS) {
+    // A = [1+1i 2; 3 4-1i; 0 1+2i] (3x2)
+    // B = [1 0; 2+1i 1i; 3-1i 2] (3x2)
+    Value A = Value::complexMatrix(3, 2);
+    auto *ad = A.complexDataMut();
+    ad[0] = std::complex<double>(1.0, 1.0);
+    ad[1] = std::complex<double>(3.0, 0.0);
+    ad[2] = std::complex<double>(0.0, 0.0);
+    ad[3] = std::complex<double>(2.0, 0.0);
+    ad[4] = std::complex<double>(4.0, -1.0);
+    ad[5] = std::complex<double>(1.0, 2.0);
+
+    Value B = Value::complexMatrix(3, 2);
+    auto *Bd = B.complexDataMut();
+    Bd[0] = std::complex<double>(1.0, 0.0);
+    Bd[1] = std::complex<double>(2.0, 1.0);
+    Bd[2] = std::complex<double>(3.0, -1.0);
+    Bd[3] = std::complex<double>(0.0, 0.0);
+    Bd[4] = std::complex<double>(0.0, 1.0);
+    Bd[5] = std::complex<double>(2.0, 0.0);
+
+    Value X = linsolve(A, B);
+    EXPECT_EQ(X.dims().rows(), 2);
+    EXPECT_EQ(X.dims().cols(), 2);
+    ASSERT_TRUE(X.isComplex());
+    const auto *Xd = X.complexData();
+
+    // Check normal equations for each column
+    for (size_t col = 0; col < 2; ++col) {
+        std::complex<double> res[3];
+        for (size_t i = 0; i < 3; ++i) {
+            std::complex<double> ax(0.0, 0.0);
+            for (size_t k = 0; k < 2; ++k) {
+                ax += ad[i + k * 3] * Xd[k + col * 2];
+            }
+            res[i] = ax - Bd[i + col * 3];
+        }
+
+        for (size_t j = 0; j < 2; ++j) {
+            std::complex<double> ah_res(0.0, 0.0);
+            for (size_t i = 0; i < 3; ++i) {
+                ah_res += std::conj(ad[i + j * 3]) * res[i];
+            }
+            EXPECT_NEAR(ah_res.real(), 0.0, 1e-13);
+            EXPECT_NEAR(ah_res.imag(), 0.0, 1e-13);
+        }
     }
 }
