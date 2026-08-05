@@ -129,3 +129,111 @@ TEST(ComplexEigTest, EigVDComplex2x2) {
         }
     }
 }
+
+TEST(ComplexSchurTest, SchurComplex3x3) {
+    // 3x3 complex matrix
+    Value A = Value::complexMatrix(3, 3);
+    auto *ad = A.complexDataMut();
+    ad[0] = std::complex<double>(2.0, 1.0);  ad[3] = std::complex<double>(1.0, -1.0); ad[6] = std::complex<double>(0.0, 2.0);
+    ad[1] = std::complex<double>(0.5, 0.0);  ad[4] = std::complex<double>(3.0, 0.0);  ad[7] = std::complex<double>(1.0, 1.0);
+    ad[2] = std::complex<double>(-1.0, 2.0); ad[5] = std::complex<double>(2.0, 0.0);  ad[8] = std::complex<double>(4.0, -2.0);
+
+    auto [U, T] = schur_general(A);
+    EXPECT_EQ(U.dims().rows(), 3);
+    EXPECT_EQ(T.dims().rows(), 3);
+
+    auto getU = [&](size_t r, size_t c) -> std::complex<double> {
+        return U.isComplex() ? U.complexData()[r + c * 3] : std::complex<double>(U.doubleData()[r + c * 3], 0.0);
+    };
+    auto getT = [&](size_t r, size_t c) -> std::complex<double> {
+        return T.isComplex() ? T.complexData()[r + c * 3] : std::complex<double>(T.doubleData()[r + c * 3], 0.0);
+    };
+
+    // Verify upper triangularity of T (below diagonal == 0)
+    for (size_t i = 1; i < 3; ++i) {
+        for (size_t j = 0; j < i; ++j) {
+            EXPECT_NEAR(getT(i, j).real(), 0.0, 1e-12);
+            EXPECT_NEAR(getT(i, j).imag(), 0.0, 1e-12);
+        }
+    }
+
+    // Verify U * T * U^H = A
+    for (size_t i = 0; i < 3; ++i) {
+        for (size_t j = 0; j < 3; ++j) {
+            std::complex<double> sum(0.0, 0.0);
+            for (size_t k = 0; k < 3; ++k) {
+                for (size_t l = 0; l < 3; ++l) {
+                    sum += getU(i, k) * getT(k, l) * std::conj(getU(j, l));
+                }
+            }
+            EXPECT_NEAR(sum.real(), ad[i + j * 3].real(), 1e-12);
+            EXPECT_NEAR(sum.imag(), ad[i + j * 3].imag(), 1e-12);
+        }
+    }
+
+    // Verify unitarity U^H * U = I_3
+    for (size_t i = 0; i < 3; ++i) {
+        for (size_t j = 0; j < 3; ++j) {
+            std::complex<double> sum(0.0, 0.0);
+            for (size_t k = 0; k < 3; ++k) {
+                sum += std::conj(getU(k, i)) * getU(k, j);
+            }
+            double expected_re = (i == j) ? 1.0 : 0.0;
+            EXPECT_NEAR(sum.real(), expected_re, 1e-12);
+            EXPECT_NEAR(sum.imag(), 0.0, 1e-12);
+        }
+    }
+}
+
+TEST(ComplexEigTest, EigVDComplex3x3) {
+    // 3x3 complex matrix
+    Value A = Value::complexMatrix(3, 3);
+    auto *ad = A.complexDataMut();
+    ad[0] = std::complex<double>(2.0, 1.0);  ad[3] = std::complex<double>(1.0, -1.0); ad[6] = std::complex<double>(0.0, 2.0);
+    ad[1] = std::complex<double>(0.5, 0.0);  ad[4] = std::complex<double>(3.0, 0.0);  ad[7] = std::complex<double>(1.0, 1.0);
+    ad[2] = std::complex<double>(-1.0, 2.0); ad[5] = std::complex<double>(2.0, 0.0);  ad[8] = std::complex<double>(4.0, -2.0);
+
+    auto [V, D] = eig_general_VD(A);
+    EXPECT_EQ(V.dims().rows(), 3);
+    EXPECT_EQ(D.dims().rows(), 3);
+
+    auto getV = [&](size_t r, size_t c) -> std::complex<double> {
+        return V.isComplex() ? V.complexData()[r + c * 3] : std::complex<double>(V.doubleData()[r + c * 3], 0.0);
+    };
+    auto getD = [&](size_t r, size_t c) -> std::complex<double> {
+        return D.isComplex() ? D.complexData()[r + c * 3] : std::complex<double>(D.doubleData()[r + c * 3], 0.0);
+    };
+
+    // Verify A * V = V * D
+    for (size_t i = 0; i < 3; ++i) {
+        for (size_t j = 0; j < 3; ++j) {
+            std::complex<double> lhs(0.0, 0.0);
+            std::complex<double> rhs(0.0, 0.0);
+            for (size_t k = 0; k < 3; ++k) {
+                lhs += ad[i + k * 3] * getV(k, j);
+                rhs += getV(i, k) * getD(k, j);
+            }
+            EXPECT_NEAR(lhs.real(), rhs.real(), 1e-12);
+            EXPECT_NEAR(lhs.imag(), rhs.imag(), 1e-12);
+        }
+    }
+}
+
+TEST(ComplexSchurTest, HermitianComplex2x2) {
+    // H = [2, 1i; -1i, 3] -- Hermitian
+    Value H = Value::complexMatrix(2, 2);
+    auto *hd = H.complexDataMut();
+    hd[0] = std::complex<double>(2.0, 0.0);
+    hd[1] = std::complex<double>(0.0, -1.0);
+    hd[2] = std::complex<double>(0.0, 1.0);
+    hd[3] = std::complex<double>(3.0, 0.0);
+
+    auto [U, T] = schur_general(H);
+    auto getT = [&](size_t r, size_t c) -> std::complex<double> {
+        return T.isComplex() ? T.complexData()[r + c * 2] : std::complex<double>(T.doubleData()[r + c * 2], 0.0);
+    };
+
+    // Hermitian eigenvalues must be real
+    EXPECT_NEAR(getT(0, 0).imag(), 0.0, 1e-13);
+    EXPECT_NEAR(getT(1, 1).imag(), 0.0, 1e-13);
+}
