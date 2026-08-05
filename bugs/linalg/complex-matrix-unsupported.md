@@ -16,7 +16,7 @@ matrices everywhere. (`trace` — a trivial diagonal sum — was fixed
 | `trace(B)` ✅ FIXED 2026-06-17 | `5` (diagonal sum + narrow) | `5+0i` → real `5` |
 | `det(B)` ✅ FIXED 2026-08-05 | `-1+3i` | `-1+3i` |
 | `inv(B)` ✅ FIXED 2026-08-05 | (complex inverse) | (complex inverse) |
-| `eig(B)` | Not a double array | `[-0.2474+0.5460i, 5.2474-0.5460i]` |
+| `eig(B)` ✅ FIXED 2026-08-05 | `[-0.2474+0.5460i, 5.2474-0.5460i]` | `[-0.2474+0.5460i, 5.2474-0.5460i]` |
 | `svd(B)` | Not a double array | `S(1,1)=5.6289` |
 | `qr(B)` ✅ FIXED 2026-08-05 | complex Q,R | complex Q,R |
 | `lu(B)` ✅ FIXED 2026-08-05 | complex L,U,P | complex L,U,P |
