@@ -30,6 +30,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ordschur_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/qz_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gsvd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/balance_perm_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
 
