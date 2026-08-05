@@ -616,8 +616,112 @@ Value expmv(double t, const Value &A, const Value &v, std::pmr::memory_resource 
     return out;
 }
 
-// ════════════════════════════════════════════════════════════════════════
-// Engine adapters — registered in LinalgLibrary::install
-// ════════════════════════════════════════════════════════════════════════
+// ────────────────────────────────────────────────────────────────────────
+// funm — general matrix function evaluator via Schur–Parlett
+// ────────────────────────────────────────────────────────────────────────
+
+static Value funm_eval(const Value &A, std::function<Complex(Complex)> f, std::pmr::memory_resource *mr)
+{
+    if (A.dims().ndim() != 2)
+        throw Error("funm: input must be a 2D matrix", 0, 0, "funm", "", "numkit:funm:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    if (n != static_cast<std::size_t>(A.dims().dim(1)))
+        throw Error("funm: matrix must be square", 0, 0, "funm", "", "numkit:funm:notSquare");
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Schur decomposition A = U * T * U^H
+    auto [U, T] = schur_general(A, mr);
+
+    ScratchArena scratch(mr);
+    ScratchVec<Complex> Tc(n * n, &scratch);
+    ScratchVec<Complex> Uc(n * n, &scratch);
+    ScratchVec<Complex> Fc(n * n, Complex(0.0, 0.0), &scratch);
+
+    if (T.isComplex()) {
+        std::copy(T.complexData(), T.complexData() + n * n, Tc.begin());
+    } else {
+        const double *td = T.doubleData();
+        for (std::size_t i = 0; i < n * n; ++i) Tc[i] = Complex(td[i], 0.0);
+    }
+    if (U.isComplex()) {
+        std::copy(U.complexData(), U.complexData() + n * n, Uc.begin());
+    } else {
+        const double *ud = U.doubleData();
+        for (std::size_t i = 0; i < n * n; ++i) Uc[i] = Complex(ud[i], 0.0);
+    }
+
+    // Parlett recurrence on upper-triangular T:
+    // Diagonal entries F_{i,i} = f(T_{i,i})
+    for (std::size_t i = 0; i < n; ++i) Fc[i + i * n] = f(Tc[i + i * n]);
+
+    // Off-diagonal entries:
+    for (std::size_t j = 1; j < n; ++j) {
+        for (std::intptr_t i = static_cast<std::intptr_t>(j) - 1; i >= 0; --i) {
+            std::size_t ui = static_cast<std::size_t>(i);
+            Complex denom = Tc[ui + ui * n] - Tc[j + j * n];
+            if (std::abs(denom) > 1e-12) {
+                Complex sum = Fc[ui + ui * n] * Tc[ui + j * n] - Tc[ui + j * n] * Fc[j + j * n];
+                for (std::size_t k = ui + 1; k < j; ++k) {
+                    sum += Fc[ui + k * n] * Tc[k + j * n] - Tc[ui + k * n] * Fc[k + j * n];
+                }
+                Fc[ui + j * n] = sum / denom;
+            } else {
+                // Confluent / close eigenvalues: numerical derivative via step h = 1e-6
+                Complex lambda = 0.5 * (Tc[ui + ui * n] + Tc[j + j * n]);
+                Complex h(1e-6, 0.0);
+                Complex df = (f(lambda + h) - f(lambda - h)) / (2.0 * h);
+                Complex sum = df * Tc[ui + j * n];
+                for (std::size_t k = ui + 1; k < j; ++k) {
+                    sum += Fc[ui + k * n] * Tc[k + j * n];
+                }
+                Fc[ui + j * n] = sum;
+            }
+        }
+    }
+
+    // Reconstruct f(A) = U * F * U^H
+    ScratchVec<Complex> F_Uh(n * n, Complex(0.0, 0.0), &scratch);
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = i; k < n; ++k) {
+                s += Fc[i + k * n] * std::conj(Uc[j + k * n]);
+            }
+            F_Uh[i + j * n] = s;
+        }
+    }
+
+    auto out = Value::complexMatrix(n, n, mr);
+    Complex *Xd = out.complexDataMut();
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            Complex s(0.0, 0.0);
+            for (std::size_t k = 0; k < n; ++k) {
+                s += Uc[i + k * n] * F_Uh[k + j * n];
+            }
+            Xd[i + j * n] = s;
+        }
+    }
+
+    return detail::narrow_if_real(out, mr);
+}
+
+Value funm(const Value &A, std::function<Complex(Complex)> f, std::pmr::memory_resource *mr)
+{
+    return funm_eval(A, f, mr);
+}
+
+Value funm(const Value &A, const std::string &fnName, std::pmr::memory_resource *mr)
+{
+    if (fnName == "exp") return expm(A, mr);
+    if (fnName == "log") return logm(A, mr);
+    if (fnName == "sqrt") return sqrtm(A, mr);
+    if (fnName == "sin") return funm_eval(A, [](Complex x) { return std::sin(x); }, mr);
+    if (fnName == "cos") return funm_eval(A, [](Complex x) { return std::cos(x); }, mr);
+    if (fnName == "sinh") return funm_eval(A, [](Complex x) { return std::sinh(x); }, mr);
+    if (fnName == "cosh") return funm_eval(A, [](Complex x) { return std::cosh(x); }, mr);
+
+    throw Error("funm: unsupported function '" + fnName + "'", 0, 0, "funm", "", "numkit:funm:unknownFn");
+}
 
 } // namespace numkit::linalg

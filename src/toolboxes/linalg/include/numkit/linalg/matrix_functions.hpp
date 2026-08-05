@@ -5,7 +5,10 @@
 
 #pragma once
 
+#include <complex>
+#include <functional>
 #include <memory_resource>
+#include <string>
 #include <numkit/value/value.hpp>
 
 namespace numkit::linalg {
@@ -45,5 +48,14 @@ Value sylvester(const Value &A, const Value &B, const Value &C,
 /// vector; identical to it at machine precision for small n.
 Value expmv(double t, const Value &A, const Value &v,
             std::pmr::memory_resource *mr = nullptr);
+
+/// @brief General matrix function evaluator `funm(A, fun)`.
+/// Evaluates scalar function f on square matrix A via Schur–Parlett algorithm.
+Value funm(const Value &A, std::function<std::complex<double>(std::complex<double>)> f,
+           std::pmr::memory_resource *mr = nullptr);
+
+/// @brief General matrix function evaluator by string name (`'exp'`, `'sin'`, `'cos'`, `'sinh'`, `'cosh'`).
+Value funm(const Value &A, const std::string &fnName,
+           std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::linalg
