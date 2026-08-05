@@ -22,7 +22,7 @@ target_link_libraries(numkit_bench PRIVATE
 
 # Pull in per-lib benchmark sources. Each lib that contributes benches
 # has toolboxes/<name>/benchmarks/CMakeLists.txt with target_sources() calls.
-foreach(_bench_lib signal stats image comm control wavelet graphics io optim)
+foreach(_bench_lib signal stats image comm control wavelet graphics io optim linalg)
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/toolboxes/${_bench_lib}/benchmarks/CMakeLists.txt)
         add_subdirectory(${CMAKE_SOURCE_DIR}/src/toolboxes/${_bench_lib}/benchmarks
                          ${CMAKE_BINARY_DIR}/toolboxes/${_bench_lib}/benchmarks)

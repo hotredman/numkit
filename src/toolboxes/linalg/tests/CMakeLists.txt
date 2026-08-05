@@ -21,6 +21,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/kron_integer_class_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cross_integer_class_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/page_lsq_mrdiv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lu_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
 

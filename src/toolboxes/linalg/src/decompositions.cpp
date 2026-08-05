@@ -63,36 +63,63 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
 
 namespace {
 
-// In-place LU with partial pivoting on a column-major n×n matrix.
-// On return:
-//   - LU contains L (unit-lower-triangular, below diagonal) and U
-//     (upper, including diagonal) packed
-//   - piv[k] = row originally at position piv[k] swapped into row k
-// Returns false on singular A.
-bool luPivotInplace(double *LU, std::int32_t *piv, std::size_t n)
+template <typename T>
+std::tuple<Value, Value, Value>
+lu_decompose_impl(const Value &A, std::pmr::memory_resource *mr)
 {
-    for (std::size_t k = 0; k < n; ++k) {
-        std::size_t pivot = k;
-        double pmax = std::fabs(LU[k + k * n]);
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = std::fabs(LU[i + k * n]);
-            if (v > pmax) { pmax = v; pivot = i; }
-        }
-        if (pmax == 0.0) return false;
-        piv[k] = static_cast<std::int32_t>(pivot);
-        if (pivot != k) {
-            for (std::size_t j = 0; j < n; ++j)
-                std::swap(LU[k + j * n], LU[pivot + j * n]);
-        }
-        const double inv_pivot = 1.0 / LU[k + k * n];
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double factor = LU[i + k * n] * inv_pivot;
-            LU[i + k * n] = factor;
-            for (std::size_t j = k + 1; j < n; ++j)
-                LU[i + j * n] -= factor * LU[k + j * n];
-        }
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    ScratchArena scratch(mr);
+    ScratchVec<T> LU(m * n, &scratch);
+    ScratchVec<std::int32_t> piv(n, &scratch);
+    const T *src = detail::get_data<T>(A);
+    std::copy(src, src + m * n, LU.begin());
+    if (!detail::luPivotInplace(LU.data(), piv.data(), n))
+        throw Error("lu: matrix is singular",
+                    0, 0, "lu", "", "numkit:lu:singular");
+
+    Value Lout = detail::make_matrix<T>(n, n, mr);
+    Value Uout = detail::make_matrix<T>(n, n, mr);
+    Value Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    T *L = detail::get_data_mut<T>(Lout);
+    T *U = detail::get_data_mut<T>(Uout);
+    double *P = Pout.doubleDataMut();
+    std::fill(L, L + n * n, T(0));
+    std::fill(U, U + n * n, T(0));
+    std::fill(P, P + n * n, 0.0);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        L[i + i * n] = T(1);
+        for (std::size_t j = 0; j < i; ++j)
+            L[i + j * n] = LU[i + j * n];
+        for (std::size_t j = i; j < n; ++j)
+            U[i + j * n] = LU[i + j * n];
     }
-    return true;
+    std::vector<std::size_t> perm(n);
+    for (std::size_t i = 0; i < n; ++i) perm[i] = i;
+    for (std::size_t k = 0; k < n; ++k)
+        std::swap(perm[k], perm[piv[k]]);
+    for (std::size_t i = 0; i < n; ++i)
+        P[i + perm[i] * n] = 1.0;
+
+    return std::make_tuple(detail::narrow_if_real(Lout), detail::narrow_if_real(Uout), std::move(Pout));
+}
+
+template <typename T>
+Value lu_combined_impl(const Value &A, std::pmr::memory_resource *mr)
+{
+    const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
+    ScratchArena scratch(mr);
+    ScratchVec<std::int32_t> piv(n, &scratch);
+    Value out = detail::make_matrix<T>(n, n, mr);
+    T *LU = detail::get_data_mut<T>(out);
+    const T *src = detail::get_data<T>(A);
+    std::copy(src, src + m * n, LU);
+    if (!detail::luPivotInplace(LU, piv.data(), n))
+        throw Error("lu: matrix is singular",
+                    0, 0, "lu", "", "numkit:lu:singular");
+    return detail::narrow_if_real(out);
 }
 
 } // anonymous namespace
@@ -109,39 +136,10 @@ lu_decompose(const Value &A, std::pmr::memory_resource *mr)
         throw Error("lu: square matrix required for [L,U,P] form",
                     0, 0, "lu", "", "numkit:lu:notSquare");
 
-    ScratchArena scratch(mr);
-    ScratchVec<double> LU(m * n, &scratch);
-    ScratchVec<std::int32_t> piv(n, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, LU.begin());
-    if (!luPivotInplace(LU.data(), piv.data(), n))
-        throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "numkit:lu:singular");
-
-    auto Lout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Uout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *L = Lout.doubleDataMut();
-    double *U = Uout.doubleDataMut();
-    double *P = Pout.doubleDataMut();
-    std::fill(L, L + n * n, 0.0);
-    std::fill(U, U + n * n, 0.0);
-    std::fill(P, P + n * n, 0.0);
-
-    for (std::size_t i = 0; i < n; ++i) {
-        L[i + i * n] = 1.0;
-        for (std::size_t j = 0; j < i; ++j)
-            L[i + j * n] = LU[i + j * n];
-        for (std::size_t j = i; j < n; ++j)
-            U[i + j * n] = LU[i + j * n];
+    if (A.isComplex()) {
+        return lu_decompose_impl<detail::Complex>(A, mr);
     }
-    std::vector<std::size_t> perm(n);
-    for (std::size_t i = 0; i < n; ++i) perm[i] = i;
-    for (std::size_t k = 0; k < n; ++k)
-        std::swap(perm[k], perm[piv[k]]);
-    for (std::size_t i = 0; i < n; ++i)
-        P[i + perm[i] * n] = 1.0;
-
-    return std::make_tuple(std::move(Lout), std::move(Uout), std::move(Pout));
+    return lu_decompose_impl<double>(A, mr);
 }
 
 Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
@@ -154,15 +152,11 @@ Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
     if (m != n)
         throw Error("lu: square matrix required",
                     0, 0, "lu", "", "numkit:lu:notSquare");
-    ScratchArena scratch(mr);
-    ScratchVec<std::int32_t> piv(n, &scratch);
-    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *LU = out.doubleDataMut();
-    std::copy(A.doubleData(), A.doubleData() + m * n, LU);
-    if (!luPivotInplace(LU, piv.data(), n))
-        throw Error("lu: matrix is singular",
-                    0, 0, "lu", "", "numkit:lu:singular");
-    return out;
+
+    if (A.isComplex()) {
+        return lu_combined_impl<detail::Complex>(A, mr);
+    }
+    return lu_combined_impl<double>(A, mr);
 }
 
 // ────────────────────────────────────────────────────────────────────────
