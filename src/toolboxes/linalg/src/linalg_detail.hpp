@@ -5,12 +5,17 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdint>
 #include <memory_resource>
 #include <type_traits>
+#include <vector>
 
+#include <numkit/value/error.hpp>
+#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 
 namespace numkit::linalg::detail {
@@ -116,6 +121,84 @@ inline Value narrow_if_real(const Value &v, std::pmr::memory_resource *mr = null
         dd[i] = cd[i].real();
     }
     return out;
+}
+
+// In-place LU with partial pivoting on a column-major n×n matrix.
+template <typename T>
+inline bool luPivotInplace(T *LU, std::int32_t *piv, std::size_t n) {
+    for (std::size_t k = 0; k < n; ++k) {
+        std::size_t pivot = k;
+        double pmax = abs_val(LU[k + k * n]);
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const double v = abs_val(LU[i + k * n]);
+            if (v > pmax) {
+                pmax = v;
+                pivot = i;
+            }
+        }
+        if (pmax == 0.0) return false;
+        piv[k] = static_cast<std::int32_t>(pivot);
+        if (pivot != k) {
+            for (std::size_t j = 0; j < n; ++j)
+                std::swap(LU[k + j * n], LU[pivot + j * n]);
+        }
+        const T inv_pivot = T(1) / LU[k + k * n];
+        for (std::size_t i = k + 1; i < n; ++i) {
+            const T factor = LU[i + k * n] * inv_pivot;
+            LU[i + k * n] = factor;
+            for (std::size_t j = k + 1; j < n; ++j)
+                LU[i + j * n] -= factor * LU[k + j * n];
+        }
+    }
+    return true;
+}
+
+// Templated LU solve for square system A * X = B
+template <typename T>
+inline bool luSolveSquare(const T *A_in, std::size_t n, const T *B_in,
+                          std::size_t nrhs, T *X_out, ScratchArena *scratch) {
+    ScratchVec<T> LU(n * n, scratch);
+    ScratchVec<std::int32_t> piv(n, scratch);
+    std::copy(A_in, A_in + n * n, LU.begin());
+
+    if (!luPivotInplace(LU.data(), piv.data(), n)) {
+        return false;
+    }
+
+    ScratchVec<T> Y(n * nrhs, scratch);
+    std::vector<std::size_t> perm(n);
+    for (std::size_t i = 0; i < n; ++i) perm[i] = i;
+    for (std::size_t k = 0; k < n; ++k)
+        std::swap(perm[k], perm[piv[k]]);
+
+    for (std::size_t col = 0; col < nrhs; ++col) {
+        for (std::size_t row = 0; row < n; ++row) {
+            Y[row + col * n] = B_in[perm[row] + col * n];
+        }
+    }
+
+    // Forward solve L * Y = P * B
+    for (std::size_t col = 0; col < nrhs; ++col) {
+        for (std::size_t i = 0; i < n; ++i) {
+            T s = Y[i + col * n];
+            for (std::size_t k = 0; k < i; ++k) {
+                s -= LU[i + k * n] * Y[k + col * n];
+            }
+            Y[i + col * n] = s;
+        }
+    }
+
+    // Back solve U * X = Y
+    for (std::size_t col = 0; col < nrhs; ++col) {
+        for (std::intptr_t i = static_cast<std::intptr_t>(n) - 1; i >= 0; --i) {
+            T s = Y[i + col * n];
+            for (std::size_t k = static_cast<std::size_t>(i) + 1; k < n; ++k) {
+                s -= LU[static_cast<std::size_t>(i) + k * n] * X_out[k + col * n];
+            }
+            X_out[static_cast<std::size_t>(i) + col * n] = s / LU[static_cast<std::size_t>(i) + static_cast<std::size_t>(i) * n];
+        }
+    }
+    return true;
 }
 
 } // namespace numkit::linalg::detail

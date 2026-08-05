@@ -4,6 +4,7 @@
 // Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/{matrix,lsq}.cpp.
 
 #include <numkit/linalg/solvers.hpp>
+#include "linalg_detail.hpp"
 
 #include <numkit/linalg/pseudo_subspace.hpp>      // pinv
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
@@ -38,6 +39,37 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
     if (m != mb)
         throw Error("linsolve: A and B must have the same number of rows",
                     0, 0, "linsolve", "", "numkit:linsolve:badDims");
+
+    if (A.isComplex() || B.isComplex()) {
+        if (m != n) {
+            throw Error("linsolve: complex matrix systems currently supported for square matrices only",
+                        0, 0, "linsolve", "", "numkit:linsolve:ComplexNonSquare");
+        }
+        ScratchArena scratch(mr);
+        ScratchVec<detail::Complex> A_buf(m * n, &scratch);
+        ScratchVec<detail::Complex> B_buf(m * nrhs, &scratch);
+
+        if (A.isComplex()) {
+            std::copy(A.complexData(), A.complexData() + m * n, A_buf.begin());
+        } else {
+            const double *ad = A.doubleData();
+            for (std::size_t i = 0; i < m * n; ++i) A_buf[i] = ad[i];
+        }
+
+        if (B.isComplex()) {
+            std::copy(B.complexData(), B.complexData() + m * nrhs, B_buf.begin());
+        } else {
+            const double *bd = B.doubleData();
+            for (std::size_t i = 0; i < m * nrhs; ++i) B_buf[i] = bd[i];
+        }
+
+        Value out = Value::complexMatrix(n, nrhs, mr);
+        if (!detail::luSolveSquare(A_buf.data(), n, B_buf.data(), nrhs, out.complexDataMut(), &scratch)) {
+            throw Error("linsolve: A is singular or rank-deficient",
+                        0, 0, "linsolve", "", "numkit:linsolve:singular");
+        }
+        return detail::narrow_if_real(out, mr);
+    }
 
     ScratchArena scratch(mr);
     ScratchVec<double> A_buf(m * n, &scratch);

@@ -8,6 +8,7 @@
 // kernel still living in toolboxes/builtin.
 
 #include <numkit/linalg/properties.hpp>
+#include "linalg_detail.hpp"
 
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
 #include <numkit/linalg/decompositions.hpp>       // svd_values
@@ -39,44 +40,6 @@ bool laSolveWrap(const double *A_buf, std::size_t m, std::size_t n,
                  std::pmr::memory_resource *mr)
 {
     return numkit::ops::la_solve(A_buf, m, n, B_buf, nrhs, outX, mr);
-}
-
-// Build an n×n identity into a contiguous column-major buffer.
-void fillIdentity(double *buf, std::size_t n)
-{
-    std::fill(buf, buf + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i)
-        buf[i + i * n] = 1.0;
-}
-
-// In-place LU with partial pivoting on a column-major n×n matrix.
-// Returns false on zero pivot (singular). On return, `sign` holds
-// (-1)^(number of row swaps). Used by det() only.
-bool luPartialPivotInplace(double *A, std::size_t n, int &sign)
-{
-    sign = 1;
-    for (std::size_t k = 0; k < n; ++k) {
-        std::size_t pivot = k;
-        double pmax = std::fabs(A[k + k * n]);
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = std::fabs(A[i + k * n]);
-            if (v > pmax) { pmax = v; pivot = i; }
-        }
-        if (pmax == 0.0) return false;
-        if (pivot != k) {
-            for (std::size_t j = 0; j < n; ++j)
-                std::swap(A[k + j * n], A[pivot + j * n]);
-            sign = -sign;
-        }
-        const double inv_pivot = 1.0 / A[k + k * n];
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double factor = A[i + k * n] * inv_pivot;
-            A[i + k * n] = factor;
-            for (std::size_t j = k + 1; j < n; ++j)
-                A[i + j * n] -= factor * A[k + j * n];
-        }
-    }
-    return true;
 }
 
 // Default tolerance for rank-cutoff: max(m,n) * eps(sigma_max).
@@ -114,16 +77,24 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
         throw Error("inv: matrix must be square",
                     0, 0, "inv", "", "numkit:inv:notSquare");
     if (m == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return Value::matrix(0, 0, A.type(), mr);
 
     ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    ScratchVec<double> I_buf(n * n, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-    fillIdentity(I_buf.data(), n);
+    if (A.isComplex()) {
+        ScratchVec<detail::Complex> I_buf(n * n, 0.0, &scratch);
+        for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = detail::Complex(1.0, 0.0);
+        Value out = Value::complexMatrix(n, n, mr);
+        if (!detail::luSolveSquare(A.complexData(), n, I_buf.data(), n, out.complexDataMut(), &scratch))
+            throw Error("inv: matrix is singular to working precision",
+                        0, 0, "inv", "", "numkit:inv:singular");
+        return detail::narrow_if_real(out, mr);
+    }
 
-    auto out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!laSolveWrap(A_buf.data(), m, n, I_buf.data(), n, out.doubleDataMut(), &scratch))
+    ScratchVec<double> I_buf(n * n, 0.0, &scratch);
+    for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = 1.0;
+
+    Value out = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    if (!detail::luSolveSquare(A.doubleData(), n, I_buf.data(), n, out.doubleDataMut(), &scratch))
         throw Error("inv: matrix is singular to working precision",
                     0, 0, "inv", "", "numkit:inv:singular");
     return out;
@@ -168,12 +139,38 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
         return Value::scalar(1.0, mr);
 
     ScratchArena scratch(mr);
+    if (A.isComplex()) {
+        ScratchVec<detail::Complex> A_buf(m * n, &scratch);
+        std::copy(A.complexData(), A.complexData() + m * n, A_buf.begin());
+        ScratchVec<std::int32_t> piv(n, &scratch);
+        if (!detail::luPivotInplace(A_buf.data(), piv.data(), n))
+            return Value::scalar(0.0, mr);
+
+        int sign = 1;
+        for (std::size_t k = 0; k < n; ++k) {
+            if (piv[k] != static_cast<std::int32_t>(k)) {
+                sign = -sign;
+            }
+        }
+        detail::Complex prod = static_cast<double>(sign);
+        for (std::size_t i = 0; i < n; ++i)
+            prod *= A_buf[i + i * n];
+
+        return detail::narrow_if_real(Value::complexScalar(prod, mr), mr);
+    }
+
     ScratchVec<double> A_buf(m * n, &scratch);
     std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
+    ScratchVec<std::int32_t> piv(n, &scratch);
+    if (!detail::luPivotInplace(A_buf.data(), piv.data(), n))
+        return Value::scalar(0.0, mr);
 
     int sign = 1;
-    if (!luPartialPivotInplace(A_buf.data(), n, sign))
-        return Value::scalar(0.0, mr);
+    for (std::size_t k = 0; k < n; ++k) {
+        if (piv[k] != static_cast<std::int32_t>(k)) {
+            sign = -sign;
+        }
+    }
 
     long double prod = static_cast<long double>(sign);
     for (std::size_t i = 0; i < n; ++i)
