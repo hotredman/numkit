@@ -28,6 +28,7 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/ordschur.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/qz.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/gsvd.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/eigs.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)
