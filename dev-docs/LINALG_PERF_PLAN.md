@@ -162,9 +162,33 @@ Competing requires measuring the competitor — no invented baselines
 
 - Add `src/toolboxes/linalg/benchmarks/matlab/bench_linalg.m`: same
   matrices, same sizes (n = 256/512/1024/2048), `timeit`-based, prints a
-  machine-readable table. The project owner runs it once per cycle in
-  local MATLAB R2025b on the same machine; commit the output to
-  `benchmarks/results/` next to the numkit output from the same day.
+  machine-readable table. The AGENT runs it headlessly once per cycle on
+  this machine and commits the output to `benchmarks/results/` next to
+  the numkit output from the same day. Headless run recipe (the sandbox
+  account cannot use the real user profile; verified working 2026-08-06,
+  prints 25.2.0/R2025b, 24 threads):
+
+  ```powershell
+  $h = 'C:\Users\User\Projects\megahard\numkit\build\mlhome'
+  New-Item -ItemType Directory -Force -Path $h, "$h\prefs", "$h\temp" | Out-Null
+  $env:USERPROFILE = $h; $env:APPDATA = "$h\prefs"; $env:LOCALAPPDATA = "$h\prefs"
+  $env:TEMP = "$h\temp"; $env:TMP = "$h\temp"; $env:MATLAB_PREFDIR = "$h\prefs\matlab"
+  & 'C:\Program Files\MATLAB\R2025b\bin\matlab.exe' `
+      -sd 'C:\Users\User\Projects\megahard\numkit\src\toolboxes\linalg\benchmarks\matlab' `
+      -batch "bench_linalg" *> <results-file>.txt
+  ```
+
+  Provenance rules (anti-fabrication, non-negotiable):
+  - `bench_linalg.m` prints `version`, `maxNumCompThreads`, and
+    `datetime('now')` at RUN TIME into its own output header; never a
+    hard-coded release string.
+  - The committed result file is the unedited redirect of the real
+    console output. The printed version must match the installed MATLAB
+    (currently 25.2.0 / R2025b); any other version string is treated as
+    fabricated.
+  - If the shell kills long-running child processes, split into per-size
+    invocations (`-batch "bench_linalg(512)"` etc.), one output file per
+    size, each under ~90 s wall time; MATLAB cold start is ~15-30 s.
 - Gates (per size, median of ≥ 10 iters, same machine, Release):
   - **Required (bug threshold):** numkit ≤ 3× MATLAB — else file an
     S-scale perf bug per `bugs/README.md`.
