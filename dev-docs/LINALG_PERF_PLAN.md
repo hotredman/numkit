@@ -199,7 +199,7 @@ reductions, 3M complex gemm, small-size fast paths).
 
 ## Definition of done
 
-- [ ] P1 microkernel GEMM: correctness suite (incl. odd sizes, NaN/Inf)
+- [x] P1 microkernel GEMM: correctness suite (incl. odd sizes, NaN/Inf)
       green; ≥ 4× vs current kernel at n=1024 single-thread; GFLOP/s and
       % of peak recorded.
 - [ ] P2 threading: ≥ 12× scaling at n=2048 on 24 cores; bitwise
