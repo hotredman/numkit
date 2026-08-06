@@ -8,7 +8,7 @@
 #include <atomic>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "blas/gemm_highway.cpp"
+#define HWY_TARGET_INCLUDE "blas/blas3_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
@@ -693,88 +693,7 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     });
 }
 
-void GemvDoubleKernel(std::size_t m, std::size_t n,
-                      double alpha, const double *A, std::size_t lda,
-                      const double *x, std::size_t incx,
-                      double beta, double *y, std::size_t incy)
-{
-    const hn::ScalableTag<double> d;
-    const std::size_t N = hn::Lanes(d);
 
-    if (beta == 0.0) {
-        for (std::size_t i = 0; i < m; ++i) y[i * incy] = 0.0;
-    } else if (beta != 1.0) {
-        for (std::size_t i = 0; i < m; ++i) y[i * incy] *= beta;
-    }
-
-    if (alpha == 0.0 || n == 0) return;
-
-    if (incy == 1) {
-        for (std::size_t j = 0; j < n; ++j) {
-            const double xj = alpha * x[j * incx];
-            if (xj == 0.0) continue;
-            const double *aj = A + j * lda;
-            auto v_x = hn::Set(d, xj);
-
-            std::size_t i = 0;
-            for (; i + N <= m; i += N) {
-                auto v_y = hn::MulAdd(hn::LoadU(d, aj + i), v_x, hn::LoadU(d, y + i));
-                hn::StoreU(v_y, d, y + i);
-            }
-            for (; i < m; ++i) y[i] += aj[i] * xj;
-        }
-    } else {
-        for (std::size_t j = 0; j < n; ++j) {
-            const double xj = alpha * x[j * incx];
-            if (xj == 0.0) continue;
-            const double *aj = A + j * lda;
-            for (std::size_t i = 0; i < m; ++i) y[i * incy] += aj[i] * xj;
-        }
-    }
-}
-
-void GerDoubleKernel(std::size_t m, std::size_t n,
-                     double alpha, const double *x, std::size_t incx,
-                     const double *y, std::size_t incy,
-                     double *A, std::size_t lda)
-{
-    const hn::ScalableTag<double> d;
-    const std::size_t N = hn::Lanes(d);
-
-    if (alpha == 0.0) return;
-
-    for (std::size_t j = 0; j < n; ++j) {
-        const double yj = alpha * y[j * incy];
-        if (yj == 0.0) continue;
-        double *aj = A + j * lda;
-        auto v_y = hn::Set(d, yj);
-
-        if (incx == 1) {
-            std::size_t i = 0;
-            for (; i + N <= m; i += N) {
-                auto v_a = hn::MulAdd(hn::LoadU(d, x + i), v_y, hn::LoadU(d, aj + i));
-                hn::StoreU(v_a, d, aj + i);
-            }
-            for (; i < m; ++i) aj[i] += x[i] * yj;
-        } else {
-            for (std::size_t i = 0; i < m; ++i) aj[i] += x[i * incx] * yj;
-        }
-    }
-}
-
-void AxpyDoubleKernel(std::size_t n, double alpha, const double *x, double *y)
-{
-    const hn::ScalableTag<double> d;
-    const std::size_t N = hn::Lanes(d);
-    auto v_a = hn::Set(d, alpha);
-
-    std::size_t i = 0;
-    for (; i + N <= n; i += N) {
-        auto v_y = hn::MulAdd(hn::LoadU(d, x + i), v_a, hn::LoadU(d, y + i));
-        hn::StoreU(v_y, d, y + i);
-    }
-    for (; i < n; ++i) y[i] += x[i] * alpha;
-}
 
 bool LuPanelDoubleKernel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
 {
@@ -916,15 +835,7 @@ namespace numkit::ops {
 
 HWY_EXPORT(GemmDoubleKernel);
 HWY_EXPORT(GemmComplexKernel);
-HWY_EXPORT(GemvDoubleKernel);
-HWY_EXPORT(GerDoubleKernel);
-HWY_EXPORT(AxpyDoubleKernel);
 HWY_EXPORT(LuPanelDoubleKernel);
-
-void axpy(std::size_t n, double alpha, const double *x, double *y)
-{
-    HWY_DYNAMIC_DISPATCH(AxpyDoubleKernel)(n, alpha, x, y);
-}
 
 bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
 {
@@ -947,34 +858,33 @@ void gemm(std::size_t m, std::size_t n, std::size_t k,
     HWY_DYNAMIC_DISPATCH(GemmComplexKernel)(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
 }
 
-void gemv(std::size_t m, std::size_t n,
-          double alpha, const double *A, std::size_t lda,
-          const double *x, std::size_t incx,
-          double beta, double *y, std::size_t incy)
-{
-    HWY_DYNAMIC_DISPATCH(GemvDoubleKernel)(m, n, alpha, A, lda, x, incx, beta, y, incy);
-}
-
-void ger(std::size_t m, std::size_t n,
-         double alpha, const double *x, std::size_t incx,
-         const double *y, std::size_t incy,
-         double *A, std::size_t lda)
-{
-    HWY_DYNAMIC_DISPATCH(GerDoubleKernel)(m, n, alpha, x, incx, y, incy, A, lda);
-}
-
 template <typename T> struct is_complex_type : std::false_type {};
 template <typename U> struct is_complex_type<std::complex<U>> : std::true_type {};
 template <typename T> inline constexpr bool is_complex_type_v = is_complex_type<T>::value;
 
 template <typename T>
-void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
-                  std::size_t m, std::size_t n,
-                  T alpha, const T *A, std::size_t lda,
-                  T *B, std::size_t ldb)
+void gemm_dispatch(std::size_t m, std::size_t n, std::size_t k,
+                   T alpha, const T *A, std::size_t lda,
+                   const T *B, std::size_t ldb,
+                   T beta, T *C, std::size_t ldc)
 {
-    if (m == 0 || n == 0) return;
+    if constexpr (is_complex_type_v<T>) {
+        gemm(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+    } else {
+        gemm(m, n, k, static_cast<double>(alpha),
+             reinterpret_cast<const double*>(A), lda,
+             reinterpret_cast<const double*>(B), ldb,
+             static_cast<double>(beta),
+             reinterpret_cast<double*>(C), ldc);
+    }
+}
 
+template <typename T>
+void trsm_base(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
+               std::size_t m, std::size_t n,
+               T alpha, const T *A, std::size_t lda,
+               T *B, std::size_t ldb)
+{
     const bool is_unit = (diag == MatrixDiag::Unit);
     const bool is_conj = (trans == MatrixTranspose::ConjTrans);
 
@@ -987,76 +897,6 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
     };
 
     if (side == MatrixSide::Left) {
-        // op(A) * X = B, A is m x m, B is m x n
-        const std::size_t total_flops = m * m * n;
-        constexpr std::size_t kParallelFlopThreshold = 500'000;
-        const std::size_t p_thresh = (total_flops >= kParallelFlopThreshold) ? std::size_t{1} : n + 1;
-
-        numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
-            for (std::size_t j = jc_start; j < jc_end; ++j) {
-                if (alpha != T(1)) {
-                    for (std::size_t i = 0; i < m; ++i) {
-                        B[i + j * ldb] *= alpha;
-                    }
-                }
-
-                if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
-                    for (std::size_t k = 0; k < m; ++k) {
-                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                        const T xkj = B[k + j * ldb];
-                        if (xkj == T(0)) continue;
-
-                        if constexpr (std::is_same_v<T, double>) {
-                            const double *a_col = A + k * lda;
-                            double *b_col = B + j * ldb;
-                            if (m > k + 1) {
-                                axpy(m - (k + 1), -xkj, a_col + (k + 1), b_col + (k + 1));
-                            }
-                        } else {
-                            for (std::size_t i = k + 1; i < m; ++i) {
-                                B[i + j * ldb] -= get_a(i, k) * xkj;
-                            }
-                        }
-                    }
-                } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
-                    for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
-                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                        const T xkj = B[k + j * ldb];
-                        for (std::intptr_t i = k - 1; i >= 0; --i) {
-                            B[i + j * ldb] -= get_a(i, k) * xkj;
-                        }
-                    }
-                } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
-                    for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
-                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                        const T xkj = B[k + j * ldb];
-                        if (xkj == T(0)) continue;
-
-                        if constexpr (std::is_same_v<T, double>) {
-                            const double *a_col = A + k * lda;
-                            double *b_col = B + j * ldb;
-                            if (k > 0) {
-                                axpy(static_cast<std::size_t>(k), -xkj, a_col, b_col);
-                            }
-                        } else {
-                            for (std::intptr_t i = k - 1; i >= 0; --i) {
-                                B[i + j * ldb] -= get_a(i, k) * xkj;
-                            }
-                        }
-                    }
-                } else { // Upper + Trans / ConjTrans
-                    for (std::size_t k = 0; k < m; ++k) {
-                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                        const T xkj = B[k + j * ldb];
-                        for (std::size_t i = k + 1; i < m; ++i) {
-                            B[i + j * ldb] -= get_a(i, k) * xkj;
-                        }
-                    }
-                }
-            }
-        });
-    } else {
-        // X * op(A) = B, A is n x n
         if (alpha != T(1)) {
             for (std::size_t j = 0; j < n; ++j) {
                 for (std::size_t i = 0; i < m; ++i) {
@@ -1064,7 +904,41 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
                 }
             }
         }
-
+        for (std::size_t j = 0; j < n; ++j) {
+            if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
+                for (std::size_t k = 0; k < m; ++k) {
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
+                    if (xkj == T(0)) continue;
+                    for (std::size_t i = k + 1; i < m; ++i) B[i + j * ldb] -= get_a(i, k) * xkj;
+                }
+            } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
+                for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
+                    for (std::intptr_t i = k - 1; i >= 0; --i) B[i + j * ldb] -= get_a(i, k) * xkj;
+                }
+            } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
+                for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
+                    if (xkj == T(0)) continue;
+                    for (std::intptr_t i = k - 1; i >= 0; --i) B[i + j * ldb] -= get_a(i, k) * xkj;
+                }
+            } else { // Upper + Trans
+                for (std::size_t k = 0; k < m; ++k) {
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
+                    for (std::size_t i = k + 1; i < m; ++i) B[i + j * ldb] -= get_a(i, k) * xkj;
+                }
+            }
+        }
+    } else {
+        if (alpha != T(1)) {
+            for (std::size_t j = 0; j < n; ++j) {
+                for (std::size_t i = 0; i < m; ++i) B[i + j * ldb] *= alpha;
+            }
+        }
         if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
             for (std::intptr_t k = static_cast<std::intptr_t>(n) - 1; k >= 0; --k) {
                 if (!is_unit) {
@@ -1073,9 +947,7 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
                 }
                 for (std::intptr_t j = k - 1; j >= 0; --j) {
                     T akj = get_a(k, j);
-                    for (std::size_t i = 0; i < m; ++i) {
-                        B[i + j * ldb] -= B[i + k * ldb] * akj;
-                    }
+                    for (std::size_t i = 0; i < m; ++i) B[i + j * ldb] -= B[i + k * ldb] * akj;
                 }
             }
         } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
@@ -1086,9 +958,7 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
                 }
                 for (std::size_t j = k + 1; j < n; ++j) {
                     T akj = get_a(k, j);
-                    for (std::size_t i = 0; i < m; ++i) {
-                        B[i + j * ldb] -= B[i + k * ldb] * akj;
-                    }
+                    for (std::size_t i = 0; i < m; ++i) B[i + j * ldb] -= B[i + k * ldb] * akj;
                 }
             }
         } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
@@ -1099,12 +969,10 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
                 }
                 for (std::size_t j = k + 1; j < n; ++j) {
                     T akj = get_a(k, j);
-                    for (std::size_t i = 0; i < m; ++i) {
-                        B[i + j * ldb] -= B[i + k * ldb] * akj;
-                    }
+                    for (std::size_t i = 0; i < m; ++i) B[i + j * ldb] -= B[i + k * ldb] * akj;
                 }
             }
-        } else { // Upper + Trans / ConjTrans
+        } else { // Upper + Trans
             for (std::intptr_t k = static_cast<std::intptr_t>(n) - 1; k >= 0; --k) {
                 if (!is_unit) {
                     T akk = get_a(k, k);
@@ -1112,13 +980,209 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
                 }
                 for (std::intptr_t j = k - 1; j >= 0; --j) {
                     T akj = get_a(k, j);
-                    for (std::size_t i = 0; i < m; ++i) {
-                        B[i + j * ldb] -= B[i + k * ldb] * akj;
-                    }
+                    for (std::size_t i = 0; i < m; ++i) B[i + j * ldb] -= B[i + k * ldb] * akj;
                 }
             }
         }
     }
+}
+
+template <typename T>
+void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
+                  std::size_t m, std::size_t n,
+                  T alpha, const T *A, std::size_t lda,
+                  T *B, std::size_t ldb)
+{
+    if (m == 0 || n == 0) return;
+    
+    // Scale B by alpha upfront
+    if (alpha != T(1)) {
+        for (std::size_t j = 0; j < n; ++j) {
+            for (std::size_t i = 0; i < m; ++i) B[i + j * ldb] *= alpha;
+        }
+    }
+
+    if (side == MatrixSide::Left) {
+        if (m <= 64) {
+            trsm_base(side, uplo, trans, diag, m, n, T(1), A, lda, B, ldb);
+            return;
+        }
+        std::size_t m1 = m / 2;
+        std::size_t m2 = m - m1;
+        
+        if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m1, n, T(1), A, lda, B, ldb);
+            gemm_dispatch(m2, n, m1, T(-1), A + m1, lda, B, ldb, T(1), B + m1, ldb);
+            trsm_generic(side, uplo, trans, diag, m2, n, T(1), A + m1 + m1 * lda, lda, B + m1, ldb);
+        } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m2, n, T(1), A + m1 + m1 * lda, lda, B + m1, ldb);
+            gemm_dispatch(m1, n, m2, T(-1), A + m1 * lda, lda, B + m1, ldb, T(1), B, ldb);
+            trsm_generic(side, uplo, trans, diag, m1, n, T(1), A, lda, B, ldb);
+        } else if (uplo == MatrixUplo::Upper && trans != MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m1, n, T(1), A, lda, B, ldb);
+            std::vector<T> U01_T(m2 * m1);
+            for(std::size_t c=0; c<m2; ++c) {
+                for(std::size_t r=0; r<m1; ++r) {
+                    T val = A[r + (m1 + c)*lda];
+                    if constexpr (is_complex_type_v<T>) {
+                        if (trans == MatrixTranspose::ConjTrans) val = std::conj(val);
+                    }
+                    U01_T[c + r*m2] = val; 
+                }
+            }
+            gemm_dispatch(m2, n, m1, T(-1), U01_T.data(), m2, B, ldb, T(1), B + m1, ldb);
+            trsm_generic(side, uplo, trans, diag, m2, n, T(1), A + m1 + m1 * lda, lda, B + m1, ldb);
+        } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m2, n, T(1), A + m1 + m1 * lda, lda, B + m1, ldb);
+            std::vector<T> L10_T(m1 * m2);
+            for(std::size_t c=0; c<m1; ++c) {
+                for(std::size_t r=0; r<m2; ++r) {
+                    T val = A[(m1 + r) + c*lda];
+                    if constexpr (is_complex_type_v<T>) {
+                        if (trans == MatrixTranspose::ConjTrans) val = std::conj(val);
+                    }
+                    L10_T[c + r*m1] = val;
+                }
+            }
+            gemm_dispatch(m1, n, m2, T(-1), L10_T.data(), m1, B + m1, ldb, T(1), B, ldb);
+            trsm_generic(side, uplo, trans, diag, m1, n, T(1), A, lda, B, ldb);
+        }
+    } else { // Right side
+        if (n <= 64) {
+            trsm_base(side, uplo, trans, diag, m, n, T(1), A, lda, B, ldb);
+            return;
+        }
+        std::size_t n1 = n / 2;
+        std::size_t n2 = n - n1;
+
+        if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m, n2, T(1), A + n1 + n1 * lda, lda, B + n1 * ldb, ldb);
+            gemm_dispatch(m, n1, n2, T(-1), B + n1 * ldb, ldb, A + n1, lda, T(1), B, ldb);
+            trsm_generic(side, uplo, trans, diag, m, n1, T(1), A, lda, B, ldb);
+        } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m, n1, T(1), A, lda, B, ldb);
+            gemm_dispatch(m, n2, n1, T(-1), B, ldb, A + n1 * lda, lda, T(1), B + n1 * ldb, ldb);
+            trsm_generic(side, uplo, trans, diag, m, n2, T(1), A + n1 + n1 * lda, lda, B + n1 * ldb, ldb);
+        } else if (uplo == MatrixUplo::Upper && trans != MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m, n2, T(1), A + n1 + n1 * lda, lda, B + n1 * ldb, ldb);
+            std::vector<T> U01_T(n2 * n1);
+            for(std::size_t c=0; c<n2; ++c) {
+                for(std::size_t r=0; r<n1; ++r) {
+                    T val = A[r + (n1 + c)*lda];
+                    if constexpr (is_complex_type_v<T>) {
+                        if (trans == MatrixTranspose::ConjTrans) val = std::conj(val);
+                    }
+                    U01_T[c + r*n2] = val; 
+                }
+            }
+            gemm_dispatch(m, n1, n2, T(-1), B + n1 * ldb, ldb, U01_T.data(), n2, T(1), B, ldb);
+            trsm_generic(side, uplo, trans, diag, m, n1, T(1), A, lda, B, ldb);
+        } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
+            trsm_generic(side, uplo, trans, diag, m, n1, T(1), A, lda, B, ldb);
+            std::vector<T> L10_T(n1 * n2);
+            for(std::size_t c=0; c<n1; ++c) {
+                for(std::size_t r=0; r<n2; ++r) {
+                    T val = A[(n1 + r) + c*lda];
+                    if constexpr (is_complex_type_v<T>) {
+                        if (trans == MatrixTranspose::ConjTrans) val = std::conj(val);
+                    }
+                    L10_T[c + r*n1] = val;
+                }
+            }
+            gemm_dispatch(m, n2, n1, T(-1), B, ldb, L10_T.data(), n1, T(1), B + n1 * ldb, ldb);
+            trsm_generic(side, uplo, trans, diag, m, n2, T(1), A + n1 + n1 * lda, lda, B + n1 * ldb, ldb);
+        }
+    }
+}
+
+template <typename T>
+void syrk_recursive(MatrixUplo uplo, MatrixTranspose trans,
+                    std::size_t n, std::size_t k,
+                    T alpha, const T *V_T, std::size_t ld_v_t, const T *V, std::size_t ld_v,
+                    T *C, std::size_t ldc)
+{
+    if (n <= 64) {
+        for (std::size_t j = 0; j < n; ++j) {
+            std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
+            std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
+            for (std::size_t i = i_start; i < i_end; ++i) {
+                T sum = 0;
+                for (std::size_t l = 0; l < k; ++l) {
+                    sum += V_T[i + l * ld_v_t] * V[l + j * ld_v];
+                }
+                C[i + j * ldc] += alpha * sum;
+            }
+        }
+        return;
+    }
+
+    std::size_t n1 = n / 2;
+    std::size_t n2 = n - n1;
+
+    if (uplo == MatrixUplo::Upper) {
+        syrk_recursive(uplo, trans, n1, k, alpha, V_T, ld_v_t, V, ld_v, C, ldc);
+        gemm_dispatch(n1, n2, k, alpha, V_T, ld_v_t, V + n1 * ld_v, ld_v, T(1), C + n1 * ldc, ldc);
+        syrk_recursive(uplo, trans, n2, k, alpha, V_T + n1, ld_v_t, V + n1 * ld_v, ld_v, C + n1 + n1 * ldc, ldc);
+    } else {
+        syrk_recursive(uplo, trans, n1, k, alpha, V_T, ld_v_t, V, ld_v, C, ldc);
+        gemm_dispatch(n2, n1, k, alpha, V_T + n1, ld_v_t, V, ld_v, T(1), C + n1, ldc);
+        syrk_recursive(uplo, trans, n2, k, alpha, V_T + n1, ld_v_t, V + n1 * ld_v, ld_v, C + n1 + n1 * ldc, ldc);
+    }
+}
+
+template <typename T>
+void syrk_generic(MatrixUplo uplo, MatrixTranspose trans,
+                  std::size_t n, std::size_t k,
+                  T alpha, const T *A, std::size_t lda,
+                  T beta, T *C, std::size_t ldc)
+{
+    if (n == 0) return;
+
+    if (beta != T(1)) {
+        for (std::size_t j = 0; j < n; ++j) {
+            std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
+            std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
+            if (beta == T(0)) {
+                for (std::size_t i = i_start; i < i_end; ++i) C[i + j * ldc] = T(0);
+            } else {
+                for (std::size_t i = i_start; i < i_end; ++i) C[i + j * ldc] *= beta;
+            }
+        }
+    }
+    
+    if (k == 0 || alpha == T(0)) return;
+
+    const bool is_trans = (trans != MatrixTranspose::NoTrans);
+    const bool is_conj  = (trans == MatrixTranspose::ConjTrans);
+
+    std::vector<T> V_T(n * k);
+    std::vector<T> V(k * n);
+    
+    if (!is_trans) {
+        for (std::size_t col = 0; col < k; ++col) {
+            for (std::size_t row = 0; row < n; ++row) {
+                V_T[row + col * n] = A[row + col * lda];
+                T val = A[row + col * lda];
+                if constexpr (is_complex_type_v<T>) {
+                    if (is_conj) val = std::conj(val);
+                }
+                V[col + row * k] = val;
+            }
+        }
+    } else {
+        for (std::size_t col = 0; col < n; ++col) {
+            for (std::size_t row = 0; row < k; ++row) {
+                V[row + col * k] = A[row + col * lda];
+                T val = A[row + col * lda];
+                if constexpr (is_complex_type_v<T>) {
+                    if (is_conj) val = std::conj(val);
+                }
+                V_T[col + row * n] = val;
+            }
+        }
+    }
+
+    syrk_recursive(uplo, trans, n, k, alpha, V_T.data(), n, V.data(), k, C, ldc);
 }
 
 void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
@@ -1135,70 +1199,6 @@ void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag di
           std::complex<double> *B, std::size_t ldb)
 {
     trsm_generic(side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb);
-}
-
-template <typename T>
-void syrk_generic(MatrixUplo uplo, MatrixTranspose trans,
-                  std::size_t n, std::size_t k,
-                  T alpha, const T *A, std::size_t lda,
-                  T beta, T *C, std::size_t ldc)
-{
-    if (n == 0) return;
-
-    const std::size_t total_flops = 2 * n * n * k;
-    constexpr std::size_t kParallelFlopThreshold = 64'000;
-    const std::size_t p_thresh = (total_flops >= kParallelFlopThreshold) ? std::size_t{1} : n + 1;
-
-    const bool is_trans = (trans != MatrixTranspose::NoTrans);
-    const bool is_conj  = (trans == MatrixTranspose::ConjTrans);
-
-    numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
-        for (std::size_t j = jc_start; j < jc_end; ++j) {
-            std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
-            std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
-
-            for (std::size_t i = i_start; i < i_end; ++i) {
-                if (beta == T(0)) C[i + j * ldc] = T(0);
-                else if (beta != T(1)) C[i + j * ldc] *= beta;
-            }
-
-            if (k == 0 || alpha == T(0)) continue;
-
-            for (std::size_t l = 0; l < k; ++l) {
-                T b_val = is_trans ? A[l + j * lda] : A[j + l * lda];
-                if constexpr (is_complex_type_v<T>) {
-                    if (!is_trans) {
-                        b_val = std::conj(b_val);
-                    }
-                }
-                const T alpha_b = alpha * b_val;
-
-                if constexpr (std::is_same_v<T, double>) {
-                    if (!is_trans) {
-                        const double *a_col = A + l * lda;
-                        double *c_col = C + j * ldc;
-                        if (i_end > i_start) {
-                            axpy(i_end - i_start, alpha_b, a_col + i_start, c_col + i_start);
-                        }
-                    } else {
-                        for (std::size_t i = i_start; i < i_end; ++i) {
-                            C[i + j * ldc] += A[l + i * lda] * alpha_b;
-                        }
-                    }
-                } else {
-                    for (std::size_t i = i_start; i < i_end; ++i) {
-                        T a_val = is_trans ? A[l + i * lda] : A[i + l * lda];
-                        if constexpr (is_complex_type_v<T>) {
-                            if (is_conj) {
-                                a_val = std::conj(a_val);
-                            }
-                        }
-                        C[i + j * ldc] += a_val * alpha_b;
-                    }
-                }
-            }
-        }
-    });
 }
 
 void syrk(MatrixUplo uplo, MatrixTranspose trans,

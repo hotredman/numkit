@@ -1,75 +1,19 @@
 // ops/include/numkit/ops/blas.hpp
 //
-// SIMD BLAS-like microkernels (gemm, gemv, ger, trsm) in src/ops.
+// Umbrella header for BLAS-like operations.
 
 #pragma once
 
-#include <cstddef>
-#include <complex>
+#include <numkit/ops/blas1.hpp>
+#include <numkit/ops/blas2.hpp>
+#include <numkit/ops/blas3.hpp>
+#include <atomic>
+#include <cstdint>
 
 namespace numkit::ops {
 
-enum class MatrixSide { Left, Right };
-enum class MatrixUplo { Upper, Lower };
-enum class MatrixTranspose { NoTrans, Trans, ConjTrans };
-enum class MatrixDiag { NonUnit, Unit };
-
-/// @brief General matrix-matrix multiply C = alpha * A * B + beta * C (real double).
-/// Column-major matrices: A (m x k), B (k x n), C (m x n).
-void gemm(std::size_t m, std::size_t n, std::size_t k,
-          double alpha, const double *A, std::size_t lda,
-          const double *B, std::size_t ldb,
-          double beta, double *C, std::size_t ldc);
-
-/// @brief General matrix-matrix multiply C = alpha * A * B + beta * C (complex double).
-void gemm(std::size_t m, std::size_t n, std::size_t k,
-          std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
-          const std::complex<double> *B, std::size_t ldb,
-          std::complex<double> beta, std::complex<double> *C, std::size_t ldc);
-
-/// @brief General matrix-vector multiply y = alpha * A * x + beta * y (real double).
-void gemv(std::size_t m, std::size_t n,
-          double alpha, const double *A, std::size_t lda,
-          const double *x, std::size_t incx,
-          double beta, double *y, std::size_t incy);
-
-/// @brief Rank-1 update A = alpha * x * y^T + A (real double).
-void ger(std::size_t m, std::size_t n,
-         double alpha, const double *x, std::size_t incx,
-         const double *y, std::size_t incy,
-         double *A, std::size_t lda);
-
-/// @brief Vector add scaled y = alpha * x + y (real double).
-void axpy(std::size_t n, double alpha, const double *x, double *y);
-
 /// @brief Native Highway SIMD LU panel factorization kernel.
 bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row);
-
-/// @brief Triangular matrix solve (real double).
-void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
-          std::size_t m, std::size_t n,
-          double alpha, const double *A, std::size_t lda,
-          double *B, std::size_t ldb);
-
-/// @brief Triangular matrix solve (complex double).
-void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
-          std::size_t m, std::size_t n,
-          std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
-          std::complex<double> *B, std::size_t ldb);
-
-/// @brief Symmetric rank-k update C = alpha * A * A^T + beta * C (real double).
-void syrk(MatrixUplo uplo, MatrixTranspose trans,
-          std::size_t n, std::size_t k,
-          double alpha, const double *A, std::size_t lda,
-          double beta, double *C, std::size_t ldc);
-
-/// @brief Hermitian/Symmetric rank-k update C = alpha * A * A^H + beta * C (complex double).
-void syrk(MatrixUplo uplo, MatrixTranspose trans,
-          std::size_t n, std::size_t k,
-          std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
-          std::complex<double> beta, std::complex<double> *C, std::size_t ldc);
-
-#include <atomic>
 
 /// @brief Returns the number of threads used in the most recent gemm call.
 inline std::atomic<std::size_t> g_last_gemm_threads_used{0};
