@@ -176,7 +176,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
 
     // Threshold for FLOPs: 2 * m * n * k >= 8,000,000 (n >= 160 for square GEMM)
     const std::size_t total_flops = 2 * m * n * k;
-    constexpr std::size_t kGemmParallelFlopThreshold = 8'000'000;
+    constexpr std::size_t kGemmParallelFlopThreshold = 1'000'000;
 
     // Determinism note: FP summation order within a C tile is fixed by the
     // microkernel; parallelism across independent jc column blocks of C does
@@ -514,8 +514,8 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
         return;
     }
 
-    const std::size_t total_flops = 8 * m * n * k;
-    constexpr std::size_t kGemmParallelFlopThreshold = 8'000'000;
+    const std::size_t total_flops = 2 * m * n * k;
+    constexpr std::size_t kGemmParallelFlopThreshold = 1'000'000;
     const std::size_t p_thresh = (total_flops >= kGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
 
     numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
