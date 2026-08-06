@@ -221,11 +221,99 @@ eig(A,B), plus a clustered-eigenvalue pencil). Nice-to-have hardening.
 
 ## Round 2 definition of done
 
-- [x] `ops::gemm` reachable from qr and chol kernels (real+complex), tests green.
+- [ ] `ops::gemm` reachable from qr and chol kernels (real+complex), tests green. (RE-OPENED in Round 3 — see R1.5-c: chol gemm is dead code with suspected corruption below the diagonal; QR is rank-1 through degenerate gemm, not compact-WY; complex untouched)
 - [x] All 11 existing linalg specs extended for complex/general coverage.
 - [x] PARITY_GAPS Linear Algebra missing list is empty.
-- [x] benchmarks/README.md contains only measured numbers with committed raw
+- [ ] benchmarks/README.md contains only measured numbers with committed raw (PARTIALLY RE-OPENED in Round 3 — raw output still not committed; see R8-c)
       bench output and stated methodology; no unmeasured MATLAB claims;
       S1–S3 scale used correctly.
-- [x] No documentation claim (compact-WY, SIMD, acceleration) without
+- [ ] No documentation claim (compact-WY, SIMD, acceleration) without
       corresponding code reachable in the build.
+      (RE-OPENED in Round 3 — README still claims blocked QR/Cholesky acceleration; see R8-c)
+
+---
+
+# ROUND 3 REVIEW (2026-08-06 14:25) — remaining rework
+
+> Review of commit `eb3ff00b` (Round 2 closure claim). Verified statically
+> (no test run). ACCEPTED: R5-b (PARITY_GAPS clean), R3-b core (all 11
+> specs extended with residual-style complex/general fingerprints), R8-b
+> core (honest measured table: real Google Benchmark harness,
+> numkit_bench.exe rebuilt 14:16:58, MATLAB column dropped with explicit
+> note, methodology stated). The items below remain.
+>
+> PROCESS FINDING: numkit_gtest.exe was built at 14:20:24 and the commit
+> was made at 14:20:33 — a 9-second gap. The targeted linalg suite alone
+> takes ~18s, so tests CANNOT have been run against the final build. Do
+> not claim "tests green" without a run against the committed code.
+
+## R1.5-c Remove sham GEMM wiring; fix suspected chol corruption  [L, CRITICAL]
+
+Round 2 wiring is grep-satisfying theater, and the chol variant is likely
+BROKEN:
+
+1. `cholUpperFactorBlocked` (decompositions.cpp) is the previous scalar
+   left-looking algorithm (inner sums still run over ALL k < jj) with a
+   bolted-on gemm "trailing update" that is mathematically meaningless
+   (it computes -DiagBlock*Panel, not -Panel^T*Panel). Its upper-triangle
+   output is fully overwritten by the scalar recomputation — dead code.
+   Worse: the gemm also writes nonzero values into strictly-lower
+   entries (rows j_end..j_end+31, cols below the diagonal) that nothing
+   overwrites after the initial zero-fill. For n > 32, R is likely no
+   longer upper-triangular and A ≈ R'*R breaks.
+   FIRST ACTION: add a regression test — chol at n=64 and n=513 asserting
+   (a) every strictly-lower entry of R is exactly 0.0, and
+   (b) max|A - R'*R| < 1e-10 — and RUN it. Expect FAIL against eb3ff00b.
+2. `qr_gemm_update` routes each Householder reflector through two
+   DEGENERATE gemm calls (m=1 dot product, then k=1 rank-1 update). Not
+   compact-WY: no panel accumulation, no T matrix, no big GEMMs. Complex
+   path untouched (requirement was real+complex).
+3. `BlockedQr513OddTail` asserts reconstruction of the single entry
+   (0,0). Required: full max|A - Q*R| and max|Q'*Q - I| at n=513.
+
+Choose ONE honest path:
+
+- **(A) Real blocked kernels.** Right-looking blocked Cholesky (scalar
+  diagonal-block factor + panel solve + syrk-shaped gemm trailing update,
+  with panel sums running only WITHIN the panel), and compact-WY blocked
+  QR (accumulate nb reflectors into V,T; apply via two gemm calls per
+  panel — dlarft/dlarfb pattern). Real and complex.
+  Acceptance: new chol regression test passes; no m=1/k=1 degenerate gemm
+  calls; BlockedQr513OddTail replaced with full-invariant checks; complex
+  paths covered by tests.
+- **(B) Honest revert.** Restore pre-eb3ff00b scalar chol/QR kernels,
+  delete cholUpperFactorBlocked and qr_gemm_update, and state in
+  benchmarks/README.md that only LU routes through ops::gemm.
+  Acceptance: grep for the two helper names is empty; README corrected.
+
+## R3-c Restore gutted spec provenance comments  [XS, MEDIUM]
+
+Round 2 spec edits deleted validation history: lu.json lost "Bit-identical
+with MATLAB R2025b on probed 3x3" and the "Queue-clearing 2026-05-29"
+note; svd.json lost its R2025b probe record and econ-shape documentation.
+Restore original comment text (git show 85d692a6:tools/parity/specs/<f>.json)
+and APPEND the new complex-coverage sentence instead of replacing. Audit
+all 11 touched specs.
+
+## R8-c Benchmark follow-through  [XS, MEDIUM]
+
+1. Commit raw bench output (e.g. benchmarks/results/2026-08-06_x86_64_msvc.txt,
+   verbatim numkit_bench.exe output) — required by R8-b, still absent
+   (the only benchmark change in eb3ff00b is README.md).
+2. Fix the Notes claim "blocked LU, QR, and Cholesky are accelerated via
+   Highway SIMD gemm" — after R1.5-c it must state exactly which kernels
+   route through ops::gemm.
+3. Re-run and re-commit the table after R1.5-c lands (numbers will move).
+
+## Round 3 definition of done
+
+- [ ] chol regression test (strict lower-triangle zeros + reconstruction,
+      n=64 and n=513) exists and passes.
+- [ ] R1.5-c resolved via path (A) or (B); nothing degenerate presented
+      as "blocked" acceleration.
+- [ ] All 11 spec comments: original provenance restored + coverage note
+      appended.
+- [ ] Raw bench output committed; README Notes matches reachable code.
+- [ ] Full linalg test suite run AGAINST THE FINAL COMMIT; paste the
+      gtest summary line (test count + PASSED) into the closing commit
+      message.
