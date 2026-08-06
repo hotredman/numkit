@@ -62,8 +62,22 @@ bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
             if (pmax == 0.0) return false;
             piv[j] = static_cast<std::int32_t>(pivot);
             if (pivot != j) {
-                for (std::size_t col = 0; col < n; ++col)
-                    std::swap(LU[j + col * n], LU[pivot + col * n]);
+                T *r1 = LU + j;
+                T *r2 = LU + pivot;
+                std::size_t col = 0;
+                for (; col + 8 <= n; col += 8) {
+                    T t0 = r1[(col + 0) * n]; r1[(col + 0) * n] = r2[(col + 0) * n]; r2[(col + 0) * n] = t0;
+                    T t1 = r1[(col + 1) * n]; r1[(col + 1) * n] = r2[(col + 1) * n]; r2[(col + 1) * n] = t1;
+                    T t2 = r1[(col + 2) * n]; r1[(col + 2) * n] = r2[(col + 2) * n]; r2[(col + 2) * n] = t2;
+                    T t3 = r1[(col + 3) * n]; r1[(col + 3) * n] = r2[(col + 3) * n]; r2[(col + 3) * n] = t3;
+                    T t4 = r1[(col + 4) * n]; r1[(col + 4) * n] = r2[(col + 4) * n]; r2[(col + 4) * n] = t4;
+                    T t5 = r1[(col + 5) * n]; r1[(col + 5) * n] = r2[(col + 5) * n]; r2[(col + 5) * n] = t5;
+                    T t6 = r1[(col + 6) * n]; r1[(col + 6) * n] = r2[(col + 6) * n]; r2[(col + 6) * n] = t6;
+                    T t7 = r1[(col + 7) * n]; r1[(col + 7) * n] = r2[(col + 7) * n]; r2[(col + 7) * n] = t7;
+                }
+                for (; col < n; ++col) {
+                    T t = r1[col * n]; r1[col * n] = r2[col * n]; r2[col * n] = t;
+                }
             }
             const T inv_pivot = T(1) / LU[j + j * n];
             for (std::size_t i = j + 1; i < n; ++i) {
