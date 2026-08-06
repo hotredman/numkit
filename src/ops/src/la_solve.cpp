@@ -188,9 +188,103 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 }
 
 template <typename T>
+bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row = 0)
+{
+    if (m == 0 || n == 0) return true;
+
+    if (m <= 128 || n <= 128) {
+        if constexpr (std::is_same_v<T, double>) {
+            return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
+        } else {
+            return lu_recursive_inplace(A, lda, piv, m, n, offset_row);
+        }
+    }
+
+    constexpr std::size_t nb = 64;
+    const std::size_t min_mn = std::min(m, n);
+
+    for (std::size_t j = 0; j < min_mn; j += nb) {
+        const std::size_t jb = std::min(nb, min_mn - j);
+        const std::size_t rem_m = m - j;
+        T *A_jj = A + j + j * lda;
+
+        if constexpr (std::is_same_v<T, double>) {
+            if (!::numkit::ops::lu_panel(A_jj, lda, piv + j, rem_m, jb, offset_row + j)) return false;
+        } else {
+            if (!lu_recursive_inplace(A_jj, lda, piv + j, rem_m, jb, offset_row + j)) return false;
+        }
+
+        if (j + jb < n) {
+            const std::size_t rem_n = n - (j + jb);
+            T *A_right = A + j + (j + jb) * lda;
+
+            const std::size_t p_thresh = (rem_n >= 64) ? 32 : (rem_n + 1);
+            numkit::detail::parallel_for(rem_n, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
+                for (std::size_t i = 0; i < jb; ++i) {
+                    std::size_t p = static_cast<std::size_t>(piv[j + i] - (offset_row + j));
+                    if (p != i) {
+                        T *r1 = A_right + i + c_start * lda;
+                        T *r2 = A_right + p + c_start * lda;
+                        std::size_t bcols = c_end - c_start;
+                        std::size_t col = 0;
+                        for (; col + 8 <= bcols; col += 8) {
+                            T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
+                            T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
+                            T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
+                            T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
+                            T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
+                            T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
+                            T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
+                            T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
+                        }
+                        for (; col < bcols; ++col) {
+                            T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+                        }
+                    }
+                }
+            });
+
+            T *L11 = A_jj;
+            T *U12 = A_right;
+            if constexpr (is_complex_v<T>) {
+                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                                   jb, rem_n, Complex(1.0, 0.0),
+                                   reinterpret_cast<const Complex*>(L11), lda,
+                                   reinterpret_cast<Complex*>(U12), lda);
+            } else {
+                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                                   jb, rem_n, 1.0, L11, lda, U12, lda);
+            }
+
+            if (j + jb < m) {
+                const std::size_t trailing_m = rem_m - jb;
+                T *L21 = A + (j + jb) + j * lda;
+                T *A22 = A + (j + jb) + (j + jb) * lda;
+
+                if constexpr (is_complex_v<T>) {
+                    ::numkit::ops::gemm(trailing_m, rem_n, jb, Complex(-1.0, 0.0),
+                                       reinterpret_cast<const Complex*>(L21), lda,
+                                       reinterpret_cast<const Complex*>(U12), lda,
+                                       Complex(1.0, 0.0),
+                                       reinterpret_cast<Complex*>(A22), lda);
+                } else {
+                    ::numkit::ops::gemm(trailing_m, rem_n, jb, -1.0,
+                                       reinterpret_cast<const double*>(L21), lda,
+                                       reinterpret_cast<const double*>(U12), lda,
+                                       1.0,
+                                       reinterpret_cast<double*>(A22), lda);
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+template <typename T>
 bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
 {
-    return lu_recursive_inplace(LU, n, piv, n, n, 0);
+    return lu_blocked_inplace(LU, n, piv, n, n, 0);
 }
 
 // ── QR via Householder (tall A, m×n with m >= n) ─────────────────────
