@@ -209,7 +209,7 @@ reductions, 3M complex gemm, small-size fast paths).
 - [x] P4 trsm all combos (or hard error) + syrk, parity-tested.
 - [x] P5 lu/chol/qr routed through the stack, real+complex, invariant
       tests at n=513 green.
-- [ ] P6 same-machine MATLAB baseline committed; all cycle-target gates
+- [x] P6 same-machine MATLAB baseline committed; all cycle-target gates
       met or S-scale bugs filed with measurements.
 - [ ] P7 hygiene items closed.
 - [ ] Full linalg gtest suite run against the final commit; summary line
