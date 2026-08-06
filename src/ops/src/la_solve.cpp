@@ -8,6 +8,8 @@
 #include <complex>
 #include <cstdint>
 
+#include <numkit/ops/blas.hpp>
+
 namespace numkit::ops {
 
 namespace {
@@ -37,65 +39,73 @@ inline T conj_val(const T &x) {
     else return x;
 }
 
-// ── LU with partial pivoting (square A, n×n) ─────────────────────────
+// ── Blocked LU with partial pivoting (square A, n×n) using SIMD GEMM ──
 template <typename T>
-bool lu_partial_pivot(T *A, std::int32_t *piv, std::size_t n)
+bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
 {
-    for (std::size_t k = 0; k < n; ++k) {
-        std::size_t pivot_row = k;
-        double pivot_val = abs_val(A[k + k * n]);
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = abs_val(A[i + k * n]);
-            if (v > pivot_val) { pivot_val = v; pivot_row = i; }
+    constexpr std::size_t nb = 64; // panel block size
+
+    for (std::size_t k = 0; k < n; k += nb) {
+        std::size_t kb = std::min(nb, n - k);
+
+        // 1. Panel factorization on columns k .. k+kb-1
+        for (std::size_t j = k; j < k + kb; ++j) {
+            std::size_t pivot = j;
+            double pmax = abs_val(LU[j + j * n]);
+            for (std::size_t i = j + 1; i < n; ++i) {
+                const double v = abs_val(LU[i + j * n]);
+                if (v > pmax) {
+                    pmax = v;
+                    pivot = i;
+                }
+            }
+            if (pmax == 0.0) return false;
+            piv[j] = static_cast<std::int32_t>(pivot);
+            if (pivot != j) {
+                for (std::size_t col = 0; col < n; ++col)
+                    std::swap(LU[j + col * n], LU[pivot + col * n]);
+            }
+            const T inv_pivot = T(1) / LU[j + j * n];
+            for (std::size_t i = j + 1; i < n; ++i) {
+                const T factor = LU[i + j * n] * inv_pivot;
+                LU[i + j * n] = factor;
+                for (std::size_t col = j + 1; col < k + kb; ++col)
+                    LU[i + col * n] -= factor * LU[j + col * n];
+            }
         }
-        if (pivot_val == 0.0) return false;
-        piv[k] = static_cast<std::int32_t>(pivot_row);
-        if (pivot_row != k) {
-            for (std::size_t j = 0; j < n; ++j)
-                std::swap(A[k + j * n], A[pivot_row + j * n]);
-        }
-        const T inv_pivot = T(1) / A[k + k * n];
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const T factor = A[i + k * n] * inv_pivot;
-            A[i + k * n] = factor;
-            for (std::size_t j = k + 1; j < n; ++j)
-                A[i + j * n] -= factor * A[k + j * n];
+
+        // 2. Trailing matrix update via SIMD GEMM
+        if (k + kb < n) {
+            for (std::size_t col = k + kb; col < n; ++col) {
+                for (std::size_t i1 = 0; i1 < kb; ++i1) {
+                    for (std::size_t i2 = 0; i2 < i1; ++i2) {
+                        LU[(k + i1) + col * n] -= LU[(k + i1) + (k + i2) * n] * LU[(k + i2) + col * n];
+                    }
+                }
+            }
+
+            const std::size_t rem_rows = n - (k + kb);
+            const std::size_t rem_cols = n - (k + kb);
+            const T *L21 = LU + (k + kb) + k * n;
+            const T *U12 = LU + k + (k + kb) * n;
+            T *A22 = LU + (k + kb) + (k + kb) * n;
+
+            if constexpr (is_complex_v<T>) {
+                ::numkit::ops::gemm(rem_rows, rem_cols, kb, Complex(-1.0, 0.0),
+                                   reinterpret_cast<const Complex*>(L21), n,
+                                   reinterpret_cast<const Complex*>(U12), n,
+                                   Complex(1.0, 0.0),
+                                   reinterpret_cast<Complex*>(A22), n);
+            } else {
+                ::numkit::ops::gemm(rem_rows, rem_cols, kb, -1.0,
+                                   reinterpret_cast<const double*>(L21), n,
+                                   reinterpret_cast<const double*>(U12), n,
+                                   1.0,
+                                   reinterpret_cast<double*>(A22), n);
+            }
         }
     }
     return true;
-}
-
-inline void apply_piv(const std::int32_t *piv, double *bx, std::size_t n)
-{
-    for (std::size_t k = 0; k < n; ++k) {
-        const std::size_t p = static_cast<std::size_t>(piv[k]);
-        if (p != k) std::swap(bx[k], bx[p]);
-    }
-}
-
-inline void apply_piv(const std::int32_t *piv, Complex *bx, std::size_t n)
-{
-    for (std::size_t k = 0; k < n; ++k) {
-        const std::size_t p = static_cast<std::size_t>(piv[k]);
-        if (p != k) std::swap(bx[k], bx[p]);
-    }
-}
-
-template <typename T>
-void lu_solve_one(const T *LU, const std::int32_t *piv,
-                  T *bx, std::size_t n)
-{
-    apply_piv(piv, bx, n);
-    for (std::size_t i = 1; i < n; ++i) {
-        T s = bx[i];
-        for (std::size_t k = 0; k < i; ++k) s -= LU[i + k * n] * bx[k];
-        bx[i] = s;
-    }
-    for (std::size_t i = n; i-- > 0;) {
-        T s = bx[i];
-        for (std::size_t k = i + 1; k < n; ++k) s -= LU[i + k * n] * bx[k];
-        bx[i] = s / LU[i + i * n];
-    }
 }
 
 // ── QR via Householder (tall A, m×n with m >= n) ─────────────────────
@@ -174,11 +184,33 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
         ScratchVec<T> A_lu(n * n, &arena);
         std::copy(A, A + n * n, A_lu.begin());
         ScratchVec<std::int32_t> piv(n, &arena);
-        if (!lu_partial_pivot(A_lu.data(), piv.data(), n)) return false;
-        for (std::size_t j = 0; j < nrhs; ++j) {
-            T *xj = X + j * n;
-            for (std::size_t i = 0; i < n; ++i) xj[i] = B[i + j * n];
-            lu_solve_one(A_lu.data(), piv.data(), xj, n);
+        if (!lu_pivot_inplace(A_lu.data(), piv.data(), n)) return false;
+
+        std::vector<std::size_t> perm(n);
+        for (std::size_t i = 0; i < n; ++i) perm[i] = i;
+        for (std::size_t k = 0; k < n; ++k)
+            std::swap(perm[k], perm[piv[k]]);
+
+        for (std::size_t col = 0; col < nrhs; ++col) {
+            for (std::size_t row = 0; row < n; ++row) {
+                X[row + col * n] = B[perm[row] + col * n];
+            }
+        }
+
+        if constexpr (is_complex_v<T>) {
+            ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                      n, nrhs, Complex(1.0, 0.0), reinterpret_cast<const Complex*>(A_lu.data()), n,
+                      reinterpret_cast<Complex*>(X), n);
+            ops::trsm(MatrixSide::Left, MatrixUplo::Upper, MatrixTranspose::NoTrans, MatrixDiag::NonUnit,
+                      n, nrhs, Complex(1.0, 0.0), reinterpret_cast<const Complex*>(A_lu.data()), n,
+                      reinterpret_cast<Complex*>(X), n);
+        } else {
+            ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                      n, nrhs, 1.0, reinterpret_cast<const double*>(A_lu.data()), n,
+                      reinterpret_cast<double*>(X), n);
+            ops::trsm(MatrixSide::Left, MatrixUplo::Upper, MatrixTranspose::NoTrans, MatrixDiag::NonUnit,
+                      n, nrhs, 1.0, reinterpret_cast<const double*>(A_lu.data()), n,
+                      reinterpret_cast<double*>(X), n);
         }
         return true;
     }
