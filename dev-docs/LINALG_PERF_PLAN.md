@@ -202,7 +202,7 @@ reductions, 3M complex gemm, small-size fast paths).
 - [x] P1 microkernel GEMM: correctness suite (incl. odd sizes, NaN/Inf)
       green; ≥ 4× vs current kernel at n=1024 single-thread; GFLOP/s and
       % of peak recorded.
-- [ ] P2 threading: ≥ 12× scaling at n=2048 on 24 cores; bitwise
+- [x] P2 threading: ≥ 12× scaling at n=2048 on 24 cores; bitwise
       reproducible vs single-thread.
 - [ ] P3 complex 4M GEMM inside HWY_NAMESPACE; per-j re-split eliminated;
       complex/real time ratio ≤ 2.5× at n=512.

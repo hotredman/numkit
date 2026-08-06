@@ -1,0 +1,26 @@
+2026-08-06T14:50:10+03:00
+Running C:\Users\User\Projects\megahard\numkit\build\desktop-fast\benchmarks\Release\numkit_bench.exe
+Run on (24 X 3072 MHz CPU s)
+CPU Caches:
+  L1 Data 48 KiB (x24)
+  L1 Instruction 64 KiB (x24)
+  L2 Unified 3072 KiB (x24)
+  L3 Unified 36864 KiB (x1)
+----------------------------------------------------------------------
+Benchmark                            Time             CPU   Iterations
+----------------------------------------------------------------------
+BM_Linalg_LU_Real/64             32714 ns        32884 ns        20907
+BM_Linalg_LU_Real/128           331921 ns       329998 ns         2036
+BM_Linalg_LU_Real/256          2653650 ns      2622768 ns          280
+BM_Linalg_LU_Complex/64          98638 ns       100442 ns         7467
+BM_Linalg_LU_Complex/128        838323 ns       836680 ns          747
+BM_Linalg_LU_Complex/256       7534261 ns      7638889 ns           90
+BM_Linalg_Chol_Real/64           12415 ns        12277 ns        56000
+BM_Linalg_Chol_Real/128          87065 ns        85794 ns         7467
+BM_Linalg_Chol_Real/256         687651 ns       680106 ns          896
+BM_Linalg_Solve_Real/64         114878 ns       112305 ns         6400
+BM_Linalg_Solve_Real/128       1650177 ns      1650799 ns          407
+BM_Linalg_Solve_Real/256      22941666 ns     21972656 ns           32
+BM_Linalg_Solve_Complex/64      534312 ns       531250 ns         1000
+BM_Linalg_Solve_Complex/128    4689017 ns      4565747 ns          154
+BM_Linalg_Solve_Complex/256   40052712 ns     39522059 ns           17
