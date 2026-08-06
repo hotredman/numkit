@@ -1,0 +1,12 @@
+{
+  "name": "ordqz",
+  "namespace": "builtin",
+  "setup": "A = [4 1; 0 2]; B = [1 0; 0 1]; [AA, BB, Q, Z] = qz(A, B);",
+  "expr": "[AAS, BBS, QS, ZS] = ordqz(AA, BB, Q, Z, 'lhp'); err = max(max(abs(QS*A*ZS - AAS)));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "AAS(1,1)", "AAS(2,2)", "err"
+  ],
+  "comment": "Reorder generalized Schur decomposition: [AAS, BBS, QS, ZS] = ordqz(AA, BB, Q, Z, select/domain). Uses dtgexc adjacent Givens swaps."
+}
