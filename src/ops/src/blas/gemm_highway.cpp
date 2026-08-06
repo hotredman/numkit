@@ -25,51 +25,149 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
                       const double *B, std::size_t ldb,
                       double beta, double *C, std::size_t ldc)
 {
+    if (m == 0 || n == 0) return;
+
+    // Handle beta scaling when k == 0 or alpha == 0
+    if (k == 0 || alpha == 0.0) {
+        if (beta == 0.0) {
+            for (std::size_t j = 0; j < n; ++j) {
+                std::fill(C + j * ldc, C + j * ldc + m, 0.0);
+            }
+        } else if (beta != 1.0) {
+            for (std::size_t j = 0; j < n; ++j) {
+                for (std::size_t i = 0; i < m; ++i) C[i + j * ldc] *= beta;
+            }
+        }
+        return;
+    }
+
     const hn::ScalableTag<double> d;
     const std::size_t N = hn::Lanes(d);
 
-    for (std::size_t j = 0; j < n; ++j) {
-        double *cj = C + j * ldc;
-        if (beta == 0.0) {
-            std::fill(cj, cj + m, 0.0);
-        } else if (beta != 1.0) {
-            std::size_t i = 0;
-            auto v_beta = hn::Set(d, beta);
-            for (; i + N <= m; i += N) {
-                hn::StoreU(hn::Mul(hn::LoadU(d, cj + i), v_beta), d, cj + i);
-            }
-            for (; i < m; ++i) cj[i] *= beta;
-        }
-    }
+    // BLIS blocking parameters
+    constexpr std::size_t mr_vec = 2;              // 2 vector rows (2 * N)
+    const std::size_t mr = mr_vec * N;              // e.g. 8 doubles for AVX2, 16 for AVX-512
+    constexpr std::size_t nr = 6;                   // 6 columns
+    constexpr std::size_t kc_block = 256;           // L2-resident A-panel width
+    constexpr std::size_t mc_block = 256;           // L2-resident A-panel height
+    constexpr std::size_t nc_block = 2048;          // L3-resident B-panel width
 
-    if (k == 0 || alpha == 0.0) return;
+    // Allocate aligned packing buffers
+    std::vector<double> A_pack(mc_block * kc_block + 64, 0.0);
+    std::vector<double> B_pack(kc_block * nr + 64, 0.0);
 
-    for (std::size_t j = 0; j < n; ++j) {
-        double *cj = C + j * ldc;
-        for (std::size_t l = 0; l < k; ++l) {
-            const double blj = alpha * B[l + j * ldb];
-            if (blj == 0.0) continue;
-            const double *al = A + l * lda;
-            auto v_b = hn::Set(d, blj);
+    for (std::size_t jc = 0; jc < n; jc += nc_block) {
+        std::size_t nc = std::min(nc_block, n - jc);
 
-            std::size_t i = 0;
-            for (; i + 4 * N <= m; i += 4 * N) {
-                auto c0 = hn::MulAdd(hn::LoadU(d, al + i + 0 * N), v_b, hn::LoadU(d, cj + i + 0 * N));
-                auto c1 = hn::MulAdd(hn::LoadU(d, al + i + 1 * N), v_b, hn::LoadU(d, cj + i + 1 * N));
-                auto c2 = hn::MulAdd(hn::LoadU(d, al + i + 2 * N), v_b, hn::LoadU(d, cj + i + 2 * N));
-                auto c3 = hn::MulAdd(hn::LoadU(d, al + i + 3 * N), v_b, hn::LoadU(d, cj + i + 3 * N));
+        for (std::size_t pc = 0; pc < k; pc += kc_block) {
+            std::size_t kc = std::min(kc_block, k - pc);
+            double current_beta = (pc == 0) ? beta : 1.0;
 
-                hn::StoreU(c0, d, cj + i + 0 * N);
-                hn::StoreU(c1, d, cj + i + 1 * N);
-                hn::StoreU(c2, d, cj + i + 2 * N);
-                hn::StoreU(c3, d, cj + i + 3 * N);
-            }
-            for (; i + N <= m; i += N) {
-                auto c0 = hn::MulAdd(hn::LoadU(d, al + i), v_b, hn::LoadU(d, cj + i));
-                hn::StoreU(c0, d, cj + i);
-            }
-            for (; i < m; ++i) {
-                cj[i] += al[i] * blj;
+            for (std::size_t ic = 0; ic < m; ic += mc_block) {
+                std::size_t mc = std::min(mc_block, m - ic);
+
+                // Pack A block (mc x kc) into column-panels of height mr
+                for (std::size_t ii = 0; ii < mc; ii += mr) {
+                    std::size_t cur_mr = std::min(mr, mc - ii);
+                    double *a_p = A_pack.data() + ii * kc;
+                    for (std::size_t kk = 0; kk < kc; ++kk) {
+                        const double *a_col = A + (ic + ii) + (pc + kk) * lda;
+                        for (std::size_t r = 0; r < cur_mr; ++r) {
+                            a_p[kk * mr + r] = a_col[r];
+                        }
+                        for (std::size_t r = cur_mr; r < mr; ++r) {
+                            a_p[kk * mr + r] = 0.0;
+                        }
+                    }
+                }
+
+                // Microkernel loop over jr (width nr) and ir (height mr)
+                for (std::size_t jr = 0; jr < nc; jr += nr) {
+                    std::size_t cur_nr = std::min(nr, nc - jr);
+
+                    // Pack B block (kc x cur_nr) into row-panel of width nr
+                    for (std::size_t kk = 0; kk < kc; ++kk) {
+                        for (std::size_t c = 0; c < cur_nr; ++c) {
+                            B_pack[kk * nr + c] = B[(pc + kk) + (jc + jr + c) * ldb];
+                        }
+                        for (std::size_t c = cur_nr; c < nr; ++c) {
+                            B_pack[kk * nr + c] = 0.0;
+                        }
+                    }
+
+                    for (std::size_t ir = 0; ir < mc; ir += mr) {
+                        std::size_t cur_mr = std::min(mr, mc - ir);
+                        const double *a_p = A_pack.data() + ir * kc;
+                        double *c_ptr = C + (ic + ir) + (jc + jr) * ldc;
+
+                        if (cur_mr == mr && cur_nr == nr) {
+                            // Full mr x nr SIMD microkernel (12 accumulator registers)
+                            auto c00 = hn::Zero(d), c01 = hn::Zero(d), c02 = hn::Zero(d), c03 = hn::Zero(d), c04 = hn::Zero(d), c05 = hn::Zero(d);
+                            auto c10 = hn::Zero(d), c11 = hn::Zero(d), c12 = hn::Zero(d), c13 = hn::Zero(d), c14 = hn::Zero(d), c15 = hn::Zero(d);
+
+                            for (std::size_t kk = 0; kk < kc; ++kk) {
+                                auto a0 = hn::LoadU(d, a_p + kk * mr + 0 * N);
+                                auto a1 = hn::LoadU(d, a_p + kk * mr + 1 * N);
+
+                                const double *b_k = B_pack.data() + kk * nr;
+                                auto b0 = hn::Set(d, b_k[0]);
+                                auto b1 = hn::Set(d, b_k[1]);
+                                auto b2 = hn::Set(d, b_k[2]);
+                                auto b3 = hn::Set(d, b_k[3]);
+                                auto b4 = hn::Set(d, b_k[4]);
+                                auto b5 = hn::Set(d, b_k[5]);
+
+                                c00 = hn::MulAdd(a0, b0, c00); c10 = hn::MulAdd(a1, b0, c10);
+                                c01 = hn::MulAdd(a0, b1, c01); c11 = hn::MulAdd(a1, b1, c11);
+                                c02 = hn::MulAdd(a0, b2, c02); c12 = hn::MulAdd(a1, b2, c12);
+                                c03 = hn::MulAdd(a0, b3, c03); c13 = hn::MulAdd(a1, b3, c13);
+                                c04 = hn::MulAdd(a0, b4, c04); c14 = hn::MulAdd(a1, b4, c14);
+                                c05 = hn::MulAdd(a0, b5, c05); c15 = hn::MulAdd(a1, b5, c15);
+                            }
+
+                            auto v_alpha = hn::Set(d, alpha);
+                            auto v_beta = hn::Set(d, current_beta);
+
+                            #define STORE_COL(col_idx, acc0, acc1) \
+                            { \
+                                double *col_c = c_ptr + col_idx * ldc; \
+                                auto r0 = hn::Mul(acc0, v_alpha); \
+                                auto r1 = hn::Mul(acc1, v_alpha); \
+                                if (current_beta != 0.0) { \
+                                    r0 = hn::MulAdd(hn::LoadU(d, col_c + 0 * N), v_beta, r0); \
+                                    r1 = hn::MulAdd(hn::LoadU(d, col_c + 1 * N), v_beta, r1); \
+                                } \
+                                hn::StoreU(r0, d, col_c + 0 * N); \
+                                hn::StoreU(r1, d, col_c + 1 * N); \
+                            }
+
+                            STORE_COL(0, c00, c10);
+                            STORE_COL(1, c01, c11);
+                            STORE_COL(2, c02, c12);
+                            STORE_COL(3, c03, c13);
+                            STORE_COL(4, c04, c14);
+                            STORE_COL(5, c05, c15);
+                            #undef STORE_COL
+                        } else {
+                            // Scalar edge kernel for tail tiles
+                            for (std::size_t c = 0; c < cur_nr; ++c) {
+                                double *col_c = c_ptr + c * ldc;
+                                const double *b_col = B_pack.data() + c;
+                                for (std::size_t r = 0; r < cur_mr; ++r) {
+                                    double acc = 0.0;
+                                    for (std::size_t kk = 0; kk < kc; ++kk) {
+                                        acc += a_p[kk * mr + r] * b_col[kk * nr];
+                                    }
+                                    if (current_beta == 0.0) {
+                                        col_c[r] = alpha * acc;
+                                    } else {
+                                        col_c[r] = current_beta * col_c[r] + alpha * acc;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

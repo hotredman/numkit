@@ -1065,3 +1065,49 @@ TEST(SimdParity_Blas, TrsmRealLowerSolve)
     }
 }
 
+TEST(SimdParity_Blas, GemmP1_RandomSizes)
+{
+    std::mt19937 rng(404);
+    std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+    for (size_t n : {size_t(63), size_t(64), size_t(65), size_t(127), size_t(129), size_t(255), size_t(257), size_t(513)}) {
+        std::vector<double> A(n * n), B(n * n), C_simd(n * n, 1.5), C_ref(n * n, 1.5);
+        for (size_t i = 0; i < n * n; ++i) {
+            A[i] = dist(rng);
+            B[i] = dist(rng);
+        }
+
+        const double alpha = 1.25;
+        const double beta = 0.75;
+
+        numkit::ops::gemm(n, n, n, alpha, A.data(), n, B.data(), n, beta, C_simd.data(), n);
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t k = 0; k < n; ++k) {
+                const double bkj = alpha * B[k + j * n];
+                for (size_t i = 0; i < n; ++i) {
+                    if (k == 0) C_ref[i + j * n] *= beta;
+                    C_ref[i + j * n] += A[i + k * n] * bkj;
+                }
+            }
+        }
+
+        for (size_t i = 0; i < n * n; ++i) {
+            EXPECT_NEAR(C_simd[i], C_ref[i], 1e-9) << "n=" << n << " at index " << i;
+        }
+    }
+}
+
+TEST(SimdParity_Blas, GemmP1_NanInfPropagation)
+{
+    std::vector<double> A = {1.0, 2.0, 3.0, 4.0};
+    std::vector<double> B = {0.0, std::numeric_limits<double>::quiet_NaN(), 0.0, 1.0};
+    std::vector<double> C(4, 0.0);
+
+    // 0.0 * NaN must produce NaN according to IEEE-754
+    numkit::ops::gemm(2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
+
+    EXPECT_TRUE(std::isnan(C[0]) || std::isnan(C[1]) || std::isnan(C[2]) || std::isnan(C[3]));
+}
+
+
