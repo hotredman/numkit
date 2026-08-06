@@ -1,0 +1,12 @@
+{
+  "name": "gsvd",
+  "namespace": "builtin",
+  "setup": "A = [1 2; 3 4]; B = [1 0; 0 1];",
+  "expr": "S = sort(gsvd(A, B)); [U, V, X, C, S_mat] = gsvd(A, B); errA = max(max(abs(U'*A*X - C)));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "S(1)", "S(2)", "errA"
+  ],
+  "comment": "Generalized SVD decomposition: [U, V, X, C, S] = gsvd(A, B) and gsvd_values(A, B)."
+}
