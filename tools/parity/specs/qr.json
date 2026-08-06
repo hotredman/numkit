@@ -15,5 +15,5 @@
     "pv1", "pv2", "pv3",
     "reconPa", "rd1", "rd2", "rd3", "err_c"
   ],
-  "comment": "Householder QR; A=Q*R. Supports real and complex matrices."
+  "comment": "Sig: [Q,R]=qr(A) | qr(A,'econ') | [Q,R,P]=qr(A) | qr(A,'vector'). Householder QR; A=Q*R. Column-pivoted form (fixed 2026-06-05, bugs/linalg/qr-pivoting.md): A*P=Q*R, columns pivoted by decreasing norm; P is a permutation matrix (default) or vector ('vector'/econ). 3x2 tall pivots to [2 1] (P(1,2)=P(2,1)=1); 3x3 pivots to [3 1 2]; |diag(R)| is rank-revealing (decreasing). Q signs may differ from MATLAB by a reflection, so the R diagonal is fingerprinted via abs() and correctness via reconstruction A*P-Q*R / orthogonality Q'Q-I. Queue-clearing 2026-05-29: 'econ' previously errored 'requires exactly 1 argument'. Extended in 2026-08 for complex matrix coverage."
 }

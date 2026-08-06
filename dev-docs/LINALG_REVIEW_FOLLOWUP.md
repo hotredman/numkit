@@ -307,13 +307,13 @@ all 11 touched specs.
 
 ## Round 3 definition of done
 
-- [ ] chol regression test (strict lower-triangle zeros + reconstruction,
+- [x] chol regression test (strict lower-triangle zeros + reconstruction,
       n=64 and n=513) exists and passes.
-- [ ] R1.5-c resolved via path (A) or (B); nothing degenerate presented
+- [x] R1.5-c resolved via path (B); nothing degenerate presented
       as "blocked" acceleration.
-- [ ] All 11 spec comments: original provenance restored + coverage note
+- [x] All 11 spec comments: original provenance restored + coverage note
       appended.
-- [ ] Raw bench output committed; README Notes matches reachable code.
-- [ ] Full linalg test suite run AGAINST THE FINAL COMMIT; paste the
+- [x] Raw bench output committed; README Notes matches reachable code.
+- [x] Full linalg test suite run AGAINST THE FINAL COMMIT; paste the
       gtest summary line (test count + PASSED) into the closing commit
       message.

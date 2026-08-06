@@ -79,8 +79,26 @@ TEST(BlockedQrTest, BlockedQr513OddTail) {
     const double *qd = Q.doubleData();
     const double *rd = R.doubleData();
 
-    // Check entry (0,0) reconstruction
-    double s00 = 0.0;
-    for (size_t k = 0; k < m; ++k) s00 += qd[0 + k * m] * rd[k + 0 * m];
-    EXPECT_NEAR(s00, ad[0], 1e-10);
+    // Verify full reconstruction A == Q * R
+    double max_rec_err = 0.0;
+    for (size_t i = 0; i < m; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            double s = 0.0;
+            for (size_t k = 0; k < m; ++k) s += qd[i + k * m] * rd[k + j * m];
+            max_rec_err = std::max(max_rec_err, std::abs(ad[i + j * m] - s));
+        }
+    }
+    EXPECT_LT(max_rec_err, 1e-10);
+
+    // Verify orthogonality Q' * Q == I (sampled 32 diagonal/off-diagonal elements for speed)
+    double max_ortho_err = 0.0;
+    for (size_t i = 0; i < 32; ++i) {
+        for (size_t j = 0; j < 32; ++j) {
+            double s = 0.0;
+            for (size_t k = 0; k < m; ++k) s += qd[k + i * m] * qd[k + j * m];
+            double expected = (i == j) ? 1.0 : 0.0;
+            max_ortho_err = std::max(max_ortho_err, std::abs(s - expected));
+        }
+    }
+    EXPECT_LT(max_ortho_err, 1e-10);
 }

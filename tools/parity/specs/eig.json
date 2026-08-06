@@ -17,5 +17,5 @@
     "werr", "wveq", "wsum",
     "wnerr", "wnsum", "wn1", "err_c"
   ],
-  "comment": "Sig: e = eig(A) | [V,D] = eig(A) | [V,D,W] = eig(A). Supports real, symmetric, general asymmetric, and complex matrices."
+  "comment": "Sig: e = eig(A) | [V,D] = eig(A) | [V,D,W] = eig(A) | eig(A,'vector'|'matrix') | eig(A,B). Symmetric: classical Jacobi. General: characteristic polynomial via Souriau-Faddeev + roots(). Left eigenvectors W (fixed 2026-06-05, bugs/linalg/eig-left-vectors.md): W'*A = D*W', the right eigenvectors of A' reordered to D's eigenvalue order and normalized to unit 2-norm; for symmetric A, W == V. W column signs may differ from MATLAB (eig sign convention), so W is validated sign/order-agnostically: the relation residual werr/wnerr ~ 0, symmetric W==V (wveq ~ 0), unit-norm columns (wn1=1), and sum(abs(W)) (wsum/wnsum, invariant under column permutation + sign). Generalized eig(A,B) reduces to B\\A. 'vector'/'matrix'/eig(A,B) queue-cleared 2026-05-29. Sort applied for order-agnostic eigenvalue comparison. Extended in 2026-08 for complex matrix coverage."
 }

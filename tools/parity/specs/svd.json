@@ -14,5 +14,5 @@
     "Se(1,1)", "Se(3,3)", "ueC", "seR", "veC", "recE",
     "sc(1)", "sc(2)", "err_c"
   ],
-  "comment": "One-sided Jacobi SVD; A = U*S*V'. Supports real and complex matrices."
+  "comment": "Sig: s = svd(A) | [U, S, V] = svd(A) | svd(A,'econ'). One-sided Jacobi SVD; A = U*S*V'. Bit-identical singular values with MATLAB R2025b (3x3 / 4x3 tall / 3x4 wide / diagonal). 'econ' on a 4x3 tall matrix: Ue 4x3, Se 3x3, Ve 3x3 (k=min(m,n)=3), reconstruction Ue*Se*Ve'=At. U/V signs not compared (ambiguity); reconstruction + orthogonality verified to ulp. Queue-clearing 2026-05-29: 'econ' previously errored 'requires exactly 1 argument'. Extended in 2026-08 for complex matrix coverage."
 }
