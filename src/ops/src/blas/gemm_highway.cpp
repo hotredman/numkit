@@ -819,7 +819,43 @@ bool LuPanelDoubleKernel(double *A, std::size_t lda, std::int32_t *piv, std::siz
         const double *l_col = A + j * lda;
         const std::size_t rem_m = m - (j + 1);
 
-        for (std::size_t col = j + 1; col < n; ++col) {
+        std::size_t col = j + 1;
+        for (; col + 4 <= n; col += 4) {
+            const double f0 = A[j + (col + 0) * lda];
+            const double f1 = A[j + (col + 1) * lda];
+            const double f2 = A[j + (col + 2) * lda];
+            const double f3 = A[j + (col + 3) * lda];
+
+            double *c0 = A + (col + 0) * lda + (j + 1);
+            double *c1 = A + (col + 1) * lda + (j + 1);
+            double *c2 = A + (col + 2) * lda + (j + 1);
+            double *c3 = A + (col + 3) * lda + (j + 1);
+            const double *x_ptr = l_col + (j + 1);
+
+            if (rem_m > 0) {
+                auto v_nf0 = hn::Set(d, -f0);
+                auto v_nf1 = hn::Set(d, -f1);
+                auto v_nf2 = hn::Set(d, -f2);
+                auto v_nf3 = hn::Set(d, -f3);
+
+                std::size_t idx = 0;
+                for (; idx + N <= rem_m; idx += N) {
+                    auto v_x = hn::LoadU(d, x_ptr + idx);
+                    hn::StoreU(hn::MulAdd(v_x, v_nf0, hn::LoadU(d, c0 + idx)), d, c0 + idx);
+                    hn::StoreU(hn::MulAdd(v_x, v_nf1, hn::LoadU(d, c1 + idx)), d, c1 + idx);
+                    hn::StoreU(hn::MulAdd(v_x, v_nf2, hn::LoadU(d, c2 + idx)), d, c2 + idx);
+                    hn::StoreU(hn::MulAdd(v_x, v_nf3, hn::LoadU(d, c3 + idx)), d, c3 + idx);
+                }
+                for (; idx < rem_m; ++idx) {
+                    const double vx = x_ptr[idx];
+                    c0[idx] += vx * (-f0);
+                    c1[idx] += vx * (-f1);
+                    c2[idx] += vx * (-f2);
+                    c3[idx] += vx * (-f3);
+                }
+            }
+        }
+        for (; col < n; ++col) {
             const double f = A[j + col * lda];
             if (f == 0.0) continue;
             double *col_ptr = A + col * lda;
