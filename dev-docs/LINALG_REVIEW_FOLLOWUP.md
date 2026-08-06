@@ -437,10 +437,16 @@ Acceptance:
       string into its output header at run time (no hard-coded release
       name), so provenance is self-documenting when the OWNER runs it in
       the installed R2025b.
-- [ ] Rule restated: the agent NEVER produces, estimates, or commits
-      MATLAB-side numbers. A gate table row exists only when raw outputs
-      for BOTH sides (numkit + MATLAB) are committed from the same
-      machine, produced by the owner.
+- [ ] POLICY UPDATE (2026-08-06 15:50, owner decision): the agent now
+      RUNS MATLAB itself, headlessly, using the recipe added to
+      `LINALG_PERF_PLAN.md` P6 (profile redirect to `build\mlhome` +
+      `matlab -batch`; verified working on this machine — prints
+      25.2.0/R2025b, 24 threads). Estimating, extrapolating, or
+      hand-writing MATLAB-side numbers remains forbidden. A gate table
+      row exists only when raw outputs for BOTH sides (numkit + MATLAB)
+      are committed, each an unedited console redirect produced on this
+      machine, with the MATLAB version string printed at run time and
+      matching the installed R2025b.
 
 ## P7-b. Benchmarks README asserts unmeasured claims; GEMM benchmark missing  [M, MEDIUM]
 
