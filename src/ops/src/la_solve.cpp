@@ -43,7 +43,7 @@ inline T conj_val(const T &x) {
 template <typename T>
 bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
 {
-    constexpr std::size_t nb = 64; // panel block size
+    const std::size_t nb = (n >= 1024) ? 64 : 32; // dynamic panel block size
 
     for (std::size_t k = 0; k < n; k += nb) {
         std::size_t kb = std::min(nb, n - k);
@@ -90,20 +90,25 @@ bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
             }
         }
 
-        // 2. Trailing matrix update via SIMD GEMM
+        // 2. Trailing matrix update via SIMD GEMM & trsm
         if (k + kb < n) {
-            for (std::size_t col = k + kb; col < n; ++col) {
-                for (std::size_t i1 = 0; i1 < kb; ++i1) {
-                    for (std::size_t i2 = 0; i2 < i1; ++i2) {
-                        LU[(k + i1) + col * n] -= LU[(k + i1) + (k + i2) * n] * LU[(k + i2) + col * n];
-                    }
-                }
+            const std::size_t rem_cols = n - (k + kb);
+            T *L11 = LU + k + k * n;
+            T *U12 = LU + k + (k + kb) * n;
+
+            // Solve L11 * U12 = A12 using multithreaded SIMD trsm
+            if constexpr (is_complex_v<T>) {
+                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                                   kb, rem_cols, Complex(1.0, 0.0),
+                                   reinterpret_cast<const Complex*>(L11), n,
+                                   reinterpret_cast<Complex*>(U12), n);
+            } else {
+                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                                   kb, rem_cols, 1.0, L11, n, U12, n);
             }
 
             const std::size_t rem_rows = n - (k + kb);
-            const std::size_t rem_cols = n - (k + kb);
             const T *L21 = LU + (k + kb) + k * n;
-            const T *U12 = LU + k + (k + kb) * n;
             T *A22 = LU + (k + kb) + (k + kb) * n;
 
             if constexpr (is_complex_v<T>) {
