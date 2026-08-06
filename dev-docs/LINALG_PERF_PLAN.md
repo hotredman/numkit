@@ -204,7 +204,7 @@ reductions, 3M complex gemm, small-size fast paths).
       % of peak recorded.
 - [x] P2 threading: ≥ 12× scaling at n=2048 on 24 cores; bitwise
       reproducible vs single-thread.
-- [ ] P3 complex 4M GEMM inside HWY_NAMESPACE; per-j re-split eliminated;
+- [x] P3 complex 4M GEMM inside HWY_NAMESPACE; per-j re-split eliminated;
       complex/real time ratio ≤ 2.5× at n=512.
 - [ ] P4 trsm all combos (or hard error) + syrk, parity-tested.
 - [ ] P5 lu/chol/qr routed through the stack, real+complex, invariant
