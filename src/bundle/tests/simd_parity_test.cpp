@@ -1107,6 +1107,24 @@ TEST(SimdParity_Blas, GemmP1_NanInfPropagation)
     numkit::ops::gemm(2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
     EXPECT_TRUE(std::isnan(C[0]) || std::isnan(C[1]) || std::isnan(C[2]) || std::isnan(C[3]));
 }
+TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
+{
+    std::mt19937 rng(808);
+    std::uniform_real_distribution<double> dist(-2.0, 2.0);
+    const size_t n = 256;
+    std::vector<double> A(n * n), B(n * n), C1(n * n, 0.0), C2(n * n, 0.0);
+    for (size_t i = 0; i < n * n; ++i) {
+        A[i] = dist(rng);
+        B[i] = dist(rng);
+    }
+
+    numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
+    numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
+
+    for (size_t i = 0; i < n * n; ++i) {
+        EXPECT_EQ(C1[i], C2[i]) << "Bitwise discrepancy at index " << i;
+    }
+}
 
 TEST(SimdParity_Blas, TrsmP4_AllSixteenCombos)
 {
@@ -1116,40 +1134,81 @@ TEST(SimdParity_Blas, TrsmP4_AllSixteenCombos)
     const size_t m = 7, n = 7;
     for (auto side : {numkit::ops::MatrixSide::Left, numkit::ops::MatrixSide::Right}) {
         for (auto uplo : {numkit::ops::MatrixUplo::Lower, numkit::ops::MatrixUplo::Upper}) {
-            for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::Trans}) {
+            for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::Trans, numkit::ops::MatrixTranspose::ConjTrans}) {
                 for (auto diag : {numkit::ops::MatrixDiag::NonUnit, numkit::ops::MatrixDiag::Unit}) {
-                    std::vector<double> A(m * m, 0.0), B(m * n), B_copy(m * n);
-                    for (size_t j = 0; j < m; ++j) {
-                        for (size_t i = 0; i < m; ++i) {
-                            if (uplo == numkit::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = dist(rng);
-                            else if (uplo == numkit::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = dist(rng);
-                            if (i == j && diag == numkit::ops::MatrixDiag::Unit) A[i + j * m] = 1.0;
-                        }
-                    }
-                    for (size_t i = 0; i < m * n; ++i) B[i] = B_copy[i] = dist(rng);
-
-                    numkit::ops::trsm(side, uplo, trans, diag, m, n, 1.25, A.data(), m, B.data(), m);
-
-                    // Verification check: op(A)*X == alpha*B or X*op(A) == alpha*B
-                    double max_err = 0.0;
-                    for (size_t j = 0; j < n; ++j) {
-                        for (size_t i = 0; i < m; ++i) {
-                            double lhs = 0.0;
-                            if (side == numkit::ops::MatrixSide::Left) {
-                                for (size_t k = 0; k < m; ++k) {
-                                    double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
-                                    lhs += a_val * B[k + j * m];
-                                }
-                            } else {
-                                for (size_t k = 0; k < n; ++k) {
-                                    double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
-                                    lhs += B[i + k * m] * a_val;
-                                }
+                    // Real double test
+                    {
+                        std::vector<double> A(m * m, 0.0), B(m * n), B_copy(m * n);
+                        for (size_t j = 0; j < m; ++j) {
+                            for (size_t i = 0; i < m; ++i) {
+                                if (uplo == numkit::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = dist(rng);
+                                else if (uplo == numkit::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = dist(rng);
+                                if (i == j && diag == numkit::ops::MatrixDiag::Unit) A[i + j * m] = 1.0;
                             }
-                            max_err = std::max(max_err, std::abs(lhs - 1.25 * B_copy[i + j * m]));
                         }
+                        for (size_t i = 0; i < m * n; ++i) B[i] = B_copy[i] = dist(rng);
+
+                        numkit::ops::trsm(side, uplo, trans, diag, m, n, 1.25, A.data(), m, B.data(), m);
+
+                        double max_err = 0.0;
+                        for (size_t j = 0; j < n; ++j) {
+                            for (size_t i = 0; i < m; ++i) {
+                                double lhs = 0.0;
+                                if (side == numkit::ops::MatrixSide::Left) {
+                                    for (size_t k = 0; k < m; ++k) {
+                                        double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
+                                        lhs += a_val * B[k + j * m];
+                                    }
+                                } else {
+                                    for (size_t k = 0; k < n; ++k) {
+                                        double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
+                                        lhs += B[i + k * m] * a_val;
+                                    }
+                                }
+                                max_err = std::max(max_err, std::abs(lhs - 1.25 * B_copy[i + j * m]));
+                            }
+                        }
+                        EXPECT_LT(max_err, 1e-9);
                     }
-                    EXPECT_LT(max_err, 1e-9);
+
+                    // Complex double test
+                    {
+                        using Complex = std::complex<double>;
+                        std::vector<Complex> A(m * m, Complex(0.0, 0.0)), B(m * n), B_copy(m * n);
+                        for (size_t j = 0; j < m; ++j) {
+                            for (size_t i = 0; i < m; ++i) {
+                                if (uplo == numkit::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = Complex(dist(rng), dist(rng));
+                                else if (uplo == numkit::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = Complex(dist(rng), dist(rng));
+                                if (i == j && diag == numkit::ops::MatrixDiag::Unit) A[i + j * m] = Complex(1.0, 0.0);
+                            }
+                        }
+                        for (size_t i = 0; i < m * n; ++i) B[i] = B_copy[i] = Complex(dist(rng), dist(rng));
+
+                        Complex alpha(1.25, -0.5);
+                        numkit::ops::trsm(side, uplo, trans, diag, m, n, alpha, A.data(), m, B.data(), m);
+
+                        double max_err = 0.0;
+                        for (size_t j = 0; j < n; ++j) {
+                            for (size_t i = 0; i < m; ++i) {
+                                Complex lhs(0.0, 0.0);
+                                if (side == numkit::ops::MatrixSide::Left) {
+                                    for (size_t k = 0; k < m; ++k) {
+                                        Complex a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
+                                        if (trans == numkit::ops::MatrixTranspose::ConjTrans) a_val = std::conj(a_val);
+                                        lhs += a_val * B[k + j * m];
+                                    }
+                                } else {
+                                    for (size_t k = 0; k < n; ++k) {
+                                        Complex a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
+                                        if (trans == numkit::ops::MatrixTranspose::ConjTrans) a_val = std::conj(a_val);
+                                        lhs += B[i + k * m] * a_val;
+                                    }
+                                }
+                                max_err = std::max(max_err, std::abs(lhs - alpha * B_copy[i + j * m]));
+                            }
+                        }
+                        EXPECT_LT(max_err, 1e-9);
+                    }
                 }
             }
         }
@@ -1158,30 +1217,77 @@ TEST(SimdParity_Blas, TrsmP4_AllSixteenCombos)
 
 TEST(SimdParity_Blas, SyrkP4_ParityTest)
 {
+    using Complex = std::complex<double>;
     std::mt19937 rng(606);
     std::uniform_real_distribution<double> dist(-2.0, 2.0);
 
     const size_t n = 7, k = 5;
-    std::vector<double> A(n * k), C_simd(n * n, 1.0), C_ref(n * n, 1.0);
-    for (size_t i = 0; i < n * k; ++i) A[i] = dist(rng);
 
-    numkit::ops::syrk(numkit::ops::MatrixUplo::Lower, numkit::ops::MatrixTranspose::NoTrans,
-                      n, k, 1.5, A.data(), n, 0.5, C_simd.data(), n);
+    // 1. Real Syrk test (NoTrans & Trans)
+    for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::Trans}) {
+        size_t rows_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? n : k;
+        size_t cols_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? k : n;
+        std::vector<double> A(rows_a * cols_a), C_simd(n * n, 1.0), C_ref(n * n, 1.0);
+        for (size_t i = 0; i < rows_a * cols_a; ++i) A[i] = dist(rng);
 
-    for (size_t j = 0; j < n; ++j) {
-        for (size_t i = j; i < n; ++i) {
-            double acc = 0.0;
-            for (size_t l = 0; l < k; ++l) acc += A[i + l * n] * A[j + l * n];
-            C_ref[i + j * n] = 0.5 * C_ref[i + j * n] + 1.5 * acc;
+        numkit::ops::syrk(numkit::ops::MatrixUplo::Lower, trans, n, k, 1.5, A.data(), rows_a, 0.5, C_simd.data(), n);
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = j; i < n; ++i) {
+                double acc = 0.0;
+                for (size_t l = 0; l < k; ++l) {
+                    double a_ik = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + l * rows_a] : A[l + i * rows_a];
+                    double a_jk = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[j + l * rows_a] : A[l + j * rows_a];
+                    acc += a_ik * a_jk;
+                }
+                C_ref[i + j * n] = 0.5 * C_ref[i + j * n] + 1.5 * acc;
+            }
+        }
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = j; i < n; ++i) {
+                EXPECT_NEAR(C_simd[i + j * n], C_ref[i + j * n], 1e-10);
+            }
         }
     }
 
-    for (size_t j = 0; j < n; ++j) {
-        for (size_t i = j; i < n; ++i) {
-            EXPECT_NEAR(C_simd[i + j * n], C_ref[i + j * n], 1e-10);
+    // 2. Complex Herk test (NoTrans & ConjTrans) (P4-b critical fix test)
+    for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::ConjTrans}) {
+        size_t rows_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? n : k;
+        size_t cols_a = (trans == numkit::ops::MatrixTranspose::NoTrans) ? k : n;
+        std::vector<Complex> A(rows_a * cols_a), C_simd(n * n, Complex(1.0, 0.5)), C_ref(n * n, Complex(1.0, 0.5));
+        for (size_t i = 0; i < rows_a * cols_a; ++i) A[i] = Complex(dist(rng), dist(rng));
+
+        Complex alpha(1.5, -0.25);
+        Complex beta(0.5, 0.1);
+        numkit::ops::syrk(numkit::ops::MatrixUplo::Lower, trans, n, k, alpha, A.data(), rows_a, beta, C_simd.data(), n);
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = j; i < n; ++i) {
+                Complex acc(0.0, 0.0);
+                for (size_t l = 0; l < k; ++l) {
+                    if (trans == numkit::ops::MatrixTranspose::NoTrans) {
+                        // C = alpha * A * A^H + beta * C
+                        acc += A[i + l * rows_a] * std::conj(A[j + l * rows_a]);
+                    } else {
+                        // C = alpha * A^H * A + beta * C
+                        acc += std::conj(A[l + i * rows_a]) * A[l + j * rows_a];
+                    }
+                }
+                C_ref[i + j * n] = beta * C_ref[i + j * n] + alpha * acc;
+            }
         }
+
+        double max_err = 0.0;
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = j; i < n; ++i) {
+                max_err = std::max(max_err, std::abs(C_simd[i + j * n] - C_ref[i + j * n]));
+            }
+        }
+        EXPECT_LT(max_err, 1e-12);
     }
 }
+
 
 
 

@@ -1,6 +1,8 @@
 % bench_linalg.m - MATLAB performance comparison script for NumKit Linalg
 sizes = [64, 128, 256, 512, 1024, 2048];
 fprintf('=== MATLAB Linear Algebra Benchmark ===\n');
+fprintf('Date: %s\n', char(datetime('now')));
+fprintf('MATLAB Version: %s\n', version);
 fprintf('Max Threads: %d\n\n', maxNumCompThreads());
 
 for n = sizes

@@ -105,3 +105,57 @@ TEST(CholComplexTest, CholHermitian3x3) {
         }
     }
 }
+
+TEST(CholComplexTest, CholComplexBlocked_N96_N513) {
+    std::mt19937 rng(707);
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+
+    for (size_t n : {size_t(96), size_t(513)}) {
+        Value X = Value::complexMatrix(n, n);
+        auto *xd = X.complexDataMut();
+        for (size_t i = 0; i < n * n; ++i) {
+            xd[i] = std::complex<double>(dist(rng), dist(rng));
+        }
+
+        // Form HPD matrix A = X * X^H + n * I
+        Value A = Value::complexMatrix(n, n);
+        auto *ad = A.complexDataMut();
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = 0; i < n; ++i) {
+                std::complex<double> sum(0.0, 0.0);
+                for (size_t k = 0; k < n; ++k) {
+                    sum += xd[i + k * n] * std::conj(xd[j + k * n]);
+                }
+                if (i == j) sum += static_cast<double>(n);
+                ad[i + j * n] = sum;
+            }
+        }
+
+        Value R;
+        EXPECT_NO_THROW(R = chol(A));
+        ASSERT_TRUE(R.isComplex());
+        const auto *rd = R.complexData();
+
+        // (b) Verify strictly-lower entries of R are exactly zero
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = j + 1; i < n; ++i) {
+                EXPECT_EQ(rd[i + j * n], std::complex<double>(0.0, 0.0)) << "n=" << n << " at (" << i << "," << j << ")";
+            }
+        }
+
+        // (c) Verify reconstruction R^H * R = A within 1e-9
+        double max_err = 0.0;
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = 0; i < n; ++i) {
+                std::complex<double> sum(0.0, 0.0);
+                size_t k_end = std::min(i, j) + 1;
+                for (size_t k = 0; k < k_end; ++k) {
+                    sum += std::conj(rd[k + i * n]) * rd[k + j * n];
+                }
+                max_err = std::max(max_err, std::abs(sum - ad[i + j * n]));
+            }
+        }
+        EXPECT_LT(max_err, 1e-9) << "n=" << n;
+    }
+}
+

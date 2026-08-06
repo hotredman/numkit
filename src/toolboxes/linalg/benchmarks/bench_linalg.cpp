@@ -6,6 +6,7 @@
 #include <numkit/linalg/eig.hpp>
 #include <numkit/linalg/properties.hpp>
 #include <numkit/linalg/solvers.hpp>
+#include <numkit/ops/blas.hpp>
 #include <numkit/value/value.hpp>
 
 #include <benchmark/benchmark.h>
@@ -68,6 +69,44 @@ Value makeComplexMatrix(size_t n, uint32_t seed) {
     return v;
 }
 
+static void BM_Linalg_Gemm_Real(benchmark::State &state) {
+    const size_t n = static_cast<size_t>(state.range(0));
+    Value A = makeRealMatrix(n, 42);
+    Value B = makeRealMatrix(n, 43);
+    Value C = Value::matrix(n, n, ValueType::DOUBLE, nullptr);
+    const double *ad = A.doubleData();
+    const double *bd = B.doubleData();
+    double *cd = C.doubleDataMut();
+    for (auto _ : state) {
+        ::numkit::ops::gemm(n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
+        benchmark::DoNotOptimize(C);
+    }
+    state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(double)));
+    state.counters["GFLOPS"] = benchmark::Counter(
+        static_cast<double>(state.iterations()) * 2.0 * n * n * n / 1e9,
+        benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Linalg_Gemm_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024)->Arg(2048);
+
+static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
+    const size_t n = static_cast<size_t>(state.range(0));
+    Value A = makeComplexMatrix(n, 42);
+    Value B = makeComplexMatrix(n, 43);
+    Value C = Value::complexMatrix(n, n, nullptr);
+    const std::complex<double> *ad = A.complexData();
+    const std::complex<double> *bd = B.complexData();
+    std::complex<double> *cd = C.complexDataMut();
+    for (auto _ : state) {
+        ::numkit::ops::gemm(n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
+        benchmark::DoNotOptimize(C);
+    }
+    state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(std::complex<double>)));
+    state.counters["GFLOPS"] = benchmark::Counter(
+        static_cast<double>(state.iterations()) * 8.0 * n * n * n / 1e9,
+        benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Linalg_Gemm_Complex)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024)->Arg(2048);
+
 static void BM_Linalg_LU_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
     Value A = makeRealMatrix(n, 42);
@@ -76,7 +115,7 @@ static void BM_Linalg_LU_Real(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_LU_Real)->Arg(64)->Arg(128)->Arg(256);
+BENCHMARK(BM_Linalg_LU_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_LU_Complex(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -86,7 +125,7 @@ static void BM_Linalg_LU_Complex(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_LU_Complex)->Arg(64)->Arg(128)->Arg(256);
+BENCHMARK(BM_Linalg_LU_Complex)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_Chol_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -96,7 +135,7 @@ static void BM_Linalg_Chol_Real(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_Chol_Real)->Arg(64)->Arg(128)->Arg(256);
+BENCHMARK(BM_Linalg_Chol_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_Solve_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -107,7 +146,7 @@ static void BM_Linalg_Solve_Real(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_Solve_Real)->Arg(64)->Arg(128)->Arg(256);
+BENCHMARK(BM_Linalg_Solve_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_Solve_Complex(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -118,6 +157,6 @@ static void BM_Linalg_Solve_Complex(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_Solve_Complex)->Arg(64)->Arg(128)->Arg(256);
+BENCHMARK(BM_Linalg_Solve_Complex)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 } // namespace

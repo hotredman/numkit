@@ -671,7 +671,8 @@ void syrk_generic(MatrixUplo uplo, MatrixTranspose trans,
         for (std::size_t l = 0; l < k; ++l) {
             T b_val = is_trans ? A[l + j * lda] : A[j + l * lda];
             if constexpr (is_complex_type_v<T>) {
-                if (is_conj || !is_trans) {
+                if (!is_trans) {
+                    // NoTrans: A * A^H -> conjugate j-factor
                     b_val = std::conj(b_val);
                 }
             }
@@ -679,6 +680,12 @@ void syrk_generic(MatrixUplo uplo, MatrixTranspose trans,
 
             for (std::size_t i = i_start; i < i_end; ++i) {
                 T a_val = is_trans ? A[l + i * lda] : A[i + l * lda];
+                if constexpr (is_complex_type_v<T>) {
+                    if (is_conj) {
+                        // ConjTrans: A^H * A -> conjugate i-factor
+                        a_val = std::conj(a_val);
+                    }
+                }
                 C[i + j * ldc] += a_val * alpha_b;
             }
         }
