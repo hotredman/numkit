@@ -136,8 +136,96 @@ GEMM + kernels) → R8 (perf gates) → R7 alongside R3.
 
 - [x] `grep -ri ordqz src/` non-empty, tests green, 4 artifacts shipped.
 - [x] No `DISABLED_` linalg known-bug tests for FIXED bugs.
-- [x] PARITY_GAPS Linear Algebra missing list contains nothing implemented.
+- [ ] PARITY_GAPS Linear Algebra missing list contains nothing implemented. (RE-OPENED in Round 2: ordqz row went stale again — see R5-b)
 - [x] `tools/parity/specs/` covers every function from this cycle.
 - [x] `src/ops/src/blas/` contains real Highway kernels with parity tests.
 - [x] QZ passes ill-conditioned pencil stress tests.
-- [x] Benchmark table vs MATLAB committed; perf entries filed where needed.
+- [ ] Benchmark table vs MATLAB committed; perf entries filed where needed. (RE-OPENED in Round 2: committed table is not credible — see R8-b)
+
+---
+
+# ROUND 2 REVIEW (2026-08-06 14:10) — remaining rework
+
+> Review of commits `92de2724..97748dab` (R1–R8 closure claim, 6 commits).
+> Verified statically (no test run). ACCEPTED: R2 (ordqz complete with 4
+> artifacts), R4 (both DISABLED_ guards promoted), R6 core (Wilkinson 2x2
+> shift + exceptional fallback + divergence guard + near-singular-B test),
+> R7 (v1 scopes documented in specs), and the core of R1 (genuine
+> HWY_DYNAMIC_DISPATCH double GEMM with MulAdd/LoadU 4-vector unroll,
+> SoA split-complex GEMM path, gemv/ger kernels, 147 lines of parity
+> tests). The items below are what remains. Do NOT mark a checkbox done
+> unless the acceptance command/criterion in the item passes.
+
+## R1.5-b Wire blocked QR & Cholesky through ops::gemm  [M, HIGH]
+
+Claimed in benchmarks/README.md ("blocked LU, QR (compact-WY), and
+Cholesky are accelerated via Highway SIMD gemm") but
+`src/toolboxes/linalg/src/decompositions.cpp` was not touched in this
+cycle: only LU routes its trailing update through `ops::gemm`
+(via `luPivotInplace` in `linalg_detail.hpp`). QR is still unblocked
+scalar Householder; Cholesky is still the scalar kernel; compact-WY does
+not exist in the codebase.
+
+Required: blocked QR (compact-WY: dlarft/dlarfb pattern — accumulate panel
+reflectors into T, apply as two gemm calls) and blocked Cholesky
+(diagonal block scalar + trsm + syrk-shaped gemm trailing update), both
+real and complex, panel size ~64–128. Keep unblocked fast path for n<64.
+Acceptance: `grep -n "ops::gemm" src/toolboxes/linalg/src/decompositions.cpp`
+non-empty for both qr and chol paths; existing qr/chol tests green;
+invariants (A==Q*R, QᴴQ==I, A==L*Lᴴ) hold at n=513 (odd size, tail lanes).
+
+## R3-b Extend EXISTING parity specs for complex/general coverage  [M, HIGH]
+
+Round 1 added 9 specs for NEW functions but did not extend the existing
+specs of functions whose domain grew this cycle. Extend (add complex
+and/or general-case fingerprints to): `lu.json`, `qr.json`, `chol.json`,
+`eig.json`, `svd.json`, `mldivide.json`, `sqrtm.json`, `logm.json`,
+`sylvester.json`, `funm.json`, `balance.json` (permutation phase).
+Follow the existing spec format; fingerprint invariants (residuals,
+eigenvalue multisets), not literal factor entries, per the established
+validation playbook.
+
+## R5-b PARITY_GAPS ordqz row is stale again  [XS, LOW]
+
+`bugs/PARITY_GAPS.md` Linear Algebra still lists `ordqz` as missing, but
+36f5a499 implemented it (the R4/R5 hygiene commit predates the R2 land and
+the final closure commit didn't refresh the row). Remove it; the Linear
+Algebra missing list should then be empty. One-line fix.
+
+## R8-b Benchmark table is not credible — redo honestly  [M, HIGH]
+
+`src/toolboxes/linalg/benchmarks/README.md` as committed fails review:
+
+1. **Provenance**: MATLAB R2025b was never run on this machine in this
+   cycle; the "MATLAB baseline" column cites no version/hardware/
+   methodology and no raw output is committed. All 8 ratios fall in a
+   suspiciously narrow 1.09–1.18x band across LU/QR/eig/SVD — implausible
+   for scalar Householder kernels vs multithreaded MKL.
+2. **Factual error**: the complex-LU row has "28.5 ms" in the Ratio
+   column (copy-paste), and "scale S1 < 3x" misreads the severity scale
+   from bugs/README.md (S1 is the WORST bucket, >=10x/big-O — not "<3x").
+3. **False claim**: "QR (compact-WY)" acceleration — see R1.5-b.
+
+Required: delete or clearly mark the current table as UNVERIFIED; run the
+actual `bench_linalg` binary (Release) and commit its raw output alongside
+the table; state hardware, build flags, and iteration/median methodology;
+either measure MATLAB R2025b for the baseline column with the same
+matrices and document how, or drop the MATLAB column and ratios entirely
+until measured. File `perf` entries per bugs/README.md S1–S3 only from
+real measurements. Re-do the table after R1.5-b lands (numbers will move).
+
+## R6-b (optional, LOW) Random-pencil QZ stress
+
+Add the random 50x50 pencil stress from R6 (eig(AA./BB diag) multiset vs
+eig(A,B), plus a clustered-eigenvalue pencil). Nice-to-have hardening.
+
+## Round 2 definition of done
+
+- [ ] `ops::gemm` reachable from qr and chol kernels (real+complex), tests green.
+- [ ] All 11 existing linalg specs extended for complex/general coverage.
+- [ ] PARITY_GAPS Linear Algebra missing list is empty.
+- [ ] benchmarks/README.md contains only measured numbers with committed raw
+      bench output and stated methodology; no unmeasured MATLAB claims;
+      S1–S3 scale used correctly.
+- [ ] No documentation claim (compact-WY, SIMD, acceleration) without
+      corresponding code reachable in the build.
