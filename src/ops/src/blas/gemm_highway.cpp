@@ -55,6 +55,125 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
     constexpr std::size_t mc_block = 256;           // L2-resident A-panel height
     constexpr std::size_t nc_block = 2048;          // L3-resident B-panel width
 
+    // Zero-allocation stack-based fast path for small matrices (m, n, k <= 128)
+    if (m <= 128 && n <= 128 && k <= 128) {
+        alignas(64) double A_pack[144 * 128 + 64];
+        alignas(64) double B_pack[144 * 128 + 64];
+
+        const std::size_t mc = m;
+        const std::size_t nc = n;
+        const std::size_t kc = k;
+
+        // Pack B (kc x nc) into row-panels of width nr
+        for (std::size_t jr = 0; jr < nc; jr += nr) {
+            std::size_t cur_nr = std::min(nr, nc - jr);
+            double *b_p = B_pack + jr * kc;
+            for (std::size_t kk = 0; kk < kc; ++kk) {
+                for (std::size_t c = 0; c < cur_nr; ++c) {
+                    b_p[kk * nr + c] = B[kk + (jr + c) * ldb];
+                }
+                for (std::size_t c = cur_nr; c < nr; ++c) {
+                    b_p[kk * nr + c] = 0.0;
+                }
+            }
+        }
+
+        // Pack A (mc x kc) into column-panels of height mr
+        for (std::size_t ii = 0; ii < mc; ii += mr) {
+            std::size_t cur_mr = std::min(mr, mc - ii);
+            double *a_p = A_pack + ii * kc;
+            for (std::size_t kk = 0; kk < kc; ++kk) {
+                const double *a_col = A + ii + kk * lda;
+                for (std::size_t r = 0; r < cur_mr; ++r) {
+                    a_p[kk * mr + r] = a_col[r];
+                }
+                for (std::size_t r = cur_mr; r < mr; ++r) {
+                    a_p[kk * mr + r] = 0.0;
+                }
+            }
+        }
+
+        // SIMD Highway Kernel over C
+        for (std::size_t jr = 0; jr < nc; jr += nr) {
+            std::size_t cur_nr = std::min(nr, nc - jr);
+            const double *b_p_tile = B_pack + jr * kc;
+
+            for (std::size_t ir = 0; ir < mc; ir += mr) {
+                std::size_t cur_mr = std::min(mr, mc - ir);
+                const double *a_p = A_pack + ir * kc;
+                double *c_ptr = C + ir + jr * ldc;
+
+                if (cur_mr == mr && cur_nr == nr) {
+                    auto c00 = hn::Zero(d), c01 = hn::Zero(d), c02 = hn::Zero(d), c03 = hn::Zero(d), c04 = hn::Zero(d), c05 = hn::Zero(d);
+                    auto c10 = hn::Zero(d), c11 = hn::Zero(d), c12 = hn::Zero(d), c13 = hn::Zero(d), c14 = hn::Zero(d), c15 = hn::Zero(d);
+
+                    for (std::size_t kk = 0; kk < kc; ++kk) {
+                        auto a0 = hn::LoadU(d, a_p + kk * mr + 0 * N);
+                        auto a1 = hn::LoadU(d, a_p + kk * mr + 1 * N);
+
+                        const double *b_col = b_p_tile + kk * nr;
+                        auto b0 = hn::Set(d, b_col[0]);
+                        auto b1 = hn::Set(d, b_col[1]);
+                        auto b2 = hn::Set(d, b_col[2]);
+                        auto b3 = hn::Set(d, b_col[3]);
+                        auto b4 = hn::Set(d, b_col[4]);
+                        auto b5 = hn::Set(d, b_col[5]);
+
+                        c00 = hn::MulAdd(a0, b0, c00); c10 = hn::MulAdd(a1, b0, c10);
+                        c01 = hn::MulAdd(a0, b1, c01); c11 = hn::MulAdd(a1, b1, c11);
+                        c02 = hn::MulAdd(a0, b2, c02); c12 = hn::MulAdd(a1, b2, c12);
+                        c03 = hn::MulAdd(a0, b3, c03); c13 = hn::MulAdd(a1, b3, c13);
+                        c04 = hn::MulAdd(a0, b4, c04); c14 = hn::MulAdd(a1, b4, c14);
+                        c05 = hn::MulAdd(a0, b5, c05); c15 = hn::MulAdd(a1, b5, c15);
+                    }
+
+                    auto v_alpha = hn::Set(d, alpha);
+                    auto v_beta = hn::Set(d, beta);
+
+                    #define STORE_COL_FAST(col_idx, acc0, acc1) \
+                    { \
+                        double *col_c = c_ptr + col_idx * ldc; \
+                        auto r0 = hn::Mul(acc0, v_alpha); \
+                        auto r1 = hn::Mul(acc1, v_alpha); \
+                        if (beta != 0.0) { \
+                            r0 = hn::MulAdd(hn::LoadU(d, col_c + 0 * N), v_beta, r0); \
+                            r1 = hn::MulAdd(hn::LoadU(d, col_c + 1 * N), v_beta, r1); \
+                        } \
+                        hn::StoreU(r0, d, col_c + 0 * N); \
+                        hn::StoreU(r1, d, col_c + 1 * N); \
+                    }
+
+                    STORE_COL_FAST(0, c00, c10);
+                    STORE_COL_FAST(1, c01, c11);
+                    STORE_COL_FAST(2, c02, c12);
+                    STORE_COL_FAST(3, c03, c13);
+                    STORE_COL_FAST(4, c04, c14);
+                    STORE_COL_FAST(5, c05, c15);
+                    #undef STORE_COL_FAST
+                } else {
+                    for (std::size_t c = 0; c < cur_nr; ++c) {
+                        double *col_c = c_ptr + c * ldc;
+                        const double *b_col = b_p_tile + c;
+                        for (std::size_t r = 0; r < cur_mr; ++r) {
+                            double acc = 0.0;
+                            for (std::size_t kk = 0; kk < kc; ++kk) {
+                                acc += a_p[kk * mr + r] * b_col[kk * nr];
+                            }
+                            if (beta == 0.0) {
+                                col_c[r] = alpha * acc;
+                            } else {
+                                col_c[r] = beta * col_c[r] + alpha * acc;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ::numkit::ops::g_last_gemm_threads_used.store(1);
+        return;
+    }
+
     // Threshold for FLOPs: 2 * m * n * k >= 8,000,000 (n >= 160 for square GEMM)
     const std::size_t total_flops = 2 * m * n * k;
     constexpr std::size_t kGemmParallelFlopThreshold = 8'000'000;
@@ -230,6 +349,170 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     constexpr std::size_t kc_block = 256;
     constexpr std::size_t mc_block = 256;
     constexpr std::size_t nc_block = 2048;
+
+    // Zero-allocation stack-based fast path for small complex matrices (m, n, k <= 128)
+    if (m <= 128 && n <= 128 && k <= 128) {
+        alignas(64) double Ar_pack[144 * 128 + 64];
+        alignas(64) double Ai_pack[144 * 128 + 64];
+        alignas(64) double Br_pack[144 * 128 + 64];
+        alignas(64) double Bi_pack[144 * 128 + 64];
+
+        const std::size_t mc = m;
+        const std::size_t nc = n;
+        const std::size_t kc = k;
+
+        // Pack B real/imag
+        for (std::size_t jr = 0; jr < nc; jr += nr) {
+            std::size_t cur_nr = std::min(nr, nc - jr);
+            double *br_p = Br_pack + jr * kc;
+            double *bi_p = Bi_pack + jr * kc;
+            for (std::size_t kk = 0; kk < kc; ++kk) {
+                for (std::size_t c = 0; c < cur_nr; ++c) {
+                    Complex b_val = B[kk + (jr + c) * ldb];
+                    br_p[kk * nr + c] = b_val.real();
+                    bi_p[kk * nr + c] = b_val.imag();
+                }
+                for (std::size_t c = cur_nr; c < nr; ++c) {
+                    br_p[kk * nr + c] = 0.0;
+                    bi_p[kk * nr + c] = 0.0;
+                }
+            }
+        }
+
+        // Pack A real/imag
+        for (std::size_t ii = 0; ii < mc; ii += mr) {
+            std::size_t cur_mr = std::min(mr, mc - ii);
+            double *ar_p = Ar_pack + ii * kc;
+            double *ai_p = Ai_pack + ii * kc;
+            for (std::size_t kk = 0; kk < kc; ++kk) {
+                const Complex *a_col = A + ii + kk * lda;
+                for (std::size_t r = 0; r < cur_mr; ++r) {
+                    ar_p[kk * mr + r] = a_col[r].real();
+                    ai_p[kk * mr + r] = a_col[r].imag();
+                }
+                for (std::size_t r = cur_mr; r < mr; ++r) {
+                    ar_p[kk * mr + r] = 0.0;
+                    ai_p[kk * mr + r] = 0.0;
+                }
+            }
+        }
+
+        // SIMD 4M Kernel
+        for (std::size_t jr = 0; jr < nc; jr += nr) {
+            std::size_t cur_nr = std::min(nr, nc - jr);
+            const double *br_p_tile = Br_pack + jr * kc;
+            const double *bi_p_tile = Bi_pack + jr * kc;
+
+            for (std::size_t ir = 0; ir < mc; ir += mr) {
+                std::size_t cur_mr = std::min(mr, mc - ir);
+                const double *ar_p = Ar_pack + ir * kc;
+                const double *ai_p = Ai_pack + ir * kc;
+                Complex *c_ptr = C + ir + jr * ldc;
+
+                if (cur_mr == mr && cur_nr == nr) {
+                    auto cr00 = hn::Zero(d), cr01 = hn::Zero(d), cr02 = hn::Zero(d), cr03 = hn::Zero(d), cr04 = hn::Zero(d), cr05 = hn::Zero(d);
+                    auto cr10 = hn::Zero(d), cr11 = hn::Zero(d), cr12 = hn::Zero(d), cr13 = hn::Zero(d), cr14 = hn::Zero(d), cr15 = hn::Zero(d);
+                    auto ci00 = hn::Zero(d), ci01 = hn::Zero(d), ci02 = hn::Zero(d), ci03 = hn::Zero(d), ci04 = hn::Zero(d), ci05 = hn::Zero(d);
+                    auto ci10 = hn::Zero(d), ci11 = hn::Zero(d), ci12 = hn::Zero(d), ci13 = hn::Zero(d), ci14 = hn::Zero(d), ci15 = hn::Zero(d);
+
+                    for (std::size_t kk = 0; kk < kc; ++kk) {
+                        auto ar0 = hn::LoadU(d, ar_p + kk * mr + 0 * N);
+                        auto ar1 = hn::LoadU(d, ar_p + kk * mr + 1 * N);
+                        auto ai0 = hn::LoadU(d, ai_p + kk * mr + 0 * N);
+                        auto ai1 = hn::LoadU(d, ai_p + kk * mr + 1 * N);
+
+                        const double *br_k = br_p_tile + kk * nr;
+                        const double *bi_k = bi_p_tile + kk * nr;
+
+                        #define KERNEL_COL_FAST(col_idx, cr_acc0, cr_acc1, ci_acc0, ci_acc1) \
+                        { \
+                            auto br = hn::Set(d, br_k[col_idx]); \
+                            auto bi = hn::Set(d, bi_k[col_idx]); \
+                            cr_acc0 = hn::MulAdd(ar0, br, cr_acc0); \
+                            cr_acc0 = hn::NegMulAdd(ai0, bi, cr_acc0); \
+                            cr_acc1 = hn::MulAdd(ar1, br, cr_acc1); \
+                            cr_acc1 = hn::NegMulAdd(ai1, bi, cr_acc1); \
+                            ci_acc0 = hn::MulAdd(ar0, bi, ci_acc0); \
+                            ci_acc0 = hn::MulAdd(ai0, br, ci_acc0); \
+                            ci_acc1 = hn::MulAdd(ar1, bi, ci_acc1); \
+                            ci_acc1 = hn::MulAdd(ai1, br, ci_acc1); \
+                        }
+
+                        KERNEL_COL_FAST(0, cr00, cr10, ci00, ci10);
+                        KERNEL_COL_FAST(1, cr01, cr11, ci01, ci11);
+                        KERNEL_COL_FAST(2, cr02, cr12, ci02, ci12);
+                        KERNEL_COL_FAST(3, cr03, cr13, ci03, ci13);
+                        KERNEL_COL_FAST(4, cr04, cr14, ci04, ci14);
+                        KERNEL_COL_FAST(5, cr05, cr15, ci05, ci15);
+                        #undef KERNEL_COL_FAST
+                    }
+
+                    auto v_alpha_r = hn::Set(d, alpha.real());
+                    auto v_alpha_i = hn::Set(d, alpha.imag());
+
+                    #define STORE_COMPLEX_COL_FAST(col_idx, cr0, cr1, ci0, ci1) \
+                    { \
+                        Complex *col_c = c_ptr + col_idx * ldc; \
+                        auto yr0 = hn::Mul(cr0, v_alpha_r); \
+                        yr0 = hn::NegMulAdd(ci0, v_alpha_i, yr0); \
+                        auto yr1 = hn::Mul(cr1, v_alpha_r); \
+                        yr1 = hn::NegMulAdd(ci1, v_alpha_i, yr1); \
+                        auto yi0 = hn::Mul(cr0, v_alpha_i); \
+                        yi0 = hn::MulAdd(ci0, v_alpha_r, yi0); \
+                        auto yi1 = hn::Mul(cr1, v_alpha_i); \
+                        yi1 = hn::MulAdd(ci1, v_alpha_r, yi1); \
+                        alignas(64) double buf_r0[16], buf_r1[16], buf_i0[16], buf_i1[16]; \
+                        hn::StoreU(yr0, d, buf_r0); \
+                        hn::StoreU(yr1, d, buf_r1); \
+                        hn::StoreU(yi0, d, buf_i0); \
+                        hn::StoreU(yi1, d, buf_i1); \
+                        for (std::size_t r = 0; r < N; ++r) { \
+                            Complex c_val = Complex(buf_r0[r], buf_i0[r]); \
+                            if (beta != Complex(0.0, 0.0)) { \
+                                c_val += col_c[r + 0 * N] * beta; \
+                            } \
+                            col_c[r + 0 * N] = c_val; \
+                        } \
+                        for (std::size_t r = 0; r < N; ++r) { \
+                            Complex c_val = Complex(buf_r1[r], buf_i1[r]); \
+                            if (beta != Complex(0.0, 0.0)) { \
+                                c_val += col_c[r + 1 * N] * beta; \
+                            } \
+                            col_c[r + 1 * N] = c_val; \
+                        } \
+                    }
+
+                    STORE_COMPLEX_COL_FAST(0, cr00, cr10, ci00, ci10);
+                    STORE_COMPLEX_COL_FAST(1, cr01, cr11, ci01, ci11);
+                    STORE_COMPLEX_COL_FAST(2, cr02, cr12, ci02, ci12);
+                    STORE_COMPLEX_COL_FAST(3, cr03, cr13, ci03, ci13);
+                    STORE_COMPLEX_COL_FAST(4, cr04, cr14, ci04, ci14);
+                    STORE_COMPLEX_COL_FAST(5, cr05, cr15, ci05, ci15);
+                    #undef STORE_COMPLEX_COL_FAST
+                } else {
+                    for (std::size_t c = 0; c < cur_nr; ++c) {
+                        Complex *col_c = c_ptr + c * ldc;
+                        const double *br_col = br_p_tile + c;
+                        const double *bi_col = bi_p_tile + c;
+                        for (std::size_t r = 0; r < cur_mr; ++r) {
+                            Complex acc(0.0, 0.0);
+                            for (std::size_t kk = 0; kk < kc; ++kk) {
+                                Complex a_val(ar_p[kk * mr + r], ai_p[kk * mr + r]);
+                                Complex b_val(br_col[kk * nr], bi_col[kk * nr]);
+                                acc += a_val * b_val;
+                            }
+                            if (beta == Complex(0.0, 0.0)) {
+                                col_c[r] = alpha * acc;
+                            } else {
+                                col_c[r] = beta * col_c[r] + alpha * acc;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
 
     const std::size_t total_flops = 8 * m * n * k;
     constexpr std::size_t kGemmParallelFlopThreshold = 8'000'000;
