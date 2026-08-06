@@ -258,6 +258,78 @@ bool qr_solve_house(T *A, std::size_t m, std::size_t n, T *B, std::size_t nrhs, 
 }
 
 template <typename T>
+bool la_solve_small_fastpath(const T *A, std::size_t lda,
+                             const T *B, std::size_t ldb,
+                             T *X, std::size_t ldx, std::size_t n, std::size_t nrhs)
+{
+    alignas(64) T LU_stack[128 * 128];
+    alignas(64) std::int32_t piv_stack[128];
+
+    for (std::size_t col = 0; col < n; ++col) {
+        std::memcpy(LU_stack + col * n, A + col * lda, n * sizeof(T));
+    }
+    for (std::size_t col = 0; col < nrhs; ++col) {
+        std::memcpy(X + col * ldx, B + col * ldb, n * sizeof(T));
+    }
+
+    if constexpr (std::is_same_v<T, double>) {
+        if (!::numkit::ops::lu_panel(LU_stack, n, piv_stack, n, n, 0)) return false;
+    } else {
+        if (!lu_recursive_inplace(LU_stack, n, piv_stack, n, n, 0)) return false;
+    }
+
+    for (std::size_t i = 0; i < n; ++i) {
+        std::size_t p = static_cast<std::size_t>(piv_stack[i]);
+        if (p != i) {
+            T *r1 = X + i;
+            T *r2 = X + p;
+            for (std::size_t col = 0; col < nrhs; ++col) {
+                std::swap(r1[col * ldx], r2[col * ldx]);
+            }
+        }
+    }
+
+    for (std::size_t j = 0; j < nrhs; ++j) {
+        T *x_col = X + j * ldx;
+        for (std::size_t k = 0; k < n; ++k) {
+            const T xkj = x_col[k];
+            if (xkj == T(0)) continue;
+            if constexpr (std::is_same_v<T, double>) {
+                const double *l_col = LU_stack + k * n;
+                if (n > k + 1) {
+                    axpy(n - (k + 1), -xkj, l_col + (k + 1), x_col + (k + 1));
+                }
+            } else {
+                for (std::size_t i = k + 1; i < n; ++i) {
+                    x_col[i] -= LU_stack[i + k * n] * xkj;
+                }
+            }
+        }
+    }
+
+    for (std::size_t j = 0; j < nrhs; ++j) {
+        T *x_col = X + j * ldx;
+        for (std::intptr_t k = static_cast<std::intptr_t>(n) - 1; k >= 0; --k) {
+            x_col[k] /= LU_stack[k + k * n];
+            const T xkj = x_col[k];
+            if (xkj == T(0)) continue;
+            if constexpr (std::is_same_v<T, double>) {
+                const double *u_col = LU_stack + k * n;
+                if (k > 0) {
+                    axpy(static_cast<std::size_t>(k), -xkj, u_col, x_col);
+                }
+            } else {
+                for (std::intptr_t i = k - 1; i >= 0; --i) {
+                    x_col[i] -= LU_stack[i + k * n] * xkj;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+template <typename T>
 bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::size_t nrhs, T *X, std::pmr::memory_resource *mr)
 {
     if (m < n || m == 0 || n == 0 || nrhs == 0) return false;
@@ -265,6 +337,9 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
     ScratchArena arena(mr);
 
     if (m == n) {
+        if (n <= 128 && nrhs <= 128) {
+            return la_solve_small_fastpath(A, m, B, m, X, m, n, nrhs);
+        }
         ScratchVec<T> A_lu(n * n, &arena);
         std::copy(A, A + n * n, A_lu.begin());
         ScratchVec<std::int32_t> piv(n, &arena);

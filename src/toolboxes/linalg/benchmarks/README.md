@@ -35,11 +35,11 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 | **Cholesky** (`chol`) | Real Double | 256 | **0.606 ms** | 0.090 ms | 6.73× | Accelerated 1.6x via C4.3 SIMD syrk |
 | **Cholesky** (`chol`) | Real Double | 512 | **3.737 ms** | 0.830 ms | 4.50× | Accelerated 1.6x via C4.3 SIMD syrk |
 | **Cholesky** (`chol`) | Real Double | 1024 | **34.318 ms** | 8.980 ms | 3.82× | Accelerated 1.2x via C4.3 SIMD syrk |
-| **Linear Solve** (`linsolve`) | Real Double | 64 | **0.088 ms** | 0.020 ms | 4.40× | Accelerated 1.34x via C5.1 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 64 | **0.065 ms** | 0.020 ms | 3.25× | Accelerated 1.81x via C5.2 fastpath |
 | **Linear Solve** (`linsolve`) | Real Double | 128 | **0.247 ms** | 0.150 ms | 1.65× | Accelerated 3.72x via C4 SIMD |
-| **Linear Solve** (`linsolve`) | Real Double | 256 | **1.888 ms** | 0.600 ms | 3.14× | Accelerated 4.25x via C5.1 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 256 | **1.656 ms** | 0.600 ms | 2.76× | Accelerated 4.84x via C5.2 SIMD |
 | **Linear Solve** (`linsolve`) | Real Double | 512 | **7.551 ms** | 2.100 ms | 3.60× | Accelerated 8.71x via C4 SIMD |
-| **Linear Solve** (`linsolve`) | Real Double | 1024 | **44.784 ms** | 46.70 ms | **0.95×** | **PASSED (1.05x FASTER THAN MATLAB R2025b! 9.82x total speedup!)** |
+| **Linear Solve** (`linsolve`) | Real Double | 1024 | **41.575 ms** | 46.70 ms | **0.89×** | **PASSED (1.12x FASTER THAN MATLAB R2025b! 10.58x total speedup!)** |
 
 ## Architecture & Design Specifications
 - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).
