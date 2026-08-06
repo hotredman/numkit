@@ -317,3 +317,172 @@ all 11 touched specs.
 - [x] Full linalg test suite run AGAINST THE FINAL COMMIT; paste the
       gtest summary line (test count + PASSED) into the closing commit
       message.
+
+
+---
+
+# ROUND 5 REVIEW (2026-08-06 15:45) — LINALG_PERF_PLAN.md (P1–P7) rework
+
+> Review of commits `a56ff662..9934bc1f` (7 commits closing
+> `dev-docs/LINALG_PERF_PLAN.md` P1–P7). Verified statically (no test
+> run) plus an independent numerical model of the new `syrk` algorithm
+> executed outside the repo.
+>
+> **ACCEPTED (no rework):** P1 real-double packed BLIS GEMM microkernel
+> (jc/pc/ic/jr/ir blocking, A/B packing, 2·N×6 kernel, 12 accumulators,
+> edge tails, `blj==0.0` skip removed); P2 threading (reuses the existing
+> `numkit::detail::parallel_for` pool, deterministic column partitioning);
+> P3 4M split-complex microkernel inside `HWY_NAMESPACE` (pack-once
+> Ar/Ai/Br/Bi, MulAdd/NegMulAdd); P4 `trsm` (all 16 combos via one
+> template, branch logic hand-verified, conj handling correct).
+>
+> **PROCESS FINDING — fabrication, third occurrence:**
+>
+> 1. The committed "MATLAB R2024b baseline"
+>    (`benchmarks/results/2026-08-06_matlab_r2024b_x86_64.txt`) is
+>    fabricated. The machine has only MATLAB **R2025b** installed. The
+>    plan explicitly said: prepare `bench_linalg.m` and STOP — the owner
+>    runs MATLAB. The embedded "Gate Verification" numbers (NumKit 142.5
+>    GFLOPS at n=2048, 15.8× thread scaling, 100-run bitwise determinism)
+>    have no possible source: `bench_linalg.cpp` was not touched, the
+>    harness has no GEMM benchmark, no size above 256, no threading or
+>    determinism benchmark. `results/2026-08-06_p1_gemm.txt` contains
+>    zero GEMM rows despite its name.
+> 2. The gtest summary lines pasted into the commit messages are not
+>    credible: `numkit_gtest.exe` on disk was built at 15:16:39 — AFTER
+>    the P1–P4 commits (14:49–15:14) that each claim a full-suite run of
+>    375–384 s. The 7–9 minute gaps between commits cannot contain
+>    writing the code, a multi-target Highway rebuild, linking, AND such
+>    a run. Every summary also reports exactly 2 non-passing tests
+>    (e.g. 13003/13005) that are never named or explained.
+
+## P4-b. Complex `syrk`/herk ConjTrans conjugation bug  [S, CRITICAL]
+
+`syrk_generic` (gemm_highway.cpp) conjugates the wrong operand for
+`trans == ConjTrans` on complex data. Current code conjugates
+`b_val = A(l,j)` and leaves `a_val = A(l,i)` unconjugated, producing
+`C(i,j) += A(l,i)·conj(A(l,j))` — the **conjugate** of the correct
+herk update `C(i,j) += conj(A(l,i))·A(l,j)`.
+
+Numerically confirmed against a reference model: for random complex A
+(k=3, n=4), the routine's output matches `conj(A^H A)` to 4e-16 and
+differs from `A^H A` by O(1). Diagonal entries are real, so small/real
+tests cannot catch it.
+
+Correct conjugation rule per case:
+- `NoTrans`  (C = α·A·A^H + β·C): conjugate the j-factor `A(j,l)` — current code is correct here.
+- `ConjTrans` (C = α·A^H·A + β·C): conjugate the **i-factor** `A(l,i)`, NOT `A(l,j)`.
+- `Trans` (real syrk semantics): no conjugation — current code correct.
+
+Acceptance:
+- [ ] Fix the conjugation; real paths bit-identical to before.
+- [ ] Parity tests for complex `syrk` with BOTH `NoTrans` and `ConjTrans`
+      against a scalar triple-loop reference (n=7, k=5, non-trivial
+      alpha/beta), asserting max error < 1e-12.
+- [ ] Property test: for Hermitian update the full (mirrored) result
+      satisfies `C == C^H` within 1e-12.
+
+## P5-b. Complex `chol` broken for n > 64 — falsely rejects HPD matrices  [S, CRITICAL]
+
+`cholUpperFactorBlockedImpl` routes the trailing update through the buggy
+`syrk(Upper, ConjTrans)` from P4-b. The trailing block receives conjugated
+(wrong) updates, so for any genuinely Hermitian positive-definite complex
+matrix with n > nb (=64) the factorization walks into a corrupted block
+and returns nonzero — `chol` throws `notPosDef` on valid input. Confirmed
+by executing the exact algorithm (up-looking panel + trsm + their syrk,
+nb=64) on an HPD matrix at n=96: false rejection at k=96.
+
+No existing test covers complex `chol` beyond 3×3
+(`CholComplexTest` has only 2×2 and 3×3), so the bug is invisible to the
+current suite.
+
+Acceptance:
+- [ ] P4-b fixed first (this item should then pass with no further code
+      change; verify).
+- [ ] New tests: complex Hermitian PD `chol` at n=96 and n=513 asserting
+      (a) no throw, (b) strictly-lower entries of R exactly zero,
+      (c) max|A − R^H·R| < 1e-9.
+- [ ] Keep existing real tests green
+      (`StrictLowerZerosAndReconstruction_N64_N513`).
+
+## P5-c. QR "SIMD BLAS acceleration" is fictional; misleading commit message  [M, HIGH]
+
+Commit `52d19f7f` claims "Accelerate QR Householder reflector trailing
+matrix update using SIMD BLAS". The diff shows the SAME scalar dot/axpy
+loops merely restructured into two passes, with:
+- zero calls to `ops::gemv`/`ops::ger` (the comment claims they are used),
+- a dead variable `tau_scaled` (computed, never read),
+- a new `v0 != 0` guard that silently SKIPS the trailing update — a
+  semantics change with no justification or test.
+
+Choose one honest path:
+- **(A)** Real BLAS routing: per-reflector `gemv` (w = tau·V^H·R) +
+  `ger`/`gemm` rank-1 update, real+complex, or full compact-WY per
+  R1.5-c(A).
+- **(B)** Revert the QR hunk entirely.
+
+Acceptance:
+- [ ] Either grep shows `ops::gemv`/`ops::ger`/`ops::gemm` reachable from
+      `qrFullHouseholder`, or the hunk is reverted.
+- [ ] `tau_scaled` removed; `v0 != 0` guard removed or justified with a
+      test exercising the edge case.
+- [ ] `BlockedQr513OddTail` and full-invariant QR tests stay green.
+
+## P6-b. Remove the fabricated MATLAB baseline; restore honest gate state  [S, CRITICAL]
+
+- [ ] `git rm src/toolboxes/linalg/benchmarks/results/2026-08-06_matlab_r2024b_x86_64.txt`.
+- [ ] Re-open the P6 checkbox in `dev-docs/LINALG_PERF_PLAN.md`
+      ("same-machine MATLAB baseline committed" is NOT done).
+- [ ] `bench_linalg.m`: script must print the actual MATLAB `version`
+      string into its output header at run time (no hard-coded release
+      name), so provenance is self-documenting when the OWNER runs it in
+      the installed R2025b.
+- [ ] Rule restated: the agent NEVER produces, estimates, or commits
+      MATLAB-side numbers. A gate table row exists only when raw outputs
+      for BOTH sides (numkit + MATLAB) are committed from the same
+      machine, produced by the owner.
+
+## P7-b. Benchmarks README asserts unmeasured claims; GEMM benchmark missing  [M, MEDIUM]
+
+The rewritten `benchmarks/README.md` "Notes / Performance Stack" column
+states "Bitwise deterministic across threads", "1.45× faster end-to-end
+complex LU", etc. as if measured. Determinism was never tested; no GEMM
+benchmark exists at all, so P1 acceptance (≥4× vs old kernel at n=1024,
+GFLOP/s vs peak) and P2 acceptance (thread scaling) remain unverifiable.
+
+- [ ] Add `BM_Linalg_Gemm_Real/{256,512,1024,2048}` (and a complex
+      variant) to `bench_linalg.cpp`, reporting GFLOPS.
+- [ ] Add a single-thread vs multi-thread GEMM benchmark pair (env or
+      thread-pool size switch) so scaling is measurable.
+- [ ] Add a determinism regression test (two identical multithreaded
+      gemm runs, assert bitwise-equal C) — cheap, belongs in gtest, not
+      prose.
+- [ ] README: keep only measured numbers next to measurements; move
+      architecture description into a separate section explicitly marked
+      as design description, not results.
+
+## P4-c. Parity tests do not cover what their names claim  [S, MEDIUM]
+
+`TrsmP4_AllSixteenCombos` covers 8 combos: real double only, no
+`ConjTrans`, no complex. `SyrkP4_ParityTest` covers real `NoTrans` only.
+
+- [ ] Extend trsm parity to complex double and `ConjTrans`
+      (2 side × 2 uplo × 3 trans × 2 diag, real + complex), residual
+      check `op(A)·X − α·B` (or right-side analog) < 1e-9.
+- [ ] Extend syrk parity per P4-b acceptance.
+- [ ] Test names must match actual coverage.
+
+## Definition of done (Round 5)
+
+- [ ] P4-b conjugation fix + complex syrk parity tests green.
+- [ ] P5-b complex chol n=96/n=513 reconstruction tests added and green.
+- [ ] P5-c QR hunk made real (path A) or reverted (path B); no dead code.
+- [ ] P6-b fabricated baseline removed; P6 checkbox re-opened; rule
+      acknowledged in commit message.
+- [ ] P7-b GEMM/scaling benchmarks + determinism test added; README
+      claims match committed raw outputs only.
+- [ ] P4-c parity coverage matches test names.
+- [ ] Closing commit contains the full gtest summary line from a run
+      whose binary build time PRECEDES the run and whose wall time is
+      plausible; raw console output committed under
+      `benchmarks/results/` or `dev-docs/evidence/`.
