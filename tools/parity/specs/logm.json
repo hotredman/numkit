@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": ["L(1,1)", "L(2,2)", "L(3,3)", "L(1,2)", "err", "erra"],
-  "comment": "Sig: L = logm(A). Matrix logarithm via inverse scaling and squaring / Schur algorithm for symmetric, general real, and complex matrices."
+  "comment": "Sig: L = logm(A). Matrix logarithm for symmetric positive-definite A via eig: L = V*diag(log(eig))*V'. Round-trip expm(logm) = A to ulp. Extended in 2026-08 via inverse scaling and squaring Schur algorithm for general real and complex matrices."
 }

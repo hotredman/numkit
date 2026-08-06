@@ -12,5 +12,5 @@
     "Xrhs(1,1)", "Xrhs(2,1)", "Xrhs(3,1)", "Xrhs(1,2)", "Xrhs(2,2)", "Xrhs(3,2)",
     "Xelem(1)", "Xelem(2)", "Xelem(3)", "err_c"
   ],
-  "comment": "Sig: X = mldivide(A,B) ↔ A\\B. Supports real and complex matrices."
+  "comment": "Sig: X = mldivide(A,B) ↔ A\\B. Square A: LU with partial pivoting. Tall A (m>n): QR via Householder + R back-solve (least squares). Wide A (m<n, min-norm): NOT yet supported — throws m:mldivide:wide. Scalar/scalar and elementwise scalar/matrix routed through plain divide. Extended in 2026-08 for complex matrix coverage."
 }

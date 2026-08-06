@@ -5,6 +5,7 @@ Measured benchmark results for the `numkit` Linear Algebra module (`numkit_bench
 ## Environment & Methodology
 
 - **Date**: 2026-08-06
+- **Raw Benchmark Output**: [`results/2026-08-06_x86_64_msvc.txt`](results/2026-08-06_x86_64_msvc.txt)
 - **Hardware**: 24-core x86_64 CPU @ 3.07 GHz, L3 Cache 36.8 MB
 - **Compiler**: MSVC 2022 (Visual Studio 17.14), C++20 Release configuration
 - **SIMD Engine**: Google Highway Dynamic Dispatch (`HWY_DYNAMIC_DISPATCH`)
@@ -31,5 +32,6 @@ Measured benchmark results for the `numkit` Linear Algebra module (`numkit_bench
 | **Linear Solve** (`linsolve`) | Complex Double | 256 | 40.441 ms | 17 |
 
 ## Notes
-- Trailing matrix updates for blocked LU, QR, and Cholesky are accelerated via Highway SIMD `numkit::ops::gemm`.
+- Blocked LU decomposition (`lu`) routes trailing matrix updates through Highway SIMD `numkit::ops::gemm`.
+- QR decomposition (`qr`) and Cholesky factorization (`chol`) use exact scalar factorizations.
 - Unmeasured external comparison baselines (e.g. MATLAB R2025b) are omitted until standardized benchmark comparison runs are executed in a unified test environment.

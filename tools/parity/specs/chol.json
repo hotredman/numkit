@@ -11,5 +11,5 @@
     "p",
     "p2", "double(numel(R2))", "R2(1,1)", "err_c"
   ],
-  "comment": "Sig R=chol(A) / L=chol(A,'lower') / [R,p]=chol(A). Supports real SPD and complex Hermitian matrices."
+  "comment": "Sig R=chol(A) / L=chol(A,'lower') / [R,p]=chol(A). Default 'upper': R'*R=A. 'lower' returns lower-triangular L (=R') with L*L'=A. Second output p=0 when positive-definite; when not PD, p=failure column (no error) and R is the leading (p-1)x(p-1) factor. chol([1 3;3 1]) -> p2=2, R2 is 1x1 =[1]. numkit previously had NO 'lower' option and NO p output -- added. Matches MATLAB R2025b. Extended in 2026-08 for complex Hermitian matrix coverage."
 }

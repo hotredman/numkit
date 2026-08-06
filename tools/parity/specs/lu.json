@@ -12,5 +12,5 @@
     "err",
     "p(1)", "p(2)", "p(3)", "errv", "err_c"
   ],
-  "comment": "Sig: [L, U, P] = lu(A) | [L, U, p] = lu(A,'vector'). Supports real and complex matrices."
+  "comment": "Sig: [L, U, P] = lu(A) | [L, U, p] = lu(A,'vector'). LU with partial pivoting; P*A = L*U exactly. 'vector' returns the row-permutation vector p (1-based) with A(p,:) = L*U. L unit-lower, U upper. Bit-identical with MATLAB R2025b on probed 3x3. Queue-clearing 2026-05-29: 'vector' previously errored 'requires exactly 1 argument'. Extended in 2026-08 for complex matrix coverage."
 }

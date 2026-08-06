@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-9,
   "fingerprint": ["R(1,1)", "R(2,2)", "R(3,3)", "R(1,2)", "err", "erra"],
-  "comment": "Sig: R = sqrtm(A). Matrix square root via Björck-Hammarling Schur algorithm for symmetric, general real, and complex matrices."
+  "comment": "Sig: R = sqrtm(A). Matrix square root for symmetric positive-semidefinite A via eig: R = V*diag(sqrt(eig))*V'. R*R = A to ulp. Extended in 2026-08 via Björck-Hammarling Schur algorithm for general real and complex matrices."
 }
