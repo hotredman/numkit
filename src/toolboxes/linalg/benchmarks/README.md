@@ -21,25 +21,25 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 | **GEMM** (`gemm`) | Real Double | 512 | 7.020 ms | 1.130 ms | 6.21× | S2 Bug Filed |
 | **GEMM** (`gemm`) | Real Double | 1024 | 11.731 ms | 5.460 ms | 2.15× | PASSED (Target ≤ 2.0×, 183 GFLOPS) |
 | **GEMM** (`gemm`) | Real Double | 2048 | 49.528 ms | 28.02 ms | 1.77× | PASSED (347 GFLOPS, 11.6× thread speedup) |
-| **LU Factorization** (`lu`) | Real Double | 64 | 0.061 ms | 0.010 ms | 6.10× | S2 Bug Filed |
-| **LU Factorization** (`lu`) | Real Double | 128 | **0.797 ms** | 0.060 ms | 13.28× | Accelerated 5.9x via SIMD fast path |
-| **LU Factorization** (`lu`) | Real Double | 256 | 4.509 ms | 0.200 ms | 22.54× | S2 Bug Filed |
-| **LU Factorization** (`lu`) | Real Double | 512 | 35.687 ms | 1.320 ms | 27.04× | S2 Bug Filed |
-| **LU Factorization** (`lu`) | Real Double | 1024 | 125.531 ms | 4.490 ms | 27.96× | S2 Bug Filed |
+| **LU Factorization** (`lu`) | Real Double | 64 | 0.028 ms | 0.010 ms | 2.80× | S2 Bug Filed |
+| **LU Factorization** (`lu`) | Real Double | 128 | **0.189 ms** | 0.060 ms | 3.15× | Accelerated 4.2x via SIMD panel factorization |
+| **LU Factorization** (`lu`) | Real Double | 256 | **2.257 ms** | 0.200 ms | 11.28× | Accelerated 2.0x via SIMD panel factorization |
+| **LU Factorization** (`lu`) | Real Double | 512 | **25.733 ms** | 1.320 ms | 19.49× | Accelerated 1.4x via SIMD panel factorization |
+| **LU Factorization** (`lu`) | Real Double | 1024 | **87.660 ms** | 4.490 ms | 19.52× | Accelerated 1.4x via SIMD panel factorization |
 | **LU Factorization** (`lu`) | Complex Double | 64 | 0.196 ms | 0.020 ms | 9.80× | S2 Bug Filed |
 | **LU Factorization** (`lu`) | Complex Double | 128 | **1.022 ms** | 0.190 ms | 5.38× | Accelerated 10x via C4.1 fast path |
 | **LU Factorization** (`lu`) | Complex Double | 256 | 14.066 ms | 0.590 ms | 23.84× | S2 Bug Filed |
 | **LU Factorization** (`lu`) | Complex Double | 512 | 62.703 ms | 2.990 ms | 20.97× | S2 Bug Filed |
-| **Cholesky** (`chol`) | Real Double | 64 | 0.015 ms | 0.010 ms | 1.50× | PASSED (Target ≤ 2.0×) |
-| **Cholesky** (`chol`) | Real Double | 128 | 0.144 ms | 0.070 ms | 2.06× | PASSED (Target ≤ 2.0×) |
-| **Cholesky** (`chol`) | Real Double | 256 | 0.973 ms | 0.090 ms | 10.81× | S2 Bug Filed |
-| **Cholesky** (`chol`) | Real Double | 512 | 5.964 ms | 0.830 ms | 7.19× | S2 Bug Filed (Accelerated 2.4x via parallel syrk) |
-| **Cholesky** (`chol`) | Real Double | 1024 | 41.656 ms | 8.980 ms | 4.64× | S2 Bug Filed (Accelerated 5.5x via parallel syrk) |
-| **Linear Solve** (`linsolve`) | Real Double | 64 | 0.106 ms | 0.020 ms | 5.30× | S2 Bug Filed |
-| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.918 ms** | 0.150 ms | 6.12× | Accelerated 2.3x via C4.1 fast path |
-| **Linear Solve** (`linsolve`) | Real Double | 256 | 8.030 ms | 0.600 ms | 13.38× | S2 Bug Filed |
-| **Linear Solve** (`linsolve`) | Real Double | 512 | **39.990 ms** | 2.100 ms | 19.04× | Accelerated 1.6x via C4.2 parallel SIMD trsm |
-| **Linear Solve** (`linsolve`) | Real Double | 1024 | **160.593 ms** | 46.70 ms | **3.44×** | Accelerated 2.74x via C4.2 parallel SIMD trsm |
+| **Cholesky** (`chol`) | Real Double | 64 | **0.013 ms** | 0.010 ms | 1.30× | **PASSED** (Target ≤ 2.0×) |
+| **Cholesky** (`chol`) | Real Double | 128 | **0.136 ms** | 0.070 ms | **1.94×** | **PASSED** (Target ≤ 2.0×) |
+| **Cholesky** (`chol`) | Real Double | 256 | **0.606 ms** | 0.090 ms | 6.73× | Accelerated 1.6x via C4.3 SIMD syrk |
+| **Cholesky** (`chol`) | Real Double | 512 | **3.737 ms** | 0.830 ms | 4.50× | Accelerated 1.6x via C4.3 SIMD syrk |
+| **Cholesky** (`chol`) | Real Double | 1024 | **34.318 ms** | 8.980 ms | 3.82× | Accelerated 1.2x via C4.3 SIMD syrk |
+| **Linear Solve** (`linsolve`) | Real Double | 64 | 0.118 ms | 0.020 ms | 5.90× | S2 Bug Filed |
+| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.343 ms** | 0.150 ms | 2.29× | Accelerated 2.68x via C4.3/C4.4 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 256 | **3.250 ms** | 0.600 ms | 5.41× | Accelerated 2.47x via C4.3/C4.4 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 512 | **29.189 ms** | 2.100 ms | 13.90× | Accelerated 1.37x via C4.3/C4.4 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 1024 | **123.015 ms** | 46.70 ms | **2.63×** | Accelerated 3.58x via C4.2-C4.4 SIMD |
 
 ## Architecture & Design Specifications
 - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).
