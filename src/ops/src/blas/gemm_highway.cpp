@@ -514,7 +514,7 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
         return;
     }
 
-    const std::size_t total_flops = 2 * m * n * k;
+    const std::size_t total_flops = 8 * m * n * k;
     constexpr std::size_t kGemmParallelFlopThreshold = 1'000'000;
     const std::size_t p_thresh = (total_flops >= kGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
 

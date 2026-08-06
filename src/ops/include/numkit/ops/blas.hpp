@@ -42,6 +42,9 @@ void ger(std::size_t m, std::size_t n,
 /// @brief Vector add scaled y = alpha * x + y (real double).
 void axpy(std::size_t n, double alpha, const double *x, double *y);
 
+/// @brief Native Highway SIMD LU panel factorization kernel.
+bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row);
+
 /// @brief Triangular matrix solve (real double).
 void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
           std::size_t m, std::size_t n,

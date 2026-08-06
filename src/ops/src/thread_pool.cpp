@@ -2,20 +2,12 @@
 
 #include <algorithm>
 #include <utility>
-#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
-#include <immintrin.h>
-#endif
+#include <hwy/cache_control.h>
 
 namespace numkit::detail {
 
 inline void spin_pause() noexcept {
-#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
-    _mm_pause();
-#elif defined(_M_ARM64) || defined(__aarch64__)
-    __asm__ __volatile__("yield" ::: "memory");
-#else
-    std::this_thread::yield();
-#endif
+    hwy::Pause();
 }
 
 // True while the current thread is executing a pool task body. A nested
@@ -49,8 +41,8 @@ ThreadPool::~ThreadPool()
 {
     {
         std::lock_guard<std::mutex> lock(mu_);
-        shutdown_ = true;
-        ++epoch_;
+        shutdown_.store(true, std::memory_order_release);
+        epoch_.fetch_add(1, std::memory_order_release);
     }
     cv_start_.notify_all();
     for (auto &t : workers_)
@@ -91,19 +83,21 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
         std::unique_lock<std::mutex> lock(mu_);
         task_           = std::move(fn);
         task_n_         = n;
-        task_remaining_ = k;
+        task_remaining_.store(k, std::memory_order_release);
         active_         = k;
-        ++epoch_;
+        epoch_.fetch_add(1, std::memory_order_release);
     }
     cv_start_.notify_all();
 
     {
         for (int spin = 0; spin < 2000; ++spin) {
-            if (task_remaining_ == 0) break;
+            if (task_remaining_.load(std::memory_order_acquire) == 0) break;
             spin_pause();
         }
-        std::unique_lock<std::mutex> lock(mu_);
-        cv_done_.wait(lock, [this] { return task_remaining_ == 0; });
+        if (task_remaining_.load(std::memory_order_acquire) != 0) {
+            std::unique_lock<std::mutex> lock(mu_);
+            cv_done_.wait(lock, [this] { return task_remaining_.load(std::memory_order_acquire) == 0; });
+        }
         // Drop the task closure under the lock so its destructors run
         // in a predictable place (avoids capturing locals living on
         // the caller's frame for any longer than necessary).
@@ -121,20 +115,22 @@ void ThreadPool::worker_loop(int id)
 
         {
             for (int spin = 0; spin < 2000; ++spin) {
-                if (shutdown_ || epoch_ != seen_epoch) break;
+                if (shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch) break;
                 spin_pause();
             }
-            std::unique_lock<std::mutex> lock(mu_);
-            cv_start_.wait(lock, [&] { return shutdown_ || epoch_ != seen_epoch; });
-            if (shutdown_)
+            if (!(shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch)) {
+                std::unique_lock<std::mutex> lock(mu_);
+                cv_start_.wait(lock, [&] { return shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch; });
+            }
+            if (shutdown_.load(std::memory_order_acquire))
                 return;
-            seen_epoch = epoch_;
+            seen_epoch = epoch_.load(std::memory_order_acquire);
             // Workers beyond the active cap skip this task entirely
             // — they wake on cv_start_ broadcast but immediately go
             // back to sleep, never touching task_remaining_.
             if (id >= active_)
                 continue;
-            fn         = task_;        // copy under lock
+            fn         = task_;        // safe to read without lock because epoch was bumped after task_ was written
             n          = task_n_;
             k          = active_;
         }
@@ -150,9 +146,10 @@ void ThreadPool::worker_loop(int id)
         }
 
         {
-            std::lock_guard<std::mutex> lock(mu_);
-            if (--task_remaining_ == 0)
+            if (task_remaining_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                std::lock_guard<std::mutex> lock(mu_);
                 cv_done_.notify_one();
+            }
         }
     }
 }
