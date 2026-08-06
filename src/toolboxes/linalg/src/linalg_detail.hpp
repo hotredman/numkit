@@ -17,6 +17,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
+#include <numkit/ops/blas.hpp>
 
 namespace numkit::linalg::detail {
 
@@ -123,31 +124,67 @@ inline Value narrow_if_real(const Value &v, std::pmr::memory_resource *mr = null
     return out;
 }
 
-// In-place LU with partial pivoting on a column-major n×n matrix.
+// In-place LU with partial pivoting on a column-major n×n matrix (blocked dgetrf pattern).
 template <typename T>
 inline bool luPivotInplace(T *LU, std::int32_t *piv, std::size_t n) {
-    for (std::size_t k = 0; k < n; ++k) {
-        std::size_t pivot = k;
-        double pmax = abs_val(LU[k + k * n]);
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const double v = abs_val(LU[i + k * n]);
-            if (v > pmax) {
-                pmax = v;
-                pivot = i;
+    constexpr std::size_t nb = 64; // panel block size
+
+    for (std::size_t k = 0; k < n; k += nb) {
+        std::size_t kb = std::min(nb, n - k);
+
+        // 1. Unblocked panel factorization on columns k .. k+kb-1
+        for (std::size_t j = k; j < k + kb; ++j) {
+            std::size_t pivot = j;
+            double pmax = abs_val(LU[j + j * n]);
+            for (std::size_t i = j + 1; i < n; ++i) {
+                const double v = abs_val(LU[i + j * n]);
+                if (v > pmax) {
+                    pmax = v;
+                    pivot = i;
+                }
+            }
+            if (pmax == 0.0) return false;
+            piv[j] = static_cast<std::int32_t>(pivot);
+            if (pivot != j) {
+                for (std::size_t col = 0; col < n; ++col)
+                    std::swap(LU[j + col * n], LU[pivot + col * n]);
+            }
+            const T inv_pivot = T(1) / LU[j + j * n];
+            for (std::size_t i = j + 1; i < n; ++i) {
+                const T factor = LU[i + j * n] * inv_pivot;
+                LU[i + j * n] = factor;
+                for (std::size_t col = j + 1; col < k + kb; ++col)
+                    LU[i + col * n] -= factor * LU[j + col * n];
             }
         }
-        if (pmax == 0.0) return false;
-        piv[k] = static_cast<std::int32_t>(pivot);
-        if (pivot != k) {
-            for (std::size_t j = 0; j < n; ++j)
-                std::swap(LU[k + j * n], LU[pivot + j * n]);
-        }
-        const T inv_pivot = T(1) / LU[k + k * n];
-        for (std::size_t i = k + 1; i < n; ++i) {
-            const T factor = LU[i + k * n] * inv_pivot;
-            LU[i + k * n] = factor;
-            for (std::size_t j = k + 1; j < n; ++j)
-                LU[i + j * n] -= factor * LU[k + j * n];
+
+        // 2. Trailing matrix update via SIMD GEMM if remaining cols exist
+        if (k + kb < n) {
+            // Forward solve on panel row blocks U[k..k+kb-1, k+kb..n-1]
+            for (std::size_t col = k + kb; col < n; ++col) {
+                for (std::size_t i1 = 0; i1 < kb; ++i1) {
+                    for (std::size_t i2 = 0; i2 < i1; ++i2) {
+                        LU[(k + i1) + col * n] -= LU[(k + i1) + (k + i2) * n] * LU[(k + i2) + col * n];
+                    }
+                }
+            }
+
+            // Trailing submatrix update: LU[k+kb..n-1, k+kb..n-1] -= L21 * U12
+            const std::size_t rem_rows = n - (k + kb);
+            const std::size_t rem_cols = n - (k + kb);
+            const T *L21 = LU + (k + kb) + k * n;
+            const T *U12 = LU + k + (k + kb) * n;
+            T *A22 = LU + (k + kb) + (k + kb) * n;
+
+            if constexpr (is_complex_v<T>) {
+                ::numkit::ops::gemm(rem_rows, rem_cols, kb, Complex(-1.0, 0.0),
+                                   reinterpret_cast<const Complex*>(L21), n,
+                                   reinterpret_cast<const Complex*>(U12), n,
+                                   Complex(1.0, 0.0),
+                                   reinterpret_cast<Complex*>(A22), n);
+            } else {
+                ::numkit::ops::gemm(rem_rows, rem_cols, kb, -1.0, L21, n, U12, n, 1.0, A22, n);
+            }
         }
     }
     return true;

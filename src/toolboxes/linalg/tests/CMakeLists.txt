@@ -35,6 +35,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/funm_parlett_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/svd_sketch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/decomposition_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/blocked_lu_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
 
