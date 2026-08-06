@@ -762,8 +762,23 @@ void GerDoubleKernel(std::size_t m, std::size_t n,
     }
 }
 
-} // namespace HWY_NAMESPACE
-} // namespace numkit::ops
+void AxpyDoubleKernel(std::size_t n, double alpha, const double *x, double *y)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    auto v_a = hn::Set(d, alpha);
+
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v_y = hn::MulAdd(hn::LoadU(d, x + i), v_a, hn::LoadU(d, y + i));
+        hn::StoreU(v_y, d, y + i);
+    }
+    for (; i < n; ++i) y[i] += x[i] * alpha;
+}
+
+// NOLINTNEXTLINE(google-readability-namespace-comments)
+}  // namespace HWY_NAMESPACE
+}  // namespace numkit::ops
 HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
@@ -773,6 +788,12 @@ HWY_EXPORT(GemmDoubleKernel);
 HWY_EXPORT(GemmComplexKernel);
 HWY_EXPORT(GemvDoubleKernel);
 HWY_EXPORT(GerDoubleKernel);
+HWY_EXPORT(AxpyDoubleKernel);
+
+void axpy(std::size_t n, double alpha, const double *x, double *y)
+{
+    HWY_DYNAMIC_DISPATCH(AxpyDoubleKernel)(n, alpha, x, y);
+}
 
 void gemm(std::size_t m, std::size_t n, std::size_t k,
           double alpha, const double *A, std::size_t lda,
@@ -818,14 +839,6 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
 {
     if (m == 0 || n == 0) return;
 
-    if (alpha != T(1)) {
-        for (std::size_t j = 0; j < n; ++j) {
-            for (std::size_t i = 0; i < m; ++i) {
-                B[i + j * ldb] *= alpha;
-            }
-        }
-    }
-
     const bool is_unit = (diag == MatrixDiag::Unit);
     const bool is_conj = (trans == MatrixTranspose::ConjTrans);
 
@@ -838,50 +851,74 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
     };
 
     if (side == MatrixSide::Left) {
-        // op(A) * X = B, A is m x m
-        if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
-            for (std::size_t j = 0; j < n; ++j) {
-                for (std::size_t k = 0; k < m; ++k) {
-                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                    const T xkj = B[k + j * ldb];
-                    for (std::size_t i = k + 1; i < m; ++i) {
-                        B[i + j * ldb] -= get_a(i, k) * xkj;
+        // op(A) * X = B, A is m x m, B is m x n
+        const std::size_t total_flops = m * m * n;
+        constexpr std::size_t kParallelFlopThreshold = 64'000;
+        const std::size_t p_thresh = (total_flops >= kParallelFlopThreshold) ? std::size_t{1} : n + 1;
+
+        numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
+            for (std::size_t j = jc_start; j < jc_end; ++j) {
+                if (alpha != T(1)) {
+                    for (std::size_t i = 0; i < m; ++i) {
+                        B[i + j * ldb] *= alpha;
+                    }
+                }
+
+                if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
+                    for (std::size_t k = 0; k < m; ++k) {
+                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                        const T xkj = B[k + j * ldb];
+                        if (xkj == T(0)) continue;
+
+                        if constexpr (std::is_same_v<T, double>) {
+                            const double *a_col = A + k * lda;
+                            double *b_col = B + j * ldb;
+                            if (m > k + 1) {
+                                axpy(m - (k + 1), -xkj, a_col + (k + 1), b_col + (k + 1));
+                            }
+                        } else {
+                            for (std::size_t i = k + 1; i < m; ++i) {
+                                B[i + j * ldb] -= get_a(i, k) * xkj;
+                            }
+                        }
+                    }
+                } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
+                    for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
+                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                        const T xkj = B[k + j * ldb];
+                        for (std::intptr_t i = k - 1; i >= 0; --i) {
+                            B[i + j * ldb] -= get_a(i, k) * xkj;
+                        }
+                    }
+                } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
+                    for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
+                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                        const T xkj = B[k + j * ldb];
+                        for (std::intptr_t i = k - 1; i >= 0; --i) {
+                            B[i + j * ldb] -= get_a(i, k) * xkj;
+                        }
+                    }
+                } else { // Upper + Trans / ConjTrans
+                    for (std::size_t k = 0; k < m; ++k) {
+                        if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                        const T xkj = B[k + j * ldb];
+                        for (std::size_t i = k + 1; i < m; ++i) {
+                            B[i + j * ldb] -= get_a(i, k) * xkj;
+                        }
                     }
                 }
             }
-        } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
+        });
+    } else {
+        // X * op(A) = B, A is n x n
+        if (alpha != T(1)) {
             for (std::size_t j = 0; j < n; ++j) {
-                for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
-                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                    const T xkj = B[k + j * ldb];
-                    for (std::intptr_t i = k - 1; i >= 0; --i) {
-                        B[i + j * ldb] -= get_a(i, k) * xkj;
-                    }
-                }
-            }
-        } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
-            for (std::size_t j = 0; j < n; ++j) {
-                for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
-                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                    const T xkj = B[k + j * ldb];
-                    for (std::intptr_t i = k - 1; i >= 0; --i) {
-                        B[i + j * ldb] -= get_a(i, k) * xkj;
-                    }
-                }
-            }
-        } else { // Upper + Trans / ConjTrans
-            for (std::size_t j = 0; j < n; ++j) {
-                for (std::size_t k = 0; k < m; ++k) {
-                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
-                    const T xkj = B[k + j * ldb];
-                    for (std::size_t i = k + 1; i < m; ++i) {
-                        B[i + j * ldb] -= get_a(i, k) * xkj;
-                    }
+                for (std::size_t i = 0; i < m; ++i) {
+                    B[i + j * ldb] *= alpha;
                 }
             }
         }
-    } else {
-        // X * op(A) = B, A is n x n
+
         if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
             for (std::intptr_t k = static_cast<std::intptr_t>(n) - 1; k >= 0; --k) {
                 if (!is_unit) {
