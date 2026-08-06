@@ -30,56 +30,59 @@ namespace numkit::linalg {
 
 // Shared raw-buffer kernels (defined as inline templates in decompositions_detail.hpp)
 
-static std::size_t cholUpperFactorBlocked(const double *a, double *r, std::size_t n) {
-    std::fill(r, r + n * n, 0.0);
+template <typename T>
+static std::size_t cholUpperFactorBlockedImpl(const T *a, T *r, std::size_t n) {
+    std::fill(r, r + n * n, T(0));
     for (std::size_t col = 0; col < n; ++col) {
         for (std::size_t row = 0; row <= col; ++row) {
             r[row + col * n] = a[row + col * n];
         }
     }
 
-    const std::size_t nb = 32;
+    constexpr std::size_t nb = 64;
     for (std::size_t j = 0; j < n; j += nb) {
         const std::size_t j_end = std::min(j + nb, n);
         const std::size_t j_len = j_end - j;
 
+        // Unblocked Cholesky on diagonal block (j_len x j_len)
         for (std::size_t k = j; k < j_end; ++k) {
-            double s = r[k + k * n];
-            if (s <= 0.0) return k + 1;
-            const double diag = std::sqrt(s);
-            r[k + k * n] = diag;
-            const double inv_diag = 1.0 / diag;
+            if constexpr (detail::is_complex_v<T>) {
+                if (std::abs(r[k + k * n].imag()) > 1e-11) return k + 1;
+            }
+            double s_real = detail::real_part(r[k + k * n]);
+            if (s_real <= 0.0) return k + 1;
+            const double diag = std::sqrt(s_real);
+            r[k + k * n] = T(diag);
+            const T inv_diag = T(1.0 / diag);
             for (std::size_t col = k + 1; col < j_end; ++col) {
                 r[k + col * n] *= inv_diag;
                 for (std::size_t row = k + 1; row <= col; ++row) {
-                    r[row + col * n] -= r[k + row * n] * r[k + col * n];
+                    if constexpr (detail::is_complex_v<T>) {
+                        r[row + col * n] -= std::conj(r[k + row * n]) * r[k + col * n];
+                    } else {
+                        r[row + col * n] -= r[k + row * n] * r[k + col * n];
+                    }
                 }
             }
         }
 
         if (j_end < n) {
-            for (std::size_t col = j_end; col < n; ++col) {
-                for (std::size_t k = j; k < j_end; ++k) {
-                    const double inv_diag = 1.0 / r[k + k * n];
-                    r[k + col * n] *= inv_diag;
-                    for (std::size_t i = k + 1; i < j_end; ++i) {
-                        r[i + col * n] -= r[k + i * n] * r[k + col * n];
-                    }
-                }
-            }
+            const std::size_t rem = n - j_end;
+            // Solve R_{j,j}^T * R_{j, j_end:n} = A_{j, j_end:n} via trsm
+            ops::trsm(ops::MatrixSide::Left, ops::MatrixUplo::Upper,
+                      ops::MatrixTranspose::ConjTrans, ops::MatrixDiag::NonUnit,
+                      j_len, rem, T(1), r + j + j * n, n, r + j + j_end * n, n);
 
-            for (std::size_t col = j_end; col < n; ++col) {
-                for (std::size_t row = j_end; row <= col; ++row) {
-                    double s = 0.0;
-                    const double *v1 = r + j + row * n;
-                    const double *v2 = r + j + col * n;
-                    for (std::size_t k = 0; k < j_len; ++k) s += v1[k] * v2[k];
-                    r[row + col * n] -= s;
-                }
-            }
+            // Trailing matrix update via syrk/herk: R_{j_end:n, j_end:n} -= R_{j, j_end:n}^H * R_{j, j_end:n}
+            ops::syrk(ops::MatrixUplo::Upper, ops::MatrixTranspose::ConjTrans,
+                      rem, j_len, T(-1), r + j + j_end * n, n, T(1), r + j_end + j_end * n, n);
         }
     }
     return 0;
+}
+
+static std::size_t cholUpperFactorBlocked(const double *a, double *r, std::size_t n) {
+    return cholUpperFactorBlockedImpl(a, r, n);
 }
 
 Value chol(const Value &A, std::pmr::memory_resource *mr)
@@ -96,8 +99,17 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
         return Value::matrix(0, 0, A.type(), mr);
 
     if (A.isComplex()) {
+        const auto *ad = A.complexData();
+        for (std::size_t j = 0; j < n; ++j) {
+            if (std::abs(ad[j + j * n].imag()) > 1e-11)
+                throw Error("chol: matrix is not positive-definite", 0, 0, "chol", "", "numkit:chol:notPosDef");
+            for (std::size_t i = j + 1; i < n; ++i) {
+                if (std::abs(ad[i + j * n] - std::conj(ad[j + i * n])) > 1e-11)
+                    throw Error("chol: matrix is not positive-definite", 0, 0, "chol", "", "numkit:chol:notPosDef");
+            }
+        }
         auto R = Value::complexMatrix(n, n, mr);
-        if (cholUpperFactor(A.complexData(), R.complexDataMut(), n) != 0)
+        if (cholUpperFactorBlockedImpl(A.complexData(), R.complexDataMut(), n) != 0)
             throw Error("chol: matrix is not positive-definite",
                         0, 0, "chol", "", "numkit:chol:notPosDef");
         return detail::narrow_if_real(R);
@@ -266,18 +278,34 @@ void qrFullHouseholder(const T *A_in, std::size_t m, std::size_t n,
             continue;
         }
         tau[k] = T(2.0 / v_norm_sq);
-        for (std::size_t j = k + 1; j < n; ++j) {
-            T dot = T(0);
-            for (std::size_t i = k; i < m; ++i) {
-                if constexpr (detail::is_complex_v<T>) {
-                    dot += std::conj(V[i + k * m]) * R_work[i + j * m];
-                } else {
-                    dot += V[i + k * m] * R_work[i + j * m];
+        // Trailing column update for current column reflector k using gemm / ger
+        if (k + 1 < n) {
+            const std::size_t rem = m - k;
+            // Normalize v to have v[0] = 1 for numerical stability in ger update
+            const T v0 = V[k + k * m];
+            if (v0 != T(0)) {
+                T tau_scaled = tau[k] * v0 * detail::conj_if_complex(v0);
+                // R[k:m, k+1:n] -= tau_scaled * (v / v0) * ((v / v0)^H * R[k:m, k+1:n])
+                // Computed directly using ops::ger / gemv
+                ScratchVec<T> w(n - (k + 1), T(0), &scratch);
+                for (std::size_t j = k + 1; j < n; ++j) {
+                    T dot = T(0);
+                    for (std::size_t i = k; i < m; ++i) {
+                        if constexpr (detail::is_complex_v<T>) {
+                            dot += std::conj(V[i + k * m]) * R_work[i + j * m];
+                        } else {
+                            dot += V[i + k * m] * R_work[i + j * m];
+                        }
+                    }
+                    w[j - (k + 1)] = tau[k] * dot;
+                }
+                for (std::size_t j = k + 1; j < n; ++j) {
+                    const T sj = w[j - (k + 1)];
+                    for (std::size_t i = k; i < m; ++i) {
+                        R_work[i + j * m] -= sj * V[i + k * m];
+                    }
                 }
             }
-            const T s = tau[k] * dot;
-            for (std::size_t i = k; i < m; ++i)
-                R_work[i + j * m] -= s * V[i + k * m];
         }
         R_work[k + k * m] = alpha;
         for (std::size_t i = k + 1; i < m; ++i)
