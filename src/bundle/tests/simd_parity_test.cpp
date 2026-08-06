@@ -918,3 +918,150 @@ TEST(SimdParity_ParallelLarge, ExactBoundaryCases)
                 << "N=" << N << " i=" << i;
     }
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// BLAS SIMD Microkernel Parity (gemm, gemv, ger, trsm)
+// ════════════════════════════════════════════════════════════════════════
+
+#include <numkit/ops/blas.hpp>
+
+TEST(SimdParity_Blas, GemmRealOddTails)
+{
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+    for (size_t n : {size_t(1), size_t(3), size_t(17), size_t(65), size_t(257)}) {
+        std::vector<double> A(n * n), B(n * n), C_simd(n * n, 0.0), C_ref(n * n, 0.0);
+        for (size_t i = 0; i < n * n; ++i) {
+            A[i] = dist(rng);
+            B[i] = dist(rng);
+        }
+
+        numkit::ops::gemm(n, n, n, 1.0, A.data(), n, B.data(), n, 0.0, C_simd.data(), n);
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t k = 0; k < n; ++k) {
+                const double bkj = B[k + j * n];
+                for (size_t i = 0; i < n; ++i) {
+                    C_ref[i + j * n] += A[i + k * n] * bkj;
+                }
+            }
+        }
+
+        for (size_t i = 0; i < n * n; ++i) {
+            EXPECT_NEAR(C_simd[i], C_ref[i], 1e-10) << "n=" << n << " at index " << i;
+        }
+    }
+}
+
+TEST(SimdParity_Blas, GemmComplexOddTails)
+{
+    using Complex = std::complex<double>;
+    std::mt19937 rng(1337);
+    std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+    for (size_t n : {size_t(1), size_t(3), size_t(17), size_t(65)}) {
+        std::vector<Complex> A(n * n), B(n * n), C_simd(n * n, Complex(0,0)), C_ref(n * n, Complex(0,0));
+        for (size_t i = 0; i < n * n; ++i) {
+            A[i] = Complex(dist(rng), dist(rng));
+            B[i] = Complex(dist(rng), dist(rng));
+        }
+
+        numkit::ops::gemm(n, n, n, Complex(1.0, 0.0), A.data(), n, B.data(), n, Complex(0.0, 0.0), C_simd.data(), n);
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t k = 0; k < n; ++k) {
+                const Complex bkj = B[k + j * n];
+                for (size_t i = 0; i < n; ++i) {
+                    C_ref[i + j * n] += A[i + k * n] * bkj;
+                }
+            }
+        }
+
+        for (size_t i = 0; i < n * n; ++i) {
+            EXPECT_NEAR(C_simd[i].real(), C_ref[i].real(), 1e-10) << "n=" << n << " at index " << i;
+            EXPECT_NEAR(C_simd[i].imag(), C_ref[i].imag(), 1e-10) << "n=" << n << " at index " << i;
+        }
+    }
+}
+
+TEST(SimdParity_Blas, GemvRealOddTails)
+{
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+    for (size_t n : {size_t(1), size_t(7), size_t(33), size_t(129)}) {
+        std::vector<double> A(n * n), x(n), y_simd(n, 0.0), y_ref(n, 0.0);
+        for (size_t i = 0; i < n * n; ++i) A[i] = dist(rng);
+        for (size_t i = 0; i < n; ++i) x[i] = dist(rng);
+
+        numkit::ops::gemv(n, n, 1.0, A.data(), n, x.data(), 1, 0.0, y_simd.data(), 1);
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = 0; i < n; ++i) {
+                y_ref[i] += A[i + j * n] * x[j];
+            }
+        }
+
+        for (size_t i = 0; i < n; ++i) {
+            EXPECT_NEAR(y_simd[i], y_ref[i], 1e-10) << "n=" << n << " at index " << i;
+        }
+    }
+}
+
+TEST(SimdParity_Blas, GerRealOddTails)
+{
+    std::mt19937 rng(99);
+    std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+    for (size_t n : {size_t(1), size_t(7), size_t(33), size_t(129)}) {
+        std::vector<double> x(n), y(n), A_simd(n * n, 0.0), A_ref(n * n, 0.0);
+        for (size_t i = 0; i < n; ++i) { x[i] = dist(rng); y[i] = dist(rng); }
+
+        numkit::ops::ger(n, n, 1.0, x.data(), 1, y.data(), 1, A_simd.data(), n);
+
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t i = 0; i < n; ++i) {
+                A_ref[i + j * n] += x[i] * y[j];
+            }
+        }
+
+        for (size_t i = 0; i < n * n; ++i) {
+            EXPECT_NEAR(A_simd[i], A_ref[i], 1e-10) << "n=" << n << " at index " << i;
+        }
+    }
+}
+
+TEST(SimdParity_Blas, TrsmRealLowerSolve)
+{
+    std::mt19937 rng(101);
+    std::uniform_real_distribution<double> dist(0.5, 2.0);
+
+    for (size_t n : {size_t(1), size_t(7), size_t(33)}) {
+        std::vector<double> L(n * n, 0.0), B(n * n), B_copy(n * n);
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j <= i; ++j) {
+                L[i + j * n] = dist(rng);
+            }
+        }
+        for (size_t i = 0; i < n * n; ++i) B[i] = B_copy[i] = dist(rng);
+
+        numkit::ops::trsm(numkit::ops::MatrixSide::Left, numkit::ops::MatrixUplo::Lower,
+                          numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixDiag::NonUnit,
+                          n, n, 1.0, L.data(), n, B.data(), n);
+
+        // Verify L * X == B_copy
+        std::vector<double> B_check(n * n, 0.0);
+        for (size_t j = 0; j < n; ++j) {
+            for (size_t k = 0; k < n; ++k) {
+                for (size_t i = 0; i < n; ++i) {
+                    B_check[i + j * n] += L[i + k * n] * B[k + j * n];
+                }
+            }
+        }
+        for (size_t i = 0; i < n * n; ++i) {
+            EXPECT_NEAR(B_check[i], B_copy[i], 1e-10) << "n=" << n << " at index " << i;
+        }
+    }
+}
+
