@@ -16,6 +16,7 @@
 #include <numkit/linalg/qz.hpp>
 #include <numkit/linalg/gsvd.hpp>
 #include <numkit/linalg/ordschur.hpp>
+#include <numkit/linalg/ordqz.hpp>
 #include <numkit/linalg/eigs.hpp>
 #include <numkit/linalg/svd_sketch.hpp>
 #include "decompositions_detail.hpp"   // cholUpperFactor / transposeSquare / qr_pivoted
@@ -391,11 +392,26 @@ void gsvd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     } else {
         auto [U, V, X, C, S] = gsvd(args[0], args[1], ctx.engine->resource());
         outs[0] = std::move(U);
-        if (outs.size() >= 2) outs[1] = std::move(V);
         if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(X);
         if (nargout >= 4 && outs.size() >= 4) outs[3] = std::move(C);
         if (nargout >= 5 && outs.size() >= 5) outs[4] = std::move(S);
     }
+}
+
+void ordqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 5)
+        throw Error("ordqz: requires 5 arguments (AA, BB, Q, Z, select/domain)", 0, 0, "ordqz", "", "numkit:ordqz:nargin");
+    Value AA, BB, Q, Z;
+    if (args[4].isChar() || args[4].isString()) {
+        std::tie(AA, BB, Q, Z) = ordqz(args[0], args[1], args[2], args[3], args[4].toString(), ctx.engine->resource());
+    } else {
+        std::tie(AA, BB, Q, Z) = ordqz(args[0], args[1], args[2], args[3], args[4], ctx.engine->resource());
+    }
+    outs[0] = std::move(AA);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(BB);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(Q);
+    if (nargout >= 4 && outs.size() >= 4) outs[3] = std::move(Z);
 }
 
 void ordschur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

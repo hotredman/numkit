@@ -28,6 +28,7 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/svd_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions_general_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ordschur_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ordqz_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/qz_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gsvd_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/balance_perm_test.cpp

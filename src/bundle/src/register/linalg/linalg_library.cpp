@@ -46,6 +46,7 @@ void qrupdate_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrinsert_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrdelete_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qz_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ordqz_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gsvd_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ordschur_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void eigs_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -223,6 +224,7 @@ void LinalgLibrary::install(Engine &engine)
     reg("decomp", "qrinsert",   &linalg::detail::qrinsert_reg);
     reg("decomp", "qrdelete",   &linalg::detail::qrdelete_reg);
     reg("decomp", "qz",         &linalg::detail::qz_reg);
+    reg("decomp", "ordqz",      &linalg::detail::ordqz_reg);
     reg("decomp", "gsvd",       &linalg::detail::gsvd_reg);
     reg("decomp", "ordschur",   &linalg::detail::ordschur_reg);
     reg("decomp", "eigs",       &linalg::detail::eigs_reg);
