@@ -41,106 +41,154 @@ inline T conj_val(const T &x) {
 
 // ── Blocked LU with partial pivoting (square A, n×n) using SIMD GEMM ──
 template <typename T>
-bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
+bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row = 0)
 {
-    const std::size_t nb = (n >= 1024) ? 64 : 32; // dynamic panel block size
+    if (m == 0 || n == 0) return true;
 
-    for (std::size_t k = 0; k < n; k += nb) {
-        std::size_t kb = std::min(nb, n - k);
-
-        // 1. Panel factorization on columns k .. k+kb-1
-        for (std::size_t j = k; j < k + kb; ++j) {
+    // Base case: small matrix or single column (use fast panel LU for n <= 64)
+    if (n <= 64) {
+        for (std::size_t j = 0; j < n; ++j) {
             std::size_t pivot = j;
-            double pmax = abs_val(LU[j + j * n]);
-            for (std::size_t i = j + 1; i < n; ++i) {
-                const double v = abs_val(LU[i + j * n]);
+            double pmax = abs_val(A[j + j * lda]);
+            for (std::size_t i = j + 1; i < m; ++i) {
+                const double v = abs_val(A[i + j * lda]);
                 if (v > pmax) {
                     pmax = v;
                     pivot = i;
                 }
             }
             if (pmax == 0.0) return false;
-            piv[j] = static_cast<std::int32_t>(pivot);
+            piv[j] = static_cast<std::int32_t>(pivot + offset_row);
             if (pivot != j) {
-                T *r1 = LU + j;
-                T *r2 = LU + pivot;
-                std::size_t col = 0;
-                for (; col + 8 <= n; col += 8) {
-                    T t0 = r1[(col + 0) * n]; r1[(col + 0) * n] = r2[(col + 0) * n]; r2[(col + 0) * n] = t0;
-                    T t1 = r1[(col + 1) * n]; r1[(col + 1) * n] = r2[(col + 1) * n]; r2[(col + 1) * n] = t1;
-                    T t2 = r1[(col + 2) * n]; r1[(col + 2) * n] = r2[(col + 2) * n]; r2[(col + 2) * n] = t2;
-                    T t3 = r1[(col + 3) * n]; r1[(col + 3) * n] = r2[(col + 3) * n]; r2[(col + 3) * n] = t3;
-                    T t4 = r1[(col + 4) * n]; r1[(col + 4) * n] = r2[(col + 4) * n]; r2[(col + 4) * n] = t4;
-                    T t5 = r1[(col + 5) * n]; r1[(col + 5) * n] = r2[(col + 5) * n]; r2[(col + 5) * n] = t5;
-                    T t6 = r1[(col + 6) * n]; r1[(col + 6) * n] = r2[(col + 6) * n]; r2[(col + 6) * n] = t6;
-                    T t7 = r1[(col + 7) * n]; r1[(col + 7) * n] = r2[(col + 7) * n]; r2[(col + 7) * n] = t7;
-                }
-                for (; col < n; ++col) {
-                    T t = r1[col * n]; r1[col * n] = r2[col * n]; r2[col * n] = t;
+                T *r1 = A + j;
+                T *r2 = A + pivot;
+                for (std::size_t col = 0; col < lda; ++col) {
+                    std::swap(r1[col * lda], r2[col * lda]);
                 }
             }
-            const T inv_pivot = T(1) / LU[j + j * n];
-            for (std::size_t i = j + 1; i < n; ++i) {
-                LU[i + j * n] *= inv_pivot;
+            const T inv_pivot = T(1) / A[j + j * lda];
+            for (std::size_t i = j + 1; i < m; ++i) {
+                A[i + j * lda] *= inv_pivot;
             }
             if constexpr (std::is_same_v<T, double>) {
-                const double *l_col = LU + j * n;
-                for (std::size_t col = j + 1; col < k + kb; ++col) {
-                    const double f = LU[j + col * n];
+                const double *l_col = A + j * lda;
+                for (std::size_t col = j + 1; col < n; ++col) {
+                    const double f = A[j + col * lda];
                     if (f == 0.0) continue;
-                    double *col_ptr = LU + col * n;
-                    if (n > j + 1) {
-                        ::numkit::ops::axpy(n - (j + 1), -f, l_col + (j + 1), col_ptr + (j + 1));
+                    double *col_ptr = A + col * lda;
+                    if (m > j + 1) {
+                        ::numkit::ops::axpy(m - (j + 1), -f, l_col + (j + 1), col_ptr + (j + 1));
                     }
                 }
             } else {
-                for (std::size_t col = j + 1; col < k + kb; ++col) {
-                    const T f = LU[j + col * n];
+                for (std::size_t col = j + 1; col < n; ++col) {
+                    const T f = A[j + col * lda];
                     if (f == T(0)) continue;
-                    for (std::size_t i = j + 1; i < n; ++i) {
-                        LU[i + col * n] -= LU[i + j * n] * f;
+                    for (std::size_t i = j + 1; i < m; ++i) {
+                        A[i + col * lda] -= A[i + j * lda] * f;
                     }
                 }
             }
         }
+        return true;
+    }
 
-        // 2. Trailing matrix update via SIMD GEMM & trsm
-        if (k + kb < n) {
-            const std::size_t rem_cols = n - (k + kb);
-            T *L11 = LU + k + k * n;
-            T *U12 = LU + k + (k + kb) * n;
+    // Divide & Conquer
+    const std::size_t n1 = n / 2;
+    const std::size_t n2 = n - n1;
 
-            // Solve L11 * U12 = A12 using multithreaded SIMD trsm
-            if constexpr (is_complex_v<T>) {
-                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
-                                   kb, rem_cols, Complex(1.0, 0.0),
-                                   reinterpret_cast<const Complex*>(L11), n,
-                                   reinterpret_cast<Complex*>(U12), n);
-            } else {
-                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
-                                   kb, rem_cols, 1.0, L11, n, U12, n);
+    // 1. Recursive LU on left panel A1 (m x n1)
+    if (!lu_recursive_inplace(A, lda, piv, m, n1, offset_row)) return false;
+
+    // 2. Apply permutations piv[0..n1-1] to right panel A2 (m x n2)
+    for (std::size_t i = 0; i < n1; ++i) {
+        std::size_t p = static_cast<std::size_t>(piv[i] - offset_row);
+        if (p != i) {
+            T *r1 = A + i + n1 * lda;
+            T *r2 = A + p + n1 * lda;
+            std::size_t col = 0;
+            for (; col + 8 <= n2; col += 8) {
+                T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
+                T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
+                T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
+                T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
+                T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
+                T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
+                T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
+                T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
             }
-
-            const std::size_t rem_rows = n - (k + kb);
-            const T *L21 = LU + (k + kb) + k * n;
-            T *A22 = LU + (k + kb) + (k + kb) * n;
-
-            if constexpr (is_complex_v<T>) {
-                ::numkit::ops::gemm(rem_rows, rem_cols, kb, Complex(-1.0, 0.0),
-                                   reinterpret_cast<const Complex*>(L21), n,
-                                   reinterpret_cast<const Complex*>(U12), n,
-                                   Complex(1.0, 0.0),
-                                   reinterpret_cast<Complex*>(A22), n);
-            } else {
-                ::numkit::ops::gemm(rem_rows, rem_cols, kb, -1.0,
-                                   reinterpret_cast<const double*>(L21), n,
-                                   reinterpret_cast<const double*>(U12), n,
-                                   1.0,
-                                   reinterpret_cast<double*>(A22), n);
+            for (; col < n2; ++col) {
+                T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
             }
         }
     }
+
+    // 3. Solve L11 * U12 = A12 using multithreaded SIMD trsm (n1 x n2)
+    T *L11 = A;
+    T *A12 = A + n1 * lda;
+    if constexpr (is_complex_v<T>) {
+        ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                           n1, n2, Complex(1.0, 0.0),
+                           reinterpret_cast<const Complex*>(L11), lda,
+                           reinterpret_cast<Complex*>(A12), lda);
+    } else {
+        ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
+                           n1, n2, 1.0, L11, lda, A12, lda);
+    }
+
+    // 4. Trailing matrix GEMM update: A22 -= L21 * U12 ((m - n1) x n2)
+    T *L21 = A + n1;
+    T *U12 = A + n1 * lda;
+    T *A22 = A + n1 + n1 * lda;
+    const std::size_t rem_rows = m - n1;
+
+    if constexpr (is_complex_v<T>) {
+        ::numkit::ops::gemm(rem_rows, n2, n1, Complex(-1.0, 0.0),
+                           reinterpret_cast<const Complex*>(L21), lda,
+                           reinterpret_cast<const Complex*>(U12), lda,
+                           Complex(1.0, 0.0),
+                           reinterpret_cast<Complex*>(A22), lda);
+    } else {
+        ::numkit::ops::gemm(rem_rows, n2, n1, -1.0,
+                           reinterpret_cast<const double*>(L21), lda,
+                           reinterpret_cast<const double*>(U12), lda,
+                           1.0,
+                           reinterpret_cast<double*>(A22), lda);
+    }
+
+    // 5. Recursive LU on right submatrix A22 ((m - n1) x n2)
+    if (!lu_recursive_inplace(A22, lda, piv + n1, rem_rows, n2, offset_row + n1)) return false;
+
+    // 6. Apply permutations piv[n1..n-1] to left panel L21 ((m - n1) x n1)
+    for (std::size_t i = 0; i < n2; ++i) {
+        std::size_t p = static_cast<std::size_t>(piv[n1 + i] - (offset_row + n1));
+        if (p != i) {
+            T *r1 = A + n1 + i;
+            T *r2 = A + n1 + p;
+            std::size_t col = 0;
+            for (; col + 8 <= n1; col += 8) {
+                T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
+                T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
+                T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
+                T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
+                T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
+                T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
+                T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
+                T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
+            }
+            for (; col < n1; ++col) {
+                T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+            }
+        }
+    }
+
     return true;
+}
+
+template <typename T>
+bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
+{
+    return lu_recursive_inplace(LU, n, piv, n, n, 0);
 }
 
 // ── QR via Householder (tall A, m×n with m >= n) ─────────────────────
