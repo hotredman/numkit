@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <numkit/value/value.hpp>
+#include <numkit/ops/blas.hpp>
 #include "linalg_detail.hpp"
 
 namespace numkit::linalg {

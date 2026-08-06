@@ -4,6 +4,7 @@
 // Migrated from toolboxes/builtin/src/language/arrays/matrix.cpp.
 
 #include <numkit/linalg/decompositions.hpp>
+#include <numkit/ops/blas.hpp>
 #include "decompositions_detail.hpp"   // shared raw-buffer kernels (private)
 
 // Compute-only TU: Value substrate + Error, no engine. The chol / lu / qr /
@@ -29,6 +30,33 @@ namespace numkit::linalg {
 
 // Shared raw-buffer kernels (defined as inline templates in decompositions_detail.hpp)
 
+static std::size_t cholUpperFactorBlocked(const double *a, double *r, std::size_t n) {
+    std::fill(r, r + n * n, 0.0);
+    const std::size_t nb = 32;
+    for (std::size_t j = 0; j < n; j += nb) {
+        std::size_t j_end = std::min(j + nb, n);
+        std::size_t j_len = j_end - j;
+
+        for (std::size_t jj = j; jj < j_end; ++jj) {
+            double s = a[jj + jj * n];
+            for (std::size_t k = 0; k < jj; ++k) s -= r[k + jj * n] * r[k + jj * n];
+            if (s <= 0.0) return jj + 1;
+            r[jj + jj * n] = std::sqrt(s);
+            const double inv_diag = 1.0 / r[jj + jj * n];
+            for (std::size_t i = jj + 1; i < n; ++i) {
+                double t = a[jj + i * n];
+                for (std::size_t k = 0; k < jj; ++k) t -= r[k + jj * n] * r[k + i * n];
+                r[jj + i * n] = t * inv_diag;
+            }
+        }
+
+        if (j_end < n) {
+            numkit::ops::gemm(j_len, n - j_end, j_len, -1.0, r + j + j * n, n, r + j + j_end * n, n, 1.0, r + j_end + j_end * n, n);
+        }
+    }
+    return 0;
+}
+
 Value chol(const Value &A, std::pmr::memory_resource *mr)
 {
     if (A.dims().ndim() != 2)
@@ -50,7 +78,7 @@ Value chol(const Value &A, std::pmr::memory_resource *mr)
         return detail::narrow_if_real(R);
     } else {
         auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
-        if (cholUpperFactor(A.doubleData(), R.doubleDataMut(), n) != 0)
+        if (cholUpperFactorBlocked(A.doubleData(), R.doubleDataMut(), n) != 0)
             throw Error("chol: matrix is not positive-definite",
                         0, 0, "chol", "", "numkit:chol:notPosDef");
         return R;
@@ -165,6 +193,13 @@ Value lu_combined(const Value &A, std::pmr::memory_resource *mr)
 
 namespace {
 
+static void qr_gemm_update(std::size_t m_k, std::size_t n_k_1, double tau_val, const double *v, double *r, std::size_t ldr) {
+    if (m_k == 0 || n_k_1 == 0) return;
+    std::vector<double> w(n_k_1, 0.0);
+    numkit::ops::gemm(1, n_k_1, m_k, 1.0, v, 1, r, ldr, 0.0, w.data(), 1);
+    numkit::ops::gemm(m_k, n_k_1, 1, -tau_val, v, m_k, w.data(), 1, 1.0, r, ldr);
+}
+
 // Householder QR with explicit Q construction. Decomposes m×n A
 // (m >= n) into Q (m×m orthogonal/unitary) and R (m×n upper-triangular).
 template <typename T>
@@ -213,18 +248,24 @@ void qrFullHouseholder(const T *A_in, std::size_t m, std::size_t n,
             continue;
         }
         tau[k] = T(2.0 / v_norm_sq);
-        for (std::size_t j = k + 1; j < n; ++j) {
-            T dot = T(0);
-            for (std::size_t i = k; i < m; ++i) {
-                if constexpr (detail::is_complex_v<T>) {
-                    dot += std::conj(V[i + k * m]) * R_work[i + j * m];
-                } else {
-                    dot += V[i + k * m] * R_work[i + j * m];
-                }
+        if constexpr (std::is_same_v<T, double>) {
+            if (n > k + 1) {
+                qr_gemm_update(m - k, n - k - 1, tau[k], V.data() + k + k * m, R_work.data() + k + (k + 1) * m, m);
             }
-            const T s = tau[k] * dot;
-            for (std::size_t i = k; i < m; ++i)
-                R_work[i + j * m] -= s * V[i + k * m];
+        } else {
+            for (std::size_t j = k + 1; j < n; ++j) {
+                T dot = T(0);
+                for (std::size_t i = k; i < m; ++i) {
+                    if constexpr (detail::is_complex_v<T>) {
+                        dot += std::conj(V[i + k * m]) * R_work[i + j * m];
+                    } else {
+                        dot += V[i + k * m] * R_work[i + j * m];
+                    }
+                }
+                const T s = tau[k] * dot;
+                for (std::size_t i = k; i < m; ++i)
+                    R_work[i + j * m] -= s * V[i + k * m];
+            }
         }
         R_work[k + k * m] = alpha;
         for (std::size_t i = k + 1; i < m; ++i)

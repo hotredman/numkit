@@ -60,3 +60,27 @@ TEST(BlockedQrTest, BlockedQr256Real) {
     }
     EXPECT_LT(max_ortho_err, 1e-11);
 }
+
+TEST(BlockedQrTest, BlockedQr513OddTail) {
+    const size_t m = 513;
+    const size_t n = 513;
+    Value A = Value::matrix(m, n);
+    double *ad = A.doubleDataMut();
+
+    std::mt19937 gen(12345);
+    std::normal_distribution<double> dist(0.0, 1.0);
+    for (size_t i = 0; i < m * n; ++i) ad[i] = dist(gen);
+
+    auto [Q, R] = qr_decompose(A);
+
+    EXPECT_EQ(Q.dims().rows(), m); EXPECT_EQ(Q.dims().cols(), m);
+    EXPECT_EQ(R.dims().rows(), m); EXPECT_EQ(R.dims().cols(), n);
+
+    const double *qd = Q.doubleData();
+    const double *rd = R.doubleData();
+
+    // Check entry (0,0) reconstruction
+    double s00 = 0.0;
+    for (size_t k = 0; k < m; ++k) s00 += qd[0 + k * m] * rd[k + 0 * m];
+    EXPECT_NEAR(s00, ad[0], 1e-10);
+}

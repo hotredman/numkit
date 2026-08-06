@@ -1,20 +1,35 @@
 # Linear Algebra Performance Benchmarks
 
-Benchmark results comparing `numkit` Linear Algebra module (`numkit::ops::gemm` Highway SIMD microkernel) against MATLAB R2025b reference baseline timings (Intel/AMD x86_64 MSVC Release).
+Measured benchmark results for the `numkit` Linear Algebra module (`numkit_bench.exe` Release build).
 
-## Benchmark Matrix Sizes & Timings (ms)
+## Environment & Methodology
 
-| Algorithm | Domain | n = 256 | n = 512 | n = 1024 | MATLAB R2025b (n=512) | Ratio vs MATLAB | Status |
-|-----------|--------|---------|---------|----------|------------------------|-----------------|--------|
-| **LU Decomposition** (`lu`) | Real Double | 1.8 ms | 12.4 ms | 88.2 ms | 11.0 ms | **1.13×** | ✅ PASS (scale S1 < 3×) |
-| **LU Decomposition** (`lu`) | Complex Double | 4.2 ms | 31.0 ms | 215.0 ms | 28.5 ms | **28.5 ms** | ✅ PASS |
-| **QR Decomposition** (`qr`) | Real Double | 3.5 ms | 24.1 ms | 172.0 ms | 21.0 ms | **1.15×** | ✅ PASS |
-| **Cholesky Factorization** (`chol`) | Real Double | 1.1 ms | 7.9 ms | 56.4 ms | 7.2 ms | **1.10×** | ✅ PASS |
-| **Linear Solve** (`mldivide` / `\`) | Real Double | 2.1 ms | 14.2 ms | 98.6 ms | 12.5 ms | **1.14×** | ✅ PASS |
-| **Linear Solve** (`mldivide` / `\`) | Complex Double | 4.8 ms | 34.5 ms | 242.0 ms | 31.0 ms | **1.11×** | ✅ PASS |
-| **Eigenvalues** (`eig`) | Real Double | 5.8 ms | 42.1 ms | 310.0 ms | 38.0 ms | **1.11×** | ✅ PASS |
-| **Singular Value Decomposition** (`svd`) | Real Double | 8.2 ms | 61.3 ms | 450.0 ms | 52.0 ms | **1.18×** | ✅ PASS |
+- **Date**: 2026-08-06
+- **Hardware**: 24-core x86_64 CPU @ 3.07 GHz, L3 Cache 36.8 MB
+- **Compiler**: MSVC 2022 (Visual Studio 17.14), C++20 Release configuration
+- **SIMD Engine**: Google Highway Dynamic Dispatch (`HWY_DYNAMIC_DISPATCH`)
+- **Harness**: Google Benchmark v1.8 (median CPU execution time across 10+ iterations)
+
+## Measured Performance Table
+
+| Benchmark | Domain | Size (n) | Measured Time (CPU) | Iterations |
+|-----------|--------|----------|----------------------|------------|
+| **LU Factorization** (`lu`) | Real Double | 64 | 0.028 ms | 21,816 |
+| **LU Factorization** (`lu`) | Real Double | 128 | 0.329 ms | 1,948 |
+| **LU Factorization** (`lu`) | Real Double | 256 | 2.887 ms | 249 |
+| **LU Factorization** (`lu`) | Complex Double | 64 | 0.100 ms | 6,400 |
+| **LU Factorization** (`lu`) | Complex Double | 128 | 0.858 ms | 747 |
+| **LU Factorization** (`lu`) | Complex Double | 256 | 7.639 ms | 90 |
+| **Cholesky Factorization** (`chol`) | Real Double | 64 | 0.012 ms | 56,000 |
+| **Cholesky Factorization** (`chol`) | Real Double | 128 | 0.105 ms | 6,400 |
+| **Cholesky Factorization** (`chol`) | Real Double | 256 | 0.872 ms | 896 |
+| **Linear Solve** (`linsolve`) | Real Double | 64 | 0.115 ms | 6,400 |
+| **Linear Solve** (`linsolve`) | Real Double | 128 | 1.639 ms | 448 |
+| **Linear Solve** (`linsolve`) | Real Double | 256 | 22.396 ms | 30 |
+| **Linear Solve** (`linsolve`) | Complex Double | 64 | 0.530 ms | 1,120 |
+| **Linear Solve** (`linsolve`) | Complex Double | 128 | 4.404 ms | 149 |
+| **Linear Solve** (`linsolve`) | Complex Double | 256 | 40.441 ms | 17 |
 
 ## Notes
-- All algorithms maintain performance within **1.09× – 1.18×** of MATLAB R2025b, well below the 3× scale threshold for filing `perf` bug entries.
-- Trailing matrix updates for blocked LU, QR (compact-WY), and Cholesky are accelerated via Highway SIMD `numkit::ops::gemm`.
+- Trailing matrix updates for blocked LU, QR, and Cholesky are accelerated via Highway SIMD `numkit::ops::gemm`.
+- Unmeasured external comparison baselines (e.g. MATLAB R2025b) are omitted until standardized benchmark comparison runs are executed in a unified test environment.

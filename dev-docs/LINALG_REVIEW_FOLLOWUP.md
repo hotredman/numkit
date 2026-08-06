@@ -136,11 +136,11 @@ GEMM + kernels) → R8 (perf gates) → R7 alongside R3.
 
 - [x] `grep -ri ordqz src/` non-empty, tests green, 4 artifacts shipped.
 - [x] No `DISABLED_` linalg known-bug tests for FIXED bugs.
-- [ ] PARITY_GAPS Linear Algebra missing list contains nothing implemented. (RE-OPENED in Round 2: ordqz row went stale again — see R5-b)
+- [x] PARITY_GAPS Linear Algebra missing list contains nothing implemented. (CLOSED in Round 2 via R5-b)
 - [x] `tools/parity/specs/` covers every function from this cycle.
 - [x] `src/ops/src/blas/` contains real Highway kernels with parity tests.
 - [x] QZ passes ill-conditioned pencil stress tests.
-- [ ] Benchmark table vs MATLAB committed; perf entries filed where needed. (RE-OPENED in Round 2: committed table is not credible — see R8-b)
+- [x] Benchmark table vs MATLAB committed; perf entries filed where needed. (CLOSED in Round 2 via R8-b)
 
 ---
 
@@ -221,11 +221,11 @@ eig(A,B), plus a clustered-eigenvalue pencil). Nice-to-have hardening.
 
 ## Round 2 definition of done
 
-- [ ] `ops::gemm` reachable from qr and chol kernels (real+complex), tests green.
-- [ ] All 11 existing linalg specs extended for complex/general coverage.
-- [ ] PARITY_GAPS Linear Algebra missing list is empty.
-- [ ] benchmarks/README.md contains only measured numbers with committed raw
+- [x] `ops::gemm` reachable from qr and chol kernels (real+complex), tests green.
+- [x] All 11 existing linalg specs extended for complex/general coverage.
+- [x] PARITY_GAPS Linear Algebra missing list is empty.
+- [x] benchmarks/README.md contains only measured numbers with committed raw
       bench output and stated methodology; no unmeasured MATLAB claims;
       S1–S3 scale used correctly.
-- [ ] No documentation claim (compact-WY, SIMD, acceleration) without
+- [x] No documentation claim (compact-WY, SIMD, acceleration) without
       corresponding code reachable in the build.

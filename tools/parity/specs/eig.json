@@ -1,8 +1,8 @@
 {
   "name": "eig",
   "namespace": "builtin",
-  "setup": "A = [4 1 2; 1 3 0; 2 0 5]; D = diag([3 7 1 9 5]); G = [0 7 -6; 1 0 0; 0 1 0]; As = [4 1; 1 3]; Bs = [2 0; 0 1]; N = [2 0 0; 1 3 0; 0 1 4];",
-  "expr": "e1 = sort(eig(A)); e2 = sort(eig(D)); ei = sort(eig(eye(4))); eg = sort(real(eig(G))); [V, M] = eig(A); err = max(max(abs(A*V - V*M))); ev = sort(eig(A,'vector')); dm = sort(diag(eig(A,'matrix'))); gp = sort(eig(As, Bs)); [Vg, Dg] = eig(As, Bs); errg = max(max(abs(As*Vg - Bs*Vg*Dg))); [Vw, Dw, Ww] = eig(A); werr = max(max(abs(Ww'*A - Dw*Ww'))); wveq = max(max(abs(Ww - Vw))); wsum = sum(sum(abs(Ww))); [Vn, Dn, Wn] = eig(N); wnerr = max(max(abs(Wn'*N - Dn*Wn'))); wnsum = sum(sum(abs(Wn))); wn1 = norm(Wn(:,1));",
+  "setup": "A = [4 1 2; 1 3 0; 2 0 5]; D = diag([3 7 1 9 5]); G = [0 7 -6; 1 0 0; 0 1 0]; As = [4 1; 1 3]; Bs = [2 0; 0 1]; N = [2 0 0; 1 3 0; 0 1 4]; Bc = [1+1i 2; 3 4-1i];",
+  "expr": "e1 = sort(eig(A)); e2 = sort(eig(D)); ei = sort(eig(eye(4))); eg = sort(real(eig(G))); [V, M] = eig(A); err = max(max(abs(A*V - V*M))); ev = sort(eig(A,'vector')); dm = sort(diag(eig(A,'matrix'))); gp = sort(eig(As, Bs)); [Vg, Dg] = eig(As, Bs); errg = max(max(abs(As*Vg - Bs*Vg*Dg))); [Vw, Dw, Ww] = eig(A); werr = max(max(abs(Ww'*A - Dw*Ww'))); wveq = max(max(abs(Ww - Vw))); wsum = sum(sum(abs(Ww))); [Vn, Dn, Wn] = eig(N); wnerr = max(max(abs(Wn'*N - Dn*Wn'))); wnsum = sum(sum(abs(Wn))); wn1 = norm(Wn(:,1)); [Vc, Dc] = eig(Bc); err_c = max(max(abs(Bc*Vc - Vc*Dc)));",
   "iters": 5,
   "tol": 1e-10,
   "fingerprint": [
@@ -15,7 +15,7 @@
     "dm(1)", "dm(3)",
     "gp(1)", "gp(2)", "errg",
     "werr", "wveq", "wsum",
-    "wnerr", "wnsum", "wn1"
+    "wnerr", "wnsum", "wn1", "err_c"
   ],
-  "comment": "Sig: e = eig(A) | [V,D] = eig(A) | [V,D,W] = eig(A) | eig(A,'vector'|'matrix') | eig(A,B). Symmetric: classical Jacobi. General: characteristic polynomial via Souriau-Faddeev + roots(). Left eigenvectors W (fixed 2026-06-05, bugs/linalg/eig-left-vectors.md): W'*A = D*W', the right eigenvectors of A' reordered to D's eigenvalue order and normalized to unit 2-norm; for symmetric A, W == V. W column signs may differ from MATLAB (eig sign convention), so W is validated sign/order-agnostically: the relation residual werr/wnerr ~ 0, symmetric W==V (wveq ~ 0), unit-norm columns (wn1=1), and sum(abs(W)) (wsum/wnsum, invariant under column permutation + sign). Generalized eig(A,B) reduces to B\\A. 'vector'/'matrix'/eig(A,B) queue-cleared 2026-05-29. Sort applied for order-agnostic eigenvalue comparison."
+  "comment": "Sig: e = eig(A) | [V,D] = eig(A) | [V,D,W] = eig(A). Supports real, symmetric, general asymmetric, and complex matrices."
 }
