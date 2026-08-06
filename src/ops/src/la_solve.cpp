@@ -45,8 +45,8 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 {
     if (m == 0 || n == 0) return true;
 
-    // Base case: small matrix or single column (use fast panel LU for n <= 64)
-    if (n <= 64) {
+    // Base case: panel LU for n <= 128 (L1/L2 cache optimal)
+    if (n <= 128) {
         for (std::size_t j = 0; j < n; ++j) {
             std::size_t pivot = j;
             double pmax = abs_val(A[j + j * lda]);
@@ -62,8 +62,19 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
             if (pivot != j) {
                 T *r1 = A + j;
                 T *r2 = A + pivot;
-                for (std::size_t col = 0; col < lda; ++col) {
-                    std::swap(r1[col * lda], r2[col * lda]);
+                std::size_t col = 0;
+                for (; col + 8 <= n; col += 8) {
+                    T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
+                    T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
+                    T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
+                    T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
+                    T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
+                    T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
+                    T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
+                    T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
+                }
+                for (; col < n; ++col) {
+                    T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
                 }
             }
             const T inv_pivot = T(1) / A[j + j * lda];
