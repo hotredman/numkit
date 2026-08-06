@@ -46,8 +46,9 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 {
     if (m == 0 || n == 0) return true;
 
-    // Base case: panel LU for n <= 128 (L1/L2 cache optimal)
-    if (n <= 128) {
+    // Base case: panel LU for n <= base_n (adaptive 32 for m >= 256 to maximize 24-thread GEMM offload)
+    const std::size_t base_n = (m >= 256) ? 32 : 128;
+    if (n <= base_n) {
         if constexpr (std::is_same_v<T, double>) {
             return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
         } else {
@@ -94,7 +95,7 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     if (!lu_recursive_inplace(A, lda, piv, m, n1, offset_row)) return false;
 
     // 2. Apply permutations piv[0..n1-1] to right panel A2 (m x n2)
-    const std::size_t p2_thresh = (n2 >= 512) ? 128 : (n2 + 1);
+    const std::size_t p2_thresh = (n2 >= 64) ? 32 : (n2 + 1);
     numkit::detail::parallel_for(n2, p2_thresh, [=](std::size_t c_start, std::size_t c_end) {
         for (std::size_t i = 0; i < n1; ++i) {
             std::size_t p = static_cast<std::size_t>(piv[i] - offset_row);
@@ -157,7 +158,7 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     if (!lu_recursive_inplace(A22, lda, piv + n1, rem_rows, n2, offset_row + n1)) return false;
 
     // 6. Apply permutations piv[n1..n-1] to left panel L21 ((m - n1) x n1)
-    const std::size_t p6_thresh = (n1 >= 512) ? 128 : (n1 + 1);
+    const std::size_t p6_thresh = (n1 >= 64) ? 32 : (n1 + 1);
     numkit::detail::parallel_for(n1, p6_thresh, [=](std::size_t c_start, std::size_t c_end) {
         for (std::size_t i = 0; i < n2; ++i) {
             std::size_t p = static_cast<std::size_t>(piv[n1 + i] - (offset_row + n1));
