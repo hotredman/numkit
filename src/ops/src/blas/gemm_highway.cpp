@@ -55,9 +55,9 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
     constexpr std::size_t mc_block = 256;           // L2-resident A-panel height
     constexpr std::size_t nc_block = 2048;          // L3-resident B-panel width
 
-    // Threshold for FLOPs: 2 * m * n * k >= 64,000 (e.g. n >= 128 for square GEMM)
+    // Threshold for FLOPs: 2 * m * n * k >= 8,000,000 (n >= 160 for square GEMM)
     const std::size_t total_flops = 2 * m * n * k;
-    constexpr std::size_t kGemmParallelFlopThreshold = 64'000;
+    constexpr std::size_t kGemmParallelFlopThreshold = 8'000'000;
 
     // Determinism note: FP summation order within a C tile is fixed by the
     // microkernel; parallelism across independent jc column blocks of C does
@@ -232,8 +232,8 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     constexpr std::size_t nc_block = 2048;
 
     const std::size_t total_flops = 8 * m * n * k;
-    constexpr std::size_t kComplexGemmParallelFlopThreshold = 64'000;
-    const std::size_t p_thresh = (total_flops >= kComplexGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
+    constexpr std::size_t kGemmParallelFlopThreshold = 8'000'000;
+    const std::size_t p_thresh = (total_flops >= kGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
 
     numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
         std::vector<double> Ar_pack(mc_block * kc_block + 64, 0.0);
@@ -679,47 +679,46 @@ void syrk_generic(MatrixUplo uplo, MatrixTranspose trans,
 {
     if (n == 0) return;
 
-    // Scale C by beta for the triangular part
-    for (std::size_t j = 0; j < n; ++j) {
-        std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
-        std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
-        for (std::size_t i = i_start; i < i_end; ++i) {
-            if (beta == T(0)) C[i + j * ldc] = T(0);
-            else if (beta != T(1)) C[i + j * ldc] *= beta;
-        }
-    }
-
-    if (k == 0 || alpha == T(0)) return;
+    const std::size_t total_flops = 2 * n * n * k;
+    constexpr std::size_t kParallelFlopThreshold = 64'000;
+    const std::size_t p_thresh = (total_flops >= kParallelFlopThreshold) ? std::size_t{1} : n + 1;
 
     const bool is_trans = (trans != MatrixTranspose::NoTrans);
     const bool is_conj  = (trans == MatrixTranspose::ConjTrans);
 
-    for (std::size_t j = 0; j < n; ++j) {
-        std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
-        std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
-
-        for (std::size_t l = 0; l < k; ++l) {
-            T b_val = is_trans ? A[l + j * lda] : A[j + l * lda];
-            if constexpr (is_complex_type_v<T>) {
-                if (!is_trans) {
-                    // NoTrans: A * A^H -> conjugate j-factor
-                    b_val = std::conj(b_val);
-                }
-            }
-            const T alpha_b = alpha * b_val;
+    numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
+        for (std::size_t j = jc_start; j < jc_end; ++j) {
+            std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
+            std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
 
             for (std::size_t i = i_start; i < i_end; ++i) {
-                T a_val = is_trans ? A[l + i * lda] : A[i + l * lda];
+                if (beta == T(0)) C[i + j * ldc] = T(0);
+                else if (beta != T(1)) C[i + j * ldc] *= beta;
+            }
+
+            if (k == 0 || alpha == T(0)) continue;
+
+            for (std::size_t l = 0; l < k; ++l) {
+                T b_val = is_trans ? A[l + j * lda] : A[j + l * lda];
                 if constexpr (is_complex_type_v<T>) {
-                    if (is_conj) {
-                        // ConjTrans: A^H * A -> conjugate i-factor
-                        a_val = std::conj(a_val);
+                    if (!is_trans) {
+                        b_val = std::conj(b_val);
                     }
                 }
-                C[i + j * ldc] += a_val * alpha_b;
+                const T alpha_b = alpha * b_val;
+
+                for (std::size_t i = i_start; i < i_end; ++i) {
+                    T a_val = is_trans ? A[l + i * lda] : A[i + l * lda];
+                    if constexpr (is_complex_type_v<T>) {
+                        if (is_conj) {
+                            a_val = std::conj(a_val);
+                        }
+                    }
+                    C[i + j * ldc] += a_val * alpha_b;
+                }
             }
         }
-    }
+    });
 }
 
 void syrk(MatrixUplo uplo, MatrixTranspose trans,

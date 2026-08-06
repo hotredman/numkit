@@ -1,4 +1,4 @@
-2026-08-06T17:00:57+03:00
+2026-08-06T17:18:55+03:00
 Running C:\Users\User\Projects\megahard\numkit\build\desktop-fast\benchmarks\Release\numkit_bench.exe
 Run on (24 X 3072 MHz CPU s)
 CPU Caches:
@@ -9,40 +9,40 @@ CPU Caches:
 -------------------------------------------------------------------------------------------------
 Benchmark                                       Time             CPU   Iterations UserCounters...
 -------------------------------------------------------------------------------------------------
-BM_Linalg_Gemm_Real/64/real_time          4886582 ns        0.000 ns          165 GFLOPS=0.107291/s bytes_per_second=12.7901Mi/s
-BM_Linalg_Gemm_Real/128/real_time         4909980 ns        0.000 ns          137 GFLOPS=0.85424/s bytes_per_second=50.9167Mi/s
-BM_Linalg_Gemm_Real/256/real_time         5946328 ns        0.000 ns          123 GFLOPS=5.64288/s bytes_per_second=168.171Mi/s
-BM_Linalg_Gemm_Real/512/real_time         6757488 ns       159439 ns           98 GFLOPS=39.7241/s bytes_per_second=591.936Mi/s
-BM_Linalg_Gemm_Real/1024/real_time       10386743 ns       229779 ns           68 GFLOPS=206.752/s bytes_per_second=1.50432Gi/s
-BM_Linalg_Gemm_Real/2048/real_time       49692933 ns        0.000 ns           12 GFLOPS=345.721/s bytes_per_second=1.25772Gi/s
-BM_Linalg_Gemm_Complex/64/real_time       9033279 ns       173611 ns           90 GFLOPS=0.232158/s bytes_per_second=13.8377Mi/s
-BM_Linalg_Gemm_Complex/128/real_time      9360697 ns       217014 ns           72 GFLOPS=1.7923/s bytes_per_second=53.4148Mi/s
-BM_Linalg_Gemm_Complex/256/real_time     10936409 ns        0.000 ns           64 GFLOPS=12.2726/s bytes_per_second=182.875Mi/s
-BM_Linalg_Gemm_Complex/512/real_time     15241436 ns       694444 ns           45 GFLOPS=70.4489/s bytes_per_second=524.885Mi/s
-BM_Linalg_Gemm_Complex/1024/real_time    35240968 ns        0.000 ns           19 GFLOPS=243.749/s bytes_per_second=908.034Mi/s
-BM_Linalg_Gemm_Complex/2048/real_time   190848633 ns      5208333 ns            3 GFLOPS=360.073/s bytes_per_second=670.689Mi/s
-BM_Linalg_LU_Real/64/real_time              64541 ns        64924 ns        10830
-BM_Linalg_LU_Real/128/real_time           4711328 ns       550176 ns          142
-BM_Linalg_LU_Real/256/real_time          16150492 ns      4407051 ns           39
-BM_Linalg_LU_Real/512/real_time          46980171 ns     16741071 ns           14
-BM_Linalg_LU_Real/1024/real_time        137296680 ns     75000000 ns            5
-BM_Linalg_LU_Complex/64/real_time          180338 ns       176921 ns         6977
-BM_Linalg_LU_Complex/128/real_time       10151980 ns      1228933 ns           89
-BM_Linalg_LU_Complex/256/real_time       34073821 ns      4934211 ns           19
-BM_Linalg_LU_Complex/512/real_time       77515233 ns     20833333 ns            9
-BM_Linalg_LU_Complex/1024/real_time     235301433 ns    135416667 ns            3
-BM_Linalg_Chol_Real/64/real_time            15096 ns        14821 ns        46386
-BM_Linalg_Chol_Real/128/real_time          132129 ns       131327 ns         5473
-BM_Linalg_Chol_Real/256/real_time         1368146 ns      1307150 ns          514
-BM_Linalg_Chol_Real/512/real_time        14502443 ns     14627660 ns           47
-BM_Linalg_Chol_Real/1024/real_time      230108300 ns    229166667 ns            3
-BM_Linalg_Solve_Real/64/real_time          125192 ns       124811 ns         4632
-BM_Linalg_Solve_Real/128/real_time        2067768 ns      2052920 ns          274
-BM_Linalg_Solve_Real/256/real_time       21150773 ns     20833333 ns           33
-BM_Linalg_Solve_Real/512/real_time      175020775 ns    175781250 ns            4
-BM_Linalg_Solve_Real/1024/real_time    3348929400 ns   3296875000 ns            1
-BM_Linalg_Solve_Complex/64/real_time       632803 ns       636091 ns          958
-BM_Linalg_Solve_Complex/128/real_time    12947425 ns      4829545 ns           55
-BM_Linalg_Solve_Complex/256/real_time    62593573 ns     48295455 ns           11
-BM_Linalg_Solve_Complex/512/real_time   362487750 ns    304687500 ns            2
-BM_Linalg_Solve_Complex/1024/real_time 3040213400 ns   2906250000 ns            1
+BM_Linalg_Gemm_Real/64/real_time           982381 ns       987787 ns          696 GFLOPS=0.533691/s bytes_per_second=63.6209Mi/s
+BM_Linalg_Gemm_Real/128/real_time         1130953 ns      1139587 ns          617 GFLOPS=3.70865/s bytes_per_second=221.052Mi/s
+BM_Linalg_Gemm_Real/256/real_time         5025365 ns        0.000 ns          100 GFLOPS=6.67701/s bytes_per_second=198.991Mi/s
+BM_Linalg_Gemm_Real/512/real_time         6700494 ns       294811 ns          106 GFLOPS=40.062/s bytes_per_second=596.971Mi/s
+BM_Linalg_Gemm_Real/1024/real_time       11116741 ns        0.000 ns           59 GFLOPS=193.176/s bytes_per_second=1.40554Gi/s
+BM_Linalg_Gemm_Real/2048/real_time       46238060 ns        0.000 ns           15 GFLOPS=371.553/s bytes_per_second=1.3517Gi/s
+BM_Linalg_Gemm_Complex/64/real_time       1871605 ns      1835724 ns          366 GFLOPS=1.12051/s bytes_per_second=66.7876Mi/s
+BM_Linalg_Gemm_Complex/128/real_time      9267309 ns       223214 ns           70 GFLOPS=1.81037/s bytes_per_second=53.9531Mi/s
+BM_Linalg_Gemm_Complex/256/real_time     10898830 ns       236742 ns           66 GFLOPS=12.3149/s bytes_per_second=183.506Mi/s
+BM_Linalg_Gemm_Complex/512/real_time     14405747 ns        0.000 ns           49 GFLOPS=74.5357/s bytes_per_second=555.334Mi/s
+BM_Linalg_Gemm_Complex/1024/real_time    33805419 ns        0.000 ns           21 GFLOPS=254.099/s bytes_per_second=946.594Mi/s
+BM_Linalg_Gemm_Complex/2048/real_time   187773775 ns        0.000 ns            4 GFLOPS=365.97/s bytes_per_second=681.671Mi/s
+BM_Linalg_LU_Real/64/real_time              64636 ns        64675 ns        10630
+BM_Linalg_LU_Real/128/real_time           1262020 ns      1262923 ns          532
+BM_Linalg_LU_Real/256/real_time           5320754 ns      5363806 ns          134
+BM_Linalg_LU_Real/512/real_time          36553221 ns     16447368 ns           19
+BM_Linalg_LU_Real/1024/real_time        127030640 ns     87500000 ns            5
+BM_Linalg_LU_Complex/64/real_time          201327 ns       198791 ns         7074
+BM_Linalg_LU_Complex/128/real_time        2491029 ns      2381506 ns          269
+BM_Linalg_LU_Complex/256/real_time       22630766 ns      6347656 ns           32
+BM_Linalg_LU_Complex/512/real_time       69138920 ns     26562500 ns           10
+BM_Linalg_LU_Complex/1024/real_time     214146333 ns    119791667 ns            3
+BM_Linalg_Chol_Real/64/real_time            15132 ns        15224 ns        45160
+BM_Linalg_Chol_Real/128/real_time          140092 ns       139233 ns         5050
+BM_Linalg_Chol_Real/256/real_time          915771 ns       705369 ns          731
+BM_Linalg_Chol_Real/512/real_time         6046791 ns      4526869 ns          107
+BM_Linalg_Chol_Real/1024/real_time       54931746 ns     16826923 ns           13
+BM_Linalg_Solve_Real/64/real_time          151573 ns       152203 ns         4517
+BM_Linalg_Solve_Real/128/real_time        2124011 ns      2092634 ns          336
+BM_Linalg_Solve_Real/256/real_time       11424140 ns     11340726 ns           62
+BM_Linalg_Solve_Real/512/real_time       76556311 ns     59027778 ns            9
+BM_Linalg_Solve_Real/1024/real_time     454313900 ns    421875000 ns            2
+BM_Linalg_Solve_Complex/64/real_time       708824 ns       715401 ns          961
+BM_Linalg_Solve_Complex/128/real_time     6863184 ns      6893382 ns          102
+BM_Linalg_Solve_Complex/256/real_time    57824775 ns     40364583 ns           12
+BM_Linalg_Solve_Complex/512/real_time   371507500 ns    328125000 ns            2
+BM_Linalg_Solve_Complex/1024/real_time 3027205000 ns   2937500000 ns            1
