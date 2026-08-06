@@ -278,34 +278,18 @@ void qrFullHouseholder(const T *A_in, std::size_t m, std::size_t n,
             continue;
         }
         tau[k] = T(2.0 / v_norm_sq);
-        // Trailing column update for current column reflector k using gemm / ger
-        if (k + 1 < n) {
-            const std::size_t rem = m - k;
-            // Normalize v to have v[0] = 1 for numerical stability in ger update
-            const T v0 = V[k + k * m];
-            if (v0 != T(0)) {
-                T tau_scaled = tau[k] * v0 * detail::conj_if_complex(v0);
-                // R[k:m, k+1:n] -= tau_scaled * (v / v0) * ((v / v0)^H * R[k:m, k+1:n])
-                // Computed directly using ops::ger / gemv
-                ScratchVec<T> w(n - (k + 1), T(0), &scratch);
-                for (std::size_t j = k + 1; j < n; ++j) {
-                    T dot = T(0);
-                    for (std::size_t i = k; i < m; ++i) {
-                        if constexpr (detail::is_complex_v<T>) {
-                            dot += std::conj(V[i + k * m]) * R_work[i + j * m];
-                        } else {
-                            dot += V[i + k * m] * R_work[i + j * m];
-                        }
-                    }
-                    w[j - (k + 1)] = tau[k] * dot;
-                }
-                for (std::size_t j = k + 1; j < n; ++j) {
-                    const T sj = w[j - (k + 1)];
-                    for (std::size_t i = k; i < m; ++i) {
-                        R_work[i + j * m] -= sj * V[i + k * m];
-                    }
+        for (std::size_t j = k + 1; j < n; ++j) {
+            T dot = T(0);
+            for (std::size_t i = k; i < m; ++i) {
+                if constexpr (detail::is_complex_v<T>) {
+                    dot += std::conj(V[i + k * m]) * R_work[i + j * m];
+                } else {
+                    dot += V[i + k * m] * R_work[i + j * m];
                 }
             }
+            const T s = tau[k] * dot;
+            for (std::size_t i = k; i < m; ++i)
+                R_work[i + j * m] -= s * V[i + k * m];
         }
         R_work[k + k * m] = alpha;
         for (std::size_t i = k + 1; i < m; ++i)

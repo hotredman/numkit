@@ -1,0 +1,12 @@
+﻿[Warning: Unable to locate a personal folder for $documents\MATLAB.] 
+=== MATLAB Linear Algebra Benchmark ===
+Date: 06-Aug-2026 15:55:33
+MATLAB Version: 25.2.0.2998904 (R2025b)
+Max Threads: 24
+
+N=  64 | GEMM:   0.10 ms (  5.27 GFLOPS) | LU:   0.03 ms | Chol:   0.02 ms | Complex LU:   0.04 ms | Solve:   0.04 ms
+N= 128 | GEMM:   0.01 ms (330.26 GFLOPS) | LU:   0.06 ms | Chol:   0.04 ms | Complex LU:   0.14 ms | Solve:   0.14 ms
+N= 256 | GEMM:   0.09 ms (368.33 GFLOPS) | LU:   0.27 ms | Chol:   0.10 ms | Complex LU:   0.93 ms | Solve:   0.57 ms
+N= 512 | GEMM:   0.93 ms (287.22 GFLOPS) | LU:   2.71 ms | Chol:   0.78 ms | Complex LU:   4.64 ms | Solve:   3.15 ms
+N=1024 | GEMM:   4.65 ms (462.27 GFLOPS) | LU:   7.97 ms | Chol:   1.91 ms | Complex LU:  17.38 ms | Solve:   9.59 ms
+N=2048 | GEMM:  28.18 ms (609.75 GFLOPS) | LU:  34.06 ms | Chol:   6.22 ms | Complex LU:  73.60 ms | Solve:  46.74 ms
