@@ -1,0 +1,60 @@
+// toolboxes/linalg/tests/blocked_chol_test.cpp
+//
+// Unit tests for blocked Cholesky decomposition (Phase 4.3).
+
+#include <gtest/gtest.h>
+#include <numkit/linalg/decompositions.hpp>
+#include <numkit/value/value.hpp>
+
+#include <cmath>
+#include <random>
+
+using namespace numkit;
+using namespace numkit::linalg;
+
+TEST(BlockedCholTest, BlockedChol256Real) {
+    const size_t n = 256;
+    Value B = Value::matrix(n, n);
+    double *bd = B.doubleDataMut();
+
+    std::mt19937 gen(43210);
+    std::normal_distribution<double> dist(0.0, 1.0);
+    for (size_t i = 0; i < n * n; ++i) bd[i] = dist(gen);
+
+    // Form symmetric positive-definite A = B * B' + n*I
+    Value A = Value::matrix(n, n);
+    double *ad = A.doubleDataMut();
+    std::fill(ad, ad + n * n, 0.0);
+
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            double s = 0.0;
+            for (size_t k = 0; k < n; ++k) s += bd[i + k * n] * bd[j + k * n];
+            ad[i + j * n] = s + (i == j ? static_cast<double>(n) : 0.0);
+        }
+    }
+
+    Value R = chol(A);
+
+    EXPECT_EQ(R.dims().rows(), n);
+    EXPECT_EQ(R.dims().cols(), n);
+
+    // Verify A == R' * R
+    Value RtR = Value::matrix(n, n);
+    double *rtrd = RtR.doubleDataMut();
+    const double *rd = R.doubleData();
+
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            double s = 0.0;
+            for (size_t k = 0; k < n; ++k) s += rd[k + i * n] * rd[k + j * n];
+            rtrd[i + j * n] = s;
+        }
+    }
+
+    double max_err = 0.0;
+    for (size_t i = 0; i < n * n; ++i) {
+        max_err = std::max(max_err, std::abs(ad[i] - rtrd[i]));
+    }
+    EXPECT_LT(max_err, 1e-11);
+}
