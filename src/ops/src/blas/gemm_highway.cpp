@@ -187,9 +187,9 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
 
     numkit::detail::parallel_for(n, p_thresh, [&](std::size_t jc_start, std::size_t jc_end) {
         active_threads.fetch_add(1, std::memory_order_relaxed);
-        // Each thread gets its own thread-local packing buffers
-        std::vector<double> A_pack(mc_block * kc_block + 64, 0.0);
-        std::vector<double> B_pack(kc_block * nc_block + 64, 0.0);
+        // Zero-allocation thread_local static packing buffers (persisted per thread)
+        thread_local static std::vector<double> A_pack(mc_block * kc_block + 64, 0.0);
+        thread_local static std::vector<double> B_pack(kc_block * nc_block + 64, 0.0);
 
         for (std::size_t jc = jc_start; jc < jc_end; jc += nc_block) {
             std::size_t nc = std::min(nc_block, jc_end - jc);
@@ -519,10 +519,10 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     const std::size_t p_thresh = (total_flops >= kGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
 
     numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
-        std::vector<double> Ar_pack(mc_block * kc_block + 64, 0.0);
-        std::vector<double> Ai_pack(mc_block * kc_block + 64, 0.0);
-        std::vector<double> Br_pack(kc_block * nc_block + 64, 0.0);
-        std::vector<double> Bi_pack(kc_block * nc_block + 64, 0.0);
+        thread_local static std::vector<double> Ar_pack(mc_block * kc_block + 64, 0.0);
+        thread_local static std::vector<double> Ai_pack(mc_block * kc_block + 64, 0.0);
+        thread_local static std::vector<double> Br_pack(kc_block * nc_block + 64, 0.0);
+        thread_local static std::vector<double> Bi_pack(kc_block * nc_block + 64, 0.0);
 
         for (std::size_t jc = jc_start; jc < jc_end; jc += nc_block) {
             std::size_t nc = std::min(nc_block, jc_end - jc);
