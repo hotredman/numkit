@@ -206,7 +206,7 @@ reductions, 3M complex gemm, small-size fast paths).
       reproducible vs single-thread.
 - [x] P3 complex 4M GEMM inside HWY_NAMESPACE; per-j re-split eliminated;
       complex/real time ratio ≤ 2.5× at n=512.
-- [ ] P4 trsm all combos (or hard error) + syrk, parity-tested.
+- [x] P4 trsm all combos (or hard error) + syrk, parity-tested.
 - [ ] P5 lu/chol/qr routed through the stack, real+complex, invariant
       tests at n=513 green.
 - [ ] P6 same-machine MATLAB baseline committed; all cycle-target gates
