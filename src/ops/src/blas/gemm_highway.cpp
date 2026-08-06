@@ -926,7 +926,7 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
     if (side == MatrixSide::Left) {
         // op(A) * X = B, A is m x m, B is m x n
         const std::size_t total_flops = m * m * n;
-        constexpr std::size_t kParallelFlopThreshold = 64'000;
+        constexpr std::size_t kParallelFlopThreshold = 4'000'000;
         const std::size_t p_thresh = (total_flops >= kParallelFlopThreshold) ? std::size_t{1} : n + 1;
 
         numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
