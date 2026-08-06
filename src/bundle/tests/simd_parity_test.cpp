@@ -1104,10 +1104,84 @@ TEST(SimdParity_Blas, GemmP1_NanInfPropagation)
     std::vector<double> B = {0.0, std::numeric_limits<double>::quiet_NaN(), 0.0, 1.0};
     std::vector<double> C(4, 0.0);
 
-    // 0.0 * NaN must produce NaN according to IEEE-754
     numkit::ops::gemm(2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
-
     EXPECT_TRUE(std::isnan(C[0]) || std::isnan(C[1]) || std::isnan(C[2]) || std::isnan(C[3]));
 }
+
+TEST(SimdParity_Blas, TrsmP4_AllSixteenCombos)
+{
+    std::mt19937 rng(505);
+    std::uniform_real_distribution<double> dist(0.5, 2.0);
+
+    const size_t m = 7, n = 7;
+    for (auto side : {numkit::ops::MatrixSide::Left, numkit::ops::MatrixSide::Right}) {
+        for (auto uplo : {numkit::ops::MatrixUplo::Lower, numkit::ops::MatrixUplo::Upper}) {
+            for (auto trans : {numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::Trans}) {
+                for (auto diag : {numkit::ops::MatrixDiag::NonUnit, numkit::ops::MatrixDiag::Unit}) {
+                    std::vector<double> A(m * m, 0.0), B(m * n), B_copy(m * n);
+                    for (size_t j = 0; j < m; ++j) {
+                        for (size_t i = 0; i < m; ++i) {
+                            if (uplo == numkit::ops::MatrixUplo::Lower && i >= j) A[i + j * m] = dist(rng);
+                            else if (uplo == numkit::ops::MatrixUplo::Upper && i <= j) A[i + j * m] = dist(rng);
+                            if (i == j && diag == numkit::ops::MatrixDiag::Unit) A[i + j * m] = 1.0;
+                        }
+                    }
+                    for (size_t i = 0; i < m * n; ++i) B[i] = B_copy[i] = dist(rng);
+
+                    numkit::ops::trsm(side, uplo, trans, diag, m, n, 1.25, A.data(), m, B.data(), m);
+
+                    // Verification check: op(A)*X == alpha*B or X*op(A) == alpha*B
+                    double max_err = 0.0;
+                    for (size_t j = 0; j < n; ++j) {
+                        for (size_t i = 0; i < m; ++i) {
+                            double lhs = 0.0;
+                            if (side == numkit::ops::MatrixSide::Left) {
+                                for (size_t k = 0; k < m; ++k) {
+                                    double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[i + k * m] : A[k + i * m];
+                                    lhs += a_val * B[k + j * m];
+                                }
+                            } else {
+                                for (size_t k = 0; k < n; ++k) {
+                                    double a_val = (trans == numkit::ops::MatrixTranspose::NoTrans) ? A[k + j * n] : A[j + k * n];
+                                    lhs += B[i + k * m] * a_val;
+                                }
+                            }
+                            max_err = std::max(max_err, std::abs(lhs - 1.25 * B_copy[i + j * m]));
+                        }
+                    }
+                    EXPECT_LT(max_err, 1e-9);
+                }
+            }
+        }
+    }
+}
+
+TEST(SimdParity_Blas, SyrkP4_ParityTest)
+{
+    std::mt19937 rng(606);
+    std::uniform_real_distribution<double> dist(-2.0, 2.0);
+
+    const size_t n = 7, k = 5;
+    std::vector<double> A(n * k), C_simd(n * n, 1.0), C_ref(n * n, 1.0);
+    for (size_t i = 0; i < n * k; ++i) A[i] = dist(rng);
+
+    numkit::ops::syrk(numkit::ops::MatrixUplo::Lower, numkit::ops::MatrixTranspose::NoTrans,
+                      n, k, 1.5, A.data(), n, 0.5, C_simd.data(), n);
+
+    for (size_t j = 0; j < n; ++j) {
+        for (size_t i = j; i < n; ++i) {
+            double acc = 0.0;
+            for (size_t l = 0; l < k; ++l) acc += A[i + l * n] * A[j + l * n];
+            C_ref[i + j * n] = 0.5 * C_ref[i + j * n] + 1.5 * acc;
+        }
+    }
+
+    for (size_t j = 0; j < n; ++j) {
+        for (size_t i = j; i < n; ++i) {
+            EXPECT_NEAR(C_simd[i + j * n], C_ref[i + j * n], 1e-10);
+        }
+    }
+}
+
 
 

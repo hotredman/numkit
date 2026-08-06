@@ -493,14 +493,19 @@ void ger(std::size_t m, std::size_t n,
     HWY_DYNAMIC_DISPATCH(GerDoubleKernel)(m, n, alpha, x, incx, y, incy, A, lda);
 }
 
-void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
-          std::size_t m, std::size_t n,
-          double alpha, const double *A, std::size_t lda,
-          double *B, std::size_t ldb)
+template <typename T> struct is_complex_type : std::false_type {};
+template <typename U> struct is_complex_type<std::complex<U>> : std::true_type {};
+template <typename T> inline constexpr bool is_complex_type_v = is_complex_type<T>::value;
+
+template <typename T>
+void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
+                  std::size_t m, std::size_t n,
+                  T alpha, const T *A, std::size_t lda,
+                  T *B, std::size_t ldb)
 {
     if (m == 0 || n == 0) return;
 
-    if (alpha != 1.0) {
+    if (alpha != T(1)) {
         for (std::size_t j = 0; j < n; ++j) {
             for (std::size_t i = 0; i < m; ++i) {
                 B[i + j * ldb] *= alpha;
@@ -508,52 +513,192 @@ void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag di
         }
     }
 
+    const bool is_unit = (diag == MatrixDiag::Unit);
+    const bool is_conj = (trans == MatrixTranspose::ConjTrans);
+
+    auto get_a = [&](std::size_t r, std::size_t c) -> T {
+        T val = (trans == MatrixTranspose::NoTrans) ? A[r + c * lda] : A[c + r * lda];
+        if constexpr (is_complex_type_v<T>) {
+            if (is_conj && trans != MatrixTranspose::NoTrans) return std::conj(val);
+        }
+        return val;
+    };
+
     if (side == MatrixSide::Left) {
+        // op(A) * X = B, A is m x m
         if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
-            // L * X = B (Lower triangular left solve)
             for (std::size_t j = 0; j < n; ++j) {
                 for (std::size_t k = 0; k < m; ++k) {
-                    if (diag == MatrixDiag::NonUnit) {
-                        B[k + j * ldb] /= A[k + k * lda];
-                    }
-                    const double xkj = B[k + j * ldb];
-                    if (xkj == 0.0) continue;
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
                     for (std::size_t i = k + 1; i < m; ++i) {
-                        B[i + j * ldb] -= A[i + k * lda] * xkj;
+                        B[i + j * ldb] -= get_a(i, k) * xkj;
+                    }
+                }
+            }
+        } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
+            for (std::size_t j = 0; j < n; ++j) {
+                for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
+                    for (std::intptr_t i = k - 1; i >= 0; --i) {
+                        B[i + j * ldb] -= get_a(i, k) * xkj;
                     }
                 }
             }
         } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
-            // U * X = B (Upper triangular left solve)
             for (std::size_t j = 0; j < n; ++j) {
                 for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
-                    if (diag == MatrixDiag::NonUnit) {
-                        B[k + j * ldb] /= A[k + k * lda];
-                    }
-                    const double xkj = B[k + j * ldb];
-                    if (xkj == 0.0) continue;
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
                     for (std::intptr_t i = k - 1; i >= 0; --i) {
-                        B[i + j * ldb] -= A[i + k * lda] * xkj;
+                        B[i + j * ldb] -= get_a(i, k) * xkj;
+                    }
+                }
+            }
+        } else { // Upper + Trans / ConjTrans
+            for (std::size_t j = 0; j < n; ++j) {
+                for (std::size_t k = 0; k < m; ++k) {
+                    if (!is_unit) B[k + j * ldb] /= get_a(k, k);
+                    const T xkj = B[k + j * ldb];
+                    for (std::size_t i = k + 1; i < m; ++i) {
+                        B[i + j * ldb] -= get_a(i, k) * xkj;
                     }
                 }
             }
         }
     } else {
-        // Right solve: X * A = B
-        if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
-            for (std::size_t j = 0; j < n; ++j) {
-                if (diag == MatrixDiag::NonUnit) {
-                    for (std::size_t i = 0; i < m; ++i) B[i + j * ldb] /= A[j + j * lda];
+        // X * op(A) = B, A is n x n
+        if (uplo == MatrixUplo::Lower && trans == MatrixTranspose::NoTrans) {
+            for (std::intptr_t k = static_cast<std::intptr_t>(n) - 1; k >= 0; --k) {
+                if (!is_unit) {
+                    T akk = get_a(k, k);
+                    for (std::size_t i = 0; i < m; ++i) B[i + k * ldb] /= akk;
                 }
-                for (std::size_t k = j + 1; k < n; ++k) {
-                    const double akj = A[j + k * lda];
+                for (std::intptr_t j = k - 1; j >= 0; --j) {
+                    T akj = get_a(k, j);
                     for (std::size_t i = 0; i < m; ++i) {
-                        B[i + k * ldb] -= B[i + j * ldb] * akj;
+                        B[i + j * ldb] -= B[i + k * ldb] * akj;
+                    }
+                }
+            }
+        } else if (uplo == MatrixUplo::Lower && trans != MatrixTranspose::NoTrans) {
+            for (std::size_t k = 0; k < n; ++k) {
+                if (!is_unit) {
+                    T akk = get_a(k, k);
+                    for (std::size_t i = 0; i < m; ++i) B[i + k * ldb] /= akk;
+                }
+                for (std::size_t j = k + 1; j < n; ++j) {
+                    T akj = get_a(k, j);
+                    for (std::size_t i = 0; i < m; ++i) {
+                        B[i + j * ldb] -= B[i + k * ldb] * akj;
+                    }
+                }
+            }
+        } else if (uplo == MatrixUplo::Upper && trans == MatrixTranspose::NoTrans) {
+            for (std::size_t k = 0; k < n; ++k) {
+                if (!is_unit) {
+                    T akk = get_a(k, k);
+                    for (std::size_t i = 0; i < m; ++i) B[i + k * ldb] /= akk;
+                }
+                for (std::size_t j = k + 1; j < n; ++j) {
+                    T akj = get_a(k, j);
+                    for (std::size_t i = 0; i < m; ++i) {
+                        B[i + j * ldb] -= B[i + k * ldb] * akj;
+                    }
+                }
+            }
+        } else { // Upper + Trans / ConjTrans
+            for (std::intptr_t k = static_cast<std::intptr_t>(n) - 1; k >= 0; --k) {
+                if (!is_unit) {
+                    T akk = get_a(k, k);
+                    for (std::size_t i = 0; i < m; ++i) B[i + k * ldb] /= akk;
+                }
+                for (std::intptr_t j = k - 1; j >= 0; --j) {
+                    T akj = get_a(k, j);
+                    for (std::size_t i = 0; i < m; ++i) {
+                        B[i + j * ldb] -= B[i + k * ldb] * akj;
                     }
                 }
             }
         }
     }
+}
+
+void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
+          std::size_t m, std::size_t n,
+          double alpha, const double *A, std::size_t lda,
+          double *B, std::size_t ldb)
+{
+    trsm_generic(side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb);
+}
+
+void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
+          std::size_t m, std::size_t n,
+          std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
+          std::complex<double> *B, std::size_t ldb)
+{
+    trsm_generic(side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb);
+}
+
+template <typename T>
+void syrk_generic(MatrixUplo uplo, MatrixTranspose trans,
+                  std::size_t n, std::size_t k,
+                  T alpha, const T *A, std::size_t lda,
+                  T beta, T *C, std::size_t ldc)
+{
+    if (n == 0) return;
+
+    // Scale C by beta for the triangular part
+    for (std::size_t j = 0; j < n; ++j) {
+        std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
+        std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
+        for (std::size_t i = i_start; i < i_end; ++i) {
+            if (beta == T(0)) C[i + j * ldc] = T(0);
+            else if (beta != T(1)) C[i + j * ldc] *= beta;
+        }
+    }
+
+    if (k == 0 || alpha == T(0)) return;
+
+    const bool is_trans = (trans != MatrixTranspose::NoTrans);
+    const bool is_conj  = (trans == MatrixTranspose::ConjTrans);
+
+    for (std::size_t j = 0; j < n; ++j) {
+        std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
+        std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
+
+        for (std::size_t l = 0; l < k; ++l) {
+            T b_val = is_trans ? A[l + j * lda] : A[j + l * lda];
+            if constexpr (is_complex_type_v<T>) {
+                if (is_conj || !is_trans) {
+                    b_val = std::conj(b_val);
+                }
+            }
+            const T alpha_b = alpha * b_val;
+
+            for (std::size_t i = i_start; i < i_end; ++i) {
+                T a_val = is_trans ? A[l + i * lda] : A[i + l * lda];
+                C[i + j * ldc] += a_val * alpha_b;
+            }
+        }
+    }
+}
+
+void syrk(MatrixUplo uplo, MatrixTranspose trans,
+          std::size_t n, std::size_t k,
+          double alpha, const double *A, std::size_t lda,
+          double beta, double *C, std::size_t ldc)
+{
+    syrk_generic(uplo, trans, n, k, alpha, A, lda, beta, C, ldc);
+}
+
+void syrk(MatrixUplo uplo, MatrixTranspose trans,
+          std::size_t n, std::size_t k,
+          std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
+          std::complex<double> beta, std::complex<double> *C, std::size_t ldc)
+{
+    syrk_generic(uplo, trans, n, k, alpha, A, lda, beta, C, ldc);
 }
 
 } // namespace numkit::ops
