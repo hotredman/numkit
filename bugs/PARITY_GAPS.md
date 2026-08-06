@@ -193,7 +193,7 @@
 
 ### Linear Algebra
 
-**File Name Construction:** `decomposition`, `eigs`, `funm`, `gsvd`, `ordqz`, `ordschur`, `qz`, `svdappend`, `svds`, `svdsketch`
+**Matrix Factorizations & Analysis:** `ordqz`
 
 ### ODE
 

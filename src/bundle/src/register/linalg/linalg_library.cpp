@@ -45,6 +45,13 @@ void cholupdate_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrupdate_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrinsert_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrdelete_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void qz_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gsvd_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ordschur_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void eigs_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void svds_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void svdsketch_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void svdappend_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // pseudo_subspace.cpp
 void pinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void orth_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -215,6 +222,13 @@ void LinalgLibrary::install(Engine &engine)
     reg("decomp", "qrupdate",   &linalg::detail::qrupdate_reg);
     reg("decomp", "qrinsert",   &linalg::detail::qrinsert_reg);
     reg("decomp", "qrdelete",   &linalg::detail::qrdelete_reg);
+    reg("decomp", "qz",         &linalg::detail::qz_reg);
+    reg("decomp", "gsvd",       &linalg::detail::gsvd_reg);
+    reg("decomp", "ordschur",   &linalg::detail::ordschur_reg);
+    reg("decomp", "eigs",       &linalg::detail::eigs_reg);
+    reg("decomp", "svds",       &linalg::detail::svds_reg);
+    reg("decomp", "svdsketch",  &linalg::detail::svdsketch_reg);
+    reg("decomp", "svdappend",  &linalg::detail::svdappend_reg);
 
     // ── Pseudo-inverse / subspace queries ────────────────────────
     reg("pseudo", "pinv",     &linalg::detail::pinv_reg);
