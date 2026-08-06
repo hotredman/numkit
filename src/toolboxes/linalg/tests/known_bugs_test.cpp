@@ -78,8 +78,8 @@ TEST_F(LinalgKnownBug, CrossIntegerClass)
     EXPECT_TRUE(eval("isa(cross([1 0 0], [0 1 0]), 'double')").toBool());
 }
 
-// bugs/linalg/complex-matrix-unsupported.md — complex matrix linear algebra.
-TEST_F(LinalgKnownBug, DISABLED_ComplexMatrixOps)
+// bugs/linalg/complex-matrix-unsupported.md — complex matrix linear algebra (FIXED).
+TEST_F(LinalgKnownBug, ComplexMatrixOps)
 {
     eval("B = [1+1i 2; 3 4-1i];");
     eval("t = trace(B);");          // MATLAB: 5+0i
@@ -99,8 +99,8 @@ TEST_F(LinalgKnownBug, Funm)
     EXPECT_NEAR(evalScalar("F(1,2)"), 0.0, 1e-12);
 }
 
-// bugs/linalg/qz-gsvd.md — generalized Schur + generalized SVD.
-TEST_F(LinalgKnownBug, DISABLED_QzGsvd)
+// bugs/linalg/qz-gsvd.md — generalized Schur + generalized SVD (FIXED).
+TEST_F(LinalgKnownBug, QzGsvd)
 {
     eval("A = [1 2; 3 4]; B = [1 0; 0 1]; [AA, BB, Q, Z] = qz(A, B);");
     EXPECT_LT(evalScalar("max(max(abs(Q*A*Z - AA)))"), 1e-10);   // reconstruction
