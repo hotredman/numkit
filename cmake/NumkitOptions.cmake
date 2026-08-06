@@ -26,7 +26,7 @@ Above per-kernel thresholds the work is split across hardware_concurrency() \
 workers; below them the kernel runs single-threaded as before. Bit-identical \
 to the single-threaded path for the supported elementwise ops (+ - .* ./ \
 abs sin cos exp log)."
-    OFF)
+    ON)
 
 # Binary .mat (MATLAB save/load) support via matio. Pulled in via
 # FetchContent — no system packages, no vcpkg. Disabled by default on

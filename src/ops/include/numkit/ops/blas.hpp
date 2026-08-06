@@ -63,4 +63,12 @@ void syrk(MatrixUplo uplo, MatrixTranspose trans,
           std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
           std::complex<double> beta, std::complex<double> *C, std::size_t ldc);
 
+#include <atomic>
+
+/// @brief Returns the number of threads used in the most recent gemm call.
+inline std::atomic<std::size_t> g_last_gemm_threads_used{0};
+inline std::size_t get_last_gemm_threads_used() {
+    return g_last_gemm_threads_used.load();
+}
+
 } // namespace numkit::ops

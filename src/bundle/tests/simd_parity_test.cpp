@@ -1119,14 +1119,17 @@ TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
     }
 
     numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
+    EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
+
     numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
+    EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
 
     for (size_t i = 0; i < n * n; ++i) {
         EXPECT_EQ(C1[i], C2[i]) << "Bitwise discrepancy at index " << i;
     }
 }
 
-TEST(SimdParity_Blas, TrsmP4_AllSixteenCombos)
+TEST(SimdParity_Blas, TrsmP4_AllCombosRealAndComplex)
 {
     std::mt19937 rng(505);
     std::uniform_real_distribution<double> dist(0.5, 2.0);

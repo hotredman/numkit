@@ -86,7 +86,7 @@ static void BM_Linalg_Gemm_Real(benchmark::State &state) {
         static_cast<double>(state.iterations()) * 2.0 * n * n * n / 1e9,
         benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_Linalg_Gemm_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024)->Arg(2048);
+BENCHMARK(BM_Linalg_Gemm_Real)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024)->Arg(2048);
 
 static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -105,7 +105,7 @@ static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
         static_cast<double>(state.iterations()) * 8.0 * n * n * n / 1e9,
         benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_Linalg_Gemm_Complex)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024)->Arg(2048);
+BENCHMARK(BM_Linalg_Gemm_Complex)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024)->Arg(2048);
 
 static void BM_Linalg_LU_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -115,7 +115,7 @@ static void BM_Linalg_LU_Real(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_LU_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
+BENCHMARK(BM_Linalg_LU_Real)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_LU_Complex(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -125,7 +125,7 @@ static void BM_Linalg_LU_Complex(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_LU_Complex)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
+BENCHMARK(BM_Linalg_LU_Complex)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_Chol_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -135,7 +135,7 @@ static void BM_Linalg_Chol_Real(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_Chol_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
+BENCHMARK(BM_Linalg_Chol_Real)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_Solve_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -146,7 +146,7 @@ static void BM_Linalg_Solve_Real(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_Solve_Real)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
+BENCHMARK(BM_Linalg_Solve_Real)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_Solve_Complex(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
@@ -157,6 +157,6 @@ static void BM_Linalg_Solve_Complex(benchmark::State &state) {
         benchmark::DoNotOptimize(res);
     }
 }
-BENCHMARK(BM_Linalg_Solve_Complex)->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
+BENCHMARK(BM_Linalg_Solve_Complex)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 } // namespace

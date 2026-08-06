@@ -18,7 +18,8 @@
       "description": "Native desktop build for Windows/Linux x86_64. Enables Highway dynamic-dispatch SIMD — picks the best ISA (SSE4 / AVX2 / AVX-512 / …) at runtime on first call to any vectorised kernel.",
       "binaryDir": "${sourceDir}/build/desktop-fast",
       "cacheVariables": {
-        "NUMKIT_WITH_SIMD": "ON"
+        "NUMKIT_WITH_SIMD": "ON",
+        "NUMKIT_WITH_THREADS": "ON"
       }
     },
     {

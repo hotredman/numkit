@@ -107,13 +107,13 @@ coverage. Test names must match coverage exactly — both directions.
 
 ## Definition of done
 
-- [ ] C1 threading engaged: ≥ 8× vs single-thread at n=2048, ≥ 200 GFLOPS,
+- [x] C1 threading engaged: ≥ 8× vs single-thread at n=2048, ≥ 200 GFLOPS,
       determinism test asserts real multithreading, raw outputs committed.
-- [ ] C2 complex/real ratio ≤ 2.5× at n=512 measured, or reasoned bug entry.
-- [ ] C3 `timeit`-based MATLAB baseline re-run headlessly and committed;
+- [x] C2 complex/real ratio ≤ 2.5× at n=512 measured, or reasoned bug entry.
+- [x] C3 `timeit`-based MATLAB baseline re-run headlessly and committed;
       README table regenerated with no warmup artifacts.
-- [ ] C4 README determinism wording matches what is actually verified.
-- [ ] C5 profile-backed chol/solve analysis committed to the bug tracker.
-- [ ] C6 parity test names match coverage.
-- [ ] Closing commit contains full gtest summary line; binary build time
+- [x] C4 README determinism wording matches what is actually verified.
+- [x] C5 profile-backed chol/solve analysis committed to the bug tracker.
+- [x] C6 parity test names match coverage.
+- [x] Closing commit contains full gtest summary line; binary build time
       precedes the run; any skipped tests explained by name.
