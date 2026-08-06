@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include <numkit/ops/blas.hpp>
+#include <numkit/ops/parallel_for.hpp>
 
 namespace numkit::ops {
 
@@ -47,51 +48,32 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 
     // Base case: panel LU for n <= 128 (L1/L2 cache optimal)
     if (n <= 128) {
-        for (std::size_t j = 0; j < n; ++j) {
-            std::size_t pivot = j;
-            double pmax = abs_val(A[j + j * lda]);
-            for (std::size_t i = j + 1; i < m; ++i) {
-                const double v = abs_val(A[i + j * lda]);
-                if (v > pmax) {
-                    pmax = v;
-                    pivot = i;
-                }
-            }
-            if (pmax == 0.0) return false;
-            piv[j] = static_cast<std::int32_t>(pivot + offset_row);
-            if (pivot != j) {
-                T *r1 = A + j;
-                T *r2 = A + pivot;
-                std::size_t col = 0;
-                for (; col + 8 <= n; col += 8) {
-                    T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
-                    T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
-                    T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
-                    T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
-                    T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
-                    T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
-                    T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
-                    T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
-                }
-                for (; col < n; ++col) {
-                    T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
-                }
-            }
-            const T inv_pivot = T(1) / A[j + j * lda];
-            for (std::size_t i = j + 1; i < m; ++i) {
-                A[i + j * lda] *= inv_pivot;
-            }
-            if constexpr (std::is_same_v<T, double>) {
-                const double *l_col = A + j * lda;
-                for (std::size_t col = j + 1; col < n; ++col) {
-                    const double f = A[j + col * lda];
-                    if (f == 0.0) continue;
-                    double *col_ptr = A + col * lda;
-                    if (m > j + 1) {
-                        ::numkit::ops::axpy(m - (j + 1), -f, l_col + (j + 1), col_ptr + (j + 1));
+        if constexpr (std::is_same_v<T, double>) {
+            return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
+        } else {
+            for (std::size_t j = 0; j < n; ++j) {
+                std::size_t pivot = j;
+                double pmax = abs_val(A[j + j * lda]);
+                for (std::size_t i = j + 1; i < m; ++i) {
+                    const double v = abs_val(A[i + j * lda]);
+                    if (v > pmax) {
+                        pmax = v;
+                        pivot = i;
                     }
                 }
-            } else {
+                if (pmax == 0.0) return false;
+                piv[j] = static_cast<std::int32_t>(pivot + offset_row);
+                if (pivot != j) {
+                    T *r1 = A + j;
+                    T *r2 = A + pivot;
+                    for (std::size_t col = 0; col < n; ++col) {
+                        std::swap(r1[col * lda], r2[col * lda]);
+                    }
+                }
+                const T inv_pivot = T(1) / A[j + j * lda];
+                for (std::size_t i = j + 1; i < m; ++i) {
+                    A[i + j * lda] *= inv_pivot;
+                }
                 for (std::size_t col = j + 1; col < n; ++col) {
                     const T f = A[j + col * lda];
                     if (f == T(0)) continue;
@@ -100,8 +82,8 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
                     }
                 }
             }
+            return true;
         }
-        return true;
     }
 
     // Divide & Conquer
@@ -112,27 +94,31 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     if (!lu_recursive_inplace(A, lda, piv, m, n1, offset_row)) return false;
 
     // 2. Apply permutations piv[0..n1-1] to right panel A2 (m x n2)
-    for (std::size_t i = 0; i < n1; ++i) {
-        std::size_t p = static_cast<std::size_t>(piv[i] - offset_row);
-        if (p != i) {
-            T *r1 = A + i + n1 * lda;
-            T *r2 = A + p + n1 * lda;
-            std::size_t col = 0;
-            for (; col + 8 <= n2; col += 8) {
-                T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
-                T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
-                T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
-                T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
-                T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
-                T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
-                T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
-                T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
-            }
-            for (; col < n2; ++col) {
-                T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+    const std::size_t p2_thresh = (n2 >= 128) ? 64 : (n2 + 1);
+    numkit::detail::parallel_for(n2, p2_thresh, [=](std::size_t c_start, std::size_t c_end) {
+        for (std::size_t i = 0; i < n1; ++i) {
+            std::size_t p = static_cast<std::size_t>(piv[i] - offset_row);
+            if (p != i) {
+                T *r1 = A + i + (n1 + c_start) * lda;
+                T *r2 = A + p + (n1 + c_start) * lda;
+                std::size_t bcols = c_end - c_start;
+                std::size_t col = 0;
+                for (; col + 8 <= bcols; col += 8) {
+                    T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
+                    T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
+                    T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
+                    T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
+                    T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
+                    T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
+                    T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
+                    T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
+                }
+                for (; col < bcols; ++col) {
+                    T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+                }
             }
         }
-    }
+    });
 
     // 3. Solve L11 * U12 = A12 using multithreaded SIMD trsm (n1 x n2)
     T *L11 = A;
@@ -171,27 +157,31 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     if (!lu_recursive_inplace(A22, lda, piv + n1, rem_rows, n2, offset_row + n1)) return false;
 
     // 6. Apply permutations piv[n1..n-1] to left panel L21 ((m - n1) x n1)
-    for (std::size_t i = 0; i < n2; ++i) {
-        std::size_t p = static_cast<std::size_t>(piv[n1 + i] - (offset_row + n1));
-        if (p != i) {
-            T *r1 = A + n1 + i;
-            T *r2 = A + n1 + p;
-            std::size_t col = 0;
-            for (; col + 8 <= n1; col += 8) {
-                T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
-                T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
-                T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
-                T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
-                T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
-                T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
-                T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
-                T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
-            }
-            for (; col < n1; ++col) {
-                T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+    const std::size_t p6_thresh = (n1 >= 128) ? 64 : (n1 + 1);
+    numkit::detail::parallel_for(n1, p6_thresh, [=](std::size_t c_start, std::size_t c_end) {
+        for (std::size_t i = 0; i < n2; ++i) {
+            std::size_t p = static_cast<std::size_t>(piv[n1 + i] - (offset_row + n1));
+            if (p != i) {
+                T *r1 = A + n1 + i + c_start * lda;
+                T *r2 = A + n1 + p + c_start * lda;
+                std::size_t bcols = c_end - c_start;
+                std::size_t col = 0;
+                for (; col + 8 <= bcols; col += 8) {
+                    T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
+                    T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
+                    T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
+                    T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
+                    T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
+                    T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
+                    T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
+                    T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
+                }
+                for (; col < bcols; ++col) {
+                    T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+                }
             }
         }
-    }
+    });
 
     return true;
 }

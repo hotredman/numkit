@@ -776,6 +776,73 @@ void AxpyDoubleKernel(std::size_t n, double alpha, const double *x, double *y)
     for (; i < n; ++i) y[i] += x[i] * alpha;
 }
 
+bool LuPanelDoubleKernel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+
+    for (std::size_t j = 0; j < n; ++j) {
+        std::size_t pivot = j;
+        double pmax = std::fabs(A[j + j * lda]);
+        for (std::size_t i = j + 1; i < m; ++i) {
+            const double v = std::fabs(A[i + j * lda]);
+            if (v > pmax) {
+                pmax = v;
+                pivot = i;
+            }
+        }
+        if (pmax == 0.0) return false;
+        piv[j] = static_cast<std::int32_t>(pivot + offset_row);
+        if (pivot != j) {
+            double *r1 = A + j;
+            double *r2 = A + pivot;
+            std::size_t col = 0;
+            for (; col + 8 <= n; col += 8) {
+                double t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
+                double t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
+                double t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
+                double t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
+                double t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
+                double t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
+                double t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
+                double t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
+            }
+            for (; col < n; ++col) {
+                double t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+            }
+        }
+        const double inv_pivot = 1.0 / A[j + j * lda];
+        for (std::size_t i = j + 1; i < m; ++i) {
+            A[i + j * lda] *= inv_pivot;
+        }
+
+        const double *l_col = A + j * lda;
+        const std::size_t rem_m = m - (j + 1);
+
+        for (std::size_t col = j + 1; col < n; ++col) {
+            const double f = A[j + col * lda];
+            if (f == 0.0) continue;
+            double *col_ptr = A + col * lda;
+
+            if (rem_m > 0) {
+                const double *x_ptr = l_col + (j + 1);
+                double *y_ptr = col_ptr + (j + 1);
+                auto v_neg_f = hn::Set(d, -f);
+
+                std::size_t idx = 0;
+                for (; idx + N <= rem_m; idx += N) {
+                    auto v_y = hn::MulAdd(hn::LoadU(d, x_ptr + idx), v_neg_f, hn::LoadU(d, y_ptr + idx));
+                    hn::StoreU(v_y, d, y_ptr + idx);
+                }
+                for (; idx < rem_m; ++idx) {
+                    y_ptr[idx] += x_ptr[idx] * (-f);
+                }
+            }
+        }
+    }
+    return true;
+}
+
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
 }  // namespace numkit::ops
@@ -789,10 +856,16 @@ HWY_EXPORT(GemmComplexKernel);
 HWY_EXPORT(GemvDoubleKernel);
 HWY_EXPORT(GerDoubleKernel);
 HWY_EXPORT(AxpyDoubleKernel);
+HWY_EXPORT(LuPanelDoubleKernel);
 
 void axpy(std::size_t n, double alpha, const double *x, double *y)
 {
     HWY_DYNAMIC_DISPATCH(AxpyDoubleKernel)(n, alpha, x, y);
+}
+
+bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
+{
+    return HWY_DYNAMIC_DISPATCH(LuPanelDoubleKernel)(A, lda, piv, m, n, offset_row);
 }
 
 void gemm(std::size_t m, std::size_t n, std::size_t k,
@@ -894,8 +967,18 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
                     for (std::intptr_t k = static_cast<std::intptr_t>(m) - 1; k >= 0; --k) {
                         if (!is_unit) B[k + j * ldb] /= get_a(k, k);
                         const T xkj = B[k + j * ldb];
-                        for (std::intptr_t i = k - 1; i >= 0; --i) {
-                            B[i + j * ldb] -= get_a(i, k) * xkj;
+                        if (xkj == T(0)) continue;
+
+                        if constexpr (std::is_same_v<T, double>) {
+                            const double *a_col = A + k * lda;
+                            double *b_col = B + j * ldb;
+                            if (k > 0) {
+                                axpy(static_cast<std::size_t>(k), -xkj, a_col, b_col);
+                            }
+                        } else {
+                            for (std::intptr_t i = k - 1; i >= 0; --i) {
+                                B[i + j * ldb] -= get_a(i, k) * xkj;
+                            }
                         }
                     }
                 } else { // Upper + Trans / ConjTrans
