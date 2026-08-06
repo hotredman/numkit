@@ -134,10 +134,10 @@ GEMM + kernels) → R8 (perf gates) → R7 alongside R3.
 
 ## Definition of done for this punch list
 
-- [ ] `grep -ri ordqz src/` non-empty, tests green, 4 artifacts shipped.
-- [ ] No `DISABLED_` linalg known-bug tests for FIXED bugs.
-- [ ] PARITY_GAPS Linear Algebra missing list contains nothing implemented.
-- [ ] `tools/parity/specs/` covers every function from this cycle.
-- [ ] `src/ops/src/blas/` contains real Highway kernels with parity tests.
-- [ ] QZ passes ill-conditioned pencil stress tests.
-- [ ] Benchmark table vs MATLAB committed; perf entries filed where needed.
+- [x] `grep -ri ordqz src/` non-empty, tests green, 4 artifacts shipped.
+- [x] No `DISABLED_` linalg known-bug tests for FIXED bugs.
+- [x] PARITY_GAPS Linear Algebra missing list contains nothing implemented.
+- [x] `tools/parity/specs/` covers every function from this cycle.
+- [x] `src/ops/src/blas/` contains real Highway kernels with parity tests.
+- [x] QZ passes ill-conditioned pencil stress tests.
+- [x] Benchmark table vs MATLAB committed; perf entries filed where needed.
