@@ -67,10 +67,26 @@ bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
             }
             const T inv_pivot = T(1) / LU[j + j * n];
             for (std::size_t i = j + 1; i < n; ++i) {
-                const T factor = LU[i + j * n] * inv_pivot;
-                LU[i + j * n] = factor;
-                for (std::size_t col = j + 1; col < k + kb; ++col)
-                    LU[i + col * n] -= factor * LU[j + col * n];
+                LU[i + j * n] *= inv_pivot;
+            }
+            if constexpr (std::is_same_v<T, double>) {
+                const double *l_col = LU + j * n;
+                for (std::size_t col = j + 1; col < k + kb; ++col) {
+                    const double f = LU[j + col * n];
+                    if (f == 0.0) continue;
+                    double *col_ptr = LU + col * n;
+                    if (n > j + 1) {
+                        ::numkit::ops::axpy(n - (j + 1), -f, l_col + (j + 1), col_ptr + (j + 1));
+                    }
+                }
+            } else {
+                for (std::size_t col = j + 1; col < k + kb; ++col) {
+                    const T f = LU[j + col * n];
+                    if (f == T(0)) continue;
+                    for (std::size_t i = j + 1; i < n; ++i) {
+                        LU[i + col * n] -= LU[i + j * n] * f;
+                    }
+                }
             }
         }
 
