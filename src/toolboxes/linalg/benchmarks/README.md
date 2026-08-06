@@ -39,7 +39,7 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 | **Linear Solve** (`linsolve`) | Real Double | 128 | **0.345 ms** | 0.150 ms | 2.30× | Accelerated 2.66x via C4 SIMD |
 | **Linear Solve** (`linsolve`) | Real Double | 256 | **2.060 ms** | 0.600 ms | 3.43× | Accelerated 3.90x via C4 SIMD |
 | **Linear Solve** (`linsolve`) | Real Double | 512 | **19.272 ms** | 2.100 ms | 9.17× | Accelerated 3.41x via C4 SIMD |
-| **Linear Solve** (`linsolve`) | Real Double | 1024 | **90.482 ms** | 46.70 ms | **1.93×** | **PASSED** (Target ≤ 2.0×, 4.86x total speedup!) |
+| **Linear Solve** (`linsolve`) | Real Double | 1024 | **88.589 ms** | 46.70 ms | **1.90×** | **PASSED** (Target ≤ 2.0×, 4.96x total speedup via Highway SIMD lu_panel) |
 
 ## Architecture & Design Specifications
 - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).
