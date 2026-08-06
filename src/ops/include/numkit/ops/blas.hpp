@@ -39,6 +39,9 @@ void ger(std::size_t m, std::size_t n,
          const double *y, std::size_t incy,
          double *A, std::size_t lda);
 
+/// @brief Vector add scaled y = alpha * x + y (real double).
+void axpy(std::size_t n, double alpha, const double *x, double *y);
+
 /// @brief Triangular matrix solve (real double).
 void trsm(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, MatrixDiag diag,
           std::size_t m, std::size_t n,

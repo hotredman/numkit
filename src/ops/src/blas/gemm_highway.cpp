@@ -1027,14 +1027,28 @@ void syrk_generic(MatrixUplo uplo, MatrixTranspose trans,
                 }
                 const T alpha_b = alpha * b_val;
 
-                for (std::size_t i = i_start; i < i_end; ++i) {
-                    T a_val = is_trans ? A[l + i * lda] : A[i + l * lda];
-                    if constexpr (is_complex_type_v<T>) {
-                        if (is_conj) {
-                            a_val = std::conj(a_val);
+                if constexpr (std::is_same_v<T, double>) {
+                    if (!is_trans) {
+                        const double *a_col = A + l * lda;
+                        double *c_col = C + j * ldc;
+                        if (i_end > i_start) {
+                            axpy(i_end - i_start, alpha_b, a_col + i_start, c_col + i_start);
+                        }
+                    } else {
+                        for (std::size_t i = i_start; i < i_end; ++i) {
+                            C[i + j * ldc] += A[l + i * lda] * alpha_b;
                         }
                     }
-                    C[i + j * ldc] += a_val * alpha_b;
+                } else {
+                    for (std::size_t i = i_start; i < i_end; ++i) {
+                        T a_val = is_trans ? A[l + i * lda] : A[i + l * lda];
+                        if constexpr (is_complex_type_v<T>) {
+                            if (is_conj) {
+                                a_val = std::conj(a_val);
+                            }
+                        }
+                        C[i + j * ldc] += a_val * alpha_b;
+                    }
                 }
             }
         }
