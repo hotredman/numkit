@@ -35,11 +35,11 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 | **Cholesky** (`chol`) | Real Double | 256 | **0.606 ms** | 0.090 ms | 6.73× | Accelerated 1.6x via C4.3 SIMD syrk |
 | **Cholesky** (`chol`) | Real Double | 512 | **3.737 ms** | 0.830 ms | 4.50× | Accelerated 1.6x via C4.3 SIMD syrk |
 | **Cholesky** (`chol`) | Real Double | 1024 | **34.318 ms** | 8.980 ms | 3.82× | Accelerated 1.2x via C4.3 SIMD syrk |
-| **Linear Solve** (`linsolve`) | Real Double | 64 | 0.110 ms | 0.020 ms | 5.50× | S2 Bug Filed |
-| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.345 ms** | 0.150 ms | 2.30× | Accelerated 2.66x via C4 SIMD |
-| **Linear Solve** (`linsolve`) | Real Double | 256 | **2.060 ms** | 0.600 ms | 3.43× | Accelerated 3.90x via C4 SIMD |
-| **Linear Solve** (`linsolve`) | Real Double | 512 | **19.272 ms** | 2.100 ms | 9.17× | Accelerated 3.41x via C4 SIMD |
-| **Linear Solve** (`linsolve`) | Real Double | 1024 | **88.589 ms** | 46.70 ms | **1.90×** | **PASSED** (Target ≤ 2.0×, 4.96x total speedup via Highway SIMD lu_panel) |
+| **Linear Solve** (`linsolve`) | Real Double | 64 | **0.104 ms** | 0.020 ms | 5.20× | S2 Bug Filed |
+| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.246 ms** | 0.150 ms | 1.64× | Accelerated 3.73x via C4 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 256 | **1.486 ms** | 0.600 ms | 2.47× | Accelerated 5.40x via C4 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 512 | **14.894 ms** | 2.100 ms | 7.09× | Accelerated 4.41x via C4 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 1024 | **60.505 ms** | 46.70 ms | **1.29×** | **PASSED** (Target < 1.5×, 7.27x total speedup!) |
 
 ## Architecture & Design Specifications
 - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).
