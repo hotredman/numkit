@@ -295,10 +295,22 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
             const T xkj = x_col[k];
             if (xkj == T(0)) continue;
             if constexpr (std::is_same_v<T, double>) {
-                const double *l_col = LU_stack + k * n;
-                if (n > k + 1) {
-                    axpy(n - (k + 1), -xkj, l_col + (k + 1), x_col + (k + 1));
+                const double *l_col = LU_stack + k * n + (k + 1);
+                double *y_ptr = x_col + (k + 1);
+                const std::size_t rem = n - (k + 1);
+                const double neg_x = -xkj;
+                std::size_t i = 0;
+                for (; i + 8 <= rem; i += 8) {
+                    y_ptr[i + 0] += l_col[i + 0] * neg_x;
+                    y_ptr[i + 1] += l_col[i + 1] * neg_x;
+                    y_ptr[i + 2] += l_col[i + 2] * neg_x;
+                    y_ptr[i + 3] += l_col[i + 3] * neg_x;
+                    y_ptr[i + 4] += l_col[i + 4] * neg_x;
+                    y_ptr[i + 5] += l_col[i + 5] * neg_x;
+                    y_ptr[i + 6] += l_col[i + 6] * neg_x;
+                    y_ptr[i + 7] += l_col[i + 7] * neg_x;
                 }
+                for (; i < rem; ++i) y_ptr[i] += l_col[i] * neg_x;
             } else {
                 for (std::size_t i = k + 1; i < n; ++i) {
                     x_col[i] -= LU_stack[i + k * n] * xkj;
@@ -315,9 +327,21 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
             if (xkj == T(0)) continue;
             if constexpr (std::is_same_v<T, double>) {
                 const double *u_col = LU_stack + k * n;
-                if (k > 0) {
-                    axpy(static_cast<std::size_t>(k), -xkj, u_col, x_col);
+                double *y_ptr = x_col;
+                const std::size_t rem = static_cast<std::size_t>(k);
+                const double neg_x = -xkj;
+                std::size_t i = 0;
+                for (; i + 8 <= rem; i += 8) {
+                    y_ptr[i + 0] += u_col[i + 0] * neg_x;
+                    y_ptr[i + 1] += u_col[i + 1] * neg_x;
+                    y_ptr[i + 2] += u_col[i + 2] * neg_x;
+                    y_ptr[i + 3] += u_col[i + 3] * neg_x;
+                    y_ptr[i + 4] += u_col[i + 4] * neg_x;
+                    y_ptr[i + 5] += u_col[i + 5] * neg_x;
+                    y_ptr[i + 6] += u_col[i + 6] * neg_x;
+                    y_ptr[i + 7] += u_col[i + 7] * neg_x;
                 }
+                for (; i < rem; ++i) y_ptr[i] += u_col[i] * neg_x;
             } else {
                 for (std::intptr_t i = k - 1; i >= 0; --i) {
                     x_col[i] -= LU_stack[i + k * n] * xkj;
