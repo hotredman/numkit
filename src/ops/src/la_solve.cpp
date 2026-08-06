@@ -208,11 +208,7 @@ bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m,
         const std::size_t rem_m = m - j;
         T *A_jj = A + j + j * lda;
 
-        if constexpr (std::is_same_v<T, double>) {
-            if (!::numkit::ops::lu_panel(A_jj, lda, piv + j, rem_m, jb, offset_row + j)) return false;
-        } else {
-            if (!lu_recursive_inplace(A_jj, lda, piv + j, rem_m, jb, offset_row + j)) return false;
-        }
+        if (!lu_recursive_inplace(A_jj, lda, piv + j, rem_m, jb, offset_row + j)) return false;
 
         if (j + jb < n) {
             const std::size_t rem_n = n - (j + jb);
@@ -464,16 +460,23 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
         ScratchVec<std::int32_t> piv(n, &arena);
         if (!lu_pivot_inplace(A_lu.data(), piv.data(), n)) return false;
 
-        std::vector<std::size_t> perm(n);
-        for (std::size_t i = 0; i < n; ++i) perm[i] = i;
-        for (std::size_t k = 0; k < n; ++k)
-            std::swap(perm[k], perm[piv[k]]);
+        std::memcpy(X, B, n * nrhs * sizeof(T));
 
-        for (std::size_t col = 0; col < nrhs; ++col) {
-            for (std::size_t row = 0; row < n; ++row) {
-                X[row + col * n] = B[perm[row] + col * n];
+        const std::int32_t *piv_ptr = piv.data();
+        const std::size_t p_thresh = (nrhs >= 64) ? 32 : (nrhs + 1);
+        numkit::detail::parallel_for(nrhs, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
+            for (std::size_t k = 0; k < n; ++k) {
+                std::size_t p = static_cast<std::size_t>(piv_ptr[k]);
+                if (p != k) {
+                    T *r1 = X + k + c_start * n;
+                    T *r2 = X + p + c_start * n;
+                    std::size_t bcols = c_end - c_start;
+                    for (std::size_t col = 0; col < bcols; ++col) {
+                        std::swap(r1[col * n], r2[col * n]);
+                    }
+                }
             }
-        }
+        });
 
         if constexpr (is_complex_v<T>) {
             ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,

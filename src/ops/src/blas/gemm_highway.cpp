@@ -176,7 +176,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
 
     // Threshold for FLOPs: 2 * m * n * k >= 8,000,000 (n >= 160 for square GEMM)
     const std::size_t total_flops = 2 * m * n * k;
-    constexpr std::size_t kGemmParallelFlopThreshold = 1'000'000;
+    constexpr std::size_t kGemmParallelFlopThreshold = 200'000;
 
     // Determinism note: FP summation order within a C tile is fixed by the
     // microkernel; parallelism across independent jc column blocks of C does
@@ -784,13 +784,33 @@ bool LuPanelDoubleKernel(double *A, std::size_t lda, std::int32_t *piv, std::siz
     for (std::size_t j = 0; j < n; ++j) {
         std::size_t pivot = j;
         double pmax = std::fabs(A[j + j * lda]);
-        for (std::size_t i = j + 1; i < m; ++i) {
-            const double v = std::fabs(A[i + j * lda]);
-            if (v > pmax) {
-                pmax = v;
-                pivot = i;
+        const double *c_ptr = A + j * lda;
+        const std::size_t rem_piv = m - (j + 1);
+
+        if (rem_piv >= N) {
+            std::size_t i = j + 1;
+            auto v_max = hn::Set(d, pmax);
+            for (; i + N <= m; i += N) {
+                auto v_val = hn::Abs(hn::LoadU(d, c_ptr + i));
+                v_max = hn::Max(v_max, v_val);
+            }
+            const double vec_pmax = hn::ReduceMax(d, v_max);
+            if (vec_pmax > pmax) {
+                for (std::size_t k = j + 1; k < m; ++k) {
+                    const double v = std::fabs(c_ptr[k]);
+                    if (v > pmax) {
+                        pmax = v;
+                        pivot = k;
+                    }
+                }
+            }
+        } else {
+            for (std::size_t i = j + 1; i < m; ++i) {
+                const double v = std::fabs(c_ptr[i]);
+                if (v > pmax) { pmax = v; pivot = i; }
             }
         }
+
         if (pmax == 0.0) return false;
         piv[j] = static_cast<std::int32_t>(pivot + offset_row);
         if (pivot != j) {
@@ -812,8 +832,15 @@ bool LuPanelDoubleKernel(double *A, std::size_t lda, std::int32_t *piv, std::siz
             }
         }
         const double inv_pivot = 1.0 / A[j + j * lda];
-        for (std::size_t i = j + 1; i < m; ++i) {
-            A[i + j * lda] *= inv_pivot;
+        double *scale_ptr = A + j * lda + (j + 1);
+        const std::size_t rem_scale = m - (j + 1);
+        auto v_inv = hn::Set(d, inv_pivot);
+        std::size_t si = 0;
+        for (; si + N <= rem_scale; si += N) {
+            hn::StoreU(hn::Mul(hn::LoadU(d, scale_ptr + si), v_inv), d, scale_ptr + si);
+        }
+        for (; si < rem_scale; ++si) {
+            scale_ptr[si] *= inv_pivot;
         }
 
         const double *l_col = A + j * lda;
