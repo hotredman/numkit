@@ -193,7 +193,7 @@
 
 ### Linear Algebra
 
-**Matrix Factorizations & Analysis:** `ordqz`
+*(None — 100% complete)*
 
 ### ODE
 

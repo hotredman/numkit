@@ -1,10 +1,10 @@
 {
   "name": "logm",
   "namespace": "builtin",
-  "setup": "S = [4 1 2; 1 3 0; 2 0 5];",
-  "expr": "L = logm(S); err = max(max(abs(expm(L) - S)));",
+  "setup": "S = [4 1 2; 1 3 0; 2 0 5]; A = [2 1; 0 3];",
+  "expr": "L = logm(S); err = max(max(abs(expm(L) - S))); La = logm(A); erra = max(max(abs(expm(La) - A)));",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["L(1,1)", "L(2,2)", "L(3,3)", "L(1,2)", "err"],
-  "comment": "Sig: L = logm(A). Matrix logarithm for symmetric positive-definite A via eig: L = V*diag(log(eig))*V'. Round-trip expm(logm) = A to ulp. General (non-symmetric) logm requires complex Schur -- deferred to Phase 2b."
+  "fingerprint": ["L(1,1)", "L(2,2)", "L(3,3)", "L(1,2)", "err", "erra"],
+  "comment": "Sig: L = logm(A). Matrix logarithm via inverse scaling and squaring / Schur algorithm for symmetric, general real, and complex matrices."
 }

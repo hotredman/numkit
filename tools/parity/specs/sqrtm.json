@@ -1,10 +1,10 @@
 {
   "name": "sqrtm",
   "namespace": "builtin",
-  "setup": "S = [4 1 2; 1 3 0; 2 0 5];",
-  "expr": "R = sqrtm(S); err = max(max(abs(R*R - S)));",
+  "setup": "S = [4 1 2; 1 3 0; 2 0 5]; A = [2 1; 0 3];",
+  "expr": "R = sqrtm(S); err = max(max(abs(R*R - S))); Ra = sqrtm(A); erra = max(max(abs(Ra*Ra - A)));",
   "iters": 5,
   "tol": 1e-9,
-  "fingerprint": ["R(1,1)", "R(2,2)", "R(3,3)", "R(1,2)", "err"],
-  "comment": "Sig: R = sqrtm(A). Matrix square root for symmetric positive-semidefinite A via eig: R = V*diag(sqrt(eig))*V'. R*R = A to ulp. General sqrtm requires complex Schur -- deferred to Phase 2b."
+  "fingerprint": ["R(1,1)", "R(2,2)", "R(3,3)", "R(1,2)", "err", "erra"],
+  "comment": "Sig: R = sqrtm(A). Matrix square root via Björck-Hammarling Schur algorithm for symmetric, general real, and complex matrices."
 }
