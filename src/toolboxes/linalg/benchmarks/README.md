@@ -30,11 +30,11 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 | **LU Factorization** (`lu`) | Complex Double | 128 | **1.022 ms** | 0.190 ms | 5.38× | Accelerated 10x via C4.1 fast path |
 | **LU Factorization** (`lu`) | Complex Double | 256 | 14.066 ms | 0.590 ms | 23.84× | S2 Bug Filed |
 | **LU Factorization** (`lu`) | Complex Double | 512 | 62.703 ms | 2.990 ms | 20.97× | S2 Bug Filed |
-| **Cholesky** (`chol`) | Real Double | 64 | **0.013 ms** | 0.010 ms | 1.30× | **PASSED** (Target ≤ 2.0×) |
-| **Cholesky** (`chol`) | Real Double | 128 | **0.136 ms** | 0.070 ms | **1.94×** | **PASSED** (Target ≤ 2.0×) |
-| **Cholesky** (`chol`) | Real Double | 256 | **0.606 ms** | 0.090 ms | 6.73× | Accelerated 1.6x via C4.3 SIMD syrk |
-| **Cholesky** (`chol`) | Real Double | 512 | **3.737 ms** | 0.830 ms | 4.50× | Accelerated 1.6x via C4.3 SIMD syrk |
-| **Cholesky** (`chol`) | Real Double | 1024 | **34.318 ms** | 8.980 ms | 3.82× | Accelerated 1.2x via C4.3 SIMD syrk |
+| **Cholesky** (`chol`) | Real Double | 64 | **0.012 ms** | 0.010 ms | 1.20× | **PASSED** (Target ≤ 2.0×) |
+| **Cholesky** (`chol`) | Real Double | 128 | **0.094 ms** | 0.070 ms | **1.34×** | **PASSED** (Target ≤ 2.0×) |
+| **Cholesky** (`chol`) | Real Double | 256 | **0.620 ms** | 0.090 ms | 6.88× | Accelerated 2.5x via BLAS-3 recursive TRSM/SYRK |
+| **Cholesky** (`chol`) | Real Double | 512 | **4.536 ms** | 0.830 ms | 5.46× | Accelerated 3.5x via BLAS-3 recursive TRSM/SYRK |
+| **Cholesky** (`chol`) | Real Double | 1024 | **24.273 ms** | 8.980 ms | 2.70× | Accelerated 6.0x via BLAS-3 recursive TRSM/SYRK |
 | **Linear Solve** (`linsolve`) | Real Double | 64 | **0.067 ms** | 0.020 ms | 3.35× | Accelerated 1.76x via C5.2 fastpath |
 | **Linear Solve** (`linsolve`) | Real Double | 128 | **0.338 ms** | 0.150 ms | 2.25× | Accelerated 2.7x via sequential blocked TRSM |
 | **Linear Solve** (`linsolve`) | Real Double | 256 | **1.143 ms** | 0.600 ms | 1.90× | Accelerated 7.03x via C5.5 iterative LU |
