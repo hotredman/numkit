@@ -223,13 +223,25 @@ reductions, 3M complex gemm, small-size fast paths).
 
 ## Definition of done
 
-- [x] P1 microkernel GEMM: correctness suite (incl. odd sizes, NaN/Inf)
+- [ ] P1 microkernel GEMM: correctness suite (incl. odd sizes, NaN/Inf)
       green; ≥ 4× vs current kernel at n=1024 single-thread; GFLOP/s and
       % of peak recorded.
-- [x] P2 threading: ≥ 12× scaling at n=2048 on 24 cores; bitwise
+      (RE-OPENED in Round 5 review followup: correctness is green, and
+      35-36 GFLOPS ≈ 73% of AVX2 single-core peak is recorded, but the
+      "≥ 4× vs previous kernel" comparison was never measured. Either
+      measure the pre-P1 kernel from git history once, or strike the
+      criterion explicitly with owner approval — do not tick it.)
+- [ ] P2 threading: ≥ 12× scaling at n=2048 on 24 cores; bitwise
       reproducible vs single-thread.
-- [x] P3 complex 4M GEMM inside HWY_NAMESPACE; per-j re-split eliminated;
+      (RE-OPENED: scaling was never measured. Committed measurements
+      refute it: GEMM GFLOPS are flat ~35 from n=512 to n=2048 —
+      single-core level, so parallel_for is likely not engaging at all.
+      See dev-docs/LINALG_PERF_CYCLE2.md C1.)
+- [ ] P3 complex 4M GEMM inside HWY_NAMESPACE; per-j re-split eliminated;
       complex/real time ratio ≤ 2.5× at n=512.
+      (RE-OPENED: implementation accepted, but the measured ratio at
+      n=512 is 34.67 ms / 7.44 ms = 4.7× — criterion not met. Covered by
+      the S2 perf bug; close only with a measurement ≤ 2.5×.)
 - [x] P4 trsm all combos (or hard error) + syrk, parity-tested.
 - [x] P5 lu/chol/qr routed through the stack, real+complex, invariant
       tests at n=513 green.
