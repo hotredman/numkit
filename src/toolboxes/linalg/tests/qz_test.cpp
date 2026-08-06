@@ -78,3 +78,19 @@ TEST(QzTest, QzDecompositionComplex) {
     EXPECT_NEAR(getVal(AA, 1, 0).real(), 0.0, 1e-12);
     EXPECT_NEAR(getVal(AA, 1, 0).imag(), 0.0, 1e-12);
 }
+
+TEST(QzTest, QzNearSingularB) {
+    // A = [1 2; 3 4], B = [1e-12 0; 0 1]
+    Value A = Value::matrix(2, 2);
+    auto *ad = A.doubleDataMut();
+    ad[0] = 1.0; ad[1] = 3.0; ad[2] = 2.0; ad[3] = 4.0;
+
+    Value B = Value::matrix(2, 2);
+    auto *bd = B.doubleDataMut();
+    bd[0] = 1e-12; bd[1] = 0.0; bd[2] = 0.0; bd[3] = 1.0;
+
+    auto [AA, BB, Q, Z] = qz(A, B);
+
+    EXPECT_EQ(AA.dims().rows(), 2);
+    EXPECT_EQ(BB.dims().rows(), 2);
+}

@@ -166,8 +166,10 @@ std::tuple<Value, Value, Value, Value> qz(const Value &A, const Value &B,
         }
     }
 
-    // Step 3: QZ iteration to reduce subdiagonals of A to 0
+    // Step 3: QZ iteration with Wilkinson shift to reduce subdiagonals of A to 0
     std::size_t max_iter = 100 * n;
+    bool converged = false;
+
     for (std::size_t iter = 0; iter < max_iter; ++iter) {
         bool all_zero = true;
         for (std::size_t k = 0; k < n - 1; ++k) {
@@ -176,8 +178,33 @@ std::tuple<Value, Value, Value, Value> qz(const Value &A, const Value &B,
             if (sub > 1e-14 * diag) {
                 all_zero = false;
 
-                // QZ shift step on block k:k+1
-                Complex shift = Ac[k + 1 + (k + 1) * n] / (std::abs(Bc[k + 1 + (k + 1) * n]) > 1e-15 ? Bc[k + 1 + (k + 1) * n] : Complex(1e-15, 0.0));
+                // 2x2 Wilkinson shift for block k:k+1
+                Complex a11 = Ac[k + k * n],       a12 = Ac[k + (k + 1) * n];
+                Complex a21 = Ac[k + 1 + k * n],   a22 = Ac[k + 1 + (k + 1) * n];
+                Complex b11 = Bc[k + k * n],       b12 = Bc[k + (k + 1) * n];
+                Complex b21 = Bc[k + 1 + k * n],   b22 = Bc[k + 1 + (k + 1) * n];
+
+                Complex shift;
+                if (iter > 0 && iter % 10 == 0) {
+                    // Exceptional shift fallback
+                    shift = (a22 / (std::abs(b22) > 1e-15 ? b22 : Complex(1e-15, 0.0))) + Complex(0.1 * iter, 0.1 * iter);
+                } else {
+                    // Solve det(A_2x2 - lambda * B_2x2) = 0
+                    Complex c2 = b11 * b22 - b12 * b21;
+                    Complex c1 = -(a11 * b22 + a22 * b11 - a12 * b21 - a21 * b12);
+                    Complex c0 = a11 * a22 - a12 * a21;
+
+                    if (std::abs(c2) > 1e-15) {
+                        Complex disc = std::sqrt(c1 * c1 - Complex(4.0, 0.0) * c2 * c0);
+                        Complex r1 = (-c1 + disc) / (Complex(2.0, 0.0) * c2);
+                        Complex r2 = (-c1 - disc) / (Complex(2.0, 0.0) * c2);
+                        Complex target = a22 / (std::abs(b22) > 1e-15 ? b22 : Complex(1e-15, 0.0));
+                        shift = (std::abs(r1 - target) < std::abs(r2 - target)) ? r1 : r2;
+                    } else {
+                        shift = a22 / (std::abs(b22) > 1e-15 ? b22 : Complex(1e-15, 0.0));
+                    }
+                }
+
                 Complex x = Ac[k + k * n] - shift * Bc[k + k * n];
                 Complex y = Ac[k + 1 + k * n];
 
@@ -199,7 +226,14 @@ std::tuple<Value, Value, Value, Value> qz(const Value &A, const Value &B,
                 Ac[k + 1 + k * n] = Complex(0.0, 0.0);
             }
         }
-        if (all_zero) break;
+        if (all_zero) {
+            converged = true;
+            break;
+        }
+    }
+
+    if (!converged && n > 1) {
+        throw Error("qz: QZ iteration failed to converge", 0, 0, "qz", "", "numkit:qz:noConverge");
     }
 
     // Zero out small subdiagonals in Ac and Bc
