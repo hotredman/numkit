@@ -141,8 +141,11 @@ static void BM_Linalg_Solve_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
     Value A = makeRealMatrix(n, 42);
     Value B = makeRealMatrix(n, 43);
+    std::vector<std::byte> buf(16 * 1024 * 1024); // 16 MB
+    std::pmr::monotonic_buffer_resource mbr(buf.data(), buf.size());
     for (auto _ : state) {
-        auto res = linsolve(A, B, nullptr);
+        mbr.release();
+        auto res = linsolve(A, B, &mbr);
         benchmark::DoNotOptimize(res);
     }
 }

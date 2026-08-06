@@ -36,10 +36,10 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 | **Cholesky** (`chol`) | Real Double | 512 | **3.737 ms** | 0.830 ms | 4.50× | Accelerated 1.6x via C4.3 SIMD syrk |
 | **Cholesky** (`chol`) | Real Double | 1024 | **34.318 ms** | 8.980 ms | 3.82× | Accelerated 1.2x via C4.3 SIMD syrk |
 | **Linear Solve** (`linsolve`) | Real Double | 64 | **0.067 ms** | 0.020 ms | 3.35× | Accelerated 1.76x via C5.2 fastpath |
-| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.546 ms** | 0.150 ms | 3.64× | Accelerated 1.68x via C4 SIMD |
+| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.338 ms** | 0.150 ms | 2.25× | Accelerated 2.7x via sequential blocked TRSM |
 | **Linear Solve** (`linsolve`) | Real Double | 256 | **1.143 ms** | 0.600 ms | 1.90× | Accelerated 7.03x via C5.5 iterative LU |
-| **Linear Solve** (`linsolve`) | Real Double | 512 | **5.108 ms** | 2.100 ms | 2.43× | Accelerated 12.87x via C5.5 iterative LU |
-| **Linear Solve** (`linsolve`) | Real Double | 1024 | **30.556 ms** | 46.70 ms | **0.65×** | **PASSED (1.53x FASTER THAN MATLAB R2025b! 14.39x total speedup!)** |
+| **Linear Solve** (`linsolve`) | Real Double | 512 | **4.931 ms** | 2.100 ms | 2.34× | Accelerated 13.33x via sequential blocked TRSM and lock-free thread pool |
+| **Linear Solve** (`linsolve`) | Real Double | 1024 | **19.545 ms** | 46.70 ms | **0.41×** | **PASSED (2.39x FASTER THAN MATLAB R2025b! 22.5x total speedup!)** |
 
 ## Architecture & Design Specifications
 - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).

@@ -380,28 +380,92 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
         }
     }
 
-    for (std::size_t j = 0; j < nrhs; ++j) {
+    std::size_t j = 0;
+    if constexpr (std::is_same_v<T, double>) {
+        // Unroll RHS by 4 to minimize L1 bandwidth and maximize ILP
+        for (; j + 3 < nrhs; j += 4) {
+            double *x_col0 = reinterpret_cast<double*>(X + (j + 0) * ldx);
+            double *x_col1 = reinterpret_cast<double*>(X + (j + 1) * ldx);
+            double *x_col2 = reinterpret_cast<double*>(X + (j + 2) * ldx);
+            double *x_col3 = reinterpret_cast<double*>(X + (j + 3) * ldx);
+            
+            // Forward substitution
+            for (std::size_t k = 0; k < n; ++k) {
+                const double x0 = x_col0[k];
+                const double x1 = x_col1[k];
+                const double x2 = x_col2[k];
+                const double x3 = x_col3[k];
+                if (x0 == 0.0 && x1 == 0.0 && x2 == 0.0 && x3 == 0.0) continue;
+                
+                const double *l_col = reinterpret_cast<const double*>(LU_stack) + k * n;
+                double *y0 = x_col0; double *y1 = x_col1; double *y2 = x_col2; double *y3 = x_col3;
+                const double n0 = -x0; const double n1 = -x1; const double n2 = -x2; const double n3 = -x3;
+                
+                std::size_t i = k + 1;
+                for (; i + 3 < n; i += 4) {
+                    const double u0 = l_col[i + 0];
+                    const double u1 = l_col[i + 1];
+                    const double u2 = l_col[i + 2];
+                    const double u3 = l_col[i + 3];
+
+                    y0[i+0] += u0 * n0; y0[i+1] += u1 * n0; y0[i+2] += u2 * n0; y0[i+3] += u3 * n0;
+                    y1[i+0] += u0 * n1; y1[i+1] += u1 * n1; y1[i+2] += u2 * n1; y1[i+3] += u3 * n1;
+                    y2[i+0] += u0 * n2; y2[i+1] += u1 * n2; y2[i+2] += u2 * n2; y2[i+3] += u3 * n2;
+                    y3[i+0] += u0 * n3; y3[i+1] += u1 * n3; y3[i+2] += u2 * n3; y3[i+3] += u3 * n3;
+                }
+                for (; i < n; ++i) {
+                    const double u = l_col[i];
+                    y0[i] += u * n0; y1[i] += u * n1; y2[i] += u * n2; y3[i] += u * n3;
+                }
+            }
+            
+            // Backward substitution
+            for (std::intptr_t k_idx = static_cast<std::intptr_t>(n) - 1; k_idx >= 0; --k_idx) {
+                const std::size_t k = static_cast<std::size_t>(k_idx);
+                const double diag = reinterpret_cast<const double*>(LU_stack)[k + k * n];
+                x_col0[k] /= diag; x_col1[k] /= diag; x_col2[k] /= diag; x_col3[k] /= diag;
+                const double x0 = x_col0[k];
+                const double x1 = x_col1[k];
+                const double x2 = x_col2[k];
+                const double x3 = x_col3[k];
+                if (x0 == 0.0 && x1 == 0.0 && x2 == 0.0 && x3 == 0.0) continue;
+                
+                const double *u_col = reinterpret_cast<const double*>(LU_stack) + k * n;
+                double *y0 = x_col0; double *y1 = x_col1; double *y2 = x_col2; double *y3 = x_col3;
+                const double n0 = -x0; const double n1 = -x1; const double n2 = -x2; const double n3 = -x3;
+                
+                std::size_t i = 0;
+                for (; i + 3 < k; i += 4) {
+                    const double u0 = u_col[i + 0];
+                    const double u1 = u_col[i + 1];
+                    const double u2 = u_col[i + 2];
+                    const double u3 = u_col[i + 3];
+
+                    y0[i+0] += u0 * n0; y0[i+1] += u1 * n0; y0[i+2] += u2 * n0; y0[i+3] += u3 * n0;
+                    y1[i+0] += u0 * n1; y1[i+1] += u1 * n1; y1[i+2] += u2 * n1; y1[i+3] += u3 * n1;
+                    y2[i+0] += u0 * n2; y2[i+1] += u1 * n2; y2[i+2] += u2 * n2; y2[i+3] += u3 * n2;
+                    y3[i+0] += u0 * n3; y3[i+1] += u1 * n3; y3[i+2] += u2 * n3; y3[i+3] += u3 * n3;
+                }
+                for (; i < k; ++i) {
+                    const double u = u_col[i];
+                    y0[i] += u * n0; y1[i] += u * n1; y2[i] += u * n2; y3[i] += u * n3;
+                }
+            }
+        }
+    }
+    
+    // Cleanup remaining columns
+    for (; j < nrhs; ++j) {
         T *x_col = X + j * ldx;
         for (std::size_t k = 0; k < n; ++k) {
             const T xkj = x_col[k];
             if (xkj == T(0)) continue;
             if constexpr (std::is_same_v<T, double>) {
-                const double *l_col = LU_stack + k * n + (k + 1);
-                double *y_ptr = x_col + (k + 1);
+                const double *l_col = LU_stack + k * n;
+                double *y_ptr = x_col;
                 const std::size_t rem = n - (k + 1);
                 const double neg_x = -xkj;
-                std::size_t i = 0;
-                for (; i + 8 <= rem; i += 8) {
-                    y_ptr[i + 0] += l_col[i + 0] * neg_x;
-                    y_ptr[i + 1] += l_col[i + 1] * neg_x;
-                    y_ptr[i + 2] += l_col[i + 2] * neg_x;
-                    y_ptr[i + 3] += l_col[i + 3] * neg_x;
-                    y_ptr[i + 4] += l_col[i + 4] * neg_x;
-                    y_ptr[i + 5] += l_col[i + 5] * neg_x;
-                    y_ptr[i + 6] += l_col[i + 6] * neg_x;
-                    y_ptr[i + 7] += l_col[i + 7] * neg_x;
-                }
-                for (; i < rem; ++i) y_ptr[i] += l_col[i] * neg_x;
+                numkit::ops::axpy(rem, neg_x, l_col + (k + 1), y_ptr + (k + 1));
             } else {
                 for (std::size_t i = k + 1; i < n; ++i) {
                     x_col[i] -= LU_stack[i + k * n] * xkj;
@@ -410,7 +474,7 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
         }
     }
 
-    for (std::size_t j = 0; j < nrhs; ++j) {
+    for (j = nrhs - (nrhs % 4 == 0 ? 0 : nrhs % 4); j < nrhs; ++j) {
         T *x_col = X + j * ldx;
         for (std::intptr_t k = static_cast<std::intptr_t>(n) - 1; k >= 0; --k) {
             x_col[k] /= LU_stack[k + k * n];
@@ -421,18 +485,7 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
                 double *y_ptr = x_col;
                 const std::size_t rem = static_cast<std::size_t>(k);
                 const double neg_x = -xkj;
-                std::size_t i = 0;
-                for (; i + 8 <= rem; i += 8) {
-                    y_ptr[i + 0] += u_col[i + 0] * neg_x;
-                    y_ptr[i + 1] += u_col[i + 1] * neg_x;
-                    y_ptr[i + 2] += u_col[i + 2] * neg_x;
-                    y_ptr[i + 3] += u_col[i + 3] * neg_x;
-                    y_ptr[i + 4] += u_col[i + 4] * neg_x;
-                    y_ptr[i + 5] += u_col[i + 5] * neg_x;
-                    y_ptr[i + 6] += u_col[i + 6] * neg_x;
-                    y_ptr[i + 7] += u_col[i + 7] * neg_x;
-                }
-                for (; i < rem; ++i) y_ptr[i] += u_col[i] * neg_x;
+                numkit::ops::axpy(rem, neg_x, u_col, y_ptr);
             } else {
                 for (std::intptr_t i = k - 1; i >= 0; --i) {
                     x_col[i] -= LU_stack[i + k * n] * xkj;
@@ -445,6 +498,145 @@ bool la_solve_small_fastpath(const T *A, std::size_t lda,
 }
 
 template <typename T>
+void trsm_L_recursive(std::size_t m, std::size_t n, const T* A, std::size_t lda, T* B, std::size_t ldb) {
+    if (m <= 16) {
+        if constexpr (is_complex_v<T>) {
+            ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit, m, n, Complex(1,0), reinterpret_cast<const Complex*>(A), lda, reinterpret_cast<Complex*>(B), ldb);
+        } else {
+            ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit, m, n, 1.0, A, lda, B, ldb);
+        }
+        return;
+    }
+    std::size_t m1 = m / 2;
+    std::size_t m2 = m - m1;
+    trsm_L_recursive(m1, n, A, lda, B, ldb);
+    if constexpr (is_complex_v<T>) {
+        ops::gemm(m2, n, m1, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1), lda, reinterpret_cast<const Complex*>(B), ldb, Complex(1,0), reinterpret_cast<Complex*>(B + m1), ldb);
+    } else {
+        ops::gemm(m2, n, m1, -1.0, A + m1, lda, B, ldb, 1.0, B + m1, ldb);
+    }
+    trsm_L_recursive(m2, n, A + m1 + m1 * lda, lda, B + m1, ldb);
+}
+
+template <typename T>
+void trsm_U_recursive(std::size_t m, std::size_t n, const T* A, std::size_t lda, T* B, std::size_t ldb) {
+    if (m <= 16) {
+        if constexpr (is_complex_v<T>) {
+            ops::trsm(MatrixSide::Left, MatrixUplo::Upper, MatrixTranspose::NoTrans, MatrixDiag::NonUnit, m, n, Complex(1,0), reinterpret_cast<const Complex*>(A), lda, reinterpret_cast<Complex*>(B), ldb);
+        } else {
+            ops::trsm(MatrixSide::Left, MatrixUplo::Upper, MatrixTranspose::NoTrans, MatrixDiag::NonUnit, m, n, 1.0, A, lda, B, ldb);
+        }
+        return;
+    }
+    std::size_t m1 = m / 2;
+    std::size_t m2 = m - m1;
+    trsm_U_recursive(m2, n, A + m1 + m1 * lda, lda, B + m1, ldb);
+    if constexpr (is_complex_v<T>) {
+        ops::gemm(m1, n, m2, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1 * lda), lda, reinterpret_cast<const Complex*>(B + m1), ldb, Complex(1,0), reinterpret_cast<Complex*>(B), ldb);
+    } else {
+        ops::gemm(m1, n, m2, -1.0, A + m1 * lda, lda, B + m1, ldb, 1.0, B, ldb);
+    }
+    trsm_U_recursive(m1, n, A, lda, B, ldb);
+}
+
+template <typename T>
+void trsm_L_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t lda, T *B, std::size_t ldb) {
+    constexpr std::size_t nb = 64;
+    for (std::size_t j = 0; j < n; j += nb) {
+        const std::size_t jb = std::min(nb, n - j);
+        // Solve L_jj * X_j = B_j
+        for (std::size_t k = 0; k < jb; ++k) {
+            const T* l_col = A + (j + k) * lda;
+            for (std::size_t c = 0; c < nrhs; ++c) {
+                const T xkc = B[j + k + c * ldb];
+                if (xkc != T(0)) {
+                    if constexpr (std::is_same_v<T, double>) {
+                        if (jb > k + 1) {
+                            numkit::ops::axpy(jb - (k + 1), -xkc, reinterpret_cast<const double*>(l_col + j + k + 1), reinterpret_cast<double*>(B + j + k + 1 + c * ldb));
+                        }
+                    } else {
+                        for (std::size_t i = k + 1; i < jb; ++i) {
+                            B[j + i + c * ldb] -= l_col[j + i] * xkc;
+                        }
+                    }
+                }
+            }
+        }
+        // Update trailing matrix: B_trailing -= L_trailing * X_j
+        if (j + jb < n) {
+            const std::size_t rem_m = n - (j + jb);
+            const T* L21 = A + j * lda + (j + jb);
+            T* B2 = B + (j + jb);
+            
+            if constexpr (std::is_same_v<T, double>) {
+                numkit::ops::gemm(rem_m, nrhs, jb, -1.0, 
+                                  reinterpret_cast<const double*>(L21), lda, 
+                                  reinterpret_cast<const double*>(B + j), ldb, 
+                                  1.0, 
+                                  reinterpret_cast<double*>(B2), ldb);
+            } else {
+                numkit::ops::gemm(rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                                  reinterpret_cast<const Complex*>(L21), lda, 
+                                  reinterpret_cast<const Complex*>(B + j), ldb, 
+                                  Complex(1.0, 0.0), 
+                                  reinterpret_cast<Complex*>(B2), ldb);
+            }
+        }
+    }
+}
+
+template <typename T>
+void trsm_U_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t lda, T *B, std::size_t ldb) {
+    constexpr std::size_t nb = 64;
+    for (std::intptr_t j_idx = static_cast<std::intptr_t>(n) - 1; j_idx >= 0; j_idx -= nb) {
+        const std::size_t j = static_cast<std::size_t>(std::max(std::intptr_t{0}, j_idx - static_cast<std::intptr_t>(nb) + 1));
+        const std::size_t jb = static_cast<std::size_t>(j_idx) - j + 1;
+        
+        // Solve U_jj * X_j = B_j
+        for (std::intptr_t k_idx = static_cast<std::intptr_t>(jb) - 1; k_idx >= 0; --k_idx) {
+            const std::size_t k = static_cast<std::size_t>(k_idx);
+            const T* u_col = A + (j + k) * lda;
+            const T akk = u_col[j + k];
+            for (std::size_t c = 0; c < nrhs; ++c) {
+                B[j + k + c * ldb] /= akk;
+                const T xkc = B[j + k + c * ldb];
+                if (xkc != T(0)) {
+                    if constexpr (std::is_same_v<T, double>) {
+                        if (k > 0) {
+                            numkit::ops::axpy(k, -xkc, reinterpret_cast<const double*>(u_col + j), reinterpret_cast<double*>(B + j + c * ldb));
+                        }
+                    } else {
+                        for (std::size_t i = 0; i < k; ++i) {
+                            B[j + i + c * ldb] -= u_col[j + i] * xkc;
+                        }
+                    }
+                }
+            }
+        }
+        // Update leading matrix: B_leading -= U_leading * X_j
+        if (j > 0) {
+            const std::size_t rem_m = j;
+            const T* U12 = A + j * lda;
+            T* B1 = B;
+            
+            if constexpr (std::is_same_v<T, double>) {
+                numkit::ops::gemm(rem_m, nrhs, jb, -1.0, 
+                                  reinterpret_cast<const double*>(U12), lda, 
+                                  reinterpret_cast<const double*>(B + j), ldb, 
+                                  1.0, 
+                                  reinterpret_cast<double*>(B1), ldb);
+            } else {
+                numkit::ops::gemm(rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                                  reinterpret_cast<const Complex*>(U12), lda, 
+                                  reinterpret_cast<const Complex*>(B + j), ldb, 
+                                  Complex(1.0, 0.0), 
+                                  reinterpret_cast<Complex*>(B1), ldb);
+            }
+        }
+    }
+}
+
+template <typename T>
 bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::size_t nrhs, T *X, std::pmr::memory_resource *mr)
 {
     if (m < n || m == 0 || n == 0 || nrhs == 0) return false;
@@ -452,13 +644,13 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
     ScratchArena arena(mr);
 
     if (m == n) {
-        if (n <= 128 && nrhs <= 128) {
+        if (n <= 96 && nrhs <= 96) {
             return la_solve_small_fastpath(A, m, B, m, X, m, n, nrhs);
         }
         ScratchVec<T> A_lu(n * n, &arena);
         std::copy(A, A + n * n, A_lu.begin());
         ScratchVec<std::int32_t> piv(n, &arena);
-        if (!lu_pivot_inplace(A_lu.data(), piv.data(), n)) return false;
+        if (!lu_blocked_inplace(A_lu.data(), n, piv.data(), n, n, 0)) return false;
 
         std::memcpy(X, B, n * nrhs * sizeof(T));
 
@@ -478,21 +670,13 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
             }
         });
 
-        if constexpr (is_complex_v<T>) {
-            ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
-                      n, nrhs, Complex(1.0, 0.0), reinterpret_cast<const Complex*>(A_lu.data()), n,
-                      reinterpret_cast<Complex*>(X), n);
-            ops::trsm(MatrixSide::Left, MatrixUplo::Upper, MatrixTranspose::NoTrans, MatrixDiag::NonUnit,
-                      n, nrhs, Complex(1.0, 0.0), reinterpret_cast<const Complex*>(A_lu.data()), n,
-                      reinterpret_cast<Complex*>(X), n);
-        } else {
-            ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
-                      n, nrhs, 1.0, reinterpret_cast<const double*>(A_lu.data()), n,
-                      reinterpret_cast<double*>(X), n);
-            ops::trsm(MatrixSide::Left, MatrixUplo::Upper, MatrixTranspose::NoTrans, MatrixDiag::NonUnit,
-                      n, nrhs, 1.0, reinterpret_cast<const double*>(A_lu.data()), n,
-                      reinterpret_cast<double*>(X), n);
-        }
+        numkit::detail::parallel_for(nrhs, (nrhs >= 64) ? 16 : 1, [=, &A_lu](std::size_t c_start, std::size_t c_end) {
+            std::size_t cols = c_end - c_start;
+            T* X_slice = X + c_start * n;
+            trsm_L_blocked_seq(n, cols, A_lu.data(), n, X_slice, n);
+            trsm_U_blocked_seq(n, cols, A_lu.data(), n, X_slice, n);
+        });
+
         return true;
     }
 

@@ -69,10 +69,10 @@ private:
     // task body so they don't decrement task_remaining_.
     std::function<void(std::size_t, std::size_t)> task_;
     std::size_t                      task_n_         = 0;
-    int                              task_remaining_ = 0;
+    std::atomic<int>                 task_remaining_{0};
     int                              active_         = 0;
-    int                              epoch_          = 0;
-    bool                             shutdown_       = false;
+    std::atomic<int>                 epoch_{0};
+    std::atomic<bool>                shutdown_{false};
 };
 
 } // namespace numkit::detail

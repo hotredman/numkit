@@ -126,14 +126,9 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
     }
 
     ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    ScratchVec<double> B_buf(m * nrhs, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-    std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
-
     auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
-    if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), nrhs,
-                                            out.doubleDataMut(), &scratch))
+    if (!numkit::ops::la_solve(A.doubleData(), m, n, B.doubleData(), nrhs,
+                               out.doubleDataMut(), &scratch))
         throw Error("linsolve: A is singular or rank-deficient",
                     0, 0, "linsolve", "", "numkit:linsolve:singular");
     return out;
