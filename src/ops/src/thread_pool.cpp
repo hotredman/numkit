@@ -1,11 +1,22 @@
-// core/src/thread_pool.cpp — see thread_pool.hpp for the contract.
-
 #include <numkit/ops/thread_pool.hpp>
 
 #include <algorithm>
 #include <utility>
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+#include <immintrin.h>
+#endif
 
 namespace numkit::detail {
+
+inline void spin_pause() noexcept {
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+    _mm_pause();
+#elif defined(_M_ARM64) || defined(__aarch64__)
+    __asm__ __volatile__("yield" ::: "memory");
+#else
+    std::this_thread::yield();
+#endif
+}
 
 // True while the current thread is executing a pool task body. A nested
 // run() (a parallel body that itself calls parallel_for) is then run inline
@@ -87,6 +98,10 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
     cv_start_.notify_all();
 
     {
+        for (int spin = 0; spin < 2000; ++spin) {
+            if (task_remaining_ == 0) break;
+            spin_pause();
+        }
         std::unique_lock<std::mutex> lock(mu_);
         cv_done_.wait(lock, [this] { return task_remaining_ == 0; });
         // Drop the task closure under the lock so its destructors run
@@ -105,6 +120,10 @@ void ThreadPool::worker_loop(int id)
         int         k;
 
         {
+            for (int spin = 0; spin < 2000; ++spin) {
+                if (shutdown_ || epoch_ != seen_epoch) break;
+                spin_pause();
+            }
             std::unique_lock<std::mutex> lock(mu_);
             cv_start_.wait(lock, [&] { return shutdown_ || epoch_ != seen_epoch; });
             if (shutdown_)
