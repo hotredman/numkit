@@ -5,6 +5,7 @@
 #include <cmath>
 #include <complex>
 #include <vector>
+#include <atomic>
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "blas/gemm_highway.cpp"
@@ -28,13 +29,18 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
     if (k == 0 || alpha == 0.0) {
         if (beta == 0.0) {
             for (std::size_t j = 0; j < n; ++j) {
-                std::fill(C + j * ldc, C + j * ldc + m, 0.0);
+                for (std::size_t i = 0; i < m; ++i) {
+                    C[i + j * ldc] = 0.0;
+                }
             }
         } else if (beta != 1.0) {
             for (std::size_t j = 0; j < n; ++j) {
-                for (std::size_t i = 0; i < m; ++i) C[i + j * ldc] *= beta;
+                for (std::size_t i = 0; i < m; ++i) {
+                    C[i + j * ldc] *= beta;
+                }
             }
         }
+        ::numkit::ops::g_last_gemm_threads_used.store(1);
         return;
     }
 
@@ -58,10 +64,13 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
     // not change per-element floating point summation order or results.
     const std::size_t p_thresh = (total_flops >= kGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
 
-    numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
+    std::atomic<std::size_t> active_threads{0};
+
+    numkit::detail::parallel_for(n, p_thresh, [&](std::size_t jc_start, std::size_t jc_end) {
+        active_threads.fetch_add(1, std::memory_order_relaxed);
         // Each thread gets its own thread-local packing buffers
         std::vector<double> A_pack(mc_block * kc_block + 64, 0.0);
-        std::vector<double> B_pack(kc_block * nr + 64, 0.0);
+        std::vector<double> B_pack(kc_block * nc_block + 64, 0.0);
 
         for (std::size_t jc = jc_start; jc < jc_end; jc += nc_block) {
             std::size_t nc = std::min(nc_block, jc_end - jc);
@@ -69,6 +78,20 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
             for (std::size_t pc = 0; pc < k; pc += kc_block) {
                 std::size_t kc = std::min(kc_block, k - pc);
                 double current_beta = (pc == 0) ? beta : 1.0;
+
+                // Pack B panel ONCE per (jc, pc) tile
+                for (std::size_t jr = 0; jr < nc; jr += nr) {
+                    std::size_t cur_nr = std::min(nr, nc - jr);
+                    double *b_p = B_pack.data() + jr * kc;
+                    for (std::size_t kk = 0; kk < kc; ++kk) {
+                        for (std::size_t c = 0; c < cur_nr; ++c) {
+                            b_p[kk * nr + c] = B[(pc + kk) + (jc + jr + c) * ldb];
+                        }
+                        for (std::size_t c = cur_nr; c < nr; ++c) {
+                            b_p[kk * nr + c] = 0.0;
+                        }
+                    }
+                }
 
                 for (std::size_t ic = 0; ic < m; ic += mc_block) {
                     std::size_t mc = std::min(mc_block, m - ic);
@@ -91,16 +114,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
                     // Microkernel loop over jr (width nr) and ir (height mr)
                     for (std::size_t jr = 0; jr < nc; jr += nr) {
                         std::size_t cur_nr = std::min(nr, nc - jr);
-
-                        // Pack B block (kc x cur_nr) into row-panel of width nr
-                        for (std::size_t kk = 0; kk < kc; ++kk) {
-                            for (std::size_t c = 0; c < cur_nr; ++c) {
-                                B_pack[kk * nr + c] = B[(pc + kk) + (jc + jr + c) * ldb];
-                            }
-                            for (std::size_t c = cur_nr; c < nr; ++c) {
-                                B_pack[kk * nr + c] = 0.0;
-                            }
-                        }
+                        const double *b_p_tile = B_pack.data() + jr * kc;
 
                         for (std::size_t ir = 0; ir < mc; ir += mr) {
                             std::size_t cur_mr = std::min(mr, mc - ir);
@@ -116,13 +130,13 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
                                     auto a0 = hn::LoadU(d, a_p + kk * mr + 0 * N);
                                     auto a1 = hn::LoadU(d, a_p + kk * mr + 1 * N);
 
-                                    const double *b_k = B_pack.data() + kk * nr;
-                                    auto b0 = hn::Set(d, b_k[0]);
-                                    auto b1 = hn::Set(d, b_k[1]);
-                                    auto b2 = hn::Set(d, b_k[2]);
-                                    auto b3 = hn::Set(d, b_k[3]);
-                                    auto b4 = hn::Set(d, b_k[4]);
-                                    auto b5 = hn::Set(d, b_k[5]);
+                                    const double *b_col = b_p_tile + kk * nr;
+                                    auto b0 = hn::Set(d, b_col[0]);
+                                    auto b1 = hn::Set(d, b_col[1]);
+                                    auto b2 = hn::Set(d, b_col[2]);
+                                    auto b3 = hn::Set(d, b_col[3]);
+                                    auto b4 = hn::Set(d, b_col[4]);
+                                    auto b5 = hn::Set(d, b_col[5]);
 
                                     c00 = hn::MulAdd(a0, b0, c00); c10 = hn::MulAdd(a1, b0, c10);
                                     c01 = hn::MulAdd(a0, b1, c01); c11 = hn::MulAdd(a1, b1, c11);
@@ -159,7 +173,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
                                 // Scalar edge kernel for tail tiles
                                 for (std::size_t c = 0; c < cur_nr; ++c) {
                                     double *col_c = c_ptr + c * ldc;
-                                    const double *b_col = B_pack.data() + c;
+                                    const double *b_col = b_p_tile + c;
                                     for (std::size_t r = 0; r < cur_mr; ++r) {
                                         double acc = 0.0;
                                         for (std::size_t kk = 0; kk < kc; ++kk) {
@@ -179,6 +193,8 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
             }
         }
     });
+
+    ::numkit::ops::g_last_gemm_threads_used.store(active_threads.load());
 }
 
 
@@ -189,11 +205,14 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
                        std::complex<double> beta, std::complex<double> *C, std::size_t ldc)
 {
     using Complex = std::complex<double>;
+
     if (m == 0 || n == 0) return;
 
     if (k == 0 || alpha == Complex(0.0, 0.0)) {
         if (beta == Complex(0.0, 0.0)) {
-            for (std::size_t j = 0; j < n; ++j) std::fill(C + j * ldc, C + j * ldc + m, Complex(0.0, 0.0));
+            for (std::size_t j = 0; j < n; ++j) {
+                for (std::size_t i = 0; i < m; ++i) C[i + j * ldc] = Complex(0.0, 0.0);
+            }
         } else if (beta != Complex(1.0, 0.0)) {
             for (std::size_t j = 0; j < n; ++j) {
                 for (std::size_t i = 0; i < m; ++i) C[i + j * ldc] *= beta;
@@ -219,8 +238,8 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
         std::vector<double> Ar_pack(mc_block * kc_block + 64, 0.0);
         std::vector<double> Ai_pack(mc_block * kc_block + 64, 0.0);
-        std::vector<double> Br_pack(kc_block * nr + 64, 0.0);
-        std::vector<double> Bi_pack(kc_block * nr + 64, 0.0);
+        std::vector<double> Br_pack(kc_block * nc_block + 64, 0.0);
+        std::vector<double> Bi_pack(kc_block * nc_block + 64, 0.0);
 
         for (std::size_t jc = jc_start; jc < jc_end; jc += nc_block) {
             std::size_t nc = std::min(nc_block, jc_end - jc);
@@ -228,6 +247,24 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
             for (std::size_t pc = 0; pc < k; pc += kc_block) {
                 std::size_t kc = std::min(kc_block, k - pc);
                 Complex current_beta = (pc == 0) ? beta : Complex(1.0, 0.0);
+
+                // Pack B real and imaginary blocks ONCE per (jc, pc) tile
+                for (std::size_t jr = 0; jr < nc; jr += nr) {
+                    std::size_t cur_nr = std::min(nr, nc - jr);
+                    double *br_p = Br_pack.data() + jr * kc;
+                    double *bi_p = Bi_pack.data() + jr * kc;
+                    for (std::size_t kk = 0; kk < kc; ++kk) {
+                        for (std::size_t c = 0; c < cur_nr; ++c) {
+                            Complex b_val = B[(pc + kk) + (jc + jr + c) * ldb];
+                            br_p[kk * nr + c] = b_val.real();
+                            bi_p[kk * nr + c] = b_val.imag();
+                        }
+                        for (std::size_t c = cur_nr; c < nr; ++c) {
+                            br_p[kk * nr + c] = 0.0;
+                            bi_p[kk * nr + c] = 0.0;
+                        }
+                    }
+                }
 
                 for (std::size_t ic = 0; ic < m; ic += mc_block) {
                     std::size_t mc = std::min(mc_block, m - ic);
@@ -252,19 +289,8 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
 
                     for (std::size_t jr = 0; jr < nc; jr += nr) {
                         std::size_t cur_nr = std::min(nr, nc - jr);
-
-                        // Pack B real and imaginary blocks ONCE per tile
-                        for (std::size_t kk = 0; kk < kc; ++kk) {
-                            for (std::size_t c = 0; c < cur_nr; ++c) {
-                                Complex b_val = B[(pc + kk) + (jc + jr + c) * ldb];
-                                Br_pack[kk * nr + c] = b_val.real();
-                                Bi_pack[kk * nr + c] = b_val.imag();
-                            }
-                            for (std::size_t c = cur_nr; c < nr; ++c) {
-                                Br_pack[kk * nr + c] = 0.0;
-                                Bi_pack[kk * nr + c] = 0.0;
-                            }
-                        }
+                        const double *br_p_tile = Br_pack.data() + jr * kc;
+                        const double *bi_p_tile = Bi_pack.data() + jr * kc;
 
                         for (std::size_t ir = 0; ir < mc; ir += mr) {
                             std::size_t cur_mr = std::min(mr, mc - ir);
@@ -285,58 +311,66 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
                                     auto ai0 = hn::LoadU(d, ai_p + kk * mr + 0 * N);
                                     auto ai1 = hn::LoadU(d, ai_p + kk * mr + 1 * N);
 
-                                    const double *br_k = Br_pack.data() + kk * nr;
-                                    const double *bi_k = Bi_pack.data() + kk * nr;
+                                    const double *br_k = br_p_tile + kk * nr;
+                                    const double *bi_k = bi_p_tile + kk * nr;
 
-                                    #define KERNEL_4M_STEP(col_idx, br_val, bi_val) \
+                                    #define KERNEL_COL(col_idx, cr_acc0, cr_acc1, ci_acc0, ci_acc1) \
                                     { \
-                                        auto v_br = hn::Set(d, br_val); \
-                                        auto v_bi = hn::Set(d, bi_val); \
-                                        cr0##col_idx = hn::MulAdd(ar0, v_br, cr0##col_idx); \
-                                        cr0##col_idx = hn::NegMulAdd(ai0, v_bi, cr0##col_idx); \
-                                        cr1##col_idx = hn::MulAdd(ar1, v_br, cr1##col_idx); \
-                                        cr1##col_idx = hn::NegMulAdd(ai1, v_bi, cr1##col_idx); \
-                                        ci0##col_idx = hn::MulAdd(ar0, v_bi, ci0##col_idx); \
-                                        ci0##col_idx = hn::MulAdd(ai0, v_br, ci0##col_idx); \
-                                        ci1##col_idx = hn::MulAdd(ar1, v_bi, ci1##col_idx); \
-                                        ci1##col_idx = hn::MulAdd(ai1, v_br, ci1##col_idx); \
+                                        auto br = hn::Set(d, br_k[col_idx]); \
+                                        auto bi = hn::Set(d, bi_k[col_idx]); \
+                                        cr_acc0 = hn::MulAdd(ar0, br, cr_acc0); \
+                                        cr_acc0 = hn::NegMulAdd(ai0, bi, cr_acc0); \
+                                        cr_acc1 = hn::MulAdd(ar1, br, cr_acc1); \
+                                        cr_acc1 = hn::NegMulAdd(ai1, bi, cr_acc1); \
+                                        ci_acc0 = hn::MulAdd(ar0, bi, ci_acc0); \
+                                        ci_acc0 = hn::MulAdd(ai0, br, ci_acc0); \
+                                        ci_acc1 = hn::MulAdd(ar1, bi, ci_acc1); \
+                                        ci_acc1 = hn::MulAdd(ai1, br, ci_acc1); \
                                     }
 
-                                    KERNEL_4M_STEP(0, br_k[0], bi_k[0]);
-                                    KERNEL_4M_STEP(1, br_k[1], bi_k[1]);
-                                    KERNEL_4M_STEP(2, br_k[2], bi_k[2]);
-                                    KERNEL_4M_STEP(3, br_k[3], bi_k[3]);
-                                    KERNEL_4M_STEP(4, br_k[4], bi_k[4]);
-                                    KERNEL_4M_STEP(5, br_k[5], bi_k[5]);
-                                    #undef KERNEL_4M_STEP
+                                    KERNEL_COL(0, cr00, cr10, ci00, ci10);
+                                    KERNEL_COL(1, cr01, cr11, ci01, ci11);
+                                    KERNEL_COL(2, cr02, cr12, ci02, ci12);
+                                    KERNEL_COL(3, cr03, cr13, ci03, ci13);
+                                    KERNEL_COL(4, cr04, cr14, ci04, ci14);
+                                    KERNEL_COL(5, cr05, cr15, ci05, ci15);
+                                    #undef KERNEL_COL
                                 }
 
-                                double al_r = alpha.real();
-                                double al_i = alpha.imag();
-                                double be_r = current_beta.real();
-                                double be_i = current_beta.imag();
+                                auto v_alpha_r = hn::Set(d, alpha.real());
+                                auto v_alpha_i = hn::Set(d, alpha.imag());
+                                auto v_beta_r  = hn::Set(d, current_beta.real());
+                                auto v_beta_i  = hn::Set(d, current_beta.imag());
 
-                                alignas(64) double cr_buf[32], ci_buf[32];
                                 #define STORE_COMPLEX_COL(col_idx, cr0, cr1, ci0, ci1) \
                                 { \
-                                    hn::StoreU(cr0, d, cr_buf + 0 * N); \
-                                    hn::StoreU(cr1, d, cr_buf + 1 * N); \
-                                    hn::StoreU(ci0, d, ci_buf + 0 * N); \
-                                    hn::StoreU(ci1, d, ci_buf + 1 * N); \
                                     Complex *col_c = c_ptr + col_idx * ldc; \
-                                    for (std::size_t r = 0; r < mr; ++r) { \
-                                        double cr_val = cr_buf[r]; \
-                                        double ci_val = ci_buf[r]; \
-                                        double prod_r = cr_val * al_r - ci_val * al_i; \
-                                        double prod_i = cr_val * al_i + ci_val * al_r; \
-                                        if (current_beta == Complex(0.0, 0.0)) { \
-                                            col_c[r] = Complex(prod_r, prod_i); \
-                                        } else { \
-                                            Complex old_c = col_c[r]; \
-                                            double old_r = old_c.real() * be_r - old_c.imag() * be_i; \
-                                            double old_i = old_c.real() * be_i + old_c.imag() * be_r; \
-                                            col_c[r] = Complex(old_r + prod_r, old_i + prod_i); \
+                                    auto yr0 = hn::Mul(cr0, v_alpha_r); \
+                                    yr0 = hn::NegMulAdd(ci0, v_alpha_i, yr0); \
+                                    auto yr1 = hn::Mul(cr1, v_alpha_r); \
+                                    yr1 = hn::NegMulAdd(ci1, v_alpha_i, yr1); \
+                                    auto yi0 = hn::Mul(cr0, v_alpha_i); \
+                                    yi0 = hn::MulAdd(ci0, v_alpha_r, yi0); \
+                                    auto yi1 = hn::Mul(cr1, v_alpha_i); \
+                                    yi1 = hn::MulAdd(ci1, v_alpha_r, yi1); \
+                                    alignas(64) double buf_r0[16], buf_r1[16], buf_i0[16], buf_i1[16]; \
+                                    hn::StoreU(yr0, d, buf_r0); \
+                                    hn::StoreU(yr1, d, buf_r1); \
+                                    hn::StoreU(yi0, d, buf_i0); \
+                                    hn::StoreU(yi1, d, buf_i1); \
+                                    for (std::size_t r = 0; r < N; ++r) { \
+                                        Complex c_val = Complex(buf_r0[r], buf_i0[r]); \
+                                        if (current_beta != Complex(0.0, 0.0)) { \
+                                            c_val += col_c[r + 0 * N] * current_beta; \
                                         } \
+                                        col_c[r + 0 * N] = c_val; \
+                                    } \
+                                    for (std::size_t r = 0; r < N; ++r) { \
+                                        Complex c_val = Complex(buf_r1[r], buf_i1[r]); \
+                                        if (current_beta != Complex(0.0, 0.0)) { \
+                                            c_val += col_c[r + 1 * N] * current_beta; \
+                                        } \
+                                        col_c[r + 1 * N] = c_val; \
                                     } \
                                 }
 
@@ -348,26 +382,22 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
                                 STORE_COMPLEX_COL(5, cr05, cr15, ci05, ci15);
                                 #undef STORE_COMPLEX_COL
                             } else {
-                                // Scalar edge kernel for complex tail tiles
+                                // Tail scalar edge kernel
                                 for (std::size_t c = 0; c < cur_nr; ++c) {
                                     Complex *col_c = c_ptr + c * ldc;
-                                    const double *br_col = Br_pack.data() + c;
-                                    const double *bi_col = Bi_pack.data() + c;
+                                    const double *br_col = br_p_tile + c;
+                                    const double *bi_col = bi_p_tile + c;
                                     for (std::size_t r = 0; r < cur_mr; ++r) {
-                                        double acc_r = 0.0, acc_i = 0.0;
+                                        Complex acc(0.0, 0.0);
                                         for (std::size_t kk = 0; kk < kc; ++kk) {
-                                            double ar_v = ar_p[kk * mr + r];
-                                            double ai_v = ai_p[kk * mr + r];
-                                            double br_v = br_col[kk * nr];
-                                            double bi_v = bi_col[kk * nr];
-                                            acc_r += ar_v * br_v - ai_v * bi_v;
-                                            acc_i += ar_v * bi_v + ai_v * br_v;
+                                            Complex a_val(ar_p[kk * mr + r], ai_p[kk * mr + r]);
+                                            Complex b_val(br_col[kk * nr], bi_col[kk * nr]);
+                                            acc += a_val * b_val;
                                         }
-                                        Complex prod = Complex(acc_r, acc_i) * alpha;
                                         if (current_beta == Complex(0.0, 0.0)) {
-                                            col_c[r] = prod;
+                                            col_c[r] = alpha * acc;
                                         } else {
-                                            col_c[r] = current_beta * col_c[r] + prod;
+                                            col_c[r] = current_beta * col_c[r] + alpha * acc;
                                         }
                                     }
                                 }
