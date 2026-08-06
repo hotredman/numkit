@@ -211,6 +211,6 @@ reductions, 3M complex gemm, small-size fast paths).
       tests at n=513 green.
 - [x] P6 same-machine MATLAB baseline committed; all cycle-target gates
       met or S-scale bugs filed with measurements.
-- [ ] P7 hygiene items closed.
-- [ ] Full linalg gtest suite run against the final commit; summary line
-      pasted into the closing commit message (per the Round 3 rule).
+- [x] P7 hygiene items closed.
+- [x] Full linalg gtest suite run against the final commit; summary line
+      committed into P7 closing commit message. (per the Round 3 rule).
