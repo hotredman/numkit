@@ -24,7 +24,7 @@ option(NUMKIT_BUILD_BENCHMARKS "Build Google Benchmark micro-benches"  OFF)
 option(NUMKIT_BUILD_SHARED     "Build shared library"                  OFF)
 option(NUMKIT_INSTALL          "Generate install target"               ON)
 
-# Feature flags (NUMKIT_WITH_SIMD)
+# Feature flags (NUMKIT_HIGHWAY)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(NumkitOptions)
 
@@ -32,12 +32,12 @@ include(NumkitOptions)
 # Google Highway (SIMD-intrinsics abstraction)
 # ──────────────────────────────────────────────
 #
-# Pulled only when NUMKIT_WITH_SIMD=ON. Dispatch strategy is dynamic —
+# Pulled only when NUMKIT_HIGHWAY=ON. Dispatch strategy is dynamic —
 # the library ships with backends for every ISA Highway supports and
 # picks one at first call (see HWY_DYNAMIC_DISPATCH in the _simd.cpp
 # files under toolboxes/*/src/backends/).
 
-if(NUMKIT_WITH_SIMD)
+if(NUMKIT_HIGHWAY)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -325,7 +325,7 @@ if(NUMKIT_WITH_MATIO)
     endif()
 endif()
 
-if(NUMKIT_WITH_SIMD)
+if(NUMKIT_HIGHWAY)
     # PRIVATE — our public headers never mention Highway types; it's a pure
     # implementation detail confined to toolboxes/*/src/backends/*_simd.cpp.
     # BUILD_INTERFACE genex keeps the link dep out of the exported target
@@ -338,7 +338,7 @@ if(NUMKIT_WITH_SIMD)
     # whose definitions are only built when SIMD is on. Direct callers
     # (benchmarks, kernel-parity tests) need to gate themselves on this
     # macro to avoid link errors against missing symbols on portable.
-    target_compile_definitions(numkit PUBLIC NUMKIT_WITH_SIMD=1)
+    target_compile_definitions(numkit PUBLIC NUMKIT_HIGHWAY=1)
 endif()
 
 if(NUMKIT_WITH_THREADS)
@@ -380,9 +380,9 @@ function(numkit_configure_layer tgt)
     endforeach()
     target_link_libraries(${tgt} PRIVATE
         $<BUILD_INTERFACE:numkit_value> $<BUILD_INTERFACE:numkit_ops> $<BUILD_INTERFACE:numkit_fs>)
-    if(NUMKIT_WITH_SIMD)
+    if(NUMKIT_HIGHWAY)
         target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:hwy> $<BUILD_INTERFACE:hwy_contrib>)
-        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_SIMD=1)
+        target_compile_definitions(${tgt} PRIVATE NUMKIT_HIGHWAY=1)
     endif()
     if(NUMKIT_WITH_THREADS)
         find_package(Threads REQUIRED)

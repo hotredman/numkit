@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/lang/operators/backends/binary_ops_portable.cpp
 //
 // Scalar reference inner loops for plus / minus / times / rdivide on
-// real double arrays. Compiled when NUMKIT_WITH_SIMD=OFF. The
+// real double arrays. Compiled when NUMKIT_HIGHWAY=OFF. The
 // Highway-dispatched variant lives in binary_ops_highway.cpp.
 
 #include <numkit/ops/binary_ops.hpp>

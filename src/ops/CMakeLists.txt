@@ -3,7 +3,7 @@
 # numkit_ops — reusable numeric primitives shared by the VM (core) and the
 # pure toolboxes (libs):
 #   • element-wise op kernels (plus/minus/times/rdivide, matmul, compare)
-#     with portable + Highway-SIMD backends, selected by NUMKIT_WITH_SIMD;
+#     with portable + Highway-SIMD backends, selected by NUMKIT_HIGHWAY;
 #   • parallel_for + thread_pool (the parallel-execution infra those kernels
 #     and the toolboxes use).
 #
@@ -47,7 +47,7 @@ set(NUMKIT_OPS_SOURCES
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
-if(NUMKIT_WITH_SIMD)
+if(NUMKIT_HIGHWAY)
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_highway.cpp
@@ -100,13 +100,13 @@ if(EMSCRIPTEN)
     target_compile_options(numkit_ops PRIVATE -fexceptions)
 endif()
 
-if(NUMKIT_WITH_SIMD)
+if(NUMKIT_HIGHWAY)
     # PRIVATE + BUILD_INTERFACE: Highway is a pure implementation detail and
     # stays out of the exported target set (mirrors the numkit aggregate).
     target_link_libraries(numkit_ops PRIVATE
         $<BUILD_INTERFACE:hwy>
         $<BUILD_INTERFACE:hwy_contrib>)
-    target_compile_definitions(numkit_ops PUBLIC NUMKIT_WITH_SIMD=1)
+    target_compile_definitions(numkit_ops PUBLIC NUMKIT_HIGHWAY=1)
 endif()
 
 if(NUMKIT_WITH_THREADS)

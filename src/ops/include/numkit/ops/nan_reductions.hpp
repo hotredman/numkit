@@ -2,7 +2,7 @@
 //
 // Internal contract for single-pass NaN-skipping reductions used by
 // nansum / nanmean in stats.cpp. SIMD-dispatched (Highway) when
-// NUMKIT_WITH_SIMD=ON, scalar otherwise.
+// NUMKIT_HIGHWAY=ON, scalar otherwise.
 //
 // Phase P2 of project_perf_optimization_plan.md — replaces the two-pass
 // compactNonNan+sum pattern (one full read for compaction, one for sum)

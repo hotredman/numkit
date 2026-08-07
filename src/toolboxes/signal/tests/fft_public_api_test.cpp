@@ -585,7 +585,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
 // the tests that exercise those symbols compile only when SIMD is on.
 // On portable builds the symbols don't exist and would link-fail; the
 // public fft() API is still tested by the non-kernel tests above.
-#if defined(NUMKIT_WITH_SIMD)
+#if defined(NUMKIT_HIGHWAY)
 
 // Fill a complex test vector deterministically. Use values with
 // non-trivial real+imag parts so any sign/order error in the
@@ -733,7 +733,7 @@ TEST(DspFftStockham, EdgeCase_N1)
     EXPECT_DOUBLE_EQ(x[0].imag(), 2.71);
 }
 
-#endif // NUMKIT_WITH_SIMD
+#endif // NUMKIT_HIGHWAY
 
 // ── Round-trip: x → fft → ifft ≈ x for 3-D input on each dim ──────────
 TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
