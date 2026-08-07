@@ -2,13 +2,30 @@
 
 #include <algorithm>
 #include <utility>
+
 #include <hwy/cache_control.h>
 
 namespace numkit::detail {
 
+#if defined(NUMKIT_HIGHWAY)
 inline void spin_pause() noexcept {
     hwy::Pause();
 }
+#else
+#if defined(_MSC_VER) || defined(__INTEL_COMPILER)
+#include <immintrin.h>
+#elif defined(__GNUC__) || defined(__clang__)
+#include <xmmintrin.h>
+#endif
+#include <thread>
+inline void spin_pause() noexcept {
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+    _mm_pause();
+#else
+    std::this_thread::yield();
+#endif
+}
+#endif
 
 // True while the current thread is executing a pool task body. A nested
 // run() (a parallel body that itself calls parallel_for) is then run inline

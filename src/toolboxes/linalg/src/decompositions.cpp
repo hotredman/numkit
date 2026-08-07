@@ -39,7 +39,7 @@ static std::size_t cholUpperFactorBlockedImpl(const T *a, T *r, std::size_t n) {
         }
     }
 
-    constexpr std::size_t nb = 64;
+    constexpr std::size_t nb = 128;
     for (std::size_t j = 0; j < n; j += nb) {
         const std::size_t j_end = std::min(j + nb, n);
         const std::size_t j_len = j_end - j;

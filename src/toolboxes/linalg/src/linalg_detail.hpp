@@ -181,13 +181,13 @@ inline bool luPivotInplace(T *LU, std::int32_t *piv, std::size_t n) {
             T *A22 = LU + (k + kb) + (k + kb) * n;
 
             if constexpr (is_complex_v<T>) {
-                ::numkit::ops::gemm(rem_rows, rem_cols, kb, Complex(-1.0, 0.0),
+                ::numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, rem_rows, rem_cols, kb, Complex(-1.0, 0.0),
                                    reinterpret_cast<const Complex*>(L21), n,
                                    reinterpret_cast<const Complex*>(U12), n,
                                    Complex(1.0, 0.0),
                                    reinterpret_cast<Complex*>(A22), n);
             } else {
-                ::numkit::ops::gemm(rem_rows, rem_cols, kb, -1.0, L21, n, U12, n, 1.0, A22, n);
+                ::numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, rem_rows, rem_cols, kb, -1.0, L21, n, U12, n, 1.0, A22, n);
             }
         }
     }

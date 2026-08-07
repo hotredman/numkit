@@ -176,7 +176,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
 
     // Threshold for FLOPs: 2 * m * n * k >= 8,000,000 (n >= 160 for square GEMM)
     const std::size_t total_flops = 2 * m * n * k;
-    constexpr std::size_t kGemmParallelFlopThreshold = 200'000;
+    constexpr std::size_t kGemmParallelFlopThreshold = 1'000'000;
 
     // Determinism note: FP summation order within a C tile is fixed by the
     // microkernel; parallelism across independent jc column blocks of C does
@@ -842,19 +842,24 @@ bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std:
     return HWY_DYNAMIC_DISPATCH(LuPanelDoubleKernel)(A, lda, piv, m, n, offset_row);
 }
 
-void gemm(std::size_t m, std::size_t n, std::size_t k,
+void gemm(MatrixTranspose transa, MatrixTranspose transb,
+          std::size_t m, std::size_t n, std::size_t k,
           double alpha, const double *A, std::size_t lda,
           const double *B, std::size_t ldb,
           double beta, double *C, std::size_t ldc)
 {
+    // (transa and transb are currently assumed to be NoTrans)
+    const std::size_t total_flops = 2 * m * n * k;
     HWY_DYNAMIC_DISPATCH(GemmDoubleKernel)(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
 }
 
-void gemm(std::size_t m, std::size_t n, std::size_t k,
+void gemm(MatrixTranspose transa, MatrixTranspose transb,
+          std::size_t m, std::size_t n, std::size_t k,
           std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
           const std::complex<double> *B, std::size_t ldb,
           std::complex<double> beta, std::complex<double> *C, std::size_t ldc)
 {
+    const std::size_t total_flops = 8 * m * n * k;
     HWY_DYNAMIC_DISPATCH(GemmComplexKernel)(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
 }
 
@@ -869,9 +874,9 @@ void gemm_dispatch(std::size_t m, std::size_t n, std::size_t k,
                    T beta, T *C, std::size_t ldc)
 {
     if constexpr (is_complex_type_v<T>) {
-        gemm(m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+        gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
     } else {
-        gemm(m, n, k, static_cast<double>(alpha),
+        gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, m, n, k, static_cast<double>(alpha),
              reinterpret_cast<const double*>(A), lda,
              reinterpret_cast<const double*>(B), ldb,
              static_cast<double>(beta),
@@ -1003,7 +1008,7 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
     }
 
     if (side == MatrixSide::Left) {
-        if (m <= 64) {
+        if (m <= 8) {
             trsm_base(side, uplo, trans, diag, m, n, T(1), A, lda, B, ldb);
             return;
         }
@@ -1048,7 +1053,7 @@ void trsm_generic(MatrixSide side, MatrixUplo uplo, MatrixTranspose trans, Matri
             trsm_generic(side, uplo, trans, diag, m1, n, T(1), A, lda, B, ldb);
         }
     } else { // Right side
-        if (n <= 64) {
+        if (n <= 8) {
             trsm_base(side, uplo, trans, diag, m, n, T(1), A, lda, B, ldb);
             return;
         }
@@ -1101,7 +1106,7 @@ void syrk_recursive(MatrixUplo uplo, MatrixTranspose trans,
                     T alpha, const T *V_T, std::size_t ld_v_t, const T *V, std::size_t ld_v,
                     T *C, std::size_t ldc)
 {
-    if (n <= 64) {
+    if (n <= 8) {
         for (std::size_t j = 0; j < n; ++j) {
             std::size_t i_start = (uplo == MatrixUplo::Lower) ? j : 0;
             std::size_t i_end   = (uplo == MatrixUplo::Lower) ? n : j + 1;
