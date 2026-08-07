@@ -15,9 +15,6 @@ set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas1_highway.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas2_highway.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas3_highway.cpp
     # Iterative solver kernels (Brent root/bracket/min, Nelder-Mead; FnHandle
     # objective) — the numerical core of fzero/fminbnd/fminsearch. Portable C++.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/root_solve.cpp
@@ -71,14 +68,20 @@ if(NUMKIT_HIGHWAY)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp
         # NaN-skipping single-pass reductions (nansum/nanmean/nanmax/nanmin/
         # nanvar) — Highway; backs stats nan_aware. Portable fallback below.
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas1_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas2_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas3_highway.cpp)
 else()
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_kernels_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_portable.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas1_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas2_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas3_portable.cpp)
 endif()
 
 add_library(numkit_ops STATIC ${NUMKIT_OPS_SOURCES})

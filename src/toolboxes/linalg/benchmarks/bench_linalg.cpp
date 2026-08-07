@@ -78,7 +78,7 @@ static void BM_Linalg_Gemm_Real(benchmark::State &state) {
     const double *bd = B.doubleData();
     double *cd = C.doubleDataMut();
     for (auto _ : state) {
-        ::numkit::ops::gemm(n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
+        ::numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
         benchmark::DoNotOptimize(C);
     }
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(double)));
@@ -97,7 +97,7 @@ static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
     const std::complex<double> *bd = B.complexData();
     std::complex<double> *cd = C.complexDataMut();
     for (auto _ : state) {
-        ::numkit::ops::gemm(n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
+        ::numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
         benchmark::DoNotOptimize(C);
     }
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(std::complex<double>)));
