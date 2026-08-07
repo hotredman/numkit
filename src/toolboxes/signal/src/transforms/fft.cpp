@@ -18,7 +18,7 @@
 // Highway intrinsics for the SIMD twist loop in the rfft path. Only
 // the unit-stride dst case uses SIMD; non-unit stride and the scalar
 // tail keep the plain C++ formulation.
-#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_WITH_SIMD)
+#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_HIGHWAY)
   #include <hwy/highway.h>
 #endif
 
@@ -299,7 +299,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     // native. Sized fftLen / 2 because rfft does a half-size complex
     // FFT internally. On WASM we don't take this path; the buffers
     // stay at zero size with no allocation cost.
-#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_WITH_SIMD)
+#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_HIGHWAY)
     thread_local std::vector<double> tlsRfftRe;
     thread_local std::vector<double> tlsRfftIm;
 #endif
@@ -349,7 +349,7 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pm
     //   call AoS FFT, twist from AoS. SoA paths regress on this ISA
     //   because LoadInterleaved2 is cheap on 128-bit lanes — see
     //   fft_simd.cpp threshold comments.
-#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_WITH_SIMD)
+#if !defined(__EMSCRIPTEN__) && defined(NUMKIT_HIGHWAY)
     const std::size_t halfLen = fftLen / 2;
     if (rfftEligible) {
         if (tlsRfftRe.size() < halfLen) tlsRfftRe.resize(halfLen);

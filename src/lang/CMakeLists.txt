@@ -55,10 +55,10 @@ list(APPEND NUMKIT_LANG_HEADERS
 )
 
 # Backend-split SIMD sources — one variant picked at configure time via
-# NUMKIT_WITH_SIMD (mirrors math/CMakeLists). Relocated from builtin in step C2.
+# NUMKIT_HIGHWAY (mirrors math/CMakeLists). Relocated from builtin in step C2.
 # The relocated casts_highway.cpp sets HWY_TARGET_INCLUDE relative to lang/src
 # (on the numkit PRIVATE -I).
-if(NUMKIT_WITH_SIMD)
+if(NUMKIT_HIGHWAY)
     list(APPEND NUMKIT_LANG_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/types/casts_highway.cpp)
 else()
     list(APPEND NUMKIT_LANG_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/types/casts_portable.cpp)

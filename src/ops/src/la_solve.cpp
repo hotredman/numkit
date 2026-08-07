@@ -141,13 +141,13 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     const std::size_t rem_rows = m - n1;
 
     if constexpr (is_complex_v<T>) {
-        ::numkit::ops::gemm(rem_rows, n2, n1, Complex(-1.0, 0.0),
+        ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, Complex(-1.0, 0.0),
                            reinterpret_cast<const Complex*>(L21), lda,
                            reinterpret_cast<const Complex*>(U12), lda,
                            Complex(1.0, 0.0),
                            reinterpret_cast<Complex*>(A22), lda);
     } else {
-        ::numkit::ops::gemm(rem_rows, n2, n1, -1.0,
+        ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, -1.0,
                            reinterpret_cast<const double*>(L21), lda,
                            reinterpret_cast<const double*>(U12), lda,
                            1.0,
@@ -258,13 +258,13 @@ bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m,
                 T *A22 = A + (j + jb) + (j + jb) * lda;
 
                 if constexpr (is_complex_v<T>) {
-                    ::numkit::ops::gemm(trailing_m, rem_n, jb, Complex(-1.0, 0.0),
+                    ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, trailing_m, rem_n, jb, Complex(-1.0, 0.0),
                                        reinterpret_cast<const Complex*>(L21), lda,
                                        reinterpret_cast<const Complex*>(U12), lda,
                                        Complex(1.0, 0.0),
                                        reinterpret_cast<Complex*>(A22), lda);
                 } else {
-                    ::numkit::ops::gemm(trailing_m, rem_n, jb, -1.0,
+                    ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, trailing_m, rem_n, jb, -1.0,
                                        reinterpret_cast<const double*>(L21), lda,
                                        reinterpret_cast<const double*>(U12), lda,
                                        1.0,
@@ -511,9 +511,9 @@ void trsm_L_recursive(std::size_t m, std::size_t n, const T* A, std::size_t lda,
     std::size_t m2 = m - m1;
     trsm_L_recursive(m1, n, A, lda, B, ldb);
     if constexpr (is_complex_v<T>) {
-        ops::gemm(m2, n, m1, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1), lda, reinterpret_cast<const Complex*>(B), ldb, Complex(1,0), reinterpret_cast<Complex*>(B + m1), ldb);
+        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m2, n, m1, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1), lda, reinterpret_cast<const Complex*>(B), ldb, Complex(1,0), reinterpret_cast<Complex*>(B + m1), ldb);
     } else {
-        ops::gemm(m2, n, m1, -1.0, A + m1, lda, B, ldb, 1.0, B + m1, ldb);
+        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m2, n, m1, -1.0, A + m1, lda, B, ldb, 1.0, B + m1, ldb);
     }
     trsm_L_recursive(m2, n, A + m1 + m1 * lda, lda, B + m1, ldb);
 }
@@ -532,9 +532,9 @@ void trsm_U_recursive(std::size_t m, std::size_t n, const T* A, std::size_t lda,
     std::size_t m2 = m - m1;
     trsm_U_recursive(m2, n, A + m1 + m1 * lda, lda, B + m1, ldb);
     if constexpr (is_complex_v<T>) {
-        ops::gemm(m1, n, m2, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1 * lda), lda, reinterpret_cast<const Complex*>(B + m1), ldb, Complex(1,0), reinterpret_cast<Complex*>(B), ldb);
+        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m1, n, m2, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1 * lda), lda, reinterpret_cast<const Complex*>(B + m1), ldb, Complex(1,0), reinterpret_cast<Complex*>(B), ldb);
     } else {
-        ops::gemm(m1, n, m2, -1.0, A + m1 * lda, lda, B + m1, ldb, 1.0, B, ldb);
+        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m1, n, m2, -1.0, A + m1 * lda, lda, B + m1, ldb, 1.0, B, ldb);
     }
     trsm_U_recursive(m1, n, A, lda, B, ldb);
 }
@@ -569,13 +569,13 @@ void trsm_L_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
             T* B2 = B + (j + jb);
             
             if constexpr (std::is_same_v<T, double>) {
-                numkit::ops::gemm(rem_m, nrhs, jb, -1.0, 
+                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
                                   reinterpret_cast<const double*>(L21), lda, 
                                   reinterpret_cast<const double*>(B + j), ldb, 
                                   1.0, 
                                   reinterpret_cast<double*>(B2), ldb);
             } else {
-                numkit::ops::gemm(rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
                                   reinterpret_cast<const Complex*>(L21), lda, 
                                   reinterpret_cast<const Complex*>(B + j), ldb, 
                                   Complex(1.0, 0.0), 
@@ -620,13 +620,13 @@ void trsm_U_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
             T* B1 = B;
             
             if constexpr (std::is_same_v<T, double>) {
-                numkit::ops::gemm(rem_m, nrhs, jb, -1.0, 
+                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
                                   reinterpret_cast<const double*>(U12), lda, 
                                   reinterpret_cast<const double*>(B + j), ldb, 
                                   1.0, 
                                   reinterpret_cast<double*>(B1), ldb);
             } else {
-                numkit::ops::gemm(rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
                                   reinterpret_cast<const Complex*>(U12), lda, 
                                   reinterpret_cast<const Complex*>(B + j), ldb, 
                                   Complex(1.0, 0.0), 

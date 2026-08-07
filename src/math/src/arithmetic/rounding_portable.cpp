@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/math/arithmetic/rounding_portable.cpp
 //
 // Reference scalar ceil/floor/round/fix over a double array.
-// Compiled when NUMKIT_WITH_SIMD=OFF.
+// Compiled when NUMKIT_HIGHWAY=OFF.
 
 #include "rounding.hpp"
 

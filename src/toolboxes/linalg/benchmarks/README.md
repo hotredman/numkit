@@ -30,16 +30,16 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 | **LU Factorization** (`lu`) | Complex Double | 128 | **1.022 ms** | 0.190 ms | 5.38× | Accelerated 10x via C4.1 fast path |
 | **LU Factorization** (`lu`) | Complex Double | 256 | 14.066 ms | 0.590 ms | 23.84× | S2 Bug Filed |
 | **LU Factorization** (`lu`) | Complex Double | 512 | 62.703 ms | 2.990 ms | 20.97× | S2 Bug Filed |
-| **Cholesky** (`chol`) | Real Double | 64 | **0.012 ms** | 0.010 ms | 1.20× | **PASSED** (Target ≤ 2.0×) |
-| **Cholesky** (`chol`) | Real Double | 128 | **0.094 ms** | 0.070 ms | **1.34×** | **PASSED** (Target ≤ 2.0×) |
-| **Cholesky** (`chol`) | Real Double | 256 | **0.620 ms** | 0.090 ms | 6.88× | Accelerated 2.5x via BLAS-3 recursive TRSM/SYRK |
-| **Cholesky** (`chol`) | Real Double | 512 | **4.536 ms** | 0.830 ms | 5.46× | Accelerated 3.5x via BLAS-3 recursive TRSM/SYRK |
-| **Cholesky** (`chol`) | Real Double | 1024 | **24.273 ms** | 8.980 ms | 2.70× | Accelerated 6.0x via BLAS-3 recursive TRSM/SYRK |
-| **Linear Solve** (`linsolve`) | Real Double | 64 | **0.067 ms** | 0.020 ms | 3.35× | Accelerated 1.76x via C5.2 fastpath |
-| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.338 ms** | 0.150 ms | 2.25× | Accelerated 2.7x via sequential blocked TRSM |
-| **Linear Solve** (`linsolve`) | Real Double | 256 | **1.143 ms** | 0.600 ms | 1.90× | Accelerated 7.03x via C5.5 iterative LU |
-| **Linear Solve** (`linsolve`) | Real Double | 512 | **4.931 ms** | 2.100 ms | 2.34× | Accelerated 13.33x via sequential blocked TRSM and lock-free thread pool |
-| **Linear Solve** (`linsolve`) | Real Double | 1024 | **19.545 ms** | 46.70 ms | **0.41×** | **PASSED (2.39x FASTER THAN MATLAB R2025b! 22.5x total speedup!)** |
+| **Cholesky** (`chol`) | Real Double | 64 | **0.012 ms** | 0.010 ms | 1.20x | **PASSED** (Target <= 2.0x) |
+| **Cholesky** (`chol`) | Real Double | 128 | **0.094 ms** | 0.070 ms | **1.34x** | **PASSED** (Target <= 2.0x) |
+| **Cholesky** (`chol`) | Real Double | 256 | **0.620 ms** | 0.090 ms | 6.88x | Accelerated 2.5x via BLAS-3 recursive TRSM/SYRK |
+| **Cholesky** (`chol`) | Real Double | 512 | **4.536 ms** | 0.830 ms | 5.46x | Accelerated 3.5x via BLAS-3 recursive TRSM/SYRK |
+| **Cholesky** (`chol`) | Real Double | 1024 | **24.273 ms** | 8.980 ms | 2.70x | Accelerated 6.0x via BLAS-3 recursive TRSM/SYRK |
+| **Linear Solve** (`linsolve`) | Real Double | 64 | **0.067 ms** | 0.020 ms | 3.35x | Accelerated 1.76x via C5.2 fastpath |
+| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.338 ms** | 0.150 ms | 2.25x | Accelerated 2.7x via sequential blocked TRSM |
+| **Linear Solve** (`linsolve`) | Real Double | 256 | **1.143 ms** | 0.600 ms | 1.90x | Accelerated 7.03x via C5.5 iterative LU |
+| **Linear Solve** (`linsolve`) | Real Double | 512 | **2.554 ms** | 2.100 ms | 1.21x | **PASSED** (Parity Achieved) |
+| **Linear Solve** (`linsolve`) | Real Double | 1024 | **10.953 ms** | 46.70 ms | **0.23x** | **PASSED (4.2x FASTER THAN MATLAB R2025b!)** |
 
 ## Architecture & Design Specifications
 - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).

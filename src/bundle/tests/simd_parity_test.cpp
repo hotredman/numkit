@@ -2,7 +2,7 @@
 //
 // Parity tests for backend-split functions (Phase 8+). Each test
 // computes a reference via a plain scalar loop and compares against
-// the public API, which — depending on NUMKIT_WITH_SIMD — resolves
+// the public API, which — depending on NUMKIT_HIGHWAY — resolves
 // to either the portable backend (trivially passes, it IS the
 // reference) or the Highway-dispatched backend. Same source, same
 // assertions, run under both presets.
@@ -664,7 +664,7 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     // Row vector: cols > 1, rows = 1 — NOT excluded by the fast path,
-    // so goes through SIMD when NUMKIT_WITH_SIMD=ON.
+    // so goes through SIMD when NUMKIT_HIGHWAY=ON.
     auto aRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     auto bRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) {
@@ -937,7 +937,7 @@ TEST(SimdParity_Blas, GemmRealOddTails)
             B[i] = dist(rng);
         }
 
-        numkit::ops::gemm(n, n, n, 1.0, A.data(), n, B.data(), n, 0.0, C_simd.data(), n);
+        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, A.data(), n, B.data(), n, 0.0, C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t k = 0; k < n; ++k) {
@@ -967,7 +967,7 @@ TEST(SimdParity_Blas, GemmComplexOddTails)
             B[i] = Complex(dist(rng), dist(rng));
         }
 
-        numkit::ops::gemm(n, n, n, Complex(1.0, 0.0), A.data(), n, B.data(), n, Complex(0.0, 0.0), C_simd.data(), n);
+        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, Complex(1.0, 0.0), A.data(), n, B.data(), n, Complex(0.0, 0.0), C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t k = 0; k < n; ++k) {
@@ -1080,7 +1080,7 @@ TEST(SimdParity_Blas, GemmP1_RandomSizes)
         const double alpha = 1.25;
         const double beta = 0.75;
 
-        numkit::ops::gemm(n, n, n, alpha, A.data(), n, B.data(), n, beta, C_simd.data(), n);
+        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, alpha, A.data(), n, B.data(), n, beta, C_simd.data(), n);
 
         for (size_t j = 0; j < n; ++j) {
             for (size_t k = 0; k < n; ++k) {
@@ -1104,7 +1104,7 @@ TEST(SimdParity_Blas, GemmP1_NanInfPropagation)
     std::vector<double> B = {0.0, std::numeric_limits<double>::quiet_NaN(), 0.0, 1.0};
     std::vector<double> C(4, 0.0);
 
-    numkit::ops::gemm(2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
+    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, 2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
     EXPECT_TRUE(std::isnan(C[0]) || std::isnan(C[1]) || std::isnan(C[2]) || std::isnan(C[3]));
 }
 TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
@@ -1118,10 +1118,10 @@ TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
         B[i] = dist(rng);
     }
 
-    numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
+    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
     EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
 
-    numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
+    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
     EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
 
     for (size_t i = 0; i < n * n; ++i) {
