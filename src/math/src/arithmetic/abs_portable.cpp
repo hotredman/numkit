@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/math/elementary/backends/abs_portable.cpp
 //
 // Reference scalar implementation of abs(). Compiled when
-// NUMKIT_WITH_SIMD=OFF (see toolboxes/builtin/src/CMakeLists.txt). The
+// NUMKIT_HIGHWAY=OFF (see toolboxes/builtin/src/CMakeLists.txt). The
 // Highway-dispatched variant lives in abs_highway.cpp — both share
 // exactly this behaviour for small / complex / scalar inputs; the
 // SIMD backend only diverges on the real-vector fast path.
