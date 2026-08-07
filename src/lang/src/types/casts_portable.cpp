@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/language/types/casts_portable.cpp
 //
 // Reference scalar implementation of the double→int* fast path.
-// Compiled when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant
+// Compiled when NUMKIT_HIGHWAY=OFF; the Highway-dispatched variant
 // lives in casts_highway.cpp and matches this file bit-for-bit.
 //
 // MATLAB's `int*(x)` casts: NaN→0, then round half-away-from-zero,

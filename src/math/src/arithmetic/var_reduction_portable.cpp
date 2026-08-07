@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/math/elementary/backends/var_reduction_portable.cpp
 //
-// Scalar two-pass variance. Compiled when NUMKIT_WITH_SIMD=OFF. Same
+// Scalar two-pass variance. Compiled when NUMKIT_HIGHWAY=OFF. Same
 // numerical recipe as the Highway variant — a tight scalar loop is
 // reliably autovectorised by recent compilers and the FMA in the
 // inner-loop accumulator gives the same single-rounding behaviour.

@@ -2,7 +2,7 @@
 //
 // Parity tests for backend-split functions (Phase 8+). Each test
 // computes a reference via a plain scalar loop and compares against
-// the public API, which — depending on NUMKIT_WITH_SIMD — resolves
+// the public API, which — depending on NUMKIT_HIGHWAY — resolves
 // to either the portable backend (trivially passes, it IS the
 // reference) or the Highway-dispatched backend. Same source, same
 // assertions, run under both presets.
@@ -664,7 +664,7 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     // Row vector: cols > 1, rows = 1 — NOT excluded by the fast path,
-    // so goes through SIMD when NUMKIT_WITH_SIMD=ON.
+    // so goes through SIMD when NUMKIT_HIGHWAY=ON.
     auto aRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     auto bRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) {

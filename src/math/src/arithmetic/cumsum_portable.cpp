@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/math/elementary/backends/cumsum_portable.cpp
 //
-// Scalar inclusive prefix-sum. Compiled when NUMKIT_WITH_SIMD=OFF.
+// Scalar inclusive prefix-sum. Compiled when NUMKIT_HIGHWAY=OFF.
 // The loop has a serial data dependency (`s += src[i]; dst[i] = s;`)
 // so this is fundamentally one-add-per-cycle on the portable build.
 

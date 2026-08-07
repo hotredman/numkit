@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/math/special/special_portable.cpp
 //
-// Reference scalar erf. Compiled when NUMKIT_WITH_SIMD=OFF; the Highway-
+// Reference scalar erf. Compiled when NUMKIT_HIGHWAY=OFF; the Highway-
 // dispatched variant (SLEEF-ported dd kernel) lives in special_highway.cpp
 // and matches this file on every input outside the vectorised range.
 

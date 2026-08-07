@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/lang/operators/backends/compare_portable.cpp
 //
 // Scalar reference for the comparison fast path. Compiled when
-// NUMKIT_WITH_SIMD=OFF. Same dispatch contract as the Highway variant —
+// NUMKIT_HIGHWAY=OFF. Same dispatch contract as the Highway variant —
 // returns LOGICAL output for pure DOUBLE × DOUBLE inputs (or DOUBLE
 // scalar broadcast), otherwise returns an unset Value so the generic
 // `compareImpl` in binary_ops.cpp handles it.

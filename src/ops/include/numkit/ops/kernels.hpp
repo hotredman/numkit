@@ -2,7 +2,7 @@
 //
 // Public raw-buffer compute kernels — the STABLE facade over the backend-split
 // inner loops (which live in numkit::ops::detail and are selected at build time
-// by NUMKIT_WITH_SIMD). Two audiences:
+// by NUMKIT_HIGHWAY). Two audiences:
 //
 //   * the codegen subsystem — generated C++ calls these directly as its
 //     lowering target for heavy array ops (column-major double buffers, the
@@ -36,7 +36,7 @@ namespace numkit::ops {
 
 // C(M×N) = A(M×K) · B(K×N), all column-major (a[k*M+i], b[j*K+k], c[j*M+i]).
 // C is caller-allocated; the kernel zeroes then accumulates. SIMD MulAdd down
-// columns of A under NUMKIT_WITH_SIMD, a portable loop otherwise.
+// columns of A under NUMKIT_HIGHWAY, a portable loop otherwise.
 NK_OPS_API void matmulDouble(const double *a, const double *b, double *c,
                              std::size_t M, std::size_t N, std::size_t K);
 
@@ -48,7 +48,7 @@ NK_OPS_API void matmulComplex(const std::complex<double> *a, const std::complex<
                               std::size_t M, std::size_t N, std::size_t K);
 
 // Element-wise binary ops over two equal-length DOUBLE buffers: out[i] = a[i] OP
-// b[i], n elements (flat — rank-agnostic). SIMD under NUMKIT_WITH_SIMD with an
+// b[i], n elements (flat — rank-agnostic). SIMD under NUMKIT_HIGHWAY with an
 // internal small-N scalar gate (so no dynamic-dispatch crater at tiny n). NOTE:
 // a plain __restrict inline loop already auto-vectorises to match these for
 // cheap arithmetic (A3) — codegen uses them only as the opt-in ops-kernel tier;
