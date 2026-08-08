@@ -107,7 +107,8 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
     cv_start_.notify_all();
 
     {
-        for (int spin = 0; spin < 2000; ++spin) {
+        // Spin aggressively to avoid sleep latency (similar to OMP_WAIT_POLICY=active)
+        for (int spin = 0; spin < 2000000; ++spin) {
             if (task_remaining_.load(std::memory_order_acquire) == 0) break;
             spin_pause();
         }
@@ -131,7 +132,8 @@ void ThreadPool::worker_loop(int id)
         int         k;
 
         {
-            for (int spin = 0; spin < 2000; ++spin) {
+            // Spin aggressively to avoid sleep latency
+            for (int spin = 0; spin < 2000000; ++spin) {
                 if (shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch) break;
                 spin_pause();
             }

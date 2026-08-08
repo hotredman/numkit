@@ -55,10 +55,10 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
     constexpr std::size_t mc_block = 256;           // L2-resident A-panel height
     constexpr std::size_t nc_block = 2048;          // L3-resident B-panel width
 
-    // Zero-allocation stack-based fast path for small matrices (m, n, k <= 128)
-    if (m <= 128 && n <= 128 && k <= 128) {
-        alignas(64) double A_pack[144 * 128 + 64];
-        alignas(64) double B_pack[144 * 128 + 64];
+    // Zero-allocation stack-based fast path for small matrices (m, n, k <= 64)
+    if (m <= 64 && n <= 64 && k <= 64) {
+        alignas(64) double A_pack[144 * 64 + 64];
+        alignas(64) double B_pack[144 * 64 + 64];
 
         const std::size_t mc = m;
         const std::size_t nc = n;
@@ -184,6 +184,9 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
     const std::size_t p_thresh = (total_flops >= kGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
 
     std::atomic<std::size_t> active_threads{0};
+
+    // Limit threads for small n to avoid redundant packing of A
+    int max_threads = static_cast<int>(std::max<std::size_t>(1, n / 16));
 
     numkit::detail::parallel_for(n, p_thresh, [&](std::size_t jc_start, std::size_t jc_end) {
         active_threads.fetch_add(1, std::memory_order_relaxed);
@@ -311,7 +314,7 @@ void GemmDoubleKernel(std::size_t m, std::size_t n, std::size_t k,
                 }
             }
         }
-    });
+    }, max_threads);
 
     ::numkit::ops::g_last_gemm_threads_used.store(active_threads.load());
 }
@@ -350,12 +353,12 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     constexpr std::size_t mc_block = 256;
     constexpr std::size_t nc_block = 2048;
 
-    // Zero-allocation stack-based fast path for small complex matrices (m, n, k <= 128)
-    if (m <= 128 && n <= 128 && k <= 128) {
-        alignas(64) double Ar_pack[144 * 128 + 64];
-        alignas(64) double Ai_pack[144 * 128 + 64];
-        alignas(64) double Br_pack[144 * 128 + 64];
-        alignas(64) double Bi_pack[144 * 128 + 64];
+    // Zero-allocation stack-based fast path for small complex matrices (m, n, k <= 64)
+    if (m <= 64 && n <= 64 && k <= 64) {
+        alignas(64) double Ar_pack[144 * 64 + 64];
+        alignas(64) double Ai_pack[144 * 64 + 64];
+        alignas(64) double Br_pack[144 * 64 + 64];
+        alignas(64) double Bi_pack[144 * 64 + 64];
 
         const std::size_t mc = m;
         const std::size_t nc = n;
@@ -517,6 +520,9 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
     const std::size_t total_flops = 8 * m * n * k;
     constexpr std::size_t kGemmParallelFlopThreshold = 1'000'000;
     const std::size_t p_thresh = (total_flops >= kGemmParallelFlopThreshold) ? std::size_t{1} : n + 1;
+
+    // Limit threads for small n to avoid redundant packing of A
+    int max_threads = static_cast<int>(std::max<std::size_t>(1, n / 16));
 
     numkit::detail::parallel_for(n, p_thresh, [=](std::size_t jc_start, std::size_t jc_end) {
         thread_local static std::vector<double> Ar_pack(mc_block * kc_block + 64, 0.0);
@@ -690,7 +696,7 @@ void GemmComplexKernel(std::size_t m, std::size_t n, std::size_t k,
                 }
             }
         }
-    });
+    }, max_threads);
 }
 
 
@@ -825,6 +831,117 @@ bool LuPanelDoubleKernel(double *A, std::size_t lda, std::int32_t *piv, std::siz
     return true;
 }
 
+bool LuPanelComplexKernel(std::complex<double> *A_cplx, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    double *A = reinterpret_cast<double*>(A_cplx);
+
+    for (std::size_t j = 0; j < n; ++j) {
+        std::size_t pivot = j;
+        double pmax = std::norm(A_cplx[j + j * lda]);
+        
+        // Pivot search (scalar is sufficient for complex magnitude since it's O(m))
+        for (std::size_t i = j + 1; i < m; ++i) {
+            double v = std::norm(A_cplx[i + j * lda]);
+            if (v > pmax) { pmax = v; pivot = i; }
+        }
+
+        if (pmax == 0.0) return false;
+        piv[j] = static_cast<std::int32_t>(pivot + offset_row);
+        
+        if (pivot != j) {
+            std::complex<double> *r1 = A_cplx + j;
+            std::complex<double> *r2 = A_cplx + pivot;
+            std::size_t col = 0;
+            for (; col + 4 <= n; col += 4) {
+                std::swap(r1[(col + 0) * lda], r2[(col + 0) * lda]);
+                std::swap(r1[(col + 1) * lda], r2[(col + 1) * lda]);
+                std::swap(r1[(col + 2) * lda], r2[(col + 2) * lda]);
+                std::swap(r1[(col + 3) * lda], r2[(col + 3) * lda]);
+            }
+            for (; col < n; ++col) {
+                std::swap(r1[col * lda], r2[col * lda]);
+            }
+        }
+
+        const std::complex<double> inv_pivot = 1.0 / A_cplx[j + j * lda];
+        for (std::size_t i = j + 1; i < m; ++i) {
+            A_cplx[i + j * lda] *= inv_pivot;
+        }
+
+        const double *l_col = A + 2 * j * lda;
+        const std::size_t rem_m = m - (j + 1);
+        
+        std::size_t col = j + 1;
+        for (; col + 2 <= n; col += 2) {
+            const std::complex<double> f0 = A_cplx[j + (col + 0) * lda];
+            const std::complex<double> f1 = A_cplx[j + (col + 1) * lda];
+            
+            double *c0 = A + 2 * (col + 0) * lda + 2 * (j + 1);
+            double *c1 = A + 2 * (col + 1) * lda + 2 * (j + 1);
+            const double *x_ptr = l_col + 2 * (j + 1);
+
+            if (rem_m > 0) {
+                auto v_fr0 = hn::Set(d, f0.real());
+                auto v_fi0 = hn::Set(d, f0.imag());
+                auto v_fr1 = hn::Set(d, f1.real());
+                auto v_fi1 = hn::Set(d, f1.imag());
+
+                std::size_t idx = 0;
+                for (; idx + N <= rem_m; idx += N) {
+                    hn::Vec<decltype(d)> xr, xi;
+                    hn::LoadInterleaved2(d, x_ptr + 2 * idx, xr, xi);
+                    
+                    hn::Vec<decltype(d)> yr0, yi0;
+                    hn::LoadInterleaved2(d, c0 + 2 * idx, yr0, yi0);
+                    auto yr_out0 = hn::MulAdd(xi, v_fi0, hn::NegMulAdd(xr, v_fr0, yr0));
+                    auto yi_out0 = hn::NegMulAdd(xi, v_fr0, hn::NegMulAdd(xr, v_fi0, yi0));
+                    hn::StoreInterleaved2(yr_out0, yi_out0, d, c0 + 2 * idx);
+
+                    hn::Vec<decltype(d)> yr1, yi1;
+                    hn::LoadInterleaved2(d, c1 + 2 * idx, yr1, yi1);
+                    auto yr_out1 = hn::MulAdd(xi, v_fi1, hn::NegMulAdd(xr, v_fr1, yr1));
+                    auto yi_out1 = hn::NegMulAdd(xi, v_fr1, hn::NegMulAdd(xr, v_fi1, yi1));
+                    hn::StoreInterleaved2(yr_out1, yi_out1, d, c1 + 2 * idx);
+                }
+                for (; idx < rem_m; ++idx) {
+                    A_cplx[idx + (j + 1) + (col + 0) * lda] -= A_cplx[idx + (j + 1) + j * lda] * f0;
+                    A_cplx[idx + (j + 1) + (col + 1) * lda] -= A_cplx[idx + (j + 1) + j * lda] * f1;
+                }
+            }
+        }
+        for (; col < n; ++col) {
+            const std::complex<double> f = A_cplx[j + col * lda];
+            if (f.real() == 0.0 && f.imag() == 0.0) continue;
+            
+            double *c_col = A + 2 * col * lda + 2 * (j + 1);
+            const double *x_ptr = l_col + 2 * (j + 1);
+            
+            if (rem_m > 0) {
+                auto v_fr = hn::Set(d, f.real());
+                auto v_fi = hn::Set(d, f.imag());
+                
+                std::size_t idx = 0;
+                for (; idx + N <= rem_m; idx += N) {
+                    hn::Vec<decltype(d)> xr, xi;
+                    hn::LoadInterleaved2(d, x_ptr + 2 * idx, xr, xi);
+                    
+                    hn::Vec<decltype(d)> yr, yi;
+                    hn::LoadInterleaved2(d, c_col + 2 * idx, yr, yi);
+                    auto yr_out = hn::MulAdd(xi, v_fi, hn::NegMulAdd(xr, v_fr, yr));
+                    auto yi_out = hn::NegMulAdd(xi, v_fr, hn::NegMulAdd(xr, v_fi, yi));
+                    hn::StoreInterleaved2(yr_out, yi_out, d, c_col + 2 * idx);
+                }
+                for (; idx < rem_m; ++idx) {
+                    A_cplx[idx + (j + 1) + col * lda] -= A_cplx[idx + (j + 1) + j * lda] * f;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
 }  // namespace numkit::ops
@@ -836,10 +953,16 @@ namespace numkit::ops {
 HWY_EXPORT(GemmDoubleKernel);
 HWY_EXPORT(GemmComplexKernel);
 HWY_EXPORT(LuPanelDoubleKernel);
+HWY_EXPORT(LuPanelComplexKernel);
 
 bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
 {
     return HWY_DYNAMIC_DISPATCH(LuPanelDoubleKernel)(A, lda, piv, m, n, offset_row);
+}
+
+bool lu_panel(std::complex<double> *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
+{
+    return HWY_DYNAMIC_DISPATCH(LuPanelComplexKernel)(A, lda, piv, m, n, offset_row);
 }
 
 void gemm(MatrixTranspose transa, MatrixTranspose transb,

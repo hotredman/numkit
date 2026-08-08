@@ -17,19 +17,19 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
 |----------------|--------|----------|--------------------|-------------------------------|-----------------------|---------------|
 | **GEMM** (`gemm`) | Real Double | 64 | **0.0205 ms** (20.5 µs) | **0.0200 ms** (20.0 µs) | **1.02×** | **PASSED** (NumKit in 100% parity with MATLAB!) |
 | **GEMM** (`gemm`) | Real Double | 128 | **0.148 ms** | 0.010 ms | 14.8× | Accelerated 7.6x via C4.1 fast path |
-| **GEMM** (`gemm`) | Real Double | 256 | 5.210 ms | 0.070 ms | 74.4× | S2 Bug Filed |
-| **GEMM** (`gemm`) | Real Double | 512 | 7.020 ms | 1.130 ms | 6.21× | S2 Bug Filed |
-| **GEMM** (`gemm`) | Real Double | 1024 | 11.731 ms | 5.460 ms | 2.15× | PASSED (Target ≤ 2.0×, 183 GFLOPS) |
-| **GEMM** (`gemm`) | Real Double | 2048 | 49.528 ms | 28.02 ms | 1.77× | PASSED (347 GFLOPS, 11.6× thread speedup) |
+| **GEMM** (`gemm`) | Real Double | 256 | **0.306 ms** | 0.070 ms | 4.37x | Accelerated 17x via Thread Limiting! PASSED |
+| **GEMM** (`gemm`) | Real Double | 512 | **1.200 ms** | 1.130 ms | 1.06x | PASSED (Target ≤ 2.0x, Parity!) |
+| **GEMM** (`gemm`) | Real Double | 1024 | **6.720 ms** | 5.460 ms | 1.23x | PASSED (Target ≤ 2.0x, 319 GFLOPS) |
+| **GEMM** (`gemm`) | Real Double | 2048 | **39.496 ms** | 28.02 ms | 1.41x | PASSED (434 GFLOPS) |
 | **LU Factorization** (`lu`) | Real Double | 64 | 0.028 ms | 0.010 ms | 2.80× | S2 Bug Filed |
 | **LU Factorization** (`lu`) | Real Double | 128 | **0.189 ms** | 0.060 ms | 3.15× | Accelerated 4.2x via SIMD panel factorization |
 | **LU Factorization** (`lu`) | Real Double | 256 | **2.257 ms** | 0.200 ms | 11.28× | Accelerated 2.0x via SIMD panel factorization |
 | **LU Factorization** (`lu`) | Real Double | 512 | **25.733 ms** | 1.320 ms | 19.49× | Accelerated 1.4x via SIMD panel factorization |
 | **LU Factorization** (`lu`) | Real Double | 1024 | **87.660 ms** | 4.490 ms | 19.52× | Accelerated 1.4x via SIMD panel factorization |
-| **LU Factorization** (`lu`) | Complex Double | 64 | 0.196 ms | 0.020 ms | 9.80× | S2 Bug Filed |
-| **LU Factorization** (`lu`) | Complex Double | 128 | **1.022 ms** | 0.190 ms | 5.38× | Accelerated 10x via C4.1 fast path |
-| **LU Factorization** (`lu`) | Complex Double | 256 | 14.066 ms | 0.590 ms | 23.84× | S2 Bug Filed |
-| **LU Factorization** (`lu`) | Complex Double | 512 | 62.703 ms | 2.990 ms | 20.97× | S2 Bug Filed |
+| **LU Factorization** (`lu`) | Complex Double | 64 | **0.077 ms** | 0.020 ms | 3.85x | Accelerated 2.5x via Highway SIMD panel |
+| **LU Factorization** (`lu`) | Complex Double | 128 | **0.527 ms** | 0.190 ms | 2.77x | Accelerated 2.0x via Highway SIMD panel |
+| **LU Factorization** (`lu`) | Complex Double | 256 | **3.677 ms** | 0.590 ms | 6.23x | Accelerated 3.8x via Highway SIMD panel |
+| **LU Factorization** (`lu`) | Complex Double | 512 | **18.401 ms** | 2.990 ms | 6.15x | Accelerated 3.4x via Highway SIMD panel |
 | **Cholesky** (`chol`) | Real Double | 64 | **0.012 ms** | 0.010 ms | 1.20x | **PASSED** (Target <= 2.0x) |
 | **Cholesky** (`chol`) | Real Double | 128 | **0.094 ms** | 0.070 ms | **1.34x** | **PASSED** (Target <= 2.0x) |
 | **Cholesky** (`chol`) | Real Double | 256 | **0.620 ms** | 0.090 ms | 6.88x | Accelerated 2.5x via BLAS-3 recursive TRSM/SYRK |
