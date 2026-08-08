@@ -49,42 +49,7 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     // Base case: panel LU for n <= base_n (adaptive 32 for m >= 256 to maximize 24-thread GEMM offload)
     const std::size_t base_n = (m >= 256) ? 32 : 128;
     if (n <= base_n) {
-        if constexpr (std::is_same_v<T, double>) {
-            return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
-        } else {
-            for (std::size_t j = 0; j < n; ++j) {
-                std::size_t pivot = j;
-                double pmax = abs_val(A[j + j * lda]);
-                for (std::size_t i = j + 1; i < m; ++i) {
-                    const double v = abs_val(A[i + j * lda]);
-                    if (v > pmax) {
-                        pmax = v;
-                        pivot = i;
-                    }
-                }
-                if (pmax == 0.0) return false;
-                piv[j] = static_cast<std::int32_t>(pivot + offset_row);
-                if (pivot != j) {
-                    T *r1 = A + j;
-                    T *r2 = A + pivot;
-                    for (std::size_t col = 0; col < n; ++col) {
-                        std::swap(r1[col * lda], r2[col * lda]);
-                    }
-                }
-                const T inv_pivot = T(1) / A[j + j * lda];
-                for (std::size_t i = j + 1; i < m; ++i) {
-                    A[i + j * lda] *= inv_pivot;
-                }
-                for (std::size_t col = j + 1; col < n; ++col) {
-                    const T f = A[j + col * lda];
-                    if (f == T(0)) continue;
-                    for (std::size_t i = j + 1; i < m; ++i) {
-                        A[i + col * lda] -= A[i + j * lda] * f;
-                    }
-                }
-            }
-            return true;
-        }
+        return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
     }
 
     // Divide & Conquer
@@ -193,11 +158,7 @@ bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m,
     if (m == 0 || n == 0) return true;
 
     if (m <= 128 || n <= 128) {
-        if constexpr (std::is_same_v<T, double>) {
-            return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
-        } else {
-            return lu_recursive_inplace(A, lda, piv, m, n, offset_row);
-        }
+        return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
     }
 
     constexpr std::size_t nb = 64;
