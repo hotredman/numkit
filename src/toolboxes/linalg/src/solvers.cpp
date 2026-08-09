@@ -62,7 +62,7 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
             }
 
             Value out = Value::complexMatrix(n, nrhs, mr);
-            if (!detail::luSolveSquare(A_buf.data(), n, B_buf.data(), nrhs, out.complexDataMut(), &scratch)) {
+            if (!numkit::ops::la_solve(A_buf.data(), n, n, B_buf.data(), nrhs, out.complexDataMut(), mr)) {
                 throw Error("linsolve: A is singular or rank-deficient",
                             0, 0, "linsolve", "", "numkit:linsolve:singular");
             }

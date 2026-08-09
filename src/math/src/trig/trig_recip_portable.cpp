@@ -2,7 +2,7 @@
 //
 // Reference scalar implementations of the reciprocal trig family
 // (sec / csc / cot / sech / csch / coth / secd / cscd / cotd and their
-// inverses). Compiled when NUMKIT_HIGHWAY=OFF; the Highway-dispatched
+// inverses). Compiled when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched
 // variant lives in trig_recip_highway.cpp and matches this file
 // bit-for-bit on complex / scalar inputs (SIMD only helps real-vector).
 

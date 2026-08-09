@@ -33,7 +33,7 @@ list(APPEND NUMKIT_MATH_SOURCES
     # random/ (rand / randn / randi / randperm / rng — engine in ops, wrappers here)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/random/rng.cpp
     # trig/ (sin/cos/tan/asin/... compute + register; SIMD backends in the
-    # NUMKIT_HIGHWAY block below)
+    # NUMKIT_WITH_SIMD block below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trigonometry.cpp
     # exp_log/ (exp/log/log2/log10/sqrt/pow/... compute + register; SIMD below)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exponents.cpp
@@ -62,10 +62,10 @@ list(APPEND NUMKIT_MATH_HEADERS
 )
 
 # Backend-split SIMD sources — one variant picked at configure time via
-# NUMKIT_HIGHWAY (mirrors toolboxes/builtin/src/CMakeLists). Relocated from
+# NUMKIT_WITH_SIMD (mirrors toolboxes/builtin/src/CMakeLists). Relocated from
 # builtin in Phase 3-A step C1. The relocated *_highway.cpp set their
 # HWY_TARGET_INCLUDE relative to math/src (on the numkit PRIVATE -I).
-if(NUMKIT_HIGHWAY)
+if(NUMKIT_WITH_SIMD)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_highway.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/trig/trig_recip_highway.cpp)
     list(APPEND NUMKIT_MATH_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/exp_log/exp_log_highway.cpp)

@@ -472,6 +472,53 @@ void syrk(MatrixUplo uplo, MatrixTranspose trans,
     syrk_generic(uplo, trans, n, k, alpha, A, lda, beta, C, ldc);
 }
 
+bool lu_panel(std::complex<double> *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
+{
+    using Complex = std::complex<double>;
+    for (std::size_t j = 0; j < n; ++j) {
+        std::size_t pivot = j;
+        double pmax = std::norm(A[j + j * lda]);
+        
+        for (std::size_t i = j + 1; i < m; ++i) {
+            double v = std::norm(A[i + j * lda]);
+            if (v > pmax) { pmax = v; pivot = i; }
+        }
+
+        if (pmax == 0.0) return false;
+        piv[j] = static_cast<std::int32_t>(pivot + offset_row);
+        if (pivot != j) {
+            for (std::size_t col = 0; col < n; ++col) {
+                std::swap(A[j + col * lda], A[pivot + col * lda]);
+            }
+        }
+        
+        const Complex inv_pivot = Complex(1.0, 0.0) / A[j + j * lda];
+        for (std::size_t i = j + 1; i < m; ++i) {
+            A[i + j * lda] *= inv_pivot;
+        }
+
+        for (std::size_t col = j + 1; col < n; ++col) {
+            const Complex f = A[j + col * lda];
+            if (f == Complex(0.0, 0.0)) continue;
+            
+            Complex *col_ptr = A + col * lda;
+            const Complex *l_col = A + j * lda;
+            
+            std::size_t i = j + 1;
+            for (; i + 4 <= m; i += 4) {
+                col_ptr[i+0] -= l_col[i+0] * f;
+                col_ptr[i+1] -= l_col[i+1] * f;
+                col_ptr[i+2] -= l_col[i+2] * f;
+                col_ptr[i+3] -= l_col[i+3] * f;
+            }
+            for (; i < m; ++i) {
+                col_ptr[i] -= l_col[i] * f;
+            }
+        }
+    }
+    return true;
+}
+
 bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row)
 {
     for (std::size_t j = 0; j < n; ++j) {

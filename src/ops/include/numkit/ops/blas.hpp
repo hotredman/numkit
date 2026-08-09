@@ -15,7 +15,7 @@ namespace numkit::ops {
 /// @brief Native Highway SIMD LU panel factorization kernel.
 bool lu_panel(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row);
 
-/// @brief Native Highway SIMD Complex LU panel factorization kernel.
+/// @brief Native Highway SIMD LU panel factorization kernel for complex.
 bool lu_panel(std::complex<double> *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row);
 
 /// @brief Returns the number of threads used in the most recent gemm call.

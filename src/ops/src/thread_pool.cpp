@@ -2,30 +2,13 @@
 
 #include <algorithm>
 #include <utility>
-
 #include <hwy/cache_control.h>
 
 namespace numkit::detail {
 
-#if defined(NUMKIT_HIGHWAY)
 inline void spin_pause() noexcept {
     hwy::Pause();
 }
-#else
-#if defined(_MSC_VER) || defined(__INTEL_COMPILER)
-#include <immintrin.h>
-#elif defined(__GNUC__) || defined(__clang__)
-#include <xmmintrin.h>
-#endif
-#include <thread>
-inline void spin_pause() noexcept {
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    _mm_pause();
-#else
-    std::this_thread::yield();
-#endif
-}
-#endif
 
 // True while the current thread is executing a pool task body. A nested
 // run() (a parallel body that itself calls parallel_for) is then run inline
@@ -107,8 +90,7 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
     cv_start_.notify_all();
 
     {
-        // Spin aggressively to avoid sleep latency (similar to OMP_WAIT_POLICY=active)
-        for (int spin = 0; spin < 2000000; ++spin) {
+        for (int spin = 0; spin < 2000; ++spin) {
             if (task_remaining_.load(std::memory_order_acquire) == 0) break;
             spin_pause();
         }
@@ -132,8 +114,7 @@ void ThreadPool::worker_loop(int id)
         int         k;
 
         {
-            // Spin aggressively to avoid sleep latency
-            for (int spin = 0; spin < 2000000; ++spin) {
+            for (int spin = 0; spin < 2000; ++spin) {
                 if (shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch) break;
                 spin_pause();
             }

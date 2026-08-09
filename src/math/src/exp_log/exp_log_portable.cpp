@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/math/exp_log/exp_log_portable.cpp
 //
 // Reference scalar implementations of exp / log. Compiled when
-// NUMKIT_HIGHWAY=OFF; the Highway-dispatched variant lives in
+// NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
 // exp_log_highway.cpp and matches this file bit-for-bit on complex
 // inputs (SIMD only helps the real-vector fast path).
 

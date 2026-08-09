@@ -46,10 +46,13 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 {
     if (m == 0 || n == 0) return true;
 
-    // Base case: panel LU for n <= base_n (adaptive 32 for m >= 256 to maximize 24-thread GEMM offload)
     const std::size_t base_n = (m >= 256) ? 32 : 128;
     if (n <= base_n) {
-        return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
+        if constexpr (std::is_same_v<T, double>) {
+            return ::numkit::ops::lu_panel(reinterpret_cast<double*>(A), lda, piv, m, n, offset_row);
+        } else {
+            return ::numkit::ops::lu_panel(reinterpret_cast<std::complex<double>*>(A), lda, piv, m, n, offset_row);
+        }
     }
 
     // Divide & Conquer
@@ -62,25 +65,12 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     // 2. Apply permutations piv[0..n1-1] to right panel A2 (m x n2)
     const std::size_t p2_thresh = (n2 >= 64) ? 32 : (n2 + 1);
     numkit::detail::parallel_for(n2, p2_thresh, [=](std::size_t c_start, std::size_t c_end) {
-        for (std::size_t i = 0; i < n1; ++i) {
-            std::size_t p = static_cast<std::size_t>(piv[i] - offset_row);
-            if (p != i) {
-                T *r1 = A + i + (n1 + c_start) * lda;
-                T *r2 = A + p + (n1 + c_start) * lda;
-                std::size_t bcols = c_end - c_start;
-                std::size_t col = 0;
-                for (; col + 8 <= bcols; col += 8) {
-                    T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
-                    T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
-                    T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
-                    T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
-                    T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
-                    T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
-                    T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
-                    T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
-                }
-                for (; col < bcols; ++col) {
-                    T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+        for (std::size_t col = c_start; col < c_end; ++col) {
+            T *col_ptr = A + (n1 + col) * lda;
+            for (std::size_t i = 0; i < n1; ++i) {
+                std::size_t p = static_cast<std::size_t>(piv[i] - offset_row);
+                if (p != i) {
+                    std::swap(col_ptr[i], col_ptr[p]);
                 }
             }
         }
@@ -96,7 +86,7 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
                            reinterpret_cast<Complex*>(A12), lda);
     } else {
         ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
-                           n1, n2, 1.0, L11, lda, A12, lda);
+                           n1, n2, 1.0, reinterpret_cast<double*>(L11), lda, reinterpret_cast<double*>(A12), lda);
     }
 
     // 4. Trailing matrix GEMM update: A22 -= L21 * U12 ((m - n1) x n2)
@@ -125,25 +115,12 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
     // 6. Apply permutations piv[n1..n-1] to left panel L21 ((m - n1) x n1)
     const std::size_t p6_thresh = (n1 >= 64) ? 32 : (n1 + 1);
     numkit::detail::parallel_for(n1, p6_thresh, [=](std::size_t c_start, std::size_t c_end) {
-        for (std::size_t i = 0; i < n2; ++i) {
-            std::size_t p = static_cast<std::size_t>(piv[n1 + i] - (offset_row + n1));
-            if (p != i) {
-                T *r1 = A + n1 + i + c_start * lda;
-                T *r2 = A + n1 + p + c_start * lda;
-                std::size_t bcols = c_end - c_start;
-                std::size_t col = 0;
-                for (; col + 8 <= bcols; col += 8) {
-                    T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
-                    T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
-                    T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
-                    T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
-                    T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
-                    T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
-                    T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
-                    T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
-                }
-                for (; col < bcols; ++col) {
-                    T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
+        for (std::size_t col = c_start; col < c_end; ++col) {
+            T *col_ptr = A + n1 + col * lda;
+            for (std::size_t i = 0; i < n2; ++i) {
+                std::size_t p = static_cast<std::size_t>(piv[n1 + i] - (offset_row + n1));
+                if (p != i) {
+                    std::swap(col_ptr[i], col_ptr[p]);
                 }
             }
         }
@@ -153,95 +130,9 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t 
 }
 
 template <typename T>
-bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row = 0)
-{
-    if (m == 0 || n == 0) return true;
-
-    if (m <= 128 || n <= 128) {
-        return ::numkit::ops::lu_panel(A, lda, piv, m, n, offset_row);
-    }
-
-    constexpr std::size_t nb = 64;
-    const std::size_t min_mn = std::min(m, n);
-
-    for (std::size_t j = 0; j < min_mn; j += nb) {
-        const std::size_t jb = std::min(nb, min_mn - j);
-        const std::size_t rem_m = m - j;
-        T *A_jj = A + j + j * lda;
-
-        if (!lu_recursive_inplace(A_jj, lda, piv + j, rem_m, jb, offset_row + j)) return false;
-
-        if (j + jb < n) {
-            const std::size_t rem_n = n - (j + jb);
-            T *A_right = A + j + (j + jb) * lda;
-
-            const std::size_t p_thresh = (rem_n >= 64) ? 32 : (rem_n + 1);
-            numkit::detail::parallel_for(rem_n, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
-                for (std::size_t i = 0; i < jb; ++i) {
-                    std::size_t p = static_cast<std::size_t>(piv[j + i] - (offset_row + j));
-                    if (p != i) {
-                        T *r1 = A_right + i + c_start * lda;
-                        T *r2 = A_right + p + c_start * lda;
-                        std::size_t bcols = c_end - c_start;
-                        std::size_t col = 0;
-                        for (; col + 8 <= bcols; col += 8) {
-                            T t0 = r1[(col + 0) * lda]; r1[(col + 0) * lda] = r2[(col + 0) * lda]; r2[(col + 0) * lda] = t0;
-                            T t1 = r1[(col + 1) * lda]; r1[(col + 1) * lda] = r2[(col + 1) * lda]; r2[(col + 1) * lda] = t1;
-                            T t2 = r1[(col + 2) * lda]; r1[(col + 2) * lda] = r2[(col + 2) * lda]; r2[(col + 2) * lda] = t2;
-                            T t3 = r1[(col + 3) * lda]; r1[(col + 3) * lda] = r2[(col + 3) * lda]; r2[(col + 3) * lda] = t3;
-                            T t4 = r1[(col + 4) * lda]; r1[(col + 4) * lda] = r2[(col + 4) * lda]; r2[(col + 4) * lda] = t4;
-                            T t5 = r1[(col + 5) * lda]; r1[(col + 5) * lda] = r2[(col + 5) * lda]; r2[(col + 5) * lda] = t5;
-                            T t6 = r1[(col + 6) * lda]; r1[(col + 6) * lda] = r2[(col + 6) * lda]; r2[(col + 6) * lda] = t6;
-                            T t7 = r1[(col + 7) * lda]; r1[(col + 7) * lda] = r2[(col + 7) * lda]; r2[(col + 7) * lda] = t7;
-                        }
-                        for (; col < bcols; ++col) {
-                            T t = r1[col * lda]; r1[col * lda] = r2[col * lda]; r2[col * lda] = t;
-                        }
-                    }
-                }
-            });
-
-            T *L11 = A_jj;
-            T *U12 = A_right;
-            if constexpr (is_complex_v<T>) {
-                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
-                                   jb, rem_n, Complex(1.0, 0.0),
-                                   reinterpret_cast<const Complex*>(L11), lda,
-                                   reinterpret_cast<Complex*>(U12), lda);
-            } else {
-                ::numkit::ops::trsm(MatrixSide::Left, MatrixUplo::Lower, MatrixTranspose::NoTrans, MatrixDiag::Unit,
-                                   jb, rem_n, 1.0, L11, lda, U12, lda);
-            }
-
-            if (j + jb < m) {
-                const std::size_t trailing_m = rem_m - jb;
-                T *L21 = A + (j + jb) + j * lda;
-                T *A22 = A + (j + jb) + (j + jb) * lda;
-
-                if constexpr (is_complex_v<T>) {
-                    ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, trailing_m, rem_n, jb, Complex(-1.0, 0.0),
-                                       reinterpret_cast<const Complex*>(L21), lda,
-                                       reinterpret_cast<const Complex*>(U12), lda,
-                                       Complex(1.0, 0.0),
-                                       reinterpret_cast<Complex*>(A22), lda);
-                } else {
-                    ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, trailing_m, rem_n, jb, -1.0,
-                                       reinterpret_cast<const double*>(L21), lda,
-                                       reinterpret_cast<const double*>(U12), lda,
-                                       1.0,
-                                       reinterpret_cast<double*>(A22), lda);
-                }
-            }
-        }
-    }
-
-    return true;
-}
-
-template <typename T>
 bool lu_pivot_inplace(T *LU, std::int32_t *piv, std::size_t n)
 {
-    return lu_blocked_inplace(LU, n, piv, n, n, 0);
+    return lu_recursive_inplace(LU, n, piv, n, n, 0);
 }
 
 // ── QR via Householder (tall A, m×n with m >= n) ─────────────────────
@@ -598,6 +489,80 @@ void trsm_U_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
 }
 
 template <typename T>
+bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n, std::size_t offset_row = 0)
+{
+    if (m == 0 || n == 0) return true;
+
+    if (m <= 128 || n <= 128) {
+        return lu_recursive_inplace(A, lda, piv, m, n, offset_row);
+    }
+
+    constexpr std::size_t nb = 256;
+    const std::size_t min_mn = std::min(m, n);
+
+    for (std::size_t j = 0; j < min_mn; j += nb) {
+        const std::size_t jb = std::min(nb, min_mn - j);
+        const std::size_t rem_m = m - j;
+        T *A_jj = A + j + j * lda;
+
+        // Factor panel: recursive LU handles tall-skinny panels perfectly
+        if (!lu_recursive_inplace(A_jj, lda, piv + j, rem_m, jb, offset_row + j)) return false;
+
+        if (j + jb < n) {
+            const std::size_t rem_n = n - (j + jb);
+            T *A_right = A + j + (j + jb) * lda;
+
+            // Apply permutations to trailing matrix A_right (cache-friendly column major traversal)
+            const std::size_t p_thresh = (rem_n >= 64) ? 32 : (rem_n + 1);
+            numkit::detail::parallel_for(rem_n, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
+                for (std::size_t col = c_start; col < c_end; ++col) {
+                    T *col_ptr = A_right + col * lda;
+                    for (std::size_t i = 0; i < jb; ++i) {
+                        std::size_t p = static_cast<std::size_t>(piv[j + i] - (offset_row + j));
+                        if (p != i) {
+                            std::swap(col_ptr[i], col_ptr[p]);
+                        }
+                    }
+                }
+            });
+
+            // TRSM: L11 \ U12
+            T *L11 = A_jj;
+            T *U12 = A_right;
+            if constexpr (is_complex_v<T>) {
+                ops::trsm(ops::MatrixSide::Left, ops::MatrixUplo::Lower, ops::MatrixTranspose::NoTrans, ops::MatrixDiag::Unit,
+                          jb, rem_n, Complex(1.0, 0.0), reinterpret_cast<const Complex*>(L11), lda,
+                          reinterpret_cast<Complex*>(U12), lda);
+                if (rem_m > jb) {
+                    // GEMM: A22 -= L21 * U12
+                    ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans,
+                              rem_m - jb, rem_n, jb, Complex(-1.0, 0.0),
+                              reinterpret_cast<const Complex*>(L11 + jb), lda,
+                              reinterpret_cast<const Complex*>(U12), lda,
+                              Complex(1.0, 0.0),
+                              reinterpret_cast<Complex*>(U12 + jb), lda);
+                }
+            } else {
+                ops::trsm(ops::MatrixSide::Left, ops::MatrixUplo::Lower, ops::MatrixTranspose::NoTrans, ops::MatrixDiag::Unit,
+                          jb, rem_n, 1.0, reinterpret_cast<const double*>(L11), lda,
+                          reinterpret_cast<double*>(U12), lda);
+                if (rem_m > jb) {
+                    // GEMM: A22 -= L21 * U12
+                    ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans,
+                              rem_m - jb, rem_n, jb, -1.0,
+                              reinterpret_cast<const double*>(L11 + jb), lda,
+                              reinterpret_cast<const double*>(U12), lda,
+                              1.0,
+                              reinterpret_cast<double*>(U12 + jb), lda);
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+template <typename T>
 bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::size_t nrhs, T *X, std::pmr::memory_resource *mr)
 {
     if (m < n || m == 0 || n == 0 || nrhs == 0) return false;
@@ -618,14 +583,12 @@ bool la_solve_impl(const T *A, std::size_t m, std::size_t n, const T *B, std::si
         const std::int32_t *piv_ptr = piv.data();
         const std::size_t p_thresh = (nrhs >= 64) ? 32 : (nrhs + 1);
         numkit::detail::parallel_for(nrhs, p_thresh, [=](std::size_t c_start, std::size_t c_end) {
-            for (std::size_t k = 0; k < n; ++k) {
-                std::size_t p = static_cast<std::size_t>(piv_ptr[k]);
-                if (p != k) {
-                    T *r1 = X + k + c_start * n;
-                    T *r2 = X + p + c_start * n;
-                    std::size_t bcols = c_end - c_start;
-                    for (std::size_t col = 0; col < bcols; ++col) {
-                        std::swap(r1[col * n], r2[col * n]);
+            for (std::size_t col = c_start; col < c_end; ++col) {
+                T *col_ptr = X + col * n;
+                for (std::size_t k = 0; k < n; ++k) {
+                    std::size_t p = static_cast<std::size_t>(piv_ptr[k]);
+                    if (p != k) {
+                        std::swap(col_ptr[k], col_ptr[p]);
                     }
                 }
             }
@@ -658,6 +621,16 @@ bool la_solve(const double *A, std::size_t m, std::size_t n, const double *B, st
 bool la_solve(const std::complex<double> *A, std::size_t m, std::size_t n, const std::complex<double> *B, std::size_t nrhs, std::complex<double> *X, std::pmr::memory_resource *mr)
 {
     return la_solve_impl(A, m, n, B, nrhs, X, mr);
+}
+
+bool lu_factor_inplace(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n)
+{
+    return lu_blocked_inplace(A, lda, piv, m, n, 0);
+}
+
+bool lu_factor_inplace(std::complex<double> *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n)
+{
+    return lu_blocked_inplace(A, lda, piv, m, n, 0);
 }
 
 } // namespace numkit::ops

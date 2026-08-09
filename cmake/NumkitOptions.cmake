@@ -16,7 +16,7 @@
 #   write one kernel that compiles for SSE/AVX/AVX-512/NEON/WASM SIMD128.
 #   Threading, when needed, goes through std::thread / std::async.
 
-option(NUMKIT_HIGHWAY
+option(NUMKIT_WITH_SIMD
     "Enable Google Highway dynamic-dispatch SIMD backends (pulls hwy dep)"
     OFF)
 
@@ -51,6 +51,6 @@ option(NUMKIT_WITH_MATIO
     ${_numkit_matio_default})
 
 message(STATUS "numkit feature flags:")
-message(STATUS "  NUMKIT_HIGHWAY    = ${NUMKIT_HIGHWAY}")
+message(STATUS "  NUMKIT_WITH_SIMD    = ${NUMKIT_WITH_SIMD}")
 message(STATUS "  NUMKIT_WITH_THREADS = ${NUMKIT_WITH_THREADS}")
 message(STATUS "  NUMKIT_WITH_MATIO   = ${NUMKIT_WITH_MATIO}")

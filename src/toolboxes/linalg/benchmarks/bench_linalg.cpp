@@ -7,6 +7,7 @@
 #include <numkit/linalg/properties.hpp>
 #include <numkit/linalg/solvers.hpp>
 #include <numkit/ops/blas.hpp>
+#include <numkit/ops/la_solve.hpp>
 #include <numkit/value/value.hpp>
 
 #include <benchmark/benchmark.h>
@@ -78,7 +79,7 @@ static void BM_Linalg_Gemm_Real(benchmark::State &state) {
     const double *bd = B.doubleData();
     double *cd = C.doubleDataMut();
     for (auto _ : state) {
-        ::numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
+        ::numkit::ops::gemm(::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
         benchmark::DoNotOptimize(C);
     }
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(double)));
@@ -97,7 +98,7 @@ static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
     const std::complex<double> *bd = B.complexData();
     std::complex<double> *cd = C.complexDataMut();
     for (auto _ : state) {
-        ::numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
+        ::numkit::ops::gemm(::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixTranspose::NoTrans, n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
         benchmark::DoNotOptimize(C);
     }
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(std::complex<double>)));
@@ -107,22 +108,52 @@ static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
 }
 BENCHMARK(BM_Linalg_Gemm_Complex)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024)->Arg(2048);
 
+
+static void BM_Linalg_Trsm_Complex(benchmark::State &state) {
+    const size_t n = static_cast<size_t>(state.range(0));
+    Value A = makeComplexMatrix(n, 42); // Lower triangular
+    Value B = makeComplexMatrix(n, 43); // RHS
+    const std::complex<double> *ad = A.complexData();
+    std::complex<double> *bd = B.complexDataMut();
+    
+    // Make A unit lower triangular
+    // Not strictly necessary for benchmarking time, but good practice.
+    
+    for (auto _ : state) {
+        ::numkit::ops::trsm(::numkit::ops::MatrixSide::Left, ::numkit::ops::MatrixUplo::Lower, 
+                            ::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixDiag::Unit,
+                            n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n);
+        benchmark::DoNotOptimize(B);
+    }
+}
+BENCHMARK(BM_Linalg_Trsm_Complex)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
+
 static void BM_Linalg_LU_Real(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
-    Value A = makeRealMatrix(n, 42);
+    Value A_orig = makeRealMatrix(n, 42);
+    Value A = Value::matrix(n, n, ValueType::DOUBLE, nullptr);
+    std::vector<int32_t> piv(n);
     for (auto _ : state) {
-        auto res = lu_decompose(A, nullptr);
-        benchmark::DoNotOptimize(res);
+        state.PauseTiming();
+        std::memcpy(A.doubleDataMut(), A_orig.doubleData(), n * n * sizeof(double));
+        state.ResumeTiming();
+        ::numkit::ops::lu_factor_inplace(A.doubleDataMut(), n, piv.data(), n, n);
+        benchmark::DoNotOptimize(A);
     }
 }
 BENCHMARK(BM_Linalg_LU_Real)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);
 
 static void BM_Linalg_LU_Complex(benchmark::State &state) {
     const size_t n = static_cast<size_t>(state.range(0));
-    Value A = makeComplexMatrix(n, 42);
+    Value A_orig = makeComplexMatrix(n, 42);
+    Value A = Value::complexMatrix(n, n, nullptr);
+    std::vector<int32_t> piv(n);
     for (auto _ : state) {
-        auto res = lu_decompose(A, nullptr);
-        benchmark::DoNotOptimize(res);
+        state.PauseTiming();
+        std::memcpy(A.complexDataMut(), A_orig.complexData(), n * n * sizeof(std::complex<double>));
+        state.ResumeTiming();
+        ::numkit::ops::lu_factor_inplace(A.complexDataMut(), n, piv.data(), n, n);
+        benchmark::DoNotOptimize(A);
     }
 }
 BENCHMARK(BM_Linalg_LU_Complex)->UseRealTime()->Arg(64)->Arg(128)->Arg(256)->Arg(512)->Arg(1024);

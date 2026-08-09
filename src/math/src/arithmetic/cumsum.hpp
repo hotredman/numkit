@@ -2,7 +2,7 @@
 //
 // Internal contract for SIMD prefix-op family (cumsum / cumprod /
 // cummax / cummin) on contiguous double vectors. SIMD-dispatched
-// (Highway) when NUMKIT_HIGHWAY=ON, scalar otherwise. The data
+// (Highway) when NUMKIT_WITH_SIMD=ON, scalar otherwise. The data
 // dependency `acc = op(acc, x[i]); r[i] = acc;` makes the scalar loop
 // fundamentally serial — Hillis-Steele parallel scan within each SIMD
 // vector breaks the chain into log2(lanes) steps, then propagates a

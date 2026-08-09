@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/math/arithmetic/mod_portable.cpp
 //
 // Scalar reference for the mod() fast-path entry points. Compiled when
-// NUMKIT_HIGHWAY=OFF; the Highway-dispatched variant lives in
+// NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
 // mod_highway.cpp and is bit-identical (same separate-mul/sub formula).
 
 #include "mod_simd.hpp"

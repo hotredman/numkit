@@ -84,7 +84,7 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
         ScratchVec<detail::Complex> I_buf(n * n, 0.0, &scratch);
         for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = detail::Complex(1.0, 0.0);
         Value out = Value::complexMatrix(n, n, mr);
-        if (!detail::luSolveSquare(A.complexData(), n, I_buf.data(), n, out.complexDataMut(), &scratch))
+        if (!numkit::ops::la_solve(A.complexData(), n, n, I_buf.data(), n, out.complexDataMut(), mr))
             throw Error("inv: matrix is singular to working precision",
                         0, 0, "inv", "", "numkit:inv:singular");
         return detail::narrow_if_real(out, mr);
@@ -94,7 +94,7 @@ Value inv(const Value &A, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < n; ++i) I_buf[i + i * n] = 1.0;
 
     Value out = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    if (!detail::luSolveSquare(A.doubleData(), n, I_buf.data(), n, out.doubleDataMut(), &scratch))
+    if (!numkit::ops::la_solve(A.doubleData(), n, n, I_buf.data(), n, out.doubleDataMut(), mr))
         throw Error("inv: matrix is singular to working precision",
                     0, 0, "inv", "", "numkit:inv:singular");
     return out;
@@ -143,7 +143,7 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
         ScratchVec<detail::Complex> A_buf(m * n, &scratch);
         std::copy(A.complexData(), A.complexData() + m * n, A_buf.begin());
         ScratchVec<std::int32_t> piv(n, &scratch);
-        if (!detail::luPivotInplace(A_buf.data(), piv.data(), n))
+        if (!numkit::ops::lu_factor_inplace(A_buf.data(), n, piv.data(), n, n))
             return Value::scalar(0.0, mr);
 
         int sign = 1;
@@ -162,7 +162,7 @@ Value det(const Value &A, std::pmr::memory_resource *mr)
     ScratchVec<double> A_buf(m * n, &scratch);
     std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
     ScratchVec<std::int32_t> piv(n, &scratch);
-    if (!detail::luPivotInplace(A_buf.data(), piv.data(), n))
+    if (!numkit::ops::lu_factor_inplace(A_buf.data(), n, piv.data(), n, n))
         return Value::scalar(0.0, mr);
 
     int sign = 1;

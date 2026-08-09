@@ -942,6 +942,7 @@ bool LuPanelComplexKernel(std::complex<double> *A_cplx, std::size_t lda, std::in
     return true;
 }
 
+
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
 }  // namespace numkit::ops

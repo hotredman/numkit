@@ -18,7 +18,7 @@
       "description": "Native desktop build for Windows/Linux x86_64. Enables Highway dynamic-dispatch SIMD — picks the best ISA (SSE4 / AVX2 / AVX-512 / …) at runtime on first call to any vectorised kernel.",
       "binaryDir": "${sourceDir}/build/desktop-fast",
       "cacheVariables": {
-        "NUMKIT_HIGHWAY": "ON",
+        "NUMKIT_WITH_SIMD": "ON",
         "NUMKIT_WITH_THREADS": "ON"
       }
     },
@@ -34,7 +34,7 @@
         "rhs": "Darwin"
       },
       "cacheVariables": {
-        "NUMKIT_HIGHWAY": "OFF"
+        "NUMKIT_WITH_SIMD": "OFF"
       }
     },
     {
@@ -88,7 +88,7 @@
         "CMAKE_BUILD_TYPE":    "Release",
         "NUMKIT_BUILD_REPL": "ON",
         "NUMKIT_BUILD_CLI":   "OFF",
-        "NUMKIT_HIGHWAY":    "ON",
+        "NUMKIT_WITH_SIMD":    "ON",
         "CMAKE_CXX_FLAGS":     "-msimd128 -mrelaxed-simd -fexceptions",
         "CMAKE_EXE_LINKER_FLAGS": "-fexceptions"
       }
@@ -105,7 +105,7 @@
       "name": "bench-simd-clang",
       "inherits": "bench-simd",
       "displayName": "Bench with clang-cl toolset + Highway SIMD",
-      "description": "Same matrix as bench-simd (NUMKIT_HIGHWAY=ON) but compiled with clang-cl. Useful for measuring codegen + Highway integration differences against MSVC on the same machine. Requires VS 2022 Professional (ships clang-cl at VC/Tools/Llvm/x64/bin/clang-cl.exe).",
+      "description": "Same matrix as bench-simd (NUMKIT_WITH_SIMD=ON) but compiled with clang-cl. Useful for measuring codegen + Highway integration differences against MSVC on the same machine. Requires VS 2022 Professional (ships clang-cl at VC/Tools/Llvm/x64/bin/clang-cl.exe).",
       "binaryDir": "${sourceDir}/build/bench-simd-clang",
       "toolset": "ClangCL"
     },
@@ -121,7 +121,7 @@
         "NUMKIT_BUILD_CLI":          "OFF",
         "NUMKIT_BUILD_BENCHMARKS":  "ON",
         "NUMKIT_INSTALL":           "OFF",
-        "NUMKIT_HIGHWAY":           "ON",
+        "NUMKIT_WITH_SIMD":           "ON",
         "CMAKE_CXX_FLAGS":            "-msimd128 -mrelaxed-simd -fexceptions",
         "CMAKE_EXE_LINKER_FLAGS":     "-fexceptions"
       }
@@ -161,7 +161,7 @@
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/x64/bin/clang-cl.exe",
         "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/x64/bin/clang-cl.exe",
-        "NUMKIT_HIGHWAY": "OFF",
+        "NUMKIT_WITH_SIMD": "OFF",
         "NUMKIT_WITH_MATIO": "ON",
         "NUMKIT_COVERAGE": "ON",
         "NUMKIT_BUILD_BENCHMARKS": "OFF",

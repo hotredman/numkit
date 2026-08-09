@@ -1,6 +1,6 @@
 // ops/src/nan_reductions_portable.cpp
 //
-// Scalar single-pass nansum / nanmean. Compiled when NUMKIT_HIGHWAY=OFF.
+// Scalar single-pass nansum / nanmean. Compiled when NUMKIT_WITH_SIMD=OFF.
 // Same single-read pattern as the Highway variant — branch-free predicate
 // (`std::isnan` + ternary) keeps it autovectorisable by recent compilers
 // even on the portable build.
