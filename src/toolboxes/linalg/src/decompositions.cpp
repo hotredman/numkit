@@ -5,6 +5,7 @@
 
 #include <numkit/linalg/decompositions.hpp>
 #include <numkit/ops/blas.hpp>
+#include <numkit/ops/la_solve.hpp>
 #include "decompositions_detail.hpp"   // shared raw-buffer kernels (private)
 
 // Compute-only TU: Value substrate + Error, no engine. The chol / lu / qr /
@@ -31,6 +32,51 @@ namespace numkit::linalg {
 // Shared raw-buffer kernels (defined as inline templates in decompositions_detail.hpp)
 
 template <typename T>
+static std::size_t cholUpperTiled(T *r, std::size_t n, std::size_t ldr) {
+    constexpr std::size_t B_SIZE = 64;
+    for (std::size_t j = 0; j < n; j += B_SIZE) {
+        std::size_t jb = std::min(B_SIZE, n - j);
+        
+        // 1. Factor diagonal block (sequentially)
+        for (std::size_t k = j; k < j + jb; ++k) {
+            if constexpr (detail::is_complex_v<T>) {
+                if (std::abs(r[k + k * ldr].imag()) > 1e-11) return k + 1;
+            }
+            double s_real = detail::real_part(r[k + k * ldr]);
+            if (s_real <= 0.0) return k + 1;
+            const double diag = std::sqrt(s_real);
+            r[k + k * ldr] = T(diag);
+            const T inv_diag = T(1.0 / diag);
+            for (std::size_t col = k + 1; col < j + jb; ++col) {
+                r[k + col * ldr] *= inv_diag;
+                for (std::size_t row = k + 1; row <= col; ++row) {
+                    if constexpr (detail::is_complex_v<T>) {
+                        r[row + col * ldr] -= std::conj(r[k + row * ldr]) * r[k + col * ldr];
+                    } else {
+                        r[row + col * ldr] -= r[k + row * ldr] * r[k + col * ldr];
+                    }
+                }
+            }
+        }
+        
+        // 2. Update panel (TRSM) & Trailing matrix (SYRK)
+        if (j + jb < n) {
+            ops::trsm(ops::MatrixSide::Left, ops::MatrixUplo::Upper,
+                      ops::MatrixTranspose::ConjTrans, ops::MatrixDiag::NonUnit,
+                      jb, n - j - jb, T(1), 
+                      r + j + j * ldr, ldr, 
+                      r + j + (j + jb) * ldr, ldr);
+                      
+            ops::syrk(ops::MatrixUplo::Upper, ops::MatrixTranspose::ConjTrans,
+                      n - j - jb, jb, 
+                      T(-1), r + j + (j + jb) * ldr, ldr, 
+                      T(1), r + (j + jb) + (j + jb) * ldr, ldr);
+        }
+    }
+    return 0;
+}
+
+template <typename T>
 static std::size_t cholUpperFactorBlockedImpl(const T *a, T *r, std::size_t n) {
     std::fill(r, r + n * n, T(0));
     for (std::size_t col = 0; col < n; ++col) {
@@ -38,47 +84,7 @@ static std::size_t cholUpperFactorBlockedImpl(const T *a, T *r, std::size_t n) {
             r[row + col * n] = a[row + col * n];
         }
     }
-
-    constexpr std::size_t nb = 128;
-    for (std::size_t j = 0; j < n; j += nb) {
-        const std::size_t j_end = std::min(j + nb, n);
-        const std::size_t j_len = j_end - j;
-
-        // Unblocked Cholesky on diagonal block (j_len x j_len)
-        for (std::size_t k = j; k < j_end; ++k) {
-            if constexpr (detail::is_complex_v<T>) {
-                if (std::abs(r[k + k * n].imag()) > 1e-11) return k + 1;
-            }
-            double s_real = detail::real_part(r[k + k * n]);
-            if (s_real <= 0.0) return k + 1;
-            const double diag = std::sqrt(s_real);
-            r[k + k * n] = T(diag);
-            const T inv_diag = T(1.0 / diag);
-            for (std::size_t col = k + 1; col < j_end; ++col) {
-                r[k + col * n] *= inv_diag;
-                for (std::size_t row = k + 1; row <= col; ++row) {
-                    if constexpr (detail::is_complex_v<T>) {
-                        r[row + col * n] -= std::conj(r[k + row * n]) * r[k + col * n];
-                    } else {
-                        r[row + col * n] -= r[k + row * n] * r[k + col * n];
-                    }
-                }
-            }
-        }
-
-        if (j_end < n) {
-            const std::size_t rem = n - j_end;
-            // Solve R_{j,j}^T * R_{j, j_end:n} = A_{j, j_end:n} via trsm
-            ops::trsm(ops::MatrixSide::Left, ops::MatrixUplo::Upper,
-                      ops::MatrixTranspose::ConjTrans, ops::MatrixDiag::NonUnit,
-                      j_len, rem, T(1), r + j + j * n, n, r + j + j_end * n, n);
-
-            // Trailing matrix update via syrk/herk: R_{j_end:n, j_end:n} -= R_{j, j_end:n}^H * R_{j, j_end:n}
-            ops::syrk(ops::MatrixUplo::Upper, ops::MatrixTranspose::ConjTrans,
-                      rem, j_len, T(-1), r + j + j_end * n, n, T(1), r + j_end + j_end * n, n);
-        }
-    }
-    return 0;
+    return cholUpperTiled(r, n, n);
 }
 
 static std::size_t cholUpperFactorBlocked(const double *a, double *r, std::size_t n) {
@@ -139,7 +145,7 @@ lu_decompose_impl(const Value &A, std::pmr::memory_resource *mr)
     ScratchVec<std::int32_t> piv(n, &scratch);
     const T *src = detail::get_data<T>(A);
     std::copy(src, src + m * n, LU.begin());
-    if (!detail::luPivotInplace(LU.data(), piv.data(), n))
+    if (!numkit::ops::lu_factor_inplace(LU.data(), n, piv.data(), n, n))
         throw Error("lu: matrix is singular",
                     0, 0, "lu", "", "numkit:lu:singular");
 
@@ -181,7 +187,7 @@ Value lu_combined_impl(const Value &A, std::pmr::memory_resource *mr)
     T *LU = detail::get_data_mut<T>(out);
     const T *src = detail::get_data<T>(A);
     std::copy(src, src + m * n, LU);
-    if (!detail::luPivotInplace(LU, piv.data(), n))
+    if (!numkit::ops::lu_factor_inplace(LU, n, piv.data(), n, n))
         throw Error("lu: matrix is singular",
                     0, 0, "lu", "", "numkit:lu:singular");
     return detail::narrow_if_real(out);

@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/math/elementary/backends/logical_reductions_portable.cpp
 //
-// Scalar reference any() / all(). Compiled when NUMKIT_HIGHWAY=OFF.
+// Scalar reference any() / all(). Compiled when NUMKIT_WITH_SIMD=OFF.
 // The Highway-dispatched variant lives in logical_reductions_highway.cpp;
 // behaviour is identical — same dim-dispatch, same LOGICAL output type,
 // same MATLAB-empty semantics (any([])=false, all([])=true). Only the

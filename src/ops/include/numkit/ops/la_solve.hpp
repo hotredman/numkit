@@ -40,4 +40,7 @@ bool la_solve(const std::complex<double> *A, std::size_t m, std::size_t n,
               std::complex<double> *X,
               std::pmr::memory_resource *mr);
 
+bool lu_factor_inplace(double *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n);
+bool lu_factor_inplace(std::complex<double> *A, std::size_t lda, std::int32_t *piv, std::size_t m, std::size_t n);
+
 } // namespace numkit::ops

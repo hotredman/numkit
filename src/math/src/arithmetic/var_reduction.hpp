@@ -17,7 +17,7 @@
 
 namespace numkit::math {
 
-// Returns (sum) of [p, p+n). SIMD-dispatched when NUMKIT_HIGHWAY=ON.
+// Returns (sum) of [p, p+n). SIMD-dispatched when NUMKIT_WITH_SIMD=ON.
 double sumScan(const double *p, std::size_t n);
 
 // Returns sum_{i} (p[i] - mean)^2. SIMD-dispatched, FMA where available

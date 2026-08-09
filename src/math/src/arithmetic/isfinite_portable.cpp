@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/math/arithmetic/isfinite_portable.cpp
 //
 // Reference scalar isnan/isinf/isfinite over a double array. Compiled
-// when NUMKIT_HIGHWAY=OFF; the Highway-dispatched variant lives in
+// when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
 // isfinite_highway.cpp.
 
 #include "isfinite.hpp"

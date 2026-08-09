@@ -3,7 +3,7 @@
 # numkit_ops — reusable numeric primitives shared by the VM (core) and the
 # pure toolboxes (libs):
 #   • element-wise op kernels (plus/minus/times/rdivide, matmul, compare)
-#     with portable + Highway-SIMD backends, selected by NUMKIT_HIGHWAY;
+#     with portable + Highway-SIMD backends, selected by NUMKIT_WITH_SIMD;
 #   • parallel_for + thread_pool (the parallel-execution infra those kernels
 #     and the toolboxes use).
 #
@@ -15,6 +15,9 @@ set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas1_highway.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas2_highway.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas3_highway.cpp
     # Iterative solver kernels (Brent root/bracket/min, Nelder-Mead; FnHandle
     # objective) — the numerical core of fzero/fminbnd/fminsearch. Portable C++.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/root_solve.cpp
@@ -44,7 +47,7 @@ set(NUMKIT_OPS_SOURCES
 if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_OPS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp)
 endif()
-if(NUMKIT_HIGHWAY)
+if(NUMKIT_WITH_SIMD)
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_highway.cpp
@@ -68,20 +71,14 @@ if(NUMKIT_HIGHWAY)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_r4_soa_simd.cpp
         # NaN-skipping single-pass reductions (nansum/nanmean/nanmax/nanmin/
         # nanvar) — Highway; backs stats nan_aware. Portable fallback below.
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas1_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas2_highway.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas3_highway.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_simd.cpp)
 else()
     list(APPEND NUMKIT_OPS_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/binary_ops_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compare_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fused/fused_kernels_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fft/fft_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas1_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas2_portable.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas3_portable.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nan_reductions_portable.cpp)
 endif()
 
 add_library(numkit_ops STATIC ${NUMKIT_OPS_SOURCES})
@@ -103,13 +100,13 @@ if(EMSCRIPTEN)
     target_compile_options(numkit_ops PRIVATE -fexceptions)
 endif()
 
-if(NUMKIT_HIGHWAY)
+if(NUMKIT_WITH_SIMD)
     # PRIVATE + BUILD_INTERFACE: Highway is a pure implementation detail and
     # stays out of the exported target set (mirrors the numkit aggregate).
     target_link_libraries(numkit_ops PRIVATE
         $<BUILD_INTERFACE:hwy>
         $<BUILD_INTERFACE:hwy_contrib>)
-    target_compile_definitions(numkit_ops PUBLIC NUMKIT_HIGHWAY=1)
+    target_compile_definitions(numkit_ops PUBLIC NUMKIT_WITH_SIMD=1)
 endif()
 
 if(NUMKIT_WITH_THREADS)
