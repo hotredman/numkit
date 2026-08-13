@@ -171,6 +171,15 @@
       ]
     },
     {
+      "name": "Linear_Algebra",
+      "files": [
+        "eigenvalues_and_vectors.m",
+        "matrix_factorizations.m",
+        "matrix_properties.m",
+        "solving_linear_systems.m"
+      ]
+    },
+    {
       "name": "Matrices",
       "files": [
         "create_and_index.m",
