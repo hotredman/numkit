@@ -21,7 +21,7 @@ if [ -f "${WASM_DIST}/numkit_ide.wasm" ]; then
     cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
     echo "WASM engine found"
 else
-    echo "WASM not built — fallback mode (build with: ./build-engine.sh --wasm)"
+    echo "WASM not built — fallback mode (build with: ./engine-build.sh --wasm)"
 fi
 
 cd "${IDE_DIR}"

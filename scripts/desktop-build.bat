@@ -42,12 +42,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: ── Step 1: rebuild WASM (calls build-engine.bat --wasm) ───────────────────
+:: ── Step 1: rebuild WASM (calls engine-build.bat --wasm) ───────────────────
 :: Engine sources change far more often than IDE shell code, so the safe
 :: default is to rebuild every desktop run. Pass --skip-wasm to reuse a
 :: prior build for fast IDE-only iteration.
 ::
-:: Parallelism: build-engine.bat --wasm runs `cmake --build --preset=browser`,
+:: Parallelism: engine-build.bat --wasm runs `cmake --build --preset=browser`,
 :: which is file-level parallel via `"jobs": 0` in CMakePresets.json
 :: (browser buildPreset). Combined with `if(MSVC) /MP` in CMakeLists
 :: (no-op for emcc but harmless), this saturates all cores during the
@@ -64,7 +64,7 @@ if "%SKIP_WASM%"=="1" (
 )
 if not "%SKIP_WASM%"=="1" (
     echo [1/5] Rebuilding WASM engine -- parallel via browser preset jobs:0 ...
-    call "%~dp0build-engine.bat" --wasm
+    call "%~dp0engine-build.bat" --wasm
     if errorlevel 1 (
         echo WASM build failed!
         exit /b 1

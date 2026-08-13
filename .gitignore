@@ -3,8 +3,8 @@
 # layout from before the consolidation is also covered by build*/.
 /build/
 build*/
-!build-engine.sh
-!build-engine.bat
+!engine-build.sh
+!engine-build.bat
 !desktop-build.bat
 .qtcreator
 
