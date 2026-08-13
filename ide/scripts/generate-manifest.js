@@ -17,7 +17,7 @@
  *      into BOTH trees so they never disagree.
  *
  * Triggered automatically via package.json `predev` / `prebuild`,
- * and explicitly by build-web.sh / build-web.bat. Idempotent (~50 ms).
+ * and explicitly by web-build.sh / web-build.bat. Idempotent (~50 ms).
  *
  * The destination tree (ide/public/examples/) is in .gitignore — it
  * is regenerated on every build.

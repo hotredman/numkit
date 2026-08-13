@@ -26,7 +26,7 @@ if exist "%WASM_DIST%\numkit_ide.wasm" (
 :: branch merge that adds a new dep, the folder is there but stale,
 :: vite then dies with "Rollup failed to resolve import". Compare
 :: package.json mtime against node_modules mtime; reinstall when
-:: package.json is newer. Same logic as build-desktop.bat.
+:: package.json is newer. Same logic as desktop-build.bat.
 set NEED_IDE_INSTALL=0
 if not exist "%IDE_DIR%\node_modules" set NEED_IDE_INSTALL=1
 if "%NEED_IDE_INSTALL%"=="0" (

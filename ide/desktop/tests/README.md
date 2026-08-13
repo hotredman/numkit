@@ -37,9 +37,9 @@ tests/
 cd ide\desktop
 
 REM Pre-req: dist/ must be built (renderer + WASM). Use the
-REM project-root build-desktop.bat to be safe; that's what
-REM build-desktop.bat does and it's the same dist/ Electron loads.
-..\..\build-desktop.bat
+REM project-root desktop-build.bat to be safe; that's what
+REM desktop-build.bat does and it's the same dist/ Electron loads.
+..\..\desktop-build.bat
 
 REM Then:
 npm test                  REM all suites, single-window each, ~25 s
