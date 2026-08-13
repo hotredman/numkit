@@ -117,8 +117,11 @@ if "%NEED_IDE_INSTALL%"=="1" (
     echo [3/7] IDE dependencies OK
 )
 
-echo [4/7] Building static files...
+echo [4/7] Generating examples manifest and building static files...
 cd /d "%IDE_DIR%"
+if exist "scripts\generate-manifest.js" (
+    node "scripts\generate-manifest.js"
+)
 :: --base ./ : the desktop shell loads dist\index.html over file://, which only
 :: resolves RELATIVE asset/fetch paths. vite.config.js already defaults to
 :: base './', so this is an explicit guarantee for the packaged desktop build.
