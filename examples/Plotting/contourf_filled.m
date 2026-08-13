@@ -11,9 +11,12 @@ close all
 
 % Classic "peaks"-like function on a 60×60 grid.
 [X, Y] = meshgrid(linspace(-3, 3, 60));
-Z = 3 * (1 - X).^2 .* exp(-X.^2 - (Y + 1).^2) ...
-  - 10 * (X/5 - X.^3 - Y.^5) .* exp(-X.^2 - Y.^2) ...
-  - exp(-(X + 1).^2 - Y.^2) / 3;
+% Pre-calculate squared terms to avoid AST depth/scratch memory limits in Numkit engine
+X2 = X.^2;
+Y2 = Y.^2;
+Z = 3 * (1 - X).^2 .* exp(-X2 - (Y + 1).^2) ...
+  - 10 * (X/5 - X.*X2 - Y.*Y2) .* exp(-X2 - Y2) ...
+  - exp(-(X + 1).^2 - Y2) / 3;
 
 figure;
 contourf(Z);
