@@ -21,7 +21,7 @@ fi
 if command -v emcc &>/dev/null; then
     if [ ! -f "${WASM_DIST}/numkit_ide.wasm" ]; then
         echo "Building WASM..."
-        bash "$(dirname "$0")/build-engine.sh" --wasm
+        bash "$(dirname "$0")/engine-build.sh" --wasm
     fi
     echo "Copying freshly-built WASM into ide/public/..."
     cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
