@@ -209,6 +209,7 @@ void Environment::clearAll()
     vars_.clear();
     globals_.clear();
     hasGlobals_ = false;
+    activeImports_.clear();
 }
 
 void Environment::reset(Environment *parent, Environment *gs)
@@ -221,6 +222,7 @@ void Environment::reset(Environment *parent, Environment *gs)
     vars_.clear();
     globals_.clear();
     hasGlobals_ = false;
+    activeImports_.clear();
     parent_ = parent;
     owningParent_.reset();
     globalsEnv_ = gs;
