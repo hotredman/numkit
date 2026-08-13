@@ -275,8 +275,8 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
             return r;
         }
         if (a.dims() != b.dims())
-            throw Error("Matrix dimensions must agree for comparison",
-                         0, 0, "compare", "", "numkit:dimagree");
+            throw Error("Matrix dimensions must agree for comparison. a=[" + std::to_string(a.dims().rows()) + "x" + std::to_string(a.dims().cols()) + "], b=[" + std::to_string(b.dims().rows()) + "x" + std::to_string(b.dims().cols()) + "] (line 278)",
+                        0, 0, "compareImpl", "", "numkit:compare:dimMismatch");
         auto r = createLike(a, ValueType::LOGICAL, nullptr);
         for (size_t i = 0; i < a.numel(); ++i)
             r.logicalDataMut()[i] =
@@ -405,8 +405,8 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
     size_t br = b.dims().rows(), bc = b.dims().cols();
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
-        throw Error("Matrix dimensions must agree for comparison",
-                     0, 0, "compare", "", "numkit:dimagree");
+        throw Error("Matrix dimensions must agree for comparison. a=[" + std::to_string(ar) + "x" + std::to_string(ac) + "], b=[" + std::to_string(br) + "x" + std::to_string(bc) + "] (line 408)",
+                    0, 0, "compareString", "", "numkit:compare:dimMismatch");
 
     auto r = Value::matrix(outR, outC, ValueType::LOGICAL, nullptr);
     uint8_t *dst = r.logicalDataMut();
@@ -488,8 +488,8 @@ Value logicalBinary(const char *opName, Op op,
         return r;
     }
     if (a.numel() != b.numel())
-        throw Error(std::string("Matrix dimensions must agree for ") + opName,
-                     0, 0, opName, "", "numkit:dimagree");
+        throw Error(std::string("Matrix dimensions must agree for ") + opName + ". a=[" + std::to_string(a.dims().rows()) + "x" + std::to_string(a.dims().cols()) + "], b=[" + std::to_string(b.dims().rows()) + "x" + std::to_string(b.dims().cols()) + "] (line 491)",
+                    0, 0, opName, "", "numkit:binary_ops:dimMismatch");
     auto aa = toBoolArray(a, &scratch);
     auto bb = toBoolArray(b, &scratch);
     auto r = createLike(a, ValueType::LOGICAL, mr);
