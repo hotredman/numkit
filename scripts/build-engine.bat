@@ -4,7 +4,7 @@ setlocal
 :: This script lives in scripts/. cd to the repo root so `cmake --preset`
 :: finds CMakePresets.json there -- without this, cmake reads presets from the
 :: caller's CWD (e.g. scripts/) and dies "Could not read presets ...
-:: scripts/CMakePresets.json". Callers (build-desktop.bat / build-web.bat) use
+:: scripts/CMakePresets.json". Callers (desktop-build.bat / web-build.bat) use
 :: absolute paths, so this cd is safe whether or not it persists after return.
 cd /d "%~dp0.."
 

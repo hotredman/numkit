@@ -6,7 +6,7 @@ set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
 :: cmake's `browser` preset writes to ${sourceDir}/build/browser/ (since the
 :: May 7 chore commit 50cc70df that consolidated all build-<preset>/ dirs
-:: under a single build/<preset>/ tree). build-web.sh / build-web.bat already track
+:: under a single build/<preset>/ tree). web-build.sh / web-build.bat already track
 :: this path; this script previously had the legacy dashed name and silently
 :: copied the May-6 stale WASM into ide/public/ on every run.
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
@@ -16,7 +16,7 @@ set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 ::                 (faster iteration when only IDE / JS code changed).
 ::                 Default: rebuild.
 ::   --no-package  skip the electron-builder portable-exe packaging
-::                 (step 5). run-desktop.bat launches Electron directly from
+::                 (step 5). desktop-run.bat launches Electron directly from
 ::                 desktop\dist, so the packaged .exe is NOT needed for
 ::                 dev iteration — this skips the slow compression step.
 set SKIP_WASM=0
@@ -152,13 +152,13 @@ if "%NEED_DSK_INSTALL%"=="1" (
 )
 
 :: --no-package: desktop\dist is ready and Electron is installed, so
-:: run-desktop.bat can launch directly. Skip the slow portable-exe packaging.
+:: desktop-run.bat can launch directly. Skip the slow portable-exe packaging.
 if "%NO_PACKAGE%"=="1" (
     echo [5/7] Skipping portable-exe packaging ^(--no-package^)
     echo.
     echo === Done ^(dev build^) ===
     echo Static files ready at %DESKTOP_DIR%\dist
-    echo Launch with: run-desktop.bat
+    echo Launch with: desktop-run.bat
     goto :eof
 )
 

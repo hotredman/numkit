@@ -33,7 +33,7 @@ merge cadence; workers only push their own feature branches.
 |---|---|---|---|
 | **CORE** | `core/` (engine, parser, lexer, compiler, VM, TreeWalker, AST, value, environment, debugger, vfs, scratch) · `core/tests/` · top-level `tests/` · `core/CMakeLists.txt` · `NAMESPACE_DESIGN.md` | `core-dev` | `numkit-core/` |
 | **LIBS** | all of `toolboxes/` (MATLAB toolboxes — pure-compute + file I/O via `fs/`: signal / stats / image / comm / control / wavelet / graphics / builtin / audio / graph / io / optim / ode) and (planned) `runtime/` (language-runtime libs: eval / who / clear / import / workspace — to be extracted from `builtin`): `include/`, `src/`, `tests/`, `benchmarks/`, per-lib `CMakeLists.txt`. Plus `tools/parity/` (PROGRESS.md / BENCHMARK.md) · `bugs/` | `lib-dev` | `numkit-lib/` |
-| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `brand/` · scripts in `scripts/`: run-web / run-desktop / build-web / build-desktop / build-engine (the `--wasm` path) | `ide-dev` | `numkit-ide/` |
+| **IDE** | `ide/` (React/Vite + Electron desktop) · `wasm/` (Emscripten bindings) · `brand/` · scripts in `scripts/`: web-run / desktop-run / web-build / desktop-build / build-engine (the `--wasm` path) | `ide-dev` | `numkit-ide/` |
 
 `numkit/` (the base, on `main`) is the integration target, not a worker.
 

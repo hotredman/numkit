@@ -20,7 +20,7 @@ const http = require('http');
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --expose-gc');
 
 // Never serve a stale renderer. Chromium can disk-cache the file:// bundle
-// across launches, so after a rebuild `run-desktop` could reload the OLD code
+// across launches, so after a rebuild `desktop-run` could reload the OLD code
 // even though desktop/dist is fresh ("run launches an old build"). Disabling
 // the HTTP cache — and clearing it on startup below — guarantees every launch
 // loads the current desktop/dist. Negligible cost for a local IDE.
@@ -74,7 +74,7 @@ const PRELOAD = path.join(__dirname, 'preload.js');
 let mainWindow = null;
 let viteProcess = null;
 
-// Single-instance guard. A second `run-desktop` should focus + reload the
+// Single-instance guard. A second `desktop-run` should focus + reload the
 // EXISTING window (picking up a rebuilt desktop/dist) rather than spawn a
 // second process that contends with the first for the userData lock and dies
 // ("Unable to move the cache: Access is denied") — which would leave the user
@@ -324,7 +324,7 @@ ipcMain.handle('fs:pickDirectory', async () => {
 const TREE_SKIP_DIRS = new Set([
   'node_modules', '.git', '.svn', '.hg', '.idea', '.vscode',
   'build', 'build-browser', 'build-bench-wasm', 'build-portable',
-  'build-desktop-fast', 'build-apple-m', 'dist', '.next', '.nuxt',
+  'desktop-build-fast', 'build-apple-m', 'dist', '.next', '.nuxt',
   '.cache', '.parcel-cache', '.turbo', '.venv', 'venv', '__pycache__',
   'target', '.gradle', 'cmake-build-debug', 'cmake-build-release',
 ]);
@@ -511,7 +511,7 @@ let runtimeSettings = { interpreterPath: '', codegenPath: '', cxxPath: '' };
 // Priority order:
 //   1. Explicit path from runtimeSettings (user configured in Preferences).
 //   2. The same directory as the running IDE executable — this is where
-//      build-desktop.bat places numkit_repl.exe / numkit_codegen.exe in the
+//      desktop-build.bat places numkit_repl.exe / numkit_codegen.exe in the
 //      deploy/ bundle, so an out-of-the-box install Just Works without
 //      any Preferences configuration.
 //   3. Bare name (OS PATH lookup at spawn time).
