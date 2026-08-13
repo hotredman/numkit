@@ -129,7 +129,7 @@ function createWindow(url) {
                                     || (m.serviceName && m.serviceName.includes('Renderer')));
       const fmt = (b) => Math.round(b / 1048576) + ' MB';
       const lines = all.map((m) => `${m.type || 'unknown'}#${m.pid} ws=${fmt(m.memory?.workingSetSize * 1024 || 0)} priv=${fmt(m.memory?.privateBytes * 1024 || 0)}`);
-      console.log('[mem-trace]', lines.join(' | '));
+      // console.log('[mem-trace]', lines.join(' | '));
     } catch (e) {
       console.warn('[mem-trace] failed:', e.message);
     }
@@ -185,6 +185,7 @@ function startVite() {
     viteProcess = spawn(NODE_EXE, [VITE_BIN, '--host', '127.0.0.1'], {
       cwd: IDE_DIR,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     viteProcess.on('error', (err) => {
@@ -524,16 +525,16 @@ function resolveExe(settingPath, exeName) {
 
   // 1. If explicit setting is an absolute path or existing file on disk, use it.
   if (explicit && (path.isAbsolute(explicit) || fs.existsSync(explicit))) {
-    console.log(`[resolveExe] ${exeName}: using existing explicit path → ${explicit}`);
+    // console.log(`[resolveExe] ${exeName}: using existing explicit path → ${explicit}`);
     return explicit;
   }
 
   // 2. Portable executable directory (electron-builder sets PORTABLE_EXECUTABLE_DIR to original exe dir).
   if (process.env.PORTABLE_EXECUTABLE_DIR) {
     const candidate = path.join(process.env.PORTABLE_EXECUTABLE_DIR, exeOnWin);
-    console.log(`[resolveExe] ${exeName}: checking PORTABLE_EXECUTABLE_DIR → ${candidate}`);
+    // console.log(`[resolveExe] ${exeName}: checking PORTABLE_EXECUTABLE_DIR → ${candidate}`);
     if (fs.existsSync(candidate)) {
-      console.log(`[resolveExe] ${exeName}: found in PORTABLE_EXECUTABLE_DIR → ${candidate}`);
+      // console.log(`[resolveExe] ${exeName}: found in PORTABLE_EXECUTABLE_DIR → ${candidate}`);
       return candidate;
     }
   }
@@ -542,12 +543,12 @@ function resolveExe(settingPath, exeName) {
   try {
     const ideDir = path.dirname(app.getPath('exe'));
     const candidate = path.join(ideDir, exeOnWin);
-    console.log(`[resolveExe] ${exeName}: checking next to IDE exe → ${candidate}`);
+    // console.log(`[resolveExe] ${exeName}: checking next to IDE exe → ${candidate}`);
     if (fs.existsSync(candidate)) {
-      console.log(`[resolveExe] ${exeName}: found next to IDE exe → ${candidate}`);
+      // console.log(`[resolveExe] ${exeName}: found next to IDE exe → ${candidate}`);
       return candidate;
     }
-  } catch (e) { console.log(`[resolveExe] app.getPath failed: ${e.message}`); }
+  } catch (e) { /* console.log(`[resolveExe] app.getPath failed: ${e.message}`); */ }
 
   // 4. Search working directory & repo & deploy directories (dev mode or portable mode fallback)
   try {
@@ -562,11 +563,11 @@ function resolveExe(settingPath, exeName) {
     ];
     for (const c of devCandidates) {
       if (fs.existsSync(c)) {
-        console.log(`[resolveExe] ${exeName}: found candidate → ${c}`);
+        // console.log(`[resolveExe] ${exeName}: found candidate → ${c}`);
         return c;
       }
     }
-  } catch (e) { console.log(`[resolveExe] dev search failed: ${e.message}`); }
+  } catch (e) { /* console.log(`[resolveExe] dev search failed: ${e.message}`); */ }
 
   // 5. Fallback to explicit if provided, otherwise bare name
   return explicit || exeOnWin;
@@ -728,6 +729,7 @@ class ReplSession {
     try {
       child = spawn(exePath, ['--ide-session'], {
         stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
       });
     } catch (err) {
       throw Object.assign(new Error(err.message), { notFound: err.code === 'ENOENT' });
@@ -825,8 +827,8 @@ class ReplSession {
 
     const chunk  = this._buf.slice(0, idx);
     this._buf    = this._buf.slice(idx + markerLen);
-    console.log('[ReplSession] chunk (%s):', isStep ? 'STEP' : 'RUN',
-                JSON.stringify(chunk.slice(0, 400)));
+    // console.log('[ReplSession] chunk (%s):', isStep ? 'STEP' : 'RUN',
+    //             JSON.stringify(chunk.slice(0, 400)));
 
     if (!this.pending) {
       this._processQueue();
@@ -942,7 +944,7 @@ class ReplSession {
       if (trimmed.startsWith('__VARS__:')) {
         try {
           vars = JSON.parse(trimmed.slice(9));
-          console.log('[ReplSession] vars keys:', Object.keys(vars));
+          // console.log('[ReplSession] vars keys:', Object.keys(vars));
         } catch (e) {
           console.warn('[ReplSession] failed to parse vars:', trimmed.slice(0, 200), e.message);
         }
@@ -1126,7 +1128,7 @@ ipcMain.handle('codegen:run', async (_e, code, opts) => {
     let stdout = '', stderr = '';
     let child;
     try {
-      child = spawn(exe, args, { env });
+      child = spawn(exe, args, { env, windowsHide: true });
     } catch (err) {
       fs.unlink(tmpFile, () => {});
       resolve({ stdout: '', stderr: err.message, exitCode: -1, notFound: true });
