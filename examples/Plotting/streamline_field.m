@@ -2,7 +2,7 @@
 % streamslice picks a 5×5 seed grid automatically and integrates each
 % seed through the (U, V) field via 4-th-order Runge-Kutta. Lines
 % stop at the grid boundary or where the flow stalls.
-import compat.*;
+
 
 clear
 close all

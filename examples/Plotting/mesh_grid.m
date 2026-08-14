@@ -2,7 +2,7 @@
 % mesh(Z) draws the same data as surf but as a line lattice instead
 % of a filled mesh. Cheaper to read for noisy data where filled faces
 % would obscure the structure.
-import compat.*;
+
 
 clear
 close all

@@ -4,7 +4,7 @@
 %   • coneplot — small cone arrows at grid points / user positions
 %   • streamtube — tubes wrapping the streamlines through each seed
 
-import compat.*;
+
 
 clear
 close all

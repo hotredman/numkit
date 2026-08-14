@@ -3,7 +3,7 @@
 % A reference line through the 25th + 75th sample percentiles makes
 % deviation from normality visible: heavy tails curve away from the
 % line at the extremes.
-import compat.*;
+
 
 clear
 close all

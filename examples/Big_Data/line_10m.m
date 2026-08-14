@@ -3,7 +3,7 @@
 % raw data engine-side and the viewer draws a GPU LOD tile (~4× the plot width
 % in points), refetched only on zoom — so the plot opens instantly and pans at
 % any zoom with no overdraw. Bump n to 50e6 to stress the LOD further.
-import compat.*;
+
 
 clear
 close all

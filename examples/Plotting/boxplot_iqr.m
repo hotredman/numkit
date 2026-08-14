@@ -2,7 +2,7 @@
 % Each box spans Q1..Q3 (the inter-quartile range) with the median
 % as a red line; whiskers extend to the most extreme in-fence value
 % (Q1 - 1.5·IQR / Q3 + 1.5·IQR), points beyond are outliers.
-import compat.*;
+
 
 clear
 close all

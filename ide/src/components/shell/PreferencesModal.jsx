@@ -71,12 +71,33 @@ export default function PreferencesModal({ onClose }) {
     if (isElectron && typeof window.nativeFS.updateSettings === 'function') {
       window.nativeFS.updateSettings(draft);
     }
+    window.dispatchEvent(new CustomEvent('settings-updated', { detail: draft }));
     onClose();
   }, [draft, onClose]);
 
   const handleRestoreDefaults = useCallback(() => {
     setDraft({ ...DEFAULT_SETTINGS });
   }, []);
+
+  function ToggleRow({ label, settingKey, hint }) {
+    const checked = !!draft[settingKey];
+    return (
+      <div className="prefs-row">
+        <div className="prefs-row-left">
+          <div className="prefs-label">{label}</div>
+          {hint && <div className="prefs-hint">{hint}</div>}
+        </div>
+        <div className="prefs-row-right">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => set(settingKey, e.target.checked)}
+            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   // ── row helper ──────────────────────────────────────────────────────
   function PathRow({ label, settingKey, hint, pickTitle }) {
@@ -227,6 +248,11 @@ export default function PreferencesModal({ onClose }) {
                     settingKey="cxxPath"
                     hint="Overrides the NUMKIT_CXX environment variable when running Build & Run. Leave empty to use the env var or build-time default."
                     pickTitle="Select C++ compiler executable"
+                  />
+                  <ToggleRow
+                    label="MATLAB Compatibility Mode (Implicit compat.*)"
+                    settingKey="matlabCompatibility"
+                    hint="Automatically imports compat.* so you don't have to write import compat.* in every script. Survives 'clear all'."
                   />
                 </div>
 

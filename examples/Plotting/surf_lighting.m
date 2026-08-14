@@ -3,7 +3,7 @@
 % specular highlights, material('shiny') tunes the specular response,
 % and camlight('headlight') attaches a moving light to the camera so
 % the surface always looks lit no matter how you orbit.
-import compat.*;
+
 
 clear
 close all

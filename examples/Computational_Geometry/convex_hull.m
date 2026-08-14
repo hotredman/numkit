@@ -4,7 +4,7 @@
 % hull vertices in CCW order, with the first vertex repeated at the
 % end (MATLAB convention). Use it to draw a hull around a scatter.
 
-import compat.*;
+
 
 clear
 close all

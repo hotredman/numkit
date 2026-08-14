@@ -2,7 +2,7 @@
 % Plots a decaying 440 Hz tone sampled at 48 kHz (~240k points). The
 % renderer downsamples the visible range to the plot width, so the whole
 % waveform draws instantly and stays smooth as you pan and zoom in.
-import compat.*;
+
 
 clear
 close all

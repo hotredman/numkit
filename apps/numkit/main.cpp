@@ -142,8 +142,11 @@ void reportError(const Engine::EvalResult &r, const std::string &prefix)
         std::cerr << prefix << r.errorMessage << ctx << "\n";
 }
 
-int runScript(const std::string &path)
+int runScript(const std::string &path, bool compatMode)
 {
+    StandardEngine engine;
+    if (compatMode)
+        engine.addImplicitImport({{"compat"}, true, ""});
     std::ifstream f(path, std::ios::binary);
     if (!f) {
         std::cerr << "numkit_repl: cannot open '" << path << "'\n";
@@ -151,8 +154,6 @@ int runScript(const std::string &path)
     }
     std::ostringstream ss;
     ss << f.rdbuf();
-
-    StandardEngine engine;
     auto r = engine.evalSafe(ss.str());
     if (!r.ok) {
         reportError(r, path + ": ");
@@ -161,9 +162,12 @@ int runScript(const std::string &path)
     return 0;
 }
 
-int runRepl()
+int runRepl(bool compatMode)
 {
     StandardEngine engine;
+    if (compatMode)
+        engine.addImplicitImport({{"compat"}, true, ""});
+
     std::cout << "numkit REPL  (type 'quit' or 'exit' to leave)\n\n";
 
     std::string accum;
@@ -195,6 +199,79 @@ int runRepl()
 
     std::cout << "\nGoodbye!\n";
     return 0;
+}
+
+// Helper: emit introspection response and continue.
+static void sendInspect(const std::string& marker, const std::string& json)
+{
+    std::cout << marker << json << "\n__END_OF_RUN__\n";
+    std::cout.flush();
+}
+
+// Helper to handle any introspection command (shared between idle and paused debug session).
+static bool handleIntrospection(StandardEngine& engine,
+                                const std::string& line,
+                                DebugSession* session = nullptr)
+{
+
+    // __INSPECT__:<name>  — full data, page 0
+    if (line.size() > 12 && line.compare(0, 12, "__INSPECT__:") == 0) {
+        sendInspect("__VAR_DATA__:", numkit::ide::getVarDataJSON(engine, line.substr(12), 0, session));
+        return true;
+    }
+
+    // __GET_SHAPE__:<name>
+    if (line.size() > 14 && line.compare(0, 14, "__GET_SHAPE__:") == 0) {
+        sendInspect("__SHAPE_DATA__:", numkit::ide::getVarShapeJSON(engine, line.substr(14), session));
+        return true;
+    }
+
+    // __GET_PAGE__:<name>\t<page>
+    if (line.size() > 13 && line.compare(0, 13, "__GET_PAGE__:") == 0) {
+        auto p = numkit::ide::parseTabParams(line, 13);
+        const int pg = (p.size() > 1) ? std::stoi(p[1]) : 0;
+        sendInspect("__PAGE_DATA__:", numkit::ide::getVarDataJSON(engine, p[0], pg, session));
+        return true;
+    }
+
+    // __GET_STATS__:<name>\t<page>   (page -1 = whole array)
+    if (line.size() > 14 && line.compare(0, 14, "__GET_STATS__:") == 0) {
+        auto p = numkit::ide::parseTabParams(line, 14);
+        const int pg = (p.size() > 1) ? std::stoi(p[1]) : -1;
+        sendInspect("__STATS_DATA__:", numkit::ide::getVarStatsJSON(engine, p[0], pg, session));
+        return true;
+    }
+
+    // __GET_FIGURE__:<name>\t<optsJSON>
+    if (line.size() > 15 && line.compare(0, 15, "__GET_FIGURE__:") == 0) {
+        auto p = numkit::ide::parseTabParams(line, 15);
+        const std::string opts = (p.size() > 1) ? p[1] : "{}";
+        sendInspect("__FIGURE_DATA__:", numkit::ide::getVarFigureJSON(engine, p[0], opts, session));
+        return true;
+    }
+
+    // __GET_TILE__:<name>\t<r0>\t<c0>\t<rows>\t<cols>\t<page>
+    if (line.size() > 13 && line.compare(0, 13, "__GET_TILE__:") == 0) {
+        auto p = numkit::ide::parseTabParams(line, 13);
+        const int r0   = (p.size() > 1) ? std::stoi(p[1]) : 0;
+        const int c0   = (p.size() > 2) ? std::stoi(p[2]) : 0;
+        const int rows = (p.size() > 3) ? std::stoi(p[3]) : 50;
+        const int cols = (p.size() > 4) ? std::stoi(p[4]) : 50;
+        const int pg   = (p.size() > 5) ? std::stoi(p[5]) : 0;
+        sendInspect("__TILE_DATA__:",
+            numkit::ide::getVarTileJSON(engine, p[0], r0, c0, rows, cols, pg, session));
+        return true;
+    }
+
+    // __INSPECT_PATH__:<name>\t<pathStr>   (empty pathStr = root)
+    if (line.size() > 17 && line.compare(0, 17, "__INSPECT_PATH__:") == 0) {
+        auto p = numkit::ide::parseTabParams(line, 17);
+        const std::string pathStr = (p.size() > 1) ? p[1] : "";
+        sendInspect("__PATH_DATA__:", numkit::ide::getInspectPathJSON(engine, p[0], pathStr, session));
+        return true;
+    }
+
+    return false;
 }
 
 // ── Native debugger session ────────────────────────────────────────────────
@@ -242,9 +319,62 @@ static void handleDebugSession(StandardEngine&    engine,
         std::string cmdLine;
         while (std::getline(std::cin, cmdLine)) {
             if (!cmdLine.empty() && cmdLine.back() == '\r') cmdLine.pop_back();
+            if (cmdLine.empty()) continue;
 
-            // Only handle __DEBUG_CMD__: lines; skip stray blank lines.
-            if (cmdLine.compare(0, 14, "__DEBUG_CMD__:") != 0) continue;
+            if (cmdLine == "__QUIT__") {
+                dbg.stop();
+                exit(0);
+            }
+
+            if (cmdLine == "__RESET__") {
+                dbg.stop();
+                engine.evalSafe("clear all");
+                std::cout << "__RESET_OK__\n"
+                          << "__VARS__:" << engine.workspaceJSON() << "\n"
+                          << "__END_OF_RUN__\n";
+                std::cout.flush();
+                return;
+            }
+
+            // Handle inspection queries while paused
+            if (handleIntrospection(engine, cmdLine, &dbg)) {
+                continue;
+            }
+
+            // If a new debug session is initiated while paused, abort current and restart
+            static constexpr size_t DBG_PFX = 16; // len("__DEBUG_START__:")
+            if (cmdLine.size() > DBG_PFX && cmdLine.compare(0, DBG_PFX, "__DEBUG_START__:") == 0) {
+                dbg.stop();
+                const size_t nlPos = cmdLine.find('\n');
+                std::string newBpJson;
+                std::string newCode;
+                if (nlPos != std::string::npos) {
+                    newBpJson = cmdLine.substr(DBG_PFX, nlPos - DBG_PFX);
+                    newCode = cmdLine.substr(nlPos + 1);
+                } else {
+                    newBpJson = cmdLine.substr(DBG_PFX);
+                }
+                std::string subLine;
+                while (std::getline(std::cin, subLine)) {
+                    if (!subLine.empty() && subLine.back() == '\r') subLine.pop_back();
+                    if (subLine == "__END_OF_INPUT__") break;
+                    newCode += subLine;
+                    newCode += '\n';
+                }
+                handleDebugSession(engine, newBpJson, newCode);
+                return;
+            }
+
+            // Only handle __DEBUG_CMD__: lines from here; if normal input arrives, stop debug and exit
+            if (cmdLine.compare(0, 14, "__DEBUG_CMD__:") != 0) {
+                if (cmdLine == "__END_OF_INPUT__") {
+                    dbg.stop();
+                    std::cout << "__DEBUG_STOPPED__\n__END_OF_RUN__\n";
+                    std::cout.flush();
+                    return;
+                }
+                continue;
+            }
             const std::string action = cmdLine.substr(14);
 
             if (action == "stop") {
@@ -296,13 +426,12 @@ static void handleDebugSession(StandardEngine&    engine,
 //   __QUIT__                              exit
 //
 // The Engine persists across calls -- workspace is preserved between runs.
-int runIdeSession()
+int runIdeSession(bool compatMode)
 {
     StandardEngine engine;
 
-    // Import compat.* at startup so user code finds standard functions
-    // without an explicit import statement -- same as the WASM init().
-    engine.evalSafe("import compat.*;");
+    if (compatMode)
+        engine.addImplicitImport({{"compat"}, true, ""});
 
     std::string accum;
     std::string line;
@@ -319,7 +448,6 @@ int runIdeSession()
 
         if (line == "__RESET__") {
             engine.evalSafe("clear all");
-            engine.evalSafe("import compat.*;");
             std::cout << "__RESET_OK__\n"
                       << "__VARS__:" << engine.workspaceJSON() << "\n"
                       << "__END_OF_RUN__\n";
@@ -328,72 +456,21 @@ int runIdeSession()
             continue;
         }
 
-        // Helper: emit introspection response and continue.
-        auto sendInspect = [&](const std::string& marker, const std::string& json) {
-            std::cout << marker << json << "\n__END_OF_RUN__\n";
+        // Handle debug commands received at top-level (e.g. stop sent when idle)
+        if (line.size() >= 14 && line.compare(0, 14, "__DEBUG_CMD__:") == 0) {
+            const std::string action = line.substr(14);
+            if (action == "stop") {
+                std::cout << "__DEBUG_STOPPED__\n__END_OF_RUN__\n";
+            } else {
+                std::cout << "__END_OF_RUN__\n";
+            }
             std::cout.flush();
-        };
-
-        // __INSPECT__:<name>  — full data, page 0
-        if (line.size() > 12 && line.compare(0, 12, "__INSPECT__:") == 0) {
-            sendInspect("__VAR_DATA__:", numkit::ide::getVarDataJSON(engine, line.substr(12)));
             accum.clear();
             continue;
         }
 
-        // __GET_SHAPE__:<name>
-        if (line.size() > 14 && line.compare(0, 14, "__GET_SHAPE__:") == 0) {
-            sendInspect("__SHAPE_DATA__:", numkit::ide::getVarShapeJSON(engine, line.substr(14)));
-            accum.clear();
-            continue;
-        }
-
-        // __GET_PAGE__:<name>\t<page>
-        if (line.size() > 13 && line.compare(0, 13, "__GET_PAGE__:") == 0) {
-            auto p = numkit::ide::parseTabParams(line, 13);
-            const int pg = (p.size() > 1) ? std::stoi(p[1]) : 0;
-            sendInspect("__PAGE_DATA__:", numkit::ide::getVarDataJSON(engine, p[0], pg));
-            accum.clear();
-            continue;
-        }
-
-        // __GET_STATS__:<name>\t<page>   (page -1 = whole array)
-        if (line.size() > 14 && line.compare(0, 14, "__GET_STATS__:") == 0) {
-            auto p = numkit::ide::parseTabParams(line, 14);
-            const int pg = (p.size() > 1) ? std::stoi(p[1]) : -1;
-            sendInspect("__STATS_DATA__:", numkit::ide::getVarStatsJSON(engine, p[0], pg));
-            accum.clear();
-            continue;
-        }
-
-        // __GET_FIGURE__:<name>\t<optsJSON>
-        if (line.size() > 15 && line.compare(0, 15, "__GET_FIGURE__:") == 0) {
-            auto p = numkit::ide::parseTabParams(line, 15);
-            const std::string opts = (p.size() > 1) ? p[1] : "{}";
-            sendInspect("__FIGURE_DATA__:", numkit::ide::getVarFigureJSON(engine, p[0], opts));
-            accum.clear();
-            continue;
-        }
-
-        // __GET_TILE__:<name>\t<r0>\t<c0>\t<rows>\t<cols>\t<page>
-        if (line.size() > 13 && line.compare(0, 13, "__GET_TILE__:") == 0) {
-            auto p = numkit::ide::parseTabParams(line, 13);
-            const int r0   = (p.size() > 1) ? std::stoi(p[1]) : 0;
-            const int c0   = (p.size() > 2) ? std::stoi(p[2]) : 0;
-            const int rows = (p.size() > 3) ? std::stoi(p[3]) : 50;
-            const int cols = (p.size() > 4) ? std::stoi(p[4]) : 50;
-            const int pg   = (p.size() > 5) ? std::stoi(p[5]) : 0;
-            sendInspect("__TILE_DATA__:",
-                numkit::ide::getVarTileJSON(engine, p[0], r0, c0, rows, cols, pg));
-            accum.clear();
-            continue;
-        }
-
-        // __INSPECT_PATH__:<name>\t<pathStr>   (empty pathStr = root)
-        if (line.size() > 17 && line.compare(0, 17, "__INSPECT_PATH__:") == 0) {
-            auto p = numkit::ide::parseTabParams(line, 17);
-            const std::string pathStr = (p.size() > 1) ? p[1] : "";
-            sendInspect("__PATH_DATA__:", numkit::ide::getInspectPathJSON(engine, p[0], pathStr));
+        // Handle introspection commands
+        if (handleIntrospection(engine, line, nullptr)) {
             accum.clear();
             continue;
         }
@@ -469,6 +546,7 @@ void printUsage(const char *prog)
               << "  (no args)          interactive REPL\n"
               << "  script.m           evaluate the file and exit\n"
               << "  --ide-session      persistent pipe session (used by the IDE)\n"
+              << "  --compat           enable MATLAB compatibility (implicit import compat.*)\n"
               << "  -h | --help        show this message\n";
 }
 
@@ -476,15 +554,29 @@ void printUsage(const char *prog)
 
 int main(int argc, char **argv)
 {
-    if (argc == 1)
-        return runRepl();
+    bool compatMode = false;
+    std::string target;
+    bool isIdeSession = false;
 
-    const std::string arg = argv[1];
-    if (arg == "-h" || arg == "--help") {
-        printUsage(argv[0]);
-        return 0;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            printUsage(argv[0]);
+            return 0;
+        } else if (arg == "--compat") {
+            compatMode = true;
+        } else if (arg == "--ide-session") {
+            isIdeSession = true;
+        } else if (arg.length() > 0 && arg[0] != '-') {
+            target = arg;
+        }
     }
-    if (arg == "--ide-session")
-        return runIdeSession();
-    return runScript(arg);
+
+    if (isIdeSession)
+        return runIdeSession(compatMode);
+    
+    if (target.empty())
+        return runRepl(compatMode);
+
+    return runScript(target, compatMode);
 }

@@ -621,9 +621,14 @@ ipcMain.handle('fs:pickFile', async (_e, opts) => {
 // memory so subsequent codegen:run / interpreter spawns pick them up.
 ipcMain.handle('settings:update', async (_e, settings) => {
   if (settings && typeof settings === 'object') {
+    const oldCompat = runtimeSettings.matlabCompatibility;
+    const oldPath = runtimeSettings.interpreterPath;
     runtimeSettings = { ...runtimeSettings, ...settings };
     autoDetectToolPaths(runtimeSettings);
     console.log('[Numkit IDE] settings updated:', runtimeSettings);
+    if (typeof replSession !== 'undefined' && (oldCompat !== runtimeSettings.matlabCompatibility || oldPath !== runtimeSettings.interpreterPath)) {
+      replSession._kill();
+    }
   }
 });
 
@@ -727,7 +732,9 @@ class ReplSession {
 
     let child;
     try {
-      child = spawn(exePath, ['--ide-session'], {
+      const args = ['--ide-session'];
+      if (runtimeSettings.matlabCompatibility) args.push('--compat');
+      child = spawn(exePath, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
       });
@@ -773,8 +780,8 @@ class ReplSession {
     }
   }
 
-  _enqueue(exePath, payload, resolve, wasRestarted = false) {
-    this._queue.push({ exePath, payload, resolve, wasRestarted, stdout: '', stderr: '' });
+  _enqueue(exePath, payload, resolve, wasRestarted = false, kind = 'run') {
+    this._queue.push({ exePath, payload, resolve, wasRestarted, kind, stdout: '', stderr: '' });
     this._processQueue();
   }
 
@@ -834,7 +841,7 @@ class ReplSession {
       this._processQueue();
       return;
     }
-    const { resolve, stderr } = this.pending;
+    const { resolve, stderr, kind } = this.pending;
     this.pending = null;
     const lines = chunk.split('\n');
 
@@ -912,29 +919,31 @@ class ReplSession {
       return;
     }
 
-    // ── Introspection / command responses ────────────────────────────────
-    const INTROSPECT_MARKERS = [
-      '__VAR_DATA__:', '__SHAPE_DATA__:', '__PAGE_DATA__:',
-      '__STATS_DATA__:', '__TILE_DATA__:', '__PATH_DATA__:',
-      '__AST_DATA__:', '__GRAPH_DATA__:',
-    ];
-    for (const m of INTROSPECT_MARKERS) {
-      const found = lines.find(l => l.startsWith(m));
-      if (found) {
-        try { finish(JSON.parse(found.slice(m.length))); }
-        catch (e) { finish({ error: 'JSON parse error: ' + e.message, raw: found.slice(0, 200) }); }
+    // ── Introspection / command responses (only for query or reset requests) ──
+    if (kind === 'query' || kind === 'reset') {
+      const INTROSPECT_MARKERS = [
+        '__VAR_DATA__:', '__SHAPE_DATA__:', '__PAGE_DATA__:',
+        '__STATS_DATA__:', '__TILE_DATA__:', '__PATH_DATA__:',
+        '__AST_DATA__:', '__GRAPH_DATA__:', '__FIGURE_DATA__:',
+      ];
+      for (const m of INTROSPECT_MARKERS) {
+        const found = lines.find(l => l.startsWith(m));
+        if (found) {
+          try { finish(JSON.parse(found.slice(m.length))); }
+          catch (e) { finish({ error: 'JSON parse error: ' + e.message, raw: found.slice(0, 200) }); }
+          return;
+        }
+      }
+      if (lines.find(l => l === '__RESET_OK__')) {
+        let vars = null;
+        const vl = lines.find(l => l.startsWith('__VARS__:'));
+        if (vl) try { vars = JSON.parse(vl.slice(9)); } catch { /* ignore */ }
+        finish({ ok: true, vars });
         return;
       }
+      const errLine = lines.find(l => l.startsWith('__CMD_ERROR__:'));
+      if (errLine) { finish({ error: errLine.slice(14) }); return; }
     }
-    if (lines.find(l => l === '__RESET_OK__')) {
-      let vars = null;
-      const vl = lines.find(l => l.startsWith('__VARS__:'));
-      if (vl) try { vars = JSON.parse(vl.slice(9)); } catch { /* ignore */ }
-      finish({ ok: true, vars });
-      return;
-    }
-    const errLine = lines.find(l => l.startsWith('__CMD_ERROR__:'));
-    if (errLine) { finish({ error: errLine.slice(14) }); return; }
 
     // ── Regular run response (with figure extraction) ──────────────────────
     let vars = null;
@@ -970,7 +979,6 @@ class ReplSession {
     });
   }
 
-
   // Send code to the session; return Promise<{stdout,stderr,vars,exitCode,notFound?,sessionRestarted?}>.
   async run(code) {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
@@ -978,7 +986,7 @@ class ReplSession {
     const payload = code + '\n__END_OF_INPUT__\n';
 
     return new Promise((resolve) => {
-      this._enqueue(exePath, payload, resolve, wasRestarted);
+      this._enqueue(exePath, payload, resolve, wasRestarted, 'run');
     });
   }
 
@@ -986,7 +994,7 @@ class ReplSession {
   async reset() {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
     return new Promise((resolve) => {
-      this._enqueue(exePath, '__RESET__\n', resolve);
+      this._enqueue(exePath, '__RESET__\n', resolve, false, 'reset');
     });
   }
 
@@ -995,7 +1003,7 @@ class ReplSession {
   async query(command) {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
     return new Promise((resolve) => {
-      this._enqueue(exePath, command + '\n', resolve);
+      this._enqueue(exePath, command + '\n', resolve, false, 'query');
     });
   }
 
@@ -1013,7 +1021,7 @@ class ReplSession {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
     const payload = `__BUILD_AST__\n${source || ''}\n__END_OF_INPUT__\n`;
     return new Promise((resolve) => {
-      this._enqueue(exePath, payload, resolve);
+      this._enqueue(exePath, payload, resolve, false, 'query');
     });
   }
 
@@ -1021,7 +1029,7 @@ class ReplSession {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
     const payload = `__BUILD_GRAPH__\n${source || ''}\n__END_OF_INPUT__\n`;
     return new Promise((resolve) => {
-      this._enqueue(exePath, payload, resolve);
+      this._enqueue(exePath, payload, resolve, false, 'query');
     });
   }
 
@@ -1038,7 +1046,7 @@ class ReplSession {
     const bpJson = JSON.stringify(this._breakpoints);
     const payload = `__DEBUG_START__:${bpJson}\n${code}\n__END_OF_INPUT__\n`;
     return new Promise((resolve) => {
-      this._enqueue(exePath, payload, resolve);
+      this._enqueue(exePath, payload, resolve, false, 'debug');
     });
   }
 
@@ -1047,7 +1055,7 @@ class ReplSession {
   async debugStep(action) {
     const exePath = this.exePath || resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
     return new Promise((resolve) => {
-      this._enqueue(exePath, `__DEBUG_CMD__:${action}\n`, resolve);
+      this._enqueue(exePath, `__DEBUG_CMD__:${action}\n`, resolve, false, 'debug');
     });
   }
 

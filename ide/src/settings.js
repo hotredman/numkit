@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   codegenPath:     '', // path to numkit_codegen / numkit_codegen.exe
   cxxPath:         '', // NUMKIT_CXX override; '' = leave env var unchanged
   plotAspectRatio: '16:9',
+  matlabCompatibility: true, // implicit import compat.*
 });
 
 /**

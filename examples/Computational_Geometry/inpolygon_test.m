@@ -3,7 +3,7 @@
 % Ray-casting (crossing-number) test: which query points lie INSIDE
 % the closed polygon defined by (xv, yv).
 
-import compat.*;
+
 
 clear
 close all

@@ -5,7 +5,7 @@
 %
 % The figure built below is identical; the comment lines show what
 % each call would do. Change which view() is uncommented to compare.
-import compat.*;
+
 
 clear
 close all

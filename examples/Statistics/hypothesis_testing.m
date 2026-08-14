@@ -5,7 +5,7 @@
 %   • kstest2 — two-sample Kolmogorov-Smirnov
 % Generate two samples that differ in mean and see all three reject.
 
-import compat.*;
+
 
 clear
 close all

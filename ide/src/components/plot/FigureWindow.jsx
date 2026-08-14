@@ -546,6 +546,27 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
+  const computePlotSize = (r) => {
+    if (!r || !r.width || !r.height) return null;
+    const pad = embedded ? 8 : 32;
+    const minW = embedded ? 60 : 150;
+    const minH = embedded ? 40 : 100;
+    const availW = Math.max(minW, Math.round(r.width - pad));
+    const availH = Math.max(minH, Math.round(r.height - pad));
+    let w = availW;
+    let h = availH;
+    if (aspectRatio) {
+      const targetW = h * aspectRatio;
+      if (targetW <= availW) {
+        w = Math.round(targetW);
+      } else {
+        w = availW;
+        h = Math.max(minH, Math.round(availW / aspectRatio));
+      }
+    }
+    return { w, h };
+  };
+
   // Synchronous measure before paint so the SVG is sized correctly on the
   // very first frame the modal opens. `[]` deps so this only runs once at
   // mount — without it React would rerun the effect after every state
@@ -555,21 +576,11 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
     const el = wrapRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    if (!r.width) return;
-    setSize((prev) => {
-      let w = Math.max(400, Math.round(r.width  - 32));
-      let h = Math.max(300, Math.round(r.height - 32));
-      if (aspectRatio) {
-        const targetW = h * aspectRatio;
-        if (targetW <= w) {
-          w = Math.round(targetW);
-        } else {
-          h = Math.round(w / aspectRatio);
-        }
-      }
-      return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
-    });
-  }, [aspectRatio]);
+    const next = computePlotSize(r);
+    if (next) {
+      setSize((prev) => (Math.abs(prev.w - next.w) > 0.5 || Math.abs(prev.h - next.h) > 0.5) ? next : prev);
+    }
+  }, [aspectRatio, embedded]);
 
   // Re-measure on resize signals: window resize (modal is 85vw / 80vh) plus
   // ResizeObserver in modern browsers.
@@ -578,20 +589,10 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
     if (!el) return;
     const remeasure = () => {
       const r = el.getBoundingClientRect();
-      if (!r.width) return;
-      setSize((prev) => {
-        let w = Math.max(400, Math.round(r.width  - 32));
-        let h = Math.max(300, Math.round(r.height - 32));
-        if (aspectRatio) {
-          const targetW = h * aspectRatio;
-          if (targetW <= w) {
-            w = Math.round(targetW);
-          } else {
-            h = Math.round(w / aspectRatio);
-          }
-        }
-        return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
-      });
+      const next = computePlotSize(r);
+      if (next) {
+        setSize((prev) => (Math.abs(prev.w - next.w) > 0.5 || Math.abs(prev.h - next.h) > 0.5) ? next : prev);
+      }
     };
     let ro = null;
     if (typeof ResizeObserver !== 'undefined') {
@@ -603,7 +604,7 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
       ro?.disconnect();
       window.removeEventListener('resize', remeasure);
     };
-  }, [aspectRatio]);
+  }, [aspectRatio, embedded]);
 
   // Local downloadBlob for CSV/TSV/JSON paths below — image exports go through
   // plotUtils helpers so they share the light-theme + variable-resolution

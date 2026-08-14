@@ -973,12 +973,39 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     [tabs]
   );
 
-  // Ctrl+S
+  // Keyboard shortcuts (Ctrl+S, F5, F10, F11, Shift+F11, Shift+F5)
   useEffect(() => {
-    const h = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); } };
+    const h = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+      if (e.key === 'F5') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          debugStop();
+        } else if (debugState?.status === 'paused') {
+          debugResume(0); // Continue
+        } else if (!isRunning) {
+          debugStart();
+        }
+        return;
+      }
+      if (debugState?.status === 'paused') {
+        if (e.key === 'F10') {
+          e.preventDefault();
+          debugResume(1); // Step Over
+        } else if (e.key === 'F11') {
+          e.preventDefault();
+          if (e.shiftKey) debugResume(3); // Step Out
+          else debugResume(2); // Step Into
+        }
+      }
+    };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [handleSave]);
+  }, [handleSave, debugState, isRunning, debugResume, debugStart, debugStop]);
 
   /* ─────────────── adapted data ─────────────── */
   const workspaceVars = useMemo(() => adaptVariables(variables), [variables]);

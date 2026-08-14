@@ -11,6 +11,7 @@
 // Composite3DPlot.render.test.jsx (mocks THREE.WebGLRenderer) and
 // Sidebar.render.test.jsx (stubs fetch / tolerates no-IDB).
 
+import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import CompositePlot from './CompositePlot';

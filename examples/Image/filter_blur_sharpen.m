@@ -5,7 +5,7 @@
 %   • laplacian — second-derivative edge response
 % Synthetic input: a checkerboard with a smooth bias.
 
-import compat.*;
+
 
 clear
 close all

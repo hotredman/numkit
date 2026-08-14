@@ -18,6 +18,8 @@
  * Figure objects: { id, datasets: [{x,y,type,label?,style?}], config: {title,xlabel,ylabel,xlim?,ylim?,grid,legend?} }
  */
 
+import { loadSettings } from './settings';
+
 /**
  * Parse __FIGURE_DATA__, __FIGURE_CLOSE__, __FIGURE_CLOSE_ALL__,
  * __PLOT_DATA__ and __ERROR_LINE__ markers.
@@ -259,8 +261,7 @@ export function createNativeEngine(nfs) {
     getVarStats(name, page)                 { return nfs.getVarStats(name, page); },
     async getVarFigure(name, opts) { 
       if (!nfs.getVarFigure) return null;
-      const res = await nfs.getVarFigure(name, opts);
-      return res?.figures?.[0] || null;
+      return nfs.getVarFigure(name, opts);
     },
     inspectPath(name, path)                 { return nfs.inspectPath(name, path); },
 
@@ -330,14 +331,20 @@ export async function createWasmEngine(createModule) {
     type: 'wasm',
     init() {
       const greeting = Module.repl_init();
-      // Auto-import the compat namespace once per session so the user
-      // never has to type `import compat.*`. toolboxes/{signal,stats,…} are
-      // aliased under compat.<name>; imports live on the workspace env
-      // and persist for the whole session (MATLAB: only `clear import`
-      // clears them), so a single silent import at startup is enough.
-      try { Module.repl_execute('import compat.*;'); }
-      catch (e) { console.warn('[engine] auto-import compat.* failed', e); }
+      try {
+        if (typeof Module.repl_set_compat_mode === 'function') {
+          Module.repl_set_compat_mode(loadSettings().matlabCompatibility);
+        }
+      } catch (e) {
+        console.warn('[engine] auto-import compat.* failed', e);
+      }
       return greeting;
+    },
+
+    updateSettings(settings) {
+      if (typeof Module.repl_set_compat_mode === 'function' && settings && typeof settings.matlabCompatibility === 'boolean') {
+        Module.repl_set_compat_mode(settings.matlabCompatibility);
+      }
     },
 
     execute(code) {

@@ -2,7 +2,7 @@
 % Build a "peaks-like" surface from a sum of Gaussians and render
 % it through the WebGL surf path: indexed triangle mesh + per-vertex
 % colors sampled from a height-driven colormap + Lambert shading.
-import compat.*;
+
 
 clear
 close all

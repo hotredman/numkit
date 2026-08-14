@@ -2,7 +2,7 @@
 % errorbar(x, y, e) draws each (x_i, y_i) with a vertical bar of
 % half-height e_i. errorbar(x, y, neg, pos) supports asymmetric
 % intervals.
-import compat.*;
+
 
 clear
 close all

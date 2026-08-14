@@ -3,7 +3,7 @@
 %   f(x, y) = (1 - x)^2 + 100*(y - x^2)^2
 % Global minimum at (1, 1) with f = 0. fminsearch is derivative-free.
 
-import compat.*;
+
 
 clear
 close all

@@ -3,7 +3,7 @@
 % Equivalent to subplot, but with cleaner cell-stepping semantics
 % and forward-compat with MATLAB R2019+.
 
-import compat.*;
+
 
 clear
 close all

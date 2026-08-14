@@ -2,7 +2,7 @@
 % surfc draws a face-shaded surface AND a set of contour lines that
 % ride at the height of the surface. Internally that's surf + contour3
 % combined on the same axes.
-import compat.*;
+
 
 clear
 close all

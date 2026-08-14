@@ -3,7 +3,7 @@
 % detail coefficients. Demonstrates the classic Donoho-Johnstone
 % method: decompose → threshold → reconstruct.
 
-import compat.*;
+
 
 clear
 close all

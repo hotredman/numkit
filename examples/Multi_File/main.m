@@ -9,7 +9,7 @@
 %
 % Pull toolbox functions into scope so we can use mean / std / etc
 % without fully-qualified names.
-import compat.*;
+
 
 clear all
 
