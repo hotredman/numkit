@@ -541,6 +541,7 @@ public:
         debugSession_.reset();
         engine_ = std::make_unique<numkit::Engine>();
         numkit::installStandardLibrary(*engine_);
+        engine_->addImplicitImport({{"compat"}, true, ""});
         restoreOutputFunc();
         // Re-install VFS handlers on the fresh engine so csvread/csvwrite
         // keep routing through tempFS/localFS after a reset.

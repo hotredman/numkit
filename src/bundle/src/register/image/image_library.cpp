@@ -598,11 +598,6 @@ void ImageLibrary::install(Engine &engine)
     reg("segment", "roipoly",       &image::detail::roipoly_reg);
     reg("segment", "graydist",      &image::detail::graydist_reg);
     reg("segment", "bwdistgeodesic",&image::detail::bwdistgeodesic_reg);
-
-    // ── Core promotions ────────────────────────────────────────────────
-    engine.registerFunction("", "imread",  &image::detail::imread_reg);
-    engine.registerFunction("", "imwrite", &image::detail::imwrite_reg);
-    engine.registerFunction("", "imfinfo", &image::detail::imfinfo_reg);
 }
 
 } // namespace numkit
