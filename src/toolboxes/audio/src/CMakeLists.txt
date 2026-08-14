@@ -4,6 +4,13 @@ set(AUDIOLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral/melspec_delta.cpp          # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral/cepstral.cpp            # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/features/pitch_harmonics.cpp     # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/wav_codec.cpp                 # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/flac_codec.cpp                # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/mp3_codec.cpp                 # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/aiff_codec.cpp                # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/au_codec.cpp                  # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/midi_codec.cpp                # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/io/audio_io.cpp                  # compute (engine-free)
 )
 
 set(AUDIOLIB_SOURCES ${AUDIOLIB_SOURCES} PARENT_SCOPE)
