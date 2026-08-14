@@ -257,6 +257,7 @@ void encodeMat5Matrix(MatWriter &mw, const std::string &name, const Value &v) {
         case ValueType::COMPLEX: arrayClass = mxDOUBLE_CLASS; flags |= MAT5_FLAG_COMPLEX; break;
         case ValueType::CELL:    arrayClass = mxCELL_CLASS;   break;
         case ValueType::STRUCT:  arrayClass = mxSTRUCT_CLASS; break;
+        case ValueType::OBJECT:  arrayClass = mxOBJECT_CLASS; break;
         case ValueType::FUNC_HANDLE: arrayClass = mxDOUBLE_CLASS; break;
         default:                 arrayClass = mxDOUBLE_CLASS; break;
     }
@@ -293,9 +294,19 @@ void encodeMat5Matrix(MatWriter &mw, const std::string &name, const Value &v) {
             const Value &elem = v.cellAt(i);
             encodeMat5Matrix(inner, "", elem);
         }
-    } else if (v.type() == ValueType::STRUCT) {
-        // Struct elements: field name length (32) + field names + child miMATRIX per field per element
-        std::vector<std::string> fnames = v.fieldNamesInOrder();
+    } else if (v.type() == ValueType::STRUCT || v.type() == ValueType::OBJECT) {
+        std::vector<std::string> fnames;
+        if (v.type() == ValueType::OBJECT) {
+            std::string className = v.objectClassName();
+            inner.writeTag(miINT8, className.data(), static_cast<std::uint32_t>(className.size()));
+            if (const auto *st = v.objectStateConst()) {
+                for (const auto &[k, _] : st->props) {
+                    fnames.push_back(k);
+                }
+            }
+        } else {
+            fnames = v.fieldNamesInOrder();
+        }
 
         std::int32_t maxLen = 32;
         inner.writeTag(miINT32, &maxLen, sizeof(std::int32_t));
@@ -306,11 +317,17 @@ void encodeMat5Matrix(MatWriter &mw, const std::string &name, const Value &v) {
         }
         inner.writeTag(miINT8, nameTable.data(), static_cast<std::uint32_t>(nameTable.size()));
 
-        // Field values: for each field, for each element in struct array
+        // Field values: for each field, for each element in struct / object array
         for (std::size_t fi = 0; fi < fnames.size(); ++fi) {
             for (std::size_t ei = 0; ei < numElems; ++ei) {
                 Value fval;
-                if (v.isStructArray()) {
+                if (v.type() == ValueType::OBJECT) {
+                    const auto *st = v.objectStateAt(ei);
+                    if (st) {
+                        auto it = st->props.find(fnames[fi]);
+                        if (it != st->props.end()) fval = it->second;
+                    }
+                } else if (v.isStructArray()) {
                     auto &m = const_cast<Value&>(v).structArrayElem(ei);
                     auto it = m.find(fnames[fi]);
                     if (it != m.end()) fval = it->second;
@@ -420,7 +437,15 @@ std::pair<std::string, Value> decodeMat5Matrix(MatReader &mr, std::pmr::memory_r
             auto [childName, childVal] = decodeMat5Matrix(ir, mem);
             result.cellAt(i) = childVal;
         }
-    } else if (arrayClass == mxSTRUCT_CLASS) {
+    } else if (arrayClass == mxSTRUCT_CLASS || arrayClass == mxOBJECT_CLASS) {
+        std::string objClassName;
+        if (arrayClass == mxOBJECT_CLASS) {
+            auto classNameTag = ir.readTag();
+            if (classNameTag.payload && classNameTag.byteCount > 0) {
+                objClassName = std::string(reinterpret_cast<const char*>(classNameTag.payload), classNameTag.byteCount);
+            }
+        }
+
         auto fnamelenTag = ir.readTag();
         std::uint32_t fnLen = 32;
         if (fnamelenTag.byteCount >= 4) {
@@ -438,16 +463,44 @@ std::pair<std::string, Value> decodeMat5Matrix(MatReader &mr, std::pmr::memory_r
             fnames.emplace_back(fnPtr, curLen);
         }
 
-        if (numElems <= 1) {
-            result = Value::structure(mem);
-        } else {
-            result = Value::structArray(shape.rows(), shape.cols(), mem);
-        }
-
+        std::vector<std::vector<Value>> fieldVals(fnames.size(), std::vector<Value>(numElems));
         for (std::size_t fi = 0; fi < fnames.size(); ++fi) {
             for (std::size_t ei = 0; ei < numElems; ++ei) {
                 auto [childName, childVal] = decodeMat5Matrix(ir, mem);
-                result.setField(ei, fnames[fi], childVal);
+                fieldVals[fi][ei] = std::move(childVal);
+            }
+        }
+
+        if (arrayClass == mxSTRUCT_CLASS) {
+            if (numElems <= 1) {
+                result = Value::structure(mem);
+            } else {
+                result = Value::structArray(shape.rows(), shape.cols(), mem);
+            }
+            for (std::size_t fi = 0; fi < fnames.size(); ++fi) {
+                for (std::size_t ei = 0; ei < numElems; ++ei) {
+                    result.setField(ei, fnames[fi], fieldVals[fi][ei]);
+                }
+            }
+        } else {
+            // mxOBJECT_CLASS
+            if (numElems <= 1) {
+                auto st = std::make_shared<ObjectState>(mem);
+                for (std::size_t fi = 0; fi < fnames.size(); ++fi) {
+                    st->props[fnames[fi]] = std::move(fieldVals[fi][0]);
+                }
+                result = Value::object(objClassName, std::move(st), false, mem);
+            } else {
+                std::vector<std::shared_ptr<ObjectState>> states;
+                states.reserve(numElems);
+                for (std::size_t ei = 0; ei < numElems; ++ei) {
+                    auto st = std::make_shared<ObjectState>(mem);
+                    for (std::size_t fi = 0; fi < fnames.size(); ++fi) {
+                        st->props[fnames[fi]] = std::move(fieldVals[fi][ei]);
+                    }
+                    states.push_back(std::move(st));
+                }
+                result = Value::objectArray(objClassName, shape, std::move(states), false, mem);
             }
         }
     } else if (arrayClass == mxCHAR_CLASS) {

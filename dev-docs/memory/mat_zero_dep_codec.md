@@ -29,6 +29,7 @@ We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, 
        - `CHAR` arrays (1D string row vectors, 2D char matrices, and ND char tensors encoded as UTF-16).
        - `CELL` arrays (arbitrary shape and recursive nesting).
        - `STRUCT` & struct arrays (field name table, nested field matrices, insertion order tracking).
+       - `OBJECT` & object arrays (`mxOBJECT_CLASS` with class name tag, property tables, and instance property matrices).
        - Function handles (stored as 0×0 DOUBLE placeholders matching MATLAB v5 convention).
      - Compressed `-v7` stream encoding & decoding via in-tree `numkit::ops::zlibCompress` / `zlibDecompress` wrapped in `miCOMPRESSED` tags.
    - **MAT Level 4 (`-v4`):**

@@ -8,7 +8,7 @@
 // FileIoTest.SaveLoadMat* group.
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/engine.hpp>
+#include <numkit/value/object.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -557,3 +557,60 @@ TEST_F(SaveLoadMatTest, MixedTypeBundleSurvivesRoundTrip)
     EXPECT_EQ(eval("x = s.b;").toString(), "two");
     EXPECT_EQ(evalScalar("x = double(u(4));"), 65535.0);
 }
+
+TEST_F(SaveLoadMatTest, RoundTripObjectScalar)
+{
+    auto st = std::make_shared<ObjectState>(engine.resource());
+    st->props["x"] = Value::scalar(42.0);
+    st->props["name"] = Value::fromString("NumKitObject", engine.resource());
+    auto obj = Value::object("MyCustomClass", st, false);
+    engine.setVariable("obj", obj);
+
+    doSave(", 'obj'");
+    eval("clear obj;");
+    doLoad();
+
+    Value *loaded = engine.getVariable("obj");
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_TRUE(loaded->isObject());
+    EXPECT_EQ(loaded->objectClassName(), "MyCustomClass");
+    const ObjectState *lst = loaded->objectStateConst();
+    EXPECT_NE(lst, nullptr);
+    if (lst) {
+        EXPECT_DOUBLE_EQ(lst->props.at("x").toScalar(), 42.0);
+        EXPECT_EQ(lst->props.at("name").toString(), "NumKitObject");
+    }
+}
+
+TEST_F(SaveLoadMatTest, RoundTripObjectArray)
+{
+    std::vector<std::shared_ptr<ObjectState>> states;
+    for (int i = 1; i <= 3; ++i) {
+        auto st = std::make_shared<ObjectState>(engine.resource());
+        st->props["id"] = Value::scalar(static_cast<double>(i));
+        st->props["val"] = Value::scalar(static_cast<double>(i * 10));
+        states.push_back(st);
+    }
+    auto objArr = Value::objectArray("Point2D", Dims(1, 3), std::move(states), false);
+    engine.setVariable("pts", objArr);
+
+    doSave(", 'pts'");
+    eval("clear pts;");
+    doLoad();
+
+    Value *loaded = engine.getVariable("pts");
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_TRUE(loaded->isObject());
+    EXPECT_EQ(loaded->objectClassName(), "Point2D");
+    EXPECT_EQ(evalScalar("r = size(pts, 1);"), 1.0);
+    EXPECT_EQ(evalScalar("c = size(pts, 2);"), 3.0);
+    for (size_t i = 0; i < 3; ++i) {
+        const ObjectState *elemSt = loaded->objectStateAt(i);
+        EXPECT_NE(elemSt, nullptr);
+        if (elemSt) {
+            EXPECT_DOUBLE_EQ(elemSt->props.at("id").toScalar(), static_cast<double>(i + 1));
+            EXPECT_DOUBLE_EQ(elemSt->props.at("val").toScalar(), static_cast<double>((i + 1) * 10));
+        }
+    }
+}
+

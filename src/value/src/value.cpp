@@ -418,6 +418,21 @@ Value Value::object(const std::string &className,
     m.heap_ = h;
     return m;
 }
+Value Value::objectArray(const std::string &className, const Dims &dims,
+                         std::vector<std::shared_ptr<ObjectState>> states, bool isHandle,
+                         std::pmr::memory_resource *mr)
+{
+    Value m;
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->dims = dims;
+    h->mr = mr;
+    h->objClass = new std::string(className);
+    h->objStates = std::move(states);
+    h->objIsHandle = isHandle;
+    m.heap_ = h;
+    return m;
+}
 // ============================================================
 // Colon range: start:step:stop → row vector
 // ============================================================
