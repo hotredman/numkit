@@ -47,7 +47,13 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/bwtraceboundary_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imguidedfilter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/integralBoxFilter_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/imread_tiff_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tiff_codec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/deflate_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bmp_tga_pnm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/png_codec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/jpeg_codec_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/codecs_robustness_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/image_e2e_io_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imread_vfs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/edge_recon_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modefilt_test.cpp
