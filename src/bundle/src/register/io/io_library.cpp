@@ -86,26 +86,6 @@ void IoLibrary::install(Engine &engine)
     reg("paths", "fileparts", &io::detail::fileparts_reg);
     reg("paths", "tempdir",   &io::detail::tempdir_reg);
     reg("paths", "tempname",  &io::detail::tempname_reg);
-
-    // ── Core promotions ────────────────────────────────────────────────
-    engine.registerFunction("", "fopen",      &io::detail::fopen_reg);
-    engine.registerFunction("", "fclose",     &io::detail::fclose_reg);
-    engine.registerFunction("", "fgetl",      &io::detail::fgetl_reg);
-    engine.registerFunction("", "fgets",      &io::detail::fgets_reg);
-    engine.registerFunction("", "feof",       &io::detail::feof_reg);
-    engine.registerFunction("", "ferror",     &io::detail::ferror_reg);
-    engine.registerFunction("", "ftell",      &io::detail::ftell_reg);
-    engine.registerFunction("", "fseek",      &io::detail::fseek_reg);
-    engine.registerFunction("", "frewind",    &io::detail::frewind_reg);
-    engine.registerFunction("", "fread",      &io::detail::fread_reg);
-    engine.registerFunction("", "fwrite",     &io::detail::fwrite_reg);
-    engine.registerFunction("", "csvread",    &io::detail::csvread_reg);
-    engine.registerFunction("", "csvwrite",   &io::detail::csvwrite_reg);
-    engine.registerFunction("", "fullfile",   &io::detail::fullfile_reg);
-    engine.registerFunction("", "fileparts",  &io::detail::fileparts_reg);
-    engine.registerFunction("", "filesep",    &io::detail::filesep_reg);
-    engine.registerFunction("", "tempdir",    &io::detail::tempdir_reg);
-    engine.registerFunction("", "tempname",   &io::detail::tempname_reg);
 }
 
 } // namespace numkit

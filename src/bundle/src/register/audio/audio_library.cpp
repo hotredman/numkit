@@ -102,16 +102,6 @@ void AudioLibrary::install(Engine &engine)
     reg("io", "midiread",   &audio::detail::midiread_reg);
     reg("io", "midiwrite",  &audio::detail::midiwrite_reg);
     reg("io", "midiinfo",   &audio::detail::midiinfo_reg);
-
-    // ── Core promotions ────────────────────────────────────────────────
-    engine.registerFunction("", "audioread",  &audio::detail::audioread_reg);
-    engine.registerFunction("", "audiowrite", &audio::detail::audiowrite_reg);
-    engine.registerFunction("", "audioinfo",  &audio::detail::audioinfo_reg);
-    engine.registerFunction("", "midiread",   &audio::detail::midiread_reg);
-    engine.registerFunction("", "midiwrite",  &audio::detail::midiwrite_reg);
-    engine.registerFunction("", "midiinfo",   &audio::detail::midiinfo_reg);
-    engine.registerFunction("", "pitch",      &audio::detail::pitch_reg);
-    engine.registerFunction("", "mfcc",       &audio::detail::mfcc_reg);
 }
 
 } // namespace numkit
