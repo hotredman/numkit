@@ -350,6 +350,7 @@ public:
     ReplSession() {
         engine_ = std::make_unique<numkit::Engine>();
         numkit::installStandardLibrary(*engine_);
+        engine_->addImplicitImport({{"compat"}, true, ""});
         restoreOutputFunc();
     }
 
