@@ -59,14 +59,6 @@
       ]
     },
     {
-      "name": "CSV",
-      "files": [
-        "read_range.m",
-        "roundtrip.m",
-        "write_offset.m"
-      ]
-    },
-    {
       "name": "Classes",
       "files": [
         "dependent_properties.m",
@@ -143,11 +135,16 @@
       "files": [
         "append_log.m",
         "audio_io_roundtrip.m",
+        "binary_file_io.m",
+        "csv_read_range.m",
+        "csv_roundtrip.m",
+        "csv_write_offset.m",
         "image_io_roundtrip.m",
         "manual_csv.m",
         "mat_multiple_vars.m",
         "mat_roundtrip.m",
         "mat_save_workspace.m",
+        "mat_structs_and_cells.m",
         "write_text.m"
       ]
     },
