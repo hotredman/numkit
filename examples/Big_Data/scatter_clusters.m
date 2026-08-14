@@ -2,7 +2,7 @@
 % Four Gaussian clusters, 200k markers total. The viewer routes round-marker
 % scatter above ~2,000 points to a WebGL canvas (a single POINTS draw), so it
 % stays interactive where 200k individual SVG markers would lock up the page.
-import compat.*;
+
 
 clear
 close all

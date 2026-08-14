@@ -81,7 +81,10 @@ function MultiPickerControls({ mAxis, setMAxis, mSel, setMSel, rows, cols,
   return (
     <>
       <div className="ve-plot-subhead ve-plot-row">
-        <span className="ve-plot-lbl ve-plot-lbl-fixed">curves by</span>
+        <span className="ve-plot-lbl ve-plot-lbl-fixed">
+          <span className="ve-plot-lbl-full">curves by</span>
+          <span className="ve-plot-lbl-short">by</span>
+        </span>
         <div className="ve-segmented sm">
           <button className={mAxis === 'col' ? 'is-active' : ''} onClick={() => { setMAxis('col'); setMSel(new Set([0])); setMXSrc({ axis: 'col', idx: 0 }); }}>col</button>
           <button className={mAxis === 'row' ? 'is-active' : ''} onClick={() => { setMAxis('row'); setMSel(new Set([0])); setMXSrc({ axis: 'row', idx: 0 }); }}>row</button>
@@ -126,7 +129,10 @@ function MultiPickerControls({ mAxis, setMAxis, mSel, setMSel, rows, cols,
         <div className="ve-multi-picker" ref={ref}>
           <button className="ve-multi-trigger" onClick={() => setOpen((o) => !o)}>
             <span className="ve-multi-count">{selectedSorted.length}</span>
-            <span className="ve-multi-label">of {limit} {mAxis}s</span>
+            <span className="ve-multi-label">
+              <span className="ve-multi-label-full">of {limit} {mAxis}s</span>
+              <span className="ve-multi-label-short">/ {limit}</span>
+            </span>
             <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5L4 5.5L7 2.5" stroke="currentColor" strokeWidth="1.2" fill="none"/></svg>
           </button>
           {open && (
@@ -174,8 +180,11 @@ function PlotControls({ rows, cols,
   return (
     <>
       <div className="ve-plot-head">
-        <span className="ve-plot-title">inline plot</span>
-        <div className="ve-plot-tabs" style={{ display: 'flex', gap: '2px', marginLeft: '12px' }}>
+        <span className="ve-plot-title">
+          <span className="ve-plot-title-full">inline plot</span>
+          <span className="ve-plot-title-short" title="Inline Plot">📈</span>
+        </span>
+        <div className="ve-plot-tabs">
           {['1d', '2d', '3d'].map((mode) => (
             <button key={mode}
               className={`ve-btn ${dimMode === mode ? 'is-active' : ''}`}
@@ -255,7 +264,7 @@ function PlotControls({ rows, cols,
   );
 }
 
-export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, onClose }) {
+export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, page = 0, onClose }) {
   const defaultAxis = (r, c) => (c >= r ? 'row' : 'col');
 
   const [dimMode, setDimMode] = useState(() => isSparse ? '2d' : '1d');
@@ -270,28 +279,41 @@ export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, on
   const [engineLoading, setEngineLoading] = useState(false);
 
   useEffect(() => {
-    if (dimMode === '1d' || !engine || typeof engine.getVarFigure !== 'function') {
+    if (!engine || typeof engine.getVarFigure !== 'function' || !varName) {
       setEngineFig(null);
       setEngineLoading(false);
       return;
     }
     let active = true;
     setEngineLoading(true);
-    // Ask the C++ engine to generate the figure JSON (e.g., downsampling for imagesc/surf)
-    const req = engine.getVarFigure(varName, { mode: plotType });
+    // Ask the C++ engine to generate the figure JSON (e.g., downsampling for 1D/2D/3D)
+    const req = engine.getVarFigure(varName, {
+      mode: plotType,
+      dimMode,
+      axis: mAxis,
+      indices: [...mSel],
+      xMode: mXMode,
+      xSrc: mXSrc,
+      page,
+    });
     Promise.resolve(req).then((res) => {
       if (active) {
-        setEngineFig(res);
+        if (res && !res.error) {
+          setEngineFig(res);
+        } else {
+          setEngineFig(null);
+        }
         setEngineLoading(false);
       }
     }).catch((err) => {
       if (active) {
         console.error('getVarFigure error:', err);
+        setEngineFig(null);
         setEngineLoading(false);
       }
     });
     return () => { active = false; };
-  }, [dimMode, plotType, engine, varName]);
+  }, [dimMode, plotType, engine, varName, mAxis, mSel, mXMode, mXSrc, page]);
 
   useEffect(() => {
     const def = defaultAxis(rows, cols);
@@ -305,7 +327,7 @@ export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, on
   const palette = ['#7fd99a', '#5fb3d4', '#e9b870', '#9b8cf2', '#e26a6a', '#d4a5e6', '#f2a37e', '#6fcfbf'];
 
   function sliceArr(src) {
-    return getSlice(src.axis, src.idx) || [];
+    return (getSlice && getSlice(src.axis, src.idx)) || [];
   }
 
   const limit = mAxis === 'col' ? cols : rows;
@@ -315,7 +337,7 @@ export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, on
     ? `${mXSrc.axis} ${mXSrc.idx + 1}`
     : 'index';
   const curves = ids.map((k, i) => {
-    const ys = (getSlice(mAxis, k) || []).map(Number);
+    const ys = ((getSlice && getSlice(mAxis, k)) || []).map(Number);
     const length = ys.length;
     const xs = xShared ? xShared.slice(0, length) : ys.map((_, j) => j + 1);
     const x = [], y = [];
@@ -376,20 +398,18 @@ export function InlinePlot({ getSlice, rows, cols, varName, engine, isSparse, on
   })();
 
   let content = null;
-  if (dimMode === '1d') {
+  if (engineLoading) {
+    content = <div className="ve-plot-empty">generating figure...</div>;
+  } else if (engineFig) {
+    content = <FigureWindow figure={engineFig} embedded={true} onClose={onClose} aspectRatio={aspect} />;
+  } else if (dimMode === '1d') {
     if (curves.length === 0 || curves.every((c) => c.y.length === 0)) {
       content = <div className="ve-plot-empty">no numeric data to plot — pick at least one {mAxis}</div>;
     } else {
       content = <FigureWindow figure={fig} embedded={true} onClose={onClose} aspectRatio={aspect} />;
     }
   } else {
-    if (engineLoading) {
-      content = <div className="ve-plot-empty">generating figure...</div>;
-    } else if (!engineFig) {
-      content = <div className="ve-plot-empty">failed to generate {dimMode} figure</div>;
-    } else {
-      content = <FigureWindow figure={engineFig} embedded={true} onClose={onClose} aspectRatio={aspect} />;
-    }
+    content = <div className="ve-plot-empty">failed to generate {dimMode} figure</div>;
   }
 
   return (

@@ -6,7 +6,7 @@
 % does not leak into main.m.
 
 function s = compute_stats(x)
-    import compat.*;
+
 
     s = struct();
     s.mean   = mean(x);

@@ -5,7 +5,7 @@
 % voronoi(x, y) draws the dual Voronoi diagram (edges between
 % circumcenters of adjacent Delaunay triangles).
 
-import compat.*;
+
 
 clear
 close all

@@ -1868,3 +1868,69 @@ TEST_F(DebugSessionTest, StepOverClearAllKeepsScriptLocalFunctions)
     ASSERT_NE(y, nullptr);
     EXPECT_DOUBLE_EQ(y->toScalar(), 11.0);
 }
+
+TEST_F(DebugSessionTest, ImplicitImportsPreservedAcrossClearAndBreakpoint)
+{
+    engine.addImplicitImport({{"compat"}, true, ""});
+    DebugSession session(engine);
+    session.setBreakpoints({3});
+
+    std::string code =
+        "clear all;\n"
+        "close all;\n"
+        "gK = fspecial('gaussian', [3 3], 1.0);\n"
+        "res = mean([10, 20, 30]);\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 3);
+
+    // Evaluate watch expressions during pause — must resolve compat functions
+    session.addWatch("mean([1, 2, 3])");
+    auto watches = session.evalWatches();
+    ASSERT_EQ(watches.size(), 1u);
+    EXPECT_EQ(watches[0].result, "ans =\n   2");
+
+    // Console eval during pause
+    std::string evalRes = session.eval("mean([100, 200])");
+    EXPECT_EQ(evalRes, "ans =\n   150");
+
+    // Step over fspecial
+    status = session.resume(DebugAction::StepOver);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 4);
+
+    // Continue to completion
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty())
+        << "unexpected error: " << session.errorMessage();
+
+    auto *gK = engine.getVariable("gK");
+    ASSERT_NE(gK, nullptr);
+    EXPECT_EQ(gK->dims().rows(), 3u);
+    EXPECT_EQ(gK->dims().cols(), 3u);
+
+    auto *res = engine.getVariable("res");
+    ASSERT_NE(res, nullptr);
+    EXPECT_DOUBLE_EQ(res->toScalar(), 20.0);
+}
+
+TEST_F(DebugSessionTest, FprintfWorksAfterDebugWithoutManualRestore)
+{
+    // 1. Run a debug session in a local scope
+    {
+        DebugSession session(engine);
+        session.setBreakpoints({2});
+        auto status = session.start("a = 1;\nb = 2;\n");
+        ASSERT_EQ(status, ExecStatus::Paused);
+        status = session.resume(DebugAction::Continue);
+        EXPECT_EQ(status, ExecStatus::Completed);
+    }
+    // DebugSession is destroyed here.
+
+    // 2. Normal execution with fprintf must succeed with NO bad_alloc
+    auto r = engine.evalSafe("fprintf('val = %d\\n', 42);");
+    EXPECT_TRUE(r.ok) << "fprintf failed after debug session: " << r.errorMessage;
+}
+

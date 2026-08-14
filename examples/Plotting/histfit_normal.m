@@ -1,7 +1,7 @@
 % histfit — Histogram + Gaussian fit overlay
 % Bins x into N bins and overlays a Gaussian PDF scaled to match
 % the bar heights. Useful for "is this Gaussian?" eyeball checks.
-import compat.*;
+
 
 clear
 close all

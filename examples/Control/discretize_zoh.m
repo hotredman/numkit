@@ -3,7 +3,7 @@
 % (c2d, ZOH method) at three sample rates. Show how Ts choice affects
 % the discrete step response vs the continuous reference.
 
-import compat.*;
+
 
 clear
 close all

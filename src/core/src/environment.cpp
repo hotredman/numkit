@@ -203,13 +203,15 @@ void Environment::remove(const std::string &name)
         hasGlobals_ = false;
 }
 
-void Environment::clearAll()
+void Environment::clearAll(bool keepImports)
 {
     sboCount_ = 0;
     vars_.clear();
     globals_.clear();
     hasGlobals_ = false;
-    activeImports_.clear();
+    if (!keepImports) {
+        activeImports_.clear();
+    }
 }
 
 void Environment::reset(Environment *parent, Environment *gs)

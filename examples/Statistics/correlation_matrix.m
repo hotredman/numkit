@@ -3,7 +3,7 @@
 % correlation matrix with corrcoef, and visualize it as a heatmap.
 % Also draw the pair-scatter for the strongest positive pair.
 
-import compat.*;
+
 
 clear
 close all

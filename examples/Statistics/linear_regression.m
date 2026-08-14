@@ -5,7 +5,7 @@
 %   3. Report slope, intercept, R^2
 %   4. Plot data + fit line + 95% confidence band
 
-import compat.*;
+
 
 clear
 close all

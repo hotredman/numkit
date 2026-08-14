@@ -2,7 +2,7 @@
 % yyaxis('left')  — subsequent plot/scatter/etc. write to the left axis
 % yyaxis('right') — switch to the right axis with its own scale
 % ylabel/ylim/yscale also route to the active side.
-import compat.*;
+
 
 clear
 close all

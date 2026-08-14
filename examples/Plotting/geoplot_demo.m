@@ -4,7 +4,7 @@
 % auto-sets xlabel='lon' / ylabel='lat'. Basemap-tile rendering
 % remains a follow-up.
 
-import compat.*;
+
 
 clear
 close all

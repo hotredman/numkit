@@ -2,7 +2,7 @@
 % Build a synthetic voice-like signal whose fundamental frequency
 % sweeps from 110 Hz (A2) to 220 Hz (A3), and recover f0 via pitch().
 
-import compat.*;
+
 
 clear
 close all

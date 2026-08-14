@@ -2,7 +2,7 @@
 % patch(X, Y) shades a single polygon; matrix inputs draw one
 % polygon per column. Color accepts a single-char ('r', 'g', 'b'),
 % a "#rrggbb" string, or a 3-element [r g b] triplet in [0, 1].
-import compat.*;
+
 
 clear
 close all

@@ -3,7 +3,7 @@
 % Compare the input histogram (clustered in a narrow band) with the
 % output (spread across the full range).
 
-import compat.*;
+
 
 clear
 close all

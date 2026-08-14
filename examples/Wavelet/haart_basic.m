@@ -3,7 +3,7 @@
 % to introduce the multi-level decomposition idea. Shows analysis +
 % reconstruction round-trip and the per-level detail energies.
 
-import compat.*;
+
 
 clear
 close all

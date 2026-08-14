@@ -3,7 +3,7 @@
 % bode returns (mag, phase, w) in linear units / radians; convert
 % manually for the canonical dB / degrees view.
 
-import compat.*;
+
 
 clear
 close all

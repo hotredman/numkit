@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
+  },
   // Relative base so the built site works from any location — a web host at
   // root OR a sub-path, and the Electron desktop shell over file:// (which
   // desktop-build also forces via `vite build --base ./`). Keeps the bundled

@@ -278,19 +278,34 @@ export function StructInspector({ variable, engine, onEscape }) {
       setPayload(null);
       return;
     }
-    // `await` handles both WASM (sync value) and native Electron IPC (Promise).
-    (async () => {
-      const p = await engine.inspectPath(variable.name, cur.path);
-      if (p === null) {
+    // Handles both WASM (sync value) and native Electron IPC (Promise).
+    const res = engine.inspectPath(variable.name, cur.path);
+    if (res && typeof res.then === 'function') {
+      res.then((p) => {
+        if (p === null) {
+          setError('struct inspection needs a full WASM rebuild (binding missing)');
+          setPayload(null);
+        } else if (p.error) {
+          setError(p.error);
+          setPayload(null);
+        } else {
+          setPayload(p);
+        }
+      }).catch((err) => {
+        setError(err?.message || 'Inspection failed');
+        setPayload(null);
+      });
+    } else {
+      if (res === null) {
         setError('struct inspection needs a full WASM rebuild (binding missing)');
         setPayload(null);
-      } else if (p.error) {
-        setError(p.error);
+      } else if (res && res.error) {
+        setError(res.error);
         setPayload(null);
       } else {
-        setPayload(p);
+        setPayload(res);
       }
-    })();
+    }
   }, [variable.name, engine, cur.path, refreshTick]);
 
 

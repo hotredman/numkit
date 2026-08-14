@@ -3,7 +3,7 @@
 % through a low-pass to model bandwidth limiting, and overlay 2-symbol
 % windows to draw an eye diagram.
 
-import compat.*;
+
 
 clear
 close all

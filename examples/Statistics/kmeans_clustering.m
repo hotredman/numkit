@@ -2,7 +2,7 @@
 % k-means clustering on a synthetic 3-cluster 2-D dataset. Shows the
 % recovered cluster assignments + centroid locations vs ground truth.
 
-import compat.*;
+
 
 clear
 close all

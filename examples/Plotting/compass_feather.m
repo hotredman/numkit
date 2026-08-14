@@ -3,7 +3,7 @@
 % feather(U, V)  — arrows from points (i, 0) on the x-axis to
 %                  (i + U_i, V_i)
 % Both are quiver wrappers with deterministic seeds.
-import compat.*;
+
 
 clear
 close all

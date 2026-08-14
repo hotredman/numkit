@@ -127,6 +127,16 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    function onSettingsUpdated(e) {
+      if (engine && typeof engine.updateSettings === 'function') {
+        engine.updateSettings(e.detail);
+      }
+    }
+    window.addEventListener('settings-updated', onSettingsUpdated);
+    return () => window.removeEventListener('settings-updated', onSettingsUpdated);
+  }, [engine]);
+
   // Registration helper handed to FileBrowser so the 'local' adapter can
   // be installed after the user (re)mounts a folder — that happens after
   // page load, well after the initial installVfsAdapters() call. Memoised

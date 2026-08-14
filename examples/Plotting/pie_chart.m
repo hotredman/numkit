@@ -2,7 +2,7 @@
 % pie(X) shows each X(i) as a wedge sized proportionally; auto labels
 % are percentages. pie(X, explode) displaces selected wedges by ~10%
 % along their bisector — useful to call out a slice.
-import compat.*;
+
 
 clear
 close all

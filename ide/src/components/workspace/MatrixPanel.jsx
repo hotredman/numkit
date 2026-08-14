@@ -491,7 +491,7 @@ export function MatrixPanel({
               onDoubleClick={() => setPlotWidth(520)}
               title="Drag to resize · double-click to reset" />
             <InlinePlot getSlice={getSlice} rows={rows} cols={cols} varName={name} engine={engine}
-              isSparse={type && type.includes('sparse')}
+              isSparse={type && type.includes('sparse')} page={page}
               onClose={() => setShowPlot(false)} />
           </>
         )}

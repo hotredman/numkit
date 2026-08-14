@@ -3,7 +3,7 @@
 % Linear barycentric interpolation via Delaunay triangulation.
 % Query points outside the convex hull get NaN.
 
-import compat.*;
+
 
 clear
 close all

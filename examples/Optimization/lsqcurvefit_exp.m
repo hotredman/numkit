@@ -4,7 +4,7 @@
 % from noisy samples. Demonstrates fminsearch driven by the residual
 % sum-of-squares — the hand-rolled equivalent of lsqcurvefit.
 
-import compat.*;
+
 
 clear
 close all

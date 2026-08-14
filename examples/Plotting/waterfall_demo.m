@@ -2,7 +2,7 @@
 % Each row of Z becomes a ribbon whose top edge follows Z(r,:) and
 % bottom edge sits at z=0. Useful for visualising spectrograms or
 % successive waveform snapshots stacked over time.
-import compat.*;
+
 
 clear
 close all

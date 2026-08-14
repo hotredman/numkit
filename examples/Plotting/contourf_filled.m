@@ -4,7 +4,7 @@
 % adjacent isolevels. Uses an HSL ramp from blue (data min) to red
 % (data max).
 
-import compat.*;
+
 
 clear
 close all

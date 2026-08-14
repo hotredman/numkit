@@ -1086,17 +1086,23 @@ input, select { font-family: inherit; color: inherit; }
 /* Inline plot enhancements */
 .ve-segmented.sm button { padding: 2px 8px; font-size: 10.5px; }
 .ve-plot-subhead {
-  display: flex; align-items: center; gap: 10px;
-  padding: 4px 12px 6px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px;
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono); font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .ve-plot-spacer { flex: 1; }
-.ve-plot-lbl { color: var(--fg-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.ve-plot-lbl { color: var(--fg-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
 .ve-plot-lbl-fixed {
   display: inline-block; min-width: 60px;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+.ve-plot-lbl-short { display: none; }
 .ve-plot-row {
   padding-top: 3px; padding-bottom: 3px;
   border-bottom: none;
@@ -2239,15 +2245,56 @@ input, select { font-family: inherit; color: inherit; }
   display: flex; flex-direction: column;
   background: var(--bg-1);
   min-height: 0;
+  container-type: inline-size;
+  container-name: veplot;
 }
 .ve-plot-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px;
+  height: 32px; min-height: 32px;
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
   font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
-.ve-plot-title { color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.ve-plot-title {
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.ve-plot-title-short {
+  display: none;
+  font-size: 12px;
+}
+.ve-plot-tabs {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.ve-plot-spacer {
+  flex: 1 1 auto;
+  min-width: 4px;
+}
+.ve-plot-type-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.ve-plot-type-select {
+  flex-shrink: 0;
+  max-width: 115px;
+  text-overflow: ellipsis;
+}
 .ve-plot-idx {
   color: var(--fg-2);
   display: inline-flex; align-items: center; gap: 4px;
@@ -2265,13 +2312,44 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-plot-close {
   margin-left: auto;
+  flex-shrink: 0 !important;
   background: transparent; border: none;
   color: var(--fg-3); cursor: pointer;
-  font-size: 14px; line-height: 1;
+  font-size: 15px; line-height: 1;
   width: 20px; height: 20px;
   border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 .ve-plot-close:hover { background: var(--bg-3); color: var(--fg-0); }
+
+@container veplot (max-width: 380px) {
+  .ve-plot-title-full { display: none; }
+  .ve-plot-title-short { display: inline; }
+  .ve-plot-head { gap: 6px; padding: 4px 8px; }
+}
+
+@container veplot (max-width: 320px) {
+  .ve-plot-lbl-fixed { min-width: 48px; }
+  .ve-plot-lbl-full { display: none; }
+  .ve-plot-lbl-short { display: inline; }
+  .ve-multi-label-full { display: none; }
+  .ve-multi-label-short { display: inline; }
+}
+
+@container veplot (max-width: 290px) {
+  .ve-plot-title { display: none; }
+  .ve-plot-type-wrap .ve-plot-lbl { display: none; }
+}
+
+@container veplot (max-width: 250px) {
+  .ve-plot-lbl-fixed { min-width: 24px; }
+  .ve-multi-label { display: none; }
+  .ve-plot-type-select { max-width: 85px; }
+  .ve-plot-head { gap: 4px; padding: 4px 6px; }
+}
 .ve-plot-chart-wrap {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -2332,6 +2410,24 @@ input, select { font-family: inherit; color: inherit; }
   background: transparent !important;
   animation: none !important;
   grid-template-rows: auto auto 1fr auto 22px;
+}
+.fw-window.is-embedded .fw-toolbar {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 4px;
+}
+.fw-window.is-embedded .fw-canvas-wrap {
+  padding: 4px;
+}
+.fw-window.is-embedded .fw-canvas {
+  margin: 0;
+  box-shadow: none;
+}
+.fw-window.is-embedded .fw-range-row {
+  padding: 3px 8px;
+}
+.fw-window.is-embedded .fw-status {
+  padding: 0 8px;
 }
 .fw-window.is-max {
   width:  100vw;
@@ -2449,9 +2545,17 @@ input, select { font-family: inherit; color: inherit; }
 }
 .fw-range-row {
   display: flex; align-items: center;
-  padding: 14px 14px;
+  padding: 6px 14px;
   background: var(--bg-2);
   border-top: 1px solid var(--line);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.fw-range-row::-webkit-scrollbar {
+  height: 4px;
 }
 
 /* Empty subplot slot — script called subplot(R,C,k) for some but not all
@@ -2471,14 +2575,26 @@ input, select { font-family: inherit; color: inherit; }
 .fw-status {
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
+  height: 22px; min-height: 22px; max-height: 22px;
   background: var(--bg-2);
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
-.fw-status .ve-spacer { flex: 1; }
-.fw-status .ve-sep { width: 1px; height: 12px; background: var(--line); }
+.fw-status span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+.fw-status .ve-spacer { flex: 1 1 auto; min-width: 4px; }
+.fw-status .ve-sep { flex-shrink: 0; width: 1px; height: 12px; background: var(--line); }
 .fw-zoom-readout {
   background: var(--bg-3);
   color: var(--fg-0);
@@ -2486,6 +2602,7 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 3px;
   min-width: 50px; text-align: center;
   font-size: 11px;
+  flex-shrink: 0;
 }
 
 /* (legacy figures-canvas hover removed — replaced by fp-stack/fp-card) */
@@ -2499,14 +2616,23 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-1);
   font-family: var(--font-mono); font-size: 11px;
   padding: 3px 8px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .ve-multi-trigger:hover { background: var(--bg-2); border-color: var(--accent); }
 .ve-multi-count {
   background: rgba(127, 217, 154, 0.15); color: var(--accent);
   border-radius: 999px; padding: 0 7px; min-width: 18px;
   text-align: center; font-weight: 500;
+  flex-shrink: 0;
 }
-.ve-multi-label { color: var(--fg-3); font-size: 10.5px; }
+.ve-multi-label {
+  color: var(--fg-3); font-size: 10.5px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+.ve-multi-label-short { display: none; }
 .ve-multi-pop {
   position: absolute; top: calc(100% + 4px); left: 0; right: auto;
   width: min(300px, 90vw);
@@ -2871,15 +2997,26 @@ select.ve-btn.fw-cmap-select {
 .ve-status {
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
-  min-height: 22px;   /* match the .ve-window grid row (see .ve-toolbar) */
+  min-height: 22px; height: 22px; max-height: 22px;
   background: var(--bg-2);
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
-.ve-status .ve-spacer { flex: 1; }
-.ve-status .ve-sep { width: 1px; height: 12px; background: var(--line); }
+.ve-status span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+.ve-status .ve-spacer { flex: 1 1 auto; min-width: 4px; }
+.ve-status .ve-sep { flex-shrink: 0; width: 1px; height: 12px; background: var(--line); }
 
 /* ---------- Status bar ---------- */
 .statusbar {
@@ -2890,6 +3027,18 @@ select.ve-btn.fw-cmap-select {
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  min-height: 22px; height: 22px; max-height: 22px;
+  box-sizing: border-box;
+}
+.statusbar > * {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
 }
 .status-pill {
   background: oklch(0.78 0.16 145 / 0.15);
@@ -2897,11 +3046,12 @@ select.ve-btn.fw-cmap-select {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 10px;
+  flex-shrink: 0;
 }
-.status-item { display: inline-flex; align-items: center; gap: 4px; }
-.status-item .dot { width: 6px; height: 6px; }
-.status-spacer { flex: 1; }
-.status-sep { width: 1px; height: 12px; background: var(--line); }
+.status-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+.status-item .dot { width: 6px; height: 6px; flex-shrink: 0; }
+.status-spacer { flex: 1 1 auto; min-width: 4px; }
+.status-sep { flex-shrink: 0; width: 1px; height: 12px; background: var(--line); }
 
 /* ---------- Scrollbars ---------- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

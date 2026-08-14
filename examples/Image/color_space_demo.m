@@ -2,7 +2,7 @@
 % Round-trip RGB → HSV → RGB and exploit the HSV intermediate to rotate
 % the image's hue by 120 degrees (cyclic in H, no contrast change).
 
-import compat.*;
+
 
 clear
 close all

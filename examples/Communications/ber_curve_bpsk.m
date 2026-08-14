@@ -2,7 +2,7 @@
 % Empirical bit-error-rate of BPSK over AWGN, swept across SNR.
 % Compare with the theoretical curve  Pe = Q(sqrt(2 * Eb/N0)).
 
-import compat.*;
+
 
 clear
 close all

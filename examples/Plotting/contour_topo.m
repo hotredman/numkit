@@ -3,7 +3,7 @@
 % contour(Z, n) overrides the count, contour(Z, levels) the values.
 % contourf renders filled bands instead of lines (currently lines —
 % filled is on the BACKLOG).
-import compat.*;
+
 
 clear
 close all

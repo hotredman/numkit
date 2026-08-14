@@ -2,7 +2,7 @@
 % surfl(Z) draws the surface AND auto-attaches a headlight + sets
 % lighting='gouraud' + material='shiny' in one call. Equivalent to
 % the surf + camlight combo but a single line.
-import compat.*;
+
 
 clear
 close all

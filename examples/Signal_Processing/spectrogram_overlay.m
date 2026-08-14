@@ -9,7 +9,7 @@
 % expected peak frequencies with red dots, draws a horizontal track
 % line at one frequency, and labels each peak.
 
-import compat.*;
+
 clear
 close all
 

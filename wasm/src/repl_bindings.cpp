@@ -353,6 +353,8 @@ public:
         restoreOutputFunc();
     }
 
+    numkit::Engine* engine() { return engine_.get(); }
+
     // ── Virtual filesystem bridge ──
     //
     // The IDE registers one JS object per named filesystem (typically
@@ -630,24 +632,238 @@ public:
         } catch (...) { return "{\"error\":\"unknown\"}"; }
     }
 
+    static std::string extractJsonString(const std::string& json, const std::string& key, const std::string& defVal = "") {
+        std::string needle = "\"" + key + "\":\"";
+        auto pos = json.find(needle);
+        if (pos == std::string::npos) return defVal;
+        pos += needle.size();
+        auto end = json.find('"', pos);
+        if (end == std::string::npos) return defVal;
+        return json.substr(pos, end - pos);
+    }
+
+    static int extractJsonInt(const std::string& json, const std::string& key, int defVal = 0) {
+        std::string needle = "\"" + key + "\":";
+        auto pos = json.find(needle);
+        if (pos == std::string::npos) return defVal;
+        pos += needle.size();
+        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
+        try {
+            return std::stoi(json.substr(pos));
+        } catch (...) {
+            return defVal;
+        }
+    }
+
+    static std::vector<int> extractJsonIntArray(const std::string& json, const std::string& key) {
+        std::vector<int> res;
+        std::string needle = "\"" + key + "\":[";
+        auto pos = json.find(needle);
+        if (pos == std::string::npos) return res;
+        pos += needle.size();
+        auto end = json.find(']', pos);
+        if (end == std::string::npos) return res;
+        std::string body = json.substr(pos, end - pos);
+        std::stringstream ss(body);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            try {
+                while (!token.empty() && (token.front() == ' ' || token.front() == '\t')) token.erase(token.begin());
+                while (!token.empty() && (token.back() == ' ' || token.back() == '\t')) token.pop_back();
+                if (!token.empty()) res.push_back(std::stoi(token));
+            } catch (...) {}
+        }
+        return res;
+    }
+
     std::string getVarFigureJSON(const std::string &name, const std::string &optsJSON) {
         try {
             using numkit::ValueType;
             numkit::Value rootStore;
             if (!resolveInspectValue(name, rootStore)) return "{\"error\":\"variable not found\"}";
             
-            bool isSpy = optsJSON.find("\"mode\":\"spy\"") != std::string::npos;
-            bool isSurf = optsJSON.find("\"mode\":\"surf\"") != std::string::npos || optsJSON.find("\"mode\":\"mesh\"") != std::string::npos;
-            bool isContour = optsJSON.find("\"mode\":\"contour\"") != std::string::npos;
+            std::string dimMode = extractJsonString(optsJSON, "dimMode", "");
+            std::string mode = extractJsonString(optsJSON, "mode", "");
+            bool isSpy = (mode == "spy") || optsJSON.find("\"mode\":\"spy\"") != std::string::npos;
+            bool isSurf = (mode == "surf" || mode == "mesh") || optsJSON.find("\"mode\":\"surf\"") != std::string::npos || optsJSON.find("\"mode\":\"mesh\"") != std::string::npos;
+            bool isContour = (mode == "contour") || optsJSON.find("\"mode\":\"contour\"") != std::string::npos;
+            bool isImagesc = (mode == "imagesc") || optsJSON.find("\"mode\":\"imagesc\"") != std::string::npos;
             
             const auto& d = rootStore.dims();
             size_t rows = d.rows(), cols = d.cols();
             if (rows == 0 || cols == 0 || !rootStore.isNumeric()) {
                  return "{\"error\":\"invalid data for figure\"}";
             }
+
+            bool is1D = (dimMode == "1d") || (!isSpy && !isSurf && !isContour && !isImagesc &&
+                        dimMode != "2d" && dimMode != "3d" &&
+                        (mode == "line" || mode == "stem" || mode == "bar" || mode == "scatter" ||
+                         mode == "area" || mode == "stairs" || rows == 1 || cols == 1));
             
             std::ostringstream os; os.precision(5);
-            if (isSpy) {
+            if (is1D) {
+                std::string plotMode = mode.empty() ? "line" : mode;
+                if (plotMode != "line" && plotMode != "stem" && plotMode != "bar" &&
+                    plotMode != "scatter" && plotMode != "area" && plotMode != "stairs") {
+                    plotMode = "line";
+                }
+                std::string axis = extractJsonString(optsJSON, "axis", (cols >= rows) ? "row" : "col");
+                std::vector<int> indices = extractJsonIntArray(optsJSON, "indices");
+                if (indices.empty()) {
+                    int singleIdx = extractJsonInt(optsJSON, "idx", 0);
+                    indices.push_back(singleIdx);
+                }
+
+                std::string xMode = extractJsonString(optsJSON, "xMode", "index");
+                std::string xSrcAxis = axis;
+                int xSrcIdx = 0;
+                size_t xSrcPos = optsJSON.find("\"xSrc\":");
+                if (xSrcPos != std::string::npos) {
+                    std::string xSrcSub = optsJSON.substr(xSrcPos);
+                    xSrcAxis = extractJsonString(xSrcSub, "axis", axis);
+                    xSrcIdx = extractJsonInt(xSrcSub, "idx", 0);
+                }
+                int page = extractJsonInt(optsJSON, "page", 0);
+                size_t totalRows = rows, totalCols = cols, numel = rootStore.numel();
+                size_t rc = totalRows * totalCols, pages = (rc > 0) ? (numel / rc) : 1;
+                if (page < 0) page = 0;
+                if (pages > 0 && (size_t)page >= pages) page = (int)pages - 1;
+                size_t pageOff = (size_t)page * rc;
+
+                size_t sliceLen = (axis == "row") ? totalCols : totalRows;
+                if (sliceLen == 0) return "{\"error\":\"empty slice\"}";
+
+                static const char* palette[] = {
+                    "#7fd99a", "#5fb3d4", "#e9b870", "#9b8cf2",
+                    "#e26a6a", "#d4a5e6", "#f2a37e", "#6fcfbf"
+                };
+
+                double globalXMin = std::numeric_limits<double>::infinity();
+                double globalXMax = -std::numeric_limits<double>::infinity();
+                double globalYMin = std::numeric_limits<double>::infinity();
+                double globalYMax = -std::numeric_limits<double>::infinity();
+
+                struct CurveData {
+                    std::string name;
+                    std::string color;
+                    std::vector<double> x;
+                    std::vector<double> y;
+                };
+                std::vector<CurveData> curves;
+
+                for (size_t curveI = 0; curveI < indices.size(); ++curveI) {
+                    int idx = indices[curveI];
+                    if (idx < 0) idx = 0;
+                    if (axis == "row" && (size_t)idx >= totalRows) idx = (int)totalRows - 1;
+                    if (axis == "col" && (size_t)idx >= totalCols) idx = (int)totalCols - 1;
+
+                    CurveData c;
+                    c.name = axis + " " + std::to_string(idx + 1);
+                    c.color = palette[curveI % 8];
+
+                    auto getY = [&](size_t i) -> double {
+                        size_t off = (axis == "row") ? (pageOff + i * totalRows + idx)
+                                                     : (pageOff + (size_t)idx * totalRows + i);
+                        return rootStore.elemAsDouble(off);
+                    };
+
+                    auto getX = [&](size_t i) -> double {
+                        if (xMode == "src") {
+                            size_t off = (xSrcAxis == "row") ? (pageOff + i * totalRows + xSrcIdx)
+                                                             : (pageOff + (size_t)xSrcIdx * totalRows + i);
+                            return rootStore.elemAsDouble(off);
+                        }
+                        return static_cast<double>(i + 1);
+                    };
+
+                    if (sliceLen <= 4000) {
+                        c.x.reserve(sliceLen);
+                        c.y.reserve(sliceLen);
+                        for (size_t i = 0; i < sliceLen; ++i) {
+                            double xv = getX(i);
+                            double yv = getY(i);
+                            if (std::isfinite(xv) && std::isfinite(yv)) {
+                                c.x.push_back(xv);
+                                c.y.push_back(yv);
+                                if (xv < globalXMin) globalXMin = xv;
+                                if (xv > globalXMax) globalXMax = xv;
+                                if (yv < globalYMin) globalYMin = yv;
+                                if (yv > globalYMax) globalYMax = yv;
+                            }
+                        }
+                    } else {
+                        size_t B = 1000;
+                        c.x.reserve(B * 4);
+                        c.y.reserve(B * 4);
+                        for (size_t b = 0; b < B; ++b) {
+                            size_t i0 = b * sliceLen / B;
+                            size_t i1 = (b + 1) * sliceLen / B;
+                            if (i1 <= i0) continue;
+                            size_t first = i0;
+                            size_t last = i1 - 1;
+                            size_t minI = i0, maxI = i0;
+                            double minV = getY(i0);
+                            double maxV = minV;
+                            for (size_t i = i0; i < i1; ++i) {
+                                double v = getY(i);
+                                if (std::isfinite(v)) {
+                                    if (!std::isfinite(minV) || v < minV) { minV = v; minI = i; }
+                                    if (!std::isfinite(maxV) || v > maxV) { maxV = v; maxI = i; }
+                                }
+                            }
+                            std::vector<size_t> pts = {first, minI, maxI, last};
+                            std::sort(pts.begin(), pts.end());
+                            pts.erase(std::unique(pts.begin(), pts.end()), pts.end());
+                            for (size_t pi : pts) {
+                                double xv = getX(pi);
+                                double yv = getY(pi);
+                                if (std::isfinite(xv) && std::isfinite(yv)) {
+                                    c.x.push_back(xv);
+                                    c.y.push_back(yv);
+                                    if (xv < globalXMin) globalXMin = xv;
+                                    if (xv > globalXMax) globalXMax = xv;
+                                    if (yv < globalYMin) globalYMin = yv;
+                                    if (yv > globalYMax) globalYMax = yv;
+                                }
+                            }
+                        }
+                    }
+                    curves.push_back(std::move(c));
+                }
+
+                if (!std::isfinite(globalXMin) || !std::isfinite(globalXMax)) { globalXMin = -1; globalXMax = 1; }
+                if (!std::isfinite(globalYMin) || !std::isfinite(globalYMax)) { globalYMin = -1; globalYMax = 1; }
+                if (globalXMin == globalXMax) { globalXMin -= 0.5; globalXMax += 0.5; }
+                if (globalYMin == globalYMax) { globalYMin -= 0.5; globalYMax += 0.5; }
+
+                std::string titleStr = name + " (" + axis + " ";
+                for (size_t i = 0; i < indices.size(); ++i) {
+                    if (i > 0) titleStr += ", ";
+                    titleStr += std::to_string(indices[i] + 1);
+                }
+                titleStr += ")";
+                std::string xLabelStr = (xMode == "src") ? (xSrcAxis + " " + std::to_string(xSrcIdx + 1)) : "index";
+
+                os << "{\"kind\":\"composite\",\"id\":\"fig_" << escapeJSON(name) << "\",\"title\":\"" << escapeJSON(titleStr) << "\",\"xLabel\":\"" << escapeJSON(xLabelStr) << "\",\"yLabel\":\"\",";
+                os << "\"xRange\":[" << globalXMin << "," << globalXMax << "],\"yRange\":[" << globalYMin << "," << globalYMax << "],\"grid\":true,\"layers\":[";
+                for (size_t ci = 0; ci < curves.size(); ++ci) {
+                    const auto& c = curves[ci];
+                    if (ci > 0) os << ",";
+                    os << "{\"kind\":\"series\",\"mode\":\"" << escapeJSON(plotMode) << "\",\"name\":\"" << escapeJSON(c.name) << "\",\"color\":\"" << c.color << "\",\"x\":[";
+                    for (size_t i = 0; i < c.x.size(); ++i) {
+                        if (i > 0) os << ",";
+                        os << c.x[i];
+                    }
+                    os << "],\"y\":[";
+                    for (size_t i = 0; i < c.y.size(); ++i) {
+                        if (i > 0) os << ",";
+                        os << c.y[i];
+                    }
+                    os << "]}";
+                }
+                os << "]}";
+                return os.str();
+            } else if (isSpy) {
                 size_t maxPts = 50000;
                 os << "{\"kind\":\"composite\",\"id\":\"fig_" << escapeJSON(name) << "\",\"title\":\"" << escapeJSON(name) << " spy\",\"xLabel\":\"col\",\"yLabel\":\"row\",";
                 os << "\"xRange\":[0," << cols << "],\"yRange\":[0," << rows << "],\"yDir\":\"reverse\",\"layers\":[{";
@@ -1596,6 +1812,15 @@ void repl_pop_script_origin() {
     g_session->popScriptOrigin();
 }
 
+void repl_set_compat_mode(bool enable) {
+    if (!g_session) repl_init();
+    if (enable) {
+        g_session->engine()->addImplicitImport({{"compat"}, true, ""});
+    } else {
+        g_session->engine()->clearImplicitImports();
+    }
+}
+
 // ════════════════════════════════════════════════════════════════
 // Script-graph visualizer — offline AST → NodeGraph IR → JSON.
 // No engine session needed; pure analysis pass over the parsed AST.
@@ -1681,6 +1906,7 @@ std::string getEnv(const std::string &name) {
 
 EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_init",      &repl_init);
+    emscripten::function("repl_set_compat_mode", &repl_set_compat_mode);
     emscripten::function("repl_execute",   &repl_execute);
     emscripten::function("repl_complete",  &repl_complete);
     emscripten::function("repl_reset",     &repl_reset);

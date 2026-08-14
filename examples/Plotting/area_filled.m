@@ -1,7 +1,7 @@
 % area — Filled curve under the line
 % area(x, y) shades the region between the curve and y=0.
 % area(x, y, base) lifts the baseline to `base`.
-import compat.*;
+
 
 clear
 close all

@@ -107,11 +107,19 @@ export function VariableEditor({ variable, onClose, engine }) {
   // window chrome + the name-addressed DATA layer below.
   const [maximized, setMaximized] = useState(false);
 
-  // dimensions: { rows, cols, tileMode } — populated from getVarShape
+  // dimensions: { rows, cols, tileMode } — populated from variable.size & getVarShape
   const initialShape = (() => {
-    const r = variable.data?.length || 1;
-    const c = variable.data?.[0]?.length || 1;
-    return { rows: r, cols: c, tileMode: false };
+    let r = variable.data?.length || 1;
+    let c = variable.data?.[0]?.length || 1;
+    if (variable.size && typeof variable.size === 'string') {
+      const m = variable.size.match(/(\d+)\s*[x×]\s*(\d+)/);
+      if (m) {
+        r = parseInt(m[1], 10) || r;
+        c = parseInt(m[2], 10) || c;
+      }
+    }
+    const tileMode = (r * c > TILE_MODE_THRESHOLD);
+    return { rows: r, cols: c, tileMode };
   })();
   const [shape, setShape] = useState(initialShape);
   // Linear page index (0-based) of the displayed 2-D slice for 3-D / N-D
@@ -146,16 +154,17 @@ export function VariableEditor({ variable, onClose, engine }) {
     tileCache.current = new Map();
     sliceCache.current = new Map();
     if (!engine || typeof engine.getVarData !== 'function') {
-      setShape({ rows: variable.data?.length || 1, cols: variable.data?.[0]?.length || 1, tileMode: false });
       return;
     }
+    let active = true;
     setLoading(true);
-    const handle = setTimeout(async () => {
+    (async () => {
       try {
         // Cheap dimension probe first.
         const sh = (typeof engine.getVarShape === 'function')
           ? await engine.getVarShape(variable.name)   // may be Promise (native) or value (WASM)
           : null;
+        if (!active) return;
         if (sh && !sh.error) {
           const numel = sh.rows * sh.cols;
           const tileMode = numel > TILE_MODE_THRESHOLD
@@ -170,6 +179,7 @@ export function VariableEditor({ variable, onClose, engine }) {
         }
         // Small enough: full fetch.
         const r = await engine.getVarData(variable.name);   // may be Promise (native) or value (WASM)
+        if (!active) return;
         if (!r) { setLoading(false); return; }
         if (r.error) { setLoadError(r.error); setLoading(false); return; }
         if (Array.isArray(r.data) && r.data.length > 0) {
@@ -183,12 +193,14 @@ export function VariableEditor({ variable, onClose, engine }) {
         }
         setLoading(false);
       } catch (e) {
-        setLoadError(e?.message || String(e));
-        setLoading(false);
+        if (active) {
+          setLoadError(e?.message || String(e));
+          setLoading(false);
+        }
       }
-    }, 0);
-    return () => clearTimeout(handle);
-  }, [variable, engine, isStructLike]);
+    })();
+    return () => { active = false; };
+  }, [variable.name, engine, isStructLike]);
 
   // Page change → refetch the full-mode slice. Tile-mode pages are keyed by
   // `page` in the tile / slice caches below, so they refetch lazily without
@@ -220,21 +232,32 @@ export function VariableEditor({ variable, onClose, engine }) {
     }
     const key = `${page}:${axis}:${idx}`;
     const cached = sliceCache.current.get(key);
-    if (cached) return cached;
-    if (!engine || typeof engine.getVarTile !== 'function') return [];
-    let res;
-    if (axis === 'row') {
-      res = engine.getVarTile(variable.name, idx, 0, 1, shape.cols, page);
-    } else {
-      res = engine.getVarTile(variable.name, 0, idx, shape.rows, 1, page);
+    if (cached && cached !== 'pending' && cached !== 'error') return cached;
+    if (cached === undefined) {
+      sliceCache.current.set(key, 'pending');
+      Promise.resolve().then(async () => {
+        try {
+          let res;
+          if (axis === 'row') {
+            res = await engine.getVarTile(variable.name, idx, 0, 1, Math.min(shape.cols, 10000), page);
+          } else {
+            res = await engine.getVarTile(variable.name, 0, idx, Math.min(shape.rows, 10000), 1, page);
+          }
+          if (!res || res.error || !Array.isArray(res.data)) {
+            sliceCache.current.set(key, 'error');
+          } else {
+            const out = (axis === 'row')
+              ? (res.data[0] || [])
+              : res.data.map((r) => r[0]);
+            sliceCache.current.set(key, out);
+          }
+        } catch {
+          sliceCache.current.set(key, 'error');
+        }
+        setTileBump((n) => n + 1);
+      });
     }
-    if (!res || res.error || !Array.isArray(res.data)) return [];
-    // Flatten — tile.data is rows×cols; slice is one row or one col.
-    const out = (axis === 'row')
-      ? (res.data[0] || [])
-      : res.data.map((r) => r[0]);
-    sliceCache.current.set(key, out);
-    return out;
+    return [];
   }, [shape.tileMode, shape.rows, shape.cols, data, engine, variable.name, page]);
 
   /* ─── tile-mode cell accessor ─── */
