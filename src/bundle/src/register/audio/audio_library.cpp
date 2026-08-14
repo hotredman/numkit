@@ -41,6 +41,14 @@ void gtcc_reg                (Span<const Value>, size_t, Span<Value>, CallContex
 // features/pitch_harmonics.cpp
 void pitch_reg               (Span<const Value>, size_t, Span<Value>, CallContext &);
 void harmonicRatio_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// io/audio_io_reg.cpp
+void audioread_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void audiowrite_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void audioinfo_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void midiread_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void midiwrite_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void midiinfo_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::audio::detail
 
 namespace numkit {
@@ -86,6 +94,14 @@ void AudioLibrary::install(Engine &engine)
 
     reg("features", "pitch",                &audio::detail::pitch_reg);
     reg("features", "harmonicRatio",        &audio::detail::harmonicRatio_reg);
+
+    // Audio I/O & MIDI
+    reg("io", "audioread",  &audio::detail::audioread_reg);
+    reg("io", "audiowrite", &audio::detail::audiowrite_reg);
+    reg("io", "audioinfo",  &audio::detail::audioinfo_reg);
+    reg("io", "midiread",   &audio::detail::midiread_reg);
+    reg("io", "midiwrite",  &audio::detail::midiwrite_reg);
+    reg("io", "midiinfo",   &audio::detail::midiinfo_reg);
 }
 
 } // namespace numkit
