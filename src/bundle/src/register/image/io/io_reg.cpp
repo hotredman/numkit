@@ -12,6 +12,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include "io/io_detail.hpp"
+#include "io/png_codec.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -76,7 +77,17 @@ void imread_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         return;
     }
 
-    // stb-decodable formats (jpg/png/bmp/gif/tga/psd/hdr/pnm).
+    const auto *data = reinterpret_cast<const std::uint8_t *>(bytes.data());
+    const std::size_t len = bytes.size();
+    if (len >= 8 && data[0] == 0x89 && data[1] == 'P' && data[2] == 'N' && data[3] == 'G') {
+        if (nargout >= 2) {
+            auto pair = readPngWithMap(data, len, ctx.engine->resource());
+            outs[0] = std::move(pair.first);
+            outs[1] = std::move(pair.second);
+            return;
+        }
+    }
+
     outs[0] = imreadFromBytes(bytes, ctx.engine->resource());
 }
 

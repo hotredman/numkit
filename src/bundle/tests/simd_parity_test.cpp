@@ -1270,8 +1270,8 @@ TEST(SimdParity_Blas, SyrkP4_ParityTest)
                 Complex acc(0.0, 0.0);
                 for (size_t l = 0; l < k; ++l) {
                     if (trans == numkit::ops::MatrixTranspose::NoTrans) {
-                        // C = alpha * A * A^H + beta * C
-                        acc += A[i + l * rows_a] * std::conj(A[j + l * rows_a]);
+                        // C = alpha * A * A^T + beta * C
+                        acc += A[i + l * rows_a] * A[j + l * rows_a];
                     } else {
                         // C = alpha * A^H * A + beta * C
                         acc += std::conj(A[l + i * rows_a]) * A[l + j * rows_a];

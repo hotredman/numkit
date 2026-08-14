@@ -297,8 +297,6 @@ target_include_directories(numkit
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/audio/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/wavelet/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/linalg/src
-        # Vendored single-header libs (stb_image, stb_image_write).
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
 
 target_compile_features(numkit PUBLIC cxx_std_17)
@@ -373,7 +371,6 @@ function(numkit_configure_layer tgt)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/audio/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/wavelet/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/linalg/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
         ${NUMKIT_BUILD_INFO_DIR})
     foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_FIGURE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
         target_include_directories(${tgt} PRIVATE $<BUILD_INTERFACE:${_dir}>)

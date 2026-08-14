@@ -1,13 +1,10 @@
 // toolboxes/image/include/numkit/image/io/io.hpp
 //
-// Image disk I/O. Backed by stb_image (decode) and stb_image_write
-// (encode) — single-header public-domain libs vendored under
-// third_party/stb/. Supported formats: PNG, JPG/JPEG, BMP, TGA,
-// PSD, GIF (decode only), HDR/PIC, PNM.
+// Autonomous, zero-dependency in-tree image disk I/O (PNG, JPEG, BMP,
+// TGA, PNM, TIFF/BigTIFF).
 //
 // imread returns an H × W (grayscale) or H × W × 3 / 4 (color)
-// uint8 array. We don't expose the depth-16 readers here yet; PNG-16
-// is decoded and 8-bit-truncated by stb's default API.
+// uint8 or uint16 array, preserving full scientific 16-bit depth.
 
 #pragma once
 
@@ -22,14 +19,11 @@ namespace numkit::image {
 
 /// Read an image from disk (`A = imread(path)`).
 ///
-/// Decoded element type is always uint8. Channel count depends on
-/// the source file:
-///   - grayscale → H×W uint8.
-///   - RGB       → H×W×3 uint8 (channels R, G, B).
-///   - RGBA      → H×W×4 uint8 (channels R, G, B, A).
-///
-/// PNG-16 images are decoded and 8-bit-truncated by stb's default
-/// API; full 16-bit decoders are not yet exposed.
+/// Decoded element type is uint8 or uint16 (preserving native bit depth).
+/// Channel count depends on the source file:
+///   - grayscale → H×W (uint8 or uint16).
+///   - RGB       → H×W×3 (channels R, G, B).
+///   - RGBA      → H×W×4 (channels R, G, B, A).
 ///
 /// @param path  Filesystem path (relative or absolute).
 /// @param mr    Memory resource (nullptr → process default).

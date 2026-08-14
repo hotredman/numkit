@@ -1,27 +1,25 @@
-// toolboxes/image/src/io/tiff_reader.cpp
+// toolboxes/image/src/io/tiff_codec.cpp
 //
-// Production TIFF reader — Variant 2 of the imread TIFF plan.
+// Production TIFF / BigTIFF reader and writer.
+// Zero-dependency pure C++20 implementation.
 //
 // Coverage:
-//   - Header endian detection (II / MM)
-//   - IFD walk (first IFD by default; multi-page via readTiff(path, page))
-//   - Compression: 1 (none), 5 (LZW per TIFF 6.0 appendix F), 32773 (PackBits)
-//     Deflate (8) deferred to next cycle (needs zlib FetchContent)
-//   - Photometric: 0 (WhiteIsZero) [inverted], 1 (BlackIsZero gray),
-//     2 (RGB) — palette/CMYK deferred to next cycle
-//   - SamplesPerPixel ∈ {1, 3, 4}; BitsPerSample ∈ {8, 16, 32}
-//   - SampleFormat 1=uint, 2=int, 3=float (all supported for 8/16/32)
-//   - PlanarConfiguration 1 (chunky) only — separate-planes deferred
-//   - Strip layout (Tile deferred)
-//
-// References:
-//   - Adobe Systems, "TIFF Revision 6.0" (1992) — base spec
-//     https://download.osgeo.org/libtiff/doc/TIFF6.pdf
-//   - Adobe TIFF technical notes (compression appendix F)
-//   - Welch, "A Technique for High-Performance Data Compression",
-//     IEEE Computer 17(6), 1984 — LZW algorithm
+//   - Header endian detection (II little-endian / MM big-endian)
+//   - Classic TIFF (magic 42) and BigTIFF (magic 43, 64-bit offsets)
+//   - Compression schemes:
+//       * 1: None (uncompressed strips/tiles)
+//       * 5: LZW (per TIFF 6.0 appendix F with early change)
+//       * 8 / 32946: Deflate (via in-tree deflate/zlib engine)
+//       * 32773: PackBits (byte run-length encoding)
+//   - Predictor 2: Horizontal differencing for 8/16/32-bit integer samples
+//   - Photometric: 0 (WhiteIsZero), 1 (BlackIsZero), 2 (RGB/RGBA), 3 (Palette/Indexed)
+//   - SamplesPerPixel: 1, 3, 4; BitsPerSample: 8, 16, 32, 64
+//   - SampleFormat: 1=uint, 2=int, 3=float (all supported)
+//   - Layout: Chunky and PlanarConfiguration=2; Strips and Tiles
+//   - Multi-page: reading arbitrary IFD pages and appending pages
 
-#include <numkit/image/io/io.hpp>
+#include "tiff_codec.hpp"
+#include "deflate.hpp"
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -33,18 +31,34 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
-#ifdef NUMKIT_WITH_ZLIB
-#  include <zlib.h>
-#endif
-
 namespace numkit::image {
+
+bool isTiffBytes(const std::uint8_t *data, std::size_t len)
+{
+    if (len < 4) return false;
+    if (data[0] == 'I' && data[1] == 'I') {
+        return (data[2] == 42 && data[3] == 0) || (data[2] == 43 && data[3] == 0);
+    }
+    if (data[0] == 'M' && data[1] == 'M') {
+        return (data[2] == 0 && data[3] == 42) || (data[2] == 0 && data[3] == 43);
+    }
+    return false;
+}
+
+bool isTiffBytes(const std::string &b)
+{
+    return isTiffBytes(reinterpret_cast<const std::uint8_t *>(b.data()), b.size());
+}
 
 namespace {
 
-// ── byte-order-aware readers ─────────────────────────────────────────
+// ============================================================================
+// 1. ByteReader & Tag Constants (Endian-aware)
+// ============================================================================
 
 struct ByteReader {
     const std::uint8_t *buf;
@@ -115,16 +129,6 @@ constexpr std::size_t kTypeWidth[19] = {
     8,   // 18 IFD8        (BigTIFF, 8-byte IFD pointer)
 };
 
-// Read all values of an IFD entry as uint64s. Classic and BigTIFF
-// differ in:
-//   * IFD entry size (12 / 20 bytes)
-//   * "inline value" threshold (4 / 8 bytes) and the slot's position
-//     within the entry (bytes 8..11 vs 12..19)
-//   * The value-field is u32 in classic, u64 in BigTIFF.
-//
-// Tags whose values we care about (offsets, widths, photometric, etc.)
-// fit cleanly into uint64. Float / rational types are not consumed by
-// this reader, so we just return zero for those.
 std::vector<std::uint64_t>
 readEntryValues(const ByteReader &br, std::uint16_t type,
                 std::uint64_t count, std::uint64_t valueOffset,
@@ -160,8 +164,6 @@ readEntryValues(const ByteReader &br, std::uint16_t type,
     return out;
 }
 
-// ── decoded IFD ──────────────────────────────────────────────────────
-
 struct TiffImage {
     std::uint32_t width = 0, height = 0;
     std::uint16_t bitsPerSample = 8;
@@ -169,27 +171,17 @@ struct TiffImage {
     std::uint16_t photometric = 1;
     std::uint16_t samplesPerPixel = 1;
     std::uint32_t rowsPerStrip = 0;
-    // Offsets / counts widened to u64 so the same struct serves both
-    // classic and BigTIFF without secondary casts.
     std::vector<std::uint64_t> stripOffsets;
     std::vector<std::uint64_t> stripByteCounts;
     std::uint16_t planarConfig = 1;
     std::uint16_t sampleFormat = 1;
     std::uint16_t predictor = 1;
-    // Colour map for Photometric=3 (palette): 3·(2^BitsPerSample) uint16
-    // values, all R entries then all G then all B.
     std::vector<std::uint64_t> colorMap;
-    // Tile layout (tags 322/323/324/325).
     std::uint32_t tileWidth = 0, tileLength = 0;
     std::vector<std::uint64_t> tileOffsets;
     std::vector<std::uint64_t> tileByteCounts;
 };
 
-// Parse a single IFD at the given byte offset. Returns the next-IFD
-// offset (0 if last) via out-param. Handles both classic and BigTIFF
-// entry layouts:
-//   classic   : count(u16) + N×12-byte-entries [tag(2),type(2),count(4),value(4)] + next(u32)
-//   BigTIFF   : count(u64) + N×20-byte-entries [tag(2),type(2),count(8),value(8)] + next(u64)
 TiffImage parseIFD(const ByteReader &br, std::size_t ifdOffset,
                     std::uint64_t *nextIfdOffset)
 {
@@ -236,17 +228,12 @@ TiffImage parseIFD(const ByteReader &br, std::size_t ifdOffset,
     return img;
 }
 
-// ── PackBits decoder (TIFF 6.0 § 9, compression code 32773) ─────────
-//
-// PackBits is a run-length encoding where each "control byte" n decides
-// the next run:
-//   n ∈ [0,    127]: copy the next n+1 bytes verbatim
-//   n ∈ [-127, -1] : replicate the next byte (-n)+1 times
-//   n == -128      : no-op
-// Signed interpretation; n is read as int8_t.
+// ============================================================================
+// 2. Decompression Algorithms (PackBits, LZW, Deflate)
+// ============================================================================
+
 std::vector<std::uint8_t>
-decodePackBits(const std::uint8_t *src, std::size_t srcLen,
-               std::size_t outHint)
+decodePackBits(const std::uint8_t *src, std::size_t srcLen, std::size_t outHint)
 {
     std::vector<std::uint8_t> out;
     out.reserve(outHint > 0 ? outHint : srcLen * 2);
@@ -272,17 +259,6 @@ decodePackBits(const std::uint8_t *src, std::size_t srcLen,
     return out;
 }
 
-// ── LZW decoder (TIFF 6.0 appendix F, compression code 5) ────────────
-//
-// Welch's algorithm with TIFF-specific quirks:
-//   - Codes start at 9 bits wide
-//   - Code width increases to 10/11/12 bits one step EARLIER than
-//     standard LZW (TIFF "early change" off-by-one — this is mandatory
-//     per the TIFF 6.0 spec even though it's a known bug)
-//   - Reserved codes: 256 = CLEAR (reset dict), 257 = EOI
-//   - Dict entries 0..255 are single-byte; 258+ are growing strings
-//   - Maximum code = 4093 (12-bit width caps at next-code 4094 due to
-//     early change)
 class LzwDecoder
 {
 public:
@@ -308,7 +284,6 @@ public:
             if (code < nextCode_) {
                 entry = dict_[code];
             } else if (code == nextCode_ && prevCode != NoCode) {
-                // KwKwK case — entry is prevEntry + prevEntry[0].
                 entry = dict_[prevCode];
                 entry.push_back(entry[0]);
             } else {
@@ -318,14 +293,10 @@ public:
             out_.insert(out_.end(), entry.begin(), entry.end());
 
             if (prevCode != NoCode && nextCode_ < kMaxCode) {
-                // Append (prevEntry + entry[0]) as new dict entry.
                 std::vector<std::uint8_t> ne = dict_[prevCode];
                 ne.push_back(entry[0]);
                 dict_.push_back(std::move(ne));
                 ++nextCode_;
-                // Early-change rule: bump width when next code would
-                // exceed (1 << codeWidth_) - 1 *or* when next code equals
-                // (1 << codeWidth_) - 1 (TIFF off-by-one).
                 if (nextCode_ + 1 == (1u << codeWidth_) && codeWidth_ < 12)
                     ++codeWidth_;
             }
@@ -353,14 +324,12 @@ private:
         dict_.reserve(kMaxCode);
         for (int c = 0; c < 256; ++c)
             dict_.push_back({static_cast<std::uint8_t>(c)});
-        // Placeholders for the reserved codes 256/257 keep indexing simple.
         dict_.push_back({});
         dict_.push_back({});
         nextCode_ = 258;
         codeWidth_ = 9;
     }
 
-    // MSB-first bit reader.
     std::uint32_t readBits(int n) {
         std::uint32_t v = 0;
         for (int i = 0; i < n; ++i) {
@@ -381,52 +350,12 @@ decodeLZW(const std::uint8_t *src, std::size_t srcLen, std::size_t outHint)
     return LzwDecoder(src, srcLen, outHint).decode();
 }
 
-// ── Deflate decoder (zlib-wrapped — TIFF compression 8 / 32946) ─────
-//
-// TIFF "Deflate" wraps the raw deflate stream in a 2-byte zlib header
-// + 4-byte Adler-32 checksum (RFC 1950). zlib's inflateInit() handles
-// this transparently. We grow the output buffer as needed.
-#ifdef NUMKIT_WITH_ZLIB
 std::vector<std::uint8_t>
 decodeDeflate(const std::uint8_t *src, std::size_t srcLen, std::size_t outHint)
 {
-    z_stream zs;
-    std::memset(&zs, 0, sizeof(zs));
-    if (inflateInit(&zs) != Z_OK)
-        throw Error("tiff: zlib inflateInit failed", 0, 0, "imread", "",
-                    "numkit:imread:tiffDeflate");
-    zs.next_in = const_cast<Bytef *>(src);
-    zs.avail_in = static_cast<uInt>(srcLen);
-
-    std::vector<std::uint8_t> out;
-    out.resize(outHint > 0 ? outHint : srcLen * 4);
-    std::size_t produced = 0;
-    while (true) {
-        if (produced == out.size())
-            out.resize(out.size() * 2);
-        zs.next_out  = out.data() + produced;
-        zs.avail_out = static_cast<uInt>(out.size() - produced);
-        const int rc = inflate(&zs, Z_NO_FLUSH);
-        produced = out.size() - zs.avail_out;
-        if (rc == Z_STREAM_END) break;
-        if (rc != Z_OK) {
-            inflateEnd(&zs);
-            throw Error(std::string("tiff: Deflate decode failed: ")
-                        + (zs.msg ? zs.msg : zError(rc)),
-                        0, 0, "imread", "", "numkit:imread:tiffDeflate");
-        }
-    }
-    inflateEnd(&zs);
-    out.resize(produced);
-    return out;
+    return zlibDecompress(src, srcLen, outHint);
 }
-#endif
 
-// ── Horizontal differencing predictor (TIFF tag 317, value 2) ────────
-//
-// Used with LZW/Deflate to improve compression. The encoder stored
-// pred[i] = pixel[i] - pixel[i-1] per scanline (first pixel unchanged).
-// We undo by cumulative-summing across each row, per sample component.
 void applyHorizontalUndiff(std::vector<std::uint8_t> &buf,
                             std::size_t H, std::size_t W,
                             std::size_t spp, std::size_t bps)
@@ -471,11 +400,6 @@ void applyHorizontalUndiff(std::vector<std::uint8_t> &buf,
     }
 }
 
-// ── unified block decoder (strip or tile) ───────────────────────────
-//
-// Decompress one block (strip or tile) at file offset `off` with byte
-// count `cnt`. The caller passes the expected uncompressed `hintBytes`
-// (used by decoders to reserve buffers). Result is appended into out.
 void decompressBlock(const ByteReader &br, std::size_t off, std::size_t cnt,
                      std::uint16_t compression, std::size_t hintBytes,
                      std::vector<std::uint8_t> &out)
@@ -498,15 +422,9 @@ void decompressBlock(const ByteReader &br, std::size_t off, std::size_t cnt,
         }
         case 8:
         case 32946: {  // Deflate / Adobe-Deflate
-#ifdef NUMKIT_WITH_ZLIB
             auto dec = decodeDeflate(src, cnt, hintBytes);
             out.insert(out.end(), dec.begin(), dec.end());
             break;
-#else
-            throw Error("tiff: Deflate requires zlib at build time "
-                        "(NUMKIT_WITH_ZLIB not defined)",
-                        0, 0, "imread", "", "numkit:imread:tiffDeflate");
-#endif
         }
         default:
             throw Error("tiff: compression " + std::to_string(compression)
@@ -515,9 +433,6 @@ void decompressBlock(const ByteReader &br, std::size_t off, std::size_t cnt,
     }
 }
 
-// Decode the full image (all strips or tiles, chunky or planar) into a
-// single row-major chunky-interleaved buffer of size
-// H * W * SamplesPerPixel * bytesPerSample.
 std::vector<std::uint8_t>
 decodeImage(const ByteReader &br, const TiffImage &img)
 {
@@ -529,17 +444,11 @@ decodeImage(const ByteReader &br, const TiffImage &img)
     const bool tiled = (img.tileWidth > 0 && img.tileLength > 0);
     const bool planar = (img.planarConfig == 2);
 
-    // For predictor application we need a planar-aware decode first if
-    // PlanarConfiguration=2; we reassemble at the end.
     std::vector<std::uint8_t> dst(totalBytes, 0);
 
     auto putChunky = [&](const std::uint8_t *plane, std::size_t r0,
                          std::size_t c0, std::size_t rh, std::size_t cw,
                          std::size_t srcStride) {
-        // Copy a rectangular block from a per-tile/per-strip planar
-        // buffer (chunky-interleaved, S samples × bps bytes per pixel)
-        // into the destination at (r0, c0). `srcStride` is the per-row
-        // byte stride within the source block; output stride is rowBytes.
         for (std::size_t r = 0; r < rh; ++r) {
             const std::size_t outR = r0 + r;
             if (outR >= H) break;
@@ -554,8 +463,6 @@ decodeImage(const ByteReader &br, const TiffImage &img)
     auto putPlanar = [&](const std::uint8_t *plane, std::size_t r0,
                           std::size_t c0, std::size_t rh, std::size_t cw,
                           std::size_t s, std::size_t srcStride) {
-        // Source is single-component (bps bytes per pixel); insert into
-        // the chunky destination at sample index s.
         for (std::size_t r = 0; r < rh; ++r) {
             const std::size_t outR = r0 + r;
             if (outR >= H) break;
@@ -606,7 +513,6 @@ decodeImage(const ByteReader &br, const TiffImage &img)
             }
         }
     } else {
-        // Strip-based layout.
         if (img.stripOffsets.empty()
             || img.stripOffsets.size() != img.stripByteCounts.size())
             throw Error("tiff: malformed StripOffsets / StripByteCounts",
@@ -648,8 +554,6 @@ decodeImage(const ByteReader &br, const TiffImage &img)
     return dst;
 }
 
-// ── row-major chunky bytes → numkit column-major Value ───────────────
-
 Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
                       const TiffImage &img, bool be,
                       std::pmr::memory_resource *mr)
@@ -658,7 +562,6 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
     const std::size_t S = img.samplesPerPixel;
     const std::size_t bps = img.bitsPerSample / 8;
 
-    // Pick output dtype from BitsPerSample + SampleFormat.
     ValueType vt;
     if (img.sampleFormat == 3) {  // IEEE float
         if (img.bitsPerSample == 32)      vt = ValueType::SINGLE;
@@ -690,7 +593,6 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
     const std::size_t plane = H * W;
     const bool invertGray = (img.photometric == 0);  // WhiteIsZero
 
-    // Generic per-element copy with byte-swap if needed for >8-bit.
     auto fetch = [&](std::size_t r, std::size_t c, std::size_t s) -> std::uint64_t {
         const std::size_t off = ((r * W + c) * S + s) * bps;
         if (bps == 1) return raw[off];
@@ -700,7 +602,6 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
             return be ? static_cast<std::uint16_t>((lo << 8) | hi)
                       : static_cast<std::uint16_t>(lo | (hi << 8));
         }
-        // bps == 4 or 8
         std::uint64_t v = 0;
         if (be) {
             for (std::size_t k = 0; k < bps; ++k)
@@ -770,8 +671,6 @@ Value rowMajorToValue(const std::vector<std::uint8_t> &raw,
     return out;
 }
 
-// ── shared helper: load TIFF file bytes ─────────────────────────────
-
 std::vector<std::uint8_t> loadBytes(const std::string &path, const char *who)
 {
     std::ifstream f(path, std::ios::binary);
@@ -800,12 +699,8 @@ ByteReader openTiff(std::vector<std::uint8_t> &buf, const char *who)
     ByteReader br{buf.data(), buf.size(), be, /*isBigTiff=*/false};
     const std::uint16_t magic = br.u16(2);
     if (magic == 42) {
-        // classic TIFF — nothing more to set up.
+        // classic TIFF
     } else if (magic == 43) {
-        // BigTIFF header layout (after byte-order + magic):
-        //   bytes 4-5 : bytesPerOffset (always 8)
-        //   bytes 6-7 : constant 0
-        //   bytes 8-15: first IFD offset (8 bytes)
         if (br.u16(4) != 8 || br.u16(6) != 0)
             throw Error(std::string(who) + ": bad BigTIFF header",
                         0, 0, who, "", std::string("numkit:") + who + ":tiffMagic");
@@ -817,12 +712,6 @@ ByteReader openTiff(std::vector<std::uint8_t> &buf, const char *who)
     return br;
 }
 
-} // anonymous
-
-// Walk the IFD chain to locate the IFD for the given 1-based page index.
-// Returns the file offset of that IFD; throws if `page` is out of range.
-// BigTIFF-aware first-IFD offset (4 bytes at offset 4 for classic,
-// 8 bytes at offset 8 for BigTIFF).
 inline std::uint64_t firstIFDOffset(const ByteReader &br) {
     return br.isBigTiff ? br.u64(8) : static_cast<std::uint64_t>(br.u32(4));
 }
@@ -844,7 +733,6 @@ std::uint64_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
                         + std::to_string(p - 1) + " pages found)",
                         0, 0, who, "", std::string("numkit:") + who + ":pageRange");
         if (p == page) return off;
-        // Skip this IFD to next-IFD offset.
         const std::uint64_t n = br.isBigTiff
             ? br.u64(static_cast<std::size_t>(off))
             : static_cast<std::uint64_t>(br.u16(static_cast<std::size_t>(off)));
@@ -854,7 +742,417 @@ std::uint64_t locateIFDForPage(const ByteReader &br, std::size_t bufSize,
     return off;
 }
 
-// ── public API ──────────────────────────────────────────────────────
+// ============================================================================
+// 3. Compression Encoders for Writing (PackBits, LZW, Deflate)
+// ============================================================================
+
+inline void writeU16LE(std::vector<std::uint8_t> &buf, std::size_t off, std::uint16_t v) {
+    if (off + 2 > buf.size()) buf.resize(off + 2);
+    buf[off]     = static_cast<std::uint8_t>(v & 0xFF);
+    buf[off + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+}
+
+inline void writeU32LE(std::vector<std::uint8_t> &buf, std::size_t off, std::uint32_t v) {
+    if (off + 4 > buf.size()) buf.resize(off + 4);
+    buf[off]     = static_cast<std::uint8_t>(v & 0xFF);
+    buf[off + 1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+    buf[off + 2] = static_cast<std::uint8_t>((v >> 16) & 0xFF);
+    buf[off + 3] = static_cast<std::uint8_t>((v >> 24) & 0xFF);
+}
+
+std::vector<std::uint8_t> encodePackBits(const std::uint8_t *src, std::size_t n)
+{
+    std::vector<std::uint8_t> out;
+    out.reserve(n + n / 64 + 1);
+    std::size_t i = 0;
+    while (i < n) {
+        std::size_t runEnd = i + 1;
+        while (runEnd < n && src[runEnd] == src[i] && runEnd - i < 128)
+            ++runEnd;
+        const std::size_t runLen = runEnd - i;
+        if (runLen >= 3) {
+            out.push_back(static_cast<std::uint8_t>(
+                static_cast<std::int8_t>(-(static_cast<int>(runLen) - 1))));
+            out.push_back(src[i]);
+            i = runEnd;
+            continue;
+        }
+        std::size_t litEnd = i + 1;
+        while (litEnd < n && litEnd - i < 128) {
+            if (litEnd + 2 < n && src[litEnd] == src[litEnd + 1]
+                && src[litEnd + 1] == src[litEnd + 2])
+                break;
+            ++litEnd;
+        }
+        const std::size_t litLen = litEnd - i;
+        out.push_back(static_cast<std::uint8_t>(litLen - 1));
+        out.insert(out.end(), src + i, src + litEnd);
+        i = litEnd;
+    }
+    return out;
+}
+
+class LzwEncoder
+{
+public:
+    std::vector<std::uint8_t> encode(const std::uint8_t *src, std::size_t n)
+    {
+        out_.clear();
+        out_.reserve(n / 2 + 64);
+        bitBuf_ = 0;
+        bitCount_ = 0;
+        dict_.clear();
+        dict_.reserve(kMaxEntries);
+
+        codeWidth_ = 9;
+        nextCode_  = 258;
+
+        writeBits(ClearCode);
+
+        if (n == 0) {
+            writeBits(EoiCode);
+            flushBits();
+            return std::move(out_);
+        }
+
+        std::uint32_t prefix = src[0];
+        for (std::size_t i = 1; i < n; ++i) {
+            const std::uint8_t c = src[i];
+            const std::uint64_t key = (static_cast<std::uint64_t>(prefix) << 8) | c;
+            auto it = dict_.find(key);
+            if (it != dict_.end()) {
+                prefix = it->second;
+            } else {
+                writeBits(prefix);
+                if (nextCode_ < kMaxEntries) {
+                    dict_[key] = static_cast<std::uint16_t>(nextCode_++);
+                    if (nextCode_ == (1u << codeWidth_) && codeWidth_ < 12)
+                        ++codeWidth_;
+                } else {
+                    writeBits(ClearCode);
+                    dict_.clear();
+                    nextCode_ = 258;
+                    codeWidth_ = 9;
+                }
+                prefix = c;
+            }
+        }
+        writeBits(prefix);
+        writeBits(EoiCode);
+        flushBits();
+        return std::move(out_);
+    }
+
+private:
+    static constexpr std::uint32_t ClearCode   = 256;
+    static constexpr std::uint32_t EoiCode     = 257;
+    static constexpr std::size_t   kMaxEntries = 4096;
+
+    int                        codeWidth_ = 9;
+    std::size_t                nextCode_  = 258;
+    std::vector<std::uint8_t>  out_;
+    std::uint32_t              bitBuf_    = 0;
+    int                        bitCount_  = 0;
+    std::unordered_map<std::uint64_t, std::uint16_t> dict_;
+
+    void writeBits(std::uint32_t code) {
+        bitBuf_ = (bitBuf_ << codeWidth_) | (code & ((1u << codeWidth_) - 1));
+        bitCount_ += codeWidth_;
+        while (bitCount_ >= 8) {
+            bitCount_ -= 8;
+            out_.push_back(static_cast<std::uint8_t>(
+                (bitBuf_ >> bitCount_) & 0xFF));
+        }
+    }
+    void flushBits() {
+        if (bitCount_ > 0) {
+            out_.push_back(static_cast<std::uint8_t>(
+                (bitBuf_ << (8 - bitCount_)) & 0xFF));
+            bitCount_ = 0;
+            bitBuf_ = 0;
+        }
+    }
+};
+
+std::vector<std::uint8_t> encodeLZW(const std::uint8_t *src, std::size_t n)
+{
+    return LzwEncoder().encode(src, n);
+}
+
+std::vector<std::uint8_t> encodeDeflate(const std::uint8_t *src, std::size_t n)
+{
+    return zlibCompress(src, n, 6);
+}
+
+struct DtypeMap {
+    std::size_t   bytesPerSample;
+    std::uint16_t bitsPerSample;
+    std::uint16_t sampleFormat;  // 1=uint, 2=int, 3=float
+    enum class Mode { U8, U16, U32, I8, I16, I32, F32, F64 } mode;
+};
+
+DtypeMap mapDtype(ValueType vt)
+{
+    switch (vt) {
+        case ValueType::UINT8:
+        case ValueType::LOGICAL:
+        case ValueType::CHAR:
+            return { 1, 8,  1, DtypeMap::Mode::U8  };
+        case ValueType::UINT16:
+            return { 2, 16, 1, DtypeMap::Mode::U16 };
+        case ValueType::UINT32:
+            return { 4, 32, 1, DtypeMap::Mode::U32 };
+        case ValueType::INT8:
+            return { 1, 8,  2, DtypeMap::Mode::I8  };
+        case ValueType::INT16:
+            return { 2, 16, 2, DtypeMap::Mode::I16 };
+        case ValueType::INT32:
+            return { 4, 32, 2, DtypeMap::Mode::I32 };
+        case ValueType::SINGLE:
+            return { 4, 32, 3, DtypeMap::Mode::F32 };
+        case ValueType::DOUBLE:
+            return { 8, 64, 3, DtypeMap::Mode::F64 };
+        default:
+            return { 1, 8,  1, DtypeMap::Mode::U8  };
+    }
+}
+
+std::vector<std::uint8_t>
+extractChunkyBytes(const Value &A, std::size_t H, std::size_t W,
+                   std::size_t S, const DtypeMap &dm)
+{
+    const std::size_t bps = dm.bytesPerSample;
+    const std::size_t total = H * W * S * bps;
+    std::vector<std::uint8_t> bytes(total);
+    const std::size_t plane = H * W;
+
+    auto writeU16 = [](std::uint8_t *p, std::uint16_t v) {
+        p[0] = static_cast<std::uint8_t>(v & 0xFF);
+        p[1] = static_cast<std::uint8_t>((v >> 8) & 0xFF);
+    };
+    auto writeU32 = [](std::uint8_t *p, std::uint32_t v) {
+        for (int i = 0; i < 4; ++i)
+            p[i] = static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF);
+    };
+    auto writeU64 = [](std::uint8_t *p, std::uint64_t v) {
+        for (int i = 0; i < 8; ++i)
+            p[i] = static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF);
+    };
+
+    for (std::size_t r = 0; r < H; ++r)
+        for (std::size_t c = 0; c < W; ++c)
+            for (std::size_t s = 0; s < S; ++s) {
+                const std::size_t srcIdx = (S == 1)
+                    ? (c * H + r)
+                    : (s * plane + c * H + r);
+                std::uint8_t *dst = bytes.data() + (r * W + c) * S * bps + s * bps;
+                switch (dm.mode) {
+                    case DtypeMap::Mode::U8: {
+                        double dv = A.elemAsDouble(srcIdx);
+                        if (dv < 0) dv = 0; if (dv > 255) dv = 255;
+                        *dst = static_cast<std::uint8_t>(static_cast<int>(dv));
+                        break;
+                    }
+                    case DtypeMap::Mode::U16:
+                        writeU16(dst, A.uint16Data()[srcIdx]); break;
+                    case DtypeMap::Mode::U32:
+                        writeU32(dst, A.uint32Data()[srcIdx]); break;
+                    case DtypeMap::Mode::I8: {
+                        std::int8_t v = A.int8Data()[srcIdx];
+                        std::memcpy(dst, &v, 1); break;
+                    }
+                    case DtypeMap::Mode::I16: {
+                        std::int16_t v = A.int16Data()[srcIdx];
+                        std::uint16_t u; std::memcpy(&u, &v, 2);
+                        writeU16(dst, u); break;
+                    }
+                    case DtypeMap::Mode::I32: {
+                        std::int32_t v = A.int32Data()[srcIdx];
+                        std::uint32_t u; std::memcpy(&u, &v, 4);
+                        writeU32(dst, u); break;
+                    }
+                    case DtypeMap::Mode::F32: {
+                        float f = A.singleData()[srcIdx];
+                        std::uint32_t u; std::memcpy(&u, &f, 4);
+                        writeU32(dst, u); break;
+                    }
+                    case DtypeMap::Mode::F64: {
+                        double d = A.doubleData()[srcIdx];
+                        std::uint64_t u; std::memcpy(&u, &d, 8);
+                        writeU64(dst, u); break;
+                    }
+                }
+            }
+    return bytes;
+}
+
+void applyHorizontalDiff(std::vector<std::uint8_t> &buf, std::size_t H,
+                          std::size_t W, std::size_t S, std::size_t bps)
+{
+    const std::size_t rowBytes = W * S * bps;
+    if (bps == 1) {
+        for (std::size_t r = 0; r < H; ++r) {
+            std::uint8_t *row = buf.data() + r * rowBytes;
+            for (std::size_t c = W; c-- > 1;) {
+                for (std::size_t s = 0; s < S; ++s)
+                    row[c * S + s] = static_cast<std::uint8_t>(
+                        row[c * S + s] - row[(c - 1) * S + s]);
+            }
+        }
+    } else if (bps == 2) {
+        for (std::size_t r = 0; r < H; ++r) {
+            std::uint8_t *row = buf.data() + r * rowBytes;
+            for (std::size_t c = W; c-- > 1;) {
+                for (std::size_t s = 0; s < S; ++s) {
+                    const std::size_t off = (c * S + s) * 2;
+                    const std::size_t pof = ((c - 1) * S + s) * 2;
+                    std::uint16_t cur, prv;
+                    std::memcpy(&cur, row + off, 2);
+                    std::memcpy(&prv, row + pof, 2);
+                    const std::uint16_t v = static_cast<std::uint16_t>(cur - prv);
+                    std::memcpy(row + off, &v, 2);
+                }
+            }
+        }
+    } else if (bps == 4) {
+        for (std::size_t r = 0; r < H; ++r) {
+            std::uint8_t *row = buf.data() + r * rowBytes;
+            for (std::size_t c = W; c-- > 1;) {
+                for (std::size_t s = 0; s < S; ++s) {
+                    const std::size_t off = (c * S + s) * 4;
+                    const std::size_t pof = ((c - 1) * S + s) * 4;
+                    std::uint32_t cur, prv;
+                    std::memcpy(&cur, row + off, 4);
+                    std::memcpy(&prv, row + pof, 4);
+                    const std::uint32_t v = cur - prv;
+                    std::memcpy(row + off, &v, 4);
+                }
+            }
+        }
+    }
+}
+
+std::uint16_t parseCompression(const std::string &s)
+{
+    if (s.empty() || s == "none")     return 1;
+    if (s == "packbits")              return 32773;
+    if (s == "lzw")                   return 5;
+    if (s == "deflate")               return 8;
+    throw Error("imwrite TIFF: unknown Compression '" + s + "' (use none, packbits, lzw, or deflate)",
+                0, 0, "imwrite", "", "numkit:imwrite:tiffCompression");
+}
+
+std::vector<std::uint8_t>
+compressStrip(const std::uint8_t *src, std::size_t n, std::uint16_t compression)
+{
+    switch (compression) {
+        case 1:     return std::vector<std::uint8_t>(src, src + n);
+        case 32773: return encodePackBits(src, n);
+        case 5:     return encodeLZW(src, n);
+        case 8:     return encodeDeflate(src, n);
+        default:
+            throw Error("imwrite TIFF: unsupported compression",
+                        0, 0, "imwrite", "", "numkit:imwrite:tiffCompression");
+    }
+}
+
+void writePage(std::vector<std::uint8_t> &buf, const Value &A,
+               std::uint16_t compression,
+               std::size_t prevNextIFDOff)
+{
+    const auto &d = A.dims();
+    const std::size_t H = d.rows();
+    const std::size_t W = d.cols();
+    const std::size_t S = (d.ndim() == 3) ? d.pages() : 1;
+    if (H == 0 || W == 0)
+        throw Error("imwrite TIFF: empty image", 0, 0, "imwrite", "",
+                    "numkit:imwrite:tiffShape");
+    if (S != 1 && S != 3 && S != 4)
+        throw Error("imwrite TIFF: only 1, 3, or 4 channels supported",
+                    0, 0, "imwrite", "", "numkit:imwrite:tiffShape");
+
+    const DtypeMap dm = mapDtype(A.type());
+    const std::size_t bps = dm.bytesPerSample;
+    auto bytes = extractChunkyBytes(A, H, W, S, dm);
+
+    const bool useHPred = (compression == 5 || compression == 8 || compression == 32946)
+                          && (dm.sampleFormat != 3)
+                          && (bps == 1 || bps == 2 || bps == 4);
+    if (useHPred)
+        applyHorizontalDiff(bytes, H, W, S, bps);
+    const std::uint16_t predictor = useHPred ? 2u : 1u;
+
+    auto strip = compressStrip(bytes.data(), bytes.size(), compression);
+
+    if ((buf.size() & 1) != 0) buf.push_back(0);
+    const std::uint32_t stripOffset = static_cast<std::uint32_t>(buf.size());
+    buf.insert(buf.end(), strip.begin(), strip.end());
+
+    if ((buf.size() & 1) != 0) buf.push_back(0);
+
+    const std::uint16_t photometric = (S == 1) ? 1u : 2u;
+    const std::uint16_t bitsPerSample = dm.bitsPerSample;
+
+    std::uint32_t bpsArrayOffset = 0;
+    if (S > 1) {
+        bpsArrayOffset = static_cast<std::uint32_t>(buf.size());
+        for (std::size_t s = 0; s < S; ++s) {
+            buf.push_back(static_cast<std::uint8_t>(bitsPerSample & 0xFF));
+            buf.push_back(static_cast<std::uint8_t>((bitsPerSample >> 8) & 0xFF));
+        }
+        if ((buf.size() & 1) != 0) buf.push_back(0);
+    }
+
+    const std::uint32_t ifdOffset = static_cast<std::uint32_t>(buf.size());
+
+    struct Entry {
+        std::uint16_t tag, type;
+        std::uint32_t count;
+        std::uint32_t value;
+    };
+    std::vector<Entry> entries;
+
+    entries.push_back({256, 4, 1, static_cast<std::uint32_t>(W)});
+    entries.push_back({257, 4, 1, static_cast<std::uint32_t>(H)});
+    if (S > 1) {
+        entries.push_back({258, 3, static_cast<std::uint32_t>(S), bpsArrayOffset});
+    } else {
+        entries.push_back({258, 3, 1, bitsPerSample});
+    }
+    entries.push_back({259, 3, 1, compression});
+    entries.push_back({262, 3, 1, photometric});
+    entries.push_back({273, 4, 1, stripOffset});
+    entries.push_back({277, 3, 1, static_cast<std::uint32_t>(S)});
+    entries.push_back({278, 4, 1, static_cast<std::uint32_t>(H)});
+    entries.push_back({279, 4, 1, static_cast<std::uint32_t>(strip.size())});
+    entries.push_back({284, 3, 1, 1u});                // PlanarConfig chunky
+    if (predictor != 1)
+        entries.push_back({317, 3, 1, predictor});     // Predictor=2 (horizontal)
+    entries.push_back({339, 3, 1, dm.sampleFormat});   // SampleFormat (1/2/3)
+
+    const std::size_t ifdBytes = 2 + entries.size() * 12 + 4;
+    const std::size_t ifdEnd = ifdOffset + ifdBytes;
+    buf.resize(ifdEnd, 0);
+
+    writeU16LE(buf, ifdOffset, static_cast<std::uint16_t>(entries.size()));
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        const std::size_t e = ifdOffset + 2 + i * 12;
+        writeU16LE(buf, e + 0, entries[i].tag);
+        writeU16LE(buf, e + 2, entries[i].type);
+        writeU32LE(buf, e + 4, entries[i].count);
+        writeU32LE(buf, e + 8, entries[i].value);
+    }
+    writeU32LE(buf, ifdEnd - 4, 0u);
+
+    if (prevNextIFDOff != SIZE_MAX)
+        writeU32LE(buf, prevNextIFDOff, ifdOffset);
+}
+
+} // anonymous
+
+// ============================================================================
+// 4. Public API Implementations
+// ============================================================================
 
 Value readTiff(const std::string &path, std::pmr::memory_resource *mr)
 {
@@ -864,13 +1162,9 @@ Value readTiff(const std::string &path, std::pmr::memory_resource *mr)
 Value readTiff(const std::string &path, std::uint32_t page,
                std::pmr::memory_resource *mr)
 {
-    // Path entry: load the bytes (real FS), then decode from the buffer.
     return readTiff(loadBytes(path, "imread"), page, mr);
 }
 
-// Buffer entry — decode TIFF from already-loaded bytes. The IDE feeds
-// these from the VFS (imread_reg) so reads work on the virtual + real FS;
-// the path overload above is for native callers / tests.
 Value readTiff(std::vector<std::uint8_t> buf, std::uint32_t page,
                std::pmr::memory_resource *mr)
 {
@@ -890,20 +1184,9 @@ Value readTiff(std::vector<std::uint8_t> buf, std::uint32_t page,
                     0, 0, "imread", "", "numkit:imread:tiffPhotometric");
 
     auto raw = decodeImage(br, img);
-
-    // Palette: MATLAB's single-output `imread(file)` for palette TIFFs
-    // returns the *indexed* values; the colormap is accessible via
-    // imfinfo or the two-output form. We return uint8/uint16 indices
-    // unchanged — no palette expansion in the single-output path.
     return rowMajorToValue(raw, img, br.bigEndian, mr);
 }
 
-// Two-output API for palette TIFFs. Returns (indices, cmap) where
-// `cmap` is K×3 DOUBLE in [0, 1] for Photometric=3, or empty otherwise.
-//
-// TIFF ColorMap tag (320) layout per spec: `3 · (2^BitsPerSample)` SHORT
-// values laid out [all R; all G; all B] in [0, 65535]. We normalise to
-// [0, 1] and stack as MATLAB's K×3 cmap.
 std::pair<Value, Value>
 readTiffWithMap(const std::string &path, std::uint32_t page,
                 std::pmr::memory_resource *mr)
@@ -955,8 +1238,6 @@ readTiffWithMap(std::vector<std::uint8_t> buf, std::uint32_t page,
 void peekTiff(const std::vector<std::uint8_t> &bufIn, std::uint32_t &W,
               std::uint32_t &H, std::uint16_t &bits, std::uint16_t &channels)
 {
-    // openTiff needs a mutable buffer (ByteReader holds buf.data()); peek is
-    // metadata-only and rare, so a local copy is fine.
     std::vector<std::uint8_t> buf = bufIn;
     if (buf.size() < 8)
         throw Error("imfinfo: file too small for TIFF header",
@@ -992,6 +1273,70 @@ std::uint32_t tiffNumPages(const std::string &path)
                            + entrySize * static_cast<std::size_t>(k));
     }
     return n;
+}
+
+std::vector<std::uint8_t>
+writeTiffToBytes(const Value &A, const std::string &compression,
+                 const std::vector<std::uint8_t> *existing)
+{
+    const std::uint16_t comp = parseCompression(compression);
+    std::vector<std::uint8_t> buf;
+
+    if (existing && !existing->empty()) {
+        buf = *existing;
+        if (buf.size() < 8 || !(buf[0] == 'I' && buf[1] == 'I')
+            || buf[2] != 0x2A || buf[3] != 0x00)
+            throw Error("imwrite TIFF: append target is not a little-endian TIFF",
+                        0, 0, "imwrite", "", "numkit:imwrite:tiffMagic");
+        std::uint32_t off = static_cast<std::uint32_t>(
+            buf[4] | (buf[5] << 8) | (buf[6] << 16) | (buf[7] << 24));
+        std::size_t lastNextSlot = 4;
+        while (off != 0 && off + 2 <= buf.size()) {
+            const std::uint16_t n = static_cast<std::uint16_t>(
+                buf[off] | (buf[off + 1] << 8));
+            lastNextSlot = off + 2 + 12u * n;
+            if (lastNextSlot + 4 > buf.size()) break;
+            off = static_cast<std::uint32_t>(
+                buf[lastNextSlot]
+                | (buf[lastNextSlot + 1] << 8)
+                | (buf[lastNextSlot + 2] << 16)
+                | (buf[lastNextSlot + 3] << 24));
+        }
+        writePage(buf, A, comp, lastNextSlot);
+    } else {
+        buf.assign(8, 0);
+        buf[0] = 'I'; buf[1] = 'I';
+        writeU16LE(buf, 2, 42);
+        writeU32LE(buf, 4, 0);
+        writePage(buf, A, comp, /*prevNextIFDOff=*/4);
+    }
+    return buf;
+}
+
+void writeTiff(const Value &A, const std::string &path,
+               const std::string &compression,
+               bool appendMode)
+{
+    std::vector<std::uint8_t> existing;
+    const std::vector<std::uint8_t> *exptr = nullptr;
+    if (appendMode && std::filesystem::exists(path)) {
+        std::ifstream in(path, std::ios::binary);
+        if (!in) throw Error("imwrite TIFF: cannot reopen file for append",
+                              0, 0, "imwrite", "", "numkit:imwrite:open");
+        in.seekg(0, std::ios::end);
+        const std::streamoff sz = in.tellg();
+        in.seekg(0, std::ios::beg);
+        existing.resize(static_cast<std::size_t>(sz));
+        in.read(reinterpret_cast<char *>(existing.data()), sz);
+        exptr = &existing;
+    }
+
+    const std::vector<std::uint8_t> buf = writeTiffToBytes(A, compression, exptr);
+
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out) throw Error("imwrite TIFF: cannot open '" + path + "' for write",
+                          0, 0, "imwrite", "", "numkit:imwrite:open");
+    out.write(reinterpret_cast<const char *>(buf.data()), buf.size());
 }
 
 } // namespace numkit::image
