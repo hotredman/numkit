@@ -175,6 +175,9 @@ public:
     static Value object(const std::string &className,
                         std::shared_ptr<ObjectState> state, bool isHandle,
                         std::pmr::memory_resource *mr = nullptr);
+    static Value objectArray(const std::string &className, const Dims &dims,
+                             std::vector<std::shared_ptr<ObjectState>> states, bool isHandle,
+                             std::pmr::memory_resource *mr = nullptr);
     /// Returns a default-constructed (Unset) Value — NOT a MATLAB
     /// empty matrix despite the name. New code should use
     /// `Value::Empty` for MATLAB-style empty (0×0 DOUBLE) or
