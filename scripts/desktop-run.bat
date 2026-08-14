@@ -17,6 +17,10 @@ if errorlevel 1 (
 if exist "%WASM_DIST%\numkit_ide.wasm" (
     copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
     copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
+    if exist "%DESKTOP_DIR%\dist" (
+        copy /y "%WASM_DIST%\numkit_ide.js"   "%DESKTOP_DIR%\dist\" >nul
+        copy /y "%WASM_DIST%\numkit_ide.wasm" "%DESKTOP_DIR%\dist\" >nul
+    )
     echo WASM engine found
 ) else (
     echo WASM not built — fallback mode
