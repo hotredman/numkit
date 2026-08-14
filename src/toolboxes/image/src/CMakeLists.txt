@@ -19,7 +19,6 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/object/object.cpp      # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/quality/quality.cpp    # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/transform/transform.cpp # compute (engine-free)
-    ${CMAKE_CURRENT_SOURCE_DIR}/io/deflate.cpp         # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/io/bmp_codec.cpp       # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/io/tga_codec.cpp       # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/io/pnm_codec.cpp       # compute (engine-free)

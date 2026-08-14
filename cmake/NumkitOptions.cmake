@@ -28,29 +28,6 @@ to the single-threaded path for the supported elementwise ops (+ - .* ./ \
 abs sin cos exp log)."
     ON)
 
-# Binary .mat (MATLAB save/load) support via matio. Pulled in via
-# FetchContent — no system packages, no vcpkg. Disabled by default on
-# Emscripten until matio's autoconf-style feature detection is validated
-# under emcc cross-compile.
-#
-# Sole exception to the "no third-party numerical libs" rule (matio is a
-# file-format library — parses/emits Mathworks' MAT5 binary container,
-# not a numerical kernel).
-#
-# Toggling OFF: saveload_mat.cpp is excluded, matio FetchContent is
-# skipped, and save/load throw a clear "binary .mat support not compiled
-# in" message on `-mat` / `-v4` / `-v6` / `-v7` paths. ASCII mode keeps
-# working.
-if(EMSCRIPTEN)
-    set(_numkit_matio_default OFF)
-else()
-    set(_numkit_matio_default ON)
-endif()
-option(NUMKIT_WITH_MATIO
-    "Enable binary .mat file support (MAT4 / MAT5 / MAT7) via matio"
-    ${_numkit_matio_default})
-
 message(STATUS "numkit feature flags:")
 message(STATUS "  NUMKIT_WITH_SIMD    = ${NUMKIT_WITH_SIMD}")
 message(STATUS "  NUMKIT_WITH_THREADS = ${NUMKIT_WITH_THREADS}")
-message(STATUS "  NUMKIT_WITH_MATIO   = ${NUMKIT_WITH_MATIO}")
