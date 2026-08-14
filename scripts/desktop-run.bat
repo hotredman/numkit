@@ -36,6 +36,11 @@ if not exist "%DESKTOP_DIR%\node_modules" (
     call npm install
 )
 
+:: Sync examples manifest across public/ and dist/
+if exist "%IDE_DIR%\scripts\generate-manifest.js" (
+    node "%IDE_DIR%\scripts\generate-manifest.js"
+)
+
 echo.
 echo Starting Numkit IDE...
 echo.
