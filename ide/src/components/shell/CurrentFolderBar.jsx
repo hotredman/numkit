@@ -52,7 +52,7 @@ export default function CurrentFolderBar({
         >
           <option value="virtual">Virtual</option>
           <option value="local" disabled={!localAvailable}>
-            Local {localMountName ? `(${localMountName})` : ''}
+            Local
           </option>
         </select>
       </div>
