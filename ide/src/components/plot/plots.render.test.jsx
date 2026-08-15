@@ -272,7 +272,7 @@ describe('FigureWindow — toolbar + popover surfaces', () => {
 
   it('renders the titlebar + toolbar with a reset button', () => {
     const c = mountFW();
-    expect(c.querySelector('.fw-titlebar')).toBeTruthy();
+    expect(c.querySelector('.modal-titlebar')).toBeTruthy();
     expect(c.querySelector('.fw-toolbar')).toBeTruthy();
     expect(c.querySelector('[data-fw-reset="all"]')).toBeTruthy();
   });

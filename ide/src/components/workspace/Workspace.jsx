@@ -6,6 +6,7 @@ import { useChooser } from './chooser';
 import { EntityBrowser, KIND_META, TONE, pickTone, WS_VIEW_KEY, WS_SORT_KEY } from './EntityBrowser';
 import { MatrixPanel, TILE, TILE_MODE_THRESHOLD } from './MatrixPanel';
 import { StructInspector } from './StructInspector';
+import ModalWindow from '../ui/ModalWindow';
 
 // Re-exported so existing importers (IDE, render tests) keep their
 // `{ MatrixPanel } from './Workspace'` imports working after the viewer
@@ -367,83 +368,51 @@ export function VariableEditor({ variable, onClose, engine }) {
   const meta = KIND_META[variable.kind] || KIND_META.matrix;
   const tone = pickTone(TONE[meta.tone] || TONE.amber, veThemeName);
 
-  // Shared title-right (maximise / close) — identical for the matrix
-  // and struct layouts, so it lives in one const.
-  const titleButtons = (
-    <div className="ve-title-right">
-      <button className="ve-close" onClick={() => setMaximized((m) => !m)}
-        title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
-        {maximized ? (
-          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-            <rect x="1.5" y="3.5" width="7" height="7"
-              stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-            <rect x="3.5" y="1.5" width="7" height="7"
-              stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-          </svg>
-        ) : (
-          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-            <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
-          </svg>
-        )}
-      </button>
-      <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
-    </div>
-  );
-
   // ── Struct / cell layout — drill-in inspector ──
   if (isStructLike) {
     return (
-      <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className={`ve-window ve-window-struct ${maximized ? 'is-max' : ''}`}
-          role="dialog" aria-label={`Inspector: ${variable.name}`}>
-          <div className="ve-titlebar">
-            <div className="ve-title-left">
-              <span className="ve-name" style={{ fontWeight: 600, color: 'var(--fg-0)' }}>Inspector</span>
-              <span className="ve-dim" style={{ color: 'var(--fg-2)', marginLeft: 8 }}>{variable.name}</span>
-            </div>
-            {titleButtons}
-          </div>
-          <StructInspector key={variable.name} variable={variable} engine={engine} onEscape={onClose} />
-        </div>
-      </div>
+      <ModalWindow
+        onClose={onClose}
+        title="Inspector"
+        subtitle={variable.name}
+        ariaLabel={`Inspector: ${variable.name}`}
+        maximized={maximized}
+        onMaximizedChange={setMaximized}
+        className="ve-window ve-window-struct"
+      >
+        <StructInspector key={variable.name} variable={variable} engine={engine} onEscape={onClose} />
+      </ModalWindow>
     );
   }
 
   return (
-    <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`ve-window ${maximized ? 'is-max' : ''}`}
-        role="dialog" aria-label={`Inspector: ${variable.name}`}>
-        <div className="ve-titlebar">
-          <div className="ve-title-left">
-            <span className="ve-name" style={{ fontWeight: 600, color: 'var(--fg-0)' }}>Inspector</span>
-            <span className="ve-dim" style={{ color: 'var(--fg-2)', marginLeft: 8 }}>{variable.name}</span>
-            {loading && (
-              <span className="ve-meta" style={{ color: 'var(--accent)', marginLeft: 8 }}>
-                loading…
-              </span>
-            )}
-            {loadError && (
-              <span className="ve-meta" style={{ color: 'var(--danger)', marginLeft: 8 }}
-                title={loadError}>
-                preview only
-              </span>
-            )}
-          </div>
-          {titleButtons}
-        </div>
-
-        <MatrixPanel
-          engine={engine}
-          rows={rows} cols={cols} name={variable.name} type={variable.type}
-          getCellValue={getCellValue} getSlice={getSlice} stats={stats}
-          dims={shape.dims} page={page} setPage={setPage}
-          readOnly={false}
-          onCommit={onCommit}
-          onEscape={onClose}
-          onSave={shape.tileMode ? null : (f) => exportData(variable, data, f)}
-          saveDisabled={shape.tileMode}
-        />
-      </div>
-    </div>
+    <ModalWindow
+      onClose={onClose}
+      title="Inspector"
+      subtitle={variable.name}
+      meta={
+        loading ? (
+          <span style={{ color: 'var(--accent)' }}>loading…</span>
+        ) : loadError ? (
+          <span style={{ color: 'var(--danger)' }} title={loadError}>preview only</span>
+        ) : null
+      }
+      ariaLabel={`Inspector: ${variable.name}`}
+      maximized={maximized}
+      onMaximizedChange={setMaximized}
+      className="ve-window"
+    >
+      <MatrixPanel
+        engine={engine}
+        rows={rows} cols={cols} name={variable.name} type={variable.type}
+        getCellValue={getCellValue} getSlice={getSlice} stats={stats}
+        dims={shape.dims} page={page} setPage={setPage}
+        readOnly={false}
+        onCommit={onCommit}
+        onEscape={onClose}
+        onSave={shape.tileMode ? null : (f) => exportData(variable, data, f)}
+        saveDisabled={shape.tileMode}
+      />
+    </ModalWindow>
   );
 }

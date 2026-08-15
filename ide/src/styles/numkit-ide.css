@@ -2411,6 +2411,19 @@ input, select { font-family: inherit; color: inherit; }
   animation: none !important;
   grid-template-rows: auto auto 1fr auto 22px;
 }
+.fw-window.fw-modal-body {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  margin: 0 !important;
+  background: var(--bg-1) !important;
+  animation: none !important;
+  grid-template-rows: auto auto 1fr auto 22px;
+}
 .fw-window.is-embedded .fw-toolbar {
   height: 32px;
   min-height: 32px;
@@ -2435,29 +2448,6 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Buttons pinned to the modal corner (anchored on .fw-window). */
-.fw-title-left {
-  min-width: 0; flex: 1 1 auto; overflow: hidden;
-  white-space: nowrap; text-overflow: ellipsis;
-  padding-right: 80px;
-}
-.fw-title-right {
-  position: absolute; top: 7px; right: 10px;
-  display: flex; align-items: center; gap: 4px;
-  background: var(--bg-2);
-  padding: 0 4px; border-radius: var(--r-sm);
-  z-index: 10;
-}
-.fw-titlebar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 14px;
-  background: var(--bg-1);
-  border-bottom: 1px solid var(--line-soft);
-  font-family: var(--font-mono);
-  user-select: none;
-}
-.fw-title-left { display: flex; align-items: center; gap: 10px; }
-.fw-title-right { display: flex; align-items: center; gap: 10px; }
 .fw-name { color: var(--fg-0); font-size: 14px; font-weight: 500; }
 .fw-meta {
   color: var(--fg-3); font-size: 11px;
@@ -2693,24 +2683,7 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-3); font-style: italic;
 }
 
-/* Title bar */
-.ve-titlebar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 12px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
-}
-.ve-title-left { display: flex; align-items: center; gap: 10px; }
-.ve-title-right { display: flex; align-items: center; gap: 10px; }
-.ve-traffic { display: flex; gap: 6px; }
-.ve-light {
-  width: 11px; height: 11px; border-radius: 50%;
-  display: inline-block; cursor: pointer;
-}
-.ve-l-r { background: oklch(0.66 0.20 25); }
-.ve-l-y { background: oklch(0.78 0.16 80); }
-.ve-l-g { background: oklch(0.78 0.16 145); }
+
 
 .ve-tag {
   font-size: 10.5px; padding: 1.5px 7px;
@@ -3667,6 +3640,20 @@ select.ve-btn.fw-cmap-select {
   padding: 2px 4px;
   border-radius: var(--r-sm);
   z-index: 10;
+}
+
+.modal-title-right .ve-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+}
+
+.modal-title-right .ve-close:hover {
+  background: var(--bg-2);
+  color: var(--fg-0);
 }
 
 .modal-content {
