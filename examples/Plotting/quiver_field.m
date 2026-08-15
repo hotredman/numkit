@@ -2,7 +2,7 @@
 % Arrows from (x_i, y_i) in direction (u_i, v_i). The 4th + 5th
 % positional args are the components; the optional 5th positional
 % scalar is the arrow scale.
-import compat.*;
+
 
 clear
 close all

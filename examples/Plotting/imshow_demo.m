@@ -4,7 +4,7 @@
 % display. imshow defaults to gray colormap, `axis image off`, and
 % an inverted Y (matrix-row 1 at top).
 
-import compat.*;
+
 
 clear
 close all

@@ -3,7 +3,7 @@
 % its (column, row) position. Heights drive the color via the same
 % height-mapped palette as surf, so taller bars show up red and
 % shorter ones blue.
-import compat.*;
+
 
 clear
 close all

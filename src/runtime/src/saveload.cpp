@@ -23,11 +23,7 @@
 
 namespace numkit::runtime {
 
-// Implemented in saveload_mat.cpp when NUMKIT_WITH_MATIO is defined.
-// When matio is disabled at build time, stubs below throw with a clear
-// "binary .mat support disabled" message so `-mat` / `-v4` / `-v6` /
-// `-v7` paths fail predictably instead of silently corrupting writes.
-#ifdef NUMKIT_WITH_MATIO
+// In-tree autonomous MAT-file codec implemented in saveload_mat.cpp.
 void saveMat(Engine &engine, Environment &env,
              const std::string &filename,
              const std::vector<std::string> &varnames,
@@ -35,23 +31,6 @@ void saveMat(Engine &engine, Environment &env,
 void loadMat(Engine &engine, Environment &env,
              const std::string &filename,
              size_t nargout, Span<Value> outs);
-#else
-static void saveMat(Engine &, Environment &,
-                    const std::string &,
-                    const std::vector<std::string> &,
-                    int)
-{
-    throw Error("save: binary .mat support not compiled in "
-                "(rebuild with NUMKIT_WITH_MATIO=ON)");
-}
-static void loadMat(Engine &, Environment &,
-                    const std::string &,
-                    size_t, Span<Value>)
-{
-    throw Error("load: binary .mat support not compiled in "
-                "(rebuild with NUMKIT_WITH_MATIO=ON)");
-}
-#endif
 
 namespace {
 

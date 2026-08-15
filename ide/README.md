@@ -73,7 +73,7 @@ cp build-browser/wasm/dist/numkit_ide.js   ide/public/
 cp build-browser/wasm/dist/numkit_ide.wasm ide/public/
 ```
 
-Alternatively just run `./build-engine.sh --wasm` (Linux/macOS) or `build-engine.bat --wasm` (Windows), then `./run-web.sh` / `run-web.bat` — the dev-run scripts copy the artifacts automatically.
+Alternatively just run `./engine-build.sh --wasm` (Linux/macOS) or `engine-build.bat --wasm` (Windows), then `./web-run.sh` / `web-run.bat` — the dev-run scripts copy the artifacts automatically.
 
 ### Step 3 — Restart dev server
 

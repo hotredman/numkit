@@ -4,7 +4,7 @@
 %   • second-order, well-damped     G2(s) = 4 / (s^2 + 3s + 4)
 %   • second-order, under-damped    G3(s) = 4 / (s^2 + 0.6s + 4)
 
-import compat.*;
+
 
 clear
 close all

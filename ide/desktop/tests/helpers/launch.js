@@ -27,7 +27,7 @@ function assertDistBuilt() {
   if (!fs.existsSync(indexHtml)) {
     throw new Error(
       `Numkit IDE dist not built: ${indexHtml} missing.\n`
-      + `Run \`build-desktop.bat\` from the project root before \`npm test\`.`
+      + `Run \`desktop-build.bat\` from the project root before \`npm test\`.`
     );
   }
 }

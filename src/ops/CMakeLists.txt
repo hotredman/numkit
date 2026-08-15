@@ -15,6 +15,10 @@ set(NUMKIT_OPS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matlab_mt19937.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/la_solve.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compression/deflate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas1_highway.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas2_highway.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blas/blas3_highway.cpp
     # Iterative solver kernels (Brent root/bracket/min, Nelder-Mead; FnHandle
     # objective) — the numerical core of fzero/fminbnd/fminsearch. Portable C++.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/root_solve.cpp

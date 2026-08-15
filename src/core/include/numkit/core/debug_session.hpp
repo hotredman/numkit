@@ -201,6 +201,7 @@ private:
 
     // Output capture
     std::string outputBuf_;
+    std::function<void(const std::string &)> savedOutputFunc_;
 };
 
 } // namespace numkit

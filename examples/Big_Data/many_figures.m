@@ -4,7 +4,7 @@
 % ~16-context cap and blank the oldest thumbnails; the shared-context preview
 % rasterizer draws every card from ONE context, so all 20 stay crisp and match
 % their windows. Watch the Figures panel fill with thumbnails.
-import compat.*;
+
 
 clear
 close all

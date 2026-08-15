@@ -3,7 +3,7 @@
 % scatter(...,'filled') fills them. Other marker shapes come through plot's
 % LineSpec (s = square, ^ = triangle, d = diamond, ...). polarscatter places
 % markers in polar coordinates.
-import compat.*;
+
 
 clear
 close all

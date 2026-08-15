@@ -2,7 +2,7 @@
 % Build a square-base pyramid by emitting each triangular face as a
 % column of (X, Y, Z). Each column becomes one polygon; the WebGL
 % renderer fan-triangulates and Lambert-shades each.
-import compat.*;
+
 
 clear
 close all

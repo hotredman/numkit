@@ -2,7 +2,7 @@
 % Eleven 8k-point clusters, each a different marker shape (o s d ^ v < > p h
 % + x), all drawn on the GPU point path via the shape atlas. A big categorical
 % scatter with mixed markers stays fast and the shapes match the SVG fallback.
-import compat.*;
+
 
 clear
 close all

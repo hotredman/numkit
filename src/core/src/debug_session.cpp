@@ -55,6 +55,7 @@ ExecStatus DebugSession::start(const std::string &code)
     outputBuf_.clear();
     ws_.reset();
 
+    savedOutputFunc_ = engine_.outputFunc();
     engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
     engine_.debug().setObserver(observer_);
 
@@ -145,16 +146,19 @@ ExecStatus DebugSession::resume(DebugAction action)
             selectedDepth_ = 0; // new pause → focus the deepest frame
             ws_.bindVMFrame(*engine_.vm_, engine_, selectedDepth_);
         } else {
+            engine_.syncVMToWorkspace();
             deactivate();
         }
 
         return status;
     } catch (const Error &e) {
+        engine_.syncVMToWorkspace();
         errorMsg_ = e.what();
         errorLine_ = e.line();
         deactivate();
         return ExecStatus::Completed;
     } catch (const std::exception &e) {
+        engine_.syncVMToWorkspace();
         errorMsg_ = e.what();
         deactivate();
         return ExecStatus::Completed;
@@ -166,6 +170,7 @@ void DebugSession::stop()
     if (!active_)
         return;
 
+    engine_.syncVMToWorkspace();
     deactivate();
     ws_.reset();
 }
@@ -323,6 +328,8 @@ void DebugSession::deactivate()
         engine_.vm_->setStopOnError(false); // don't affect later non-debug runs
     // Pair with the beginScript() at the start of this session.
     engine_.endScript();
+    engine_.setOutputFunc(savedOutputFunc_);
+    savedOutputFunc_ = nullptr;
     ast_.reset();
 }
 
@@ -421,6 +428,7 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
     // pre-existing base global would vanish after any debug-console eval.
     std::unordered_set<std::string> preEvalGlobals(genv.globalNames().begin(),
                                                    genv.globalNames().end());
+    std::vector<Import> preEvalImports = genv.activeImports();
 
     // 3. Detach the observer so the inner eval doesn't trigger debug hooks.
     engine_.debug().setObserver(nullptr);
@@ -432,6 +440,10 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
     // Start from a clean slate so `clear` in the console doesn't race with
     // unrelated REPL variables.
     genv.clearAll();
+    engine_.restoreImplicitImports(&genv);
+    for (const auto &imp : preEvalImports)
+        genv.pushImport(imp);
+
     // Inject ALL live names, including built-ins and pseudo-vars like nargin
     // — the console eval needs them reachable even though they won't appear
     // in the user-visible snapshot.
@@ -483,6 +495,9 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
             genv.set(n, v);
         for (auto &g : preEvalGlobals)
             genv.declareGlobal(g);
+        engine_.restoreImplicitImports(&genv);
+        for (const auto &imp : preEvalImports)
+            genv.pushImport(imp);
         engine_.clearAllCalled_ = false;
 
         engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });

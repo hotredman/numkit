@@ -1,7 +1,7 @@
 clear
 import compat.*
 % sinpi / cospi smoke — accurate sin(pi*x) / cos(pi*x).
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/sinpi_smoke.m
 
 fprintf('--- exact zeros at integers / half-integers ---\n');

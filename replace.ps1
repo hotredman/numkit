@@ -1,0 +1,1 @@
+Get-ChildItem -Path . -Recurse -File -Include *.cpp,*.hpp,*.h,*.txt,*.json,*.cmake,*.m,*.md | ForEach-Object { $c = Get-Content $_.FullName -Raw; if ($c -match 'NUMKIT_WITH_SIMD') { $c -replace 'NUMKIT_WITH_SIMD', 'NUMKIT_HIGHWAY' | Set-Content -NoNewline $_.FullName } }

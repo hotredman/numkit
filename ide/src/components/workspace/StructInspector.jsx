@@ -239,7 +239,7 @@ function CellGrid({ payload, onDrill }) {
 //   name    — breadcrumb leaf label, shown in the address bar
 //   onBack  — Esc / back to the parent path
 //   onCommit(r,c,rhs) — write-back (Phase B); absent → read-only
-function DrilledMatrix({ payload, name, onBack, onCommit }) {
+function DrilledMatrix({ payload, name, onBack, onCommit, breadCrumbs }) {
   const data = payload.data || [];
   // Full stat set (min/max/mean/median/mode/var/std/n) over the inline
   // data, for the StatsBar — mirrors the engine's getVarStatsJSON.
@@ -259,11 +259,12 @@ function DrilledMatrix({ payload, name, onBack, onCommit }) {
       rows={payload.rows} cols={payload.cols} name={name} type={payload.type}
       getCellValue={getCellValue} getSlice={getSlice} stats={stats}
       readOnly={!onCommit} onCommit={onCommit} onEscape={onBack} onSave={null}
+      breadCrumbs={breadCrumbs}
     />
   );
 }
 
-export function StructInspector({ variable, engine }) {
+export function StructInspector({ variable, engine, onEscape }) {
   const [nav, setNav] = useState([{ label: variable.name, path: '' }]);
   const [payload, setPayload] = useState(null);
   const [error, setError] = useState(null);
@@ -277,17 +278,36 @@ export function StructInspector({ variable, engine }) {
       setPayload(null);
       return;
     }
-    const p = engine.inspectPath(variable.name, cur.path);
-    if (p === null) {
-      setError('struct inspection needs a full WASM rebuild (binding missing)');
-      setPayload(null);
-    } else if (p.error) {
-      setError(p.error);
-      setPayload(null);
+    // Handles both WASM (sync value) and native Electron IPC (Promise).
+    const res = engine.inspectPath(variable.name, cur.path);
+    if (res && typeof res.then === 'function') {
+      res.then((p) => {
+        if (p === null) {
+          setError('struct inspection needs a full WASM rebuild (binding missing)');
+          setPayload(null);
+        } else if (p.error) {
+          setError(p.error);
+          setPayload(null);
+        } else {
+          setPayload(p);
+        }
+      }).catch((err) => {
+        setError(err?.message || 'Inspection failed');
+        setPayload(null);
+      });
     } else {
-      setPayload(p);
+      if (res === null) {
+        setError('struct inspection needs a full WASM rebuild (binding missing)');
+        setPayload(null);
+      } else if (res && res.error) {
+        setError(res.error);
+        setPayload(null);
+      } else {
+        setPayload(res);
+      }
     }
   }, [variable.name, engine, cur.path, refreshTick]);
+
 
   // Write-back for an edited matrix-field cell. Builds a MATLAB lvalue
   // from the current path (e.g. `car.engine.data(2,5)`) and runs the
@@ -331,49 +351,44 @@ export function StructInspector({ variable, engine }) {
     setRefreshTick((t) => t + 1);
   }, [engine, variable.name, cur.path]);
 
-  // Duplicate a field to a fresh, collision-free "<name>_copy" name. The
-  // `[lvalue.copy] = lvalue.name` bracket form works for a single struct
-  // and distributes the per-element CSL across a struct array. Names are
-  // identifiers, so the expression is injection-safe.
-  const duplicateField = useCallback((fieldName) => {
-    if (!engine?.execute || !isValidIdentifier(fieldName)) return;
+  // Duplicate a field into a `<name>_copy` default name.
+  const duplicateField = useCallback((oldName) => {
+    if (!engine?.execute || !isValidIdentifier(oldName)) return;
     const lvalue = pathToMatlabLValue(variable.name, cur.path);
-    const existing = new Set(payload?.fields || []);
-    let copy = `${fieldName}_copy`;
-    for (let i = 2; existing.has(copy); i++) copy = `${fieldName}_copy${i}`;
+    const newName = `${oldName}_copy`;
     try {
-      engine.execute(`[${lvalue}.${copy}] = ${lvalue}.${fieldName};`);
+      engine.execute(`${lvalue}.${newName} = ${lvalue}.${oldName};`);
     } catch (e) {
       console.warn('[StructInspector] duplicate-field failed:', e);
     }
     setRefreshTick((t) => t + 1);
+  }, [engine, variable.name, cur.path]);
+
+  // Insert a new empty field directly above `afterField`.
+  const insertField = useCallback((afterField) => {
+    if (!engine?.execute) return;
+    const lvalue = pathToMatlabLValue(variable.name, cur.path);
+    const newName = 'new_field';
+    const fields = payload?.fields || [];
+    const idx = afterField ? fields.indexOf(afterField) : fields.length;
+    const reordered = [...fields];
+    reordered.splice(idx === -1 ? fields.length : idx, 0, newName);
+    const orderCell = '{' + reordered.map((f) => `'${f}'`).join(',') + '}';
+    try {
+      let expr = `${lvalue}.${newName} = []; `
+               + `${lvalue} = orderfields(${lvalue}, ${orderCell});`;
+      engine.execute(expr);
+    } catch (e) {
+      console.warn('[StructInspector] insert-field failed:', e);
+    }
+    setRefreshTick((t) => t + 1);
   }, [engine, variable.name, cur.path, payload]);
 
-  // Insert a fresh empty field with a collision-free default name
-  // ("unnamed", "unnamed1", …) — mirrors MATLAB's context-menu Insert.
-  const insertField = useCallback(() => {
-    const existing = new Set(payload?.fields || []);
-    let name = 'unnamed';
-    for (let i = 1; existing.has(name); i++) name = `unnamed${i}`;
-    addField(name);
-  }, [payload, addField]);
-
-  // Rename = copy the field's value to the new name, drop the old, then
-  // re-pin the field order so the renamed field keeps its original slot.
-  // The `[lvalue.new] = lvalue.old` bracket form works for a single
-  // struct and distributes the per-element CSL across a struct array.
-  // Without the final orderfields() the new field would land at the END
-  // (copy-append semantics); the 2-arg orderfields(s, {names...}) restores
-  // position. Guards: valid identifier, no-op on same name, refuse to
-  // clobber an existing field.
+  // Rename a field (rmfield + assignment + orderfields to preserve column order).
   const renameField = useCallback((oldName, newName) => {
-    if (!engine?.execute || !isValidIdentifier(newName)) return;
-    if (newName === oldName) return;
-    if (payload?.fields?.includes(newName)) return;   // collision
+    if (!engine?.execute || !isValidIdentifier(newName) || oldName === newName) return;
     const lvalue = pathToMatlabLValue(variable.name, cur.path);
-    // Desired order = current fields with oldName swapped to newName in
-    // place. Field names are identifiers, so the {'a','b',...} cell
-    // literal is injection-safe.
+    // Escape single quotes just in case, though isValidIdentifier ensures literal.
     const order = (payload?.fields || []).map((f) => (f === oldName ? newName : f));
     const orderCell = '{' + order.map((f) => `'${f}'`).join(',') + '}';
     try {
@@ -400,36 +415,65 @@ export function StructInspector({ variable, engine }) {
   }, []);
   const jump = useCallback((i) => setNav((prev) => prev.slice(0, i + 1)), []);
 
+  const breadCrumbs = <InspectorBreadcrumb nav={nav} onJump={jump} />;
+
   let body;
   if (error) body = <div className="ve-struct-empty">{error}</div>;
   else if (!payload) body = <div className="ve-struct-empty">loading…</div>;
   else if (payload.kind === 'struct') {
-    body = payload.numel === 1
+    const listBody = payload.numel === 1
       ? <StructFieldList payload={payload} onDrill={drill}
           onAddField={addField} onDeleteField={deleteField} onRenameField={renameField}
           onDuplicateField={duplicateField} onInsertField={insertField} />
       : <StructArrayTable payload={payload} onDrill={drill}
           onAddField={addField} onDeleteField={deleteField} onRenameField={renameField} />;
+    body = (
+      <MatrixPanel
+        rows={payload.rows || 1} cols={payload.cols || 1} name={variable.name} type="struct"
+        readOnly={true}
+        customBody={listBody}
+        breadCrumbs={breadCrumbs}
+        addressRef={`${variable.name}${cur.path ? '.' + cur.path : ''}`}
+        onEscape={onEscape}
+      />
+    );
   } else if (payload.kind === 'cell') {
-    body = <CellGrid payload={payload} onDrill={drill} />;
+    const getCellValue = (r, c) => {
+      const idx = c * payload.rows + r;
+      const cellObj = payload.elems?.[idx];
+      return cellObj ? (cellObj.summary || '') : '';
+    };
+    const onCellDoubleClick = (r, c) => {
+      const idx = c * payload.rows + r;
+      const cellObj = payload.elems?.[idx];
+      if (cellObj && cellObj.drill) {
+        drill([{ k: 'c', idx, label: cellObj.label || `{${r + 1},${c + 1}}` }]);
+      }
+    };
+    body = (
+      <MatrixPanel
+        rows={payload.rows} cols={payload.cols} name={variable.name} type="cell"
+        getCellValue={getCellValue}
+        readOnly={true}
+        onCellDoubleClick={onCellDoubleClick}
+        breadCrumbs={breadCrumbs}
+        onEscape={onEscape}
+      />
+    );
   } else if (payload.kind === 'matrix') {
     const leaf = (cur.label || variable.name).replace(/^\./, '');
     body = (
       <DrilledMatrix
         payload={payload}
         name={leaf}
-        onBack={nav.length > 1 ? () => jump(nav.length - 2) : undefined}
+        onBack={nav.length > 1 ? () => jump(nav.length - 2) : onEscape}
         onCommit={commitFieldCell}
+        breadCrumbs={breadCrumbs}
       />
     );
   } else {
     body = <div className="ve-struct-empty">unsupported value</div>;
   }
 
-  return (
-    <div className="ve-inspector">
-      <InspectorBreadcrumb nav={nav} onJump={jump} />
-      <div className="ve-inspector-body">{body}</div>
-    </div>
-  );
+  return body;
 }

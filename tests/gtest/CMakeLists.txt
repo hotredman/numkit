@@ -35,6 +35,7 @@ set(INTEGRATION_TESTS
     integration/multi_output_args_test.cpp
     integration/containers_test.cpp
     integration/string_indexing_test.cpp
+    integration/compiler_const_leak_test.cpp
 )
 
 # ── The one test binary ───────────────────────────────────────────────────

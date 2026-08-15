@@ -3,7 +3,7 @@
 % example of why median (order-statistics) beats linear filters when
 % the noise is impulsive.
 
-import compat.*;
+
 
 clear
 close all

@@ -2,7 +2,7 @@
 % Bins (X, Y) into an nx×ny grid of counts and renders the count
 % matrix through the imagesc heatmap pipeline. Great for seeing
 % structure in a scatter plot when the points overlap heavily.
-import compat.*;
+
 
 clear
 close all

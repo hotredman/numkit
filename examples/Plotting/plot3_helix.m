@@ -1,7 +1,7 @@
 % plot3 Helix — 3-D parametric curve
 % Draw a 3-D helix by sweeping (cos t, sin t, t). Try the orbit
 % camera: drag with the mouse to rotate, wheel to dolly in/out.
-import compat.*;
+
 
 clear
 close all

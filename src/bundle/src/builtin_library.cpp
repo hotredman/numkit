@@ -431,6 +431,12 @@ void textscan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void setenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void getenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
+// coder.cpp (runtime/language/commands/ — AOT codegen + process builtins)
+void coder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void coder_run_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void system_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void runNative_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+
 // diagnostics.cpp
 void error_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void warning_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1483,6 +1489,14 @@ void BuiltinLibrary::install(Engine &engine)
     // ── env.cpp public-API-backed built-ins ────────────────────────
     engine.registerFunction("setenv",     &builtin::detail::setenv_reg);
     engine.registerFunction("getenv",     &builtin::detail::getenv_reg);
+
+    // ── coder.cpp public-API-backed built-ins ──────────────────────
+    // coder = transpile (pure C++, works under WASM); coder_run/system/
+    // runNative spawn a native process (native-only, throw under WASM).
+    engine.registerFunction("coder",      &builtin::detail::coder_reg);
+    engine.registerFunction("coder_run",  &builtin::detail::coder_run_reg);
+    engine.registerFunction("system",     &builtin::detail::system_reg);
+    engine.registerFunction("runNative",  &builtin::detail::runNative_reg);
 
     // ── programming/errors/diagnostics.cpp public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);

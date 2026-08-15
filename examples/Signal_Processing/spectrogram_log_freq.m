@@ -25,7 +25,7 @@
 %     here uses a smaller workload that runs in ~1 sec for fast
 %     iteration; scale it up by changing Fs and dur below.
 
-import compat.*;
+
 
 clear
 close all

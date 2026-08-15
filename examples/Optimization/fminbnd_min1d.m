@@ -3,7 +3,7 @@
 % interpolation). Faster and more robust than fminsearch when you
 % have a known interval.
 
-import compat.*;
+
 
 clear
 close all

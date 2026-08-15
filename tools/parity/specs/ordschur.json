@@ -1,0 +1,12 @@
+{
+  "name": "ordschur",
+  "namespace": "builtin",
+  "setup": "A = [2 1; 0 3]; [U, T] = schur(A);",
+  "expr": "[US, TS] = ordschur(U, T, 'rhp'); err = max(max(abs(US*TS*US' - A)));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "TS(1,1)", "TS(2,2)", "err"
+  ],
+  "comment": "Reorder Schur decomposition: [US, TS] = ordschur(U, T, select/domain)."
+}

@@ -8,7 +8,7 @@
 % each engine:
 %   MATLAB : matlab -batch "run('benchmarks/m/iir_filter_ref.m')"
 %   Octave : octave-cli benchmarks/m/iir_filter_ref.m
-%   numkit : build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+%   numkit : build/desktop-fast/apps/numkit/Release/numkit.exe \
 %                benchmarks/m/iir_filter_ref.m
 %
 % Reference snapshot (2026-06-17, N = 5e6, ns/sample):

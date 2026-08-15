@@ -154,6 +154,48 @@ const direct = {
     });
   },
 
+  async listDir(relPath = '/') {
+    const all = await reqP(dtx('readonly').getAll());
+    const targetRel = (relPath || '/').replace(/\\/g, '/').replace(/\/+$/, '') || '/';
+    const entries = [];
+    for (const entry of all) {
+      const p = entry.path;
+      const parent = parentPath(p) || '/';
+      if (parent === targetRel) {
+        let size = entry.size;
+        if (size === undefined && entry.content !== undefined) {
+          if (typeof entry.content === 'string') {
+            size = entry.content.length;
+          } else if (entry.content instanceof ArrayBuffer) {
+            size = entry.content.byteLength;
+          } else if (entry.content && typeof entry.content.byteLength === 'number') {
+            size = entry.content.byteLength;
+          } else if (entry.content && typeof entry.content.length === 'number') {
+            size = entry.content.length;
+          }
+        }
+        let modified = entry.modified;
+        if (!modified) {
+          if (entry.type === 'folder') {
+            const child = all.find((e) => e.path.startsWith(p + '/') && e.modified);
+            modified = child ? child.modified : Date.now();
+          } else {
+            modified = Date.now();
+          }
+        }
+        entries.push({
+          name: p.split('/').pop(),
+          path: p,
+          type: entry.type,
+          size: entry.type === 'folder' ? undefined : (size ?? 0),
+          modified,
+        });
+      }
+    }
+    entries.sort((a, b) => (a.type !== b.type ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name)));
+    return entries;
+  },
+
   async listTree() {
     const all = await reqP(dtx('readonly').getAll());
     const root = [];
@@ -206,45 +248,145 @@ const bridgeEnabled = (typeof import.meta !== 'undefined'
 const bridge = bridgeEnabled ? makeBridge() : null;
 const useBridge = bridge !== null;
 
+const isElectron = (typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined');
+let electronTempRoot = null;
+
+async function ensureElectronTempRoot() {
+  if (!electronTempRoot && isElectron && typeof window.nativeFS.getTempRoot === 'function') {
+    electronTempRoot = await window.nativeFS.getTempRoot();
+  }
+  return electronTempRoot;
+}
+
 const tempFS = {
   /** Whether sync read/exists hooks are available on this runtime. */
-  isSyncCapable() { return useBridge; },
+  isSyncCapable() { return isElectron || useBridge; },
+  isElectron() { return isElectron; },
+  root() { return electronTempRoot; },
 
   async init() {
+    if (isElectron) {
+      await ensureElectronTempRoot();
+      return;
+    }
     if (useBridge) await bridge.ready();
     else           await direct.init();
   },
 
-  async listTree()                  { return useBridge ? bridge.listTree()              : direct.listTree(); },
-  async readFile(p)                 { return useBridge ? bridge.read(p)                  : direct.readFile(p); },
-  async writeFile(p, c)             { return useBridge ? bridge.write(p, c)              : direct.writeFile(p, c); },
-  async mkdir(p)                    { return useBridge ? bridge.mkdir(p)                 : direct.mkdir(p); },
-  async exists(p)                   { return useBridge ? bridge.exists(p)                : direct.exists(p); },
-  async remove(p)                   { return useBridge ? bridge.remove(p)                : direct.remove(p); },
-  async rename(o, n)                { return useBridge ? bridge.rename(o, n)             : direct.rename(o, n); },
-  async clear()                     { return useBridge ? bridge.clear()                  : direct.clear(); },
-  async count()                     { return useBridge ? bridge.count()                  : direct.count(); },
+  async listDir(p = '/') {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.listDir(root, p) : [];
+    }
+    return direct.listDir(p);
+  },
+
+  async listTree() {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.listTree(root) : [];
+    }
+    return useBridge ? bridge.listTree() : direct.listTree();
+  },
+  async readFile(p) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.readFile(root, p) : null;
+    }
+    return useBridge ? bridge.read(p) : direct.readFile(p);
+  },
+  async writeFile(p, c) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.writeFile(root, p, c) : undefined;
+    }
+    return useBridge ? bridge.write(p, c) : direct.writeFile(p, c);
+  },
+  async writeFileBytes(p, b) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.writeFileBytes(root, p, b) : undefined;
+    }
+    if (typeof direct.writeFileBytes === 'function') return direct.writeFileBytes(p, b);
+    return direct.writeFile(p, b);
+  },
+  async mkdir(p) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.mkdir(root, p) : undefined;
+    }
+    return useBridge ? bridge.mkdir(p) : direct.mkdir(p);
+  },
+  async exists(p) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.exists(root, p) : false;
+    }
+    return useBridge ? bridge.exists(p) : direct.exists(p);
+  },
+  async remove(p) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.remove(root, p) : undefined;
+    }
+    return useBridge ? bridge.remove(p) : direct.remove(p);
+  },
+  async rename(o, n) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.rename(root, o, n) : undefined;
+    }
+    return useBridge ? bridge.rename(o, n) : direct.rename(o, n);
+  },
+  async revealInExplorer(p) {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      if (root && typeof window.nativeFS.revealInExplorer === 'function') {
+        return window.nativeFS.revealInExplorer(root, p);
+      }
+    }
+  },
+  async clear() {
+    if (isElectron) return;
+    return useBridge ? bridge.clear() : direct.clear();
+  },
+  async count() {
+    if (isElectron) return 0;
+    return useBridge ? bridge.count() : direct.count();
+  },
 };
 
-// Expose sync hooks ONLY when the bridge is up. The vfs-adapter
-// branches on `typeof backend.readFileSync === 'function'`; presence
-// of these methods is the signal to skip seeding.
-if (useBridge) {
+// Expose sync hooks when running in Electron or when SAB bridge is up.
+if (isElectron) {
+  tempFS.readFileSync = (p) => {
+    if (!electronTempRoot) return null;
+    return window.nativeFS.readFileSync(electronTempRoot, p);
+  };
+  tempFS.readFileBytesSync = (p) => {
+    if (!electronTempRoot) return null;
+    return window.nativeFS.readFileBytesSync(electronTempRoot, p);
+  };
+  tempFS.existsSync = (p) => {
+    if (!electronTempRoot) return false;
+    return window.nativeFS.existsSync(electronTempRoot, p);
+  };
+} else if (useBridge) {
   tempFS.readFileSync = (p) => bridge.readSync(p);
   tempFS.existsSync   = (p) => bridge.existsSync(p);
 }
 
-// One-line trace so a user inspecting devtools can tell which path
-// is active without reading the source.
+// One-line trace so a user inspecting devtools can tell which path is active.
 // eslint-disable-next-line no-console
 console.log(`[tempFS] ${
-  useBridge
-    ? 'sync bridge active (Worker + SAB)'
-    : !bridgeEnabled
-      ? 'direct IDB (bridge gated off — set VITE_TEMPFS_BRIDGE=1 to opt in)'
-      : bridgeSupported()
-        ? 'direct IDB (bridge construction failed — check console for vfs-worker errors)'
-        : 'direct IDB (no SharedArrayBuffer / crossOriginIsolated in this runtime)'
+  isElectron
+    ? 'Electron native disk temporary folder active'
+    : useBridge
+      ? 'sync bridge active (Worker + SAB)'
+      : !bridgeEnabled
+        ? 'direct IDB (bridge gated off — set VITE_TEMPFS_BRIDGE=1 to opt in)'
+        : bridgeSupported()
+          ? 'direct IDB (bridge construction failed — check console for vfs-worker errors)'
+          : 'direct IDB (no SharedArrayBuffer / crossOriginIsolated in this runtime)'
 }`);
 
 export default tempFS;

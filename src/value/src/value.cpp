@@ -418,6 +418,21 @@ Value Value::object(const std::string &className,
     m.heap_ = h;
     return m;
 }
+Value Value::objectArray(const std::string &className, const Dims &dims,
+                         std::vector<std::shared_ptr<ObjectState>> states, bool isHandle,
+                         std::pmr::memory_resource *mr)
+{
+    Value m;
+    auto *h = new HeapObject();
+    h->type = ValueType::OBJECT;
+    h->dims = dims;
+    h->mr = mr;
+    h->objClass = new std::string(className);
+    h->objStates = std::move(states);
+    h->objIsHandle = isHandle;
+    m.heap_ = h;
+    return m;
+}
 // ============================================================
 // Colon range: start:step:stop → row vector
 // ============================================================
@@ -2754,6 +2769,14 @@ const void *Value::rawData() const
 {
     if (heap_ == nullptr)
         return &scalar_;
+    if (heap_ == logicalTrueTag()) {
+        static const uint8_t t = 1;
+        return &t;
+    }
+    if (heap_ == logicalFalseTag()) {
+        static const uint8_t f = 0;
+        return &f;
+    }
     if (isTag())
         return nullptr;
     return heap_->buffer ? heap_->buffer->data() : nullptr;
@@ -2762,6 +2785,8 @@ size_t Value::rawBytes() const
 {
     if (heap_ == nullptr)
         return sizeof(double);
+    if (heap_ == logicalTrueTag() || heap_ == logicalFalseTag())
+        return sizeof(uint8_t);
     if (isTag())
         return 0;
     return heap_->buffer ? heap_->buffer->bytes() : 0;

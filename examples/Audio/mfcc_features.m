@@ -3,7 +3,7 @@
 % harmonic source. MFCCs are the workhorse feature for speech/audio
 % classification.
 
-import compat.*;
+
 
 clear
 close all

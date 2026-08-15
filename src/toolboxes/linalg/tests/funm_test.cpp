@@ -64,3 +64,13 @@ TEST_F(FunmTest, RealResultForRealInput) {
     eval("F = funm([2 1; 1 2], @exp);");
     EXPECT_EQ(eval("isreal(F)").toBool(), true);
 }
+
+// Matrix with complex eigenvalues: [0 -1; 1 0] -> eig {+i, -i}.
+// expm([0 -1; 1 0]) = [cos(1) -sin(1); sin(1) cos(1)].
+TEST_F(FunmTest, ComplexEigenvaluesExp) {
+    eval("F = funm([0 -1; 1 0], @exp);");
+    EXPECT_NEAR(evalScalar("F(1,1)"), std::cos(1.0), 1e-12);
+    EXPECT_NEAR(evalScalar("F(1,2)"), -std::sin(1.0), 1e-12);
+    EXPECT_NEAR(evalScalar("F(2,1)"), std::sin(1.0), 1e-12);
+    EXPECT_NEAR(evalScalar("F(2,2)"), std::cos(1.0), 1e-12);
+}

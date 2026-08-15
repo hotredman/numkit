@@ -4,6 +4,7 @@
 // All four are SVD-based; migrated alongside the SVD kernel.
 
 #include <numkit/linalg/pseudo_subspace.hpp>
+#include "linalg_detail.hpp"
 
 #include <numkit/linalg/decompositions.hpp>   // svd_decompose / svd_values
 // Compute-only TU: Value substrate + Error, no engine. The pinv/orth/null/
@@ -37,6 +38,51 @@ Value pinv(const Value &A, double tol, std::pmr::memory_resource *mr)
     const std::size_t m = static_cast<std::size_t>(A.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(1));
     const std::size_t k = std::min(m, n);
+
+    if (A.isComplex() || U.isComplex() || V.isComplex()) {
+        ScratchArena scratch(mr);
+        ScratchVec<double> Splus(k, 0.0, &scratch);
+        double sigma_max = 0.0;
+        const Complex *sd = S.isComplex() ? S.complexData() : nullptr;
+        const double *sdd = S.isComplex() ? nullptr : S.doubleData();
+        const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));
+
+        for (std::size_t i = 0; i < k; ++i) {
+            double sig = sd ? std::abs(sd[i + i * Srows]) : sdd[i + i * Srows];
+            sigma_max = std::max(sigma_max, sig);
+        }
+        const double cutoff = (tol < 0.0) ? defaultRankTol(m, n, sigma_max) : tol;
+
+        for (std::size_t i = 0; i < k; ++i) {
+            double sig = sd ? std::abs(sd[i + i * Srows]) : sdd[i + i * Srows];
+            if (sig > cutoff) Splus[i] = 1.0 / sig;
+        }
+
+        auto out = Value::complexMatrix(n, m, mr);
+        Complex *P = out.complexDataMut();
+        std::fill(P, P + n * m, Complex(0.0, 0.0));
+
+        const Complex *Vd = V.isComplex() ? V.complexData() : nullptr;
+        const double *Vdd = V.isComplex() ? nullptr : V.doubleData();
+        const Complex *Ud = U.isComplex() ? U.complexData() : nullptr;
+        const double *Udd = U.isComplex() ? nullptr : U.doubleData();
+        const std::size_t Vrows = static_cast<std::size_t>(V.dims().dim(0));
+        const std::size_t Urows = static_cast<std::size_t>(U.dims().dim(0));
+
+        for (std::size_t i = 0; i < n; ++i) {
+            for (std::size_t j = 0; j < m; ++j) {
+                Complex s(0.0, 0.0);
+                for (std::size_t a = 0; a < k; ++a) {
+                    if (Splus[a] == 0.0) continue;
+                    Complex v_val = Vd ? Vd[i + a * Vrows] : Complex(Vdd[i + a * Vrows], 0.0);
+                    Complex u_val = Ud ? Ud[j + a * Urows] : Complex(Udd[j + a * Urows], 0.0);
+                    s += v_val * Splus[a] * std::conj(u_val);
+                }
+                P[i + j * n] = s;
+            }
+        }
+        return detail::narrow_if_real(out, mr);
+    }
 
     const double *S_data = S.doubleData();
     const std::size_t Srows = static_cast<std::size_t>(S.dims().dim(0));

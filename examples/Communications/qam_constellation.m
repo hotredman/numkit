@@ -2,7 +2,7 @@
 % Map random bits to a 16-QAM constellation, send through an AWGN
 % channel, and compare ideal vs received clouds in the I/Q plane.
 
-import compat.*;
+
 
 clear
 close all

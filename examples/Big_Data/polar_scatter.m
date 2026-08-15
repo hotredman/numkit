@@ -3,7 +3,7 @@
 % The polar grid stays SVG; the points draw on a WebGL canvas that lands
 % exactly on the grid — a dense polar cloud that would choke as 50k SVG
 % circles stays smooth.
-import compat.*;
+
 
 clear
 close all

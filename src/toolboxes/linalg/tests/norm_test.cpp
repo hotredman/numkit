@@ -106,8 +106,9 @@ TEST_F(NormTest, AsymmetricEigVDForRealEigvals)
     EXPECT_NEAR(evalScalar("d(3)"),  2.0, 1e-10);
 }
 
-TEST_F(NormTest, AsymmetricEigComplexThrowsClean)
+TEST_F(NormTest, AsymmetricEigComplexWorks)
 {
-    // [V, D] for matrix with complex eigvals → throws.
-    EXPECT_THROW(eval("[V, D] = eig([0 -1; 1 0]);"), std::exception);
+    // [V, D] for matrix with complex eigvals → works via Schur decomposition.
+    eval("A = [0 -1; 1 0]; [V, D] = eig(A);");
+    EXPECT_NEAR(evalScalar("max(max(abs(A*V - V*D)))"), 0.0, 1e-10);
 }

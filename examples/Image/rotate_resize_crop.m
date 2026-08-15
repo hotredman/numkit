@@ -2,7 +2,7 @@
 % Demonstrate the three core geometric operators on the same image:
 % imrotate (any angle, bilinear), imresize (scale), imcrop (sub-rect).
 
-import compat.*;
+
 
 clear
 close all

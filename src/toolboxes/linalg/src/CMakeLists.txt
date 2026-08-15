@@ -18,6 +18,12 @@ set(LINALGLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/misc.cpp                # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/page_ops.cpp            # compute (engine-free)
     ${CMAKE_CURRENT_SOURCE_DIR}/schur_convert.cpp       # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/ordschur.cpp            # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/ordqz.cpp               # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/qz.cpp                  # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/gsvd.cpp                # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/eigs.cpp                # compute (engine-free)
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_sketch.cpp          # compute (engine-free)
 )
 
 set(LINALGLIB_SOURCES ${LINALGLIB_SOURCES} PARENT_SCOPE)

@@ -13,6 +13,12 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 
 #include <numkit/linalg/decompositions.hpp>
+#include <numkit/linalg/qz.hpp>
+#include <numkit/linalg/gsvd.hpp>
+#include <numkit/linalg/ordschur.hpp>
+#include <numkit/linalg/ordqz.hpp>
+#include <numkit/linalg/eigs.hpp>
+#include <numkit/linalg/svd_sketch.hpp>
 #include "decompositions_detail.hpp"   // cholUpperFactor / transposeSquare / qr_pivoted
 
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
@@ -364,6 +370,112 @@ void cholupdate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
         }
     }
     outs[0] = cholupdate(args[0], args[1], sign, ctx.engine->resource());
+}
+
+void qz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("qz: requires at least 2 arguments (A, B)", 0, 0, "qz", "", "numkit:qz:nargin");
+    auto [AA, BB, Q, Z] = qz(args[0], args[1], ctx.engine->resource());
+    outs[0] = std::move(AA);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(BB);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(Q);
+    if (nargout >= 4 && outs.size() >= 4) outs[3] = std::move(Z);
+}
+
+void gsvd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("gsvd: requires at least 2 arguments (A, B)", 0, 0, "gsvd", "", "numkit:gsvd:nargin");
+    if (nargout <= 1) {
+        outs[0] = gsvd_values(args[0], args[1], ctx.engine->resource());
+    } else {
+        auto [U, V, X, C, S] = gsvd(args[0], args[1], ctx.engine->resource());
+        outs[0] = std::move(U);
+        if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(X);
+        if (nargout >= 4 && outs.size() >= 4) outs[3] = std::move(C);
+        if (nargout >= 5 && outs.size() >= 5) outs[4] = std::move(S);
+    }
+}
+
+void ordqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 5)
+        throw Error("ordqz: requires 5 arguments (AA, BB, Q, Z, select/domain)", 0, 0, "ordqz", "", "numkit:ordqz:nargin");
+    Value AA, BB, Q, Z;
+    if (args[4].isChar() || args[4].isString()) {
+        std::tie(AA, BB, Q, Z) = ordqz(args[0], args[1], args[2], args[3], args[4].toString(), ctx.engine->resource());
+    } else {
+        std::tie(AA, BB, Q, Z) = ordqz(args[0], args[1], args[2], args[3], args[4], ctx.engine->resource());
+    }
+    outs[0] = std::move(AA);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(BB);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(Q);
+    if (nargout >= 4 && outs.size() >= 4) outs[3] = std::move(Z);
+}
+
+void ordschur_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ordschur: requires at least 3 arguments (U, T, select/domain)", 0, 0, "ordschur", "", "numkit:ordschur:nargin");
+    Value U, T;
+    if (args[2].isChar() || args[2].isString()) {
+        std::tie(U, T) = ordschur(args[0], args[1], args[2].toString(), ctx.engine->resource());
+    } else {
+        std::tie(U, T) = ordschur(args[0], args[1], args[2], ctx.engine->resource());
+    }
+    outs[0] = std::move(U);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(T);
+}
+
+void eigs_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("eigs: requires at least 1 argument", 0, 0, "eigs", "", "numkit:eigs:nargin");
+    std::size_t k = (args.size() >= 2 && !args[1].isEmpty()) ? static_cast<std::size_t>(args[1].toScalar()) : 6;
+    if (nargout <= 1) {
+        outs[0] = eigs_values(args[0], k, ctx.engine->resource());
+    } else {
+        auto [V, D] = eigs(args[0], k, ctx.engine->resource());
+        outs[0] = std::move(V);
+        if (outs.size() >= 2) outs[1] = std::move(D);
+    }
+}
+
+void svds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("svds: requires at least 1 argument", 0, 0, "svds", "", "numkit:svds:nargin");
+    std::size_t k = (args.size() >= 2 && !args[1].isEmpty()) ? static_cast<std::size_t>(args[1].toScalar()) : 6;
+    if (nargout <= 1) {
+        outs[0] = svds_values(args[0], k, ctx.engine->resource());
+    } else {
+        auto [U, S, V] = svds(args[0], k, ctx.engine->resource());
+        outs[0] = std::move(U);
+        if (outs.size() >= 2) outs[1] = std::move(S);
+        if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(V);
+    }
+}
+
+void svdsketch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("svdsketch: requires at least 1 argument (A)", 0, 0, "svdsketch", "", "numkit:svdsketch:nargin");
+    double tol = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 1e-6;
+    auto [U, S, V] = svdsketch(args[0], tol, ctx.engine->resource());
+    outs[0] = std::move(U);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(S);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(V);
+}
+
+void svdappend_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("svdappend: requires 4 arguments (U, S, V, A_new)", 0, 0, "svdappend", "", "numkit:svdappend:nargin");
+    auto [U, S, V] = svdappend(args[0], args[1], args[2], args[3], ctx.engine->resource());
+    outs[0] = std::move(U);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(S);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(V);
 }
 
 } // namespace detail

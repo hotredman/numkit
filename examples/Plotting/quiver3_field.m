@@ -2,7 +2,7 @@
 % Sample a flow on a 5×5×5 grid and draw an arrow at every node
 % pointing in the field direction. (u, v, w) are the per-point
 % velocity components; the optional last arg scales the arrow length.
-import compat.*;
+
 
 clear
 close all

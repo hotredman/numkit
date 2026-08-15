@@ -2,7 +2,7 @@
 % Like imagesc but the (x, y) coordinates sit at cell VERTICES
 % rather than centres — useful when the grid is irregular and
 % you want exact spatial alignment.
-import compat.*;
+
 
 clear
 close all

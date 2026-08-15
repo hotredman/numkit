@@ -157,6 +157,13 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono);
 }
 .tool-action:hover { background: var(--bg-2); }
+.tool-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tool-action:disabled:hover {
+  background: transparent;
+}
 .tool-run { color: var(--accent); }
 .tool-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
 
@@ -1086,17 +1093,23 @@ input, select { font-family: inherit; color: inherit; }
 /* Inline plot enhancements */
 .ve-segmented.sm button { padding: 2px 8px; font-size: 10.5px; }
 .ve-plot-subhead {
-  display: flex; align-items: center; gap: 10px;
-  padding: 4px 12px 6px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px;
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono); font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .ve-plot-spacer { flex: 1; }
-.ve-plot-lbl { color: var(--fg-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.ve-plot-lbl { color: var(--fg-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
 .ve-plot-lbl-fixed {
   display: inline-block; min-width: 60px;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+.ve-plot-lbl-short { display: none; }
 .ve-plot-row {
   padding-top: 3px; padding-bottom: 3px;
   border-bottom: none;
@@ -1181,7 +1194,7 @@ input, select { font-family: inherit; color: inherit; }
   min-width: 180px;
   max-height: min(560px, 75vh);
   overflow-y: auto;
-  z-index: 200;
+  z-index: 1000 !important;
   display: flex; flex-direction: column; gap: 4px;
 }
 .fw-pop-right { left: auto; right: 0; }
@@ -1948,9 +1961,8 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: var(--r-lg);
   box-shadow: 0 24px 80px oklch(0.05 0.01 220 / 0.6),
               0 0 0 1px oklch(0.78 0.16 145 / 0.08);
-  display: grid;
-  /* titlebar · toolbar · statsbar (auto: 0 when empty) · address · body · status */
-  grid-template-rows: 38px 40px auto 28px 1fr 22px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
@@ -1962,18 +1974,19 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Struct / cell layout has only two rows (titlebar + tree body) — the
-   matrix template's 5 rows (toolbar / address / status) don't apply, so
-   the tree would otherwise be crammed into the 40px "toolbar" row while
-   the 1fr body row sat empty. Override to titlebar + fill. */
-.ve-window-struct {
-  grid-template-rows: 38px 1fr;
+.ve-main-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-1);
 }
 /* Title bar: meta lives in title-left and can truncate. Buttons are
    pinned to the modal's top-right corner (anchored on .ve-window, not
    the title-bar) so they stay reachable even if the title-bar layout
    gets weird. */
-.ve-titlebar { gap: 8px; }
+.ve-titlebar { flex-shrink: 0; height: 38px; gap: 8px; }
 .ve-title-left {
   min-width: 0; flex: 1 1 auto; overflow: hidden;
   white-space: nowrap; text-overflow: ellipsis;
@@ -1989,6 +2002,7 @@ input, select { font-family: inherit; color: inherit; }
 
 /* Body holds table + optional inline plot */
 .ve-body {
+  flex: 1 1 0%;
   display: grid;
   grid-template-columns: 1fr;
   min-height: 0;
@@ -2037,19 +2051,19 @@ input, select { font-family: inherit; color: inherit; }
   min-height: 0;
 }
 
-/* Breadcrumb path bar */
-.ve-crumbs {
+/* Dedicated Breadcrumb path bar */
+.ve-crumbs-bar {
   flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-0);
+}
+.ve-crumbs {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 2px;
-  /* 14px to match .ve-toolbar / .ve-address below it so the whole
-     inspector chrome (breadcrumb · notation toolbar · cell address)
-     shares one left edge. */
   padding: 6px 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg-0);
+  background: transparent;
   font-family: var(--font-mono);
   font-size: 12px;
 }
@@ -2209,7 +2223,7 @@ input, select { font-family: inherit; color: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   padding: 4px;
-  z-index: 10;
+  z-index: 1000;
   box-shadow: 0 12px 32px oklch(0.05 0.01 220 / 0.5);
   font-family: var(--font-mono);
 }
@@ -2238,15 +2252,56 @@ input, select { font-family: inherit; color: inherit; }
   display: flex; flex-direction: column;
   background: var(--bg-1);
   min-height: 0;
+  container-type: inline-size;
+  container-name: veplot;
 }
 .ve-plot-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px;
+  height: 32px; min-height: 32px;
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
   font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
-.ve-plot-title { color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.ve-plot-title {
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.ve-plot-title-short {
+  display: none;
+  font-size: 12px;
+}
+.ve-plot-tabs {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.ve-plot-spacer {
+  flex: 1 1 auto;
+  min-width: 4px;
+}
+.ve-plot-type-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.ve-plot-type-select {
+  flex-shrink: 0;
+  max-width: 115px;
+  text-overflow: ellipsis;
+}
 .ve-plot-idx {
   color: var(--fg-2);
   display: inline-flex; align-items: center; gap: 4px;
@@ -2264,18 +2319,51 @@ input, select { font-family: inherit; color: inherit; }
 }
 .ve-plot-close {
   margin-left: auto;
+  flex-shrink: 0 !important;
   background: transparent; border: none;
   color: var(--fg-3); cursor: pointer;
-  font-size: 14px; line-height: 1;
+  font-size: 15px; line-height: 1;
   width: 20px; height: 20px;
   border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 .ve-plot-close:hover { background: var(--bg-3); color: var(--fg-0); }
+
+@container veplot (max-width: 380px) {
+  .ve-plot-title-full { display: none; }
+  .ve-plot-title-short { display: inline; }
+  .ve-plot-head { gap: 6px; padding: 4px 8px; }
+}
+
+@container veplot (max-width: 320px) {
+  .ve-plot-lbl-fixed { min-width: 48px; }
+  .ve-plot-lbl-full { display: none; }
+  .ve-plot-lbl-short { display: inline; }
+  .ve-multi-label-full { display: none; }
+  .ve-multi-label-short { display: inline; }
+}
+
+@container veplot (max-width: 290px) {
+  .ve-plot-title { display: none; }
+  .ve-plot-type-wrap .ve-plot-lbl { display: none; }
+}
+
+@container veplot (max-width: 250px) {
+  .ve-plot-lbl-fixed { min-width: 24px; }
+  .ve-multi-label { display: none; }
+  .ve-plot-type-select { max-width: 85px; }
+  .ve-plot-head { gap: 4px; padding: 4px 6px; }
+}
 .ve-plot-chart-wrap {
-  flex: 1; min-height: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   display: flex; align-items: center; justify-content: center;
   padding: 4px 6px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .ve-plot-svg { display: block; }
 .ve-plot-meta {
@@ -2300,6 +2388,8 @@ input, select { font-family: inherit; color: inherit; }
 .fw-window {
   width: min(1280px, 94vw);
   height: min(820px, 90vh);
+  min-width: 0;
+  max-width: 100%;
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -2309,11 +2399,55 @@ input, select { font-family: inherit; color: inherit; }
   /* 6 slots: titlebar | toolbar | sgtitle (auto, collapses when no
      super-title) | canvas (1fr) | range-row (auto, may be absent for
      subplots) | status. */
-  grid-template-rows: 38px 40px auto 1fr auto 22px;
+  grid-template-rows: 38px auto auto 1fr auto 22px;
   overflow: hidden;
   position: relative;   /* anchor for the absolutely-pinned title-right */
   animation: scalein 160ms ease;
   transition: width 140ms ease, height 140ms ease, border-radius 140ms ease;
+}
+.fw-window.is-embedded {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  margin: 0 !important;
+  background: transparent !important;
+  animation: none !important;
+  grid-template-rows: auto auto 1fr auto 22px;
+}
+.fw-window.fw-modal-body {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  margin: 0 !important;
+  background: var(--bg-1) !important;
+  animation: none !important;
+  grid-template-rows: auto auto 1fr auto 22px;
+}
+.fw-window.is-embedded .fw-toolbar {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 4px;
+}
+.fw-window.is-embedded .fw-canvas-wrap {
+  padding: 4px;
+}
+.fw-window.is-embedded .fw-canvas {
+  margin: 0;
+  box-shadow: none;
+}
+.fw-window.is-embedded .fw-range-row {
+  padding: 3px 8px;
+}
+.fw-window.is-embedded .fw-status {
+  padding: 0 8px;
 }
 .fw-window.is-max {
   width:  100vw;
@@ -2321,28 +2455,6 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 0;
   border: none;
 }
-/* Buttons pinned to the modal corner (anchored on .fw-window). */
-.fw-title-left {
-  min-width: 0; flex: 1 1 auto; overflow: hidden;
-  white-space: nowrap; text-overflow: ellipsis;
-  padding-right: 80px;
-}
-.fw-title-right {
-  position: absolute; top: 7px; right: 10px;
-  display: flex; align-items: center; gap: 4px;
-  background: var(--bg-2);
-  padding: 0 4px; border-radius: var(--r-sm);
-  z-index: 10;
-}
-.fw-titlebar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 12px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
-}
-.fw-title-left { display: flex; align-items: center; gap: 10px; }
-.fw-title-right { display: flex; align-items: center; gap: 10px; }
 .fw-name { color: var(--fg-0); font-size: 14px; font-weight: 500; }
 .fw-meta {
   color: var(--fg-3); font-size: 11px;
@@ -2350,14 +2462,37 @@ input, select { font-family: inherit; color: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fw-toolbar {
-  display: flex; align-items: center; gap: 14px;
-  padding: 0 14px;
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap !important;
+  gap: 4px;
+  padding: 0 8px;
+  height: 38px;
+  min-height: 38px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line-soft);
   font-family: var(--font-mono);
   font-size: 11.5px;
+  overflow: visible !important;
 }
-.fw-toolbar .ve-tools-spacer { flex: 1; }
+.fw-toolbar .ve-tools-group {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.fw-toolbar .ve-btn {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
 /* sgtitle strip — figure-level super-title above the canvas. The
    FigureWindow JSX always emits an `.fw-supertitle` div so the
    .fw-window grid keeps 6 children mapping to its 6 rows; when the
@@ -2407,9 +2542,17 @@ input, select { font-family: inherit; color: inherit; }
 }
 .fw-range-row {
   display: flex; align-items: center;
-  padding: 14px 14px;
+  padding: 6px 14px;
   background: var(--bg-2);
   border-top: 1px solid var(--line);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.fw-range-row::-webkit-scrollbar {
+  height: 4px;
 }
 
 /* Empty subplot slot — script called subplot(R,C,k) for some but not all
@@ -2429,14 +2572,26 @@ input, select { font-family: inherit; color: inherit; }
 .fw-status {
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
+  height: 22px; min-height: 22px; max-height: 22px;
   background: var(--bg-2);
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
-.fw-status .ve-spacer { flex: 1; }
-.fw-status .ve-sep { width: 1px; height: 12px; background: var(--line); }
+.fw-status span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+.fw-status .ve-spacer { flex: 1 1 auto; min-width: 4px; }
+.fw-status .ve-sep { flex-shrink: 0; width: 1px; height: 12px; background: var(--line); }
 .fw-zoom-readout {
   background: var(--bg-3);
   color: var(--fg-0);
@@ -2444,6 +2599,7 @@ input, select { font-family: inherit; color: inherit; }
   border-radius: 3px;
   min-width: 50px; text-align: center;
   font-size: 11px;
+  flex-shrink: 0;
 }
 
 /* (legacy figures-canvas hover removed — replaced by fp-stack/fp-card) */
@@ -2457,23 +2613,33 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-1);
   font-family: var(--font-mono); font-size: 11px;
   padding: 3px 8px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .ve-multi-trigger:hover { background: var(--bg-2); border-color: var(--accent); }
 .ve-multi-count {
   background: rgba(127, 217, 154, 0.15); color: var(--accent);
   border-radius: 999px; padding: 0 7px; min-width: 18px;
   text-align: center; font-weight: 500;
+  flex-shrink: 0;
 }
-.ve-multi-label { color: var(--fg-3); font-size: 10.5px; }
+.ve-multi-label {
+  color: var(--fg-3); font-size: 10.5px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+.ve-multi-label-short { display: none; }
 .ve-multi-pop {
-  position: absolute; top: calc(100% + 4px); right: 0;
-  width: 360px;
+  position: absolute; top: calc(100% + 4px); left: 0; right: auto;
+  width: min(300px, 90vw);
+  max-width: calc(100vw - 32px);
   background: var(--bg-3);
   border: 1px solid var(--line);
   border-radius: 6px;
   box-shadow: 0 12px 32px rgba(0,0,0,0.4);
   padding: 8px;
-  z-index: 100;
+  z-index: 1000;
   display: flex; flex-direction: column; gap: 6px;
 }
 .ve-multi-pop-head { display: flex; align-items: center; gap: 6px; }
@@ -2524,24 +2690,7 @@ input, select { font-family: inherit; color: inherit; }
   color: var(--fg-3); font-style: italic;
 }
 
-/* Title bar */
-.ve-titlebar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 12px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
-}
-.ve-title-left { display: flex; align-items: center; gap: 10px; }
-.ve-title-right { display: flex; align-items: center; gap: 10px; }
-.ve-traffic { display: flex; gap: 6px; }
-.ve-light {
-  width: 11px; height: 11px; border-radius: 50%;
-  display: inline-block; cursor: pointer;
-}
-.ve-l-r { background: oklch(0.66 0.20 25); }
-.ve-l-y { background: oklch(0.78 0.16 80); }
-.ve-l-g { background: oklch(0.78 0.16 145); }
+
 
 .ve-tag {
   font-size: 10.5px; padding: 1.5px 7px;
@@ -2572,6 +2721,8 @@ input, select { font-family: inherit; color: inherit; }
   display: flex; align-items: center;
   gap: 14px;
   padding: 0 14px;
+  position: relative;
+  z-index: 10;
   /* Self-sufficient height. In the top-level VariableEditor the toolbar
      sits in a fixed 40px grid row of .ve-window; in the struct/cell
      inspector it's a flex child with no backing row, so without this it
@@ -2625,9 +2776,37 @@ input, select { font-family: inherit; color: inherit; }
   cursor: pointer;
   font-family: var(--font-mono);
   display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.ve-btn svg { flex-shrink: 0; }
 .ve-btn:hover { background: var(--bg-3); }
 .ve-btn.is-active { color: var(--accent); border-color: var(--accent); }
+.ve-btn:disabled,
+.ve-btn:disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--bg-2);
+  border-color: var(--line);
+  color: var(--fg-3);
+}
+.ve-tools-group.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.ve-segmented button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.ve-precision-num.is-disabled {
+  opacity: 0.5;
+}
+.ve-toolbar input[type="range"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 /* 3-D / N-D slice navigator — MATLAB A(:,:,k3,…) per-dimension spinners. */
 .ve-slice-nav { font-family: var(--font-mono); font-size: 11px; }
 .ve-slice-expr { color: var(--fg-3); }
@@ -2704,6 +2883,8 @@ select.ve-btn.fw-cmap-select {
 
 /* Table */
 .ve-table-wrap {
+  height: 100%;
+  min-height: 0;
   overflow: auto;
   background: var(--bg-1);
   font-family: var(--font-mono);
@@ -2726,17 +2907,21 @@ select.ve-btn.fw-cmap-select {
   border-bottom: 1px solid var(--line);
   border-right: 1px solid var(--line-soft);
   font-size: 11px;
-  z-index: 2;
+  z-index: 10;
 }
-.ve-table thead th.is-active { color: var(--accent); background: oklch(0.78 0.16 145 / 0.08); }
+.ve-table thead th.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+}
 .ve-corner {
-  position: sticky; left: 0;
+  position: sticky; left: 0; top: 0;
   background: var(--bg-2) !important;
-  z-index: 3 !important;
+  z-index: 20 !important;
   text-align: center !important;
   color: var(--fg-3) !important;
   font-size: 10.5px !important;
   border-right: 1px solid var(--line) !important;
+  border-bottom: 1px solid var(--line) !important;
 }
 .ve-rowhead {
   position: sticky; left: 0;
@@ -2748,10 +2933,13 @@ select.ve-btn.fw-cmap-select {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line-soft);
   font-size: 11px;
-  z-index: 1;
+  z-index: 10;
   min-width: 50px;
 }
-.ve-rowhead.is-active { color: var(--accent); background: oklch(0.78 0.16 145 / 0.08); }
+.ve-rowhead.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+}
 .ve-table tbody td {
   padding: 4px 12px;
   text-align: right;
@@ -2789,15 +2977,26 @@ select.ve-btn.fw-cmap-select {
 .ve-status {
   display: flex; align-items: center; gap: 8px;
   padding: 0 14px;
-  min-height: 22px;   /* match the .ve-window grid row (see .ve-toolbar) */
+  min-height: 22px; height: 22px; max-height: 22px;
   background: var(--bg-2);
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
-.ve-status .ve-spacer { flex: 1; }
-.ve-status .ve-sep { width: 1px; height: 12px; background: var(--line); }
+.ve-status span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+.ve-status .ve-spacer { flex: 1 1 auto; min-width: 4px; }
+.ve-status .ve-sep { flex-shrink: 0; width: 1px; height: 12px; background: var(--line); }
 
 /* ---------- Status bar ---------- */
 .statusbar {
@@ -2808,6 +3007,18 @@ select.ve-btn.fw-cmap-select {
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  min-height: 22px; height: 22px; max-height: 22px;
+  box-sizing: border-box;
+}
+.statusbar > * {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
 }
 .status-pill {
   background: oklch(0.78 0.16 145 / 0.15);
@@ -2815,11 +3026,12 @@ select.ve-btn.fw-cmap-select {
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 10px;
+  flex-shrink: 0;
 }
-.status-item { display: inline-flex; align-items: center; gap: 4px; }
-.status-item .dot { width: 6px; height: 6px; }
-.status-spacer { flex: 1; }
-.status-sep { width: 1px; height: 12px; background: var(--line); }
+.status-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+.status-item .dot { width: 6px; height: 6px; flex-shrink: 0; }
+.status-spacer { flex: 1 1 auto; min-width: 4px; }
+.status-sep { flex-shrink: 0; width: 1px; height: 12px; background: var(--line); }
 
 /* ---------- Scrollbars ---------- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -2835,7 +3047,14 @@ select.ve-btn.fw-cmap-select {
    scroll affordance (wheel + minimap drag both still scroll); a native
    scrollbar sitting flush against the minimap read as a duplicate.
    Scroll behaviour is unaffected — only the scrollbar chrome is hidden. */
-.nk-editor-textarea { scrollbar-width: none; }            /* Firefox */
+.nk-editor-textarea {
+  scrollbar-width: none;
+  cursor: text !important;
+  caret-color: var(--accent, #7c6ff0);
+}
+.nk-editor-textarea:focus {
+  caret-color: var(--accent, #7c6ff0);
+}
 .nk-editor-textarea::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 /* ---------- Right-click context menu (plot panels, heatmap, polar) ---------- */
@@ -2974,3 +3193,716 @@ select.ve-btn.fw-cmap-select {
   white-space: nowrap;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
+
+/* ===========================================================
+   PREFERENCES MODAL
+   Uses .fw-overlay + .fw-window as the shell (same as FigureWindow).
+   .prefs-window overrides the grid to a simpler 3-row layout:
+   titlebar | body (scrollable) | footer.
+   =========================================================== */
+
+.prefs-window {
+  width: min(1100px, 92vw) !important;
+  height: min(720px, 88vh) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: none !important;
+}
+
+.prefs-window.is-max {
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+.prefs-layout {
+  flex: 1 1 0%;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.prefs-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prefs-sidebar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: none;
+  color: var(--fg-2);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms, color 120ms;
+}
+
+.prefs-sidebar-nav:hover:not(.is-disabled) {
+  background: var(--bg-3);
+  color: var(--fg-0);
+}
+
+.prefs-sidebar-nav.is-active {
+  background: var(--bg-1);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.prefs-sidebar-nav.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.prefs-main-pane {
+  flex: 1;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.prefs-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.prefs-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+
+.prefs-section-divider {
+  height: 1px;
+  background: var(--line-soft);
+  margin-bottom: 16px;
+}
+
+.prefs-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.prefs-row + .prefs-row {
+  margin-top: 12px;
+}
+
+.prefs-row-label {
+  font-size: 12px;
+  color: var(--fg-1);
+  font-family: var(--font-ui);
+}
+
+.prefs-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.prefs-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 9px;
+  outline: none;
+  transition: border-color 120ms;
+}
+.prefs-input:focus {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px oklch(0.74 0.13 200 / 0.15);
+}
+.prefs-input::placeholder {
+  color: var(--fg-3);
+  font-style: italic;
+}
+
+.prefs-pick-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.prefs-hint {
+  font-size: 10.5px;
+  color: var(--fg-3);
+  line-height: 1.45;
+  font-family: var(--font-ui);
+}
+
+.prefs-hint-resolved {
+  color: var(--accent-2);
+  opacity: 0.85;
+}
+.prefs-hint-resolved code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  word-break: break-all;
+}
+
+.prefs-row-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prefs-status {
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.prefs-status-explicit { color: var(--accent); }
+.prefs-status-auto     { color: var(--accent-2); }
+.prefs-status-path     { color: var(--fg-3); }
+
+.prefs-browser-note {
+  color: var(--warn);
+  padding: 8px 10px;
+  background: oklch(0.78 0.15 70 / 0.08);
+  border: 1px solid oklch(0.78 0.15 70 / 0.25);
+  border-radius: var(--r-sm);
+}
+
+.prefs-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--bg-2);
+}
+
+.prefs-footer-spacer { flex: 1; }
+
+.prefs-restore-btn {
+  color: var(--fg-3);
+  font-size: 10.5px;
+}
+.prefs-restore-btn:hover {
+  color: var(--fg-1);
+}
+
+.prefs-save-btn {
+  background: var(--accent-2) !important;
+  color: #fff !important;
+  font-weight: 600;
+  border-color: transparent !important;
+}
+.prefs-save-btn:hover {
+  opacity: 0.88;
+}
+
+/* ===========================================================
+   BUILD & RUN toolbar button
+   =========================================================== */
+.tool-build-run {
+  color: var(--accent-2);
+}
+.tool-build-run:disabled {
+  opacity: 0.45;
+}
+.tool-build-run:not(:disabled):hover {
+  background: oklch(0.74 0.13 200 / 0.12);
+}
+
+/* ===========================================================
+   CURRENT FOLDER BAR (MATLAB-Style Navigation Strip)
+   =========================================================== */
+.current-folder-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.cf-label {
+  display: flex;
+  align-items: center;
+  color: var(--fg-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.cf-mode-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.cf-mode-select {
+  background: var(--bg-2);
+  color: var(--fg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 2px 8px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  outline: none;
+}
+
+.cf-mode-select:focus {
+  border-color: var(--accent);
+}
+
+.cf-mode-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cf-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+  margin: 0 2px;
+}
+
+.cf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--fg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 2px 7px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.cf-btn:hover:not(:disabled) {
+  background: var(--bg-3);
+  border-color: var(--fg-3);
+  color: var(--fg-0);
+}
+
+.cf-btn-icon-only {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.cf-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cf-path-box {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0 6px;
+  height: 22px;
+}
+
+.cf-path-box:focus-within {
+  border-color: var(--accent);
+}
+
+.cf-path-icon {
+  margin-right: 6px;
+  color: var(--fg-3);
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.cf-path-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  outline: none;
+  width: 100%;
+}
+
+/* ===========================================================
+   UNIFIED MODAL WINDOW SYSTEM (.modal-overlay / .modal-window)
+   =========================================================== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: oklch(0.10 0.01 220 / 0.55);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  animation: fadein 140ms ease;
+}
+
+.modal-window {
+  width: min(1150px, 92vw);
+  height: min(760px, 88vh);
+  min-width: 320px;
+  min-height: 240px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 24px 80px oklch(0.05 0.01 220 / 0.6),
+              0 0 0 1px oklch(0.78 0.16 145 / 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  animation: scalein 160ms ease;
+  transition: width 140ms ease, height 140ms ease, border-radius 140ms ease;
+}
+
+.modal-window.is-max {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.modal-titlebar {
+  flex-shrink: 0;
+  height: 38px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+  user-select: none;
+}
+
+.modal-title-left {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-right: 80px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-0);
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.modal-meta {
+  font-size: 11px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+}
+
+.modal-title-right {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  padding: 2px 4px;
+  border-radius: var(--r-sm);
+  z-index: 10;
+}
+
+.modal-title-right .ve-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+}
+
+.modal-title-right .ve-close:hover {
+  background: var(--bg-2);
+  color: var(--fg-0);
+}
+
+.modal-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-1);
+}
+
+.modal-footer {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ===========================================================
+   FILE NAVIGATOR MODAL
+   =========================================================== */
+.nav-modal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-modal-filter-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.nav-modal-filter-input {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 3px 8px;
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  outline: none;
+  width: 180px;
+}
+
+.nav-modal-filter-input:focus {
+  border-color: var(--accent);
+}
+
+.nav-modal-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 11.5px;
+}
+
+.nav-breadcrumb-btn {
+  background: transparent;
+  border: none;
+  color: var(--fg-2);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+}
+
+.nav-breadcrumb-btn:hover {
+  background: var(--bg-2);
+  color: var(--fg-0);
+}
+
+.nav-breadcrumb-btn.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-breadcrumb-sep {
+  color: var(--fg-3);
+  user-select: none;
+}
+
+.nav-modal-new-folder-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.nav-modal-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nav-modal-table-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.nav-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.nav-modal-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-2);
+  color: var(--fg-2);
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+}
+
+.nav-modal-table th:hover {
+  color: var(--fg-0);
+}
+
+.nav-modal-row {
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  transition: background 0.08s;
+}
+
+.nav-modal-row:hover {
+  background: var(--bg-2);
+}
+
+.nav-modal-row.is-selected {
+  background: oklch(0.72 0.15 150 / 0.15);
+}
+
+.nav-modal-row td {
+  padding: 6px 10px;
+  vertical-align: middle;
+}
+
+.nav-row-icon {
+  margin-right: 6px;
+  user-select: none;
+}
+
+.nav-row-name {
+  color: var(--fg-0);
+  font-weight: 500;
+}
+
+.nav-modal-info-panel {
+  width: 260px;
+  background: var(--bg-2);
+  border-left: 1px solid var(--line);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.nav-info-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin-bottom: 12px;
+  letter-spacing: 0.06em;
+}
+
+.nav-info-icon-large {
+  font-size: 36px;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.nav-info-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-0);
+  word-break: break-all;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.nav-info-prop {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: var(--fg-2);
+}
+
+.nav-prop-label {
+  color: var(--fg-3);
+}
+
+.nav-prop-val-break {
+  word-break: break-all;
+  text-align: right;
+}
+
+.nav-info-empty {
+  color: var(--fg-3);
+  font-size: 12px;
+  text-align: center;
+  margin-top: 40px;
+}
+
+.nav-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--line);
+}
+
+.nav-modal-footer-cwd {
+  font-size: 12px;
+  color: var(--fg-1);
+}
+
+

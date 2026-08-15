@@ -575,15 +575,14 @@ bilinear(const Value &b, const Value &a, double fs, double fp, std::pmr::memory_
         std::vector<double> r(order + 1, 0.0);
         // Helper: polynomial power (z+a)^p where a = ±1.
         auto polyPow = [](double a, int p) {
-            std::vector<double> r(p + 1, 0.0);
-            r[0] = 1.0;
+            std::vector<double> r = {1.0};
             for (int i = 0; i < p; ++i) {
                 std::vector<double> nr(r.size() + 1, 0.0);
                 for (size_t j = 0; j < r.size(); ++j) {
                     nr[j]     += r[j];
                     nr[j + 1] += a * r[j];
                 }
-                r = nr;
+                r = std::move(nr);
             }
             return r;
         };

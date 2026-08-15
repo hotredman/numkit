@@ -2,7 +2,7 @@
 % Compare edge detectors (sobel / prewitt / canny / log) on a synthetic
 % scene: a filled square + circle on a slowly varying gradient.
 
-import compat.*;
+
 
 clear
 close all

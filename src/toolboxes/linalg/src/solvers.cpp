@@ -4,6 +4,8 @@
 // Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/{matrix,lsq}.cpp.
 
 #include <numkit/linalg/solvers.hpp>
+#include <numkit/linalg/decompositions.hpp>
+#include "linalg_detail.hpp"
 
 #include <numkit/linalg/pseudo_subspace.hpp>      // pinv
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
@@ -39,15 +41,94 @@ Value linsolve(const Value &A, const Value &B, std::pmr::memory_resource *mr)
         throw Error("linsolve: A and B must have the same number of rows",
                     0, 0, "linsolve", "", "numkit:linsolve:badDims");
 
-    ScratchArena scratch(mr);
-    ScratchVec<double> A_buf(m * n, &scratch);
-    ScratchVec<double> B_buf(m * nrhs, &scratch);
-    std::copy(A.doubleData(), A.doubleData() + m * n, A_buf.begin());
-    std::copy(B.doubleData(), B.doubleData() + m * nrhs, B_buf.begin());
+    if (A.isComplex() || B.isComplex()) {
+        if (m == n) {
+            ScratchArena scratch(mr);
+            ScratchVec<detail::Complex> A_buf(m * n, &scratch);
+            ScratchVec<detail::Complex> B_buf(m * nrhs, &scratch);
 
+            if (A.isComplex()) {
+                std::copy(A.complexData(), A.complexData() + m * n, A_buf.begin());
+            } else {
+                const double *ad = A.doubleData();
+                for (std::size_t i = 0; i < m * n; ++i) A_buf[i] = ad[i];
+            }
+
+            if (B.isComplex()) {
+                std::copy(B.complexData(), B.complexData() + m * nrhs, B_buf.begin());
+            } else {
+                const double *bd = B.doubleData();
+                for (std::size_t i = 0; i < m * nrhs; ++i) B_buf[i] = bd[i];
+            }
+
+            Value out = Value::complexMatrix(n, nrhs, mr);
+            if (!numkit::ops::la_solve(A_buf.data(), n, n, B_buf.data(), nrhs, out.complexDataMut(), mr)) {
+                throw Error("linsolve: A is singular or rank-deficient",
+                            0, 0, "linsolve", "", "numkit:linsolve:singular");
+            }
+            return detail::narrow_if_real(out, mr);
+        } else if (m > n) {
+            Value Ac = A;
+            Value Bc = B;
+            if (!Ac.isComplex()) {
+                Value tmp = Value::complexMatrix(m, n, mr);
+                std::complex<double> *cd = tmp.complexDataMut();
+                const double *dd = Ac.doubleData();
+                for (std::size_t i = 0; i < m * n; ++i) cd[i] = dd[i];
+                Ac = tmp;
+            }
+            if (!Bc.isComplex()) {
+                Value tmp = Value::complexMatrix(m, nrhs, mr);
+                std::complex<double> *cd = tmp.complexDataMut();
+                const double *dd = Bc.doubleData();
+                for (std::size_t i = 0; i < m * nrhs; ++i) cd[i] = dd[i];
+                Bc = tmp;
+            }
+            auto [Q, R] = qr_decompose(Ac, mr);
+            ScratchArena scratch(mr);
+            ScratchVec<detail::Complex> Y(m * nrhs, &scratch);
+            const detail::Complex *Qd = Q.complexData();
+            const detail::Complex *Bcd = Bc.complexData();
+
+            for (std::size_t i = 0; i < m; ++i) {
+                for (std::size_t j = 0; j < nrhs; ++j) {
+                    detail::Complex s{0.0, 0.0};
+                    for (std::size_t k = 0; k < m; ++k) {
+                        s += std::conj(Qd[k + i * m]) * Bcd[k + j * m];
+                    }
+                    Y[i + j * m] = s;
+                }
+            }
+
+            Value X = Value::complexMatrix(n, nrhs, mr);
+            detail::Complex *Xd = X.complexDataMut();
+            const detail::Complex *Rd = R.complexData();
+
+            for (std::size_t col = 0; col < nrhs; ++col) {
+                for (std::intptr_t i = static_cast<std::intptr_t>(n) - 1; i >= 0; --i) {
+                    detail::Complex s = Y[static_cast<std::size_t>(i) + col * m];
+                    for (std::size_t k = static_cast<std::size_t>(i) + 1; k < n; ++k) {
+                        s -= Rd[static_cast<std::size_t>(i) + k * m] * Xd[k + col * n];
+                    }
+                    detail::Complex diag = Rd[static_cast<std::size_t>(i) + static_cast<std::size_t>(i) * m];
+                    if (detail::abs_sq(diag) == 0.0) {
+                        throw Error("linsolve: A is singular or rank-deficient",
+                                    0, 0, "linsolve", "", "numkit:linsolve:singular");
+                    }
+                    Xd[static_cast<std::size_t>(i) + col * n] = s / diag;
+                }
+            }
+            return detail::narrow_if_real(X, mr);
+        } else {
+            throw Error("linsolve: complex wide matrices (m < n) deferred",
+                        0, 0, "linsolve", "", "numkit:linsolve:wide");
+        }
+    }
+
+    ScratchArena scratch(mr);
     auto out = Value::matrix(n, nrhs, ValueType::DOUBLE, mr);
-    if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), nrhs,
-                                            out.doubleDataMut(), &scratch))
+    if (!numkit::ops::la_solve(A.doubleData(), m, n, B.doubleData(), nrhs,
+                               out.doubleDataMut(), &scratch))
         throw Error("linsolve: A is singular or rank-deficient",
                     0, 0, "linsolve", "", "numkit:linsolve:singular");
     return out;
@@ -59,9 +140,6 @@ Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
     if (A.dims().is3D() || B.dims().is3D())
         throw Error("lsqminnorm: inputs must be 2D",
                     0, 0, "lsqminnorm", "", "numkit:lsqminnorm:Not2D");
-    if (A.isComplex() || B.isComplex())
-        throw Error("lsqminnorm: complex input not supported in v1",
-                    0, 0, "lsqminnorm", "", "numkit:lsqminnorm:NoComplex");
 
     const size_t M = A.dims().rows();
     if (B.dims().rows() != M)

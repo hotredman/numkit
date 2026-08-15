@@ -17,7 +17,7 @@ L = readlines('out.txt');
 numel(L)        % MATLAB: 3        numkit (before fix): 1
 % MATLAB file: a\nb\nc        numkit file (before fix): a
 ```
-Confirmed empirically via `numkit_smoke.exe` against the pre-fix binary:
+Confirmed empirically via `numkit.exe` against the pre-fix binary:
 `numel=1`, `[1]=a` (b and c lost).
 
 ## Root cause

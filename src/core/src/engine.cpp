@@ -105,6 +105,25 @@ void Engine::reinstallConstants()
         constantsEnv_->set(name, val);
 }
 
+void Engine::addImplicitImport(const Import &imp)
+{
+    // Prevent duplicates in the implicit list
+    for (const auto &existing : implicitImports_) {
+        if (existing.path == imp.path && existing.wildcard == imp.wildcard && existing.alias == imp.alias) {
+            return;
+        }
+    }
+    implicitImports_.push_back(imp);
+    workspaceEnv_->pushImport(imp);
+}
+
+void Engine::clearImplicitImports()
+{
+    implicitImports_.clear();
+    // (We don't try to selectively hunt them down and remove them from workspaceEnv_,
+    // clear all handles that).
+}
+
 void Engine::registerConstant(const std::string &name, Value val)
 {
     userConstants_[name] = val;
@@ -2220,11 +2239,10 @@ std::vector<Value> Engine::callFunctionHandleMulti(const Value &handle,
 
     // 1) Built-in (registered external) — works regardless of backend.
     {
-        auto it = externalFuncs_.find(name);
-        if (it != externalFuncs_.end()) {
+        if (const ExternalFunc *fn = findExternal(name, e)) {
             std::vector<Value> out(nout);
             CallContext ctx{this, e};
-            it->second(args, nout, Span<Value>(out), ctx);
+            (*fn)(args, nout, Span<Value>(out), ctx);
             return out;
         }
     }
@@ -2614,8 +2632,12 @@ ExecStatus Engine::debugResume(DebugAction action)
 
 void Engine::syncVMToWorkspace()
 {
-    if (clearAllCalled_)
+    if (clearAllCalled_) {
         workspaceEnv_->clearAll();
+        for (const auto &imp : implicitImports_) {
+            workspaceEnv_->pushImport(imp);
+        }
+    }
     for (auto &[name, val] : vm_->lastVarMap()) {
         if (val.isUnset() || val.isDeleted()) {
             workspaceEnv_->remove(name);
@@ -2631,6 +2653,12 @@ void Engine::syncVMToScope(Environment *scope)
     if (!scope || scope == workspaceEnv_.get()) {
         syncVMToWorkspace();
         return;
+    }
+    if (clearAllCalled_) {
+        scope->clearAll();
+        for (const auto &imp : implicitImports_) {
+            scope->pushImport(imp);
+        }
     }
     for (auto &[name, val] : vm_->lastVarMap()) {
         if (val.isUnset() || val.isDeleted()) {

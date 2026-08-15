@@ -3,7 +3,7 @@
 % into approximation (low-freq) and detail (high-freq) bands using
 % Daubechies-4 (db4).
 
-import compat.*;
+
 
 clear
 close all

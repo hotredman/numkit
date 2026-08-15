@@ -3,7 +3,7 @@
 % MATLAB's lightweight alternative to GROUP BY clauses. Useful for
 % summarising experimental data without pulling in a table type.
 
-import compat.*;
+
 
 clear
 close all

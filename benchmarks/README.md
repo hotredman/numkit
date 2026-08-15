@@ -69,7 +69,7 @@ Hand-run `.m` scripts that measure performance from the language side
 Run with the smoke runner (each starts with `clear`):
 
 ```sh
-build/desktop-fast/tests/smoke/Release/numkit_smoke.exe benchmarks/mscripts/benchmark_interp.m
+build/desktop-fast/apps/numkit/Release/numkit.exe benchmarks/mscripts/benchmark_interp.m
 ```
 
 These use `import compat.*` and so are numkit-only.
@@ -83,8 +83,18 @@ MATLAB / Octave / numkit to compare the scalar-loop cost:
 ```sh
 matlab -batch "run('src/core/benchmarks/iir_filter_ref.m')"   # ~3.9 ns/sample (JIT)
 octave-cli src/core/benchmarks/iir_filter_ref.m
-build/desktop-fast/tests/smoke/Release/numkit_smoke.exe src/core/benchmarks/iir_filter_ref.m  # ~150
+build/desktop-fast/apps/numkit/Release/numkit.exe src/core/benchmarks/iir_filter_ref.m  # ~150
 ```
 
 The interpreter-overhead theme of `benchmark_interp.m` is being migrated into
 permanent, CI-able Google Benchmark form under `src/core/benchmarks/`.
+
+## 3. Linear Algebra Performance (Linalg)
+
+Recent architectural optimizations have massively boosted our linear algebra backend (`la_solve`, `BM_Linalg_Chol_Real`, `BM_Linalg_Solve`).
+
+Highlights:
+* **4x RHS Unrolling** in `linsolve` ($N \le 128$) boosts performance by **40%** for small linear systems, making it highly competitive for simulation inner loops.
+* **Recursive BLAS-3 SYRK & TRSM**: The fallback generic implementations of Cholesky factorization are now recursive and hit the optimized `numkit::ops::gemm` block-based kernels. This breaks the memory bandwidth bottlenecks of the old BLAS-2 unblocked logic.
+  * **$N=512$**: ~5 ms (**3.9x speedup**)
+  * **$N=1024$**: ~26.2 ms (**5.6x speedup**)

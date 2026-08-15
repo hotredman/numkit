@@ -47,4 +47,13 @@ std::string transpileToPlugin(const std::string &source, const std::string &entr
                               const std::string &exportName,
                               const std::string &abiHeaderPath);
 
+// Build a `int main() {...}` that calls the emitted function and prints its
+// scalar return value, suitable for appending to the EmittedFunction source to
+// produce a self-contained runnable program (the `--run` / `coder_run` path).
+// v1 supports a nullary entry (no params) returning a scalar (double / single /
+// intN / uintN / bool / std::complex<double>) or void; throws std::runtime_error
+// for an unsupported return type or a non-nullary entry (the harness does not
+// marshal input values). The returned string #includes <cstdio> and <complex>.
+std::string buildHarnessMain(const EmittedFunction &em);
+
 } // namespace numkit::codegen::driver

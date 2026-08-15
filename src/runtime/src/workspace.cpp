@@ -51,6 +51,7 @@ void registerWorkspaceRuntime(Engine &engine)
                                     // MATLAB: bare 'clear' clears workspace variables only,
                                     // NOT user functions or figures.
                                     env->clearAll();
+                                    ctx.engine->restoreImplicitImports(env);
                                     if (!insideFunc) {
                                         ctx.engine->reinstallConstants();
                                         ctx.engine->markClearAll();
@@ -103,6 +104,7 @@ void registerWorkspaceRuntime(Engine &engine)
                                             if (gs)
                                                 gs->clearAll();
                                             env->clearAll();
+                                            ctx.engine->restoreImplicitImports(env);
                                             ctx.engine->markClearAll();
                                         } else {
                                             // clear global x y — clear specific globals
@@ -130,8 +132,10 @@ void registerWorkspaceRuntime(Engine &engine)
                                     if (first == "all" || first == "classes") {
                                         if (insideFunc) {
                                             env->clearAll();
+                                            ctx.engine->restoreImplicitImports(env);
                                         } else {
                                             env->clearAll();
+                                            ctx.engine->restoreImplicitImports(env);
                                             ctx.engine->clearUserFunctions();
                                             ctx.engine->clearClassDefs();
                                             ctx.engine->figureManager().closeAll();
@@ -530,6 +534,7 @@ void registerWorkspaceRuntime(Engine &engine)
             auto *env = ctx.env;
             if (args.empty()) {
                 env->clearAll();
+                ctx.engine->restoreImplicitImports(env);
                 outs[0] = Value();
                 return;
             }

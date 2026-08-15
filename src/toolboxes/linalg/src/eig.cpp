@@ -14,6 +14,7 @@
 //   - sylvester_sym      (simultaneous diagonalisation)
 
 #include <numkit/linalg/eig.hpp>
+#include "linalg_detail.hpp"
 
 #include <numkit/linalg/decompositions.hpp>           // svd_decompose
 #include <numkit/linalg/properties.hpp>               // inv (polyeig companion)
@@ -100,8 +101,46 @@ Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr)
 
 Value eig_general_values(const Value &A, std::pmr::memory_resource *mr)
 {
-    auto p = poly_of_matrix(A, mr);
-    return numkit::math::roots(p, mr);
+    if (A.dims().ndim() != 2)
+        throw Error("eig: input must be a 2D matrix",
+                    0, 0, "eig", "", "numkit:eig:notMatrix");
+    const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    if (n != static_cast<std::size_t>(A.dims().dim(1)))
+        throw Error("eig: matrix must be square",
+                    0, 0, "eig", "", "numkit:eig:notSquare");
+    if (n == 0) return Value::matrix(0, 1, A.type(), mr);
+
+    auto [U, T] = schur_general(A, mr);
+    auto out = Value::complexMatrix(n, 1, mr);
+    Complex *o = out.complexDataMut();
+
+    if (T.isComplex()) {
+        const Complex *td = T.complexData();
+        for (std::size_t i = 0; i < n; ++i) o[i] = td[i + i * n];
+    } else {
+        const double *td = T.doubleData();
+        std::size_t i = 0;
+        while (i < n) {
+            if (i + 1 < n && td[(i + 1) + i * n] != 0.0) {
+                double a = td[i + i * n];
+                double b = td[i + (i + 1) * n];
+                double c = td[(i + 1) + i * n];
+                double d = td[(i + 1) + (i + 1) * n];
+                double tr = a + d;
+                double det = a * d - b * c;
+                double disc = tr * tr - 4.0 * det;
+                double re = 0.5 * tr;
+                double im = 0.5 * std::sqrt(std::max(0.0, -disc));
+                o[i] = Complex(re, im);
+                o[i + 1] = Complex(re, -im);
+                i += 2;
+            } else {
+                o[i] = Complex(td[i + i * n], 0.0);
+                i += 1;
+            }
+        }
+    }
+    return detail::narrow_if_real(out, mr);
 }
 
 std::tuple<Value, Value>
@@ -114,61 +153,130 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
     if (n != static_cast<std::size_t>(A.dims().dim(1)))
         throw Error("eig: matrix must be square",
                     0, 0, "eig", "", "numkit:eig:notSquare");
+    if (n == 0) {
+        return std::make_tuple(
+            Value::matrix(0, 0, A.type(), mr),
+            Value::matrix(0, 0, A.type(), mr));
+    }
 
-    auto eig_vals = eig_general_values(A, mr);
-    const std::size_t k = eig_vals.numel();
-    if (k != n)
-        throw Error("eig: char-poly returned wrong number of eigenvalues",
-                    0, 0, "eig", "", "numkit:eig:internalError");
+    if (!A.isComplex()) {
+        auto eig_vals = numkit::math::roots(poly_of_matrix(A, mr), mr);
+        bool has_complex = false;
+        if (eig_vals.isComplex()) {
+            const Complex *ev = eig_vals.complexData();
+            for (std::size_t i = 0; i < eig_vals.numel(); ++i) {
+                if (std::fabs(ev[i].imag()) > 1e-9 * (1.0 + std::fabs(ev[i].real()))) {
+                    has_complex = true;
+                    break;
+                }
+            }
+        }
+        if (!has_complex) {
+            ScratchArena scratch(mr);
+            ScratchVec<double> evals(n, &scratch);
+            if (eig_vals.isComplex()) {
+                const Complex *ev = eig_vals.complexData();
+                for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i].real();
+            } else {
+                const double *ev = eig_vals.doubleData();
+                for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i];
+            }
+            std::sort(evals.begin(), evals.end());
 
-    // Verify all real -- complex eigvecs need Francis QR (deferred).
-    if (eig_vals.isComplex()) {
-        const Complex *ev = eig_vals.complexData();
-        for (std::size_t i = 0; i < k; ++i) {
-            if (std::fabs(ev[i].imag()) > 1e-9 * (1.0 + std::fabs(ev[i].real())))
-                throw Error("eig: [V, D] form for matrices with complex "
-                            "eigenvalues requires Francis QR iteration "
-                            "(deferred to Phase 2c-3-future). For "
-                            "eigenvalues only, use 'e = eig(A)' (single output).",
-                            0, 0, "eig", "", "numkit:eig:complexEigvecs");
+            auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+            auto Dout = Value::matrix(n, n, ValueType::DOUBLE, mr);
+            double *V = Vout.doubleDataMut();
+            double *D = Dout.doubleDataMut();
+            std::fill(V, V + n * n, 0.0);
+            std::fill(D, D + n * n, 0.0);
+
+            const double *Adata = A.doubleData();
+
+            for (std::size_t k2 = 0; k2 < n; ++k2) {
+                const double lam = evals[k2];
+                D[k2 + k2 * n] = lam;
+                auto Ali = Value::matrix(n, n, ValueType::DOUBLE, mr);
+                double *AL = Ali.doubleDataMut();
+                for (std::size_t i = 0; i < n * n; ++i) AL[i] = Adata[i];
+                for (std::size_t i = 0; i < n; ++i) AL[i + i * n] -= lam;
+                auto [Us, Ss, Vs] = svd_decompose(Ali, mr);
+                const std::size_t nv = static_cast<std::size_t>(Vs.dims().dim(0));
+                const double *Vsdata = Vs.doubleData();
+                for (std::size_t i = 0; i < n; ++i)
+                    V[i + k2 * n] = Vsdata[i + (nv - 1) * nv];
+            }
+            return std::make_tuple(std::move(Vout), std::move(Dout));
         }
     }
 
+    Value A_c = A.isComplex() ? A : Value::complexMatrix(n, n, mr);
+    if (!A.isComplex()) {
+        const double *ad = A.doubleData();
+        Complex *acd = A_c.complexDataMut();
+        for (std::size_t i = 0; i < n * n; ++i) acd[i] = Complex(ad[i], 0.0);
+    }
+
+    auto [U, T] = schur_general(A_c, mr);
+
     ScratchArena scratch(mr);
-    ScratchVec<double> evals(n, &scratch);
-    if (eig_vals.isComplex()) {
-        const Complex *ev = eig_vals.complexData();
-        for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i].real();
+    ScratchVec<Complex> Tc(n * n, &scratch);
+    ScratchVec<Complex> Uc(n * n, &scratch);
+
+    if (T.isComplex()) {
+        std::copy(T.complexData(), T.complexData() + n * n, Tc.begin());
     } else {
-        const double *ev = eig_vals.doubleData();
-        for (std::size_t i = 0; i < n; ++i) evals[i] = ev[i];
+        const double *td = T.doubleData();
+        for (size_t i = 0; i < n * n; ++i) Tc[i] = Complex(td[i], 0.0);
     }
-    std::sort(evals.begin(), evals.end());
 
-    auto Vout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    auto Dout = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    double *V = Vout.doubleDataMut();
-    double *D = Dout.doubleDataMut();
-    std::fill(V, V + n * n, 0.0);
-    std::fill(D, D + n * n, 0.0);
-
-    const double *Adata = A.doubleData();
-
-    for (std::size_t k2 = 0; k2 < n; ++k2) {
-        const double lam = evals[k2];
-        D[k2 + k2 * n] = lam;
-        auto Ali = Value::matrix(n, n, ValueType::DOUBLE, mr);
-        double *AL = Ali.doubleDataMut();
-        for (std::size_t i = 0; i < n * n; ++i) AL[i] = Adata[i];
-        for (std::size_t i = 0; i < n; ++i) AL[i + i * n] -= lam;
-        // Right null vector = last column of V from svd(Ali).
-        auto [Us, Ss, Vs] = svd_decompose(Ali, mr);
-        const std::size_t nv = static_cast<std::size_t>(Vs.dims().dim(0));
-        const double *Vsdata = Vs.doubleData();
-        for (std::size_t i = 0; i < n; ++i)
-            V[i + k2 * n] = Vsdata[i + (nv - 1) * nv];
+    if (U.isComplex()) {
+        std::copy(U.complexData(), U.complexData() + n * n, Uc.begin());
+    } else {
+        const double *ud = U.doubleData();
+        for (size_t i = 0; i < n * n; ++i) Uc[i] = Complex(ud[i], 0.0);
     }
-    return std::make_tuple(std::move(Vout), std::move(Dout));
+
+    ScratchVec<Complex> Yc(n * n, Complex(0.0, 0.0), &scratch);
+
+    for (std::size_t k = 0; k < n; ++k) {
+        Complex lam = Tc[k + k * n];
+        Yc[k + k * n] = Complex(1.0, 0.0);
+        for (std::intptr_t i = static_cast<std::intptr_t>(k) - 1; i >= 0; --i) {
+            Complex sum(0.0, 0.0);
+            for (std::size_t j = static_cast<std::size_t>(i) + 1; j <= k; ++j) {
+                sum += Tc[static_cast<std::size_t>(i) + j * n] * Yc[j + k * n];
+            }
+            Complex denom = Tc[static_cast<std::size_t>(i) + static_cast<std::size_t>(i) * n] - lam;
+            if (std::abs(denom) < 1e-14) denom = Complex(1e-14, 0.0);
+            Yc[static_cast<std::size_t>(i) + k * n] = -sum / denom;
+        }
+    }
+
+    auto Vout = Value::complexMatrix(n, n, mr);
+    auto Dout = Value::complexMatrix(n, n, mr);
+    Complex *Vd = Vout.complexDataMut();
+    Complex *Dd = Dout.complexDataMut();
+    std::fill(Dd, Dd + n * n, Complex(0.0, 0.0));
+
+    for (std::size_t k = 0; k < n; ++k) {
+        Dd[k + k * n] = Tc[k + k * n];
+        double norm_sq = 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            Complex s(0.0, 0.0);
+            for (std::size_t j = 0; j <= k; ++j) {
+                s += Uc[i + j * n] * Yc[j + k * n];
+            }
+            Vd[i + k * n] = s;
+            norm_sq += detail::abs_sq(s);
+        }
+        double norm = std::sqrt(norm_sq);
+        if (norm > 0.0) {
+            for (std::size_t i = 0; i < n; ++i)
+                Vd[i + k * n] /= norm;
+        }
+    }
+
+    return std::make_tuple(detail::narrow_if_real(Vout, mr), detail::narrow_if_real(Dout, mr));
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -333,60 +441,169 @@ Value eig_values(const Value &A, std::pmr::memory_resource *mr)
 namespace {
 
 // In-place Hessenberg reduction via Householder reflectors.
-void hessReduceInplace(double *A, std::size_t n, double *P,
+template <typename T>
+void hessReduceInplace(T *A, std::size_t n, T *P,
                        std::pmr::memory_resource *mr)
 {
-    std::fill(P, P + n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i) P[i + i * n] = 1.0;
+    std::fill(P, P + n * n, T(0));
+    for (std::size_t i = 0; i < n; ++i) P[i + i * n] = T(1);
     if (n < 3) return;
 
     ScratchArena scratch(mr);
-    ScratchVec<double> v_storage(n, &scratch);
-    double *v = v_storage.data();
+    ScratchVec<T> v_storage(n, &scratch);
+    T *v = v_storage.data();
 
     for (std::size_t k = 0; k + 2 < n; ++k) {
         double norm_sq = 0.0;
         for (std::size_t i = k + 1; i < n; ++i)
-            norm_sq += A[i + k * n] * A[i + k * n];
+            norm_sq += detail::abs_sq(A[i + k * n]);
         if (norm_sq == 0.0) continue;
-        const double xk = A[k + 1 + k * n];
+        const T xk = A[k + 1 + k * n];
         const double norm = std::sqrt(norm_sq);
-        const double alpha = (xk >= 0.0) ? -norm : norm;
+
+        T alpha;
+        if constexpr (detail::is_complex_v<T>) {
+            const double abs_xk = std::abs(xk);
+            const T phase = (abs_xk > 0.0) ? (xk / abs_xk) : T(1.0, 0.0);
+            alpha = -phase * norm;
+        } else {
+            alpha = (xk >= 0.0) ? -norm : norm;
+        }
+
         v[k + 1] = xk - alpha;
         for (std::size_t i = k + 2; i < n; ++i) v[i] = A[i + k * n];
         double v_norm_sq = 0.0;
-        for (std::size_t i = k + 1; i < n; ++i) v_norm_sq += v[i] * v[i];
+        for (std::size_t i = k + 1; i < n; ++i) v_norm_sq += detail::abs_sq(v[i]);
         if (v_norm_sq == 0.0) continue;
-        const double tau = 2.0 / v_norm_sq;
+        const T tau = T(2.0 / v_norm_sq);
 
         for (std::size_t j = k; j < n; ++j) {
-            double dot = 0.0;
-            for (std::size_t i = k + 1; i < n; ++i)
-                dot += v[i] * A[i + j * n];
-            const double s = tau * dot;
+            T dot = T(0);
+            for (std::size_t i = k + 1; i < n; ++i) {
+                if constexpr (detail::is_complex_v<T>) {
+                    dot += std::conj(v[i]) * A[i + j * n];
+                } else {
+                    dot += v[i] * A[i + j * n];
+                }
+            }
+            const T s = tau * dot;
             for (std::size_t i = k + 1; i < n; ++i)
                 A[i + j * n] -= s * v[i];
         }
         for (std::size_t i = 0; i < n; ++i) {
-            double dot = 0.0;
+            T dot = T(0);
             for (std::size_t j = k + 1; j < n; ++j)
                 dot += A[i + j * n] * v[j];
-            const double s = tau * dot;
-            for (std::size_t j = k + 1; j < n; ++j)
-                A[i + j * n] -= s * v[j];
+            const T s = tau * dot;
+            for (std::size_t j = k + 1; j < n; ++j) {
+                if constexpr (detail::is_complex_v<T>) {
+                    A[i + j * n] -= s * std::conj(v[j]);
+                } else {
+                    A[i + j * n] -= s * v[j];
+                }
+            }
         }
         for (std::size_t i = 0; i < n; ++i) {
-            double dot = 0.0;
+            T dot = T(0);
             for (std::size_t j = k + 1; j < n; ++j)
                 dot += P[i + j * n] * v[j];
-            const double s = tau * dot;
-            for (std::size_t j = k + 1; j < n; ++j)
-                P[i + j * n] -= s * v[j];
+            const T s = tau * dot;
+            for (std::size_t j = k + 1; j < n; ++j) {
+                if constexpr (detail::is_complex_v<T>) {
+                    P[i + j * n] -= s * std::conj(v[j]);
+                } else {
+                    P[i + j * n] -= s * v[j];
+                }
+            }
         }
         A[k + 1 + k * n] = alpha;
         for (std::size_t i = k + 2; i < n; ++i)
-            A[i + k * n] = 0.0;
+            A[i + k * n] = T(0);
     }
+}
+
+void complexSchurQR(Complex *H, Complex *Z, std::size_t n)
+{
+    if (n < 2) return;
+    auto h = [&](std::size_t i, std::size_t j) -> Complex & { return H[i + j * n]; };
+    auto z = [&](std::size_t i, std::size_t j) -> Complex & { return Z[i + j * n]; };
+
+    const double eps = std::numeric_limits<double>::epsilon();
+    const int N = static_cast<int>(n);
+
+    int p = N - 1;
+    int iter = 0;
+
+    while (p > 0) {
+        int l = p;
+        while (l > 0) {
+            double s = std::abs(h(l - 1, l - 1)) + std::abs(h(l, l));
+            if (s == 0.0) s = 1.0;
+            if (std::abs(h(l, l - 1)) <= eps * s) {
+                h(l, l - 1) = Complex(0.0, 0.0);
+                break;
+            }
+            --l;
+        }
+        if (l == p) { p -= 1; iter = 0; continue; }
+        if (++iter > 300) break;
+
+        // Wilkinson shift from trailing 2x2 block: H[p-1..p, p-1..p]
+        Complex a = h(p - 1, p - 1);
+        Complex b = h(p - 1, p);
+        Complex c_blk = h(p, p - 1);
+        Complex d = h(p, p);
+
+        Complex tr = a + d;
+        Complex det = a * d - b * c_blk;
+        Complex disc = std::sqrt(tr * tr - 4.0 * det);
+
+        Complex mu1 = 0.5 * (tr + disc);
+        Complex mu2 = 0.5 * (tr - disc);
+
+        Complex shift = (std::abs(mu1 - d) < std::abs(mu2 - d)) ? mu1 : mu2;
+
+        if (iter % 30 == 0) {
+            shift += Complex(std::abs(c_blk), std::abs(h(p - 1, std::max(0, p - 2))));
+        }
+
+        for (int k = l; k < p; ++k) {
+            Complex f = (k == l) ? (h(k, k) - shift) : h(k, k - 1);
+            Complex g = h(k + 1, k);
+
+            double norm = std::sqrt(detail::abs_sq(f) + detail::abs_sq(g));
+            if (norm == 0.0) continue;
+
+            double c = std::abs(f) / norm;
+            Complex phase = (std::abs(f) > 0.0) ? (f / std::abs(f)) : Complex(1.0, 0.0);
+            Complex s = phase * std::conj(g) / norm;
+
+            int col0 = (k > 0) ? (k - 1) : 0;
+            for (int j = col0; j < N; ++j) {
+                Complex hk = h(k, j);
+                Complex hk1 = h(k + 1, j);
+                h(k, j)     = c * hk + s * hk1;
+                h(k + 1, j) = -std::conj(s) * hk + c * hk1;
+            }
+            int row1 = std::min(k + 2, N - 1);
+            for (int i = 0; i <= row1; ++i) {
+                Complex hk = h(i, k);
+                Complex hk1 = h(i, k + 1);
+                h(i, k)     = c * hk + std::conj(s) * hk1;
+                h(i, k + 1) = -s * hk + c * hk1;
+            }
+            for (int i = 0; i < N; ++i) {
+                Complex zk = z(i, k);
+                Complex zk1 = z(i, k + 1);
+                z(i, k)     = c * zk + std::conj(s) * zk1;
+                z(i, k + 1) = -s * zk + c * zk1;
+            }
+        }
+    }
+
+    for (int j = 0; j + 1 < N; ++j)
+        for (int i = j + 1; i < N; ++i)
+            h(static_cast<std::size_t>(i), static_cast<std::size_t>(j)) = Complex(0.0, 0.0);
 }
 
 } // anonymous namespace
@@ -402,6 +619,14 @@ hess(const Value &A, std::pmr::memory_resource *mr)
     if (m != n)
         throw Error("hess: matrix must be square",
                     0, 0, "hess", "", "numkit:hess:notSquare");
+    if (A.isComplex()) {
+        auto Hout = Value::complexMatrix(n, n, mr);
+        auto Pout = Value::complexMatrix(n, n, mr);
+        if (n == 0) return std::make_tuple(std::move(Pout), std::move(Hout));
+        std::copy(A.complexData(), A.complexData() + n * n, Hout.complexDataMut());
+        hessReduceInplace(Hout.complexDataMut(), n, Pout.complexDataMut(), mr);
+        return std::make_tuple(detail::narrow_if_real(Pout, mr), detail::narrow_if_real(Hout, mr));
+    }
     auto Hout = Value::matrix(n, n, ValueType::DOUBLE, mr);
     auto Pout = Value::matrix(n, n, ValueType::DOUBLE, mr);
     if (n == 0) return std::make_tuple(std::move(Pout), std::move(Hout));
@@ -583,12 +808,21 @@ void standardizeSchur2x2(double *H, double *Z, std::size_t n)
 
 } // anonymous namespace
 
-// General (nonsymmetric) real Schur: A = U·T·Uᵀ, U orthogonal, T quasi-upper-
-// triangular. Hessenberg reduction + Francis double-shift QR.
+// General (nonsymmetric) real/complex Schur: A = U·T·Uᵀ, U unitary, T upper-triangular.
 std::tuple<Value, Value>
 schur_general(const Value &A, std::pmr::memory_resource *mr)
 {
     const std::size_t n = static_cast<std::size_t>(A.dims().dim(0));
+    if (A.isComplex()) {
+        auto U = Value::complexMatrix(n, n, mr);
+        auto T = Value::complexMatrix(n, n, mr);
+        if (n == 0) return std::make_tuple(std::move(U), std::move(T));
+        std::copy(A.complexData(), A.complexData() + n * n, T.complexDataMut());
+        hessReduceInplace(T.complexDataMut(), n, U.complexDataMut(), mr);
+        complexSchurQR(T.complexDataMut(), U.complexDataMut(), n);
+        return std::make_tuple(detail::narrow_if_real(U, mr), detail::narrow_if_real(T, mr));
+    }
+
     auto U = Value::matrix(n, n, ValueType::DOUBLE, mr);   // Schur vectors (== P·Q)
     auto T = Value::matrix(n, n, ValueType::DOUBLE, mr);   // real Schur form
     if (n == 0) return std::make_tuple(std::move(U), std::move(T));

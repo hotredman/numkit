@@ -1,10 +1,10 @@
 {
   "name": "funm",
   "namespace": "linalg",
-  "setup": "A = [1 2; 3 4]; S = [2 1; 1 2];",
-  "expr": "Fe = funm(A, @exp); Fs = funm(A, @sin); Fc = funm(A, @cos); Ge = funm(S, @exp);",
+  "setup": "A = [1 2; 3 4]; S = [2 1; 1 2]; B = [2 1; 0 2];",
+  "expr": "Fe = funm(A, @exp); Fs = funm(A, @sin); Fc = funm(A, @cos); Ge = funm(S, @exp); Fb = funm(B, @exp); err_b = max(max(abs(Fb - expm(B))));",
   "iters": 5,
   "tol": 1e-09,
-  "fingerprint": ["Fe(1,1)", "Fe(1,2)", "Fe(2,2)", "Fs(1,1)", "Fs(1,2)", "Fc(1,1)", "Ge(1,1)", "Ge(1,2)"],
-  "comment": "Sig: F = funm(A, fun). General matrix function (scalar fun OF a matrix, not element-wise) via eigendecomposition: F = V*diag(fun(diag(D)))/V where [V,D]=eig(A); real(F) for real A. Covered branches: diagonalizable non-symmetric matrix with @exp/@sin/@cos, symmetric matrix with @exp. NOTE: MATLAB funm calls feval(fun,x,k) with a derivative-order arg on its generic path, so @sqrt/anonymous funcs error in MATLAB but work here; parity only uses the special funcs (exp/sin/cos) MATLAB funm accepts directly. DEFERRED branch: complex-eigenvalue and defective (repeated-eigenvalue) matrices error — numkit eig [V,D] needs Francis QR (separate deferred limitation), documented in bugs/linalg/funm.md. Verified vs MATLAB R2025b. Fixes bugs/linalg/funm.md."
+  "fingerprint": ["Fe(1,1)", "Fe(1,2)", "Fe(2,2)", "Fs(1,1)", "Fs(1,2)", "Fc(1,1)", "Ge(1,1)", "Ge(1,2)", "Fb(1,1)", "Fb(1,2)", "err_b"],
+  "comment": "Sig: F = funm(A, fun). General matrix function (scalar fun OF a matrix, not element-wise) via eigendecomposition: F = V*diag(fun(diag(D)))/V where [V,D]=eig(A); real(F) for real A. Covered branches: diagonalizable non-symmetric matrix with @exp/@sin/@cos, symmetric matrix with @exp. NOTE: MATLAB funm calls feval(fun,x,k) with a derivative-order arg on its generic path, so @sqrt/anonymous funcs error in MATLAB but work here; parity only uses the special funcs (exp/sin/cos) MATLAB funm accepts directly. DEFERRED branch: complex-eigenvalue and defective (repeated-eigenvalue) matrices error — numkit eig [V,D] needs Francis QR (separate deferred limitation), documented in bugs/linalg/funm.md. Verified vs MATLAB R2025b. Fixes bugs/linalg/funm.md. Extended in 2026-08 via Schur-Parlett recurrence for confluent/defective matrices."
 }

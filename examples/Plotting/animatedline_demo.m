@@ -3,7 +3,7 @@
 % animatedline is the modern alternative to "hold on; plot(...)".
 % Build the line one point at a time, useful for simulation loops.
 
-import compat.*;
+
 
 clear
 close all

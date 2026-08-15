@@ -61,13 +61,26 @@ function makeNativeBackend() {
         }
     }
 
+    const initSaved = stored();
+    if (initSaved) {
+        setRoot(initSaved);
+    }
+
     return {
         kind: 'native',
         isAvailable: () => true,
         supportsReveal: () => true,
 
+        root: () => rootPath,
         isMounted: () => rootPath !== null,
         mountName: () => rootDisplayName,
+
+        setRootPath(p) {
+            if (!p) return null;
+            setRoot(p);
+            remember(p);
+            return rootDisplayName;
+        },
 
         async pickDirectory() {
             const picked = await api.pickDirectory();
@@ -78,25 +91,61 @@ function makeNativeBackend() {
         },
 
         async reconnect() {
-            const saved = stored();
+            let saved = stored();
+            if (!saved && typeof api.getUserHome === 'function') {
+                try { saved = await api.getUserHome(); } catch (_) {}
+            }
             if (!saved) return null;
             // Verify the path is still reachable — avoids surfacing a
             // stale mount after the folder was renamed/removed from disk.
             try {
-                await api.listTree(saved);
+                if (typeof api.listDir === 'function') {
+                    await api.listDir(saved, '/');
+                } else {
+                    await api.listTree(saved);
+                }
                 setRoot(saved);
+                remember(saved);
                 return rootDisplayName;
             } catch (_) {
+                if (typeof api.getUserHome === 'function') {
+                    try {
+                        const home = await api.getUserHome();
+                        if (home) {
+                            if (typeof api.listDir === 'function') {
+                                await api.listDir(home, '/');
+                            } else {
+                                await api.listTree(home);
+                            }
+                            setRoot(home);
+                            remember(home);
+                            return rootDisplayName;
+                        }
+                    } catch (_) {}
+                }
                 remember(null);
                 return null;
             }
         },
 
         async disconnect() {
-            setRoot(null);
-            remember(null);
+            let home = '';
+            if (typeof api.getUserHome === 'function') {
+                try { home = await api.getUserHome(); } catch (_) {}
+            }
+            if (home) {
+                setRoot(home);
+                remember(home);
+            } else {
+                setRoot(null);
+                remember(null);
+            }
         },
 
+        async listDir(relPath = '/') {
+            if (!rootPath) return [];
+            return api.listDir(rootPath, relPath);
+        },
         async listTree() {
             if (!rootPath) return [];
             return api.listTree(rootPath);
@@ -268,6 +317,36 @@ function makeFsaBackend() {
             await idbDelete(HANDLE_KEY);
         },
 
+        async listDir(relPath = '/') {
+            if (!rootHandle) return [];
+            try {
+                const targetDir = await resolveDir(relPath);
+                const entries = [];
+                for await (const [name, handle] of targetDir.entries()) {
+                    const cleanRel = (relPath || '/').replace(/\\/g, '/').replace(/\/+$/, '');
+                    const itemPath = cleanRel === '' || cleanRel === '/' ? `/${name}` : `${cleanRel}/${name}`;
+                    let size = undefined;
+                    let modified = undefined;
+                    if (handle.kind === 'file') {
+                        try {
+                            const fileObj = await handle.getFile();
+                            size = fileObj.size;
+                            modified = fileObj.lastModified;
+                        } catch (_) {}
+                    }
+                    entries.push({
+                        name,
+                        path: itemPath,
+                        type: handle.kind === 'directory' ? 'folder' : 'file',
+                        size,
+                        modified,
+                    });
+                }
+                entries.sort((a, b) => (a.type !== b.type) ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name));
+                return entries;
+            } catch (_) { return []; }
+        },
+
         async listTree() {
             if (!rootHandle) return [];
             const root = [];
@@ -386,7 +465,6 @@ function makeFsaBackend() {
 function pickBackend() {
     if (typeof window === 'undefined') return null;
     if (window.nativeFS) return makeNativeBackend();
-    if (typeof window.showDirectoryPicker === 'function') return makeFsaBackend();
     return null;
 }
 
@@ -401,6 +479,7 @@ const unavailable = {
     async pickDirectory() { throw new Error('Local Folder not available in this browser'); },
     async reconnect() { return null; },
     async disconnect() {},
+    async listDir() { return []; },
     async listTree() { return []; },
     async readFile() { return null; },
     async writeFile() {},

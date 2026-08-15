@@ -2,44 +2,81 @@
 //
 // PRIVATE (src-level) header — NOT part of the public linalg API.
 //
-// These are raw-buffer / low-level factorisation kernels shared between the
-// engine-free compute (decompositions.cpp) and its register half
-// (decompositions_reg.cpp). They are kept out of the public
-// include/numkit/linalg/decompositions.hpp because their signatures take raw
-// `double *` buffers / out-params, which LIBRARY_API.md forbids on the public
-// surface. The user-facing builtins (chol / lu / qr / svd …) keep their clean
-// Value signatures in the public header; this header only exposes the shared
-// internals the CallContext wrappers reach into (the no-throw [R,p] chol form
-// needs the failure column; the [Q,R,P] qr form needs the pivot permutation).
-//
-// Phase 2b compute/register split — see project_layering_refactor memory.
+// Shared raw-buffer / low-level factorisation kernels between compute
+// (decompositions.cpp) and its register half (decompositions_reg.cpp).
 
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+#include <complex>
 #include <cstddef>
 #include <memory_resource>
 #include <tuple>
 #include <vector>
 
 #include <numkit/value/value.hpp>
+#include <numkit/ops/blas.hpp>
+#include "linalg_detail.hpp"
 
 namespace numkit::linalg {
 
 // Build upper-triangular R (column-major, n×n) such that R'·R = A, reading the
 // upper triangle of A. Returns the 1-based column index where the
-// factorization broke down (non-positive pivot), or 0 on success. On failure
-// the leading (return−1)×(return−1) block of r is a valid factor. Backs both
-// the throwing `chol` and the no-throw `[R,p] = chol(A)` register form.
-std::size_t cholUpperFactor(const double *a, double *r, std::size_t n);
+// factorization broke down (non-positive pivot), or 0 on success.
+template <typename T>
+std::size_t cholUpperFactor(const T *a, T *r, std::size_t n) {
+    std::fill(r, r + n * n, T(0));
+    for (std::size_t j = 0; j < n; ++j) {
+        T s = a[j + j * n];
+        for (std::size_t k = 0; k < j; ++k) {
+            if constexpr (detail::is_complex_v<T>) {
+                s -= detail::abs_sq(r[k + j * n]);
+            } else {
+                s -= r[k + j * n] * r[k + j * n];
+            }
+        }
+        if constexpr (detail::is_complex_v<T>) {
+            if (s.real() <= 0.0 || std::abs(s.imag()) > 1e-12 * (1.0 + std::abs(s.real()))) return j + 1;
+            r[j + j * n] = T(std::sqrt(s.real()), 0.0);
+        } else {
+            if (s <= 0.0) return j + 1;
+            r[j + j * n] = std::sqrt(s);
+        }
+        const T inv_diag = T(1) / r[j + j * n];
+        for (std::size_t i = j + 1; i < n; ++i) {
+            T t = a[j + i * n];
+            if constexpr (detail::is_complex_v<T>) {
+                const T a_ji = a[i + j * n];
+                if (std::abs(t - std::conj(a_ji)) > 1e-12 * (1.0 + std::abs(t))) return j + 1;
+            }
+            for (std::size_t k = 0; k < j; ++k) {
+                if constexpr (detail::is_complex_v<T>) {
+                    t -= std::conj(r[k + j * n]) * r[k + i * n];
+                } else {
+                    t -= r[k + j * n] * r[k + i * n];
+                }
+            }
+            r[j + i * n] = t * inv_diag;
+        }
+    }
+    return 0;
+}
 
-// Transpose a square k×k column-major matrix into a fresh Value (turns the
-// upper factor R into the lower factor L = R' for `chol(A,'lower')`).
-Value transposeSquare(const double *src, std::size_t k,
-                      std::pmr::memory_resource *mr);
+// Transpose (conjugate transpose for complex) a square k×k column-major matrix into a fresh Value.
+template <typename T>
+Value transposeSquare(const T *src, std::size_t k, std::pmr::memory_resource *mr) {
+    Value out = detail::make_matrix<T>(k, k, mr);
+    T *d = detail::get_data_mut<T>(out);
+    for (std::size_t col = 0; col < k; ++col) {
+        for (std::size_t row = 0; row < k; ++row) {
+            d[row + col * k] = detail::conj_if_complex(src[col + row * k]);
+        }
+    }
+    return out;
+}
 
-// Column-pivoted QR (the [Q,R,P] form). Returns Q (m×m) and R (m×n) and fills
-// `perm` (0-based, length n) with the column permutation: A·P = Q·R where
-// column k of A·P is original column perm[k].
+// Column-pivoted QR (the [Q,R,P] form).
 std::tuple<Value, Value>
 qr_pivoted(const Value &A, std::vector<std::size_t> &perm,
            std::pmr::memory_resource *mr = nullptr);

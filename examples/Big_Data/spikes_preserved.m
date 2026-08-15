@@ -3,7 +3,7 @@
 % plot's default M4 downsampling keeps the min and max of every pixel
 % column, so the spikes stay visible at any zoom level — naive subsampling
 % would drop them. Zoom into a spike to watch the full sample detail appear.
-import compat.*;
+
 
 clear
 close all

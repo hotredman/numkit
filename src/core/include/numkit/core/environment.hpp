@@ -67,7 +67,7 @@ public:
 
     void remove(const std::string &name);
 
-    void clearAll();
+    void clearAll(bool keepImports = false);
 
     // Reset for reuse — clears all data and sets new parent/globalsEnv
     void reset(Environment *parent, Environment *gs);

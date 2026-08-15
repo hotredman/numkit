@@ -9,7 +9,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
+import { openExample } from '../../fs/examples';
 import { usePersistedState } from '../../ui-state';
+import { isLocalDiskPath } from '../../fs/pathUtils';
 
 const isMFile = (name) => /\.(m|n)$/i.test(name);
 
@@ -126,11 +128,36 @@ function ContextMenu({ x, y, items, onClose }) {
 
 /* ─────────────── tree row + folder ─────────────── */
 function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
-                  onOpenFile, onContextMenu, renaming, onRenameSubmit, onRenameCancel,
-                  filter }) {
+                  onOpenFile, onNavigateFolder, onContextMenu, renaming, onRenameSubmit, onRenameCancel,
+                  filter, ops }) {
   const isDir = node.type === 'folder';
   const isExp = !!expanded[node.path];
   const isSel = selected === node.path;
+  const [children, setChildren] = useState(node.children || null);
+  const [loadingChildren, setLoadingChildren] = useState(false);
+
+  useEffect(() => {
+    if (Array.isArray(node.children)) {
+      setChildren(node.children);
+    }
+  }, [node.children]);
+
+  const toggleExpand = async () => {
+    const nextExp = !isExp;
+    setExpanded((p) => ({ ...p, [node.path]: nextExp }));
+    if (nextExp && !children && ops?.listDir) {
+      setLoadingChildren(true);
+      try {
+        const sub = await ops.listDir(node.path);
+        setChildren(sub);
+      } catch (err) {
+        console.warn('[Sidebar] load subfolder error', err);
+        setChildren([]);
+      } finally {
+        setLoadingChildren(false);
+      }
+    }
+  };
 
   if (renaming === node.path) {
     return (
@@ -146,10 +173,13 @@ function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
   if (filter && isDir && !hasMatchingDescendant(node, filter)) return null;
 
   const onClick = () => {
-    if (isDir) setExpanded((p) => ({ ...p, [node.path]: !p[node.path] }));
-    else setSelected(node.path);
+    setSelected(node.path);
+    if (isDir) toggleExpand();
   };
-  const onDouble = () => { if (!isDir) onOpenFile?.(node); };
+  const onDouble = () => {
+    if (isDir && onNavigateFolder) onNavigateFolder(node.path);
+    else if (!isDir) onOpenFile?.(node);
+  };
 
   return (
     <div>
@@ -174,15 +204,16 @@ function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
           <span className="tree-fileglyph">{isMFile(node.name) ? '·n' : '·'}</span>
         )}
         <span className="tree-label">{node.name}</span>
+        {loadingChildren && <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 4 }}>…</span>}
       </div>
-      {isDir && isExp && Array.isArray(node.children) && node.children.map((c) => (
+      {isDir && isExp && Array.isArray(children) && children.map((c) => (
         <TreeRow key={c.path}
           node={c} depth={depth + 1}
           expanded={expanded} setExpanded={setExpanded}
           selected={selected} setSelected={setSelected}
-          onOpenFile={onOpenFile} onContextMenu={onContextMenu}
+          onOpenFile={onOpenFile} onNavigateFolder={onNavigateFolder} onContextMenu={onContextMenu}
           renaming={renaming} onRenameSubmit={onRenameSubmit} onRenameCancel={onRenameCancel}
-          filter={filter} />
+          filter={filter} ops={ops} />
       ))}
     </div>
   );
@@ -225,58 +256,6 @@ async function loadExamplesTree() {
     console.warn('[Sidebar] examples manifest load failed:', e);
     return [];
   }
-}
-
-// Extensions that must be mirrored byte-for-byte (imread / audioread /
-// load read these through the binary VFS hook; a text round-trip would
-// corrupt any byte ≥ 0x80).
-const BINARY_EXAMPLE_EXT = /\.(png|jpe?g|gif|bmp|tga|tiff?|webp|psd|hdr|pic|pgm|ppm|pnm|wav|mp3|m4a|ogg|flac|mat)$/i;
-
-// Fetch one example file and mirror it into the adapter at `vfsPath`,
-// picking the binary or text channel by extension. Returns the text
-// content for text files, or null for binary files.
-async function mirrorExampleFile(adapter, fetchPath, vfsPath) {
-  const r = await fetch(fetchPath);
-  if (!r.ok) throw new Error('fetch failed');
-  if (BINARY_EXAMPLE_EXT.test(vfsPath) && typeof adapter.writeFileBytes === 'function') {
-    const buf = await r.arrayBuffer();
-    adapter.writeFileBytes(vfsPath, new Uint8Array(buf));
-    return null;
-  }
-  const text = await r.text();
-  adapter.writeFile(vfsPath, text);
-  return text;
-}
-
-async function openExample(node, tree, vfsAdapters) {
-  if (node.type !== 'file' || !node._fetchPath) return null;
-  const isBinary = BINARY_EXAMPLE_EXT.test(node.name || node.path);
-
-  // Mirror folder into tempFS at /Examples/<Folder>/<file> so sibling
-  // .m lookup works for multi-file examples.
-  let vfsPath = null;
-  let content = null;
-  const m = node.path.match(/^\/examples\/([^/]+)\/(.+)$/);
-  if (m && vfsAdapters?.temp) {
-    const [, folder, fname] = m;
-    const folderNode = tree.find((n) => n.path === `/examples/${folder}`);
-    const siblings = folderNode?.children?.filter((c) => c.type === 'file') || [];
-    await Promise.all(siblings.map(async (sib) => {
-      const sibVfsPath = `/Examples/${folder}/${sib.name}`;
-      if (sib.name === fname) return;
-      if (vfsAdapters.temp.exists(sibVfsPath)) return;
-      try { await mirrorExampleFile(vfsAdapters.temp, sib._fetchPath, sibVfsPath); }
-      catch { /* per-file fetch failure tolerated */ }
-    }));
-    vfsPath = `/Examples/${folder}/${fname}`;
-    content = await mirrorExampleFile(vfsAdapters.temp, node._fetchPath, vfsPath);
-  } else {
-    // Not under /examples/<folder>/ — just fetch the content for display.
-    const res = await fetch(node._fetchPath);
-    if (!res.ok) throw new Error('fetch failed');
-    content = isBinary ? null : await res.text();
-  }
-  return { content, vfsPath, isBinary };
 }
 
 /* ─────────────── GitHub backend ─────────────── */
@@ -504,6 +483,7 @@ function GitHubBrowser({ onOpenFile }) {
 function makeOps(source) {
   const fs = source === 'localFolder' ? localFS : tempFS;
   return {
+    listDir: (p) => (typeof fs.listDir === 'function' ? fs.listDir(p) : fs.listTree()),
     listTree: () => fs.listTree(),
     readFile: (p) => fs.readFile(p),
     writeFile: (p, c) => fs.writeFile(p, c),
@@ -516,6 +496,11 @@ function makeOps(source) {
 
 /* ─────────────── full sidebar component ─────────────── */
 export default function Sidebar({
+  fsMode = 'virtual',
+  onFsModeChange,
+  cwd = '/',
+  onCwdChange,
+  onNavigateUp,
   onOpenFile,
   vfsRefreshKey,
   isTabUnsaved,
@@ -523,7 +508,8 @@ export default function Sidebar({
   vfsAdapters,
 }) {
   const localAvailable = typeof localFS !== 'undefined' && localFS.isAvailable?.();
-  const [source, setSource] = usePersistedState('numkit.ide.sidebar.source', 'examples');
+  const [rawSource, setSource] = usePersistedState('numkit.ide.sidebar.source', 'fs');
+  const source = (rawSource === 'localFolder' || rawSource === 'temporary') ? 'fs' : rawSource;
   const [tree, setTree] = useState([]);
   const [expanded, setExpanded] = usePersistedState(`numkit.ide.fb.expanded.${source}`, {});
   const [selected, setSelected] = useState(null);
@@ -536,24 +522,62 @@ export default function Sidebar({
 
   const isExamples = source === 'examples';
   const isGithub   = source === 'github';
+  const isLocal    = source === 'fs' && fsMode === 'local';
+  const isLocalUnmounted = isLocal && localStatus !== 'connected';
+
+  const currentRelDir = useMemo(() => {
+    if (source !== 'fs') return '';
+    if (isLocal) {
+      const lRoot = localFS.root?.() || '';
+      if (cwd && lRoot && cwd.startsWith(lRoot)) {
+        let rel = cwd.slice(lRoot.length).replace(/\\/g, '/');
+        if (!rel.startsWith('/')) rel = '/' + rel;
+        return rel === '/' ? '' : rel;
+      }
+      return '';
+    }
+    const vRel = (cwd || '/').replace(/\\/g, '/');
+    return vRel === '/' ? '' : vRel;
+  }, [source, isLocal, cwd]);
+
+  const isAtRoot = useMemo(() => {
+    if (source !== 'fs') return true;
+    if (isLocal) {
+      const clean = (cwd || '').trim().replace(/\\/g, '/');
+      if (!clean || clean === '/' || /^[A-Za-z]:\/?$/.test(clean)) return true;
+      return false;
+    }
+    return !currentRelDir || currentRelDir === '/' || currentRelDir === '';
+  }, [source, isLocal, cwd, currentRelDir]);
+
   const ops = useMemo(() =>
-    makeOps((source === 'examples' || source === 'github') ? 'temporary' : source),
-  [source]);
+    makeOps(isLocal ? 'localFolder' : 'temporary'),
+  [isLocal]);
 
   const loadTree = useCallback(async () => {
     try {
-      if (isExamples) setTree(await loadExamplesTree());
-      else if (isGithub) { /* GitHubBrowser owns its own tree state */ }
-      else setTree(await ops.listTree());
-    } catch (e) { console.error('[Sidebar] listTree failed', e); }
-  }, [ops, isExamples, isGithub]);
+      if (isExamples) {
+        setTree(await loadExamplesTree());
+      } else if (isGithub) {
+        /* GitHubBrowser owns its own tree state */
+      } else {
+        if (source === 'fs') {
+          const entries = await ops.listDir(currentRelDir || '/');
+          setTree(Array.isArray(entries) ? entries : []);
+        } else {
+          const raw = await ops.listTree();
+          setTree(Array.isArray(raw) ? raw : []);
+        }
+      }
+    } catch (e) { console.error('[Sidebar] loadTree failed', e); }
+  }, [ops, isExamples, isGithub, source, currentRelDir]);
 
-  // Reload on source change + on external write signal
-  useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey]);
+  // Reload on source change, fsMode change, cwd change, external write signal
+  useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey, fsMode, cwd]);
 
   // Restore Local Folder mount on mount
   useEffect(() => {
-    if (source !== 'localFolder' || !localAvailable) return;
+    if (!isLocal || !localAvailable) return;
     let cancelled = false;
     (async () => {
       try {
@@ -562,6 +586,10 @@ export default function Sidebar({
         if (name) {
           setLocalMountName(name);
           setLocalStatus('connected');
+          const root = localFS.root?.();
+          if (root && (!cwd || cwd === '/')) {
+            onCwdChange?.(root);
+          }
           await loadTree();
           if (onLocalMount) await onLocalMount();
         }
@@ -570,7 +598,7 @@ export default function Sidebar({
       }
     })();
     return () => { cancelled = true; };
-  }, [source, localAvailable, loadTree, onLocalMount]);
+  }, [isLocal, localAvailable, loadTree, onLocalMount, cwd, onCwdChange]);
 
   /* ─── source switch ─── */
   const switchSource = useCallback((next) => {
@@ -589,6 +617,8 @@ export default function Sidebar({
       if (name) {
         setLocalMountName(name);
         setLocalStatus('connected');
+        const root = localFS.root?.();
+        if (root) onCwdChange?.(root);
         await loadTree();
         if (onLocalMount) await onLocalMount();
       } else {
@@ -598,7 +628,7 @@ export default function Sidebar({
       console.error('[Sidebar] pickDirectory failed', e);
       setLocalStatus('denied');
     }
-  }, [localMountName, loadTree, onLocalMount]);
+  }, [localMountName, loadTree, onLocalMount, onCwdChange]);
 
   const handleUnmount = useCallback(async () => {
     if (!confirm('Unmount this folder? Your files on disk are not affected.')) return;
@@ -613,16 +643,29 @@ export default function Sidebar({
     if (node.type !== 'file') return;
     if (isExamples) {
       try {
-        const r = await openExample(node, tree, vfsAdapters);
-        // Binary examples (images/audio) are mirrored into tempFS for
-        // imread/audioread but aren't text — don't load them in the editor.
-        if (r && !r.isBinary) onOpenFile?.(node.name, r.content, r.vfsPath, 'examples');
+        const r = await openExample(node, tree, vfsAdapters, fsMode);
+        if (r) {
+          if (r.targetDir && onCwdChange) {
+            onCwdChange(r.targetDir);
+          }
+          if (r.fsMode && onFsModeChange) {
+            onFsModeChange(r.fsMode);
+          }
+          if (!r.isBinary) onOpenFile?.(node.name, r.content, r.vfsPath, r.source || (r.fsMode === 'local' ? 'localFolder' : 'temporary'));
+        }
       } catch (e) { console.error('[Sidebar] openExample', e); }
       return;
     }
     const content = await ops.readFile(node.path);
-    onOpenFile?.(node.name, content !== null ? content : '', node.path, source);
-  }, [ops, onOpenFile, source, isExamples, tree, vfsAdapters]);
+    const lRoot = isLocal ? (localFS.root?.() || '') : '';
+    let targetPath = node.path;
+    if (isLocal && lRoot && !isLocalDiskPath(targetPath)) {
+      const sep = lRoot.includes('\\') || /^[A-Za-z]:/.test(lRoot) ? '\\' : '/';
+      const cleanRel = targetPath.replace(/^\/+/, '').replace(/\//g, sep);
+      targetPath = lRoot.endsWith('\\') || lRoot.endsWith('/') ? `${lRoot}${cleanRel}` : `${lRoot}${sep}${cleanRel}`;
+    }
+    onOpenFile?.(node.name, content !== null ? content : '', targetPath, isLocal ? 'localFolder' : 'temporary');
+  }, [ops, onOpenFile, isLocal, isExamples, tree, vfsAdapters, fsMode, onCwdChange, onFsModeChange]);
 
   const handleCreate = useCallback(async (name) => {
     if (!name || !creating) { setCreating(null); return; }
@@ -755,32 +798,31 @@ export default function Sidebar({
     setContextMenu({ x: e.clientX, y: e.clientY, items });
   }, [isExamples, setExpanded, handleImport, handleFileOpen, handleDuplicate, handleDownload, handleDelete, loadTree]);
 
+  /* ─── root context menu (empty area click) ─── */
   const handleRootContextMenu = useCallback((e) => {
     e.preventDefault();
     if (isExamples) {
-      // Examples folder is read-only on disk, but the user may want to
-      // re-pull the manifest if it was edited externally.
       setContextMenu({
         x: e.clientX, y: e.clientY,
-        items: [{ icon: Icons.refresh, label: 'Refresh', action: () => loadTree() }],
+        items: [
+          { icon: Icons.refresh, label: 'Refresh', action: () => loadTree() },
+        ],
       });
       return;
     }
     setContextMenu({
       x: e.clientX, y: e.clientY,
       items: [
-        { icon: Icons.fileNew,   label: 'New file…',       action: () => setCreating({ parentPath: '', type: 'file' }) },
-        { icon: Icons.folderNew, label: 'New folder…',     action: () => setCreating({ parentPath: '', type: 'folder' }) },
-        { icon: Icons.upload,    label: 'Import file(s)…', action: () => handleImport('') },
+        { icon: Icons.fileNew,   label: 'New file…',       action: () => setCreating({ parentPath: currentRelDir, type: 'file' }) },
+        { icon: Icons.folderNew, label: 'New folder…',     action: () => setCreating({ parentPath: currentRelDir, type: 'folder' }) },
+        { icon: Icons.upload,    label: 'Import file(s)…', action: () => handleImport(currentRelDir) },
         { separator: true },
         { icon: Icons.refresh,   label: 'Refresh',         action: () => loadTree() },
       ],
     });
-  }, [isExamples, handleImport, loadTree]);
+  }, [isExamples, handleImport, loadTree, currentRelDir]);
 
   /* ─── render ─── */
-  const isLocalUnmounted = source === 'localFolder' && localStatus !== 'connected';
-
   return (
     <aside className="sidebar">
       {/* Source picker. Row 1 = combo + refresh (refresh pairs with the
@@ -792,12 +834,9 @@ export default function Sidebar({
           <select className="ws-picker"
             value={source}
             onChange={(e) => switchSource(e.target.value)}>
-            {/* Order: most-frequently-used (Local) first, then
-                Temporary, GitHub, Examples last. */}
-            {localAvailable && <option value="localFolder">Local Folder</option>}
-            <option value="temporary">Temporary</option>
-            <option value="github">GitHub</option>
+            <option value="fs">File System</option>
             <option value="examples">Examples</option>
+            <option value="github">GitHub</option>
           </select>
           {/* Always-visible refresh — picks up changes made on disk by
               other tools (mainly the real-disk Local Folder backend, but
@@ -810,33 +849,18 @@ export default function Sidebar({
         </div>
 
         {/* Mutating actions — new file + new folder work in both
-            Temporary and Local Folder (ops routes to the active fs);
-            open-folder is Local-only. Hidden for read-only sources
-            (Examples / GitHub). */}
+            Temporary and Local Folder (ops routes to the active fs).
+            Hidden for read-only sources (Examples / GitHub). */}
         {!isExamples && !isGithub && (
           <div className="sidebar-head-row sidebar-head-actions">
             <button className="sidebar-icon" title="New file"
-              onClick={() => setCreating({ parentPath: '', type: 'file' })}>
+              onClick={() => setCreating({ parentPath: currentRelDir, type: 'file' })}>
               {Icons.fileNew()}
             </button>
             <button className="sidebar-icon" title="New folder"
-              onClick={() => setCreating({ parentPath: '', type: 'folder' })}>
+              onClick={() => setCreating({ parentPath: currentRelDir, type: 'folder' })}>
               {Icons.folderNew()}
             </button>
-            {/* Local Folder only — open the OS folder-picker to (re)mount
-                a directory. Reuses handlePickLocal (same as first-mount),
-                so subsequent picks just switch the root. */}
-            {source === 'localFolder' && localAvailable && (
-              <button className="sidebar-icon" title="Open folder…"
-                onClick={handlePickLocal}>
-                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                  <path d="M1.5 4.5h4l1.2 1.5h5.8v6a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1V4.5z"
-                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-                  <path d="M1.5 4.5V3a1 1 0 0 1 1-1h2.7a1 1 0 0 1 .7.3l1 1h5.6a1 1 0 0 1 1 1v1.2"
-                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -854,21 +878,16 @@ export default function Sidebar({
           <circle cx="5" cy="5" r="3.2" stroke="currentColor" fill="none"/>
           <path d="M7.4 7.4L10 10" stroke="currentColor"/>
         </svg>
-        {filter ? (
-          <input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="filter files…"
-            spellCheck={false}
-            style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: 'inherit', font: 'inherit', padding: 0,
-            }}/>
-        ) : (
-          <span className="sidebar-search-hint" onClick={() => setFilter(' ')}>
-            Double-click to open file
-          </span>
-        )}
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter files…"
+          spellCheck={false}
+          style={{
+            flex: 1, background: 'transparent', border: 'none', outline: 'none',
+            color: 'inherit', font: 'inherit', padding: '0 4px', fontSize: 11,
+          }}
+        />
         {filter && (
           <button
             onClick={() => setFilter('')}
@@ -900,26 +919,24 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* Local Folder mount info */}
-      {source === 'localFolder' && localStatus === 'connected' && localMountName && (
-        <div style={{
-          padding: '4px 12px', fontSize: 10, color: 'var(--fg-3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span title={localMountName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            📁 {localMountName}
-          </span>
-          <button onClick={handleUnmount} title="Unmount"
-            style={{
-              background: 'transparent', border: 'none', color: 'var(--fg-3)',
-              cursor: 'pointer', padding: '0 4px', fontSize: 11,
-            }}>×</button>
-        </div>
-      )}
-
       {/* Tree */}
       {!isLocalUnmounted && (
         <div className="sidebar-tree" onContextMenu={handleRootContextMenu}>
+          {source === 'fs' && !isAtRoot && (
+            <div
+              className={`tree-row tree-folder ${selected === '..' ? 'is-active' : ''}`}
+              style={{ paddingLeft: 8, color: 'var(--fg-2)', cursor: 'pointer', userSelect: 'none' }}
+              onClick={() => setSelected('..')}
+              onDoubleClick={onNavigateUp}
+              title="Parent folder (..)"
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" className="tree-icon" style={{ opacity: 0.7 }}>
+                <path d="M1 3.5a1 1 0 0 1 1-1h2.5l1 1H10a1 1 0 0 1 1 1V9a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3.5z"
+                  fill="currentColor"/>
+              </svg>
+              <span className="tree-label" style={{ fontWeight: 600, letterSpacing: '1px' }}>..</span>
+            </div>
+          )}
           {tree.length === 0 && !creating && (
             <div style={{
               padding: 16, textAlign: 'center',
@@ -934,14 +951,26 @@ export default function Sidebar({
               node={node} depth={0}
               expanded={expanded} setExpanded={setExpanded}
               selected={selected} setSelected={setSelected}
-              onOpenFile={handleFileOpen} onContextMenu={handleContextMenu}
+              onOpenFile={handleFileOpen}
+              onNavigateFolder={(folderPath) => {
+                if (isLocal) {
+                  const lRoot = localFS.root?.() || '';
+                  const cleanRel = folderPath.startsWith('/') ? folderPath.slice(1) : folderPath;
+                  const fullPath = lRoot ? (lRoot.endsWith('\\') || lRoot.endsWith('/') ? `${lRoot}${cleanRel.replace(/\//g, '\\')}` : `${lRoot}\\${cleanRel.replace(/\//g, '\\')}`) : folderPath;
+                  onCwdChange?.(fullPath);
+                } else {
+                  onCwdChange?.(folderPath);
+                }
+              }}
+              onContextMenu={handleContextMenu}
               renaming={renaming}
               onRenameSubmit={handleRename}
               onRenameCancel={() => setRenaming(null)}
               filter={filter.trim()}
+              ops={ops}
             />
           ))}
-          {creating && (creating.parentPath === '' || creating.parentPath === '/') && (
+          {creating && (creating.parentPath === currentRelDir || creating.parentPath === '' || creating.parentPath === '/') && (
             <div className="tree-row" style={{ paddingLeft: 16 }}>
               <InlineInput defaultValue=""
                 placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'}

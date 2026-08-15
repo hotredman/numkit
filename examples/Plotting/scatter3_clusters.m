@@ -2,7 +2,7 @@
 % Hold-on lets us layer three Gaussian blobs in distinct positions.
 % Each cluster gets its own color and the orbit camera highlights
 % how the clusters separate in space.
-import compat.*;
+
 
 clear
 close all

@@ -6,6 +6,7 @@ import { useChooser } from './chooser';
 import { EntityBrowser, KIND_META, TONE, pickTone, WS_VIEW_KEY, WS_SORT_KEY } from './EntityBrowser';
 import { MatrixPanel, TILE, TILE_MODE_THRESHOLD } from './MatrixPanel';
 import { StructInspector } from './StructInspector';
+import ModalWindow from '../ui/ModalWindow';
 
 // Re-exported so existing importers (IDE, render tests) keep their
 // `{ MatrixPanel } from './Workspace'` imports working after the viewer
@@ -107,11 +108,19 @@ export function VariableEditor({ variable, onClose, engine }) {
   // window chrome + the name-addressed DATA layer below.
   const [maximized, setMaximized] = useState(false);
 
-  // dimensions: { rows, cols, tileMode } — populated from getVarShape
+  // dimensions: { rows, cols, tileMode } — populated from variable.size & getVarShape
   const initialShape = (() => {
-    const r = variable.data?.length || 1;
-    const c = variable.data?.[0]?.length || 1;
-    return { rows: r, cols: c, tileMode: false };
+    let r = variable.data?.length || 1;
+    let c = variable.data?.[0]?.length || 1;
+    if (variable.size && typeof variable.size === 'string') {
+      const m = variable.size.match(/(\d+)\s*[x×]\s*(\d+)/);
+      if (m) {
+        r = parseInt(m[1], 10) || r;
+        c = parseInt(m[2], 10) || c;
+      }
+    }
+    const tileMode = (r * c > TILE_MODE_THRESHOLD);
+    return { rows: r, cols: c, tileMode };
   })();
   const [shape, setShape] = useState(initialShape);
   // Linear page index (0-based) of the displayed 2-D slice for 3-D / N-D
@@ -146,16 +155,17 @@ export function VariableEditor({ variable, onClose, engine }) {
     tileCache.current = new Map();
     sliceCache.current = new Map();
     if (!engine || typeof engine.getVarData !== 'function') {
-      setShape({ rows: variable.data?.length || 1, cols: variable.data?.[0]?.length || 1, tileMode: false });
       return;
     }
+    let active = true;
     setLoading(true);
-    const handle = setTimeout(() => {
+    (async () => {
       try {
         // Cheap dimension probe first.
         const sh = (typeof engine.getVarShape === 'function')
-          ? engine.getVarShape(variable.name)
+          ? await engine.getVarShape(variable.name)   // may be Promise (native) or value (WASM)
           : null;
+        if (!active) return;
         if (sh && !sh.error) {
           const numel = sh.rows * sh.cols;
           const tileMode = numel > TILE_MODE_THRESHOLD
@@ -169,7 +179,8 @@ export function VariableEditor({ variable, onClose, engine }) {
           }
         }
         // Small enough: full fetch.
-        const r = engine.getVarData(variable.name);
+        const r = await engine.getVarData(variable.name);   // may be Promise (native) or value (WASM)
+        if (!active) return;
         if (!r) { setLoading(false); return; }
         if (r.error) { setLoadError(r.error); setLoading(false); return; }
         if (Array.isArray(r.data) && r.data.length > 0) {
@@ -183,12 +194,14 @@ export function VariableEditor({ variable, onClose, engine }) {
         }
         setLoading(false);
       } catch (e) {
-        setLoadError(e?.message || String(e));
-        setLoading(false);
+        if (active) {
+          setLoadError(e?.message || String(e));
+          setLoading(false);
+        }
       }
-    }, 0);
-    return () => clearTimeout(handle);
-  }, [variable, engine, isStructLike]);
+    })();
+    return () => { active = false; };
+  }, [variable.name, engine, isStructLike]);
 
   // Page change → refetch the full-mode slice. Tile-mode pages are keyed by
   // `page` in the tile / slice caches below, so they refetch lazily without
@@ -199,12 +212,14 @@ export function VariableEditor({ variable, onClose, engine }) {
     if (page === loadedPageRef.current) return;
     loadedPageRef.current = page;
     if (!engine || typeof engine.getVarPage !== 'function') return;
-    try {
-      const r = engine.getVarPage(variable.name, page);
-      if (r && !r.error && Array.isArray(r.data)) setData(r.data);
-    } catch (e) {
-      setLoadError(e?.message || String(e));
-    }
+    (async () => {
+      try {
+        const r = await engine.getVarPage(variable.name, page);   // may be Promise (native)
+        if (r && !r.error && Array.isArray(r.data)) setData(r.data);
+      } catch (e) {
+        setLoadError(e?.message || String(e));
+      }
+    })();
   }, [page, variable.name, engine, shape.tileMode, isStructLike]);
 
   /* ─── slice cache (for InlinePlot in both modes) ─── */
@@ -218,21 +233,32 @@ export function VariableEditor({ variable, onClose, engine }) {
     }
     const key = `${page}:${axis}:${idx}`;
     const cached = sliceCache.current.get(key);
-    if (cached) return cached;
-    if (!engine || typeof engine.getVarTile !== 'function') return [];
-    let res;
-    if (axis === 'row') {
-      res = engine.getVarTile(variable.name, idx, 0, 1, shape.cols, page);
-    } else {
-      res = engine.getVarTile(variable.name, 0, idx, shape.rows, 1, page);
+    if (cached && cached !== 'pending' && cached !== 'error') return cached;
+    if (cached === undefined) {
+      sliceCache.current.set(key, 'pending');
+      Promise.resolve().then(async () => {
+        try {
+          let res;
+          if (axis === 'row') {
+            res = await engine.getVarTile(variable.name, idx, 0, 1, Math.min(shape.cols, 10000), page);
+          } else {
+            res = await engine.getVarTile(variable.name, 0, idx, Math.min(shape.rows, 10000), 1, page);
+          }
+          if (!res || res.error || !Array.isArray(res.data)) {
+            sliceCache.current.set(key, 'error');
+          } else {
+            const out = (axis === 'row')
+              ? (res.data[0] || [])
+              : res.data.map((r) => r[0]);
+            sliceCache.current.set(key, out);
+          }
+        } catch {
+          sliceCache.current.set(key, 'error');
+        }
+        setTileBump((n) => n + 1);
+      });
     }
-    if (!res || res.error || !Array.isArray(res.data)) return [];
-    // Flatten — tile.data is rows×cols; slice is one row or one col.
-    const out = (axis === 'row')
-      ? (res.data[0] || [])
-      : res.data.map((r) => r[0]);
-    sliceCache.current.set(key, out);
-    return out;
+    return [];
   }, [shape.tileMode, shape.rows, shape.cols, data, engine, variable.name, page]);
 
   /* ─── tile-mode cell accessor ─── */
@@ -255,9 +281,10 @@ export function VariableEditor({ variable, onClose, engine }) {
       tileCache.current.set(key, 'pending');
       const r0 = tR * TILE, c0 = tC * TILE;
       // Defer to a microtask so React's render pass isn't blocked.
-      Promise.resolve().then(() => {
+      // `await` handles both WASM (sync value) and native (Promise).
+      Promise.resolve().then(async () => {
         try {
-          const res = engine.getVarTile(variable.name, r0, c0, TILE, TILE, page);
+          const res = await engine.getVarTile(variable.name, r0, c0, TILE, TILE, page);
           if (!res || res.error || !Array.isArray(res.data)) {
             tileCache.current.set(key, 'error');
           } else {
@@ -288,8 +315,8 @@ export function VariableEditor({ variable, onClose, engine }) {
       return;
     }
     let cancelled = false;
-    setTimeout(() => {
-      const s = engine.getVarStats(variable.name, page);   // per-slice stats
+    setTimeout(async () => {
+      const s = await engine.getVarStats(variable.name, page);   // may be Promise (native)
       if (cancelled) return;
       if (s && !s.error) setTileStats(s);
     }, 0);
@@ -341,93 +368,51 @@ export function VariableEditor({ variable, onClose, engine }) {
   const meta = KIND_META[variable.kind] || KIND_META.matrix;
   const tone = pickTone(TONE[meta.tone] || TONE.amber, veThemeName);
 
-  // Shared title-right (maximise / close) — identical for the matrix
-  // and struct layouts, so it lives in one const.
-  const titleButtons = (
-    <div className="ve-title-right">
-      <button className="ve-close" onClick={() => setMaximized((m) => !m)}
-        title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
-        {maximized ? (
-          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-            <rect x="1.5" y="3.5" width="7" height="7"
-              stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-            <rect x="3.5" y="1.5" width="7" height="7"
-              stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-          </svg>
-        ) : (
-          <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-            <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
-          </svg>
-        )}
-      </button>
-      <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
-    </div>
-  );
-
-  // ── Struct / cell layout — drill-in inspector, no matrix toolbar ──
+  // ── Struct / cell layout — drill-in inspector ──
   if (isStructLike) {
     return (
-      <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className={`ve-window ve-window-struct ${maximized ? 'is-max' : ''}`}
-          role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
-          <div className="ve-titlebar">
-            <div className="ve-title-left">
-              <span className="ve-tag" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
-                {meta.glyph} {variable.type}
-              </span>
-              <span className="ve-name">{variable.name}</span>
-              <span className="ve-dim">{variable.size}</span>
-            </div>
-            {titleButtons}
-          </div>
-          <div className="ve-struct-body">
-            <StructInspector key={variable.name} variable={variable} engine={engine} />
-          </div>
-        </div>
-      </div>
+      <ModalWindow
+        onClose={onClose}
+        title="Inspector"
+        subtitle={variable.name}
+        ariaLabel={`Inspector: ${variable.name}`}
+        maximized={maximized}
+        onMaximizedChange={setMaximized}
+        className="ve-window ve-window-struct"
+      >
+        <StructInspector key={variable.name} variable={variable} engine={engine} onEscape={onClose} />
+      </ModalWindow>
     );
   }
 
   return (
-    <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`ve-window ${maximized ? 'is-max' : ''}`}
-        role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
-        <div className="ve-titlebar">
-          <div className="ve-title-left">
-            <span className="ve-tag" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
-              {meta.glyph} {variable.type}
-            </span>
-            <span className="ve-name">{variable.name}</span>
-            <span className="ve-dim">{variable.size}</span>
-            <span className="ve-meta" title={`${variable.bytes} B · ${rows * cols} elements`}>
-              {variable.bytes} B · {rows * cols} elements
-            </span>
-            {loading && (
-              <span className="ve-meta" style={{ color: 'var(--accent)' }}>
-                loading…
-              </span>
-            )}
-            {loadError && (
-              <span className="ve-meta" style={{ color: 'var(--danger)' }}
-                title={loadError}>
-                preview only
-              </span>
-            )}
-          </div>
-          {titleButtons}
-        </div>
-
-        <MatrixPanel
-          rows={rows} cols={cols} name={variable.name} type={variable.type}
-          getCellValue={getCellValue} getSlice={getSlice} stats={stats}
-          dims={shape.dims} page={page} setPage={setPage}
-          readOnly={false}
-          onCommit={onCommit}
-          onEscape={onClose}
-          onSave={shape.tileMode ? null : (f) => exportData(variable, data, f)}
-          saveDisabled={shape.tileMode}
-        />
-      </div>
-    </div>
+    <ModalWindow
+      onClose={onClose}
+      title="Inspector"
+      subtitle={variable.name}
+      meta={
+        loading ? (
+          <span style={{ color: 'var(--accent)' }}>loading…</span>
+        ) : loadError ? (
+          <span style={{ color: 'var(--danger)' }} title={loadError}>preview only</span>
+        ) : null
+      }
+      ariaLabel={`Inspector: ${variable.name}`}
+      maximized={maximized}
+      onMaximizedChange={setMaximized}
+      className="ve-window"
+    >
+      <MatrixPanel
+        engine={engine}
+        rows={rows} cols={cols} name={variable.name} type={variable.type}
+        getCellValue={getCellValue} getSlice={getSlice} stats={stats}
+        dims={shape.dims} page={page} setPage={setPage}
+        readOnly={false}
+        onCommit={onCommit}
+        onEscape={onClose}
+        onSave={shape.tileMode ? null : (f) => exportData(variable, data, f)}
+        saveDisabled={shape.tileMode}
+      />
+    </ModalWindow>
   );
 }

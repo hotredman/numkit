@@ -50,6 +50,7 @@ export function VirtualTable({
   editing, setEditing, editVal, setEditVal, commitEdit, inputRef,
   heatmap, stats, format,
   readOnly = false,
+  onCellDoubleClick,
 }) {
   const [scroll, setScroll] = useState({ top: 0, left: 0, viewW: 800, viewH: 400 });
 
@@ -144,6 +145,10 @@ export function VirtualTable({
                     onClick={() => setActiveCell({ r, c })}
                     onDoubleClick={() => {
                       setActiveCell({ r, c });
+                      if (onCellDoubleClick) {
+                        onCellDoubleClick(r, c);
+                        return;
+                      }
                       if (readOnly) return;
                       // Same loaded-value guard as Enter / F2.
                       if (v === null || v === undefined) return;
@@ -205,9 +210,16 @@ export function MatrixPanel({
   rows, cols, name, type,
   getCellValue, getSlice, stats,
   dims, page = 0, setPage,
+  engine,
   readOnly = false,
   onCommit, onEscape, onSave,
   saveDisabled = false,
+  customBody = null,
+  addressRef = null,
+  activeCell: externalActiveCell,
+  setActiveCell: externalSetActiveCell,
+  breadCrumbs = null,
+  onCellDoubleClick = null,
 }) {
   const [precision, setPrecision] = useState(4);
   const [notation, setNotation]   = useState('fixed');
@@ -221,16 +233,34 @@ export function MatrixPanel({
   });
   useEffect(() => { localStorage.setItem('numkit.ve.plotWidth', String(plotWidth)); }, [plotWidth]);
 
-  const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
+  const [internalActiveCell, setInternalActiveCell] = useState({ r: 0, c: 0 });
+  const activeCell = externalActiveCell !== undefined ? externalActiveCell : internalActiveCell;
+  const setActiveCell = externalSetActiveCell || setInternalActiveCell;
+
   const [editing, setEditing]       = useState(null);
   const [editVal, setEditVal]       = useState('');
   const veBodyRef = useRef(null);
   const tableRef  = useRef(null);
   const inputRef  = useRef(null);
 
+  const normType = String(type || '').toLowerCase();
+  const isComplex = normType.includes('complex');
+  const isNumericType = !type || [
+    'double', 'single',
+    'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64',
+    'complex', 'complex double', 'complex single'
+  ].includes(normType) || isComplex;
+
   // Reset the active cell when the data source changes shape (e.g. the
   // inspector drilled into a different field).
   useEffect(() => { setActiveCell({ r: 0, c: 0 }); setEditing(null); }, [rows, cols, name]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
 
   function startDragDivider(e) {
     e.preventDefault();
@@ -245,11 +275,13 @@ export function MatrixPanel({
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('blur', onUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('blur', onUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }
@@ -263,7 +295,10 @@ export function MatrixPanel({
   const COMPLEX_RE = /^\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)i\s*$/;
   function format(v) {
     if (v === null || v === undefined) return '—';
+    if (typeof v === 'object' && v.summary) return v.summary;
+    if (typeof v === 'object') return JSON.stringify(v);
     if (typeof v === 'number') return formatNum(v);
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
     if (typeof v === 'string') {
       const m = v.match(COMPLEX_RE);
       if (m) {
@@ -291,6 +326,10 @@ export function MatrixPanel({
   }, [editing]);
 
   const handleKey = useCallback((e) => {
+    const tag = e.target?.tagName?.toLowerCase();
+    if (!editing && (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable)) {
+      return;
+    }
     if (editing) {
       if (e.key === 'Enter')  { e.preventDefault(); commitEdit(); }
       if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }
@@ -298,10 +337,10 @@ export function MatrixPanel({
     }
     if (e.key === 'Escape') { onEscape?.(); return; }
     if (!readOnly && (e.key === 'Enter' || e.key === 'F2')) {
-      const v = getCellValue(activeCell.r, activeCell.c);
+      const v = getCellValue ? getCellValue(activeCell.r, activeCell.c) : null;
       if (v === null || v === undefined) return;
       setEditing({ ...activeCell });
-      setEditVal(typeof v === 'number' ? String(v) : '');
+      setEditVal(typeof v === 'number' ? String(v) : (typeof v === 'string' ? v : ''));
       e.preventDefault();
       return;
     }
@@ -315,7 +354,7 @@ export function MatrixPanel({
     if (e.key === 'PageUp')     r = Math.max(0, r - 10);
     if (e.key === 'PageDown')   r = Math.min(rows - 1, r + 10);
     if (r !== activeCell.r || c !== activeCell.c) { setActiveCell({ r, c }); e.preventDefault(); }
-  }, [activeCell, rows, cols, editing, getCellValue, onEscape, readOnly, commitEdit]);
+  }, [activeCell, rows, cols, editing, getCellValue, onEscape, readOnly, commitEdit, setActiveCell]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKey);
@@ -323,148 +362,149 @@ export function MatrixPanel({
   }, [handleKey]);
 
   return (
-    <>
-      <div className="ve-toolbar">
-        {dims && pageCount(dims) > 1 && (
-          <div className="ve-tools-group ve-slice-nav">
-            <span className="ve-label">slice</span>
-            <span className="ve-slice-expr">{name}(:,:,</span>
-            {dims.slice(2).map((dlen, j) => {
-              const subs = pageToSubs(page, dims);
-              const k = subs[j] || 0;
-              const setK = (nk) => {
-                const s = pageToSubs(page, dims);
-                s[j] = Math.min(dlen - 1, Math.max(0, nk));
-                setPage?.(subsToPage(s, dims));
-              };
-              return (
-                <span key={j} className="ve-slice-dim">
-                  {j > 0 && <span className="ve-slice-comma">,</span>}
-                  <button className="ve-slice-arrow" disabled={k <= 0}
-                    onClick={() => setK(k - 1)} title="Previous slice">‹</button>
-                  <input className="ve-slice-input" type="number" min={1} max={dlen}
-                    value={k + 1}
-                    onChange={(e) => { const nv = parseInt(e.target.value, 10);
-                                       if (Number.isFinite(nv)) setK(nv - 1); }} />
-                  <span className="ve-slice-of">/{dlen}</span>
-                  <button className="ve-slice-arrow" disabled={k >= dlen - 1}
-                    onClick={() => setK(k + 1)} title="Next slice">›</button>
-                </span>
-              );
-            })}
-            <span className="ve-slice-expr">)</span>
-          </div>
-        )}
-        <div className="ve-tools-group">
-          <span className="ve-label">notation</span>
-          <div className="ve-segmented">
-            {['fixed', 'exp', 'auto'].map((n) => (
-              <button key={n} className={notation === n ? 'is-active' : ''} onClick={() => setNotation(n)}>{n}</button>
-            ))}
-          </div>
-        </div>
-        <div className="ve-tools-group">
-          <span className="ve-label">precision</span>
-          <input type="range" min={0} max={8} step={1}
-            value={precision} onChange={(e) => setPrecision(parseInt(e.target.value, 10))} />
-          <span className="ve-precision-num">{precision}</span>
-        </div>
-        <div className="ve-tools-group">
-          {stats && <StatChooserButton visible={statsVisible} setVisible={setStatsVisible} />}
-          <button className={`ve-btn ${heatmap ? 'is-active' : ''}`}
-            onClick={() => setHeatmap((h) => !h)} title="Toggle value heatmap">
-            <svg width="11" height="11" viewBox="0 0 12 12">
-              <rect x="0.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 240)"/>
-              <rect x="3.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 180)"/>
-              <rect x="6.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 60)"/>
-              <rect x="9.5" y="0.5" width="2" height="11" fill="oklch(0.6 0.1 30)"/>
-            </svg>
-            heatmap
-          </button>
-          <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
-            title="Toggle inline plot" onClick={() => setShowPlot((p) => !p)}>
-            <svg width="11" height="11" viewBox="0 0 12 12">
-              <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
-            </svg>
-            plot
-          </button>
-          <button className="ve-btn" title="Copy as CSV" onClick={() => {
-            const lines = [];
-            for (let r = 0; r < rows; r++) {
-              const row = [];
-              for (let c = 0; c < cols; c++) {
-                const v = getCellValue(r, c);
-                row.push(typeof v === 'number' ? v : `"${v ?? ''}"`);
-              }
-              lines.push(row.join(','));
-            }
-            navigator.clipboard?.writeText(lines.join('\n'));
-          }}>
-            <svg width="11" height="11" viewBox="0 0 12 12">
-              <rect x="2" y="2" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
-              <rect x="3.5" y="0.5" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
-            </svg>
-            copy csv
-          </button>
-          {onSave && (
-            <div className="ve-saveas-wrap">
-              <button className="ve-btn ve-saveas-trigger"
-                title={saveDisabled ? 'save disabled for huge matrices' : 'Save variable to file'}
-                disabled={saveDisabled}
-                onClick={() => setSaveOpen((s) => !s)}>
-                <svg width="11" height="11" viewBox="0 0 12 12">
-                  <path d="M2 2h6l2 2v6H2z M4 2v3h4V2 M4 8h4v2H4z" stroke="currentColor" fill="none"/>
-                </svg>
-                save as
-                <svg width="8" height="8" viewBox="0 0 8 8" style={{ marginLeft: 2 }}>
-                  <path d="M1 2.5 L4 5.5 L7 2.5" stroke="currentColor" fill="none" strokeWidth="1.2" strokeLinecap="round"/>
-                </svg>
-              </button>
-              {saveOpen && (
-                <SaveAsMenu onClose={() => setSaveOpen(false)}
-                  onPick={(f) => { onSave(f); setSaveOpen(false); }} />
-              )}
+    <div className="ve-main-panel">
+      {breadCrumbs ? (
+        <div className="ve-crumbs-bar">{breadCrumbs}</div>
+      ) : null}
+
+      {isNumericType && (
+        <div className="ve-toolbar">
+          {dims && pageCount(dims) > 1 && (
+            <div className="ve-tools-group ve-slice-nav">
+              <span className="ve-label">slice</span>
+              <span className="ve-slice-expr">{name}(:,:,</span>
+              {dims.slice(2).map((dlen, j) => {
+                const subs = pageToSubs(page, dims);
+                const k = subs[j] || 0;
+                const setK = (nk) => {
+                  const s = pageToSubs(page, dims);
+                  s[j] = Math.min(dlen - 1, Math.max(0, nk));
+                  setPage?.(subsToPage(s, dims));
+                };
+                return (
+                  <span key={j} className="ve-slice-dim">
+                    {j > 0 && <span className="ve-slice-comma">,</span>}
+                    <button className="ve-slice-arrow" disabled={k <= 0}
+                      onClick={() => setK(k - 1)} title="Previous slice">‹</button>
+                    <input className="ve-slice-input" type="number" min={1} max={dlen}
+                      value={k + 1}
+                      onChange={(e) => { const nv = parseInt(e.target.value, 10);
+                                         if (Number.isFinite(nv)) setK(nv - 1); }} />
+                    <span className="ve-slice-of">/{dlen}</span>
+                    <button className="ve-slice-arrow" disabled={k >= dlen - 1}
+                      onClick={() => setK(k + 1)} title="Next slice">›</button>
+                  </span>
+                );
+              })}
+              <span className="ve-slice-expr">)</span>
             </div>
           )}
+          <div className="ve-tools-group">
+            <span className="ve-label">notation</span>
+            <div className="ve-segmented">
+              {['fixed', 'exp', 'auto'].map((n) => (
+                <button key={n}
+                  className={notation === n ? 'is-active' : ''}
+                  onClick={() => setNotation(n)}>{n}</button>
+              ))}
+            </div>
+          </div>
+          <div className="ve-tools-group">
+            <span className="ve-label">precision</span>
+            <input type="range" min={0} max={8} step={1}
+              value={precision} onChange={(e) => setPrecision(parseInt(e.target.value, 10))} />
+            <span className="ve-precision-num">{precision}</span>
+          </div>
+          <div className="ve-tools-group">
+            <StatChooserButton visible={statsVisible} setVisible={setStatsVisible} disabled={!stats || isComplex} />
+            <button className={`ve-btn ${heatmap ? 'is-active' : ''}`}
+              title={isComplex ? 'Heatmap is disabled for complex numbers' : 'Toggle value heatmap'}
+              disabled={isComplex}
+              onClick={() => setHeatmap((h) => !h)}>
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <rect x="0.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 240)"/>
+                <rect x="3.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 180)"/>
+                <rect x="6.5" y="0.5" width="3" height="11" fill="oklch(0.6 0.1 60)"/>
+                <rect x="9.5" y="0.5" width="2" height="11" fill="oklch(0.6 0.1 30)"/>
+              </svg>
+            </button>
+            <button className={`ve-btn ${showPlot ? 'is-active' : ''}`}
+              title={isComplex ? 'Inline plot is disabled for complex numbers' : 'Toggle inline plot'}
+              disabled={isComplex}
+              onClick={() => setShowPlot((p) => !p)}>
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <polyline points="1,9 4,5 7,7 11,2" stroke="currentColor" fill="none" strokeWidth="1.4"/>
+              </svg>
+            </button>
+            <button className="ve-btn" title="Copy as CSV" onClick={() => {
+              const lines = [];
+              for (let r = 0; r < rows; r++) {
+                const row = [];
+                for (let c = 0; c < cols; c++) {
+                  const v = getCellValue ? getCellValue(r, c) : '';
+                  const formatted = typeof v === 'number' ? formatNum(v) : (typeof v === 'string' ? format(v) : `"${v ?? ''}"`);
+                  row.push(formatted);
+                }
+                lines.push(row.join(','));
+              }
+              navigator.clipboard?.writeText(lines.join('\n'));
+            }}>
+              <svg width="11" height="11" viewBox="0 0 12 12">
+                <rect x="2" y="2" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
+                <rect x="3.5" y="0.5" width="7" height="8" rx="1" stroke="currentColor" fill="none"/>
+              </svg>
+            </button>
+            {onSave && (
+              <div className="ve-saveas-wrap">
+                <button className="ve-btn ve-saveas-trigger"
+                  title={saveDisabled ? 'save disabled for huge matrices' : 'Export variable data'}
+                  disabled={saveDisabled}
+                  onClick={() => setSaveOpen((s) => !s)}>
+                  <svg width="11" height="11" viewBox="0 0 12 12">
+                    <path d="M6 1v8M3 6l3 3 3-3M2 11h8" stroke="currentColor" fill="none" strokeLinecap="round"/>
+                  </svg>
+                  ▾
+                </button>
+                {saveOpen && (
+                  <SaveAsMenu onClose={() => setSaveOpen(false)}
+                    onPick={(f) => { onSave(f); setSaveOpen(false); }} />
+                )}
+              </div>
+            )}
+          </div>
+          <div className="ve-tools-spacer" />
         </div>
-        <div className="ve-tools-spacer" />
-      </div>
+      )}
 
-      {/* Aggregate statistics over the whole matrix, on their own row. The
-          chooser (Σ ▾) lives in the toolbar above; this row collapses to
-          nothing for non-numeric values OR when no statistic is selected. */}
-      <StatsBar stats={stats} visible={statsVisible} />
+      {isNumericType && !isComplex && <StatsBar stats={stats} visible={statsVisible} />}
 
-      <div className="ve-address">
-        <span className="ve-cell-ref">{name}({activeCell.r + 1}, {activeCell.c + 1}{dims && dims.length > 2 ? pageToSubs(page, dims).map((k) => `, ${k + 1}`).join('') : ''})</span>
-        <span className="ve-eq">=</span>
-        <span className="ve-cell-val">{format(getCellValue(activeCell.r, activeCell.c))}</span>
-      </div>
-
-      <div className={`ve-body ${showPlot ? 'has-plot' : ''}`}
+      <div className={`ve-body ${showPlot && isNumericType && !isComplex ? 'has-plot' : ''}`}
            ref={veBodyRef}
-           style={showPlot ? { gridTemplateColumns: `1fr 6px ${plotWidth}px` } : undefined}>
-        <VirtualTable
-          tableRef={tableRef}
-          rows={rows} cols={cols}
-          getCellValue={getCellValue}
-          activeCell={activeCell} setActiveCell={setActiveCell}
-          editing={editing} setEditing={setEditing}
-          editVal={editVal} setEditVal={setEditVal}
-          commitEdit={commitEdit}
-          inputRef={inputRef}
-          heatmap={heatmap} stats={stats}
-          format={format}
-          readOnly={readOnly}
-        />
-        {showPlot && (
+           style={showPlot && isNumericType && !isComplex ? { gridTemplateColumns: `1fr 6px ${plotWidth}px` } : undefined}>
+        {customBody || (
+          <VirtualTable
+            tableRef={tableRef}
+            rows={rows} cols={cols}
+            getCellValue={getCellValue}
+            activeCell={activeCell} setActiveCell={setActiveCell}
+            editing={editing} setEditing={setEditing}
+            editVal={editVal} setEditVal={setEditVal}
+            commitEdit={commitEdit}
+            inputRef={inputRef}
+            heatmap={heatmap} stats={stats}
+            format={format}
+            readOnly={readOnly}
+          />
+        )}
+        {showPlot && isNumericType && (
           <>
             <div className="ve-divider" role="separator" aria-orientation="vertical"
               aria-label="Resize plot pane"
               onMouseDown={startDragDivider}
               onDoubleClick={() => setPlotWidth(520)}
               title="Drag to resize · double-click to reset" />
-            <InlinePlot getSlice={getSlice} rows={rows} cols={cols}
+            <InlinePlot getSlice={getSlice} rows={rows} cols={cols} varName={name} engine={engine}
+              isSparse={type && type.includes('sparse')} page={page}
               onClose={() => setShowPlot(false)} />
           </>
         )}
@@ -483,7 +523,7 @@ export function MatrixPanel({
         <span className="ve-sep" />
         <span>{readOnly ? 'read-only' : 'read/write'}</span>
       </div>
-    </>
+    </div>
   );
 }
 

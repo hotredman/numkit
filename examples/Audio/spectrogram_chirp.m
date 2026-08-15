@@ -3,7 +3,7 @@
 % varying spectrum with spectrogram.  The diagonal stripe in the
 % time-frequency plane is the chirp's instantaneous frequency.
 
-import compat.*;
+
 
 clear
 close all

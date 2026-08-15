@@ -164,15 +164,26 @@ export default function NumkitASTTreeView({ source, engine, cursorLine, onNaviga
       setError(null);
       return;
     }
-    const result = engine.buildAST(source);
-    if (result && result.error) {
-      setError(result.error);
-      setAst(null);
-    } else {
-      setAst(result);
-      setError(null);
-      setCollapsed(new Set());  // stale IDs on source change
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await engine.buildAST(source);
+        if (cancelled) return;
+        if (result && result.error) {
+          setError(result.error);
+          setAst(null);
+        } else {
+          setAst(result);
+          setError(null);
+          setCollapsed(new Set());  // stale IDs on source change
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(err?.message || String(err));
+        setAst(null);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [source, engine]);
 
   const activeId = useMemo(
