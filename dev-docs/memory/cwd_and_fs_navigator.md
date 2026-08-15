@@ -29,7 +29,7 @@ When running scripts in the IDE (especially examples or user projects doing file
        - Copies only the opened script into `<os_temp_dir>/numkit/examples/<script_base_name>`.
        - Sets `localCwd` to `<os_temp_dir>/numkit/examples/<script_base_name>`.
      - Opens the script in the editor tab.
-   - When running the script, `runCode` resolves the directory containing `activeTabObj.vfsPath` directly (absolute path for direct examples, or relative to `localFS.root()` for files opened from the local file browser), preserving the active folder and eliminating path compounding/duplication or resetting to root.
+   - When running the script, `runCode` automatically aligns the active filesystem mode (`fsMode`) with the tab's source (`localFolder` vs `temporary`), switching mode and setting `targetCwd` in the matching filesystem (e.g. `/numkit_ide/examples/audio_io_roundtrip` for Virtual FS without corrupting it into `C:\numkit_ide\...`).
 
 
 
