@@ -58,6 +58,13 @@ describe('pathUtils', () => {
       expect(sanitizeLocalPath('c:/')).toBe('C:\\');
     });
 
+    it('navigates to the drive root when / or \\ is entered', () => {
+      expect(sanitizeLocalPath('/', 'C:\\Users\\User')).toBe('C:\\');
+      expect(sanitizeLocalPath('\\', 'C:\\Users\\User')).toBe('C:\\');
+      expect(sanitizeLocalPath('/', 'D:\\Projects\\Data')).toBe('D:\\');
+      expect(sanitizeLocalPath('/', '')).toBe('C:\\');
+    });
+
     it('normalizes Windows drive paths with forward slashes and removes trailing slash', () => {
       expect(sanitizeLocalPath('c:/Users/User/Projects')).toBe('C:\\Users\\User\\Projects');
       expect(sanitizeLocalPath('C:\\Users\\User\\Projects\\')).toBe('C:\\Users\\User\\Projects');

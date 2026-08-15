@@ -65,6 +65,15 @@ export function sanitizeLocalPath(rawPath, localRoot = '') {
   const p = rawPath.trim();
   if (!p) return localRoot || '';
 
+  // Explicit root slash '/' or '\' -> root of current drive (e.g. 'C:\' or 'D:\')
+  if (p === '/' || p === '\\') {
+    if (localRoot && isLocalDiskPath(localRoot)) {
+      const normRoot = sanitizeLocalPath(localRoot);
+      return `${normRoot.slice(0, 2)}\\`;
+    }
+    return 'C:\\';
+  }
+
   if (isLocalDiskPath(p)) {
     const drive = p[0].toUpperCase() + ':';
     const rest = p.slice(2).replace(/\//g, '\\');
