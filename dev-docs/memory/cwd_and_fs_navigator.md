@@ -33,8 +33,15 @@ When running scripts in the IDE (especially examples or user projects doing file
    - `numkit_repl.exe` supports `--fs=<mode>`, `--cwd=<path>`, and pipe protocol commands `__SET_CWD__:<path>`, `__GET_CWD__`, `__SET_FS__:<fs>`.
    - IPC `window.nativeFS.runRepl(code, { cwd })` and `window.nativeFS.setCwd(path)` pass CWD parameters dynamically.
 
-6. **Local FS Default Home & Dynamic Dynamic CWD Switching**:
+6. **Local FS Default Home & Dynamic CWD Switching**:
    - When Local FS is not explicitly selected by the user, `localFS` defaults to the OS user home directory (`app.getPath('home')` / `os.homedir()`).
    - `localFS.setRootPath(...)` allows changing active disk directories dynamically from the path input, sidebar double-click, or the File Navigator modal.
    - Breadcrumbs calculate path segments cleanly for Windows drive paths (`C:\Users\...`) and POSIX paths (`/home/...`) to prevent path duplication or illegal relative concats.
+
+7. **Shallow Directory Listing & On-Demand (Lazy) Folder Loading**:
+   - Replaced monolithic recursive `listTree()` with shallow `listDir(root, relPath)` across Electron IPC, preload, `localFS`, and `tempFS`.
+   - `Sidebar` and `FileNavigatorModal` query only the immediate children of the active folder (`< 1 ms`, minimal memory).
+   - In `Sidebar.jsx`, expanding a folder in `TreeRow` dynamically loads that folder's children on demand.
+   - Eliminates artificial file count limits (8000), recursion depth issues, and directory blacklists.
+
 
