@@ -1425,7 +1425,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                     className={`evt-btn${editorPanes.ast ? ' is-active' : ''}`}
                     onClick={() => toggleEditorPane('ast')}
                     title="Parse-tree AST — graph layout (toggle)"
-                  >AST</button>
+                  >ast</button>
                   <button
                     className={`evt-btn${editorPanes.tree ? ' is-active' : ''}`}
                     onClick={() => toggleEditorPane('tree')}
