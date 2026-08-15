@@ -10,7 +10,7 @@ describe('FileNavigatorModal render smoke', () => {
 
   afterEach(cleanup);
 
-  it('mounts the FileNavigator modal without throwing', async () => {
+  it('mounts the FileNavigator modal with unified ModalWindow chrome', async () => {
     const onClose = vi.fn();
     const onSetCurrentFolder = vi.fn();
 
@@ -27,13 +27,20 @@ describe('FileNavigatorModal render smoke', () => {
       await Promise.resolve();
     });
 
-    const { container, getByText, getByPlaceholderText } = rendered;
-    expect(container.querySelector('.fw-overlay')).toBeTruthy();
+    const { container, getByText, getByPlaceholderText, getByTitle } = rendered;
+    expect(container.querySelector('.modal-overlay')).toBeTruthy();
+    expect(container.querySelector('.modal-window')).toBeTruthy();
     expect(getByText(/File Navigator/i)).toBeTruthy();
     expect(getByPlaceholderText('Search files…')).toBeTruthy();
 
+    // Maximize button
+    const maxBtn = getByTitle('Maximise');
+    expect(maxBtn).toBeTruthy();
+    fireEvent.click(maxBtn);
+    expect(container.querySelector('.modal-window.is-max')).toBeTruthy();
+
     // Close button
-    const closeBtn = getByText('✕');
+    const closeBtn = getByTitle('Close (Esc)');
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
