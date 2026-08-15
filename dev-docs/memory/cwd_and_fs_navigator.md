@@ -60,6 +60,12 @@ When running scripts in the IDE (especially examples or user projects doing file
      - **Files**: 1 click selects; 2 clicks opens the file in editor.
    - Fixed `safePath` in `main.js` to ensure Windows drive roots (e.g. `C:\`, `D:\`) with trailing path separators properly validate without false `Path escapes mounted root` errors.
 
+9. **Modular Architecture & Test Coverage (`pathUtils.js` & `examples.js`)**:
+   - `ide/src/fs/pathUtils.js`: Centralized pure path operations (`sanitizeVfsPath`, `getParentDir`, `isLocalDiskPath`, `getFileName`, `getFileBaseName`).
+   - `ide/src/fs/examples.js`: Encapsulated example extraction, binary media detection, and target VFS/Local cloning.
+   - 100% test coverage with dedicated Vitest suites in `pathUtils.test.js` and `examples.test.js` (526 tests passing).
+
+
 
 
 
