@@ -841,9 +841,8 @@ export default function Sidebar({
         </div>
 
         {/* Mutating actions — new file + new folder work in both
-            Temporary and Local Folder (ops routes to the active fs);
-            open-folder is Local-only. Hidden for read-only sources
-            (Examples / GitHub). */}
+            Temporary and Local Folder (ops routes to the active fs).
+            Hidden for read-only sources (Examples / GitHub). */}
         {!isExamples && !isGithub && (
           <div className="sidebar-head-row sidebar-head-actions">
             <button className="sidebar-icon" title="New file"
@@ -854,20 +853,6 @@ export default function Sidebar({
               onClick={() => setCreating({ parentPath: currentRelDir, type: 'folder' })}>
               {Icons.folderNew()}
             </button>
-            {/* Local Folder only — open the OS folder-picker to (re)mount
-                a directory. Reuses handlePickLocal (same as first-mount),
-                so subsequent picks just switch the root. */}
-            {isLocal && localAvailable && (
-              <button className="sidebar-icon" title="Open folder…"
-                onClick={handlePickLocal}>
-                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                  <path d="M1.5 4.5h4l1.2 1.5h5.8v6a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1V4.5z"
-                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-                  <path d="M1.5 4.5V3a1 1 0 0 1 1-1h2.7a1 1 0 0 1 .7.3l1 1h5.6a1 1 0 0 1 1 1v1.2"
-                    stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            )}
           </div>
         )}
       </div>
