@@ -37,7 +37,9 @@ vite build → dist/ — static bundle                        BASE_URL = ./ (rel
 | `web-run.{sh,bat}` | Copy WASM → `ide/public/`, run the Vite **dev server** (source + HMR) at `:3000`. | HTTP, root |
 | `desktop-run.bat` *(win)* | Launch the Electron shell in **dev mode** — `main.js` spawns the same Vite dev server and loads the window from it. | HTTP, root |
 | `web-build.{sh,bat}` | Build the static site (WASM + `vite build`) into `deploy/` (gitignored). Host it anywhere. | HTTP, root or sub-path |
+| `publish-code.{sh,bat}` | Push source code, main branch, and tags to GitHub source mirror repository. | Git / GitHub |
 | `publish-pages.{sh,bat}` | Synchronize built static site (`deploy/`) into GitHub Pages distribution repository (`--push` to push). | Git / GitHub Pages |
+| `publish-all.{sh,bat}` | Publish both source code repository and Web IDE GitHub Pages distribution in one command. | Git / GitHub |
 | `desktop-build.bat` *(win)* | Full desktop build: WASM + `vite build --base ./` + `electron-builder --win portable` → `.exe`. | file:// |
 
 ### Why `base: './'` (relative)
