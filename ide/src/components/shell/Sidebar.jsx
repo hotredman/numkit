@@ -329,8 +329,8 @@ async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
     return { content, vfsPath, targetDir, isBinary, fsMode: 'local', source: 'localFolder' };
   }
 
-  // Virtual FS: /numkit_ide/examples/<scriptBaseName>
-  const targetRelDir = `/numkit_ide/examples/${scriptBaseName}`;
+  // Virtual FS: /temporary/numkit_ide/examples/<scriptBaseName>
+  const targetRelDir = `/temporary/numkit_ide/examples/${scriptBaseName}`;
   const tempBackend = vfsAdapters?.temp || tempFS;
   if (tempBackend) {
     try { if (tempBackend.mkdir) await tempBackend.mkdir(targetRelDir); } catch { /* ignore */ }
