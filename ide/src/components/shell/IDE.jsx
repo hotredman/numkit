@@ -18,6 +18,8 @@ import NumkitASTView from '../lang/NumkitASTView';
 import NumkitASTTreeView from '../lang/NumkitASTTreeView';
 import { adaptVariables, adaptFigures } from '../plot/adapters';
 
+import CurrentFolderBar from './CurrentFolderBar';
+import FileNavigatorModal from './FileNavigatorModal';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
 import { pickRunOrigin } from '../../fs/run-origin';
@@ -530,6 +532,42 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     });
   }, []);
 
+  const localAvailable = typeof localFS !== 'undefined' && localFS.isAvailable?.();
+  const [fsMode, setFsMode] = useState(() => {
+    try { return localStorage.getItem('numkit.ide.fsmode') || 'virtual'; }
+    catch { return 'virtual'; }
+  });
+  const [cwd, setCwd] = useState(() => {
+    try { return localStorage.getItem('numkit.ide.cwd') || '/'; }
+    catch { return '/'; }
+  });
+  const [isNavOpen, setIsNavOpen] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem('numkit.ide.fsmode', fsMode); } catch { /* ignore */ }
+  }, [fsMode]);
+  useEffect(() => {
+    try { localStorage.setItem('numkit.ide.cwd', cwd); } catch { /* ignore */ }
+  }, [cwd]);
+
+  const handleCwdChange = useCallback((newCwd) => {
+    setCwd(newCwd);
+    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+      window.nativeFS.setCwd(newCwd);
+    }
+  }, []);
+
+  const handleNavigateUp = useCallback(() => {
+    let p = (cwd || '/').replace(/\\/g, '/');
+    if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
+    const idx = p.lastIndexOf('/');
+    if (idx <= 0) {
+      handleCwdChange('/');
+    } else {
+      handleCwdChange(p.slice(0, idx));
+    }
+  }, [cwd, handleCwdChange]);
+
   const runCode = useCallback(async (code) => {
     if (isRunning) return; // guard against concurrent runs
     setIsRunning(true);
@@ -550,10 +588,47 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     }
 
     let scriptDir = null;
-    if (activeTabObj?.vfsPath) {
-      const idx = Math.max(activeTabObj.vfsPath.lastIndexOf('/'), activeTabObj.vfsPath.lastIndexOf('\\'));
-      if (idx > 0) scriptDir = activeTabObj.vfsPath.slice(0, idx);
-      else if (idx === 0) scriptDir = '/';
+    let targetCwd = null;
+
+    // Handle Examples Auto-Cloning to Active FS
+    if (activeTabObj?.source === 'examples') {
+      const fname = activeTabObj.name || 'example.m';
+      const scriptBaseName = fname.replace(/\.[^/.]+$/, '');
+      const exampleRelDir = `/examples/${scriptBaseName}`;
+      const exampleFilePath = `${exampleRelDir}/${fname}`;
+
+      if (fsMode === 'local' && localFS.isMounted()) {
+        const localRoot = localFS.root();
+        try {
+          await localFS.mkdir(exampleRelDir);
+          await localFS.writeFile(exampleFilePath, code);
+        } catch (e) { console.warn('[runCode] local mirror failed', e); }
+        targetCwd = localRoot ? (localRoot.endsWith('\\') || localRoot.endsWith('/') ? `${localRoot}examples\\${scriptBaseName}` : `${localRoot}\\examples\\${scriptBaseName}`) : exampleRelDir;
+        scriptDir = exampleRelDir;
+      } else {
+        try {
+          await tempFS.mkdir(exampleRelDir);
+          await tempFS.writeFile(exampleFilePath, code);
+        } catch (e) { console.warn('[runCode] temp mirror failed', e); }
+        const tRoot = tempFS.root?.();
+        targetCwd = tRoot ? (tRoot.endsWith('\\') || tRoot.endsWith('/') ? `${tRoot}examples\\${scriptBaseName}` : `${tRoot}\\examples\\${scriptBaseName}`) : exampleRelDir;
+        scriptDir = exampleRelDir;
+      }
+
+      handleCwdChange(targetCwd || scriptDir);
+      setTabs((prev) => prev.map((t) => t.id === activeTabObj.id ? { ...t, vfsPath: exampleFilePath } : t));
+    } else if (activeTabObj?.source === 'localFolder') {
+      const localRoot = localFS.root();
+      const relDir = activeTabObj?.vfsPath ? activeTabObj.vfsPath.substring(0, activeTabObj.vfsPath.lastIndexOf('/')) || '/' : '/';
+      targetCwd = localRoot ? (relDir === '/' ? localRoot : `${localRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
+      scriptDir = relDir;
+      handleCwdChange(targetCwd || scriptDir);
+    } else if (activeTabObj?.source === 'temporary') {
+      const relDir = activeTabObj?.vfsPath ? activeTabObj.vfsPath.substring(0, activeTabObj.vfsPath.lastIndexOf('/')) || '/' : '/';
+      const tRoot = tempFS.root?.();
+      targetCwd = tRoot ? (relDir === '/' ? tRoot : `${tRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
+      scriptDir = relDir;
+      handleCwdChange(targetCwd || scriptDir);
     }
 
     const t0 = performance.now();
@@ -561,7 +636,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
     // ── Electron: route through persistent native REPL session ──
     if (typeof window.nativeFS !== 'undefined' && window.nativeFS.runRepl) {
-      const r = await window.nativeFS.runRepl(code);
+      const r = await window.nativeFS.runRepl(code, { cwd: targetCwd || cwd });
       setExecTimeMs(performance.now() - t0);
       setErrorLine(r.errorLine ?? null);   // highlight failing line; null = clear
 
@@ -624,11 +699,12 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       if (adapter) adapter.flush().then((wasDirty) => {
         if (mountedRef.current && wasDirty) setVfsRefreshKey((k) => k + 1);
       });
+      setVfsRefreshKey((k) => k + 1);
       return;
     }
 
     // ── Browser: WASM engine ──────────────────────────────────────
-    if (origin) engine.pushScriptOrigin(origin, scriptDir);
+    if (origin) engine.pushScriptOrigin(origin, scriptDir || cwd);
     try {
       result = engine.execute(code);
     } finally {
@@ -636,6 +712,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     }
     setExecTimeMs(performance.now() - t0);
     setErrorLine(null);
+    setVfsRefreshKey((k) => k + 1);
 
     const items = [];
     if (result.output) {
@@ -1075,8 +1152,8 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // an extra explicit row into the template so it doesn't auto-place into
   // the 22px statusbar row and squash main to nothing.
   const gridRows = isDebugging
-    ? '36px 28px 1fr 22px'
-    : '36px 1fr 22px';
+    ? '36px 28px 28px 1fr 22px'
+    : '36px 28px 1fr 22px';
   return (
     <div className="ide" style={{ gridTemplateRows: gridRows }}>
       <Toolbar
@@ -1103,6 +1180,17 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         isBuildRunning={isBuildRunning}
         isRunning={isRunning}
         canRun={Boolean(activeTabData?.code?.trim())}
+      />
+
+      <CurrentFolderBar
+        fsMode={fsMode}
+        onFsModeChange={setFsMode}
+        cwd={cwd}
+        onCwdChange={handleCwdChange}
+        onNavigateUp={handleNavigateUp}
+        onOpenNavigator={() => setIsNavOpen(true)}
+        localAvailable={localAvailable}
+        localMountName={localFS.mountName?.()}
       />
 
       {/* Debug toolbar — shown when paused */}
@@ -1354,6 +1442,23 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       )}
       {prefsOpen && (
         <PreferencesModal onClose={() => setPrefsOpen(false)} />
+      )}
+      {isNavOpen && (
+        <FileNavigatorModal
+          onClose={() => setIsNavOpen(false)}
+          fsMode={fsMode}
+          onFsModeChange={setFsMode}
+          currentCwd={cwd}
+          onSetCurrentFolder={(newCwd, newMode) => {
+            if (newMode) setFsMode(newMode);
+            handleCwdChange(newCwd);
+          }}
+          onOpenFile={(name, content, path, source) => {
+            handleOpenFile(name, content, path, source);
+          }}
+          localAvailable={localAvailable}
+          localMountName={localFS.mountName?.()}
+        />
       )}
 
       {showSaveDialog && (

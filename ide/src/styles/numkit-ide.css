@@ -3444,3 +3444,347 @@ select.ve-btn.fw-cmap-select {
   background: oklch(0.74 0.13 200 / 0.12);
 }
 
+/* ===========================================================
+   CURRENT FOLDER BAR (MATLAB-Style Navigation Strip)
+   =========================================================== */
+.current-folder-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.cf-label {
+  display: flex;
+  align-items: center;
+  color: var(--fg-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.cf-mode-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.cf-mode-select {
+  background: var(--bg-2);
+  color: var(--fg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 2px 8px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  outline: none;
+}
+
+.cf-mode-select:focus {
+  border-color: var(--accent);
+}
+
+.cf-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--line);
+  margin: 0 2px;
+}
+
+.cf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 2px 7px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.cf-btn:hover:not(:disabled) {
+  background: var(--bg-3);
+  border-color: var(--fg-3);
+}
+
+.cf-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cf-path-box {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0 6px;
+  height: 22px;
+}
+
+.cf-path-box:focus-within {
+  border-color: var(--accent);
+}
+
+.cf-path-icon {
+  margin-right: 6px;
+  font-size: 11px;
+  user-select: none;
+}
+
+.cf-path-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  outline: none;
+  width: 100%;
+}
+
+.cf-btn-browse {
+  padding: 2px 8px;
+  font-weight: 500;
+}
+
+/* ===========================================================
+   FILE NAVIGATOR MODAL
+   =========================================================== */
+.nav-modal-window {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.nav-modal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-modal-filter-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.nav-modal-filter-input {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 3px 8px;
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  outline: none;
+  width: 180px;
+}
+
+.nav-modal-filter-input:focus {
+  border-color: var(--accent);
+}
+
+.nav-modal-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 11.5px;
+}
+
+.nav-breadcrumb-btn {
+  background: transparent;
+  border: none;
+  color: var(--fg-2);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+}
+
+.nav-breadcrumb-btn:hover {
+  background: var(--bg-2);
+  color: var(--fg-0);
+}
+
+.nav-breadcrumb-btn.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-breadcrumb-sep {
+  color: var(--fg-3);
+  user-select: none;
+}
+
+.nav-modal-new-folder-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.nav-modal-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nav-modal-table-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.nav-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.nav-modal-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-2);
+  color: var(--fg-2);
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+}
+
+.nav-modal-table th:hover {
+  color: var(--fg-0);
+}
+
+.nav-modal-row {
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  transition: background 0.08s;
+}
+
+.nav-modal-row:hover {
+  background: var(--bg-2);
+}
+
+.nav-modal-row.is-selected {
+  background: oklch(0.72 0.15 150 / 0.15);
+}
+
+.nav-modal-row td {
+  padding: 6px 10px;
+  vertical-align: middle;
+}
+
+.nav-row-icon {
+  margin-right: 6px;
+  user-select: none;
+}
+
+.nav-row-name {
+  color: var(--fg-0);
+  font-weight: 500;
+}
+
+.nav-modal-info-panel {
+  width: 260px;
+  background: var(--bg-2);
+  border-left: 1px solid var(--line);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.nav-info-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin-bottom: 12px;
+  letter-spacing: 0.06em;
+}
+
+.nav-info-icon-large {
+  font-size: 36px;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.nav-info-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-0);
+  word-break: break-all;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.nav-info-prop {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: var(--fg-2);
+}
+
+.nav-prop-label {
+  color: var(--fg-3);
+}
+
+.nav-prop-val-break {
+  word-break: break-all;
+  text-align: right;
+}
+
+.nav-info-empty {
+  color: var(--fg-3);
+  font-size: 12px;
+  text-align: center;
+  margin-top: 40px;
+}
+
+.nav-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--line);
+}
+
+.nav-modal-footer-cwd {
+  font-size: 12px;
+  color: var(--fg-1);
+}
+
+

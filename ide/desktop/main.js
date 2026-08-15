@@ -310,6 +310,13 @@ function safePath(root, relPath) {
   return full;
 }
 
+const TEMP_ROOT = path.join(app.getPath('userData'), 'temporary');
+try { fs.mkdirSync(TEMP_ROOT, { recursive: true }); } catch { /* ignore */ }
+
+ipcMain.handle('fs:getTempRoot', async () => {
+  return TEMP_ROOT;
+});
+
 ipcMain.handle('fs:pickDirectory', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Select Folder',
@@ -991,13 +998,27 @@ class ReplSession {
   }
 
   // Send code to the session; return Promise<{stdout,stderr,vars,exitCode,notFound?,sessionRestarted?}>.
-  async run(code) {
+  async run(code, opts = null) {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
     const wasRestarted = this.crashed;
-    const payload = code + '\n__END_OF_INPUT__\n';
+    let payload = '';
+    if (opts?.cwd) {
+      const normalizedCwd = opts.cwd.replace(/\\/g, '/');
+      payload += `cd('${normalizedCwd}')\n`;
+    }
+    payload += (typeof code === 'string' ? code : '') + '\n__END_OF_INPUT__\n';
 
     return new Promise((resolve) => {
       this._enqueue(exePath, payload, resolve, wasRestarted, 'run');
+    });
+  }
+
+  // Set the current working directory in the session.
+  async setCwd(newCwd) {
+    const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
+    const normalizedCwd = (newCwd || '').replace(/\\/g, '/');
+    return new Promise((resolve) => {
+      this._enqueue(exePath, `__SET_CWD__:${normalizedCwd}\n`, resolve, false, 'query');
     });
   }
 
@@ -1090,8 +1111,12 @@ const replSession = new ReplSession();
 
 // IPC: execute code in the persistent REPL session.
 // Returns { stdout, stderr, vars, exitCode, notFound?, sessionRestarted? }
-ipcMain.handle('repl:run', async (_e, code) => {
-  return replSession.run(typeof code === 'string' ? code : '');
+ipcMain.handle('repl:run', async (_e, code, opts) => {
+  return replSession.run(typeof code === 'string' ? code : '', opts);
+});
+
+ipcMain.handle('repl:setCwd', async (_e, newCwd) => {
+  return replSession.setCwd(newCwd);
 });
 
 // IPC: reset the REPL workspace (clear all).
