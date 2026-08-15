@@ -38,7 +38,9 @@ When running scripts in the IDE (especially examples or user projects doing file
 
 5. **REPL CLI and IPC CWD Control**:
    - `numkit_repl.exe` supports `--fs=<mode>`, `--cwd=<path>`, and pipe protocol commands `__SET_CWD__:<path>`, `__GET_CWD__`, `__SET_FS__:<fs>`.
+   - In Electron desktop mode, `replSession.run` and `replSession.setCwd` automatically resolve pure virtual paths (e.g. `/numkit_ide/examples/...`) to physical directories under `TEMP_ROOT` (`resolveReplCwd`), ensuring `numkit_repl.exe` executes `cd(...)` without errors while preserving pure virtual paths in the IDE UI.
    - IPC `window.nativeFS.runRepl(code, { cwd })` and `window.nativeFS.setCwd(path)` pass CWD parameters dynamically.
+
 
 6. **Local FS Default Home & Dynamic CWD Switching**:
    - When Local FS is not explicitly selected by the user, `localFS` defaults to the OS user home directory (`app.getPath('home')` / `os.homedir()`).
