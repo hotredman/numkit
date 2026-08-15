@@ -8,12 +8,16 @@ DEPLOY_DIR="$PROJECT_DIR/deploy"
 # Determine default pages directory
 PAGES_DIR="${NUMKIT_PAGES_DIR:-}"
 if [[ -z "$PAGES_DIR" ]]; then
-    if [[ -d "$PROJECT_DIR/../numkit-pages/.git" ]]; then
+    if [[ -d "$PROJECT_DIR/../../hotredman/numkit-demo/.git" ]]; then
+        PAGES_DIR="$PROJECT_DIR/../../hotredman/numkit-demo"
+    elif [[ -d "$PROJECT_DIR/../numkit-demo/.git" ]]; then
+        PAGES_DIR="$PROJECT_DIR/../numkit-demo"
+    elif [[ -d "$PROJECT_DIR/../numkit-pages/.git" ]]; then
         PAGES_DIR="$PROJECT_DIR/../numkit-pages"
-    elif [[ -d "$PROJECT_DIR/../../czssgkavo/numkit/.git" ]]; then
-        PAGES_DIR="$PROJECT_DIR/../../czssgkavo/numkit"
     elif [[ -d "$PROJECT_DIR/../numkit-web/.git" ]]; then
         PAGES_DIR="$PROJECT_DIR/../numkit-web"
+    elif [[ -d "$PROJECT_DIR/../../czssgkavo/numkit/.git" ]]; then
+        PAGES_DIR="$PROJECT_DIR/../../czssgkavo/numkit"
     fi
 fi
 
