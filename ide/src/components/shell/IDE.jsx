@@ -653,23 +653,27 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     // If the active tab has an associated file path, ensure changes are written and targetCwd is its directory
     if (activeTabObj?.vfsPath) {
       const vPath = activeTabObj.vfsPath;
-      if (/^[A-Za-z]:[\\/]/.test(vPath)) {
-        // Windows absolute local path
+      if (isLocalDiskPath(vPath)) {
+        // Windows absolute local path (e.g. C:\Users\User\...\script.m)
         const lastSlash = Math.max(vPath.lastIndexOf('\\'), vPath.lastIndexOf('/'));
         targetCwd = lastSlash > 0 ? vPath.slice(0, lastSlash) : vPath;
         if (typeof window !== 'undefined' && window.nativeFS?.writeFile) {
           const fname = vPath.slice(lastSlash + 1);
           try { await window.nativeFS.writeFile(targetCwd, '/' + fname, code); } catch (_) {}
         }
-      } else if (vPath.startsWith('/')) {
+      } else if (activeTabObj.source === 'localFolder' && localFS.isMounted()) {
+        // Relative path inside mounted Local Folder (e.g. /script.m or /sub/script.m)
+        const lRoot = localFS.root() || '';
+        const lastSlash = vPath.lastIndexOf('/');
+        const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '';
+        targetCwd = relDir ? `${lRoot}\\${relDir.slice(1).replace(/\//g, '\\')}` : lRoot;
+        try { await localFS.writeFile(vPath, code); } catch (_) {}
+      } else {
+        // Virtual FS path (e.g. /numkit_ide/examples/group_aggregation/group_aggregation.m)
         const lastSlash = vPath.lastIndexOf('/');
         const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '/';
         targetCwd = relDir;
-        if (activeTabObj.source === 'localFolder' && localFS.isMounted()) {
-          try { await localFS.writeFile(vPath, code); } catch (_) {}
-        } else {
-          try { await tempFS.writeFile(vPath, code); } catch (_) {}
-        }
+        try { await tempFS.writeFile(vPath, code); } catch (_) {}
       }
       if (targetCwd && targetCwd !== cwd) {
         handleCwdChange(targetCwd);
