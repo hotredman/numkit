@@ -16,6 +16,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('nativeFS', {
     // Folder mount & persistence.
     pickDirectory: () => ipcRenderer.invoke('fs:pickDirectory'),
+    getTempRoot:   () => ipcRenderer.invoke('fs:getTempRoot'),
 
     // Tree / file operations, all rooted at `root` (the absolute
     // folder path returned by pickDirectory). Paths passed in are
@@ -64,7 +65,10 @@ contextBridge.exposeInMainWorld('nativeFS', {
     // ── Persistent REPL session ──────────────────────────────────
     // Execute code in the long-lived numkit_repl --ide-session process.
     // Returns { stdout, stderr, vars, exitCode, notFound?, sessionRestarted? }
-    runRepl: (code) => ipcRenderer.invoke('repl:run', code),
+    runRepl: (code, opts) => ipcRenderer.invoke('repl:run', code, opts),
+
+    // Set the current working directory in the REPL session.
+    setCwd: (newCwd) => ipcRenderer.invoke('repl:setCwd', newCwd),
 
     // Send __RESET__ to the REPL session (clear all, workspace wiped).
     resetRepl: () => ipcRenderer.invoke('repl:reset'),

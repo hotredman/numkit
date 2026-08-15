@@ -469,6 +469,31 @@ int runIdeSession(bool compatMode)
             continue;
         }
 
+        if (line.size() >= 12 && line.compare(0, 12, "__SET_CWD__:") == 0) {
+            const std::string newCwd = line.substr(12);
+            engine.setCwd(newCwd);
+            std::cout << "__SET_CWD_OK__\n__END_OF_RUN__\n";
+            std::cout.flush();
+            accum.clear();
+            continue;
+        }
+
+        if (line == "__GET_CWD__") {
+            std::cout << "__CWD__:" << engine.cwd() << "\n__END_OF_RUN__\n";
+            std::cout.flush();
+            accum.clear();
+            continue;
+        }
+
+        if (line.size() >= 11 && line.compare(0, 11, "__SET_FS__:") == 0) {
+            const std::string fsName = line.substr(11);
+            numkit::envSet("NUMKIT_FS", fsName);
+            std::cout << "__SET_FS_OK__\n__END_OF_RUN__\n";
+            std::cout.flush();
+            accum.clear();
+            continue;
+        }
+
         // Handle introspection commands
         if (handleIntrospection(engine, line, nullptr)) {
             accum.clear();
@@ -546,6 +571,8 @@ void printUsage(const char *prog)
               << "  (no args)          interactive REPL\n"
               << "  script.m           evaluate the file and exit\n"
               << "  --ide-session      persistent pipe session (used by the IDE)\n"
+              << "  --fs=<fs>          select filesystem (native, temporary, local)\n"
+              << "  --cwd=<path>       set current working directory\n"
               << "  --compat           enable MATLAB compatibility (implicit import compat.*)\n"
               << "  -h | --help        show this message\n";
 }
@@ -567,6 +594,14 @@ int main(int argc, char **argv)
             compatMode = true;
         } else if (arg == "--ide-session") {
             isIdeSession = true;
+        } else if (arg.rfind("--fs=", 0) == 0) {
+            numkit::envSet("NUMKIT_FS", arg.substr(5));
+        } else if (arg == "--fs" && i + 1 < argc) {
+            numkit::envSet("NUMKIT_FS", argv[++i]);
+        } else if (arg.rfind("--cwd=", 0) == 0) {
+            numkit::envSet("NUMKIT_CWD", arg.substr(6));
+        } else if (arg == "--cwd" && i + 1 < argc) {
+            numkit::envSet("NUMKIT_CWD", argv[++i]);
         } else if (arg.length() > 0 && arg[0] != '-') {
             target = arg;
         }

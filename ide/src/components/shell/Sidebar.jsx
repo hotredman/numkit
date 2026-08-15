@@ -252,30 +252,47 @@ async function openExample(node, tree, vfsAdapters) {
   if (node.type !== 'file' || !node._fetchPath) return null;
   const isBinary = BINARY_EXAMPLE_EXT.test(node.name || node.path);
 
-  // Mirror folder into tempFS at /Examples/<Folder>/<file> so sibling
-  // .m lookup works for multi-file examples.
-  let vfsPath = null;
+  const fname = node.name || 'example.m';
+  const scriptBaseName = fname.replace(/\.[^/.]+$/, '');
+  const targetRelDir = `/examples/${scriptBaseName}`;
+  const vfsPath = `${targetRelDir}/${fname}`;
   let content = null;
-  const m = node.path.match(/^\/examples\/([^/]+)\/(.+)$/);
-  if (m && vfsAdapters?.temp) {
-    const [, folder, fname] = m;
-    const folderNode = tree.find((n) => n.path === `/examples/${folder}`);
-    const siblings = folderNode?.children?.filter((c) => c.type === 'file') || [];
-    await Promise.all(siblings.map(async (sib) => {
-      const sibVfsPath = `/Examples/${folder}/${sib.name}`;
-      if (sib.name === fname) return;
-      if (vfsAdapters.temp.exists(sibVfsPath)) return;
-      try { await mirrorExampleFile(vfsAdapters.temp, sib._fetchPath, sibVfsPath); }
-      catch { /* per-file fetch failure tolerated */ }
-    }));
-    vfsPath = `/Examples/${folder}/${fname}`;
-    content = await mirrorExampleFile(vfsAdapters.temp, node._fetchPath, vfsPath);
+
+  const tempBackend = vfsAdapters?.temp || tempFS;
+  if (tempBackend) {
+    try {
+      if (typeof tempBackend.mkdir === 'function') await tempBackend.mkdir(targetRelDir);
+    } catch { /* ignore */ }
+
+    // Check for sibling files in the same example category folder
+    const m = (node.path || '').match(/^\/examples\/([^/]+)\/(.+)$/);
+    if (m) {
+      const [, folder] = m;
+      const folderNode = tree.find((n) => n.path === `/examples/${folder}`);
+      const siblings = folderNode?.children?.filter((c) => c.type === 'file') || [];
+      await Promise.all(siblings.map(async (sib) => {
+        if (sib.name === fname) return;
+        const sibVfsPath = `${targetRelDir}/${sib.name}`;
+        try {
+          if (tempBackend.exists && tempBackend.exists(sibVfsPath)) return;
+          await mirrorExampleFile(tempBackend, sib._fetchPath, sibVfsPath);
+        } catch { /* tolerate */ }
+      }));
+    }
+
+    try {
+      content = await mirrorExampleFile(tempBackend, node._fetchPath, vfsPath);
+    } catch (e) {
+      console.warn('[openExample] mirror failed, fetching directly:', e);
+      const res = await fetch(node._fetchPath);
+      if (res.ok) content = isBinary ? null : await res.text();
+    }
   } else {
-    // Not under /examples/<folder>/ — just fetch the content for display.
     const res = await fetch(node._fetchPath);
     if (!res.ok) throw new Error('fetch failed');
     content = isBinary ? null : await res.text();
   }
+
   return { content, vfsPath, isBinary };
 }
 

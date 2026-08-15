@@ -147,6 +147,11 @@ FsContext::ResolvedPath FsContext::resolvePath(const std::string &userPath) cons
     if (!isAbsolutePath(path)) {
         std::string cwd = !cwd_.empty() ? cwd_
                                         : envGet(envVarName("CWD").c_str());
+        if (cwd.empty()) {
+            if (auto *sdir = currentScriptDir()) {
+                if (!sdir->empty()) cwd = *sdir;
+            }
+        }
         if (!cwd.empty())
             path = joinPath(cwd, path);
     }
