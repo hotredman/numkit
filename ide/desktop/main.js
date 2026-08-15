@@ -736,6 +736,18 @@ function _extractFigureMarkers(output) {
   return { cleanOutput: cleanLines.join('\n'), figures, closedFigureIds, closeAllFigures, errorLine };
 }
 
+function resolveReplCwd(rawCwd) {
+  if (!rawCwd) return null;
+  let p = rawCwd.trim();
+  if (/^[A-Za-z]:[\\/]/.test(p)) {
+    return path.normalize(p);
+  }
+  if (p.startsWith('/')) {
+    return path.resolve(TEMP_ROOT, p.slice(1));
+  }
+  return path.resolve(TEMP_ROOT, p);
+}
+
 class ReplSession {
   constructor() {
     this.proc      = null;    // child_process.ChildProcess
@@ -1004,18 +1016,6 @@ class ReplSession {
       exitCode:        0,
     });
   }
-
-function resolveReplCwd(rawCwd) {
-  if (!rawCwd) return null;
-  let p = rawCwd.trim();
-  if (/^[A-Za-z]:[\\/]/.test(p)) {
-    return path.normalize(p);
-  }
-  if (p.startsWith('/')) {
-    return path.resolve(TEMP_ROOT, p.slice(1));
-  }
-  return path.resolve(TEMP_ROOT, p);
-}
 
   // Send code to the session; return Promise<{stdout,stderr,vars,exitCode,notFound?,sessionRestarted?}>.
   async run(code, opts = null) {
