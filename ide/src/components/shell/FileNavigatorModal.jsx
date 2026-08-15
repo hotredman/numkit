@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
 import ModalWindow from '../ui/ModalWindow';
+import { isLocalDiskPath } from '../../fs/pathUtils';
 
 function formatBytes(bytes) {
   if (bytes === undefined || bytes === null || isNaN(bytes)) return '—';
@@ -225,12 +226,24 @@ export default function FileNavigatorModal({
       // Open file
       try {
         let content = '';
+        let targetPath = item.path;
         if (navFsMode === 'local') {
-          content = await localFS.readFile?.(item.path || item.name);
+          if (!targetPath || !isLocalDiskPath(targetPath)) {
+            const sep = browsePath.includes('\\') || /^[A-Za-z]:/.test(browsePath) ? '\\' : '/';
+            const cleanRel = (targetPath || item.name || '').replace(/^\/+/, '').replace(/\//g, sep);
+            targetPath = browsePath.endsWith('\\') || browsePath.endsWith('/')
+              ? `${browsePath}${cleanRel}`
+              : `${browsePath}${sep}${cleanRel}`;
+          }
+          content = await localFS.readFile?.(targetPath);
+          onOpenFile?.(item.name, content !== null ? content : '', targetPath, 'localFolder');
         } else {
-          content = await tempFS.readFile?.(item.path || item.name);
+          if (!targetPath) {
+            targetPath = browsePath.endsWith('/') ? `${browsePath}${item.name}` : `${browsePath}/${item.name}`;
+          }
+          content = await tempFS.readFile?.(targetPath);
+          onOpenFile?.(item.name, content !== null ? content : '', targetPath, 'temporary');
         }
-        onOpenFile?.(item.name, content, item.path, navFsMode === 'local' ? 'localFolder' : 'temporary');
         onClose?.();
       } catch (err) {
         console.warn('[FileNavigatorModal] Open file failed:', err);

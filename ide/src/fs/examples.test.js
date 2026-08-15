@@ -94,7 +94,7 @@ describe('examples', () => {
 
       expect(result).toEqual({
         content: mockText,
-        vfsPath: '/nested_loops.m',
+        vfsPath: 'C:\\Users\\User\\AppData\\Local\\Temp\\numkit\\examples\\nested_loops\\nested_loops.m',
         targetDir: 'C:\\Users\\User\\AppData\\Local\\Temp\\numkit\\examples\\nested_loops',
         isBinary: false,
         fsMode: 'local',
