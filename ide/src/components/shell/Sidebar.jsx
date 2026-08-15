@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
+import { openExample } from '../../fs/examples';
 import { usePersistedState } from '../../ui-state';
 
 const isMFile = (name) => /\.(m|n)$/i.test(name);
@@ -254,74 +255,6 @@ async function loadExamplesTree() {
     console.warn('[Sidebar] examples manifest load failed:', e);
     return [];
   }
-}
-
-// Extensions that must be mirrored byte-for-byte (imread / audioread /
-// load read these through the binary VFS hook; a text round-trip would
-// corrupt any byte ≥ 0x80).
-const BINARY_EXAMPLE_EXT = /\.(png|jpe?g|gif|bmp|tga|tiff?|webp|psd|hdr|pic|pgm|ppm|pnm|wav|mp3|m4a|ogg|flac|mat)$/i;
-
-// Fetch one example file and mirror it into the adapter at `vfsPath`,
-// picking the binary or text channel by extension. Returns the text
-// content for text files, or null for binary files.
-async function mirrorExampleFile(adapter, fetchPath, vfsPath) {
-  const r = await fetch(fetchPath);
-  if (!r.ok) throw new Error('fetch failed');
-  if (BINARY_EXAMPLE_EXT.test(vfsPath) && typeof adapter.writeFileBytes === 'function') {
-    const buf = await r.arrayBuffer();
-    adapter.writeFileBytes(vfsPath, new Uint8Array(buf));
-    return null;
-  }
-  const text = await r.text();
-  adapter.writeFile(vfsPath, text);
-  return text;
-}
-
-async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
-  if (node.type !== 'file' || !node._fetchPath) return null;
-  const isBinary = BINARY_EXAMPLE_EXT.test(node.name || node.path);
-
-  const fname = node.name || 'example.m';
-  const scriptBaseName = fname.replace(/\.[^/.]+$/, '');
-  let content = null;
-
-  // Fetch only this specific file
-  const filesToCopy = [];
-  const mainRes = await fetch(node._fetchPath);
-  if (!mainRes.ok) throw new Error('fetch failed: ' + node._fetchPath);
-  if (isBinary) {
-    const buf = await mainRes.arrayBuffer();
-    filesToCopy.push({ name: fname, bytes: Array.from(new Uint8Array(buf)) });
-  } else {
-    content = await mainRes.text();
-    filesToCopy.push({ name: fname, content });
-  }
-
-  const isElectron = typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined';
-  if (fsMode === 'local' && isElectron && typeof window.nativeFS.setupExample === 'function') {
-    const targetDir = await window.nativeFS.setupExample(scriptBaseName, filesToCopy);
-    const vfsPath = targetDir.includes('\\') ? `${targetDir}\\${fname}` : `${targetDir}/${fname}`;
-    return { content, vfsPath, targetDir, isBinary, fsMode: 'local', source: 'localFolder' };
-  }
-
-  // Virtual FS: /numkit_ide/examples/<scriptBaseName>
-  const targetRelDir = `/numkit_ide/examples/${scriptBaseName}`;
-  const tempBackend = vfsAdapters?.temp || tempFS;
-  if (tempBackend) {
-    try { if (tempBackend.mkdir) await tempBackend.mkdir(targetRelDir); } catch { /* ignore */ }
-    for (const f of filesToCopy) {
-      const p = `${targetRelDir}/${f.name}`;
-      try {
-        if (f.bytes && tempBackend.writeFileBytes) {
-          await tempBackend.writeFileBytes(p, new Uint8Array(f.bytes));
-        } else if (f.content != null && tempBackend.writeFile) {
-          await tempBackend.writeFile(p, f.content);
-        }
-      } catch { /* ignore */ }
-    }
-  }
-  const vfsPath = `${targetRelDir}/${fname}`;
-  return { content, vfsPath, targetDir: targetRelDir, isBinary, fsMode: 'virtual', source: 'temporary' };
 }
 
 /* ─────────────── GitHub backend ─────────────── */

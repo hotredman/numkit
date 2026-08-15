@@ -22,6 +22,7 @@ import CurrentFolderBar from './CurrentFolderBar';
 import FileNavigatorModal from './FileNavigatorModal';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
+import { sanitizeVfsPath, getParentDir, isLocalDiskPath } from '../../fs/pathUtils';
 import { pickRunOrigin } from '../../fs/run-origin';
 import { loadUiState, saveUiState } from '../../ui-state';
 import { useTheme } from '../../theme';
@@ -540,10 +541,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const [virtualCwd, setVirtualCwd] = useState(() => {
     try {
       const saved = localStorage.getItem('numkit.ide.cwd.virtual');
-      if (saved && !/^[A-Za-z]:[\\/]/.test(saved) && !saved.startsWith('/C:') && !saved.startsWith('/c:')) {
-        return saved;
-      }
-      return '/';
+      return saved ? sanitizeVfsPath(saved) : '/';
     } catch { return '/'; }
   });
   const [localCwd, setLocalCwd] = useState(() => {
@@ -582,18 +580,9 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
   const handleFsModeChange = useCallback((newMode) => {
     setFsMode(newMode);
-    if (newMode === 'virtual') {
-      const vPath = virtualCwd || '/';
-      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
-        const tRoot = tempFS.root?.();
-        const absTemp = tRoot ? `${tRoot}${vPath.replace(/\//g, '\\')}` : vPath;
-        window.nativeFS.setCwd(absTemp);
-      }
-    } else {
-      const targetCwd = localCwd || localFS.root?.() || '';
-      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
-        window.nativeFS.setCwd(targetCwd);
-      }
+    const targetCwd = newMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
+    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+      window.nativeFS.setCwd(targetCwd);
     }
   }, [localCwd, virtualCwd]);
 
@@ -614,7 +603,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       let resolved = newCwd.trim();
       if (typeof localFS !== 'undefined' && localFS.isAvailable?.()) {
         const lRoot = localFS.root?.() || '';
-        if (lRoot && !/^[A-Za-z]:[\\/]/.test(resolved) && !resolved.startsWith('/') && !resolved.startsWith('\\')) {
+        if (lRoot && !isLocalDiskPath(resolved) && !resolved.startsWith('/') && !resolved.startsWith('\\')) {
           resolved = `${lRoot}\\${resolved.replace(/\//g, '\\')}`;
         }
         if (typeof localFS.setRootPath === 'function') {
@@ -626,55 +615,18 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         window.nativeFS.setCwd(resolved);
       }
     } else {
-      let vPath = newCwd.trim().replace(/\\/g, '/');
-      const winMatch = vPath.match(/^(\/?[A-Za-z]:)(.*)$/);
-      if (winMatch) {
-        const afterDrive = winMatch[2];
-        const tempIdx = afterDrive.indexOf('/temporary');
-        if (tempIdx >= 0) {
-          vPath = afterDrive.slice(tempIdx + '/temporary'.length);
-        } else {
-          vPath = afterDrive || '/';
-        }
-      }
-      if (!vPath.startsWith('/')) vPath = '/' + vPath;
-      if (vPath.length > 1 && vPath.endsWith('/')) vPath = vPath.slice(0, -1);
+      const vPath = sanitizeVfsPath(newCwd);
       setVirtualCwd(vPath);
       if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
-        const tRoot = tempFS.root?.();
-        const absTemp = tRoot ? `${tRoot}${vPath.replace(/\//g, '\\')}` : vPath;
-        window.nativeFS.setCwd(absTemp);
+        window.nativeFS.setCwd(vPath);
       }
     }
     setVfsRefreshKey((k) => k + 1);
   }, [fsMode]);
 
   const handleNavigateUp = useCallback(() => {
-    if (fsMode === 'local') {
-      let p = (cwd || '').replace(/\\/g, '/');
-      if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
-      const idx = p.lastIndexOf('/');
-      if (idx <= 0) {
-        if (/^[A-Za-z]:/.test(p)) {
-          handleCwdChange(p.slice(0, 2) + '\\');
-        } else {
-          handleCwdChange('/');
-        }
-      } else {
-        let parent = p.slice(0, idx);
-        if (/^[A-Za-z]:$/.test(parent)) parent += '\\';
-        handleCwdChange(parent.replace(/\//g, '\\'));
-      }
-    } else {
-      let p = (cwd || '/').replace(/\\/g, '/');
-      if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
-      const idx = p.lastIndexOf('/');
-      if (idx <= 0) {
-        handleCwdChange('/');
-      } else {
-        handleCwdChange(p.slice(0, idx));
-      }
-    }
+    const parent = getParentDir(cwd, fsMode === 'local');
+    handleCwdChange(parent);
   }, [cwd, fsMode, handleCwdChange]);
 
   const runCode = useCallback(async (code) => {
