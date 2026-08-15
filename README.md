@@ -1,8 +1,11 @@
 # Numkit
 
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Web_IDE-Live_Demo-success.svg)](https://hotredman.github.io/numkit-demo/)
 
 **Numkit** is a lightweight matrix-scripting language interpreter and numerical computing library written in modern C++17. It provides high MATLAB/Octave compatibility, copy-on-write tensor semantics, an AOT C++ code generator, and an interactive Web/Desktop IDE.
+
+👉 **Try it in your browser:** [https://hotredman.github.io/numkit-demo/](https://hotredman.github.io/numkit-demo/)
 
 Designed both for embedding scientific scripting into C++ applications and for standalone engineering workflows.
 
