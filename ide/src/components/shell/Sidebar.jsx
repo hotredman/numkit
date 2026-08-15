@@ -903,6 +903,18 @@ export default function Sidebar({
             (Examples / GitHub). */}
         {!isExamples && !isGithub && (
           <div className="sidebar-head-row sidebar-head-actions">
+            {source === 'fs' && (
+              <button
+                className="sidebar-icon"
+                title="Up one level (..)"
+                disabled={isAtRoot}
+                onClick={onNavigateUp}
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V4.707l2.646 2.647a.5.5 0 0 0 .708-.708l-3.5-3.5a.5.5 0 0 0-.708 0l-3.5 3.5a.5.5 0 1 0 .708.708L7.5 4.707V11.5a.5.5 0 0 0 .5.5z"/>
+                </svg>
+              </button>
+            )}
             <button className="sidebar-icon" title="New file"
               onClick={() => setCreating({ parentPath: currentRelDir, type: 'file' })}>
               {Icons.fileNew()}
@@ -942,21 +954,16 @@ export default function Sidebar({
           <circle cx="5" cy="5" r="3.2" stroke="currentColor" fill="none"/>
           <path d="M7.4 7.4L10 10" stroke="currentColor"/>
         </svg>
-        {filter ? (
-          <input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="filter files…"
-            spellCheck={false}
-            style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: 'inherit', font: 'inherit', padding: 0,
-            }}/>
-        ) : (
-          <span className="sidebar-search-hint" onClick={() => setFilter(' ')}>
-            Double-click to open file
-          </span>
-        )}
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter files…"
+          spellCheck={false}
+          style={{
+            flex: 1, background: 'transparent', border: 'none', outline: 'none',
+            color: 'inherit', font: 'inherit', padding: '0 4px', fontSize: 11,
+          }}
+        />
         {filter && (
           <button
             onClick={() => setFilter('')}
@@ -985,23 +992,6 @@ export default function Sidebar({
               Permission denied
             </div>
           )}
-        </div>
-      )}
-
-      {/* Local Folder mount info */}
-      {isLocal && localStatus === 'connected' && localMountName && (
-        <div style={{
-          padding: '4px 12px', fontSize: 10, color: 'var(--fg-3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span title={localMountName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            📁 {localMountName}
-          </span>
-          <button onClick={handleUnmount} title="Unmount"
-            style={{
-              background: 'transparent', border: 'none', color: 'var(--fg-3)',
-              cursor: 'pointer', padding: '0 4px', fontSize: 11,
-            }}>×</button>
         </div>
       )}
 
