@@ -171,8 +171,8 @@ function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
   if (filter && isDir && !hasMatchingDescendant(node, filter)) return null;
 
   const onClick = () => {
+    setSelected(node.path);
     if (isDir) toggleExpand();
-    else setSelected(node.path);
   };
   const onDouble = () => {
     if (isDir && onNavigateFolder) onNavigateFolder(node.path);
@@ -993,9 +993,9 @@ export default function Sidebar({
         <div className="sidebar-tree" onContextMenu={handleRootContextMenu}>
           {source === 'fs' && !isAtRoot && (
             <div
-              className="tree-row tree-folder"
+              className={`tree-row tree-folder ${selected === '..' ? 'is-active' : ''}`}
               style={{ paddingLeft: 8, color: 'var(--fg-2)', cursor: 'pointer', userSelect: 'none' }}
-              onClick={onNavigateUp}
+              onClick={() => setSelected('..')}
               onDoubleClick={onNavigateUp}
               title="Parent folder (..)"
             >

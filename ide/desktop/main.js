@@ -302,9 +302,10 @@ app.on('window-all-closed', () => {
 
 function safePath(root, relPath) {
   const cleaned = String(relPath || '').replace(/^\/+/, '');
-  const resolvedRoot = path.resolve(root);
+  const resolvedRoot = path.resolve(root || '.');
+  const rootWithSep = resolvedRoot.endsWith(path.sep) ? resolvedRoot : resolvedRoot + path.sep;
   const full = path.resolve(resolvedRoot, cleaned);
-  if (full !== resolvedRoot && !full.startsWith(resolvedRoot + path.sep)) {
+  if (full !== resolvedRoot && !full.startsWith(rootWithSep)) {
     throw new Error('Path escapes mounted root: ' + relPath);
   }
   return full;
