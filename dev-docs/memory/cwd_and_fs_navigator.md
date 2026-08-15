@@ -102,6 +102,13 @@ When running scripts in the IDE (especially examples or user projects doing file
 13. **Streamlined Bottom Dock (`IDE.jsx`)**:
     - Removed the `Reference` tab and panel from `BottomDock`, keeping only `Console` and `Workspace` in the dock tabs.
     - Cleaned up unused imports and bundle references, reducing bundle weight.
+
+14. **Subdirectory Path Preservation Across Restarts (`examples.js`, `Sidebar.jsx`, `FileNavigatorModal.jsx`)**:
+    - **Problem**: When an example or local file located inside a subdirectory (e.g. `.../examples/step_response/step_response.m`) was extracted or opened, `openExample` assigned `vfsPath: '/${fname}'` (`/step_response.m`), losing the intermediate folder `step_response`. Upon restart, when `localCwd` was restored to root (`.../examples`), `getTabPaths` resolved `.../examples/step_response.m` instead of `.../examples/step_response/step_response.m`.
+    - **Fix**:
+      - `fs/examples.js`: now constructs and assigns the full target file path (`targetDir + sep + fname`) to `vfsPath`.
+      - `Sidebar.jsx` and `FileNavigatorModal.jsx`: resolve full absolute disk paths for all opened local files before passing to `onOpenFile`.
+      - `getTabPaths` recognizes absolute disk paths via `isLocalDiskPath` and preserves the exact subfolder and file path regardless of CWD changes.
     - Test coverage: 549 tests passing across 41 test files.
 
 
