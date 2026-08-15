@@ -134,6 +134,10 @@ function makeNativeBackend() {
             }
         },
 
+        async listDir(relPath = '/') {
+            if (!rootPath) return [];
+            return api.listDir(rootPath, relPath);
+        },
         async listTree() {
             if (!rootPath) return [];
             return api.listTree(rootPath);
@@ -305,6 +309,21 @@ function makeFsaBackend() {
             await idbDelete(HANDLE_KEY);
         },
 
+        async listDir(relPath = '/') {
+            if (!rootHandle) return [];
+            try {
+                const targetDir = await resolveDir(relPath);
+                const entries = [];
+                for await (const [name, handle] of targetDir.entries()) {
+                    const cleanRel = (relPath || '/').replace(/\\/g, '/').replace(/\/+$/, '');
+                    const itemPath = cleanRel === '' || cleanRel === '/' ? `/${name}` : `${cleanRel}/${name}`;
+                    entries.push({ name, path: itemPath, type: handle.kind === 'directory' ? 'folder' : 'file' });
+                }
+                entries.sort((a, b) => (a.type !== b.type) ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name));
+                return entries;
+            } catch (_) { return []; }
+        },
+
         async listTree() {
             if (!rootHandle) return [];
             const root = [];
@@ -438,6 +457,7 @@ const unavailable = {
     async pickDirectory() { throw new Error('Local Folder not available in this browser'); },
     async reconnect() { return null; },
     async disconnect() {},
+    async listDir() { return []; },
     async listTree() { return []; },
     async readFile() { return null; },
     async writeFile() {},

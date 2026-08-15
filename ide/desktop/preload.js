@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('nativeFS', {
     // Tree / file operations, all rooted at `root` (the absolute
     // folder path returned by pickDirectory). Paths passed in are
     // "/"-rooted, relative to that root.
+    listDir:   (root, path = '/')      => ipcRenderer.invoke('fs:listDir', root, path),
     listTree:  (root)                  => ipcRenderer.invoke('fs:listTree', root),
     readFile:  (root, path)            => ipcRenderer.invoke('fs:readFile', root, path),
     // Synchronous read used by the WASM engine's sync csvread / load

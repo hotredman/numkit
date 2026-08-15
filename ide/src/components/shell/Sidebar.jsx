@@ -127,10 +127,35 @@ function ContextMenu({ x, y, items, onClose }) {
 /* ─────────────── tree row + folder ─────────────── */
 function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
                   onOpenFile, onNavigateFolder, onContextMenu, renaming, onRenameSubmit, onRenameCancel,
-                  filter }) {
+                  filter, ops }) {
   const isDir = node.type === 'folder';
   const isExp = !!expanded[node.path];
   const isSel = selected === node.path;
+  const [children, setChildren] = useState(node.children || null);
+  const [loadingChildren, setLoadingChildren] = useState(false);
+
+  useEffect(() => {
+    if (Array.isArray(node.children)) {
+      setChildren(node.children);
+    }
+  }, [node.children]);
+
+  const toggleExpand = async () => {
+    const nextExp = !isExp;
+    setExpanded((p) => ({ ...p, [node.path]: nextExp }));
+    if (nextExp && !children && ops?.listDir) {
+      setLoadingChildren(true);
+      try {
+        const sub = await ops.listDir(node.path);
+        setChildren(sub);
+      } catch (err) {
+        console.warn('[Sidebar] load subfolder error', err);
+        setChildren([]);
+      } finally {
+        setLoadingChildren(false);
+      }
+    }
+  };
 
   if (renaming === node.path) {
     return (
@@ -146,7 +171,7 @@ function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
   if (filter && isDir && !hasMatchingDescendant(node, filter)) return null;
 
   const onClick = () => {
-    if (isDir) setExpanded((p) => ({ ...p, [node.path]: !p[node.path] }));
+    if (isDir) toggleExpand();
     else setSelected(node.path);
   };
   const onDouble = () => {
@@ -177,15 +202,16 @@ function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
           <span className="tree-fileglyph">{isMFile(node.name) ? '·n' : '·'}</span>
         )}
         <span className="tree-label">{node.name}</span>
+        {loadingChildren && <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 4 }}>…</span>}
       </div>
-      {isDir && isExp && Array.isArray(node.children) && node.children.map((c) => (
+      {isDir && isExp && Array.isArray(children) && children.map((c) => (
         <TreeRow key={c.path}
           node={c} depth={depth + 1}
           expanded={expanded} setExpanded={setExpanded}
           selected={selected} setSelected={setSelected}
           onOpenFile={onOpenFile} onNavigateFolder={onNavigateFolder} onContextMenu={onContextMenu}
           renaming={renaming} onRenameSubmit={onRenameSubmit} onRenameCancel={onRenameCancel}
-          filter={filter} />
+          filter={filter} ops={ops} />
       ))}
     </div>
   );
@@ -524,6 +550,7 @@ function GitHubBrowser({ onOpenFile }) {
 function makeOps(source) {
   const fs = source === 'localFolder' ? localFS : tempFS;
   return {
+    listDir: (p) => (typeof fs.listDir === 'function' ? fs.listDir(p) : fs.listTree()),
     listTree: () => fs.listTree(),
     readFile: (p) => fs.readFile(p),
     writeFile: (p, c) => fs.writeFile(p, c),
@@ -532,41 +559,6 @@ function makeOps(source) {
     rename: (a, b) => fs.rename(a, b),
     mkdir: (p) => fs.mkdir(p),
   };
-}
-
-function extractCwdChildren(rawTree, targetRelPath) {
-  let target = (targetRelPath || '/').replace(/\\/g, '/');
-  if (!target.startsWith('/')) target = '/' + target;
-  if (target.length > 1 && target.endsWith('/')) target = target.slice(0, -1);
-
-  if (target === '/') return rawTree;
-
-  function findNode(nodes) {
-    for (const n of nodes) {
-      const nPath = (n.path || '').replace(/\\/g, '/');
-      if (nPath === target) {
-        return n.children || [];
-      }
-      if (n.type === 'folder' && target.startsWith(nPath + '/')) {
-        const res = findNode(n.children || []);
-        if (res) return res;
-      }
-    }
-    return null;
-  }
-
-  const found = findNode(rawTree);
-  if (found) return found;
-
-  // Fallback: direct prefix filter
-  return rawTree.filter((n) => {
-    const np = (n.path || '').replace(/\\/g, '/');
-    if (np.startsWith(target + '/')) {
-      const rel = np.slice(target.length + 1);
-      return !rel.includes('/');
-    }
-    return false;
-  });
 }
 
 /* ─────────────── full sidebar component ─────────────── */
@@ -631,14 +623,15 @@ export default function Sidebar({
       } else if (isGithub) {
         /* GitHubBrowser owns its own tree state */
       } else {
-        const raw = await ops.listTree();
         if (source === 'fs') {
-          setTree(extractCwdChildren(raw, currentRelDir));
+          const entries = await ops.listDir(currentRelDir || '/');
+          setTree(Array.isArray(entries) ? entries : []);
         } else {
-          setTree(raw);
+          const raw = await ops.listTree();
+          setTree(Array.isArray(raw) ? raw : []);
         }
       }
-    } catch (e) { console.error('[Sidebar] listTree failed', e); }
+    } catch (e) { console.error('[Sidebar] loadTree failed', e); }
   }, [ops, isExamples, isGithub, source, currentRelDir]);
 
   // Reload on source change, fsMode change, cwd change, external write signal
@@ -1059,6 +1052,7 @@ export default function Sidebar({
               onRenameSubmit={handleRename}
               onRenameCancel={() => setRenaming(null)}
               filter={filter.trim()}
+              ops={ops}
             />
           ))}
           {creating && (creating.parentPath === currentRelDir || creating.parentPath === '' || creating.parentPath === '/') && (

@@ -78,36 +78,16 @@ export default function FileNavigatorModal({
         if (typeof localFS.setRootPath === 'function' && browsePath && (/^[A-Za-z]:/.test(browsePath) || browsePath.startsWith('/'))) {
           localFS.setRootPath(browsePath);
         }
-        const rawTree = await localFS.listTree();
-        setItems(Array.isArray(rawTree) ? rawTree : []);
+        const dirEntries = await (typeof localFS.listDir === 'function' ? localFS.listDir('/') : localFS.listTree());
+        setItems(Array.isArray(dirEntries) ? dirEntries : []);
       } else {
         // Virtual FS
-        let rawTree = [];
-        if (typeof tempFS.listTree === 'function') {
-          rawTree = await tempFS.listTree();
-        }
         let targetPath = (browsePath || '/').replace(/\\/g, '/');
         if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
         if (targetPath.length > 1 && targetPath.endsWith('/')) targetPath = targetPath.slice(0, -1);
 
-        function findChildren(nodes) {
-          for (const n of nodes) {
-            const nPath = (n.path || '').replace(/\\/g, '/');
-            if (nPath === targetPath) return n.children || [];
-            if (n.type === 'folder' && targetPath.startsWith(nPath + '/')) {
-              const res = findChildren(n.children || []);
-              if (res) return res;
-            }
-          }
-          return null;
-        }
-
-        if (targetPath === '/') {
-          setItems(rawTree);
-        } else {
-          const childNodes = findChildren(rawTree) || [];
-          setItems(childNodes);
-        }
+        const dirEntries = await (typeof tempFS.listDir === 'function' ? tempFS.listDir(targetPath) : tempFS.listTree());
+        setItems(Array.isArray(dirEntries) ? dirEntries : []);
       }
     } catch (err) {
       console.error('[FileNavigatorModal] load error:', err);
