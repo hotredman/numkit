@@ -630,9 +630,9 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       const winMatch = vPath.match(/^(\/?[A-Za-z]:)(.*)$/);
       if (winMatch) {
         const afterDrive = winMatch[2];
-        const tempIdx = afterDrive.indexOf('/temporary/');
+        const tempIdx = afterDrive.indexOf('/temporary');
         if (tempIdx >= 0) {
-          vPath = afterDrive.slice(tempIdx);
+          vPath = afterDrive.slice(tempIdx + '/temporary'.length);
         } else {
           vPath = afterDrive || '/';
         }
@@ -712,13 +712,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       } else if (vPath.startsWith('/')) {
         const lastSlash = vPath.lastIndexOf('/');
         const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '/';
+        targetCwd = relDir;
         if (activeTabObj.source === 'localFolder' && localFS.isMounted()) {
-          const lRoot = localFS.root();
-          targetCwd = lRoot ? (relDir === '/' ? lRoot : `${lRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
           try { await localFS.writeFile(vPath, code); } catch (_) {}
         } else {
-          const tRoot = tempFS.root?.();
-          targetCwd = tRoot ? (relDir === '/' ? tRoot : `${tRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
           try { await tempFS.writeFile(vPath, code); } catch (_) {}
         }
       }
