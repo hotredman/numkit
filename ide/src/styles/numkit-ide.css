@@ -3503,23 +3503,31 @@ select.ve-btn.fw-cmap-select {
   align-items: center;
   justify-content: center;
   background: var(--bg-2);
-  color: var(--fg-1);
+  color: var(--fg-2);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: 2px 7px;
   font-size: 11px;
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: background 0.1s, border-color 0.1s;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
 .cf-btn:hover:not(:disabled) {
   background: var(--bg-3);
   border-color: var(--fg-3);
+  color: var(--fg-0);
+}
+
+.cf-btn-icon-only {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .cf-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: default;
 }
 
@@ -3540,8 +3548,11 @@ select.ve-btn.fw-cmap-select {
 
 .cf-path-icon {
   margin-right: 6px;
-  font-size: 11px;
+  color: var(--fg-3);
+  display: inline-flex;
+  align-items: center;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .cf-path-input {
@@ -3553,11 +3564,6 @@ select.ve-btn.fw-cmap-select {
   font-size: 11.5px;
   outline: none;
   width: 100%;
-}
-
-.cf-btn-browse {
-  padding: 2px 8px;
-  font-weight: 500;
 }
 
 /* ===========================================================

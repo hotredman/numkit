@@ -3,12 +3,8 @@ import React, { useState, useEffect } from 'react';
 /**
  * CurrentFolderBar — MATLAB-style Current Folder strip.
  *
- * Placed prominently across the top of the IDE workspace.
- * Features:
- *  - Mode Combo: switch between Local File System and Virtual File System (Temporary).
- *  - Up navigation button: jump to parent folder.
- *  - Interactive path input: view and enter working directory.
- *  - Browse / File Navigator button: opens the File Navigator modal.
+ * Layout:
+ * File System [Local/Virtual]  Current Folder  [Up][Browse][ Path Input ]
  */
 export default function CurrentFolderBar({
   fsMode = 'virtual', // 'local' | 'virtual'
@@ -43,11 +39,10 @@ export default function CurrentFolderBar({
 
   return (
     <div className="current-folder-bar">
-      <div className="cf-label" title="Current Working Directory (MATLAB pwd)">
-        <span className="cf-title">Current Folder:</span>
-      </div>
+      {/* 1. File System label */}
+      <span className="cf-label">File System</span>
 
-      {/* Mode Selector (Combo) */}
+      {/* 2. [Local/Virtual] selector */}
       <div className="cf-mode-wrapper">
         <select
           className="cf-mode-select"
@@ -55,33 +50,48 @@ export default function CurrentFolderBar({
           onChange={(e) => onFsModeChange?.(e.target.value)}
           title="Select Active Working Filesystem"
         >
-          <option value="virtual">⚡ Virtual File System (Temporary)</option>
+          <option value="virtual">Virtual</option>
           <option value="local" disabled={!localAvailable}>
-            📁 Local File System {localMountName ? `(${localMountName})` : ''}
+            Local {localMountName ? `(${localMountName})` : ''}
           </option>
         </select>
       </div>
 
       <span className="cf-sep" />
 
-      {/* Up Button */}
+      {/* 3. Current Folder label */}
+      <span className="cf-label">Current Folder</span>
+
+      {/* 4. [Up] compact button */}
       <button
-        className="cf-btn cf-btn-up"
+        className="cf-btn cf-btn-icon-only"
         onClick={onNavigateUp}
         disabled={isAtRoot}
         title="Up One Level (..)"
+        aria-label="Up One Level"
       >
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-          <path fillRule="evenodd" d="M8 3.5a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5z"/>
-          <path fillRule="evenodd" d="M7.646 2.146a.5.5 0 0 1 .708 0l4 4a.5.5 0 0 1-.708.708L8 3.207 4.354 6.854a.5.5 0 1 1-.708-.708l4-4z"/>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path fillRule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V4.707l2.646 2.647a.5.5 0 0 0 .708-.708l-3.5-3.5a.5.5 0 0 0-.708 0l-3.5 3.5a.5.5 0 1 0 .708.708L7.5 4.707V11.5a.5.5 0 0 0 .5.5z"/>
         </svg>
       </button>
 
-      {/* Path Display / Input */}
+      {/* 5. [Browse] compact button */}
+      <button
+        className="cf-btn cf-btn-icon-only"
+        onClick={onOpenNavigator}
+        title="Browse Folders (File Navigator)"
+        aria-label="Browse Folders"
+      >
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 14.5 4H7.414l-1.707-1.707A1 1 0 0 0 5 2H1.5zm0 1H5l1.707 1.707A1 1 0 0 0 7.414 5H14.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5z"/>
+        </svg>
+      </button>
+
+      {/* 6. [ строка для пути ] */}
       <div className="cf-path-box">
-        <span className="cf-path-icon">
-          {fsMode === 'local' ? '📁' : '⚡'}
-        </span>
+        <svg className="cf-path-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M.5 3l.04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H13.174a2 2 0 0 0 1.99-1.819l.637-7A1.99 1.99 0 0 0 15.46 3.87L15.5 3H9.414L7.707 1.293A1 1 0 0 0 7 1H2a2 2 0 0 0-2 2h.5z"/>
+        </svg>
         <input
           type="text"
           className="cf-path-input"
@@ -97,18 +107,6 @@ export default function CurrentFolderBar({
           spellCheck={false}
         />
       </div>
-
-      {/* Browse / Navigator Modal Button */}
-      <button
-        className="cf-btn cf-btn-browse"
-        onClick={onOpenNavigator}
-        title="Open File Navigator"
-      >
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" style={{ marginRight: '5px' }}>
-          <path d="M.5 3l.04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H9v-1H2.826a1 1 0 0 1-.995-.91l-.637-7A1 1 0 0 1 2.19 4h11.62a1 1 0 0 1 .996 1.09l-.637 7a1 1 0 0 1-.995.91H11v1h2.174a2 2 0 0 0 1.99-1.819l.637-7A1.99 1.99 0 0 0 15.46 3.87L15.5 3H9.414L7.707 1.293A1 1 0 0 0 7 1H2a2 2 0 0 0-2 2h.5z"/>
-        </svg>
-        Browse…
-      </button>
     </div>
   );
 }
