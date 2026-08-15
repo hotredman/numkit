@@ -45,7 +45,12 @@ export default function FileNavigatorModal({
   localMountName = null,
 }) {
   const [navFsMode, setNavFsMode] = useState(fsMode);
-  const [browsePath, setBrowsePath] = useState(currentCwd || '/');
+  const [browsePath, setBrowsePath] = useState(() => {
+    if (fsMode === 'local') {
+      return currentCwd || (typeof localFS !== 'undefined' && localFS.root?.()) || 'C:\\';
+    }
+    return currentCwd || '/';
+  });
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [filterText, setFilterText] = useState('');
@@ -62,68 +67,53 @@ export default function FileNavigatorModal({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Active FS backend
-  const activeFS = navFsMode === 'local' ? localFS : tempFS;
-
   // Load directory contents for browsePath
   const loadDirectory = useCallback(async () => {
     setLoading(true);
     setSelectedItem(null);
     try {
-      let rawTree = [];
-      if (typeof activeFS.listTree === 'function') {
-        rawTree = await activeFS.listTree();
-      }
-
-      // Normalize browsePath for search
-      let targetPath = browsePath || '/';
-      targetPath = targetPath.replace(/\\/g, '/');
-      if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
-      if (targetPath.length > 1 && targetPath.endsWith('/')) targetPath = targetPath.slice(0, -1);
-
-      // Find node corresponding to browsePath
-      function findChildren(nodes, curRel) {
-        if (curRel === targetPath || (targetPath === '/' && curRel === '/')) {
-          return nodes;
+      if (navFsMode === 'local') {
+        if (typeof localFS.setRootPath === 'function' && browsePath && (/^[A-Za-z]:/.test(browsePath) || browsePath.startsWith('/'))) {
+          localFS.setRootPath(browsePath);
         }
-        for (const n of nodes) {
-          const nPath = (n.path || '').replace(/\\/g, '/');
-          if (nPath === targetPath) {
-            return n.children || [];
-          }
-          if (n.type === 'folder' && targetPath.startsWith(nPath + '/')) {
-            const res = findChildren(n.children || [], nPath);
-            if (res) return res;
-          }
+        const rawTree = await localFS.listTree();
+        setItems(Array.isArray(rawTree) ? rawTree : []);
+      } else {
+        // Virtual FS
+        let rawTree = [];
+        if (typeof tempFS.listTree === 'function') {
+          rawTree = await tempFS.listTree();
         }
-        return null;
-      }
+        let targetPath = (browsePath || '/').replace(/\\/g, '/');
+        if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
+        if (targetPath.length > 1 && targetPath.endsWith('/')) targetPath = targetPath.slice(0, -1);
 
-      let childNodes = findChildren(rawTree, '/');
-      if (!childNodes) {
-        // Fallback: list immediate items matching parent
-        childNodes = rawTree.filter((n) => {
-          const np = (n.path || '').replace(/\\/g, '/');
-          if (targetPath === '/') {
-            const segs = np.split('/').filter(Boolean);
-            return segs.length === 1;
+        function findChildren(nodes) {
+          for (const n of nodes) {
+            const nPath = (n.path || '').replace(/\\/g, '/');
+            if (nPath === targetPath) return n.children || [];
+            if (n.type === 'folder' && targetPath.startsWith(nPath + '/')) {
+              const res = findChildren(n.children || []);
+              if (res) return res;
+            }
           }
-          if (np.startsWith(targetPath + '/')) {
-            const rel = np.slice(targetPath.length + 1);
-            return !rel.includes('/');
-          }
-          return false;
-        });
-      }
+          return null;
+        }
 
-      setItems(Array.isArray(childNodes) ? childNodes : []);
+        if (targetPath === '/') {
+          setItems(rawTree);
+        } else {
+          const childNodes = findChildren(rawTree) || [];
+          setItems(childNodes);
+        }
+      }
     } catch (err) {
       console.error('[FileNavigatorModal] load error:', err);
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [activeFS, browsePath]);
+  }, [navFsMode, browsePath]);
 
   useEffect(() => {
     loadDirectory();
@@ -131,24 +121,50 @@ export default function FileNavigatorModal({
 
   // Navigate Up one directory
   const handleNavigateUp = () => {
-    let p = browsePath.replace(/\\/g, '/');
-    if (p.endsWith('/')) p = p.slice(0, -1);
-    const lastSlash = p.lastIndexOf('/');
-    if (lastSlash <= 0) {
-      setBrowsePath('/');
+    if (navFsMode === 'local') {
+      let p = (browsePath || '').replace(/\\/g, '/');
+      if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
+      const idx = p.lastIndexOf('/');
+      if (idx <= 0) {
+        if (/^[A-Za-z]:/.test(p)) {
+          setBrowsePath(p.slice(0, 2) + '\\');
+        } else {
+          setBrowsePath('/');
+        }
+      } else {
+        let parent = p.slice(0, idx);
+        if (/^[A-Za-z]:$/.test(parent)) parent += '\\';
+        setBrowsePath(parent.replace(/\//g, '\\'));
+      }
     } else {
-      setBrowsePath(p.slice(0, lastSlash));
+      let p = (browsePath || '/').replace(/\\/g, '/');
+      if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
+      const idx = p.lastIndexOf('/');
+      if (idx <= 0) {
+        setBrowsePath('/');
+      } else {
+        setBrowsePath(p.slice(0, idx));
+      }
     }
   };
 
   // Double click item
   const handleItemDoubleClick = async (item) => {
     if (item.type === 'folder') {
-      setBrowsePath(item.path);
+      if (navFsMode === 'local') {
+        const isWin = /^[A-Za-z]:/.test(browsePath) || browsePath.includes('\\');
+        const sep = isWin ? '\\' : '/';
+        const newPath = browsePath.endsWith(sep) || (isWin && /^[A-Za-z]:\\?$/.test(browsePath))
+          ? `${browsePath.replace(/\\?$/, sep)}${item.name}`
+          : `${browsePath}${sep}${item.name}`;
+        setBrowsePath(newPath);
+      } else {
+        setBrowsePath(item.path);
+      }
     } else {
       // Open file
       try {
-        const content = await activeFS.readFile(item.path);
+        const content = await (navFsMode === 'local' ? localFS : tempFS).readFile(item.path);
         onOpenFile?.(item.name, content !== null ? content : '', item.path, navFsMode === 'local' ? 'localFolder' : 'temporary');
         onClose?.();
       } catch (err) {
@@ -160,22 +176,20 @@ export default function FileNavigatorModal({
   const handleSetCurrent = () => {
     let target = browsePath;
     if (selectedItem && selectedItem.type === 'folder') {
-      target = selectedItem.path;
+      if (navFsMode === 'local') {
+        const isWin = /^[A-Za-z]:/.test(browsePath) || browsePath.includes('\\');
+        const sep = isWin ? '\\' : '/';
+        target = browsePath.endsWith(sep) || (isWin && /^[A-Za-z]:\\?$/.test(browsePath))
+          ? `${browsePath.replace(/\\?$/, sep)}${selectedItem.name}`
+          : `${browsePath}${sep}${selectedItem.name}`;
+      } else {
+        target = selectedItem.path;
+      }
     }
     if (onFsModeChange && navFsMode !== fsMode) {
       onFsModeChange(navFsMode);
     }
-    let fullTarget = target;
-    if (navFsMode === 'local' && typeof localFS !== 'undefined' && localFS.root?.()) {
-      const lRoot = localFS.root();
-      if (target && target !== '/' && !/^[A-Za-z]:/.test(target)) {
-        const cleanRel = target.startsWith('/') ? target.slice(1) : target;
-        fullTarget = lRoot.endsWith('\\') || lRoot.endsWith('/') ? `${lRoot}${cleanRel.replace(/\//g, '\\')}` : `${lRoot}\\${cleanRel.replace(/\//g, '\\')}`;
-      } else if (target === '/') {
-        fullTarget = lRoot;
-      }
-    }
-    onSetCurrentFolder?.(fullTarget, navFsMode);
+    onSetCurrentFolder?.(target, navFsMode);
     onClose?.();
   };
 
@@ -184,9 +198,14 @@ export default function FileNavigatorModal({
       setCreatingFolder(false);
       return;
     }
-    const folderPath = browsePath === '/' ? `/${newFolderName.trim()}` : `${browsePath}/${newFolderName.trim()}`;
+    const name = newFolderName.trim();
     try {
-      await activeFS.mkdir(folderPath);
+      if (navFsMode === 'local') {
+        await localFS.mkdir(`/${name}`);
+      } else {
+        const folderPath = browsePath === '/' ? `/${name}` : `${browsePath}/${name}`;
+        await tempFS.mkdir(folderPath);
+      }
       setCreatingFolder(false);
       setNewFolderName('');
       loadDirectory();
@@ -197,15 +216,43 @@ export default function FileNavigatorModal({
 
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {
+    if (navFsMode === 'local') {
+      const isWin = /^[A-Za-z]:/.test(browsePath) || browsePath.includes('\\');
+      if (isWin) {
+        const driveMatch = browsePath.match(/^([A-Za-z]:)(.*)/);
+        if (driveMatch) {
+          const driveLetter = driveMatch[1];
+          const rest = driveMatch[2];
+          const parts = rest.split(/[\\/]/).filter(Boolean);
+          const crumbs = [{ label: `${driveLetter}\\`, path: `${driveLetter}\\` }];
+          let acc = `${driveLetter}\\`;
+          for (const part of parts) {
+            acc = acc.endsWith('\\') ? `${acc}${part}` : `${acc}\\${part}`;
+            crumbs.push({ label: part, path: acc });
+          }
+          return crumbs;
+        }
+      }
+      const parts = (browsePath || '/').split(/[\\/]/).filter(Boolean);
+      const crumbs = [{ label: '/', path: '/' }];
+      let acc = '';
+      for (const part of parts) {
+        acc += '/' + part;
+        crumbs.push({ label: part, path: acc });
+      }
+      return crumbs;
+    }
+
+    // Virtual Mode
     const parts = (browsePath || '/').split(/[\\/]/).filter(Boolean);
-    const crumbs = [{ label: navFsMode === 'local' ? (localMountName || 'Local Root') : 'Root', path: '/' }];
+    const crumbs = [{ label: 'Root', path: '/' }];
     let acc = '';
     for (const part of parts) {
       acc += '/' + part;
       crumbs.push({ label: part, path: acc });
     }
     return crumbs;
-  }, [browsePath, navFsMode, localMountName]);
+  }, [browsePath, navFsMode]);
 
   // Filter and sort items
   const displayItems = useMemo(() => {
@@ -226,7 +273,12 @@ export default function FileNavigatorModal({
     });
   }, [items, filterText, sortBy, sortAsc]);
 
-  const isAtRoot = !browsePath || browsePath === '/' || browsePath === '\\';
+  const isAtRoot = useMemo(() => {
+    if (navFsMode === 'local') {
+      return !browsePath || browsePath === '/' || browsePath === '\\' || /^[A-Za-z]:[\\/]?$/.test(browsePath);
+    }
+    return !browsePath || browsePath === '/' || browsePath === '';
+  }, [navFsMode, browsePath]);
 
   return (
     <div className="fw-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
@@ -249,13 +301,18 @@ export default function FileNavigatorModal({
               className="cf-mode-select"
               value={navFsMode}
               onChange={(e) => {
-                setNavFsMode(e.target.value);
-                setBrowsePath('/');
+                const nextMode = e.target.value;
+                setNavFsMode(nextMode);
+                if (nextMode === 'local') {
+                  setBrowsePath((typeof localFS !== 'undefined' && localFS.root?.()) || 'C:\\');
+                } else {
+                  setBrowsePath('/');
+                }
               }}
             >
               <option value="virtual">⚡ Virtual File System (Temporary)</option>
               <option value="local" disabled={!localAvailable}>
-                📁 Local File System {localMountName ? `(${localMountName})` : ''}
+                📁 Local File System
               </option>
             </select>
           </div>
