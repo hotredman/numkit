@@ -126,7 +126,7 @@ function ContextMenu({ x, y, items, onClose }) {
 
 /* ─────────────── tree row + folder ─────────────── */
 function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
-                  onOpenFile, onContextMenu, renaming, onRenameSubmit, onRenameCancel,
+                  onOpenFile, onNavigateFolder, onContextMenu, renaming, onRenameSubmit, onRenameCancel,
                   filter }) {
   const isDir = node.type === 'folder';
   const isExp = !!expanded[node.path];
@@ -149,7 +149,10 @@ function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
     if (isDir) setExpanded((p) => ({ ...p, [node.path]: !p[node.path] }));
     else setSelected(node.path);
   };
-  const onDouble = () => { if (!isDir) onOpenFile?.(node); };
+  const onDouble = () => {
+    if (isDir && onNavigateFolder) onNavigateFolder(node.path);
+    else if (!isDir) onOpenFile?.(node);
+  };
 
   return (
     <div>
@@ -180,7 +183,7 @@ function TreeRow({ node, depth, expanded, setExpanded, selected, setSelected,
           node={c} depth={depth + 1}
           expanded={expanded} setExpanded={setExpanded}
           selected={selected} setSelected={setSelected}
-          onOpenFile={onOpenFile} onContextMenu={onContextMenu}
+          onOpenFile={onOpenFile} onNavigateFolder={onNavigateFolder} onContextMenu={onContextMenu}
           renaming={renaming} onRenameSubmit={onRenameSubmit} onRenameCancel={onRenameCancel}
           filter={filter} />
       ))}
@@ -531,10 +534,48 @@ function makeOps(source) {
   };
 }
 
+function extractCwdChildren(rawTree, targetRelPath) {
+  let target = (targetRelPath || '/').replace(/\\/g, '/');
+  if (!target.startsWith('/')) target = '/' + target;
+  if (target.length > 1 && target.endsWith('/')) target = target.slice(0, -1);
+
+  if (target === '/') return rawTree;
+
+  function findNode(nodes) {
+    for (const n of nodes) {
+      const nPath = (n.path || '').replace(/\\/g, '/');
+      if (nPath === target) {
+        return n.children || [];
+      }
+      if (n.type === 'folder' && target.startsWith(nPath + '/')) {
+        const res = findNode(n.children || []);
+        if (res) return res;
+      }
+    }
+    return null;
+  }
+
+  const found = findNode(rawTree);
+  if (found) return found;
+
+  // Fallback: direct prefix filter
+  return rawTree.filter((n) => {
+    const np = (n.path || '').replace(/\\/g, '/');
+    if (np.startsWith(target + '/')) {
+      const rel = np.slice(target.length + 1);
+      return !rel.includes('/');
+    }
+    return false;
+  });
+}
+
 /* ─────────────── full sidebar component ─────────────── */
 export default function Sidebar({
   fsMode = 'virtual',
   onFsModeChange,
+  cwd = '/',
+  onCwdChange,
+  onNavigateUp,
   onOpenFile,
   vfsRefreshKey,
   isTabUnsaved,
@@ -559,20 +600,49 @@ export default function Sidebar({
   const isLocal    = source === 'fs' && fsMode === 'local';
   const isLocalUnmounted = isLocal && localStatus !== 'connected';
 
+  const currentRelDir = useMemo(() => {
+    if (source !== 'fs') return '';
+    if (isLocal) {
+      const lRoot = localFS.root?.() || '';
+      if (cwd && lRoot && cwd.startsWith(lRoot)) {
+        let rel = cwd.slice(lRoot.length).replace(/\\/g, '/');
+        if (!rel.startsWith('/')) rel = '/' + rel;
+        return rel === '/' ? '' : rel;
+      }
+      return '';
+    }
+    const vRel = (cwd || '/').replace(/\\/g, '/');
+    return vRel === '/' ? '' : vRel;
+  }, [source, isLocal, cwd]);
+
+  const isAtRoot = useMemo(() => {
+    if (source !== 'fs') return true;
+    return !currentRelDir || currentRelDir === '/' || currentRelDir === '';
+  }, [source, currentRelDir]);
+
   const ops = useMemo(() =>
     makeOps(isLocal ? 'localFolder' : 'temporary'),
   [isLocal]);
 
   const loadTree = useCallback(async () => {
     try {
-      if (isExamples) setTree(await loadExamplesTree());
-      else if (isGithub) { /* GitHubBrowser owns its own tree state */ }
-      else setTree(await ops.listTree());
+      if (isExamples) {
+        setTree(await loadExamplesTree());
+      } else if (isGithub) {
+        /* GitHubBrowser owns its own tree state */
+      } else {
+        const raw = await ops.listTree();
+        if (source === 'fs') {
+          setTree(extractCwdChildren(raw, currentRelDir));
+        } else {
+          setTree(raw);
+        }
+      }
     } catch (e) { console.error('[Sidebar] listTree failed', e); }
-  }, [ops, isExamples, isGithub]);
+  }, [ops, isExamples, isGithub, source, currentRelDir]);
 
-  // Reload on source change + on external write signal
-  useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey, fsMode]);
+  // Reload on source change, fsMode change, cwd change, external write signal
+  useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey, fsMode, cwd]);
 
   // Restore Local Folder mount on mount
   useEffect(() => {
@@ -778,28 +848,29 @@ export default function Sidebar({
     setContextMenu({ x: e.clientX, y: e.clientY, items });
   }, [isExamples, setExpanded, handleImport, handleFileOpen, handleDuplicate, handleDownload, handleDelete, loadTree]);
 
+  /* ─── root context menu (empty area click) ─── */
   const handleRootContextMenu = useCallback((e) => {
     e.preventDefault();
     if (isExamples) {
-      // Examples folder is read-only on disk, but the user may want to
-      // re-pull the manifest if it was edited externally.
       setContextMenu({
         x: e.clientX, y: e.clientY,
-        items: [{ icon: Icons.refresh, label: 'Refresh', action: () => loadTree() }],
+        items: [
+          { icon: Icons.refresh, label: 'Refresh', action: () => loadTree() },
+        ],
       });
       return;
     }
     setContextMenu({
       x: e.clientX, y: e.clientY,
       items: [
-        { icon: Icons.fileNew,   label: 'New file…',       action: () => setCreating({ parentPath: '', type: 'file' }) },
-        { icon: Icons.folderNew, label: 'New folder…',     action: () => setCreating({ parentPath: '', type: 'folder' }) },
-        { icon: Icons.upload,    label: 'Import file(s)…', action: () => handleImport('') },
+        { icon: Icons.fileNew,   label: 'New file…',       action: () => setCreating({ parentPath: currentRelDir, type: 'file' }) },
+        { icon: Icons.folderNew, label: 'New folder…',     action: () => setCreating({ parentPath: currentRelDir, type: 'folder' }) },
+        { icon: Icons.upload,    label: 'Import file(s)…', action: () => handleImport(currentRelDir) },
         { separator: true },
         { icon: Icons.refresh,   label: 'Refresh',         action: () => loadTree() },
       ],
     });
-  }, [isExamples, handleImport, loadTree]);
+  }, [isExamples, handleImport, loadTree, currentRelDir]);
 
   /* ─── render ─── */
   return (
@@ -834,11 +905,11 @@ export default function Sidebar({
         {!isExamples && !isGithub && (
           <div className="sidebar-head-row sidebar-head-actions">
             <button className="sidebar-icon" title="New file"
-              onClick={() => setCreating({ parentPath: '', type: 'file' })}>
+              onClick={() => setCreating({ parentPath: currentRelDir, type: 'file' })}>
               {Icons.fileNew()}
             </button>
             <button className="sidebar-icon" title="New folder"
-              onClick={() => setCreating({ parentPath: '', type: 'folder' })}>
+              onClick={() => setCreating({ parentPath: currentRelDir, type: 'folder' })}>
               {Icons.folderNew()}
             </button>
             {/* Local Folder only — open the OS folder-picker to (re)mount
@@ -938,6 +1009,20 @@ export default function Sidebar({
       {/* Tree */}
       {!isLocalUnmounted && (
         <div className="sidebar-tree" onContextMenu={handleRootContextMenu}>
+          {source === 'fs' && !isAtRoot && (
+            <div
+              className="tree-row tree-folder"
+              style={{ paddingLeft: 8, color: 'var(--fg-2)', cursor: 'pointer' }}
+              onClick={onNavigateUp}
+              title="Go to Parent Folder (..)"
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" className="tree-icon" style={{ opacity: 0.7 }}>
+                <path d="M1 3.5a1 1 0 0 1 1-1h2.5l1 1H10a1 1 0 0 1 1 1V9a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3.5z"
+                  fill="currentColor"/>
+              </svg>
+              <span className="tree-label" style={{ color: 'var(--fg-3)' }}>.. (Parent Folder)</span>
+            </div>
+          )}
           {tree.length === 0 && !creating && (
             <div style={{
               padding: 16, textAlign: 'center',
@@ -952,14 +1037,25 @@ export default function Sidebar({
               node={node} depth={0}
               expanded={expanded} setExpanded={setExpanded}
               selected={selected} setSelected={setSelected}
-              onOpenFile={handleFileOpen} onContextMenu={handleContextMenu}
+              onOpenFile={handleFileOpen}
+              onNavigateFolder={(folderPath) => {
+                if (isLocal) {
+                  const lRoot = localFS.root?.() || '';
+                  const cleanRel = folderPath.startsWith('/') ? folderPath.slice(1) : folderPath;
+                  const fullPath = lRoot ? (lRoot.endsWith('\\') || lRoot.endsWith('/') ? `${lRoot}${cleanRel.replace(/\//g, '\\')}` : `${lRoot}\\${cleanRel.replace(/\//g, '\\')}`) : folderPath;
+                  onCwdChange?.(fullPath);
+                } else {
+                  onCwdChange?.(folderPath);
+                }
+              }}
+              onContextMenu={handleContextMenu}
               renaming={renaming}
               onRenameSubmit={handleRename}
               onRenameCancel={() => setRenaming(null)}
               filter={filter.trim()}
             />
           ))}
-          {creating && (creating.parentPath === '' || creating.parentPath === '/') && (
+          {creating && (creating.parentPath === currentRelDir || creating.parentPath === '' || creating.parentPath === '/') && (
             <div className="tree-row" style={{ paddingLeft: 16 }}>
               <InlineInput defaultValue=""
                 placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'}
