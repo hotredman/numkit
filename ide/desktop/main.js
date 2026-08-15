@@ -318,6 +318,26 @@ ipcMain.handle('fs:getTempRoot', async () => {
   return TEMP_ROOT;
 });
 
+ipcMain.handle('fs:getOsTempDir', async () => {
+  return app.getPath('temp') || os.tmpdir() || '';
+});
+
+ipcMain.handle('fs:setupExample', async (_e, scriptBaseName, files) => {
+  const osTemp = app.getPath('temp') || os.tmpdir();
+  const exampleDir = path.join(osTemp, 'numkit', 'examples', scriptBaseName);
+  await fsp.mkdir(exampleDir, { recursive: true });
+  for (const f of (files || [])) {
+    if (!f.name) continue;
+    const dest = path.join(exampleDir, f.name);
+    if (f.bytes) {
+      await fsp.writeFile(dest, Buffer.from(f.bytes));
+    } else if (f.content != null) {
+      await fsp.writeFile(dest, f.content, 'utf8');
+    }
+  }
+  return exampleDir;
+});
+
 ipcMain.handle('fs:getUserHome', async () => {
   return app.getPath('home') || os.homedir() || '';
 });

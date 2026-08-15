@@ -671,48 +671,35 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       warnedFallbackRef.current = true;
     }
 
-    let scriptDir = null;
-    let targetCwd = null;
+    let targetCwd = cwd;
 
-    // Handle Examples Auto-Cloning to Active FS
-    if (activeTabObj?.source === 'examples') {
-      const fname = activeTabObj.name || 'example.m';
-      const scriptBaseName = fname.replace(/\.[^/.]+$/, '');
-      const exampleRelDir = `/examples/${scriptBaseName}`;
-      const exampleFilePath = `${exampleRelDir}/${fname}`;
-
-      if (fsMode === 'local' && localFS.isMounted()) {
-        const localRoot = localFS.root();
-        try {
-          await localFS.mkdir(exampleRelDir);
-          await localFS.writeFile(exampleFilePath, code);
-        } catch (e) { console.warn('[runCode] local mirror failed', e); }
-        targetCwd = localRoot ? (localRoot.endsWith('\\') || localRoot.endsWith('/') ? `${localRoot}examples\\${scriptBaseName}` : `${localRoot}\\examples\\${scriptBaseName}`) : exampleRelDir;
-        scriptDir = exampleRelDir;
-      } else {
-        try {
-          await tempFS.mkdir(exampleRelDir);
-          await tempFS.writeFile(exampleFilePath, code);
-        } catch (e) { console.warn('[runCode] temp mirror failed', e); }
-        const tRoot = tempFS.root?.();
-        targetCwd = tRoot ? (tRoot.endsWith('\\') || tRoot.endsWith('/') ? `${tRoot}examples\\${scriptBaseName}` : `${tRoot}\\examples\\${scriptBaseName}`) : exampleRelDir;
-        scriptDir = exampleRelDir;
+    // If the active tab has an associated file path, ensure changes are written and targetCwd is its directory
+    if (activeTabObj?.vfsPath) {
+      const vPath = activeTabObj.vfsPath;
+      if (/^[A-Za-z]:[\\/]/.test(vPath)) {
+        // Windows absolute local path
+        const lastSlash = Math.max(vPath.lastIndexOf('\\'), vPath.lastIndexOf('/'));
+        targetCwd = lastSlash > 0 ? vPath.slice(0, lastSlash) : vPath;
+        if (typeof window !== 'undefined' && window.nativeFS?.writeFile) {
+          const fname = vPath.slice(lastSlash + 1);
+          try { await window.nativeFS.writeFile(targetCwd, '/' + fname, code); } catch (_) {}
+        }
+      } else if (vPath.startsWith('/')) {
+        const lastSlash = vPath.lastIndexOf('/');
+        const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '/';
+        if (activeTabObj.source === 'localFolder' && localFS.isMounted()) {
+          const lRoot = localFS.root();
+          targetCwd = lRoot ? (relDir === '/' ? lRoot : `${lRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
+          try { await localFS.writeFile(vPath, code); } catch (_) {}
+        } else {
+          const tRoot = tempFS.root?.();
+          targetCwd = tRoot ? (relDir === '/' ? tRoot : `${tRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
+          try { await tempFS.writeFile(vPath, code); } catch (_) {}
+        }
       }
-
-      handleCwdChange(targetCwd || scriptDir);
-      setTabs((prev) => prev.map((t) => t.id === activeTabObj.id ? { ...t, vfsPath: exampleFilePath } : t));
-    } else if (activeTabObj?.source === 'localFolder') {
-      const localRoot = localFS.root();
-      const relDir = activeTabObj?.vfsPath ? activeTabObj.vfsPath.substring(0, activeTabObj.vfsPath.lastIndexOf('/')) || '/' : '/';
-      targetCwd = localRoot ? (relDir === '/' ? localRoot : `${localRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
-      scriptDir = relDir;
-      handleCwdChange(targetCwd || scriptDir);
-    } else if (activeTabObj?.source === 'temporary') {
-      const relDir = activeTabObj?.vfsPath ? activeTabObj.vfsPath.substring(0, activeTabObj.vfsPath.lastIndexOf('/')) || '/' : '/';
-      const tRoot = tempFS.root?.();
-      targetCwd = tRoot ? (relDir === '/' ? tRoot : `${tRoot}${relDir.replace(/\//g, '\\')}`) : relDir;
-      scriptDir = relDir;
-      handleCwdChange(targetCwd || scriptDir);
+      if (targetCwd && targetCwd !== cwd) {
+        handleCwdChange(targetCwd);
+      }
     }
 
     const t0 = performance.now();

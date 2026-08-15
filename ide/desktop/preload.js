@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('nativeFS', {
     // Folder mount & persistence.
     pickDirectory: () => ipcRenderer.invoke('fs:pickDirectory'),
     getTempRoot:   () => ipcRenderer.invoke('fs:getTempRoot'),
+    getOsTempDir:  () => ipcRenderer.invoke('fs:getOsTempDir'),
+    setupExample:  (scriptBaseName, files) => ipcRenderer.invoke('fs:setupExample', scriptBaseName, files),
     getUserHome:   () => ipcRenderer.invoke('fs:getUserHome'),
 
     // Tree / file operations, all rooted at `root` (the absolute
