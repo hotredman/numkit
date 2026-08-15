@@ -655,6 +655,10 @@ export default function Sidebar({
         if (name) {
           setLocalMountName(name);
           setLocalStatus('connected');
+          const root = localFS.root?.();
+          if (root && (!cwd || cwd === '/')) {
+            onCwdChange?.(root);
+          }
           await loadTree();
           if (onLocalMount) await onLocalMount();
         }
@@ -663,7 +667,7 @@ export default function Sidebar({
       }
     })();
     return () => { cancelled = true; };
-  }, [isLocal, localAvailable, loadTree, onLocalMount]);
+  }, [isLocal, localAvailable, loadTree, onLocalMount, cwd, onCwdChange]);
 
   /* ─── source switch ─── */
   const switchSource = useCallback((next) => {
@@ -682,6 +686,8 @@ export default function Sidebar({
       if (name) {
         setLocalMountName(name);
         setLocalStatus('connected');
+        const root = localFS.root?.();
+        if (root) onCwdChange?.(root);
         await loadTree();
         if (onLocalMount) await onLocalMount();
       } else {
@@ -691,7 +697,7 @@ export default function Sidebar({
       console.error('[Sidebar] pickDirectory failed', e);
       setLocalStatus('denied');
     }
-  }, [localMountName, loadTree, onLocalMount]);
+  }, [localMountName, loadTree, onLocalMount, onCwdChange]);
 
   const handleUnmount = useCallback(async () => {
     if (!confirm('Unmount this folder? Your files on disk are not affected.')) return;
