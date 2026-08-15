@@ -157,6 +157,13 @@ input, select { font-family: inherit; color: inherit; }
   font-family: var(--font-mono);
 }
 .tool-action:hover { background: var(--bg-2); }
+.tool-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tool-action:disabled:hover {
+  background: transparent;
+}
 .tool-run { color: var(--accent); }
 .tool-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
 
@@ -3469,6 +3476,11 @@ select.ve-btn.fw-cmap-select {
 
 .cf-mode-select:focus {
   border-color: var(--accent);
+}
+
+.cf-mode-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .cf-sep {

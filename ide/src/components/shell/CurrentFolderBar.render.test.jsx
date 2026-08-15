@@ -57,7 +57,7 @@ describe('CurrentFolderBar render tests', () => {
     expect(onCwdChange).toHaveBeenCalledWith('C:\\Projects');
   });
 
-  it('triggers onFsModeChange when dropdown selection changes', () => {
+  it('triggers onFsModeChange when dropdown selection changes in desktop mode', () => {
     const onFsModeChange = vi.fn();
 
     const { container } = render(
@@ -65,13 +65,33 @@ describe('CurrentFolderBar render tests', () => {
         fsMode="virtual"
         onFsModeChange={onFsModeChange}
         cwd="/"
+        localAvailable={true}
       />
     );
 
     const select = container.querySelector('select');
     expect(select).toBeTruthy();
+    expect(select.disabled).toBe(false);
     fireEvent.change(select, { target: { value: 'local' } });
 
     expect(onFsModeChange).toHaveBeenCalledWith('local');
+  });
+
+  it('disables filesystem mode selection in web mode', () => {
+    const onFsModeChange = vi.fn();
+
+    const { container } = render(
+      <CurrentFolderBar
+        fsMode="virtual"
+        onFsModeChange={onFsModeChange}
+        cwd="/"
+        localAvailable={false}
+      />
+    );
+
+    const select = container.querySelector('select');
+    expect(select).toBeTruthy();
+    expect(select.disabled).toBe(true);
+    expect(select.title).toContain('File System: Virtual');
   });
 });

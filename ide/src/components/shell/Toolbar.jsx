@@ -21,7 +21,12 @@ export default function Toolbar({
   isBuildRunning,
   isRunning,
   canRun,
+  canBuildRun,
 }) {
+  const isDesktop = typeof canBuildRun === 'boolean'
+    ? canBuildRun
+    : (typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined');
+
   return (
     <div className="toolbar">
       <div className="brand">
@@ -63,8 +68,8 @@ export default function Toolbar({
           <button
             className="tool-action tool-build-run"
             onClick={onBuildRun}
-            disabled={!canRun || isBuildRunning || isRunning}
-            title="Transpile → compile → run via numkit_codegen --run"
+            disabled={!canRun || isBuildRunning || isRunning || !isDesktop}
+            title={!isDesktop ? "Build & Run is available in the desktop app (requires native C++ compiler and numkit_codegen)" : "Transpile → compile → run via numkit_codegen --run"}
           >
             {/* λ▶ icon: lambda (codegen) + play triangle */}
             <svg width="13" height="10" viewBox="0 0 13 10">

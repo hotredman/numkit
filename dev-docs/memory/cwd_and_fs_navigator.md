@@ -125,6 +125,17 @@ When running scripts in the IDE (especially examples or user projects doing file
     - **Problem**: `imfinfo(path)` returned a struct with `NumberOfChannels` but lacked `NumberOfSamples` (the standard MATLAB field representing color samples/channels per pixel), causing scripts like `image_io_roundtrip.m` to throw `Reference to non-existent field 'NumberOfSamples'`.
     - **Fix**: Added `s.field("NumberOfSamples") = Value::scalar(double(channels), mr);` to `imfinfoFromBytes` in `src/toolboxes/image/src/io/io.cpp`, recompiled the WASM engine, and updated tests.
 
+18. **Web Build Mode UI Constraints (`Toolbar.jsx`, `CurrentFolderBar.jsx`, `FileNavigatorModal.jsx`, `local.js`)**:
+    - **Context & Design Decision**: In the browser/web build (where `window.nativeFS` is absent), the Local Filesystem (real disk access) and "Build & Run" (native AOT C++ codegen) are unavailable.
+    - **Implementation**:
+      - Rather than removing these elements from the DOM (which would break header visual parity and spacing), they remain rendered in a disabled state (`disabled={true}`, `opacity: 0.45`..`0.6`, `cursor: not-allowed`).
+      - Informative tooltips are displayed:
+        - Filesystem Selector: `"File System: Virtual (Local filesystem is available in desktop app)"`.
+        - Build & Run: `"Build & Run is available in the desktop app (requires native C++ compiler and numkit_codegen)"`.
+      - `local.js`: Restricted `pickBackend()` to `window.nativeFS` (desktop only), ensuring web mode stays 100% on Virtual FS (`tempFS` / IndexedDB).
+    - Test coverage: 550 tests passing across 41 test files.
+
+
 
 
 
