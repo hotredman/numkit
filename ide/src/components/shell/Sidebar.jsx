@@ -609,8 +609,13 @@ export default function Sidebar({
 
   const isAtRoot = useMemo(() => {
     if (source !== 'fs') return true;
+    if (isLocal) {
+      const clean = (cwd || '').trim().replace(/\\/g, '/');
+      if (!clean || clean === '/' || /^[A-Za-z]:\/?$/.test(clean)) return true;
+      return false;
+    }
     return !currentRelDir || currentRelDir === '/' || currentRelDir === '';
-  }, [source, currentRelDir]);
+  }, [source, isLocal, cwd, currentRelDir]);
 
   const ops = useMemo(() =>
     makeOps(isLocal ? 'localFolder' : 'temporary'),
@@ -903,18 +908,6 @@ export default function Sidebar({
             (Examples / GitHub). */}
         {!isExamples && !isGithub && (
           <div className="sidebar-head-row sidebar-head-actions">
-            {source === 'fs' && (
-              <button
-                className="sidebar-icon"
-                title="Up one level (..)"
-                disabled={isAtRoot}
-                onClick={onNavigateUp}
-              >
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                  <path fillRule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V4.707l2.646 2.647a.5.5 0 0 0 .708-.708l-3.5-3.5a.5.5 0 0 0-.708 0l-3.5 3.5a.5.5 0 1 0 .708.708L7.5 4.707V11.5a.5.5 0 0 0 .5.5z"/>
-                </svg>
-              </button>
-            )}
             <button className="sidebar-icon" title="New file"
               onClick={() => setCreating({ parentPath: currentRelDir, type: 'file' })}>
               {Icons.fileNew()}
@@ -1001,15 +994,16 @@ export default function Sidebar({
           {source === 'fs' && !isAtRoot && (
             <div
               className="tree-row tree-folder"
-              style={{ paddingLeft: 8, color: 'var(--fg-2)', cursor: 'pointer' }}
+              style={{ paddingLeft: 8, color: 'var(--fg-2)', cursor: 'pointer', userSelect: 'none' }}
               onClick={onNavigateUp}
-              title="Go to Parent Folder (..)"
+              onDoubleClick={onNavigateUp}
+              title="Parent folder (..)"
             >
               <svg width="11" height="11" viewBox="0 0 12 12" className="tree-icon" style={{ opacity: 0.7 }}>
                 <path d="M1 3.5a1 1 0 0 1 1-1h2.5l1 1H10a1 1 0 0 1 1 1V9a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3.5z"
                   fill="currentColor"/>
               </svg>
-              <span className="tree-label" style={{ color: 'var(--fg-3)' }}>.. (Parent Folder)</span>
+              <span className="tree-label" style={{ fontWeight: 600, letterSpacing: '1px' }}>..</span>
             </div>
           )}
           {tree.length === 0 && !creating && (
