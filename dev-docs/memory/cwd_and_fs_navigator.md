@@ -42,10 +42,14 @@ When running scripts in the IDE (especially examples or user projects doing file
    - Replaced monolithic recursive `listTree()` with shallow `listDir(root, relPath)` across Electron IPC, preload, `localFS`, and `tempFS`.
    - `Sidebar` and `FileNavigatorModal` query only the immediate children of the active folder (`< 1 ms`, minimal memory).
    - In `Sidebar.jsx`, expanding a folder in `TreeRow` dynamically loads that folder's children on demand.
-8. **Sidebar Navigation & Controls Refinement**:
+8. **Sidebar Navigation, Click Behaviors & Windows Root Fixes**:
    - Removed obsolete unmount button and unmount strip.
-   - Added Up button (`⬆`) directly in the sidebar toolbar header actions (alongside New File and New Folder), paired with the `.. (Parent Folder)` top tree row.
-   - Changed search input placeholder and hint to standard `"Filter files…"`.
+   - Click behaviors in sidebar file tree:
+     - **Folders**: 1 click (on arrow or text) expands/collapses the subfolder; 2 clicks (double-click) navigates into the folder setting it as active CWD.
+     - **`..` (Parent Directory)**: 1 click selects the row; 2 clicks (double-click) navigates up one level.
+     - **Files**: 1 click selects; 2 clicks opens the file in editor.
+   - Fixed `safePath` in `main.js` to ensure Windows drive roots (e.g. `C:\`, `D:\`) with trailing path separators properly validate without false `Path escapes mounted root` errors.
+
 
 
 
