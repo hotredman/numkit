@@ -44,10 +44,9 @@ export async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
   // ── Local Filesystem Mode (Electron Native) ──
   if (fsMode === 'local' && isElectron && typeof window.nativeFS.setupExample === 'function') {
     const targetDir = await window.nativeFS.setupExample(scriptBaseName, filesToCopy);
-    const vfsPath = targetDir.includes('\\') ? `${targetDir}\\${fname}` : `${targetDir}/${fname}`;
     return {
       content,
-      vfsPath,
+      vfsPath: `/${fname}`,
       targetDir,
       isBinary,
       fsMode: 'local',
