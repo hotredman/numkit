@@ -23,72 +23,86 @@ function formatDate(ts) {
   }
 }
 
-/* ─────────────── monochrome vector icons ─────────────── */
+/* ─────────────── monochrome vector icons (consistent 16×16 grid) ─────────────── */
+const ICON_BASE = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.25,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+};
+
 const NavIcons = {
-  folder: () => (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-      <path d="M1.5 3.5h3.5l1.5 2H14a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1.5z" fill="rgba(240, 180, 41, 0.15)" stroke="var(--warn, #e0a020)" />
+  folder: ({ size = 14, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE} className={className}>
+      <path d="M1.5 3.5h4l1.5 2H14.5a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1z" />
     </svg>
   ),
-  script: () => (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-      <path d="M3 2h7l3 3v9H3z" />
-      <path d="M10 2v3h3M5 7h6M5 10h6M5 13h4" />
+  parentFolder: ({ size = 14, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE} className={className}>
+      <path d="M1.5 3.5h4l1.5 2H14.5a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1z" />
+      <path d="M8 11.5V7.5M6 9.5l2-2 2 2" />
     </svg>
   ),
-  data: () => (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-      <rect x="2" y="2" width="12" height="12" rx="1.5" />
-      <path d="M2 6h12M6 6v8M10 6v8" />
+  script: ({ size = 14, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE} className={className}>
+      <path d="M3 2h7l3.5 3.5V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+      <path d="M10 2v4h3.5" />
+      <path d="M5 8.5h6M5 11.5h4" />
     </svg>
   ),
-  media: () => (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-      <rect x="2" y="2" width="12" height="12" rx="1.5" />
-      <circle cx="5.5" cy="5.5" r="1.5" />
-      <path d="M14 11l-3.5-3.5L3 14" />
+  data: ({ size = 14, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE} className={className}>
+      <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+      <path d="M2.5 6.5h11M6.5 6.5v7M10.5 6.5v7" />
     </svg>
   ),
-  audio: () => (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-      <path d="M6 12V4l7-2v8" />
-      <circle cx="4" cy="12" r="2" />
-      <circle cx="11" cy="10" r="2" />
+  media: ({ size = 14, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE} className={className}>
+      <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+      <circle cx="5.5" cy="5.5" r="1.25" />
+      <path d="M13.5 11l-3.5-3.5-6 6" />
     </svg>
   ),
-  file: () => (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
-      <path d="M3 2h7l3 3v9H3z" />
-      <path d="M10 2v3h3" />
+  audio: ({ size = 14, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE} className={className}>
+      <path d="M5.5 11.5V3.5l7-1.5v8" />
+      <circle cx="4" cy="11.5" r="1.75" />
+      <circle cx="11" cy="10" r="1.75" />
     </svg>
   ),
-  up: () => (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-      <path fillRule="evenodd" d="M8 3.5a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5z"/>
-      <path fillRule="evenodd" d="M7.646 2.146a.5.5 0 0 1 .708 0l4 4a.5.5 0 0 1-.708.708L8 3.207 4.354 6.854a.5.5 0 1 1-.708-.708l4-4z"/>
+  file: ({ size = 14, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE} className={className}>
+      <path d="M3 2h7l3.5 3.5V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+      <path d="M10 2v4h3.5" />
     </svg>
   ),
-  refresh: () => (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-      <path d="M13.6 8A5.6 5.6 0 1 1 8 2.4c2 0 3.8.9 4.9 2.4"/>
-      <path d="M13 2v3.5H9.5"/>
+  up: ({ size = 12 }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE}>
+      <path d="M8 13.5V2.5M3.5 7L8 2.5 12.5 7" />
     </svg>
   ),
-  newFolder: () => (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-      <path d="M1.5 3.5h3.5l1.5 2H14a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1.5z"/>
-      <path d="M8 7.5v4M6 9.5h4"/>
+  refresh: ({ size = 12 }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE}>
+      <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c2 0 3.8.9 4.9 2.4" />
+      <path d="M13 2v3.5H9.5" />
+    </svg>
+  ),
+  newFolder: ({ size = 12 }) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE}>
+      <path d="M1.5 3.5h4l1.5 2H14.5a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1z" />
+      <path d="M8 7.5v4M6 9.5h4" />
     </svg>
   ),
 };
 
-function renderFileIcon(type, name = '') {
-  if (type === 'folder') return <NavIcons.folder />;
-  if (/\.m$/i.test(name)) return <NavIcons.script />;
-  if (/\.(mat|dat|csv|tsv|json)$/i.test(name)) return <NavIcons.data />;
-  if (/\.(wav|mp3|ogg|flac|m4a)$/i.test(name)) return <NavIcons.audio />;
-  if (/\.(png|jpe?g|bmp|gif|webp|tiff?)$/i.test(name)) return <NavIcons.media />;
-  return <NavIcons.file />;
+function renderFileIcon(type, name = '', size = 14) {
+  if (type === 'folder') return <NavIcons.folder size={size} />;
+  if (/\.(m|n)$/i.test(name)) return <NavIcons.script size={size} />;
+  if (/\.(mat|dat|csv|tsv|json)$/i.test(name)) return <NavIcons.data size={size} />;
+  if (/\.(wav|mp3|ogg|flac|m4a)$/i.test(name)) return <NavIcons.audio size={size} />;
+  if (/\.(png|jpe?g|bmp|gif|webp|tiff?|svg)$/i.test(name)) return <NavIcons.media size={size} />;
+  return <NavIcons.file size={size} />;
 }
 
 /**
@@ -492,7 +506,10 @@ export default function FileNavigatorModal({
               {!isAtRoot && (
                 <tr className="nav-modal-row" onDoubleClick={handleNavigateUp}>
                   <td colSpan={4} style={{ color: 'var(--fg-3)', cursor: 'pointer' }}>
-                    <span className="nav-row-icon"><NavIcons.folder /></span> .. [Parent Folder]
+                    <span className="nav-row-icon" style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', marginRight: 6, color: 'var(--fg-3)' }}>
+                      <NavIcons.parentFolder size={14} />
+                    </span>
+                    .. [Parent Folder]
                   </td>
                 </tr>
               )}
@@ -507,7 +524,9 @@ export default function FileNavigatorModal({
                     onDoubleClick={() => handleItemDoubleClick(item)}
                   >
                     <td>
-                      <span className="nav-row-icon">{renderFileIcon(item.type, item.name)}</span>
+                      <span className="nav-row-icon" style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', marginRight: 6, color: 'var(--fg-2)' }}>
+                        {renderFileIcon(item.type, item.name, 14)}
+                      </span>
                       <span className="nav-row-name">{item.name}</span>
                     </td>
                     <td style={{ color: 'var(--fg-2)', fontSize: '11px' }}>{ext}</td>
@@ -536,10 +555,8 @@ export default function FileNavigatorModal({
           <div className="nav-info-title">File Details</div>
           {selectedItem ? (
             <div className="nav-info-content">
-              <div className="nav-info-icon-large" style={{ display: 'flex', justifyContent: 'center', padding: '12px 0' }}>
-                <span style={{ transform: 'scale(2.2)', display: 'inline-block' }}>
-                  {renderFileIcon(selectedItem.type, selectedItem.name)}
-                </span>
+              <div className="nav-info-icon-large" style={{ display: 'flex', justifyContent: 'center', padding: '16px 0', color: 'var(--fg-2)' }}>
+                {renderFileIcon(selectedItem.type, selectedItem.name, 44)}
               </div>
               <div className="nav-info-name">{selectedItem.name}</div>
               <div className="nav-info-prop">
