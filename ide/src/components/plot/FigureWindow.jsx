@@ -17,6 +17,7 @@ import {
   NumberInput, FwPopLocationSubmenu, DisplayToggle, MatrixHead, MatrixToggleRow,
 } from './figureWindow.controls';
 import { buildDelimited, buildJsonObject } from './figureExport';
+import ModalWindow from '../ui/ModalWindow';
 
 function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
@@ -790,41 +791,10 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
 
   const fmtVp = (n) => Number.isFinite(n) ? Number(n.toPrecision(5)).toString() : '—';
 
-  const windowNode = (
-    <div className={`fw-window ${maximized ? 'is-max' : ''} ${embedded ? 'is-embedded' : ''}`}
+  const contentNode = (
+    <div className={`fw-window ${embedded ? 'is-embedded' : 'fw-modal-body'}`}
       ref={containerRef}
-      role="dialog" aria-label={`Figure ${figure.id}`}>
-        {!embedded && (
-          <div className="fw-titlebar">
-            <div className="fw-title-left">
-              <span className="fw-name" style={{ fontWeight: 600, color: 'var(--fg-0)' }}>
-                {figure.id ? `Figure ${figure.id}` : 'Figure'}
-              </span>
-              {figure.title && figure.title !== `Figure ${figure.id}` && (
-                <span className="ve-dim" style={{ color: 'var(--fg-2)', marginLeft: 8 }}>{figure.title}</span>
-              )}
-            </div>
-            <div className="fw-title-right">
-              <button className="ve-close" onClick={() => setMaximized((m) => !m)}
-                title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
-                {maximized ? (
-                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                    <rect x="1.5" y="3.5" width="7" height="7"
-                      stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                    <rect x="3.5" y="1.5" width="7" height="7"
-                      stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                  </svg>
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                    <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
-                  </svg>
-                )}
-              </button>
-              <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
-            </div>
-          </div>
-        )}
-
+      role="region" aria-label={`Figure ${figure.id} content`}>
         <div className="fw-toolbar">
           {/* 🏠 Reset — full reset of viewport AND display state. For
               subplot it fans out to every cell. Standalone toolbar
@@ -1531,11 +1501,21 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
       </div>
   );
 
-  if (embedded) return windowNode;
+  if (embedded) return contentNode;
 
   return (
-    <div className="fw-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      {windowNode}
-    </div>
+    <ModalWindow
+      onClose={onClose}
+      title={figure.id ? `Figure ${figure.id}` : 'Figure'}
+      subtitle={figure.title && figure.title !== `Figure ${figure.id}` ? figure.title : null}
+      ariaLabel={`Figure ${figure.id}`}
+      width="min(1280px, 94vw)"
+      height="min(820px, 90vh)"
+      maximized={maximized}
+      onMaximizedChange={setMaximized}
+      className="fw-modal-window"
+    >
+      {contentNode}
+    </ModalWindow>
   );
 }
