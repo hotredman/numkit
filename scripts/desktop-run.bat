@@ -26,6 +26,18 @@ if exist "%WASM_DIST%\numkit_ide.wasm" (
     echo WASM not built — fallback mode
 )
 
+:: Sync native binaries into deploy\desktop if available
+if exist "%PROJECT_DIR%build\desktop-fast\apps\numkit\Release\numkit_repl.exe" (
+    if exist "%PROJECT_DIR%deploy\desktop" (
+        copy /y "%PROJECT_DIR%build\desktop-fast\apps\numkit\Release\numkit_repl.exe" "%PROJECT_DIR%deploy\desktop\" >nul 2>&1
+    )
+)
+if exist "%PROJECT_DIR%build\desktop-fast\apps\numkit_codegen\Release\numkit_codegen.exe" (
+    if exist "%PROJECT_DIR%deploy\desktop" (
+        copy /y "%PROJECT_DIR%build\desktop-fast\apps\numkit_codegen\Release\numkit_codegen.exe" "%PROJECT_DIR%deploy\desktop\" >nul 2>&1
+    )
+)
+
 :: Install IDE dependencies if needed
 if not exist "%IDE_DIR%\node_modules" (
     echo Installing IDE dependencies...

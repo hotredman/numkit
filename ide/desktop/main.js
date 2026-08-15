@@ -550,23 +550,34 @@ function resolveExe(settingPath, exeName) {
     }
   } catch (e) { /* console.log(`[resolveExe] app.getPath failed: ${e.message}`); */ }
 
-  // 4. Search working directory & repo & deploy directories (dev mode or portable mode fallback)
+  // 4. Search build, deploy, repo directories (picking the newest binary by mtime)
   try {
     const repoRoot = path.resolve(__dirname, '..', '..');
     const devCandidates = [
-      path.join(process.cwd(), exeOnWin),
-      path.join(process.cwd(), 'deploy', 'desktop', exeOnWin),
-      path.join(repoRoot, 'deploy', 'desktop', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'numkit',  'Release', exeOnWin),
+      path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'numkit',  'Debug', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'apps', exeName,   'Release', exeOnWin),
+      path.join(repoRoot, 'build', 'desktop-fast', 'apps', exeName,   'Debug', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'Release', exeOnWin),
+      path.join(repoRoot, 'build', 'desktop-fast', 'Debug', exeOnWin),
+      path.join(repoRoot, 'deploy', 'desktop', exeOnWin),
+      path.join(process.cwd(), 'deploy', 'desktop', exeOnWin),
+      path.join(process.cwd(), exeOnWin),
     ];
+    let newest = null;
+    let newestMtime = 0;
     for (const c of devCandidates) {
       if (fs.existsSync(c)) {
-        // console.log(`[resolveExe] ${exeName}: found candidate → ${c}`);
-        return c;
+        try {
+          const mtime = fs.statSync(c).mtimeMs;
+          if (mtime > newestMtime) {
+            newestMtime = mtime;
+            newest = c;
+          }
+        } catch (e) {}
       }
     }
+    if (newest) return newest;
   } catch (e) { /* console.log(`[resolveExe] dev search failed: ${e.message}`); */ }
 
   // 5. Fallback to explicit if provided, otherwise bare name
