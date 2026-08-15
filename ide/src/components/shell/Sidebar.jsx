@@ -277,7 +277,7 @@ async function mirrorExampleFile(adapter, fetchPath, vfsPath) {
   return text;
 }
 
-async function openExample(node, tree, vfsAdapters) {
+async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
   if (node.type !== 'file' || !node._fetchPath) return null;
   const isBinary = BINARY_EXAMPLE_EXT.test(node.name || node.path);
 
@@ -323,14 +323,14 @@ async function openExample(node, tree, vfsAdapters) {
   }));
 
   const isElectron = typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined';
-  if (isElectron && typeof window.nativeFS.setupExample === 'function') {
+  if (fsMode === 'local' && isElectron && typeof window.nativeFS.setupExample === 'function') {
     const targetDir = await window.nativeFS.setupExample(scriptBaseName, filesToCopy);
     const vfsPath = targetDir.includes('\\') ? `${targetDir}\\${fname}` : `${targetDir}/${fname}`;
-    return { content, vfsPath, targetDir, isBinary, fsMode: 'local' };
+    return { content, vfsPath, targetDir, isBinary, fsMode: 'local', source: 'localFolder' };
   }
 
-  // Web Virtual FS fallback
-  const targetRelDir = `/numkit/examples/${scriptBaseName}`;
+  // Virtual FS: /numkit_ide/examples/<scriptBaseName>
+  const targetRelDir = `/numkit_ide/examples/${scriptBaseName}`;
   const tempBackend = vfsAdapters?.temp || tempFS;
   if (tempBackend) {
     try { if (tempBackend.mkdir) await tempBackend.mkdir(targetRelDir); } catch { /* ignore */ }
@@ -338,7 +338,7 @@ async function openExample(node, tree, vfsAdapters) {
       const p = `${targetRelDir}/${f.name}`;
       try {
         if (f.bytes && tempBackend.writeFileBytes) {
-          tempBackend.writeFileBytes(p, new Uint8Array(f.bytes));
+          await tempBackend.writeFileBytes(p, new Uint8Array(f.bytes));
         } else if (f.content != null && tempBackend.writeFile) {
           await tempBackend.writeFile(p, f.content);
         }
@@ -346,7 +346,7 @@ async function openExample(node, tree, vfsAdapters) {
     }
   }
   const vfsPath = `${targetRelDir}/${fname}`;
-  return { content, vfsPath, targetDir: targetRelDir, isBinary, fsMode: 'virtual' };
+  return { content, vfsPath, targetDir: targetRelDir, isBinary, fsMode: 'virtual', source: 'temporary' };
 }
 
 /* ─────────────── GitHub backend ─────────────── */
@@ -734,7 +734,7 @@ export default function Sidebar({
     if (node.type !== 'file') return;
     if (isExamples) {
       try {
-        const r = await openExample(node, tree, vfsAdapters);
+        const r = await openExample(node, tree, vfsAdapters, fsMode);
         if (r) {
           if (r.targetDir && onCwdChange) {
             onCwdChange(r.targetDir);
@@ -742,14 +742,14 @@ export default function Sidebar({
           if (r.fsMode && onFsModeChange) {
             onFsModeChange(r.fsMode);
           }
-          if (!r.isBinary) onOpenFile?.(node.name, r.content, r.vfsPath, 'examples');
+          if (!r.isBinary) onOpenFile?.(node.name, r.content, r.vfsPath, r.source || (r.fsMode === 'local' ? 'localFolder' : 'temporary'));
         }
       } catch (e) { console.error('[Sidebar] openExample', e); }
       return;
     }
     const content = await ops.readFile(node.path);
     onOpenFile?.(node.name, content !== null ? content : '', node.path, isLocal ? 'localFolder' : 'temporary');
-  }, [ops, onOpenFile, isLocal, isExamples, tree, vfsAdapters, onCwdChange, onFsModeChange]);
+  }, [ops, onOpenFile, isLocal, isExamples, tree, vfsAdapters, fsMode, onCwdChange, onFsModeChange]);
 
   const handleCreate = useCallback(async (name) => {
     if (!name || !creating) { setCreating(null); return; }
