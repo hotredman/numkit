@@ -607,10 +607,16 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     });
   }, []);
 
-  const localAvailable = typeof localFS !== 'undefined' && localFS.isAvailable?.();
+  const isElectron = typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined';
+  const localAvailable = isElectron && typeof localFS !== 'undefined' && localFS.isAvailable?.();
   const [fsMode, setFsMode] = useState(() => {
-    try { return localStorage.getItem('numkit.ide.fsmode') || 'virtual'; }
-    catch { return 'virtual'; }
+    try {
+      if (!isElectron) return 'virtual';
+      const stored = localStorage.getItem('numkit.ide.fsmode');
+      return (stored === 'local' || stored === 'virtual') ? stored : 'virtual';
+    } catch {
+      return 'virtual';
+    }
   });
   const [virtualCwd, setVirtualCwd] = useState(() => {
     try {
@@ -636,7 +642,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
   useEffect(() => {
     (async () => {
-      if (typeof localFS !== 'undefined' && localFS.isAvailable?.()) {
+      if (isElectron && typeof localFS !== 'undefined' && localFS.isAvailable?.()) {
         try {
           await localFS.reconnect();
           const root = localFS.root?.();
@@ -648,17 +654,18 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         }
       }
     })();
-  }, []);
+  }, [isElectron]);
 
   const cwd = fsMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
 
   const handleFsModeChange = useCallback((newMode) => {
+    if (!isElectron && newMode === 'local') return;
     setFsMode(newMode);
     const targetCwd = newMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
     if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
       window.nativeFS.setCwd(targetCwd);
     }
-  }, [localCwd, virtualCwd]);
+  }, [isElectron, localCwd, virtualCwd]);
 
   const handleLocalMount = useCallback(async () => {
     const root = localFS.root?.();
@@ -1328,6 +1335,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         isBuildRunning={isBuildRunning}
         isRunning={isRunning}
         canRun={Boolean(activeTabData?.code?.trim())}
+        canBuildRun={isElectron}
       />
 
       <CurrentFolderBar

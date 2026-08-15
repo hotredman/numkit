@@ -465,7 +465,6 @@ function makeFsaBackend() {
 function pickBackend() {
     if (typeof window === 'undefined') return null;
     if (window.nativeFS) return makeNativeBackend();
-    if (typeof window.showDirectoryPicker === 'function') return makeFsaBackend();
     return null;
 }
 

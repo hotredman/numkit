@@ -111,12 +111,16 @@ export default function FileNavigatorModal({
   currentCwd = '/',
   onSetCurrentFolder,
   onOpenFile,
-  localAvailable = false,
+  localAvailable,
   localMountName = null,
 }) {
-  const [navFsMode, setNavFsMode] = useState(fsMode);
+  const isDesktop = typeof localAvailable === 'boolean'
+    ? localAvailable
+    : (typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined');
+
+  const [navFsMode, setNavFsMode] = useState(isDesktop ? fsMode : 'virtual');
   const [browsePath, setBrowsePath] = useState(() => {
-    if (fsMode === 'local') {
+    if (isDesktop && fsMode === 'local') {
       return currentCwd || (typeof localFS !== 'undefined' && localFS.root?.()) || 'C:\\';
     }
     return currentCwd || '/';
@@ -398,6 +402,8 @@ export default function FileNavigatorModal({
           <select
             className="cf-mode-select"
             value={navFsMode}
+            disabled={!isDesktop}
+            title={!isDesktop ? "File System: Virtual (Local filesystem is available in desktop app)" : "Select Active Working Filesystem"}
             onChange={(e) => {
               const nextMode = e.target.value;
               setNavFsMode(nextMode);
@@ -409,7 +415,7 @@ export default function FileNavigatorModal({
             }}
           >
             <option value="virtual">Virtual</option>
-            <option value="local" disabled={!localAvailable}>
+            <option value="local" disabled={!isDesktop}>
               Local
             </option>
           </select>

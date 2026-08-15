@@ -13,9 +13,13 @@ export default function CurrentFolderBar({
   onCwdChange,
   onNavigateUp,
   onOpenNavigator,
-  localAvailable = false,
+  localAvailable,
   localMountName = null,
 }) {
+  const isDesktop = typeof localAvailable === 'boolean'
+    ? localAvailable
+    : (typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined');
+
   const [editingPath, setEditingPath] = useState(cwd);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -48,10 +52,11 @@ export default function CurrentFolderBar({
           className="cf-mode-select"
           value={fsMode}
           onChange={(e) => onFsModeChange?.(e.target.value)}
-          title="Select Active Working Filesystem"
+          disabled={!isDesktop}
+          title={!isDesktop ? "File System: Virtual (Local filesystem is available in desktop app)" : "Select Active Working Filesystem"}
         >
           <option value="virtual">Virtual</option>
-          <option value="local" disabled={!localAvailable}>
+          <option value="local" disabled={!isDesktop}>
             Local
           </option>
         </select>
