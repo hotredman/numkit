@@ -4,10 +4,15 @@ setlocal enabledelayedexpansion
 set SCRIPT_DIR=%~dp0
 set PROJECT_DIR=%SCRIPT_DIR%..\
 set DEPLOY_DIR=%PROJECT_DIR%deploy
-set DEFAULT_PAGES_DIR=%PROJECT_DIR%..\..\czssgkavo\numkit
 
-:: Parse arguments
-set PAGES_DIR=%DEFAULT_PAGES_DIR%
+:: Determine default pages directory
+set PAGES_DIR=%NUMKIT_PAGES_DIR%
+if "%PAGES_DIR%"=="" (
+    if exist "%PROJECT_DIR%..\numkit-pages\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-pages"
+    if not defined PAGES_DIR if exist "%PROJECT_DIR%..\..\czssgkavo\numkit\.git" set "PAGES_DIR=%PROJECT_DIR%..\..\czssgkavo\numkit"
+    if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-web\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-web"
+)
+
 set DO_PUSH=0
 set SKIP_BUILD=0
 
@@ -29,35 +34,32 @@ if /i "%~1"=="--dest" (
     shift
     goto parse_args
 )
-if /i "%~1"=="--help" (
-    echo Usage: %~nx0 [--push] [--skip-build] [--dest ^<path^>]
-    echo.
-    echo Synchronizes the static Web IDE bundle ^(deploy\^) into the GitHub Pages repository.
-    echo.
-    echo Options:
-    echo   --push        Automatically push commit to origin main in the Pages repo.
-    echo   --skip-build  Skip re-running web-build.bat.
-    echo   --dest ^<path^> Destination directory ^(default: ..\czssgkavo\numkit^).
-    exit /b 0
-)
+if /i "%~1"=="--help" goto show_help_ok
+if /i "%~1"=="-h" goto show_help_ok
+
 set PAGES_DIR=%~1
 shift
 goto parse_args
 :args_done
+
+if "%PAGES_DIR%"=="" (
+    echo ERROR: GitHub Pages destination directory is not specified.
+    echo.
+    goto show_help_err
+)
+
+if not exist "%PAGES_DIR%\.git" (
+    echo ERROR: Destination directory is not a Git repository: "%PAGES_DIR%"
+    echo.
+    goto show_help_err
+)
 
 echo === Numkit Web IDE - Deploy to GitHub Pages Repository ===
 echo Source: %PROJECT_DIR%
 echo Target: %PAGES_DIR%
 echo.
 
-:: 1. Validate target directory
-if not exist "%PAGES_DIR%\.git" (
-    echo ERROR: Target directory is not a Git repository: "%PAGES_DIR%"
-    echo Please make sure the repository is cloned, or specify path with --dest ^<path^>.
-    exit /b 1
-)
-
-:: 2. Build web bundle if needed
+:: 1. Build web bundle if needed
 if "%SKIP_BUILD%"=="0" (
     echo Building latest Web IDE static bundle...
     call "%SCRIPT_DIR%web-build.bat"
@@ -72,7 +74,7 @@ if not exist "%DEPLOY_DIR%\index.html" (
     exit /b 1
 )
 
-:: 3. Get source git commit hash
+:: 2. Get source git commit hash
 set SRC_REV=
 for /f %%i in ('git rev-parse --short HEAD 2^>nul') do set SRC_REV=%%i
 if "%SRC_REV%"=="" set SRC_REV=manual
@@ -94,7 +96,7 @@ if not exist "%PAGES_DIR%\.nojekyll" (
 
 echo Files synchronized.
 
-:: 4. Check git status in target repo
+:: 3. Check git status in target repo
 cd /d "%PAGES_DIR%"
 git status --porcelain > "%TEMP%\pages_status.txt"
 
@@ -109,7 +111,7 @@ del "%TEMP%\pages_status.txt" 2>nul
 echo.
 echo Committing changes in Pages repository...
 git add -A
-git commit -m "Update Web IDE build (synced from megahard/numkit@%SRC_REV%)"
+git commit -m "Update Web IDE build (numkit@%SRC_REV%)"
 
 if "%DO_PUSH%"=="1" (
     echo.
@@ -134,4 +136,29 @@ echo   scripts\publish-pages.bat --push
 :done
 cd /d "%PROJECT_DIR%"
 echo.
-echo === Done! ===
+echo === Done ===
+exit /b 0
+
+:show_help_ok
+echo Usage: %~nx0 [--push] [--skip-build] [--dest ^<path^>] [^<path^>]
+echo.
+echo Synchronizes the static Web IDE bundle (deploy\) into a GitHub Pages repository.
+echo.
+echo Options:
+echo   --push        Automatically push commit to origin main in the Pages repo.
+echo   --skip-build  Skip re-running web-build.bat if deploy\ is already fresh.
+echo   --dest ^<path^> Destination directory (or set NUMKIT_PAGES_DIR environment variable).
+echo   -h, --help    Show this help message.
+exit /b 0
+
+:show_help_err
+echo Usage: %~nx0 [--push] [--skip-build] [--dest ^<path^>] [^<path^>]
+echo.
+echo Synchronizes the static Web IDE bundle (deploy\) into a GitHub Pages repository.
+echo.
+echo Options:
+echo   --push        Automatically push commit to origin main in the Pages repo.
+echo   --skip-build  Skip re-running web-build.bat if deploy\ is already fresh.
+echo   --dest ^<path^> Destination directory (or set NUMKIT_PAGES_DIR environment variable).
+echo   -h, --help    Show this help message.
+exit /b 1

@@ -5,7 +5,10 @@ set PROJECT_DIR=%~dp0..\
 set IDE_DIR=%PROJECT_DIR%ide
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 set DEPLOY_DIR=%PROJECT_DIR%deploy
-if not defined EMSDK set "EMSDK=C:\Users\User\Repo\emsdk"
+if not defined EMSDK (
+    if exist "%USERPROFILE%\Repo\emsdk" set "EMSDK=%USERPROFILE%\Repo\emsdk"
+    if exist "%USERPROFILE%\emsdk" set "EMSDK=%USERPROFILE%\emsdk"
+)
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
 echo === Numkit IDE Static Build -- output to deploy\ ===
