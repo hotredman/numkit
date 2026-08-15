@@ -255,7 +255,14 @@ export function MatrixPanel({
   // inspector drilled into a different field).
   useEffect(() => { setActiveCell({ r: 0, c: 0 }); setEditing(null); }, [rows, cols, name]);
 
-  function startDragDivider(e) {
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
+
+  function handlePlotResizeStart(e) {
     e.preventDefault();
     const body = veBodyRef.current;
     if (!body) return;
@@ -268,11 +275,13 @@ export function MatrixPanel({
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('blur', onUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('blur', onUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }
@@ -317,6 +326,10 @@ export function MatrixPanel({
   }, [editing]);
 
   const handleKey = useCallback((e) => {
+    const tag = e.target?.tagName?.toLowerCase();
+    if (!editing && (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable)) {
+      return;
+    }
     if (editing) {
       if (e.key === 'Enter')  { e.preventDefault(); commitEdit(); }
       if (e.key === 'Escape') { e.preventDefault(); setEditing(null); }

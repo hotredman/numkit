@@ -3067,7 +3067,14 @@ select.ve-btn.fw-cmap-select {
    scroll affordance (wheel + minimap drag both still scroll); a native
    scrollbar sitting flush against the minimap read as a duplicate.
    Scroll behaviour is unaffected — only the scrollbar chrome is hidden. */
-.nk-editor-textarea { scrollbar-width: none; }            /* Firefox */
+.nk-editor-textarea {
+  scrollbar-width: none;
+  cursor: text !important;
+  caret-color: var(--accent, #7c6ff0);
+}
+.nk-editor-textarea:focus {
+  caret-color: var(--accent, #7c6ff0);
+}
 .nk-editor-textarea::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 /* ---------- Right-click context menu (plot panels, heatmap, polar) ---------- */
