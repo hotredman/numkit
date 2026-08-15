@@ -2239,11 +2239,10 @@ std::vector<Value> Engine::callFunctionHandleMulti(const Value &handle,
 
     // 1) Built-in (registered external) — works regardless of backend.
     {
-        auto it = externalFuncs_.find(name);
-        if (it != externalFuncs_.end()) {
+        if (const ExternalFunc *fn = findExternal(name, e)) {
             std::vector<Value> out(nout);
             CallContext ctx{this, e};
-            it->second(args, nout, Span<Value>(out), ctx);
+            (*fn)(args, nout, Span<Value>(out), ctx);
             return out;
         }
     }
