@@ -61,11 +61,17 @@ function makeNativeBackend() {
         }
     }
 
+    const initSaved = stored();
+    if (initSaved) {
+        setRoot(initSaved);
+    }
+
     return {
         kind: 'native',
         isAvailable: () => true,
         supportsReveal: () => true,
 
+        root: () => rootPath,
         isMounted: () => rootPath !== null,
         mountName: () => rootDisplayName,
 
@@ -78,23 +84,47 @@ function makeNativeBackend() {
         },
 
         async reconnect() {
-            const saved = stored();
+            let saved = stored();
+            if (!saved && typeof api.getUserHome === 'function') {
+                try { saved = await api.getUserHome(); } catch (_) {}
+            }
             if (!saved) return null;
             // Verify the path is still reachable — avoids surfacing a
             // stale mount after the folder was renamed/removed from disk.
             try {
                 await api.listTree(saved);
                 setRoot(saved);
+                remember(saved);
                 return rootDisplayName;
             } catch (_) {
+                if (typeof api.getUserHome === 'function') {
+                    try {
+                        const home = await api.getUserHome();
+                        if (home) {
+                            await api.listTree(home);
+                            setRoot(home);
+                            remember(home);
+                            return rootDisplayName;
+                        }
+                    } catch (_) {}
+                }
                 remember(null);
                 return null;
             }
         },
 
         async disconnect() {
-            setRoot(null);
-            remember(null);
+            let home = '';
+            if (typeof api.getUserHome === 'function') {
+                try { home = await api.getUserHome(); } catch (_) {}
+            }
+            if (home) {
+                setRoot(home);
+                remember(home);
+            } else {
+                setRoot(null);
+                remember(null);
+            }
         },
 
         async listTree() {

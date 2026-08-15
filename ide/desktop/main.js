@@ -317,6 +317,10 @@ ipcMain.handle('fs:getTempRoot', async () => {
   return TEMP_ROOT;
 });
 
+ipcMain.handle('fs:getUserHome', async () => {
+  return app.getPath('home') || os.homedir() || '';
+});
+
 ipcMain.handle('fs:pickDirectory', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Select Folder',

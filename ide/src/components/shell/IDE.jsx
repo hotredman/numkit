@@ -557,6 +557,22 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     try { localStorage.setItem('numkit.ide.cwd.local', localCwd); } catch { /* ignore */ }
   }, [localCwd]);
 
+  useEffect(() => {
+    (async () => {
+      if (typeof localFS !== 'undefined' && localFS.isAvailable?.()) {
+        try {
+          await localFS.reconnect();
+          const root = localFS.root?.();
+          if (root) {
+            setLocalCwd((prev) => prev || root);
+          }
+        } catch (e) {
+          console.warn('[IDE] localFS init reconnect failed', e);
+        }
+      }
+    })();
+  }, []);
+
   const cwd = fsMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
 
   const handleFsModeChange = useCallback((newMode) => {
@@ -566,6 +582,17 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       window.nativeFS.setCwd(targetCwd);
     }
   }, [localCwd, virtualCwd]);
+
+  const handleLocalMount = useCallback(async () => {
+    const root = localFS.root?.();
+    if (root) {
+      setLocalCwd(root);
+      if (fsMode === 'local' && typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        window.nativeFS.setCwd(root);
+      }
+    }
+    if (onLocalMount) await onLocalMount();
+  }, [fsMode, onLocalMount]);
 
   const handleCwdChange = useCallback((newCwd) => {
     if (fsMode === 'local') {
@@ -1268,7 +1295,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
             onOpenFile={handleOpenFile}
             vfsRefreshKey={vfsRefreshKey}
             isTabUnsaved={isTabUnsaved}
-            onLocalMount={onLocalMount}
+            onLocalMount={handleLocalMount}
             vfsAdapters={vfsAdapters}
           />
         )}
