@@ -361,10 +361,19 @@ ipcMain.handle('fs:listDir', async (_e, root, relPath = '/') => {
     if (d.name.startsWith('.DS_Store')) continue;
     const cleanRel = (relPath || '/').replace(/\\/g, '/').replace(/\/+$/, '');
     const itemPath = cleanRel === '' || cleanRel === '/' ? `/${d.name}` : `${cleanRel}/${d.name}`;
+    let size = undefined;
+    let modified = undefined;
+    try {
+      const st = await fsp.stat(path.join(full, d.name));
+      size = d.isDirectory() ? undefined : st.size;
+      modified = st.mtimeMs || (st.mtime ? new Date(st.mtime).getTime() : undefined);
+    } catch (_) {}
     entries.push({
       name: d.name,
       path: itemPath,
       type: d.isDirectory() ? 'folder' : 'file',
+      size,
+      modified,
     });
   }
   entries.sort((a, b) => {

@@ -77,11 +77,6 @@ const NavIcons = {
       <path d="M10 2v4h3.5" />
     </svg>
   ),
-  up: ({ size = 12 }) => (
-    <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE}>
-      <path d="M8 13.5V2.5M3.5 7L8 2.5 12.5 7" />
-    </svg>
-  ),
   refresh: ({ size = 12 }) => (
     <svg width={size} height={size} viewBox="0 0 16 16" {...ICON_BASE}>
       <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c2 0 3.8.9 4.9 2.4" />
@@ -315,13 +310,24 @@ export default function FileNavigatorModal({
       list = list.filter((i) => (i.name || '').toLowerCase().includes(f));
     }
     return [...list].sort((a, b) => {
-      // Folders always first
+      // Folders always grouped first
       if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
       let cmp = 0;
-      if (sortBy === 'name') cmp = (a.name || '').localeCompare(b.name || '');
-      else if (sortBy === 'type') cmp = ((a.name || '').split('.').pop() || '').localeCompare((b.name || '').split('.').pop() || '');
-      else if (sortBy === 'size') cmp = (a.size || 0) - (b.size || 0);
-      else if (sortBy === 'modified') cmp = (a.modified || 0) - (b.modified || 0);
+      if (sortBy === 'name') {
+        cmp = (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
+      } else if (sortBy === 'type') {
+        const extA = a.type === 'folder' ? 'folder' : ((a.name || '').split('.').pop() || '');
+        const extB = b.type === 'folder' ? 'folder' : ((b.name || '').split('.').pop() || '');
+        cmp = extA.localeCompare(extB, undefined, { numeric: true, sensitivity: 'base' }) || (a.name || '').localeCompare(b.name || '');
+      } else if (sortBy === 'size') {
+        const sizeA = typeof a.size === 'number' ? a.size : -1;
+        const sizeB = typeof b.size === 'number' ? b.size : -1;
+        cmp = sizeA - sizeB || (a.name || '').localeCompare(b.name || '');
+      } else if (sortBy === 'modified') {
+        const modA = typeof a.modified === 'number' ? a.modified : (a.modified ? new Date(a.modified).getTime() : 0);
+        const modB = typeof b.modified === 'number' ? b.modified : (b.modified ? new Date(b.modified).getTime() : 0);
+        cmp = modA - modB || (a.name || '').localeCompare(b.name || '');
+      }
       return sortAsc ? cmp : -cmp;
     });
   }, [items, filterText, sortBy, sortAsc]);
@@ -332,6 +338,15 @@ export default function FileNavigatorModal({
     }
     return !browsePath || browsePath === '/' || browsePath === '';
   }, [navFsMode, browsePath]);
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortBy(column);
+      setSortAsc(true);
+    }
+  };
 
   return (
     <ModalWindow
@@ -387,23 +402,11 @@ export default function FileNavigatorModal({
           </select>
         </div>
 
-        <div style={{ width: '1px', height: '20px', background: 'var(--line)', margin: '0 8px' }} />
-
-        <button
-          className="cf-btn cf-btn-up"
-          onClick={handleNavigateUp}
-          disabled={isAtRoot}
-          title="Up One Level (..)"
-        >
-          <NavIcons.up />
-          <span style={{ marginLeft: '4px', fontSize: '11px' }}>Up</span>
-        </button>
-
         <button
           className="cf-btn"
           onClick={loadDirectory}
           title="Refresh Directory"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}
         >
           <NavIcons.refresh />
           <span>Refresh</span>
@@ -477,26 +480,30 @@ export default function FileNavigatorModal({
             <thead>
               <tr>
                 <th
-                  style={{ width: '50%' }}
-                  onClick={() => { if (sortBy === 'name') setSortAsc(!sortAsc); else { setSortBy('name'); setSortAsc(true); } }}
+                  style={{ width: '45%', cursor: 'pointer' }}
+                  onClick={() => handleSort('name')}
+                  title="Sort by Name"
                 >
                   Name {sortBy === 'name' ? (sortAsc ? '▲' : '▼') : ''}
                 </th>
                 <th
-                  style={{ width: '15%' }}
-                  onClick={() => { if (sortBy === 'type') setSortAsc(!sortAsc); else { setSortBy('type'); setSortAsc(true); } }}
+                  style={{ width: '15%', cursor: 'pointer' }}
+                  onClick={() => handleSort('type')}
+                  title="Sort by Type"
                 >
                   Type {sortBy === 'type' ? (sortAsc ? '▲' : '▼') : ''}
                 </th>
                 <th
-                  style={{ width: '15%', textAlign: 'right' }}
-                  onClick={() => { if (sortBy === 'size') setSortAsc(!sortAsc); else { setSortBy('size'); setSortAsc(true); } }}
+                  style={{ width: '18%', textAlign: 'right', cursor: 'pointer' }}
+                  onClick={() => handleSort('size')}
+                  title="Sort by Size"
                 >
                   Size {sortBy === 'size' ? (sortAsc ? '▲' : '▼') : ''}
                 </th>
                 <th
-                  style={{ width: '20%', textAlign: 'right' }}
-                  onClick={() => { if (sortBy === 'modified') setSortAsc(!sortAsc); else { setSortBy('modified'); setSortAsc(true); } }}
+                  style={{ width: '22%', textAlign: 'right', cursor: 'pointer' }}
+                  onClick={() => handleSort('modified')}
+                  title="Sort by Modified Date"
                 >
                   Modified {sortBy === 'modified' ? (sortAsc ? '▲' : '▼') : ''}
                 </th>
@@ -509,7 +516,7 @@ export default function FileNavigatorModal({
                     <span className="nav-row-icon" style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', marginRight: 6, color: 'var(--fg-3)' }}>
                       <NavIcons.parentFolder size={14} />
                     </span>
-                    .. [Parent Folder]
+                    ..
                   </td>
                 </tr>
               )}
