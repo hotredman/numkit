@@ -1226,6 +1226,8 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       <div className="ide-main" style={{ gridTemplateColumns: cols.join(' ') }}>
         {panels.explorer && (
           <Sidebar
+            fsMode={fsMode}
+            onFsModeChange={setFsMode}
             onOpenFile={handleOpenFile}
             vfsRefreshKey={vfsRefreshKey}
             isTabUnsaved={isTabUnsaved}

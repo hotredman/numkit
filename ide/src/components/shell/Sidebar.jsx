@@ -533,6 +533,8 @@ function makeOps(source) {
 
 /* ─────────────── full sidebar component ─────────────── */
 export default function Sidebar({
+  fsMode = 'virtual',
+  onFsModeChange,
   onOpenFile,
   vfsRefreshKey,
   isTabUnsaved,
@@ -540,7 +542,8 @@ export default function Sidebar({
   vfsAdapters,
 }) {
   const localAvailable = typeof localFS !== 'undefined' && localFS.isAvailable?.();
-  const [source, setSource] = usePersistedState('numkit.ide.sidebar.source', 'examples');
+  const [rawSource, setSource] = usePersistedState('numkit.ide.sidebar.source', 'fs');
+  const source = (rawSource === 'localFolder' || rawSource === 'temporary') ? 'fs' : rawSource;
   const [tree, setTree] = useState([]);
   const [expanded, setExpanded] = usePersistedState(`numkit.ide.fb.expanded.${source}`, {});
   const [selected, setSelected] = useState(null);
@@ -553,9 +556,12 @@ export default function Sidebar({
 
   const isExamples = source === 'examples';
   const isGithub   = source === 'github';
+  const isLocal    = source === 'fs' && fsMode === 'local';
+  const isLocalUnmounted = isLocal && localStatus !== 'connected';
+
   const ops = useMemo(() =>
-    makeOps((source === 'examples' || source === 'github') ? 'temporary' : source),
-  [source]);
+    makeOps(isLocal ? 'localFolder' : 'temporary'),
+  [isLocal]);
 
   const loadTree = useCallback(async () => {
     try {
@@ -566,11 +572,11 @@ export default function Sidebar({
   }, [ops, isExamples, isGithub]);
 
   // Reload on source change + on external write signal
-  useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey]);
+  useEffect(() => { loadTree(); }, [loadTree, vfsRefreshKey, fsMode]);
 
   // Restore Local Folder mount on mount
   useEffect(() => {
-    if (source !== 'localFolder' || !localAvailable) return;
+    if (!isLocal || !localAvailable) return;
     let cancelled = false;
     (async () => {
       try {
@@ -587,7 +593,7 @@ export default function Sidebar({
       }
     })();
     return () => { cancelled = true; };
-  }, [source, localAvailable, loadTree, onLocalMount]);
+  }, [isLocal, localAvailable, loadTree, onLocalMount]);
 
   /* ─── source switch ─── */
   const switchSource = useCallback((next) => {
@@ -638,8 +644,8 @@ export default function Sidebar({
       return;
     }
     const content = await ops.readFile(node.path);
-    onOpenFile?.(node.name, content !== null ? content : '', node.path, source);
-  }, [ops, onOpenFile, source, isExamples, tree, vfsAdapters]);
+    onOpenFile?.(node.name, content !== null ? content : '', node.path, isLocal ? 'localFolder' : 'temporary');
+  }, [ops, onOpenFile, isLocal, isExamples, tree, vfsAdapters]);
 
   const handleCreate = useCallback(async (name) => {
     if (!name || !creating) { setCreating(null); return; }
@@ -796,8 +802,6 @@ export default function Sidebar({
   }, [isExamples, handleImport, loadTree]);
 
   /* ─── render ─── */
-  const isLocalUnmounted = source === 'localFolder' && localStatus !== 'connected';
-
   return (
     <aside className="sidebar">
       {/* Source picker. Row 1 = combo + refresh (refresh pairs with the
@@ -809,12 +813,9 @@ export default function Sidebar({
           <select className="ws-picker"
             value={source}
             onChange={(e) => switchSource(e.target.value)}>
-            {/* Order: most-frequently-used (Local) first, then
-                Temporary, GitHub, Examples last. */}
-            {localAvailable && <option value="localFolder">Local Folder</option>}
-            <option value="temporary">Temporary</option>
-            <option value="github">GitHub</option>
+            <option value="fs">File System</option>
             <option value="examples">Examples</option>
+            <option value="github">GitHub</option>
           </select>
           {/* Always-visible refresh — picks up changes made on disk by
               other tools (mainly the real-disk Local Folder backend, but
@@ -843,7 +844,7 @@ export default function Sidebar({
             {/* Local Folder only — open the OS folder-picker to (re)mount
                 a directory. Reuses handlePickLocal (same as first-mount),
                 so subsequent picks just switch the root. */}
-            {source === 'localFolder' && localAvailable && (
+            {isLocal && localAvailable && (
               <button className="sidebar-icon" title="Open folder…"
                 onClick={handlePickLocal}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -918,7 +919,7 @@ export default function Sidebar({
       )}
 
       {/* Local Folder mount info */}
-      {source === 'localFolder' && localStatus === 'connected' && localMountName && (
+      {isLocal && localStatus === 'connected' && localMountName && (
         <div style={{
           padding: '4px 12px', fontSize: 10, color: 'var(--fg-3)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
