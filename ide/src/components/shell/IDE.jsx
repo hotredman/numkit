@@ -193,10 +193,8 @@ function TabStrip({
                 {tab.name}{tab.modified ? ' •' : ''}
               </span>
             )}
-            {tabs.length > 1 && (
-              <button className="tab-close" aria-label="Close"
-                onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}>×</button>
-            )}
+            <button className="tab-close" aria-label="Close"
+              onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}>×</button>
           </div>
         );
       })}
@@ -1020,8 +1018,17 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const closeTab = useCallback((id) => {
     setTabs((p) => {
       const n = p.filter((t) => t.id !== id);
-      if (!n.length) return p;
-      if (activeTab === id) setActiveTab(n[n.length - 1].id);
+      if (!n.length) {
+        tabCountRef.current++;
+        const nextId = String(tabCountRef.current);
+        setActiveTab(nextId);
+        return [{ id: nextId, name: 'untitled.m', code: '', modified: false, vfsPath: null, source: null, breakpoints: [] }];
+      }
+      if (activeTab === id) {
+        const idx = p.findIndex((t) => t.id === id);
+        const nextTab = n[Math.min(idx, n.length - 1)];
+        setActiveTab(nextTab.id);
+      }
       return n;
     });
   }, [activeTab]);
