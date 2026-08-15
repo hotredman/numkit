@@ -75,6 +75,13 @@ function makeNativeBackend() {
         isMounted: () => rootPath !== null,
         mountName: () => rootDisplayName,
 
+        setRootPath(p) {
+            if (!p) return null;
+            setRoot(p);
+            remember(p);
+            return rootDisplayName;
+        },
+
         async pickDirectory() {
             const picked = await api.pickDirectory();
             if (!picked) return null;

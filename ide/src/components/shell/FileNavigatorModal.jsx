@@ -165,7 +165,17 @@ export default function FileNavigatorModal({
     if (onFsModeChange && navFsMode !== fsMode) {
       onFsModeChange(navFsMode);
     }
-    onSetCurrentFolder?.(target, navFsMode);
+    let fullTarget = target;
+    if (navFsMode === 'local' && typeof localFS !== 'undefined' && localFS.root?.()) {
+      const lRoot = localFS.root();
+      if (target && target !== '/' && !/^[A-Za-z]:/.test(target)) {
+        const cleanRel = target.startsWith('/') ? target.slice(1) : target;
+        fullTarget = lRoot.endsWith('\\') || lRoot.endsWith('/') ? `${lRoot}${cleanRel.replace(/\//g, '\\')}` : `${lRoot}\\${cleanRel.replace(/\//g, '\\')}`;
+      } else if (target === '/') {
+        fullTarget = lRoot;
+      }
+    }
+    onSetCurrentFolder?.(fullTarget, navFsMode);
     onClose?.();
   };
 
