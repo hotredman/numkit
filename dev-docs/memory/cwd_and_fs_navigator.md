@@ -88,7 +88,16 @@ When running scripts in the IDE (especially examples or user projects doing file
         - `Figure`: Clean title for figure graphics window.
       - Neutral monochrome vector SVG icons for toolbar and file types.
       - Escape key handling and backdrop click dismissal.
-    - Test coverage: 547 tests passing across 41 test files (including dedicated `ModalWindow.render.test.jsx`).
+    - Test coverage: 548 tests passing across 41 test files (including dedicated `ModalWindow.render.test.jsx`).
+
+12. **Explorer Stats & Column Sorting (`FileNavigatorModal.jsx`, `main.js`, `temporary.js`, `local.js`)**:
+    - Removed redundant toolbar `Up` button in favor of the in-table `..` row.
+    - Simplified parent row label to clean `..`.
+    - Fixed `Size` and `Modified` metadata fetching:
+      - Electron backend (`desktop/main.js` `fs:listDir`): added `fsp.stat()` resolution for real file sizes and mtime.
+      - Web Chromium backend (`fs/local.js` `listDir`): added `handle.getFile()` query for size and lastModified.
+      - Virtual filesystem (`temporary.js` `listDir`): computed sizes from memory buffer lengths/string sizes and populated modified timestamps.
+    - Implemented full column click sorting for `Name`, `Type`, `Size`, and `Modified` with interactive asc/desc toggles and `▲`/`▼` indicators.
 
 
 
