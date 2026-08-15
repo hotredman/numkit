@@ -32,3 +32,9 @@ When running scripts in the IDE (especially examples or user projects doing file
 5. **REPL CLI and IPC CWD Control**:
    - `numkit_repl.exe` supports `--fs=<mode>`, `--cwd=<path>`, and pipe protocol commands `__SET_CWD__:<path>`, `__GET_CWD__`, `__SET_FS__:<fs>`.
    - IPC `window.nativeFS.runRepl(code, { cwd })` and `window.nativeFS.setCwd(path)` pass CWD parameters dynamically.
+
+6. **Local FS Default Home & Dynamic Dynamic CWD Switching**:
+   - When Local FS is not explicitly selected by the user, `localFS` defaults to the OS user home directory (`app.getPath('home')` / `os.homedir()`).
+   - `localFS.setRootPath(...)` allows changing active disk directories dynamically from the path input, sidebar double-click, or the File Navigator modal.
+   - Breadcrumbs calculate path segments cleanly for Windows drive paths (`C:\Users\...`) and POSIX paths (`/home/...`) to prevent path duplication or illegal relative concats.
+
