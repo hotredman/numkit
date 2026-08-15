@@ -338,10 +338,15 @@ const TREE_SKIP_DIRS = new Set([
   'desktop-build-fast', 'build-apple-m', 'dist', '.next', '.nuxt',
   '.cache', '.parcel-cache', '.turbo', '.venv', 'venv', '__pycache__',
   'target', '.gradle', 'cmake-build-debug', 'cmake-build-release',
+  // System / user-profile heavy cache & junk directories
+  'AppData', 'Application Data', 'Local Settings', 'Cookies', 'NetHood',
+  'PrintHood', 'Recent', 'SendTo', 'Start Menu', 'Templates',
+  '.npm', '.cargo', '.rustup', '.nuget', '.docker', '.m2',
+  '.gemini', '.android', '.electron', '.pnpm-store', '.cache',
 ]);
 
 const TREE_MAX_ENTRIES = 8000;  // hard cap on total nodes returned
-const TREE_MAX_DEPTH = 12;      // hard cap on recursion depth
+const TREE_MAX_DEPTH = 6;       // recursion depth (shallow walk for performance)
 
 ipcMain.handle('fs:listTree', async (_e, root) => {
   let total = 0;
