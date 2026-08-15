@@ -285,18 +285,8 @@ async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
   const scriptBaseName = fname.replace(/\.[^/.]+$/, '');
   let content = null;
 
-  // Gather this file and all sibling assets in the same category folder
+  // Fetch only this specific file
   const filesToCopy = [];
-  const m = (node.path || '').match(/^\/examples\/([^/]+)\/(.+)$/);
-  const siblings = [];
-  if (m) {
-    const [, folder] = m;
-    const folderNode = tree.find((n) => n.path === `/examples/${folder}`);
-    const sibNodes = folderNode?.children?.filter((c) => c.type === 'file' && c.name !== fname) || [];
-    siblings.push(...sibNodes);
-  }
-
-  // Fetch main file
   const mainRes = await fetch(node._fetchPath);
   if (!mainRes.ok) throw new Error('fetch failed: ' + node._fetchPath);
   if (isBinary) {
@@ -307,21 +297,6 @@ async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
     filesToCopy.push({ name: fname, content });
   }
 
-  // Fetch siblings
-  await Promise.all(siblings.map(async (sib) => {
-    try {
-      const res = await fetch(sib._fetchPath);
-      if (!res.ok) return;
-      if (BINARY_EXAMPLE_EXT.test(sib.name)) {
-        const buf = await res.arrayBuffer();
-        filesToCopy.push({ name: sib.name, bytes: Array.from(new Uint8Array(buf)) });
-      } else {
-        const text = await res.text();
-        filesToCopy.push({ name: sib.name, content: text });
-      }
-    } catch { /* ignore */ }
-  }));
-
   const isElectron = typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined';
   if (fsMode === 'local' && isElectron && typeof window.nativeFS.setupExample === 'function') {
     const targetDir = await window.nativeFS.setupExample(scriptBaseName, filesToCopy);
@@ -329,8 +304,8 @@ async function openExample(node, tree, vfsAdapters, fsMode = 'virtual') {
     return { content, vfsPath, targetDir, isBinary, fsMode: 'local', source: 'localFolder' };
   }
 
-  // Virtual FS: /temporary/numkit_ide/examples/<scriptBaseName>
-  const targetRelDir = `/temporary/numkit_ide/examples/${scriptBaseName}`;
+  // Virtual FS: /numkit_ide/examples/<scriptBaseName>
+  const targetRelDir = `/numkit_ide/examples/${scriptBaseName}`;
   const tempBackend = vfsAdapters?.temp || tempFS;
   if (tempBackend) {
     try { if (tempBackend.mkdir) await tempBackend.mkdir(targetRelDir); } catch { /* ignore */ }
