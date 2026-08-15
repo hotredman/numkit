@@ -22,10 +22,11 @@ When running scripts in the IDE (especially examples or user projects doing file
    - When double-clicking an example script in the Examples browser:
      - **In Virtual FS Mode (`fsMode === 'virtual'`)**:
        - Creates the folder in Virtual FS: `/numkit_ide/examples/<script_base_name>`.
-       - Copies the script and companion assets into `/numkit_ide/examples/<script_base_name>/`.
+       - Copies only the opened script into `/numkit_ide/examples/<script_base_name>/`.
        - Sets `virtualCwd` to `/numkit_ide/examples/<script_base_name>` (reflected in `CurrentFolderBar` and REPL virtual sync).
      - **In Local FS Mode (`fsMode === 'local'`)**:
        - Creates the folder in OS temporary directory: `<os_temp_dir>/numkit/examples/<script_base_name>` (e.g. `C:\Users\User\AppData\Local\Temp\numkit\examples\arithmetic`).
+       - Copies only the opened script into `<os_temp_dir>/numkit/examples/<script_base_name>`.
        - Sets `localCwd` to `<os_temp_dir>/numkit/examples/<script_base_name>`.
      - Opens the script in the editor tab.
    - When running the script, `runCode` uses the directory containing `activeTabObj.vfsPath` directly, eliminating path compounding/duplication (`/examples/.../examples/...`).
