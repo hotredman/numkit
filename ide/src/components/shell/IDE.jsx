@@ -595,27 +595,50 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   }, [fsMode, onLocalMount]);
 
   const handleCwdChange = useCallback((newCwd) => {
+    if (!newCwd) return;
     if (fsMode === 'local') {
-      setLocalCwd(newCwd);
+      let resolved = newCwd.trim();
+      if (typeof localFS !== 'undefined' && localFS.isAvailable?.()) {
+        const lRoot = localFS.root?.() || '';
+        if (lRoot && !/^[A-Za-z]:[\\/]/.test(resolved) && !resolved.startsWith('/') && !resolved.startsWith('\\')) {
+          resolved = `${lRoot}\\${resolved.replace(/\//g, '\\')}`;
+        }
+        if (typeof localFS.setRootPath === 'function') {
+          localFS.setRootPath(resolved);
+        }
+      }
+      setLocalCwd(resolved);
+      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        window.nativeFS.setCwd(resolved);
+      }
     } else {
-      setVirtualCwd(newCwd);
+      let vPath = newCwd.trim().replace(/\\/g, '/');
+      if (!vPath.startsWith('/')) vPath = '/' + vPath;
+      setVirtualCwd(vPath);
+      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        const tRoot = tempFS.root?.();
+        const absTemp = tRoot ? `${tRoot}${vPath.replace(/\//g, '\\')}` : vPath;
+        window.nativeFS.setCwd(absTemp);
+      }
     }
-    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
-      window.nativeFS.setCwd(newCwd);
-    }
+    setVfsRefreshKey((k) => k + 1);
   }, [fsMode]);
 
   const handleNavigateUp = useCallback(() => {
     if (fsMode === 'local') {
-      const lRoot = localFS.root?.() || '';
       let p = (cwd || '').replace(/\\/g, '/');
       if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
       const idx = p.lastIndexOf('/');
-      if (idx <= 0 || (lRoot && p === lRoot.replace(/\\/g, '/'))) {
-        handleCwdChange(lRoot);
+      if (idx <= 0) {
+        if (/^[A-Za-z]:/.test(p)) {
+          handleCwdChange(p.slice(0, 2) + '\\');
+        } else {
+          handleCwdChange('/');
+        }
       } else {
-        const next = p.slice(0, idx);
-        handleCwdChange(lRoot && !next.startsWith(lRoot.replace(/\\/g, '/')) ? lRoot : next);
+        let parent = p.slice(0, idx);
+        if (/^[A-Za-z]:$/.test(parent)) parent += '\\';
+        handleCwdChange(parent.replace(/\//g, '\\'));
       }
     } else {
       let p = (cwd || '/').replace(/\\/g, '/');
