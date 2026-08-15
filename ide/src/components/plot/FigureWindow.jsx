@@ -524,13 +524,18 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
   const [size, setSize] = useState({ w: 1100, h: 600 });
 
   useEffect(() => {
+    if (embedded) return;
     function onKey(e) {
-      if (e.key === 'Escape') onClose();
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) {
+        return;
+      }
+      if (e.key === 'Escape') onClose?.();
       if (e.key === '0' && figDefault) setViewport(figDefault);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, figure]);
+  }, [onClose, figure, embedded, figDefault]);
 
   useEffect(() => {
     function onDoc(e) {

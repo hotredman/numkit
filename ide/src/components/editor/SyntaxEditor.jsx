@@ -891,7 +891,15 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
       {/* Editing area — the original two-layer stack (highlight pre +
           transparent textarea), now with optional indent-guide
           background on the highlight layer. */}
-      <div ref={editorAreaRef} style={{ position:'relative', flex:1, overflow:'hidden' }}>
+      <div
+        ref={editorAreaRef}
+        onClick={(e) => {
+          if (e.target !== textareaRef.current && !searchMode) {
+            textareaRef.current?.focus();
+          }
+        }}
+        style={{ position:'relative', flex:1, overflow:'hidden', cursor: 'text' }}
+      >
         <pre ref={highlightRef} aria-hidden="true" style={{
           position:'absolute', top:0, left:0, right:0, bottom:0,
           margin:0, padding:8,
@@ -1014,7 +1022,7 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({
           // wheel + minimap drag both scroll; a native scrollbar
           // sitting right next to the minimap read as a duplicate.
           className="nk-editor-textarea"
-          style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre',zIndex:3}}/>
+          style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C?.accent || 'var(--accent, #7c6ff0)',cursor:'text',background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre',zIndex:3}}/>
 
         {/* Autocomplete popup — see CompletionPopup. */}
         <CompletionPopup items={acItems} anchor={acAnchor} activeIdx={acIdx}
