@@ -686,9 +686,9 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     if (onLocalMount) await onLocalMount();
   }, [fsMode, onLocalMount]);
 
-  const handleCwdChange = useCallback((newCwd) => {
+  const handleCwdChange = useCallback((newCwd, targetMode = fsMode) => {
     if (!newCwd) return;
-    if (fsMode === 'local') {
+    if (targetMode === 'local') {
       const lRoot = (typeof localFS !== 'undefined' && localFS.isAvailable?.()) ? (localFS.root?.() || '') : '';
       const resolved = sanitizeLocalPath(newCwd, lRoot);
       if (typeof localFS !== 'undefined' && localFS.isAvailable?.() && typeof localFS.setRootPath === 'function') {
@@ -732,36 +732,43 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       warnedFallbackRef.current = true;
     }
 
-    let targetCwd = cwd;
+    // Determine the filesystem mode and directory of the active tab
+    const tabFsMode = (activeTabObj?.source === 'localFolder') ? 'local' : 'virtual';
+    let targetCwd = tabFsMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
+
+    if (tabFsMode !== fsMode) {
+      handleFsModeChange(tabFsMode);
+    }
 
     // If the active tab has an associated file path, ensure changes are written and targetCwd is its directory
     if (activeTabObj?.vfsPath) {
       const vPath = activeTabObj.vfsPath;
-      if (isLocalDiskPath(vPath)) {
-        // Windows absolute local path (e.g. C:\Users\User\...\script.m)
-        const lastSlash = Math.max(vPath.lastIndexOf('\\'), vPath.lastIndexOf('/'));
-        targetCwd = lastSlash > 0 ? vPath.slice(0, lastSlash) : vPath;
-        if (typeof window !== 'undefined' && window.nativeFS?.writeFile) {
-          const fname = vPath.slice(lastSlash + 1);
-          try { await window.nativeFS.writeFile(targetCwd, '/' + fname, code); } catch (_) {}
+      if (tabFsMode === 'local') {
+        if (isLocalDiskPath(vPath)) {
+          // Windows absolute local path (e.g. C:\Users\User\...\script.m)
+          const lastSlash = Math.max(vPath.lastIndexOf('\\'), vPath.lastIndexOf('/'));
+          targetCwd = lastSlash > 0 ? vPath.slice(0, lastSlash) : vPath;
+          if (typeof window !== 'undefined' && window.nativeFS?.writeFile) {
+            const fname = vPath.slice(lastSlash + 1);
+            try { await window.nativeFS.writeFile(targetCwd, '/' + fname, code); } catch (_) {}
+          }
+        } else if (localFS.isMounted()) {
+          // Relative path inside mounted Local Folder (e.g. /script.m or /sub/script.m)
+          const lRoot = localFS.root() || '';
+          const lastSlash = vPath.lastIndexOf('/');
+          const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '';
+          targetCwd = relDir ? `${lRoot}\\${relDir.slice(1).replace(/\//g, '\\')}` : lRoot;
+          try { await localFS.writeFile(vPath, code); } catch (_) {}
         }
-      } else if (activeTabObj.source === 'localFolder' && localFS.isMounted()) {
-        // Relative path inside mounted Local Folder (e.g. /script.m or /sub/script.m)
-        const lRoot = localFS.root() || '';
-        const lastSlash = vPath.lastIndexOf('/');
-        const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '';
-        targetCwd = relDir ? `${lRoot}\\${relDir.slice(1).replace(/\//g, '\\')}` : lRoot;
-        try { await localFS.writeFile(vPath, code); } catch (_) {}
       } else {
-        // Virtual FS path (e.g. /numkit_ide/examples/group_aggregation/group_aggregation.m)
+        // Virtual FS path (e.g. /numkit_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m)
         const lastSlash = vPath.lastIndexOf('/');
         const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '/';
         targetCwd = relDir;
         try { await tempFS.writeFile(vPath, code); } catch (_) {}
       }
-      if (targetCwd && targetCwd !== cwd) {
-        handleCwdChange(targetCwd);
-      }
+
+      handleCwdChange(targetCwd, tabFsMode);
     }
 
     const t0 = performance.now();
