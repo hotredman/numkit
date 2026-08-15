@@ -11,13 +11,13 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from '../../settings';
+import ModalWindow from '../ui/ModalWindow';
 
 /** True when running inside Electron (nativeFS IPC bridge present). */
 const isElectron = typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined';
 
 export default function PreferencesModal({ onClose }) {
   const [activeTab, setActiveTab] = useState('general');
-  const [maximized, setMaximized] = useState(false);
   // Local draft — only written to storage on explicit [Save].
   const [draft, setDraft] = useState(() => loadSettings());
 
@@ -153,182 +153,20 @@ export default function PreferencesModal({ onClose }) {
   }
 
   return (
-    <div
-      className="ve-overlay"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className={`ve-window prefs-window ${maximized ? 'is-max' : ''}`}
-        role="dialog"
-        aria-label="Settings"
-        aria-modal="true"
-      >
-        {/* ── titlebar ── */}
-        <div className="ve-titlebar">
-          <div className="ve-title-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="ve-tag" style={{
-              color: 'var(--accent-2)',
-              background: 'rgba(116,185,255,0.10)',
-              borderColor: 'rgba(116,185,255,0.25)',
-            }}>⚙ settings</span>
-            <span className="ve-name" style={{ color: 'var(--fg-0)', fontWeight: 600, fontSize: '13px' }}>Settings</span>
-          </div>
-          <div className="ve-title-right">
-            <button className="ve-close" onClick={() => setMaximized((m) => !m)}
-              title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
-              {maximized ? (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="3.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                  <rect x="3.5" y="1.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                </svg>
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
-                </svg>
-              )}
-            </button>
-            <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
-          </div>
-        </div>
-
-        {/* ── main layout (sidebar + pane) ── */}
-        <div className="prefs-layout">
-          {/* Left Sidebar */}
-          <div className="prefs-sidebar">
-            <button
-              className={`prefs-sidebar-nav ${activeTab === 'general' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('general')}
-            >
-              ⚙ General
-            </button>
-            <button
-              className={`prefs-sidebar-nav ${activeTab === 'editor' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('editor')}
-            >
-              📝 Editor
-            </button>
-            <button
-              className={`prefs-sidebar-nav ${activeTab === 'terminal' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('terminal')}
-            >
-              🖥️ Terminal
-            </button>
-            <button
-              className={`prefs-sidebar-nav ${activeTab === 'appearance' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('appearance')}
-            >
-              🎨 Appearance
-            </button>
-          </div>
-
-          {/* Right Main Content Pane */}
-          <div className="prefs-main-pane">
-            {activeTab === 'general' && (
-              <div className="prefs-body">
-                <div>
-                  <div className="prefs-section-title">External Tools & Executables</div>
-                  <div className="prefs-section-divider" />
-
-                  <PathRow
-                    label="Interpreter — numkit_repl.exe"
-                    settingKey="interpreterPath"
-                    hint="Auto-detects numkit_repl.exe in directory of numkit_ide.exe, then falls back to PATH"
-                    pickTitle="Select numkit_repl executable"
-                  />
-                  <PathRow
-                    label="Code Generator — numkit_codegen.exe"
-                    settingKey="codegenPath"
-                    hint="Auto-detects numkit_codegen.exe in directory of numkit_ide.exe, then falls back to PATH. Used by Build & Run."
-                    pickTitle="Select numkit_codegen executable"
-                  />
-                  <PathRow
-                    label="C++ Compiler — NUMKIT_CXX override"
-                    settingKey="cxxPath"
-                    hint="Overrides the NUMKIT_CXX environment variable when running Build & Run. Leave empty to use the env var or build-time default."
-                    pickTitle="Select C++ compiler executable"
-                  />
-                  <ToggleRow
-                    label="MATLAB Compatibility Mode (Implicit compat.*)"
-                    settingKey="matlabCompatibility"
-                    hint="Automatically imports compat.* so you don't have to write import compat.* in every script. Survives 'clear all'."
-                  />
-                </div>
-
-                {isElectron && !resolved && (
-                  <div className="prefs-hint" style={{ fontStyle: 'italic' }}>
-                    Resolving paths…
-                  </div>
-                )}
-
-                {!isElectron && (
-                  <div className="prefs-hint prefs-browser-note">
-                    ⚠ Running in browser mode — [Pick] file dialogs require the Electron desktop app.
-                    You can still type paths manually.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'editor' && (
-              <div className="prefs-body">
-                <div className="prefs-section-title">Editor Settings</div>
-                <div className="prefs-section-divider" />
-                <div className="prefs-hint">
-                  Font size, tab width, indentation, and linting options will be configured here.
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'terminal' && (
-              <div className="prefs-body">
-                <div className="prefs-section-title">Terminal & REPL Settings</div>
-                <div className="prefs-section-divider" />
-                <div className="prefs-hint">
-                  REPL buffer size, history persistence, and shell environment options will be configured here.
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'appearance' && (
-              <div className="prefs-body">
-                <div className="prefs-section-title">Appearance & Theme</div>
-                <div className="prefs-section-divider" />
-                <div className="prefs-hint">
-                  Theme selection (Dark/Light/High-Contrast) and UI scaling options will be configured here.
-                </div>
-                <div style={{ marginTop: '20px' }}>
-                  <div className="prefs-section-title">Plot Settings</div>
-                  <div className="prefs-section-divider" />
-                  <div className="prefs-row">
-                    <div className="prefs-row-header">
-                      <label className="prefs-row-label">Plot Aspect Ratio</label>
-                    </div>
-                    <div className="prefs-input-row">
-                      <select
-                        className="prefs-input"
-                        value={draft.plotAspectRatio || '16:9'}
-                        onChange={(e) => set('plotAspectRatio', e.target.value)}
-                        style={{ cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
-                      >
-                        <option value="4:3">4:3</option>
-                        <option value="16:9">16:9</option>
-                        <option value="16:10">16:10</option>
-                      </select>
-                    </div>
-                    <span className="prefs-hint">
-                      Base aspect ratio for inline plots and the Figures panel previews.
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── footer ── */}
-        <div className="prefs-footer">
+    <ModalWindow
+      onClose={onClose}
+      tag={{
+        label: '⚙ settings',
+        color: 'var(--accent-2)',
+        bg: 'rgba(116,185,255,0.10)',
+        border: 'rgba(116,185,255,0.25)',
+      }}
+      title="Settings"
+      width="min(880px, 92vw)"
+      height="min(640px, 85vh)"
+      className="prefs-window"
+      footer={(
+        <div className="prefs-footer" style={{ width: '100%' }}>
           <button
             className="ve-btn prefs-restore-btn"
             onClick={handleRestoreDefaults}
@@ -345,7 +183,141 @@ export default function PreferencesModal({ onClose }) {
             Save
           </button>
         </div>
+      )}
+    >
+      {/* ── main layout (sidebar + pane) ── */}
+      <div className="prefs-layout">
+        {/* Left Sidebar */}
+        <div className="prefs-sidebar">
+          <button
+            className={`prefs-sidebar-nav ${activeTab === 'general' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            ⚙ General
+          </button>
+          <button
+            className={`prefs-sidebar-nav ${activeTab === 'editor' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('editor')}
+          >
+            📝 Editor
+          </button>
+          <button
+            className={`prefs-sidebar-nav ${activeTab === 'terminal' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('terminal')}
+          >
+            🖥️ Terminal
+          </button>
+          <button
+            className={`prefs-sidebar-nav ${activeTab === 'appearance' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('appearance')}
+          >
+            🎨 Appearance
+          </button>
+        </div>
+
+        {/* Right Main Content Pane */}
+        <div className="prefs-main-pane">
+          {activeTab === 'general' && (
+            <div className="prefs-body">
+              <div>
+                <div className="prefs-section-title">External Tools & Executables</div>
+                <div className="prefs-section-divider" />
+
+                <PathRow
+                  label="Interpreter — numkit_repl.exe"
+                  settingKey="interpreterPath"
+                  hint="Auto-detects numkit_repl.exe in directory of numkit_ide.exe, then falls back to PATH"
+                  pickTitle="Select numkit_repl executable"
+                />
+                <PathRow
+                  label="Code Generator — numkit_codegen.exe"
+                  settingKey="codegenPath"
+                  hint="Auto-detects numkit_codegen.exe in directory of numkit_ide.exe, then falls back to PATH. Used by Build & Run."
+                  pickTitle="Select numkit_codegen executable"
+                />
+                <PathRow
+                  label="C++ Compiler — NUMKIT_CXX override"
+                  settingKey="cxxPath"
+                  hint="Overrides the NUMKIT_CXX environment variable when running Build & Run. Leave empty to use the env var or build-time default."
+                  pickTitle="Select C++ compiler executable"
+                />
+                <ToggleRow
+                  label="MATLAB Compatibility Mode (Implicit compat.*)"
+                  settingKey="matlabCompatibility"
+                  hint="Automatically imports compat.* so you don't have to write import compat.* in every script. Survives 'clear all'."
+                />
+              </div>
+
+              {isElectron && !resolved && (
+                <div className="prefs-hint" style={{ fontStyle: 'italic' }}>
+                  Resolving paths…
+                </div>
+              )}
+
+              {!isElectron && (
+                <div className="prefs-hint prefs-browser-note">
+                  ⚠ Running in browser mode — [Pick] file dialogs require the Electron desktop app.
+                  You can still type paths manually.
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'editor' && (
+            <div className="prefs-body">
+              <div className="prefs-section-title">Editor Settings</div>
+              <div className="prefs-section-divider" />
+              <div className="prefs-hint">
+                Font size, tab width, indentation, and linting options will be configured here.
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'terminal' && (
+            <div className="prefs-body">
+              <div className="prefs-section-title">Terminal & REPL Settings</div>
+              <div className="prefs-section-divider" />
+              <div className="prefs-hint">
+                REPL buffer size, history persistence, and shell environment options will be configured here.
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'appearance' && (
+            <div className="prefs-body">
+              <div className="prefs-section-title">Appearance & Theme</div>
+              <div className="prefs-section-divider" />
+              <div className="prefs-hint">
+                Theme selection (Dark/Light/High-Contrast) and UI scaling options will be configured here.
+              </div>
+              <div style={{ marginTop: '20px' }}>
+                <div className="prefs-section-title">Plot Settings</div>
+                <div className="prefs-section-divider" />
+                <div className="prefs-row">
+                  <div className="prefs-row-header">
+                    <label className="prefs-row-label">Plot Aspect Ratio</label>
+                  </div>
+                  <div className="prefs-input-row">
+                    <select
+                      className="prefs-input"
+                      value={draft.plotAspectRatio || '16:9'}
+                      onChange={(e) => set('plotAspectRatio', e.target.value)}
+                      style={{ cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
+                    >
+                      <option value="4:3">4:3</option>
+                      <option value="16:9">16:9</option>
+                      <option value="16:10">16:10</option>
+                    </select>
+                  </div>
+                  <span className="prefs-hint">
+                    Base aspect ratio for inline plots and the Figures panel previews.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </ModalWindow>
   );
 }
