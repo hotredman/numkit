@@ -360,7 +360,7 @@ export default function FileNavigatorModal({
       {/* ── Toolbar ── */}
       <div className="nav-modal-toolbar">
         <div className="nav-modal-mode-select-wrap">
-          <label style={{ fontSize: '12px', color: 'var(--fg-3)', marginRight: '6px' }}>Filesystem:</label>
+          <label style={{ fontSize: '12px', color: 'var(--fg-3)', marginRight: '6px' }}>File System:</label>
           <select
             className="cf-mode-select"
             value={navFsMode}
@@ -374,9 +374,9 @@ export default function FileNavigatorModal({
               }
             }}
           >
-            <option value="virtual">⚡ Virtual File System (Temporary)</option>
+            <option value="virtual">Virtual</option>
             <option value="local" disabled={!localAvailable}>
-              📁 Local File System
+              Local
             </option>
           </select>
         </div>

@@ -40,7 +40,7 @@ export default function CurrentFolderBar({
   return (
     <div className="current-folder-bar">
       {/* 1. File System label */}
-      <span className="cf-label">File System</span>
+      <span className="cf-label">File System:</span>
 
       {/* 2. [Local/Virtual] selector */}
       <div className="cf-mode-wrapper">
