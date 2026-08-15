@@ -4,11 +4,34 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEPLOY_DIR="$PROJECT_DIR/deploy"
-DEFAULT_PAGES_DIR="$(cd "$PROJECT_DIR/../.." && pwd)/czssgkavo/numkit"
 
-PAGES_DIR="${PAGES_DIR:-$DEFAULT_PAGES_DIR}"
+# Determine default pages directory
+PAGES_DIR="${NUMKIT_PAGES_DIR:-}"
+if [[ -z "$PAGES_DIR" ]]; then
+    if [[ -d "$PROJECT_DIR/../numkit-pages/.git" ]]; then
+        PAGES_DIR="$PROJECT_DIR/../numkit-pages"
+    elif [[ -d "$PROJECT_DIR/../../czssgkavo/numkit/.git" ]]; then
+        PAGES_DIR="$PROJECT_DIR/../../czssgkavo/numkit"
+    elif [[ -d "$PROJECT_DIR/../numkit-web/.git" ]]; then
+        PAGES_DIR="$PROJECT_DIR/../numkit-web"
+    fi
+fi
+
 DO_PUSH=0
 SKIP_BUILD=0
+
+show_help() {
+    echo "Usage: $(basename "$0") [--push] [--skip-build] [--dest <path>] [<path>]"
+    echo
+    echo "Synchronizes the static Web IDE bundle (deploy/) into a GitHub Pages repository."
+    echo
+    echo "Options:"
+    echo "  --push        Automatically push commit to origin main in the Pages repo."
+    echo "  --skip-build  Skip re-running web-build.sh if deploy/ is already fresh."
+    echo "  --dest <path> Destination directory (or set NUMKIT_PAGES_DIR environment variable)."
+    echo "  -h, --help    Show this help message."
+    exit 1
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -24,16 +47,8 @@ while [[ $# -gt 0 ]]; do
             PAGES_DIR="$2"
             shift 2
             ;;
-        --help|-h)
-            echo "Usage: $(basename "$0") [--push] [--skip-build] [--dest <path>]"
-            echo
-            echo "Synchronizes the static Web IDE bundle (deploy/) into the GitHub Pages repository."
-            echo
-            echo "Options:"
-            echo "  --push        Automatically push commit to origin main in the Pages repo."
-            echo "  --skip-build  Skip re-running web-build.sh."
-            echo "  --dest <path> Destination directory (default: ../czssgkavo/numkit)."
-            exit 0
+        -h|--help)
+            show_help
             ;;
         *)
             PAGES_DIR="$1"
@@ -42,16 +57,22 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ -z "$PAGES_DIR" ]]; then
+    echo "ERROR: GitHub Pages destination directory is not specified."
+    echo
+    show_help
+fi
+
+if [[ ! -d "$PAGES_DIR/.git" ]]; then
+    echo "ERROR: Destination directory is not a Git repository: $PAGES_DIR"
+    echo
+    show_help
+fi
+
 echo "=== Numkit Web IDE - Deploy to GitHub Pages Repository ==="
 echo "Source: $PROJECT_DIR"
 echo "Target: $PAGES_DIR"
 echo
-
-if [[ ! -d "$PAGES_DIR/.git" ]]; then
-    echo "ERROR: Target directory is not a Git repository: $PAGES_DIR"
-    echo "Please clone the Pages repo or pass --dest <path>"
-    exit 1
-fi
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
     echo "Building latest Web IDE static bundle..."
@@ -73,20 +94,25 @@ touch "$PAGES_DIR/.nojekyll"
 cd "$PAGES_DIR"
 if [[ -z "$(git status --porcelain)" ]]; then
     echo "No changes detected in target repository. Target is already up to date."
+    echo
+    echo "=== Done ==="
     exit 0
 fi
 
 echo "Committing changes in Pages repository..."
 git add -A
-git commit -m "Update Web IDE build (synced from megahard/numkit@$SRC_REV)"
+git commit -m "Update Web IDE build (numkit@$SRC_REV)"
 
 if [[ "$DO_PUSH" -eq 1 ]]; then
-    echo "Pushing to GitHub (origin main)..."
+    echo "Pushing to GitHub origin main..."
     git push origin main
     echo "Successfully deployed and pushed to GitHub Pages!"
 else
     echo
-    echo "Changes committed locally in $PAGES_DIR."
+    echo "Changes committed locally in: $PAGES_DIR"
     echo "To push to GitHub, run: cd '$PAGES_DIR' && git push origin main"
-    echo "Or run with --push: ./scripts/publish-pages.sh --push"
+    echo "Or pass --push next time: ./scripts/publish-pages.sh --push"
 fi
+
+echo
+echo "=== Done ==="

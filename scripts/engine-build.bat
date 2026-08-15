@@ -9,7 +9,10 @@ setlocal
 cd /d "%~dp0.."
 
 set PROJECT_DIR=%~dp0..\
-if not defined EMSDK set "EMSDK=C:\Users\User\Repo\emsdk"
+if not defined EMSDK (
+    if exist "%USERPROFILE%\Repo\emsdk" set "EMSDK=%USERPROFILE%\Repo\emsdk"
+    if exist "%USERPROFILE%\emsdk" set "EMSDK=%USERPROFILE%\emsdk"
+)
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
 if "%1"=="--wasm" goto wasm
