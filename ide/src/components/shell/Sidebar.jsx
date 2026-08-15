@@ -11,6 +11,7 @@ import tempFS from '../../temporary';
 import localFS from '../../fs/local';
 import { openExample } from '../../fs/examples';
 import { usePersistedState } from '../../ui-state';
+import { isLocalDiskPath } from '../../fs/pathUtils';
 
 const isMFile = (name) => /\.(m|n)$/i.test(name);
 
@@ -656,7 +657,14 @@ export default function Sidebar({
       return;
     }
     const content = await ops.readFile(node.path);
-    onOpenFile?.(node.name, content !== null ? content : '', node.path, isLocal ? 'localFolder' : 'temporary');
+    const lRoot = isLocal ? (localFS.root?.() || '') : '';
+    let targetPath = node.path;
+    if (isLocal && lRoot && !isLocalDiskPath(targetPath)) {
+      const sep = lRoot.includes('\\') || /^[A-Za-z]:/.test(lRoot) ? '\\' : '/';
+      const cleanRel = targetPath.replace(/^\/+/, '').replace(/\//g, sep);
+      targetPath = lRoot.endsWith('\\') || lRoot.endsWith('/') ? `${lRoot}${cleanRel}` : `${lRoot}${sep}${cleanRel}`;
+    }
+    onOpenFile?.(node.name, content !== null ? content : '', targetPath, isLocal ? 'localFolder' : 'temporary');
   }, [ops, onOpenFile, isLocal, isExamples, tree, vfsAdapters, fsMode, onCwdChange, onFsModeChange]);
 
   const handleCreate = useCallback(async (name) => {
