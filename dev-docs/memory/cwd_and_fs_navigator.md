@@ -53,7 +53,7 @@ When running scripts in the IDE (especially examples or user projects doing file
    - `Sidebar` and `FileNavigatorModal` query only the immediate children of the active folder (`< 1 ms`, minimal memory).
    - In `Sidebar.jsx`, expanding a folder in `TreeRow` dynamically loads that folder's children on demand.
 8. **Sidebar Navigation, Click Behaviors & Windows Root Fixes**:
-   - Removed obsolete unmount button and unmount strip.
+   - Removed obsolete unmount button, unmount strip, and redundant "Open folder…" toolbar button (directory selection is handled via `CurrentFolderBar` and `FileNavigatorModal`).
    - Click behaviors in sidebar file tree:
      - **Folders**: 1 click (on arrow or text) expands/collapses the subfolder; 2 clicks (double-click) navigates into the folder setting it as active CWD.
      - **`..` (Parent Directory)**: 1 click selects the row; 2 clicks (double-click) navigates up one level.
