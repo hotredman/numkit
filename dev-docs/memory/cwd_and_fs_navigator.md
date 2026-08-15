@@ -116,6 +116,9 @@ When running scripts in the IDE (especially examples or user projects doing file
       - Unified all modal dialogs (`Figure`, `Inspector`, `Explorer`, `Preferences`) to use `<ModalWindow>`.
       - Styled `.modal-title-right` as a consistent pinned control pill with background `var(--bg-3)`, border `1px solid var(--line)`, and uniform `.ve-close` maximize and close buttons.
       - Removed duplicate CSS rules for `.ve-titlebar`, `.ve-title-right`, `.fw-titlebar`, `.fw-title-right`.
+16. **Editor Tab Close Button Behavior (`IDE.jsx`)**:
+    - **Problem**: When only one tab was open, the close button `×` was hidden due to a legacy `tabs.length > 1` condition, preventing closing the tab.
+    - **Fix**: Removed the conditional so every tab displays the `×` close button; closing the single/last tab cleanly resets the editor with a fresh `untitled.m` tab.
     - Test coverage: 549 tests passing across 41 test files.
 
 
