@@ -30,7 +30,7 @@ describe('FileNavigatorModal render smoke', () => {
     const { container, getByText, getByPlaceholderText, getByTitle } = rendered;
     expect(container.querySelector('.modal-overlay')).toBeTruthy();
     expect(container.querySelector('.modal-window')).toBeTruthy();
-    expect(getByText(/File Navigator/i)).toBeTruthy();
+    expect(getByText('Explorer')).toBeTruthy();
     expect(getByPlaceholderText('Search files…')).toBeTruthy();
 
     // Maximize button
