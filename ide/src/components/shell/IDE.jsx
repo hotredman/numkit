@@ -537,9 +537,13 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     try { return localStorage.getItem('numkit.ide.fsmode') || 'virtual'; }
     catch { return 'virtual'; }
   });
-  const [cwd, setCwd] = useState(() => {
-    try { return localStorage.getItem('numkit.ide.cwd') || '/'; }
+  const [virtualCwd, setVirtualCwd] = useState(() => {
+    try { return localStorage.getItem('numkit.ide.cwd.virtual') || '/'; }
     catch { return '/'; }
+  });
+  const [localCwd, setLocalCwd] = useState(() => {
+    try { return localStorage.getItem('numkit.ide.cwd.local') || (localFS.root?.() || ''); }
+    catch { return (localFS.root?.() || ''); }
   });
   const [isNavOpen, setIsNavOpen] = useState(false);
 
@@ -547,26 +551,56 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     try { localStorage.setItem('numkit.ide.fsmode', fsMode); } catch { /* ignore */ }
   }, [fsMode]);
   useEffect(() => {
-    try { localStorage.setItem('numkit.ide.cwd', cwd); } catch { /* ignore */ }
-  }, [cwd]);
+    try { localStorage.setItem('numkit.ide.cwd.virtual', virtualCwd); } catch { /* ignore */ }
+  }, [virtualCwd]);
+  useEffect(() => {
+    try { localStorage.setItem('numkit.ide.cwd.local', localCwd); } catch { /* ignore */ }
+  }, [localCwd]);
+
+  const cwd = fsMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
+
+  const handleFsModeChange = useCallback((newMode) => {
+    setFsMode(newMode);
+    const targetCwd = newMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
+    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+      window.nativeFS.setCwd(targetCwd);
+    }
+  }, [localCwd, virtualCwd]);
 
   const handleCwdChange = useCallback((newCwd) => {
-    setCwd(newCwd);
+    if (fsMode === 'local') {
+      setLocalCwd(newCwd);
+    } else {
+      setVirtualCwd(newCwd);
+    }
     if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
       window.nativeFS.setCwd(newCwd);
     }
-  }, []);
+  }, [fsMode]);
 
   const handleNavigateUp = useCallback(() => {
-    let p = (cwd || '/').replace(/\\/g, '/');
-    if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
-    const idx = p.lastIndexOf('/');
-    if (idx <= 0) {
-      handleCwdChange('/');
+    if (fsMode === 'local') {
+      const lRoot = localFS.root?.() || '';
+      let p = (cwd || '').replace(/\\/g, '/');
+      if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
+      const idx = p.lastIndexOf('/');
+      if (idx <= 0 || (lRoot && p === lRoot.replace(/\\/g, '/'))) {
+        handleCwdChange(lRoot);
+      } else {
+        const next = p.slice(0, idx);
+        handleCwdChange(lRoot && !next.startsWith(lRoot.replace(/\\/g, '/')) ? lRoot : next);
+      }
     } else {
-      handleCwdChange(p.slice(0, idx));
+      let p = (cwd || '/').replace(/\\/g, '/');
+      if (p.endsWith('/') && p.length > 1) p = p.slice(0, -1);
+      const idx = p.lastIndexOf('/');
+      if (idx <= 0) {
+        handleCwdChange('/');
+      } else {
+        handleCwdChange(p.slice(0, idx));
+      }
     }
-  }, [cwd, handleCwdChange]);
+  }, [cwd, fsMode, handleCwdChange]);
 
   const runCode = useCallback(async (code) => {
     if (isRunning) return; // guard against concurrent runs
@@ -1184,7 +1218,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
       <CurrentFolderBar
         fsMode={fsMode}
-        onFsModeChange={setFsMode}
+        onFsModeChange={handleFsModeChange}
         cwd={cwd}
         onCwdChange={handleCwdChange}
         onNavigateUp={handleNavigateUp}
@@ -1227,7 +1261,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         {panels.explorer && (
           <Sidebar
             fsMode={fsMode}
-            onFsModeChange={setFsMode}
+            onFsModeChange={handleFsModeChange}
+            cwd={cwd}
+            onCwdChange={handleCwdChange}
+            onNavigateUp={handleNavigateUp}
             onOpenFile={handleOpenFile}
             vfsRefreshKey={vfsRefreshKey}
             isTabUnsaved={isTabUnsaved}
@@ -1449,10 +1486,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         <FileNavigatorModal
           onClose={() => setIsNavOpen(false)}
           fsMode={fsMode}
-          onFsModeChange={setFsMode}
+          onFsModeChange={handleFsModeChange}
           currentCwd={cwd}
           onSetCurrentFolder={(newCwd, newMode) => {
-            if (newMode) setFsMode(newMode);
+            if (newMode) handleFsModeChange(newMode);
             handleCwdChange(newCwd);
           }}
           onOpenFile={(name, content, path, source) => {
