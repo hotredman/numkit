@@ -1005,14 +1005,30 @@ class ReplSession {
     });
   }
 
+function resolveReplCwd(rawCwd) {
+  if (!rawCwd) return null;
+  let p = rawCwd.trim();
+  if (/^[A-Za-z]:[\\/]/.test(p)) {
+    return path.normalize(p);
+  }
+  if (p.startsWith('/')) {
+    return path.resolve(TEMP_ROOT, p.slice(1));
+  }
+  return path.resolve(TEMP_ROOT, p);
+}
+
   // Send code to the session; return Promise<{stdout,stderr,vars,exitCode,notFound?,sessionRestarted?}>.
   async run(code, opts = null) {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
     const wasRestarted = this.crashed;
     let payload = '';
     if (opts?.cwd) {
-      const normalizedCwd = opts.cwd.replace(/\\/g, '/');
-      payload += `cd('${normalizedCwd}')\n`;
+      const realCwd = resolveReplCwd(opts.cwd);
+      if (realCwd) {
+        try { await fsp.mkdir(realCwd, { recursive: true }); } catch (_) {}
+        const normalizedCwd = realCwd.replace(/\\/g, '/');
+        payload += `cd('${normalizedCwd}')\n`;
+      }
     }
     payload += (typeof code === 'string' ? code : '') + '\n__END_OF_INPUT__\n';
 
@@ -1024,7 +1040,10 @@ class ReplSession {
   // Set the current working directory in the session.
   async setCwd(newCwd) {
     const exePath = resolveExe(runtimeSettings.interpreterPath, 'numkit_repl');
-    const normalizedCwd = (newCwd || '').replace(/\\/g, '/');
+    const realCwd = resolveReplCwd(newCwd);
+    if (!realCwd) return;
+    try { await fsp.mkdir(realCwd, { recursive: true }); } catch (_) {}
+    const normalizedCwd = realCwd.replace(/\\/g, '/');
     return new Promise((resolve) => {
       this._enqueue(exePath, `__SET_CWD__:${normalizedCwd}\n`, resolve, false, 'query');
     });
