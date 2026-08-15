@@ -2769,6 +2769,14 @@ const void *Value::rawData() const
 {
     if (heap_ == nullptr)
         return &scalar_;
+    if (heap_ == logicalTrueTag()) {
+        static const uint8_t t = 1;
+        return &t;
+    }
+    if (heap_ == logicalFalseTag()) {
+        static const uint8_t f = 0;
+        return &f;
+    }
     if (isTag())
         return nullptr;
     return heap_->buffer ? heap_->buffer->data() : nullptr;
@@ -2777,6 +2785,8 @@ size_t Value::rawBytes() const
 {
     if (heap_ == nullptr)
         return sizeof(double);
+    if (heap_ == logicalTrueTag() || heap_ == logicalFalseTag())
+        return sizeof(uint8_t);
     if (isTag())
         return 0;
     return heap_->buffer ? heap_->buffer->bytes() : 0;
