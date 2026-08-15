@@ -22,7 +22,7 @@ import CurrentFolderBar from './CurrentFolderBar';
 import FileNavigatorModal from './FileNavigatorModal';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
-import { sanitizeVfsPath, getParentDir, isLocalDiskPath } from '../../fs/pathUtils';
+import { sanitizeVfsPath, sanitizeLocalPath, getParentDir, isLocalDiskPath } from '../../fs/pathUtils';
 import { pickRunOrigin } from '../../fs/run-origin';
 import { loadUiState, saveUiState } from '../../ui-state';
 import { useTheme } from '../../theme';
@@ -600,15 +600,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const handleCwdChange = useCallback((newCwd) => {
     if (!newCwd) return;
     if (fsMode === 'local') {
-      let resolved = newCwd.trim();
-      if (typeof localFS !== 'undefined' && localFS.isAvailable?.()) {
-        const lRoot = localFS.root?.() || '';
-        if (lRoot && !isLocalDiskPath(resolved) && !resolved.startsWith('/') && !resolved.startsWith('\\')) {
-          resolved = `${lRoot}\\${resolved.replace(/\//g, '\\')}`;
-        }
-        if (typeof localFS.setRootPath === 'function') {
-          localFS.setRootPath(resolved);
-        }
+      const lRoot = (typeof localFS !== 'undefined' && localFS.isAvailable?.()) ? (localFS.root?.() || '') : '';
+      const resolved = sanitizeLocalPath(newCwd, lRoot);
+      if (typeof localFS !== 'undefined' && localFS.isAvailable?.() && typeof localFS.setRootPath === 'function') {
+        localFS.setRootPath(resolved);
       }
       setLocalCwd(resolved);
       if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
