@@ -29,6 +29,59 @@ import { useTheme } from '../../theme';
 
 const EMPTY_BPS = Object.freeze([]);
 
+/* ─────────────── monochrome icons for tab context menu ─────────────── */
+const TabMenuIcons = {
+  newTab: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+      <path d="M6 2v8M2 6h8"/>
+    </svg>
+  ),
+  rename: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 1.5l2 2-6.5 6.5H2v-2l6.5-6.5z"/>
+    </svg>
+  ),
+  copyName: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4.5" y="4.5" width="6" height="6" rx="1"/>
+      <path d="M3.5 7.5H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h4.5a1 1 0 0 1 1 1v1.5"/>
+    </svg>
+  ),
+  copyPath: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.5 2.5h3.5l1.2 1.5h4.3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/>
+      <path d="M3.5 7h5"/>
+    </svg>
+  ),
+  copyFolder: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.5 2.5h3l1.2 1.5h4.8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/>
+    </svg>
+  ),
+  showInExplorer: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="5" r="3.2"/>
+      <path d="M7.4 7.4L10.5 10.5"/>
+    </svg>
+  ),
+  close: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+      <path d="M3 3l6 6M9 3l-6 6"/>
+    </svg>
+  ),
+  closeAll: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+      <path d="M2.5 2.5l3.5 3.5-3.5 3.5M6 2.5l3.5 3.5-3.5 3.5"/>
+    </svg>
+  ),
+  closeOthers: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+      <rect x="2" y="2" width="8" height="8" rx="1.5"/>
+      <path d="M4.5 4.5l3 3M7.5 4.5l-3 3"/>
+    </svg>
+  ),
+};
+
 /* ─────────────── tab strip (mockup .editor-tabs chrome) ─────────────── */
 function TabStrip({
   tabs,
@@ -177,35 +230,45 @@ function TabStrip({
         <div onMouseDown={(e) => e.stopPropagation()}
           style={{
             position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000,
-            background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 5,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.35)', minWidth: 170, padding: '4px 0',
+            background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 6,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)', minWidth: 175, padding: '4px 0',
             color: 'var(--fg-1)',
           }}>
           {[
-            { label: '＋ New tab', action: () => onNew() },
+            { label: 'New tab', icon: TabMenuIcons.newTab, action: () => onNew() },
             { sep: true },
-            { label: '✏ Rename', action: () => { setEditingId(ctxMenu.tabId); setEditName(activeCtxTab?.name || ''); } },
+            { label: 'Rename', icon: TabMenuIcons.rename, action: () => { setEditingId(ctxMenu.tabId); setEditName(activeCtxTab?.name || ''); } },
             { sep: true },
-            { label: '📋 Copy file name', action: () => copyToClipboard(activeCtxPaths.fileName) },
-            { label: '📋 Copy file path', action: () => copyToClipboard(activeCtxPaths.filePath) },
-            { label: '📁 Copy folder path', action: () => copyToClipboard(activeCtxPaths.folderPath) },
-            { label: '🔍 Show in explorer', action: () => onShowInExplorer?.(ctxMenu.tabId) },
+            { label: 'Copy file name', icon: TabMenuIcons.copyName, action: () => copyToClipboard(activeCtxPaths.fileName) },
+            { label: 'Copy file path', icon: TabMenuIcons.copyPath, action: () => copyToClipboard(activeCtxPaths.filePath) },
+            { label: 'Copy folder path', icon: TabMenuIcons.copyFolder, action: () => copyToClipboard(activeCtxPaths.folderPath) },
+            { label: 'Show in explorer', icon: TabMenuIcons.showInExplorer, action: () => onShowInExplorer?.(ctxMenu.tabId) },
             { sep: true },
-            { label: '× Close',        action: () => onClose(ctxMenu.tabId), disabled: tabs.length <= 1 },
-            { label: '× Close all',    action: () => onCloseAll() },
-            { label: '× Close others', action: () => onCloseExcept(ctxMenu.tabId), disabled: tabs.length <= 1 },
+            { label: 'Close', icon: TabMenuIcons.close, action: () => onClose(ctxMenu.tabId), disabled: tabs.length <= 1 },
+            { label: 'Close all', icon: TabMenuIcons.closeAll, action: () => onCloseAll() },
+            { label: 'Close others', icon: TabMenuIcons.closeOthers, action: () => onCloseExcept(ctxMenu.tabId), disabled: tabs.length <= 1 },
           ].map((item, i) => item.sep
             ? <div key={i} style={{ height: 1, background: 'var(--line)', margin: '3px 8px' }} />
             : (
               <div key={i}
                 onClick={() => { if (!item.disabled) { item.action(); setCtxMenu(null); } }}
+                onMouseEnter={(e) => { if (!item.disabled) e.currentTarget.style.background = 'var(--bg-4)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 style={{
-                  padding: '5px 12px', fontSize: 11,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '5px 12px',
+                  fontSize: 11,
                   color: item.disabled ? 'var(--fg-3)' : 'var(--fg-1)',
                   cursor: item.disabled ? 'default' : 'pointer',
                   opacity: item.disabled ? 0.4 : 1,
+                  userSelect: 'none',
                 }}>
-                {item.label}
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, color: 'var(--fg-2)', flexShrink: 0 }}>
+                  {item.icon ? item.icon() : null}
+                </span>
+                <span>{item.label}</span>
               </div>
             )
           )}
