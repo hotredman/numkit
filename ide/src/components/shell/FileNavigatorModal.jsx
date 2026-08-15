@@ -60,6 +60,8 @@ export default function FileNavigatorModal({
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
+  const activeFS = navFsMode === 'local' ? localFS : tempFS;
+
   // Close on Escape
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -518,7 +520,18 @@ export default function FileNavigatorModal({
                     <button
                       className="ve-btn"
                       style={{ width: '100%', justifyContent: 'center' }}
-                      onClick={() => setBrowsePath(selectedItem.path)}
+                      onClick={() => {
+                        if (navFsMode === 'local') {
+                          const isWin = /^[A-Za-z]:/.test(browsePath) || browsePath.includes('\\');
+                          const sep = isWin ? '\\' : '/';
+                          const newPath = browsePath.endsWith(sep) || (isWin && /^[A-Za-z]:\\?$/.test(browsePath))
+                            ? `${browsePath.replace(/\\?$/, sep)}${selectedItem.name}`
+                            : `${browsePath}${sep}${selectedItem.name}`;
+                          setBrowsePath(newPath);
+                        } else {
+                          setBrowsePath(selectedItem.path);
+                        }
+                      }}
                     >
                       Enter Folder
                     </button>
