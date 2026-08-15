@@ -22,7 +22,7 @@ import CurrentFolderBar from './CurrentFolderBar';
 import FileNavigatorModal from './FileNavigatorModal';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
-import { sanitizeVfsPath, sanitizeLocalPath, getParentDir, isLocalDiskPath } from '../../fs/pathUtils';
+import { sanitizeVfsPath, sanitizeLocalPath, getParentDir, isLocalDiskPath, getTabPaths } from '../../fs/pathUtils';
 import { pickRunOrigin } from '../../fs/run-origin';
 import { loadUiState, saveUiState } from '../../ui-state';
 import { useTheme } from '../../theme';
@@ -30,7 +30,18 @@ import { useTheme } from '../../theme';
 const EMPTY_BPS = Object.freeze([]);
 
 /* ─────────────── tab strip (mockup .editor-tabs chrome) ─────────────── */
-function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAll, onCloseExcept }) {
+function TabStrip({
+  tabs,
+  activeTab,
+  onSelect,
+  onClose,
+  onNew,
+  onRename,
+  onCloseAll,
+  onCloseExcept,
+  onShowInExplorer,
+  localRoot,
+}) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName]   = useState('');
   const [ctxMenu, setCtxMenu]     = useState(null);
@@ -47,14 +58,9 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
 
   const scrollTabs = (dir) => {
     const el = stripRef.current;
-    // Instant scroll — native smooth scrollBy is a no-op in the Electron/Chromium
-    // shell here, so `behavior: 'smooth'` would leave the buttons doing nothing.
-    // scrollLeft clamps at the ends, so clicking past an edge is a harmless no-op.
     if (el) el.scrollLeft += dir * Math.max(120, el.clientWidth * 0.8);
   };
 
-  // Mouse wheel → horizontal scroll (the 30px strip has no room for a
-  // scrollbar). Native non-passive listener so preventDefault sticks.
   useEffect(() => {
     const el = stripRef.current;
     if (!el) return undefined;
@@ -67,8 +73,6 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  // Keep the active tab in view when it changes or tabs are added/removed, so
-  // opening a file or clicking an off-screen tab scrolls it into reach.
   useEffect(() => {
     const strip = stripRef.current;
     const active = strip && strip.querySelector('.editor-tab.is-active');
@@ -79,7 +83,6 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     else if (a.right > s.right) strip.scrollLeft += a.right - s.right;
   }, [activeTab, tabs.length]);
 
-  // Show the ‹ › buttons only when the strip actually overflows.
   useEffect(() => {
     const el = stripRef.current;
     if (!el) return undefined;
@@ -89,6 +92,24 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     ro.observe(el);
     return () => ro.disconnect();
   }, [tabs.length]);
+
+  const activeCtxTab = useMemo(() => {
+    if (!ctxMenu) return null;
+    return tabs.find((t) => t.id === ctxMenu.tabId);
+  }, [ctxMenu, tabs]);
+
+  const activeCtxPaths = useMemo(() => {
+    return getTabPaths(activeCtxTab, localRoot);
+  }, [activeCtxTab, localRoot]);
+
+  const copyToClipboard = useCallback((text) => {
+    if (!text) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   return (
     <div className="editor-tabs">
@@ -157,13 +178,18 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
           style={{
             position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000,
             background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 5,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.35)', minWidth: 160, padding: '4px 0',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)', minWidth: 170, padding: '4px 0',
             color: 'var(--fg-1)',
           }}>
           {[
             { label: '＋ New tab', action: () => onNew() },
             { sep: true },
-            { label: '✏ Rename', action: () => { setEditingId(ctxMenu.tabId); setEditName(tabs.find((t) => t.id === ctxMenu.tabId)?.name || ''); } },
+            { label: '✏ Rename', action: () => { setEditingId(ctxMenu.tabId); setEditName(activeCtxTab?.name || ''); } },
+            { sep: true },
+            { label: '📋 Copy file name', action: () => copyToClipboard(activeCtxPaths.fileName) },
+            { label: '📋 Copy file path', action: () => copyToClipboard(activeCtxPaths.filePath) },
+            { label: '📁 Copy folder path', action: () => copyToClipboard(activeCtxPaths.folderPath) },
+            { label: '🔍 Show in explorer', action: () => onShowInExplorer?.(ctxMenu.tabId) },
             { sep: true },
             { label: '× Close',        action: () => onClose(ctxMenu.tabId), disabled: tabs.length <= 1 },
             { label: '× Close all',    action: () => onCloseAll() },
@@ -1190,6 +1216,20 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
   const centerVisible = panels.editor || panels.terminal;
 
+  const handleShowTabInExplorer = useCallback((tabId) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    const lRoot = (typeof localFS !== 'undefined' && localFS.isAvailable?.()) ? (localFS.root?.() || '') : '';
+    const { folderPath, mode } = getTabPaths(tab, lRoot);
+    if (mode && mode !== fsMode) {
+      handleFsModeChange(mode);
+    }
+    if (folderPath) {
+      handleCwdChange(folderPath);
+    }
+    setIsNavOpen(true);
+  }, [tabs, fsMode, handleFsModeChange, handleCwdChange]);
+
   /* ─────────────── render ─────────────── */
   // .ide is a CSS grid with 3 rows (toolbar / main / statusbar). When the
   // debug session pauses we render a 4th element (the debug toolbar) — push
@@ -1301,6 +1341,8 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   onRename={renameTab}
                   onCloseAll={closeAllTabs}
                   onCloseExcept={closeOtherTabs}
+                  onShowInExplorer={handleShowTabInExplorer}
+                  localRoot={localCwd || localFS.root?.() || ''}
                 />
                 {/* Editor view toggle — INDEPENDENT checkboxes for
                     text / graph / AST. Any combination renders side-
