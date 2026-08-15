@@ -6,7 +6,7 @@
 %   • imopen   = erode then dilate (removes small white specks)
 %   • imclose  = dilate then erode (fills small black holes)
 
-import compat.*;
+
 
 clear
 close all

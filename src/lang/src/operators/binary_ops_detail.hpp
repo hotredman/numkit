@@ -77,6 +77,22 @@ void copyColumnMajorDouble(const Value &v, double *dst)
     }
 }
 
+inline Value narrowIfReal(const Value &val, std::pmr::memory_resource *mr) {
+    if (!val.isComplex()) return val;
+    const std::complex<double> *cd = val.complexData();
+    const std::size_t num = val.numel();
+    for (std::size_t i = 0; i < num; ++i) {
+        if (std::abs(cd[i].imag()) > 1e-14 * (1.0 + std::abs(cd[i].real())))
+            return val;
+    }
+    const std::size_t rows = val.dims().rows();
+    const std::size_t cols = val.dims().cols();
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (std::size_t i = 0; i < num; ++i) od[i] = cd[i].real();
+    return out;
+}
+
 // Solve A·X = B via la_solve, packed up as Value math. A is m×n, B is m×k.
 // Output is n×k. Uses scratch arena; final result is placed on `mr`.
 Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::memory_resource *mr)
@@ -95,6 +111,32 @@ Value matrixSolve(const Value &A, const Value &B, const char *opname, std::pmr::
                     std::string("numkit:") + opname + ":wide");
 
     ScratchArena arena(mr);
+
+    if (A.isComplex() || B.isComplex()) {
+        using Complex = std::complex<double>;
+        ScratchVec<Complex> A_buf(m * n, &arena);
+        ScratchVec<Complex> B_buf(m * k, &arena);
+        if (A.isComplex()) {
+            std::copy(A.complexData(), A.complexData() + m * n, A_buf.begin());
+        } else {
+            const double *ad = A.doubleData();
+            for (std::size_t i = 0; i < m * n; ++i) A_buf[i] = Complex(ad[i], 0.0);
+        }
+        if (B.isComplex()) {
+            std::copy(B.complexData(), B.complexData() + m * k, B_buf.begin());
+        } else {
+            const double *bd = B.doubleData();
+            for (std::size_t i = 0; i < m * k; ++i) B_buf[i] = Complex(bd[i], 0.0);
+        }
+        Value X = Value::complexMatrix(n, k, mr);
+        if (!numkit::ops::la_solve(A_buf.data(), m, n, B_buf.data(), k, X.complexDataMut(), &arena))
+            throw Error(std::string(opname)
+                        + ": matrix is singular or rank-deficient",
+                        0, 0, opname, "",
+                        std::string("numkit:") + opname + ":singular");
+        return narrowIfReal(X, mr);
+    }
+
     ScratchVec<double> A_buf(m * n, &arena);
     ScratchVec<double> B_buf(m * k, &arena);
     copyColumnMajorDouble(A, A_buf.data());
@@ -233,8 +275,8 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
             return r;
         }
         if (a.dims() != b.dims())
-            throw Error("Matrix dimensions must agree for comparison",
-                         0, 0, "compare", "", "numkit:dimagree");
+            throw Error("Matrix dimensions must agree for comparison. a=[" + std::to_string(a.dims().rows()) + "x" + std::to_string(a.dims().cols()) + "], b=[" + std::to_string(b.dims().rows()) + "x" + std::to_string(b.dims().cols()) + "] (line 278)",
+                        0, 0, "compareImpl", "", "numkit:compare:dimMismatch");
         auto r = createLike(a, ValueType::LOGICAL, nullptr);
         for (size_t i = 0; i < a.numel(); ++i)
             r.logicalDataMut()[i] =
@@ -363,8 +405,8 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
     size_t br = b.dims().rows(), bc = b.dims().cols();
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
-        throw Error("Matrix dimensions must agree for comparison",
-                     0, 0, "compare", "", "numkit:dimagree");
+        throw Error("Matrix dimensions must agree for comparison. a=[" + std::to_string(ar) + "x" + std::to_string(ac) + "], b=[" + std::to_string(br) + "x" + std::to_string(bc) + "] (line 408)",
+                    0, 0, "compareString", "", "numkit:compare:dimMismatch");
 
     auto r = Value::matrix(outR, outC, ValueType::LOGICAL, nullptr);
     uint8_t *dst = r.logicalDataMut();
@@ -446,8 +488,8 @@ Value logicalBinary(const char *opName, Op op,
         return r;
     }
     if (a.numel() != b.numel())
-        throw Error(std::string("Matrix dimensions must agree for ") + opName,
-                     0, 0, opName, "", "numkit:dimagree");
+        throw Error(std::string("Matrix dimensions must agree for ") + opName + ". a=[" + std::to_string(a.dims().rows()) + "x" + std::to_string(a.dims().cols()) + "], b=[" + std::to_string(b.dims().rows()) + "x" + std::to_string(b.dims().cols()) + "] (line 491)",
+                    0, 0, opName, "", "numkit:binary_ops:dimMismatch");
     auto aa = toBoolArray(a, &scratch);
     auto bb = toBoolArray(b, &scratch);
     auto r = createLike(a, ValueType::LOGICAL, mr);

@@ -4,7 +4,7 @@
 % a freshly-decimated slice each time you zoom — so the plot loads instantly
 % and reveals more detail the further in you zoom, without ever moving the
 % full signal into the UI.
-import compat.*;
+
 
 clear
 close all

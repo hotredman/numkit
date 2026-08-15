@@ -2,7 +2,7 @@
 % Marker at every non-zero entry; row 1 sits at the top (axis ij is
 % set automatically). Useful to visualise band structure / fill-in
 % in numerical methods.
-import compat.*;
+
 
 clear
 close all

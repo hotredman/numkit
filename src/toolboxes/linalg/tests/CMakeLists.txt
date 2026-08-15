@@ -2,7 +2,7 @@
 #
 # Gtest unit tests for toolboxes/linalg. Each *_test.cpp is appended to
 # the global numkit_gtest target. Smoke .m files in tests/smoke/ are
-# hand-runnable demos for numkit_smoke (not built into gtest).
+# hand-runnable demos for numkit (not built into gtest).
 
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/condeig_test.cpp
@@ -21,6 +21,24 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/kron_integer_class_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cross_integer_class_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/page_lsq_mrdiv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lu_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/qr_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/chol_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/schur_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_complex_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matrix_functions_general_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ordschur_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ordqz_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/qz_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gsvd_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/balance_perm_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eigs_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/funm_parlett_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/svd_sketch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/decomposition_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/blocked_lu_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/blocked_qr_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/blocked_chol_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
 )
 

@@ -10,14 +10,23 @@ export default function Toolbar({
   theme,
   onToggleTheme,
   onRun,
+  onBuildRun,
   onDebug,
   onStop,
   onSave,
   onClear,
   onReset,
+  onOpenPreferences,
   isDebugging,
+  isBuildRunning,
+  isRunning,
   canRun,
+  canBuildRun,
 }) {
+  const isDesktop = typeof canBuildRun === 'boolean'
+    ? canBuildRun
+    : (typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined');
+
   return (
     <div className="toolbar">
       <div className="brand">
@@ -50,13 +59,28 @@ export default function Toolbar({
 
       <div className="toolbar-right">
         {!isDebugging && (
-          <button className="tool-action tool-run" onClick={onRun} disabled={!canRun}>
+          <button className="tool-action tool-run" onClick={onRun} disabled={!canRun || isRunning}>
             <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1.5 L8.5 5 L2 8.5 Z" fill="currentColor"/></svg>
-            Run
+            {isRunning ? 'Running…' : 'Run'}
+          </button>
+        )}
+        {!isDebugging && (
+          <button
+            className="tool-action tool-build-run"
+            onClick={onBuildRun}
+            disabled={!canRun || isBuildRunning || isRunning || !isDesktop}
+            title={!isDesktop ? "Build & Run is available in the desktop app (requires native C++ compiler and numkit_codegen)" : "Transpile → compile → run via numkit_codegen --run"}
+          >
+            {/* λ▶ icon: lambda (codegen) + play triangle */}
+            <svg width="13" height="10" viewBox="0 0 13 10">
+              <text x="0" y="9" fontSize="9" fill="currentColor" fontFamily="monospace">λ</text>
+              <path d="M9 1.5 L13 5 L9 8.5 Z" fill="currentColor"/>
+            </svg>
+            {isBuildRunning ? 'Building…' : 'Build & Run'}
           </button>
         )}
         {!isDebugging ? (
-          <button className="tool-action" onClick={onDebug} disabled={!canRun}>
+          <button className="tool-action" onClick={onDebug} disabled={!canRun || isRunning}>
             <svg width="11" height="11" viewBox="0 0 12 12">
               <circle cx="6" cy="6" r="4" stroke="currentColor" fill="none"/>
               <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
@@ -89,6 +113,15 @@ export default function Toolbar({
             <path d="M3 6a3 3 0 1 1 1 2.2L2 10 M2 6V3l1 1" stroke="currentColor" fill="none" strokeLinecap="round"/>
           </svg>
           Reset
+        </button>
+        <span className="tool-sep" />
+        <button className="tool-action" onClick={onOpenPreferences} title="Preferences — configure tool paths">
+          <svg width="11" height="11" viewBox="0 0 12 12">
+            <circle cx="6" cy="6" r="2" stroke="currentColor" fill="none" strokeWidth="1.2"/>
+            <path d="M6 1v1.2 M6 9.8V11 M1 6h1.2 M9.8 6H11 M2.6 2.6l.85.85 M8.55 8.55l.85.85 M2.6 9.4l.85-.85 M8.55 3.45l.85-.85"
+              stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+          </svg>
+          Settings
         </button>
         <button className="tool-action" onClick={onToggleTheme}
           title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>

@@ -21,7 +21,7 @@ surface to the user**. Do not silently work on top of someone else's work.
 - Build dir = `build-<preset>/` per source root; runs of cmake never share
   binaryDir between worktrees.
 - Test runner: `build-<preset>/tests/gtest/Release/numkit_gtest.exe`.
-- WASM: `scripts/build-engine.sh --wasm` with emsdk env sourced; rebuild the IDE web bundle via `scripts/build-web.sh` (see `scripts/README.md`).
+- WASM: `scripts/engine-build.sh --wasm` with emsdk env sourced; rebuild the IDE web bundle via `scripts/web-build.sh` (see `scripts/README.md`).
 
 ## Commits
 
@@ -43,7 +43,7 @@ function.
 
 - Hand-runnable `.m` smokes live in `src/toolboxes/<name>/tests/smoke/*_smoke.m`
   (one per public function or related cluster). Run via
-  `build/desktop-fast/tests/smoke/Release/numkit_smoke.exe <path>`.
+  `build/desktop-fast/apps/numkit/Release/numkit_repl.exe <path>`.
 - **Every smoke MUST start with `clear` on the very first line**, then
   the usual `import compat.*` and the body. This ensures no leftover
   workspace state from a prior run leaks into the test.
@@ -110,7 +110,7 @@ documented branch.
 Hand-runnable demo. **Every smoke MUST start with `clear` on the first
 line**, then `import compat.*`, then the body. Use `fprintf` to print
 expected values inline ("expect ~..."). Run via
-`build/desktop-fast/tests/smoke/Release/numkit_smoke.exe src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`.
+`build/desktop-fast/apps/numkit/Release/numkit_repl.exe src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`.
 
 Three real bugs in cycles 65-75 were caught only by parity cross-check —
 hand-written smokes had passed all three. Don't trust your own

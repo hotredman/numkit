@@ -1,54 +1,96 @@
 // toolboxes/linalg/src/balance.cpp
 //
-// MATLAB balance: diagonal-similarity scaling for eigenvalue computations.
+// MATLAB balance: diagonal-similarity scaling and permutation for eigenvalue computations.
 // Parlett-Reinsch (1969) algorithm; same as EISPACK `balanc`.
-//
-//   B = balance(A)              1-out: balanced matrix B
-//   [T, B] = balance(A)         T diagonal s.t. B = T \ A * T
-//   [S, P, B] = balance(A)      S column of scalings, P column of perms
-//   balance(A, 'noperm')        skip permutation phase
-//
-// v1 implements only the diagonal scaling phase (the permutation phase
-// in EISPACK's balanc isolates rows/cols already in upper-triangular
-// form; rare in practice and skipped by 'noperm' anyway).
-//
-// Migrated 2026-05-25 from toolboxes/builtin/src/language/arrays/balance.cpp.
 
 #include <numkit/linalg/balance.hpp>
 
-// Compute-only TU: Value substrate + Error, no engine. The balance builtin
-// (CallContext wrapper) lives in balance_reg.cpp.
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <string>
 
 namespace numkit::linalg {
 
 namespace {
 
-// Parlett-Reinsch scaling. Modifies B in place; fills d[] with the
-// cumulative scaling so that final B = diag(d) \ A_in * diag(d).
-void balanceScale(double *B, size_t n, double *d)
+// Parlett-Reinsch permutation phase: isolate rows/columns with zero off-diagonal entries
+void balancePermute(double *B, size_t n, size_t &low, size_t &high, double *p)
+{
+    for (size_t i = 0; i < n; ++i) p[i] = static_cast<double>(i + 1);
+    if (n <= 1) { low = 0; high = (n == 0) ? 0 : n - 1; return; }
+
+    low = 0;
+    high = n - 1;
+
+    bool found = true;
+    while (found) {
+        found = false;
+
+        // Search for isolated rows in [low, high]
+        for (std::intptr_t i = static_cast<std::intptr_t>(high); i >= static_cast<std::intptr_t>(low); --i) {
+            size_t ui = static_cast<size_t>(i);
+            bool isolated = true;
+            for (size_t j = low; j <= high; ++j) {
+                if (j == ui) continue;
+                if (B[ui + j * n] != 0.0) { isolated = false; break; }
+            }
+            if (isolated) {
+                p[high] = static_cast<double>(ui + 1);
+                if (ui != high) {
+                    for (size_t k = 0; k < n; ++k) std::swap(B[ui + k * n], B[high + k * n]);
+                    for (size_t k = 0; k < n; ++k) std::swap(B[k + ui * n], B[k + high * n]);
+                }
+                if (high == 0) break;
+                high--;
+                found = true;
+                break;
+            }
+        }
+        if (found) continue;
+
+        // Search for isolated columns in [low, high]
+        for (size_t j = low; j <= high; ++j) {
+            bool isolated = true;
+            for (size_t i = low; i <= high; ++i) {
+                if (i == j) continue;
+                if (B[i + j * n] != 0.0) { isolated = false; break; }
+            }
+            if (isolated) {
+                p[low] = static_cast<double>(j + 1);
+                if (j != low) {
+                    for (size_t k = 0; k < n; ++k) std::swap(B[j + k * n], B[low + k * n]);
+                    for (size_t k = 0; k < n; ++k) std::swap(B[k + j * n], B[k + low * n]);
+                }
+                low++;
+                found = true;
+                break;
+            }
+        }
+    }
+}
+
+// Parlett-Reinsch scaling phase on submatrix B[low..high, low..high]
+void balanceScale(double *B, size_t n, double *d, size_t low, size_t high)
 {
     constexpr double radix = 2.0;
     constexpr double sqrdx = radix * radix;
     constexpr double threshold = 0.95;
 
     for (size_t i = 0; i < n; ++i) d[i] = 1.0;
-    if (n <= 1) return;
+    if (n <= 1 || low >= high) return;
 
     bool done = false;
     while (!done) {
         done = true;
-        for (size_t i = 0; i < n; ++i) {
+        for (size_t i = low; i <= high; ++i) {
             double r = 0.0;
             double c = 0.0;
-            for (size_t j = 0; j < n; ++j) {
+            for (size_t j = low; j <= high; ++j) {
                 if (j == i) continue;
                 r += std::abs(B[i + j * n]);
                 c += std::abs(B[j + i * n]);
@@ -70,8 +112,8 @@ void balanceScale(double *B, size_t n, double *d)
             if ((c + r) / f < threshold * s) {
                 done = false;
                 d[i] *= f;
-                for (size_t j = 0; j < n; ++j) B[i + j * n] /= f;
-                for (size_t j = 0; j < n; ++j) B[j + i * n] *= f;
+                for (size_t j = low; j <= high; ++j) B[i + j * n] /= f;
+                for (size_t j = low; j <= high; ++j) B[j + i * n] *= f;
             }
         }
     }
@@ -80,7 +122,7 @@ void balanceScale(double *B, size_t n, double *d)
 } // namespace
 
 BalanceResult
-balance_impl(const Value &A, bool /*noperm*/, std::pmr::memory_resource *mr)
+balance_impl(const Value &A, bool noperm, std::pmr::memory_resource *mr)
 {
     if (A.dims().is3D())
         throw Error("balance: input must be 2D",
@@ -104,14 +146,21 @@ balance_impl(const Value &A, bool /*noperm*/, std::pmr::memory_resource *mr)
 
     ScratchArena scratch(mr);
     ScratchVec<double> d(n, &scratch);
-    balanceScale(R.B.doubleDataMut(), n, d.data());
+
+    double *pd = R.perm_col.doubleDataMut();
+    size_t low = 0, high = (n > 0) ? n - 1 : 0;
+
+    if (!noperm) {
+        balancePermute(R.B.doubleDataMut(), n, low, high, pd);
+    } else {
+        for (size_t i = 0; i < n; ++i) pd[i] = static_cast<double>(i + 1);
+    }
+
+    balanceScale(R.B.doubleDataMut(), n, d.data(), low, high);
 
     double *dd = R.d_col.doubleDataMut();
-    double *pd = R.perm_col.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) {
-        dd[i] = d[i];
-        pd[i] = static_cast<double>(i + 1);
-    }
+    for (size_t i = 0; i < n; ++i) dd[i] = d[i];
+
     return R;
 }
 

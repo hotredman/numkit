@@ -5,7 +5,7 @@
 %
 % Function handles work on both engine backends; you can pass
 % closures that capture variables from the surrounding script.
-import compat.*;
+
 
 clear
 close all

@@ -1,0 +1,12 @@
+{
+  "name": "decomposition",
+  "namespace": "builtin",
+  "setup": "A = [4 1; 1 3]; b = [1; 2];",
+  "expr": "d = decomposition(A, 'lu'); x = solve(d, b); err = norm(A*x - b);",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "x(1)", "x(2)", "err"
+  ],
+  "comment": "decomposition classdef object caching LU/QR/Chol factorizations."
+}

@@ -2,7 +2,7 @@
 % Show that awgn() actually delivers the requested SNR by passing
 % a sinusoid through and measuring SNR on the output.
 
-import compat.*;
+
 
 clear
 close all

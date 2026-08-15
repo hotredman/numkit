@@ -1,0 +1,12 @@
+{
+  "name": "system",
+  "namespace": "runtime",
+  "setup": "",
+  "expr": "[s, o] = system('echo nk_parity');",
+  "iters": 1,
+  "tol": 0,
+  "fingerprint": [
+    "s"
+  ],
+  "comment": "system(cmd) — MATLAB-compatible process spawn. Sig: [status, cmdout] = system(cmd); single output returns status. Fingerprint is the exit code only (s=0 for echo); cmdout is shell-dependent and not fingerprinted (trailing newline / encoding differences across cmd.exe vs sh make exact comparison brittle). iters=1 — no point repeating a process spawn. coder / coder_run / runNative are numkit-native (no MATLAB equivalent) — not parity-spec'd."
+}

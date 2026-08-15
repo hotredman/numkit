@@ -4,7 +4,7 @@ import compat.*
 % Cody-Waite reduction + half-angle polynomial + tan double-angle),
 % replacing Div(Sin,Cos). 2-step for |x|<15, extended PI_A..D for |x|<1e6,
 % scalar std::tan for |x|>=1e6. ~3.5 ULP, matches MATLAB.
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/tan_simd_smoke.m
 
 fprintf('--- 2-step range (|x|<15) ---\n');

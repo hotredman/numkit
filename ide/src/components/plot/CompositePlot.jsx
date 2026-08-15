@@ -48,8 +48,8 @@ export default function CompositePlot({
   figure,
   width,
   height,
-  viewport,
-  setViewport,
+  viewport: viewportProp,
+  setViewport: setViewportProp,
   major = true,
   minor = true,
   // Per-axis grid (MATLAB XGrid / YGrid / XMinorGrid / YMinorGrid).
@@ -241,6 +241,55 @@ export default function CompositePlot({
       figIdRef.current = fid;
     }
   }, [figure._raw?.id, figure.id, setColorOverrideProp]);
+
+  // ── Viewport state ─────────────────────────────────────────────────
+  // Owned by parent (FigureWindow / SubplotGrid) when viewport prop is passed.
+  // Otherwise (InlinePlot, standalone rendering) fall back to local viewport.
+  const [viewportLocal, setViewportLocal] = useState(() => {
+    if (viewportProp) return viewportProp;
+    if (Array.isArray(figure?.xRange) && Array.isArray(figure?.yRange)) {
+      return { x: figure.xRange.slice(), y: figure.yRange.slice() };
+    }
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    if (Array.isArray(figure?.layers)) {
+      figure.layers.forEach((l) => {
+        if (l.kind === 'series' && Array.isArray(l.x) && Array.isArray(l.y)) {
+          l.x.forEach((vx) => { if (Number.isFinite(vx)) { if (vx < xMin) xMin = vx; if (vx > xMax) xMax = vx; } });
+          l.y.forEach((vy) => { if (Number.isFinite(vy)) { if (vy < yMin) yMin = vy; if (vy > yMax) yMax = vy; } });
+        }
+      });
+    }
+    if (xMin === Infinity || xMax === -Infinity) { xMin = -1; xMax = 1; }
+    if (yMin === Infinity || yMax === -Infinity) { yMin = -1; yMax = 1; }
+    if (xMin === xMax) { xMin -= 0.5; xMax += 0.5; }
+    if (yMin === yMax) { yMin -= 0.5; yMax += 0.5; }
+    return { x: [xMin, xMax], y: [yMin, yMax] };
+  });
+
+  useEffect(() => {
+    if (viewportProp) return;
+    if (Array.isArray(figure?.xRange) && Array.isArray(figure?.yRange)) {
+      setViewportLocal({ x: figure.xRange.slice(), y: figure.yRange.slice() });
+      return;
+    }
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    if (Array.isArray(figure?.layers)) {
+      figure.layers.forEach((l) => {
+        if (l.kind === 'series' && Array.isArray(l.x) && Array.isArray(l.y)) {
+          l.x.forEach((vx) => { if (Number.isFinite(vx)) { if (vx < xMin) xMin = vx; if (vx > xMax) xMax = vx; } });
+          l.y.forEach((vy) => { if (Number.isFinite(vy)) { if (vy < yMin) yMin = vy; if (vy > yMax) yMax = vy; } });
+        }
+      });
+    }
+    if (xMin === Infinity || xMax === -Infinity) { xMin = -1; xMax = 1; }
+    if (yMin === Infinity || yMax === -Infinity) { yMin = -1; yMax = 1; }
+    if (xMin === xMax) { xMin -= 0.5; xMax += 0.5; }
+    if (yMin === yMax) { yMin -= 0.5; yMax += 0.5; }
+    setViewportLocal({ x: [xMin, xMax], y: [yMin, yMax] });
+  }, [figure.id, figure.layers, viewportProp]);
+
+  const viewport = viewportProp || viewportLocal;
+  const setViewport = setViewportProp || setViewportLocal;
 
   // ── Log-axis state ─────────────────────────────────────────────────
   // Owned by the parent (FigureWindow) when it supplies setXLog/setYLog

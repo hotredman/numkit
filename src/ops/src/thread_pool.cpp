@@ -1,11 +1,14 @@
-// core/src/thread_pool.cpp — see thread_pool.hpp for the contract.
-
 #include <numkit/ops/thread_pool.hpp>
 
 #include <algorithm>
 #include <utility>
+#include <hwy/cache_control.h>
 
 namespace numkit::detail {
+
+inline void spin_pause() noexcept {
+    hwy::Pause();
+}
 
 // True while the current thread is executing a pool task body. A nested
 // run() (a parallel body that itself calls parallel_for) is then run inline
@@ -38,8 +41,8 @@ ThreadPool::~ThreadPool()
 {
     {
         std::lock_guard<std::mutex> lock(mu_);
-        shutdown_ = true;
-        ++epoch_;
+        shutdown_.store(true, std::memory_order_release);
+        epoch_.fetch_add(1, std::memory_order_release);
     }
     cv_start_.notify_all();
     for (auto &t : workers_)
@@ -80,15 +83,21 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
         std::unique_lock<std::mutex> lock(mu_);
         task_           = std::move(fn);
         task_n_         = n;
-        task_remaining_ = k;
+        task_remaining_.store(k, std::memory_order_release);
         active_         = k;
-        ++epoch_;
+        epoch_.fetch_add(1, std::memory_order_release);
     }
     cv_start_.notify_all();
 
     {
-        std::unique_lock<std::mutex> lock(mu_);
-        cv_done_.wait(lock, [this] { return task_remaining_ == 0; });
+        for (int spin = 0; spin < 2000; ++spin) {
+            if (task_remaining_.load(std::memory_order_acquire) == 0) break;
+            spin_pause();
+        }
+        if (task_remaining_.load(std::memory_order_acquire) != 0) {
+            std::unique_lock<std::mutex> lock(mu_);
+            cv_done_.wait(lock, [this] { return task_remaining_.load(std::memory_order_acquire) == 0; });
+        }
         // Drop the task closure under the lock so its destructors run
         // in a predictable place (avoids capturing locals living on
         // the caller's frame for any longer than necessary).
@@ -105,17 +114,23 @@ void ThreadPool::worker_loop(int id)
         int         k;
 
         {
-            std::unique_lock<std::mutex> lock(mu_);
-            cv_start_.wait(lock, [&] { return shutdown_ || epoch_ != seen_epoch; });
-            if (shutdown_)
+            for (int spin = 0; spin < 2000; ++spin) {
+                if (shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch) break;
+                spin_pause();
+            }
+            if (!(shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch)) {
+                std::unique_lock<std::mutex> lock(mu_);
+                cv_start_.wait(lock, [&] { return shutdown_.load(std::memory_order_acquire) || epoch_.load(std::memory_order_acquire) != seen_epoch; });
+            }
+            if (shutdown_.load(std::memory_order_acquire))
                 return;
-            seen_epoch = epoch_;
+            seen_epoch = epoch_.load(std::memory_order_acquire);
             // Workers beyond the active cap skip this task entirely
             // — they wake on cv_start_ broadcast but immediately go
             // back to sleep, never touching task_remaining_.
             if (id >= active_)
                 continue;
-            fn         = task_;        // copy under lock
+            fn         = task_;        // safe to read without lock because epoch was bumped after task_ was written
             n          = task_n_;
             k          = active_;
         }
@@ -131,9 +146,10 @@ void ThreadPool::worker_loop(int id)
         }
 
         {
-            std::lock_guard<std::mutex> lock(mu_);
-            if (--task_remaining_ == 0)
+            if (task_remaining_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                std::lock_guard<std::mutex> lock(mu_);
                 cv_done_.notify_one();
+            }
         }
     }
 }

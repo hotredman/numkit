@@ -208,7 +208,7 @@ inline Value emptyResultForBinary(const Value &a, const Value &b,
     const bool aShaper = !a.isScalar();
     const bool bShaper = !b.isScalar();
     if (aShaper && bShaper && a.dims() != b.dims())
-        throw std::runtime_error("Matrix dimensions must agree");
+        throw std::runtime_error("Matrix dimensions must agree. a=[" + std::to_string(a.dims().rows()) + "x" + std::to_string(a.dims().cols()) + "], b=[" + std::to_string(b.dims().rows()) + "x" + std::to_string(b.dims().cols()) + "] (line 211)");
     const Value &shape = aShaper ? a : (bShaper ? b : a);
     return createLike(shape, outType, mr);
 }
@@ -329,7 +329,7 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, std::pmr::memory_
     size_t br = b.dims().rows(), bc = b.dims().cols();
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
-        throw std::runtime_error("Matrix dimensions must agree");
+        throw std::runtime_error("Matrix dimensions must agree. a=[" + std::to_string(ar) + "x" + std::to_string(ac) + "], b=[" + std::to_string(br) + "x" + std::to_string(bc) + "] (line 332)");
 
     // Fast path: same dimensions, no broadcasting needed
     if (ar == br && ac == bc) {
@@ -451,7 +451,7 @@ Value elementwiseComplexImpl(const Value &a, const Value &b, Op op, std::pmr::me
     size_t br = cb.dims().rows(), bc = cb.dims().cols();
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
-        throw std::runtime_error("Matrix dimensions must agree");
+        throw std::runtime_error("Matrix dimensions must agree. a=[" + std::to_string(ar) + "x" + std::to_string(ac) + "], b=[" + std::to_string(br) + "x" + std::to_string(bc) + "] (line 454)");
 
     if (ar == br && ac == bc) {
         auto r = Value::complexMatrix(outR, outC, mr);
@@ -910,7 +910,7 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
     size_t br = b.dims().rows(), bc = b.dims().cols();
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
-        throw std::runtime_error("Matrix dimensions must agree");
+        throw std::runtime_error("Matrix dimensions must agree. a=[" + std::to_string(ar) + "x" + std::to_string(ac) + "], b=[" + std::to_string(br) + "x" + std::to_string(bc) + "] (line 913)");
 
     auto r = Value::matrix(outR, outC, targetType, mr);
     T *dst = static_cast<T *>(r.rawDataMut());

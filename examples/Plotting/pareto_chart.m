@@ -2,7 +2,7 @@
 % Bars sorted descending by value + a cumulative percent line on top.
 % Classic quality-control visualisation — the line crossing 80% tells
 % you which categories cover the bulk of the issue count.
-import compat.*;
+
 
 clear
 close all

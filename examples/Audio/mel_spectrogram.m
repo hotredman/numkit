@@ -3,7 +3,7 @@
 % perception-aware spectral view used as input to many audio ML
 % models. Compares with the plain linear-frequency spectrogram.
 
-import compat.*;
+
 
 clear
 close all

@@ -121,11 +121,11 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
             td[j] /= fs;
     }
 
-    // 4th output: ps — one-sided power spectral density per (freq, time),
+    // 4th output / Auto-plot: ps — one-sided power spectral density per (freq, time),
     // ps = c[k]·|S|² / (fs·Σwin²), with c = 2 on interior bins and 1 at DC
     // and (when present) Nyquist. Reuses the already-computed STFT S.
     Value PS;
-    if (nargout > 3) {
+    if (nargout == 0 || nargout > 3) {
         const std::size_t R = S.dims().rows();
         const std::size_t C = S.dims().cols();
         const std::size_t nx = args[0].numel();
@@ -161,6 +161,30 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
                 pd[m * R + k] = c * std::norm(v) / denom;
             }
         }
+    }
+
+    // Auto-plot when called without LHS (MATLAB spectrogram convention).
+    if (nargout == 0) {
+        const std::size_t R = S.dims().rows();
+        const std::size_t C = S.dims().cols();
+        Value pdb = Value::matrix(R, C, ValueType::DOUBLE, ctx.engine->resource());
+        const double *pd = PS.doubleData();
+        double *pdb_data = pdb.doubleDataMut();
+        for (std::size_t i = 0; i < R * C; ++i) {
+            double v = pd[i];
+            if (v < 1e-15) v = 1e-15;
+            pdb_data[i] = 10.0 * std::log10(v);
+        }
+        Value imagescFn = Value::funcHandle("imagesc", ctx.engine->resource());
+        Value imgArgs[3] = { T, F, pdb };
+        ctx.engine->callFunctionHandle(imagescFn, Span<const Value>(imgArgs, 3), ctx.env);
+        auto &fm = ctx.engine->figureManager();
+        auto &ax = fm.currentAxes();
+        ax.axisMode = "xy";
+        ax.yDir = "normal"; // normal frequency axis orientation: 0 Hz at bottom
+        if (ax.xlabel.empty()) ax.xlabel = "Time (s)";
+        if (ax.ylabel.empty()) ax.ylabel = "Frequency (Hz)";
+        return;
     }
 
     outs[0] = std::move(S);

@@ -2444,7 +2444,7 @@ enter_frame:
                 // obj.name(args): dispatch a class method, else fall back
                 // to field-value + CALL_INDIRECT (func handle / index).
                 const std::string &mname = chunk.strings[I.d];
-                Value &obj = R[I.b];
+                const Value &obj = R[I.b];
                 if (obj.isObject()) {
                     const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
                     // classdef method → native VM frame (debuggable). Receiver
@@ -2483,7 +2483,8 @@ enter_frame:
                     if (!cls || !cls->propGet || !cls->propGet(obj, mname, out, ctx))
                         throw std::runtime_error("No appropriate property '" + mname
                                                  + "' for class '" + obj.objectClassName() + "'");
-                    R[I.b] = std::move(out);
+                    if (execCallIndirectTarget(out, I.a, I.c, I.e, R, frame, ip))
+                        goto enter_frame;
                 } else {
                     // Struct field holding a func handle, or a value to index
                     // (`s.fh(args)`, `s.arr(idx)`).
@@ -2492,12 +2493,9 @@ enter_frame:
                     if (!obj.hasField(mname))
                         throw std::runtime_error("Reference to non-existent field '" + mname + "'");
                     Value fv = obj.field(mname);
-                    R[I.b] = std::move(fv);
+                    if (execCallIndirectTarget(fv, I.a, I.c, I.e, R, frame, ip))
+                        goto enter_frame;
                 }
-                // R[I.b] now holds the field/property value — reuse the
-                // indirect-call machinery (handle call or array index).
-                if (execCallIndirect(I, R, frame, ip))
-                    goto enter_frame;
                 break;
             }
             // ── Dotted multi-output method: [a,b] = obj.m(args) ──
@@ -3766,19 +3764,23 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
 bool VM::execCallIndirect(const Instruction &I, Value *R,
                            CallFrame &frame, const Instruction *ip)
 {
-    uint8_t fhReg = I.b, argBase = I.c, na = I.e;
+    return execCallIndirectTarget(R[I.b], I.a, I.c, I.e, R, frame, ip);
+}
 
+bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t argBase, uint8_t na,
+                                Value *R, CallFrame &frame, const Instruction *ip)
+{
     // Resolve function handle (plain or closure cell)
     Value funcHandleVal;
     size_t numCaptures = 0;
 
-    if (R[fhReg].isCell() && R[fhReg].numel() >= 1
-        && R[fhReg].cellAt(0).isFuncHandle()) {
-        funcHandleVal = R[fhReg].cellAt(0);
-        numCaptures = R[fhReg].numel() - 1;
-    } else if (R[fhReg].isFuncHandle()) {
-        funcHandleVal = R[fhReg];
-    } else if (R[fhReg].isObject()) {
+    if (target.isCell() && target.numel() >= 1
+        && target.cellAt(0).isFuncHandle()) {
+        funcHandleVal = target.cellAt(0);
+        numCaptures = target.numel() - 1;
+    } else if (target.isFuncHandle()) {
+        funcHandleVal = target;
+    } else if (target.isObject()) {
         // OBJECT: obj(i…) dispatches to the class subsref overload.
         // (A known variable `obj(i)` compiles to CALL_INDIRECT, so the
         // object subsref hook is needed here too, not just in INDEX_GET.)
@@ -3786,27 +3788,23 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
             std::vector<Value> idx(na);
             for (uint8_t i = 0; i < na; ++i)
                 idx[i] = R[argBase + i];
-            // classdef subsref → same-stack VM frame (pausable, P4). Returns
-            // true on push; execCallIndirect's caller then `goto enter_frame`.
-            if (tryObjectSubsrefFrame(I.a, fhReg, Span<const Value>(idx.data(), na), frame, ip))
-                return true;
             Value out;
-            if (engine_.tryObjectSubsref(R[fhReg], Span<const Value>(idx.data(), na), 1,
+            if (engine_.tryObjectSubsref(const_cast<Value&>(target), Span<const Value>(idx.data(), na), 1,
                                          out, currentCallEnv())) {
-                R[I.a] = std::move(out);
+                R[dstReg] = std::move(out);
                 return false;
             }
         }
         // No custom subsref → builtin object-array indexing (1-D / 2-D /
         // N-D), routed through the OBJECT-aware Value index methods.
-        const Value &mv = R[fhReg];
+        const Value &mv = target;
         if (na == 1) {
             auto idxs = Value::resolveIndices(R[argBase], mv.objectCount());
-            R[I.a] = mv.objectSubArray(idxs, engine_.mr_);
+            R[dstReg] = mv.objectSubArray(idxs, engine_.mr_);
         } else if (na == 2) {
             auto rids = Value::resolveIndices(R[argBase], mv.dims().rows());
             auto cids = Value::resolveIndices(R[argBase + 1], mv.dims().cols());
-            R[I.a] = mv.indexGet2D(rids.data(), rids.size(), cids.data(), cids.size(),
+            R[dstReg] = mv.indexGet2D(rids.data(), rids.size(), cids.data(), cids.size(),
                                    engine_.mr_);
         } else {
             const int nd = static_cast<int>(na);
@@ -3819,12 +3817,12 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
                 ptrs[i] = lists[i].data();
                 counts[i] = lists[i].size();
             }
-            R[I.a] = mv.indexGetND(ptrs.data(), counts.data(), nd, engine_.mr_);
+            R[dstReg] = mv.indexGetND(ptrs.data(), counts.data(), nd, engine_.mr_);
         }
         return false;
     } else {
         // Array indexing fallback
-        execIndirectIndex(I, R);
+        execIndirectIndexTarget(target, dstReg, argBase, na, R);
         return false;
     }
 
@@ -3836,13 +3834,13 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
     for (uint8_t i = 0; i < na; ++i)
         argsBuf[i] = R[argBase + i];
     for (size_t i = 0; i < numCaptures; ++i)
-        argsBuf[na + i] = R[fhReg].cellAt(1 + i);
+        argsBuf[na + i] = target.cellAt(1 + i);
     uint8_t totalArgs = static_cast<uint8_t>(std::min(totalArgsN, size_t(255)));
 
     // Try compiled user function
     if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
         frame.ip = ip + 1;
-        pushCallFrame(*found, argsBuf.data(), totalArgs, I.a, 1);
+        pushCallFrame(*found, argsBuf.data(), totalArgs, dstReg, 1);
         return true; // caller must re-enter dispatch loop
     }
 
@@ -3854,7 +3852,7 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
         Span<Value> os(ob, 1);
         CallContext ctx{&engine_, currentCallEnv()};
         extIt->second(as, 1, os, ctx);
-        R[I.a] = std::move(ob[0]);
+        R[dstReg] = std::move(ob[0]);
         return false;
     }
     throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
@@ -3924,14 +3922,16 @@ bool VM::execCallIndirectMulti(const Instruction &I, Value *R,
 
 void VM::execIndirectIndex(const Instruction &I, Value *R)
 {
-    uint8_t fhReg = I.b, argBase = I.c, na = I.e;
+    execIndirectIndexTarget(R[I.b], I.a, I.c, I.e, R);
+}
 
+void VM::execIndirectIndexTarget(const Value &mv, uint8_t dstReg, uint8_t argBase, uint8_t na, Value *R)
+{
     if (na == 1) {
-        const Value &mv = R[fhReg];
         const Value &ix = R[argBase];
         if (mv.isCell()) {
             auto indices = Value::resolveIndices(ix, mv.numel());
-            R[I.a] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
+            R[dstReg] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
         } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
             // BUG #14: scalar(:) on a tag-stored value (e.g. `true(:)`,
             // `false(:)`) used to segfault here — the previous fast path
@@ -3941,7 +3941,7 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
             // LOGICAL tag / INT* / STRUCT / etc.) without touching the
             // raw byte representation.
             if (mv.isScalar()) {
-                R[I.a] = mv;
+                R[dstReg] = mv;
             } else {
                 size_t n = mv.numel();
                 ValueType t = mv.type();
@@ -3950,16 +3950,16 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
                     size_t es = elementSize(t);
                     std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
                 }
-                R[I.a] = numkit::narrowComplex(std::move(res), engine_.mr_);  // z(:) all-real -> real
+                R[dstReg] = numkit::narrowComplex(std::move(res), engine_.mr_);  // z(:) all-real -> real
             }
         } else if (mv.isScalar() && ix.isDoubleScalar()) {
             checkedIndex(ix.scalarVal(), 1);
-            R[I.a] = mv;
+            R[dstReg] = mv;
         } else if (ix.isDoubleScalar()) {
             size_t i = checkedIndex(ix.scalarVal(), mv.numel());
-            R[I.a] = mv.elemAt(i, engine_.mr_);
+            R[dstReg] = mv.elemAt(i, engine_.mr_);
         } else if (ix.isLogical()) {
-            R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(), engine_.mr_);
+            R[dstReg] = mv.logicalIndex(ix.logicalData(), ix.numel(), engine_.mr_);
         } else {
             // General index vector — resolveIndices handles all numeric/char
             // index types (int*, single, char codes) and validates
@@ -3967,36 +3967,33 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
             // (Raw doubleData() threw "Not a double array" on e.g. A(int32(2))
             // and silently truncated fractional indices.)
             auto indices = Value::resolveIndices(ix, mv.numel());
-            R[I.a] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
+            R[dstReg] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
         }
     } else if (na == 2) {
-        const Value &mv = R[fhReg];
         const Value &ri = R[argBase];
         const Value &ci = R[argBase + 1];
         auto rowIds = Value::resolveIndices(ri, mv.dims().rows());
         auto colIds = Value::resolveIndices(ci, mv.dims().cols());
-        R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
+        R[dstReg] = mv.indexGet2D(rowIds.data(), rowIds.size(),
                                colIds.data(), colIds.size(),
                                engine_.mr_);
     } else if (na == 3) {
-        const Value &mv = R[fhReg];
         if (mv.isCell()) {
             size_t r = (size_t) R[argBase].toScalar() - 1;
             size_t c = (size_t) R[argBase + 1].toScalar() - 1;
             size_t p = (size_t) R[argBase + 2].toScalar() - 1;
-            R[I.a] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
+            R[dstReg] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
         } else {
             auto rowIds = Value::resolveIndices(R[argBase], mv.dims().rows());
             auto colIds = Value::resolveIndices(R[argBase + 1], mv.dims().cols());
             auto pageIds = Value::resolveIndices(R[argBase + 2], mv.dims().pages());
-            R[I.a] = mv.indexGet3D(rowIds.data(), rowIds.size(),
+            R[dstReg] = mv.indexGet3D(rowIds.data(), rowIds.size(),
                                    colIds.data(), colIds.size(),
                                    pageIds.data(), pageIds.size(),
                                    engine_.mr_);
         }
     } else {
         // ND indexing fallback for na >= 4. CELL handled by indexGetND.
-        const Value &mv = R[fhReg];
         const int nd = static_cast<int>(na);
         std::vector<std::vector<size_t>> idxLists(nd);
         std::vector<const size_t *> idxPtrs(nd);
@@ -4007,7 +4004,7 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
             idxPtrs[i] = idxLists[i].data();
             idxCounts[i] = idxLists[i].size();
         }
-        R[I.a] = mv.indexGetND(idxPtrs.data(), idxCounts.data(), nd, engine_.mr_);
+        R[dstReg] = mv.indexGetND(idxPtrs.data(), idxCounts.data(), nd, engine_.mr_);
     }
 }
 

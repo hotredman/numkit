@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 /**
  * Resizable handle. `orientation`:
@@ -10,9 +10,33 @@ import { useRef } from 'react';
 export default function ResizeHandle({ orientation, onResize, onDoubleClick }) {
   const dragging = useRef(false);
 
+  const cleanup = () => {
+    if (dragging.current) {
+      dragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  };
+
+  useEffect(() => {
+    const handleGlobalUp = () => cleanup();
+    const handleBlur = () => cleanup();
+    window.addEventListener('pointerup', handleGlobalUp);
+    window.addEventListener('pointercancel', handleGlobalUp);
+    window.addEventListener('mouseup', handleGlobalUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      cleanup();
+      window.removeEventListener('pointerup', handleGlobalUp);
+      window.removeEventListener('pointercancel', handleGlobalUp);
+      window.removeEventListener('mouseup', handleGlobalUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
   function onPointerDown(e) {
     dragging.current = true;
-    e.target.setPointerCapture(e.pointerId);
+    try { e.target.setPointerCapture(e.pointerId); } catch { /* harmless */ }
     document.body.style.cursor = orientation === 'vertical' ? 'col-resize' : 'row-resize';
     document.body.style.userSelect = 'none';
   }

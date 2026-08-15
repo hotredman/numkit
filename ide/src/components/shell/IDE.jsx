@@ -7,9 +7,8 @@ import ConsolePane from './ConsolePane';
 import Toolbar from './Toolbar';
 import StatusBar from './StatusBar';
 import ResizeHandle from './ResizeHandle';
+import PreferencesModal from './PreferencesModal';
 import { WorkspacePanel, VariableEditor } from '../workspace/Workspace';
-import ReferencePanel from '../reference/Reference';
-import { ALL_DOCS } from '../reference/refData';
 import FiguresPane from '../plot/FiguresPane';
 import FigureWindow from '../plot/FigureWindow';
 import NumkitGraphView from '../lang/NumkitGraphView';
@@ -17,16 +16,83 @@ import NumkitASTView from '../lang/NumkitASTView';
 import NumkitASTTreeView from '../lang/NumkitASTTreeView';
 import { adaptVariables, adaptFigures } from '../plot/adapters';
 
+import CurrentFolderBar from './CurrentFolderBar';
+import FileNavigatorModal from './FileNavigatorModal';
 import tempFS from '../../temporary';
 import localFS from '../../fs/local';
+import { sanitizeVfsPath, sanitizeLocalPath, getParentDir, isLocalDiskPath, getTabPaths } from '../../fs/pathUtils';
 import { pickRunOrigin } from '../../fs/run-origin';
 import { loadUiState, saveUiState } from '../../ui-state';
 import { useTheme } from '../../theme';
 
 const EMPTY_BPS = Object.freeze([]);
 
+/* ─────────────── monochrome icons for tab context menu ─────────────── */
+const TabMenuIcons = {
+  newTab: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+      <path d="M6 2v8M2 6h8"/>
+    </svg>
+  ),
+  rename: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 1.5l2 2-6.5 6.5H2v-2l6.5-6.5z"/>
+    </svg>
+  ),
+  copyName: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4.5" y="4.5" width="6" height="6" rx="1"/>
+      <path d="M3.5 7.5H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h4.5a1 1 0 0 1 1 1v1.5"/>
+    </svg>
+  ),
+  copyPath: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.5 2.5h3.5l1.2 1.5h4.3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/>
+      <path d="M3.5 7h5"/>
+    </svg>
+  ),
+  copyFolder: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.5 2.5h3l1.2 1.5h4.8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H1.5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/>
+    </svg>
+  ),
+  showInExplorer: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5" cy="5" r="3.2"/>
+      <path d="M7.4 7.4L10.5 10.5"/>
+    </svg>
+  ),
+  close: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+      <path d="M3 3l6 6M9 3l-6 6"/>
+    </svg>
+  ),
+  closeAll: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+      <path d="M2.5 2.5l3.5 3.5-3.5 3.5M6 2.5l3.5 3.5-3.5 3.5"/>
+    </svg>
+  ),
+  closeOthers: () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+      <rect x="2" y="2" width="8" height="8" rx="1.5"/>
+      <path d="M4.5 4.5l3 3M7.5 4.5l-3 3"/>
+    </svg>
+  ),
+};
+
 /* ─────────────── tab strip (mockup .editor-tabs chrome) ─────────────── */
-function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAll, onCloseExcept }) {
+function TabStrip({
+  tabs,
+  activeTab,
+  onSelect,
+  onClose,
+  onNew,
+  onRename,
+  onCloseAll,
+  onCloseExcept,
+  onShowInExplorer,
+  localRoot,
+}) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName]   = useState('');
   const [ctxMenu, setCtxMenu]     = useState(null);
@@ -43,14 +109,9 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
 
   const scrollTabs = (dir) => {
     const el = stripRef.current;
-    // Instant scroll — native smooth scrollBy is a no-op in the Electron/Chromium
-    // shell here, so `behavior: 'smooth'` would leave the buttons doing nothing.
-    // scrollLeft clamps at the ends, so clicking past an edge is a harmless no-op.
     if (el) el.scrollLeft += dir * Math.max(120, el.clientWidth * 0.8);
   };
 
-  // Mouse wheel → horizontal scroll (the 30px strip has no room for a
-  // scrollbar). Native non-passive listener so preventDefault sticks.
   useEffect(() => {
     const el = stripRef.current;
     if (!el) return undefined;
@@ -63,8 +124,6 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
-  // Keep the active tab in view when it changes or tabs are added/removed, so
-  // opening a file or clicking an off-screen tab scrolls it into reach.
   useEffect(() => {
     const strip = stripRef.current;
     const active = strip && strip.querySelector('.editor-tab.is-active');
@@ -75,7 +134,6 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     else if (a.right > s.right) strip.scrollLeft += a.right - s.right;
   }, [activeTab, tabs.length]);
 
-  // Show the ‹ › buttons only when the strip actually overflows.
   useEffect(() => {
     const el = stripRef.current;
     if (!el) return undefined;
@@ -85,6 +143,24 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
     ro.observe(el);
     return () => ro.disconnect();
   }, [tabs.length]);
+
+  const activeCtxTab = useMemo(() => {
+    if (!ctxMenu) return null;
+    return tabs.find((t) => t.id === ctxMenu.tabId);
+  }, [ctxMenu, tabs]);
+
+  const activeCtxPaths = useMemo(() => {
+    return getTabPaths(activeCtxTab, localRoot);
+  }, [activeCtxTab, localRoot]);
+
+  const copyToClipboard = useCallback((text) => {
+    if (!text) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   return (
     <div className="editor-tabs">
@@ -117,10 +193,8 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
                 {tab.name}{tab.modified ? ' •' : ''}
               </span>
             )}
-            {tabs.length > 1 && (
-              <button className="tab-close" aria-label="Close"
-                onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}>×</button>
-            )}
+            <button className="tab-close" aria-label="Close"
+              onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}>×</button>
           </div>
         );
       })}
@@ -152,30 +226,45 @@ function TabStrip({ tabs, activeTab, onSelect, onClose, onNew, onRename, onClose
         <div onMouseDown={(e) => e.stopPropagation()}
           style={{
             position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000,
-            background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 5,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.35)', minWidth: 160, padding: '4px 0',
+            background: 'var(--bg-3)', border: '1px solid var(--line)', borderRadius: 6,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)', minWidth: 175, padding: '4px 0',
             color: 'var(--fg-1)',
           }}>
           {[
-            { label: '＋ New tab', action: () => onNew() },
+            { label: 'New tab', icon: TabMenuIcons.newTab, action: () => onNew() },
             { sep: true },
-            { label: '✏ Rename', action: () => { setEditingId(ctxMenu.tabId); setEditName(tabs.find((t) => t.id === ctxMenu.tabId)?.name || ''); } },
+            { label: 'Rename', icon: TabMenuIcons.rename, action: () => { setEditingId(ctxMenu.tabId); setEditName(activeCtxTab?.name || ''); } },
             { sep: true },
-            { label: '× Close',        action: () => onClose(ctxMenu.tabId), disabled: tabs.length <= 1 },
-            { label: '× Close all',    action: () => onCloseAll() },
-            { label: '× Close others', action: () => onCloseExcept(ctxMenu.tabId), disabled: tabs.length <= 1 },
+            { label: 'Copy file name', icon: TabMenuIcons.copyName, action: () => copyToClipboard(activeCtxPaths.fileName) },
+            { label: 'Copy file path', icon: TabMenuIcons.copyPath, action: () => copyToClipboard(activeCtxPaths.filePath) },
+            { label: 'Copy folder path', icon: TabMenuIcons.copyFolder, action: () => copyToClipboard(activeCtxPaths.folderPath) },
+            { label: 'Show in explorer', icon: TabMenuIcons.showInExplorer, action: () => onShowInExplorer?.(ctxMenu.tabId) },
+            { sep: true },
+            { label: 'Close', icon: TabMenuIcons.close, action: () => onClose(ctxMenu.tabId), disabled: tabs.length <= 1 },
+            { label: 'Close all', icon: TabMenuIcons.closeAll, action: () => onCloseAll() },
+            { label: 'Close others', icon: TabMenuIcons.closeOthers, action: () => onCloseExcept(ctxMenu.tabId), disabled: tabs.length <= 1 },
           ].map((item, i) => item.sep
             ? <div key={i} style={{ height: 1, background: 'var(--line)', margin: '3px 8px' }} />
             : (
               <div key={i}
                 onClick={() => { if (!item.disabled) { item.action(); setCtxMenu(null); } }}
+                onMouseEnter={(e) => { if (!item.disabled) e.currentTarget.style.background = 'var(--bg-4)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 style={{
-                  padding: '5px 12px', fontSize: 11,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '5px 12px',
+                  fontSize: 11,
                   color: item.disabled ? 'var(--fg-3)' : 'var(--fg-1)',
                   cursor: item.disabled ? 'default' : 'pointer',
                   opacity: item.disabled ? 0.4 : 1,
+                  userSelect: 'none',
                 }}>
-                {item.label}
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 14, color: 'var(--fg-2)', flexShrink: 0 }}>
+                  {item.icon ? item.icon() : null}
+                </span>
+                <span>{item.label}</span>
               </div>
             )
           )}
@@ -292,16 +381,6 @@ function BottomDock({
           </svg>
           Workspace <span className="dock-count">{workspaceVars.length}</span>
         </button>
-        <button className={`dock-tab ${active === 'reference' ? 'is-active' : ''}`}
-          onClick={() => setActive('reference')}>
-          <svg width="11" height="11" viewBox="0 0 12 12">
-            <rect x="2" y="1.5" width="8" height="9" rx="1" stroke="currentColor" fill="none"/>
-            <line x1="4" y1="4" x2="8" y2="4" stroke="currentColor"/>
-            <line x1="4" y1="6" x2="8" y2="6" stroke="currentColor"/>
-            <line x1="4" y1="8" x2="6.5" y2="8" stroke="currentColor"/>
-          </svg>
-          Reference
-        </button>
         <div className="dock-spacer" />
         <button className="dock-iconbtn" title="Close panel" onClick={onClose}>×</button>
       </div>
@@ -319,7 +398,6 @@ function BottomDock({
           {consoleNode}
         </div>
         {active === 'workspace' && <WorkspacePanel variables={workspaceVars} onOpen={onOpenVar} />}
-        {active === 'reference' && <ReferencePanel docs={ALL_DOCS} />}
       </div>
     </div>
   );
@@ -408,6 +486,12 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   // New modals from mockup
   const [openVar, setOpenVar]         = useState(null);
   const [openFigure, setOpenFigure]   = useState(null);
+  // Preferences modal
+  const [prefsOpen, setPrefsOpen]     = useState(false);
+  // Build & Run state — true while codegen IPC is in flight
+  const [isBuildRunning, setIsBuildRunning] = useState(false);
+  // Run state — true while runCode is in flight (prevents concurrent runs)
+  const [isRunning, setIsRunning] = useState(false);
 
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
@@ -523,7 +607,108 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     });
   }, []);
 
+  const isElectron = typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined';
+  const localAvailable = isElectron && typeof localFS !== 'undefined' && localFS.isAvailable?.();
+  const [fsMode, setFsMode] = useState(() => {
+    try {
+      if (!isElectron) return 'virtual';
+      const stored = localStorage.getItem('numkit.ide.fsmode');
+      return (stored === 'local' || stored === 'virtual') ? stored : 'virtual';
+    } catch {
+      return 'virtual';
+    }
+  });
+  const [virtualCwd, setVirtualCwd] = useState(() => {
+    try {
+      const saved = localStorage.getItem('numkit.ide.cwd.virtual');
+      return saved ? sanitizeVfsPath(saved) : '/';
+    } catch { return '/'; }
+  });
+  const [localCwd, setLocalCwd] = useState(() => {
+    try { return localStorage.getItem('numkit.ide.cwd.local') || (localFS.root?.() || ''); }
+    catch { return (localFS.root?.() || ''); }
+  });
+  const [isNavOpen, setIsNavOpen] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem('numkit.ide.fsmode', fsMode); } catch { /* ignore */ }
+  }, [fsMode]);
+  useEffect(() => {
+    try { localStorage.setItem('numkit.ide.cwd.virtual', virtualCwd); } catch { /* ignore */ }
+  }, [virtualCwd]);
+  useEffect(() => {
+    try { localStorage.setItem('numkit.ide.cwd.local', localCwd); } catch { /* ignore */ }
+  }, [localCwd]);
+
+  useEffect(() => {
+    (async () => {
+      if (isElectron && typeof localFS !== 'undefined' && localFS.isAvailable?.()) {
+        try {
+          await localFS.reconnect();
+          const root = localFS.root?.();
+          if (root) {
+            setLocalCwd((prev) => prev || root);
+          }
+        } catch (e) {
+          console.warn('[IDE] localFS init reconnect failed', e);
+        }
+      }
+    })();
+  }, [isElectron]);
+
+  const cwd = fsMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
+
+  const handleFsModeChange = useCallback((newMode) => {
+    if (!isElectron && newMode === 'local') return;
+    setFsMode(newMode);
+    const targetCwd = newMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
+    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+      window.nativeFS.setCwd(targetCwd);
+    }
+  }, [isElectron, localCwd, virtualCwd]);
+
+  const handleLocalMount = useCallback(async () => {
+    const root = localFS.root?.();
+    if (root) {
+      setLocalCwd(root);
+      if (fsMode === 'local' && typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        window.nativeFS.setCwd(root);
+      }
+    }
+    if (onLocalMount) await onLocalMount();
+  }, [fsMode, onLocalMount]);
+
+  const handleCwdChange = useCallback((newCwd, targetMode = fsMode) => {
+    if (!newCwd) return;
+    if (targetMode === 'local') {
+      const lRoot = (typeof localFS !== 'undefined' && localFS.isAvailable?.()) ? (localFS.root?.() || '') : '';
+      const resolved = sanitizeLocalPath(newCwd, lRoot);
+      if (typeof localFS !== 'undefined' && localFS.isAvailable?.() && typeof localFS.setRootPath === 'function') {
+        localFS.setRootPath(resolved);
+      }
+      setLocalCwd(resolved);
+      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        window.nativeFS.setCwd(resolved);
+      }
+    } else {
+      const vPath = sanitizeVfsPath(newCwd);
+      setVirtualCwd(vPath);
+      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        window.nativeFS.setCwd(vPath);
+      }
+    }
+    setVfsRefreshKey((k) => k + 1);
+  }, [fsMode]);
+
+  const handleNavigateUp = useCallback(() => {
+    const parent = getParentDir(cwd, fsMode === 'local');
+    handleCwdChange(parent);
+  }, [cwd, fsMode, handleCwdChange]);
+
   const runCode = useCallback(async (code) => {
+    if (isRunning) return; // guard against concurrent runs
+    setIsRunning(true);
+    try {
     const activeTabObj = tabs.find((t) => t.id === activeTab);
     const { adapter, origin, fallbackUsed } = pickRunOrigin(activeTabObj?.source, vfsAdapters);
 
@@ -539,19 +724,127 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       warnedFallbackRef.current = true;
     }
 
-    let scriptDir = null;
-    if (activeTabObj?.vfsPath) {
-      const idx = Math.max(activeTabObj.vfsPath.lastIndexOf('/'), activeTabObj.vfsPath.lastIndexOf('\\'));
-      if (idx > 0) scriptDir = activeTabObj.vfsPath.slice(0, idx);
-      else if (idx === 0) scriptDir = '/';
+    // Determine the filesystem mode and directory of the active tab
+    const tabFsMode = (activeTabObj?.source === 'localFolder') ? 'local' : 'virtual';
+    let targetCwd = tabFsMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
+
+    if (tabFsMode !== fsMode) {
+      handleFsModeChange(tabFsMode);
     }
-    if (origin) engine.pushScriptOrigin(origin, scriptDir);
-    let result;
+
+    // If the active tab has an associated file path, ensure changes are written and targetCwd is its directory
+    if (activeTabObj?.vfsPath) {
+      const vPath = activeTabObj.vfsPath;
+      if (tabFsMode === 'local') {
+        if (isLocalDiskPath(vPath)) {
+          // Windows absolute local path (e.g. C:\Users\User\...\script.m)
+          const lastSlash = Math.max(vPath.lastIndexOf('\\'), vPath.lastIndexOf('/'));
+          targetCwd = lastSlash > 0 ? vPath.slice(0, lastSlash) : vPath;
+          if (typeof window !== 'undefined' && window.nativeFS?.writeFile) {
+            const fname = vPath.slice(lastSlash + 1);
+            try { await window.nativeFS.writeFile(targetCwd, '/' + fname, code); } catch (_) {}
+          }
+        } else if (localFS.isMounted()) {
+          // Relative path inside mounted Local Folder (e.g. /script.m or /sub/script.m)
+          const lRoot = localFS.root() || '';
+          const lastSlash = vPath.lastIndexOf('/');
+          const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '';
+          targetCwd = relDir ? `${lRoot}\\${relDir.slice(1).replace(/\//g, '\\')}` : lRoot;
+          try { await localFS.writeFile(vPath, code); } catch (_) {}
+        }
+      } else {
+        // Virtual FS path (e.g. /numkit_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m)
+        const lastSlash = vPath.lastIndexOf('/');
+        const relDir = lastSlash > 0 ? vPath.slice(0, lastSlash) : '/';
+        targetCwd = relDir;
+        try { await tempFS.writeFile(vPath, code); } catch (_) {}
+      }
+
+      handleCwdChange(targetCwd, tabFsMode);
+    }
+
     const t0 = performance.now();
-    try { result = engine.execute(code); }
-    finally { if (origin) engine.popScriptOrigin(); }
+    let result;
+
+    // ── Electron: route through persistent native REPL session ──
+    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.runRepl) {
+      const r = await window.nativeFS.runRepl(code, { cwd: targetCwd || cwd });
+      setExecTimeMs(performance.now() - t0);
+      setErrorLine(r.errorLine ?? null);   // highlight failing line; null = clear
+
+      if (r.notFound) {
+        addOutput([{
+          type: 'warning',
+          text: '[Run] numkit_repl.exe not found. Configure the path in Settings (gear icon).',
+        }]);
+        setConsoleNotify(true);
+        return;
+      }
+      if (r.sessionRestarted) {
+        addOutput([{
+          type: 'system',
+          text: '[!] REPL session crashed and was automatically restarted. Workspace has been reset.',
+        }]);
+        setConsoleNotify(true);
+      }
+
+      // stdout is already stripped of figure markers by _flush(); display as-is.
+      const rawOutput = (r.stdout || '') + (r.stderr ? '\n' + r.stderr : '');
+      const items = [];
+      for (const line of rawOutput.split('\n')) {
+        if (!line && items.length === 0) continue; // skip leading blank
+        if (line === '__CLEAR__') { setOutput([]); continue; }
+        items.push({
+          type: /^Error/.test(line) ? 'error'
+              : /^Warning:/.test(line) ? 'warning'
+              : 'result',
+          text: line,
+        });
+      }
+      // Trim trailing empty lines.
+      while (items.length && items[items.length - 1].text.trim() === '') items.pop();
+      if (items.length) { addOutput(items); setConsoleNotify(true); }
+
+      // Update workspace panel from native session state.
+      if (r.vars && typeof r.vars === 'object') setVariables(r.vars);
+
+      // Update figures from native REPL output (extracted by _flush()).
+      if (r.closeAll) setFigures([]);
+      else if (r.closedFigureIds?.length) {
+        const closed = new Set(r.closedFigureIds);
+        setFigures((prev) => prev.filter((f) => !closed.has(f.id)));
+      }
+      if (r.figures?.length) {
+        setFigures((prev) => {
+          const map = new Map(prev.map((f) => [f.id, f]));
+          for (const fig of r.figures) map.set(fig.id, fig);
+          const list = Array.from(map.values());
+          if (list.length > FIGURE_CAP) {
+            console.warn(`[IDE] Capped figures at ${FIGURE_CAP} (native run); dropped ${list.length - FIGURE_CAP} oldest.`);
+            return list.slice(-FIGURE_CAP);
+          }
+          return list;
+        });
+        setPanels((p) => ({ ...p, figures: true }));
+      }
+
+      if (adapter) adapter.flush().then((wasDirty) => {
+        if (mountedRef.current && wasDirty) setVfsRefreshKey((k) => k + 1);
+      });
+      setVfsRefreshKey((k) => k + 1);
+      return;
+    }
+
+    // ── Browser: WASM engine ──────────────────────────────────────
+    if (origin) engine.pushScriptOrigin(origin, scriptDir || cwd);
+    try {
+      result = engine.execute(code);
+    } finally {
+      if (origin) engine.popScriptOrigin();
+    }
     setExecTimeMs(performance.now() - t0);
     setErrorLine(null);
+    setVfsRefreshKey((k) => k + 1);
 
     const items = [];
     if (result.output) {
@@ -577,12 +870,6 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         const map = new Map(prev.map((f) => [f.id, f]));
         for (const fig of result.figures) map.set(fig.id, fig);
         const list = Array.from(map.values());
-        // Hard cap to keep the renderer alive when scripts forget to
-        // `close all` between runs. Each figure can hold a Z matrix or
-        // long x/y arrays — accumulating without bound is the second
-        // most common path to V8 OOM after console output. Drop oldest
-        // (by arrival order: Map preserves insertion order) and warn so
-        // the user notices.
         if (list.length > FIGURE_CAP) {
           const dropped = list.length - FIGURE_CAP;
           console.warn(`[IDE] Capped figures at ${FIGURE_CAP}; dropped ${dropped} oldest.`
@@ -597,13 +884,16 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     setVariables(engine.getVars());
 
     if (adapter) adapter.flush().then((wasDirty) => {
-      // Only refresh the Sidebar tree if the script actually wrote
-      // something. Otherwise rebuilding triggers a recursive listTree
-      // IPC walk over the entire mounted folder for nothing — proven
-      // OOM source on populated local-folder mounts.
       if (mountedRef.current && wasDirty) setVfsRefreshKey((k) => k + 1);
     });
-  }, [engine, addOutput, tabs, activeTab, vfsAdapters]);
+    } finally {
+      setIsRunning(false);
+    }
+  }, [engine, addOutput, tabs, activeTab, vfsAdapters, isRunning]);
+
+
+
+
 
   /* ─────────────── debug ─────────────── */
   const toggleBreakpoint = useCallback((line) => {
@@ -681,18 +971,21 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       setDebugState(null);
       addOutput([{ type: 'system', text: '✓ Debug completed' }]);
       setConsoleNotify(true);
-      setVariables(engine.getVars());
+      // Prefer vars from the debug result (native path sends __VARS__: on completion).
+      if (result.vars && typeof result.vars === 'object') setVariables(result.vars);
+      else setVariables(engine.getVars());
     } else if (result.status === 'error') {
       setDebugLine(null);
       setDebugState(null);
       if (result.line) setErrorLine(result.line);
       addOutput([{ type: 'error', text: `Error: ${result.message}` }]);
       setConsoleNotify(true);
-      setVariables(engine.getVars());
+      if (result.vars && typeof result.vars === 'object') setVariables(result.vars);
+      else setVariables(engine.getVars());
     }
   }, [engine, addOutput]);
 
-  const debugStart = useCallback(() => {
+  const debugStart = useCallback(async () => {
     const tab = tabs.find((t) => t.id === activeTab);
     if (!tab || !tab.code.trim()) return;
     setPanels((p) => ({ ...p, terminal: true }));
@@ -700,19 +993,19 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     addOutput([{ type: 'system', text: `── Debug ${tab.name} ──` }]);
     setConsoleNotify(true);
     const t0 = performance.now();
-    const result = engine.debugStart(tab.code);
+    const result = await engine.debugStart(tab.code);
     setExecTimeMs(performance.now() - t0);
     handleDebugResult(result);
   }, [tabs, activeTab, engine, addOutput, handleDebugResult]);
 
-  const debugResume = useCallback((action = 0) => {
+  const debugResume = useCallback(async (action = 0) => {
     if (!debugState || debugState.status !== 'paused') return;
-    const result = engine.debugResume(action);
+    const result = await engine.debugResume(action);
     handleDebugResult(result);
   }, [debugState, engine, handleDebugResult]);
 
-  const debugStop = useCallback(() => {
-    engine.debugStop?.();
+  const debugStop = useCallback(async () => {
+    await engine.debugStop?.();
     setDebugLine(null);
     setDebugState(null);
     addOutput([{ type: 'system', text: '■ Debug stopped' }]);
@@ -732,8 +1025,17 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const closeTab = useCallback((id) => {
     setTabs((p) => {
       const n = p.filter((t) => t.id !== id);
-      if (!n.length) return p;
-      if (activeTab === id) setActiveTab(n[n.length - 1].id);
+      if (!n.length) {
+        tabCountRef.current++;
+        const nextId = String(tabCountRef.current);
+        setActiveTab(nextId);
+        return [{ id: nextId, name: 'untitled.m', code: '', modified: false, vfsPath: null, source: null, breakpoints: [] }];
+      }
+      if (activeTab === id) {
+        const idx = p.findIndex((t) => t.id === id);
+        const nextTab = n[Math.min(idx, n.length - 1)];
+        setActiveTab(nextTab.id);
+      }
       return n;
     });
   }, [activeTab]);
@@ -774,6 +1076,65 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     runCode(tab.code);
     setTabs((p) => p.map((t) => (t.id === activeTab ? { ...t, modified: false } : t)));
   }, [tabs, activeTab, addOutput, runCode]);
+
+  // Build & Run — transpile + AOT-compile + run the active tab via
+  // numkit_codegen --run. Requires the Electron IPC bridge; gracefully
+  // degrades in browser mode with an explanatory console message.
+  const handleBuildRun = useCallback(async () => {
+    const tab = tabs.find((t) => t.id === activeTab);
+    if (!tab || !tab.code.trim()) return;
+
+    setPanels((p) => ({ ...p, terminal: true }));
+    setBottomTab('console');
+    setConsoleNotify(true);
+
+    if (!window.nativeFS?.runCodegen) {
+      addOutput([{
+        type: 'warning',
+        text: '[Build & Run] Not available in browser mode — requires the Electron desktop app.',
+      }]);
+      return;
+    }
+
+    setIsBuildRunning(true);
+    addOutput([{ type: 'system', text: `── Build & Run ${tab.name} ──` }]);
+
+    let result;
+    try {
+      result = await window.nativeFS.runCodegen(tab.code);
+    } catch (err) {
+      addOutput([{ type: 'error', text: `[Build & Run] IPC error: ${err?.message || err}` }]);
+      setIsBuildRunning(false);
+      return;
+    }
+
+    if (result.notFound) {
+      addOutput([{
+        type: 'warning',
+        text: '[Build & Run] numkit_codegen not found. Set the path in Settings (⚙ Settings → Code Generator).',
+      }]);
+    } else {
+      // stderr contains the compiler log ("compiled → /tmp/…") and any
+      // codegen diagnostics; stdout is the program's own output.
+      if (result.stderr) {
+        for (const line of result.stderr.trimEnd().split('\n')) {
+          if (!line) continue;
+          addOutput([{ type: 'system', text: line }]);
+        }
+      }
+      if (result.stdout) {
+        for (const line of result.stdout.trimEnd().split('\n')) {
+          addOutput([{ type: 'result', text: line }]);
+        }
+      }
+      if (result.exitCode !== 0) {
+        addOutput([{ type: 'error', text: `[Build & Run] exited with code ${result.exitCode}` }]);
+      }
+    }
+
+    setIsBuildRunning(false);
+    setConsoleNotify(true);
+  }, [tabs, activeTab, addOutput]);
 
   const handleOpenFile = useCallback((filename, content, vfsPath, source) => {
     const existing = tabs.find((t) => t.vfsPath && t.vfsPath === vfsPath);
@@ -830,12 +1191,39 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     [tabs]
   );
 
-  // Ctrl+S
+  // Keyboard shortcuts (Ctrl+S, F5, F10, F11, Shift+F11, Shift+F5)
   useEffect(() => {
-    const h = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); } };
+    const h = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+      if (e.key === 'F5') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          debugStop();
+        } else if (debugState?.status === 'paused') {
+          debugResume(0); // Continue
+        } else if (!isRunning) {
+          debugStart();
+        }
+        return;
+      }
+      if (debugState?.status === 'paused') {
+        if (e.key === 'F10') {
+          e.preventDefault();
+          debugResume(1); // Step Over
+        } else if (e.key === 'F11') {
+          e.preventDefault();
+          if (e.shiftKey) debugResume(3); // Step Out
+          else debugResume(2); // Step Into
+        }
+      }
+    };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [handleSave]);
+  }, [handleSave, debugState, isRunning, debugResume, debugStart, debugStop]);
 
   /* ─────────────── adapted data ─────────────── */
   const workspaceVars = useMemo(() => adaptVariables(variables), [variables]);
@@ -899,14 +1287,28 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
   const centerVisible = panels.editor || panels.terminal;
 
+  const handleShowTabInExplorer = useCallback((tabId) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    const lRoot = (typeof localFS !== 'undefined' && localFS.isAvailable?.()) ? (localFS.root?.() || '') : '';
+    const { folderPath, mode } = getTabPaths(tab, lRoot);
+    if (mode && mode !== fsMode) {
+      handleFsModeChange(mode);
+    }
+    if (folderPath) {
+      handleCwdChange(folderPath);
+    }
+    setIsNavOpen(true);
+  }, [tabs, fsMode, handleFsModeChange, handleCwdChange]);
+
   /* ─────────────── render ─────────────── */
   // .ide is a CSS grid with 3 rows (toolbar / main / statusbar). When the
   // debug session pauses we render a 4th element (the debug toolbar) — push
   // an extra explicit row into the template so it doesn't auto-place into
   // the 22px statusbar row and squash main to nothing.
   const gridRows = isDebugging
-    ? '36px 28px 1fr 22px'
-    : '36px 1fr 22px';
+    ? '36px 28px 28px 1fr 22px'
+    : '36px 28px 1fr 22px';
   return (
     <div className="ide" style={{ gridTemplateRows: gridRows }}>
       <Toolbar
@@ -915,6 +1317,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
         theme={themeName}
         onToggleTheme={toggleTheme}
         onRun={runActiveTab}
+        onBuildRun={handleBuildRun}
         onDebug={debugStart}
         onStop={debugStop}
         onSave={handleSave}
@@ -927,8 +1330,23 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
           addOutput([{ type: 'system', text: 'Workspace cleared.' }]);
           setConsoleNotify(true);
         }}
+        onOpenPreferences={() => setPrefsOpen(true)}
         isDebugging={isDebugging}
+        isBuildRunning={isBuildRunning}
+        isRunning={isRunning}
         canRun={Boolean(activeTabData?.code?.trim())}
+        canBuildRun={isElectron}
+      />
+
+      <CurrentFolderBar
+        fsMode={fsMode}
+        onFsModeChange={handleFsModeChange}
+        cwd={cwd}
+        onCwdChange={handleCwdChange}
+        onNavigateUp={handleNavigateUp}
+        onOpenNavigator={() => setIsNavOpen(true)}
+        localAvailable={localAvailable}
+        localMountName={localFS.mountName?.()}
       />
 
       {/* Debug toolbar — shown when paused */}
@@ -964,10 +1382,15 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       <div className="ide-main" style={{ gridTemplateColumns: cols.join(' ') }}>
         {panels.explorer && (
           <Sidebar
+            fsMode={fsMode}
+            onFsModeChange={handleFsModeChange}
+            cwd={cwd}
+            onCwdChange={handleCwdChange}
+            onNavigateUp={handleNavigateUp}
             onOpenFile={handleOpenFile}
             vfsRefreshKey={vfsRefreshKey}
             isTabUnsaved={isTabUnsaved}
-            onLocalMount={onLocalMount}
+            onLocalMount={handleLocalMount}
             vfsAdapters={vfsAdapters}
           />
         )}
@@ -990,6 +1413,8 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                   onRename={renameTab}
                   onCloseAll={closeAllTabs}
                   onCloseExcept={closeOtherTabs}
+                  onShowInExplorer={handleShowTabInExplorer}
+                  localRoot={localCwd || localFS.root?.() || ''}
                 />
                 {/* Editor view toggle — INDEPENDENT checkboxes for
                     text / graph / AST. Any combination renders side-
@@ -1015,7 +1440,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
                     className={`evt-btn${editorPanes.ast ? ' is-active' : ''}`}
                     onClick={() => toggleEditorPane('ast')}
                     title="Parse-tree AST — graph layout (toggle)"
-                  >AST</button>
+                  >ast</button>
                   <button
                     className={`evt-btn${editorPanes.tree ? ' is-active' : ''}`}
                     onClick={() => toggleEditorPane('tree')}
@@ -1177,6 +1602,26 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       {openFigure && (
         <FigureWindow figure={openFigure} engine={engine}
           onClose={() => setOpenFigure(null)} />
+      )}
+      {prefsOpen && (
+        <PreferencesModal onClose={() => setPrefsOpen(false)} />
+      )}
+      {isNavOpen && (
+        <FileNavigatorModal
+          onClose={() => setIsNavOpen(false)}
+          fsMode={fsMode}
+          onFsModeChange={handleFsModeChange}
+          currentCwd={cwd}
+          onSetCurrentFolder={(newCwd, newMode) => {
+            if (newMode) handleFsModeChange(newMode);
+            handleCwdChange(newCwd);
+          }}
+          onOpenFile={(name, content, path, source) => {
+            handleOpenFile(name, content, path, source);
+          }}
+          localAvailable={localAvailable}
+          localMountName={localFS.mountName?.()}
+        />
       )}
 
       {showSaveDialog && (

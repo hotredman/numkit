@@ -4,7 +4,7 @@
 % with a hand-tuned P / PI / PID. Open-loop product C*G is built by
 % polynomial multiplication (conv); closed loop = CG / (1 + CG).
 
-import compat.*;
+
 
 clear
 close all

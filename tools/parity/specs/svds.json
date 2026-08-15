@@ -1,0 +1,12 @@
+{
+  "name": "svds",
+  "namespace": "builtin",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 10];",
+  "expr": "s = svds(A, 2); [U, S, V] = svds(A, 2); err = max(max(abs(A*V - U*S)));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "s(1)", "s(2)", "err"
+  ],
+  "comment": "v1 scope: Dense full SVD + k largest selection (svds(A, k)). Bidiagonalization Krylov deferred."
+}

@@ -2,7 +2,7 @@
 % For each (x, y, z) sample stem3 draws a vertical line from the
 % z=0 plane up to z, plus a marker at the tip. Good for sparse 3-D
 % sampled data where a surface would be misleading.
-import compat.*;
+
 
 clear
 close all

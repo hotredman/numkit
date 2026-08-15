@@ -45,6 +45,14 @@ void cholupdate_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrupdate_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrinsert_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qrdelete_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void qz_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ordqz_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gsvd_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ordschur_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void eigs_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void svds_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void svdsketch_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void svdappend_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // pseudo_subspace.cpp
 void pinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void orth_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -119,6 +127,56 @@ function F = funm(A, fun)
 end
 )NKM";
 
+// decomposition — object caching matrix factorizations
+static const char *kDecompositionMSource = R"NKM(
+classdef decomposition
+  properties
+    A
+    Type
+    Factors
+  end
+  methods
+    function obj = decomposition(A, type)
+      if nargin < 2
+        type = 'auto';
+      end
+      obj.A = A;
+      obj.Type = type;
+      if strcmp(type, 'lu')
+        [L, U, P] = lu(A);
+        obj.Factors = {L, U, P};
+      elseif strcmp(type, 'qr')
+        [Q, R] = qr(A);
+        obj.Factors = {Q, R};
+      elseif strcmp(type, 'chol')
+        R = chol(A);
+        obj.Factors = {R};
+      else
+        [L, U, P] = lu(A);
+        obj.Factors = {L, U, P};
+      end
+    end
+    function x = mldivide(obj, B)
+      if strcmp(obj.Type, 'lu') || strcmp(obj.Type, 'auto')
+        L = obj.Factors{1}; U = obj.Factors{2}; P = obj.Factors{3};
+        x = U \ (L \ (P * B));
+      elseif strcmp(obj.Type, 'qr')
+        Q = obj.Factors{1}; R = obj.Factors{2};
+        x = R \ (Q' * B);
+      elseif strcmp(obj.Type, 'chol')
+        R = obj.Factors{1};
+        x = R \ (R' \ B);
+      else
+        x = obj.A \ B;
+      end
+    end
+    function x = solve(obj, B)
+      x = mldivide(obj, B);
+    end
+  end
+end
+)NKM";
+
 void LinalgLibrary::install(Engine &engine)
 {
     // Every function lands in THREE places:
@@ -165,6 +223,14 @@ void LinalgLibrary::install(Engine &engine)
     reg("decomp", "qrupdate",   &linalg::detail::qrupdate_reg);
     reg("decomp", "qrinsert",   &linalg::detail::qrinsert_reg);
     reg("decomp", "qrdelete",   &linalg::detail::qrdelete_reg);
+    reg("decomp", "qz",         &linalg::detail::qz_reg);
+    reg("decomp", "ordqz",      &linalg::detail::ordqz_reg);
+    reg("decomp", "gsvd",       &linalg::detail::gsvd_reg);
+    reg("decomp", "ordschur",   &linalg::detail::ordschur_reg);
+    reg("decomp", "eigs",       &linalg::detail::eigs_reg);
+    reg("decomp", "svds",       &linalg::detail::svds_reg);
+    reg("decomp", "svdsketch",  &linalg::detail::svdsketch_reg);
+    reg("decomp", "svdappend",  &linalg::detail::svdappend_reg);
 
     // ── Pseudo-inverse / subspace queries ────────────────────────
     reg("pseudo", "pinv",     &linalg::detail::pinv_reg);
@@ -222,6 +288,7 @@ void LinalgLibrary::install(Engine &engine)
 
     // funm: general matrix function via eig (embedded .m).
     engine.registerBuiltinMSource(kFunmMSource);
+    engine.registerBuiltinMSource(kDecompositionMSource);
 }
 
 } // namespace numkit

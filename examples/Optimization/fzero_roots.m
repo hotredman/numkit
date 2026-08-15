@@ -2,7 +2,7 @@
 % Find scalar roots of three different functions with fzero, then
 % overlay the result on a plot of each function.
 
-import compat.*;
+
 
 clear
 close all

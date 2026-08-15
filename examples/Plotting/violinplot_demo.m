@@ -2,7 +2,7 @@
 % Bandwidth uses Silverman's rule (1.06·σ·N^(-1/5)). The mirror shape
 % lets you see bi-modality that boxplots hide; the inner box still
 % gives the IQR for a quick numeric anchor.
-import compat.*;
+
 
 clear
 close all

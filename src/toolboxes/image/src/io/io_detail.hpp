@@ -30,7 +30,7 @@ inline std::string lowerExt(const std::string &path) {
 }
 
 // True if the byte buffer carries a TIFF magic header (II*. or MM.*, classic
-// or BigTIFF). stb_image can't decode TIFF, so callers dispatch on this.
+// or BigTIFF).
 bool isTiffBytes(const std::string &b);
 
 // Decode an image from in-memory bytes — the single place pixels are produced.

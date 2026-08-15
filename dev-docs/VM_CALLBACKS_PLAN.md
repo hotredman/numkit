@@ -415,7 +415,7 @@ stays as the synchronous path for embedders. This is how real MATLAB ships these
     older C++ external kept the Ode45Test suite green and masked it. Fix: split
     the heavy arithmetic into `nk_dopri5_step` (the RK step) + `nk_ode_dense`
     (the interpolant) — each `.m` `function` is its own chunk/budget. Caught by
-    running the source through `numkit_smoke.exe` (compiles `.m` at runtime,
+    running the source through `numkit.exe` (compiles `.m` at runtime,
     reports `register exhaustion`) and by the pause-proof gtest.
   **Proven**: `DebugSessionTest.BreakInsideOde45Rhs` (breakpoint inside the RHS
   pauses on every DOPRI5 stage, `y(end) ≈ exp(-1)`); all 10 Ode45Test

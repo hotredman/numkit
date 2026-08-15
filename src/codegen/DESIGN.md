@@ -545,7 +545,7 @@ inferred field types, a constructor, and methods called **monomorphically**
   inference, complex/more dtypes, more control flow.
 - **M4** — product: `numkit build` (AOT a project); optionally an
   emscripten→wasm target. ✅ FIRST CUT: `numkit_codegen` CLI
-  (src/codegen/tools) + a testable driver core (driver.{hpp,cpp}:
+  (apps/numkit_codegen) + a testable driver core (driver.{hpp,cpp}:
   `parseTypeSpec` MATLAB-Coder `-args` style + `transpileSource`). Emits the
   C++ TU (self-contained or `--bridge`); `--entry`/`--args`/`-o`. Compilation
   of the emitted TU is the user's toolchain (the e2e tests cover the bridged
@@ -557,6 +557,24 @@ inferred field types, a constructor, and methods called **monomorphically**
 of `src/scriptgraph`: pure C++ over a parsed AST, core-coupled
 (parser/AST), **registers no engine builtin**. Compiled into
 `numkit_toolboxes_obj`; tests into `numkit_gtest`.
+
+The runtime layer (`src/runtime`, also L2) **exposes** the codegen driver
+to numkit code via the `coder` / `coder_run` builtins (and `system` /
+`runNative` for native process spawn) — see
+`bundle/src/register/lang/coder_reg.cpp`. This does NOT violate
+"codegen registers no builtin": codegen stays a pure library with no
+engine coupling; the bundle-side `_reg` adapter is what binds it into the
+engine (the layering guard `tools/check_layering.py` forbids `runtime`
+from including `<numkit/codegen/...>`, so the adapter lives in `bundle`
+— the L3 integration layer where every `*_reg.cpp` already lives). `coder`
+(transpile only) is pure C++ and works under WASM — the browser IDE's
+"generate C++ for demonstration" reaches it via the `generateCpp`
+embind in `wasm/src/repl_bindings.cpp`. `coder_run` / `system` /
+`runNative` spawn a native process and are native-only (they throw under
+Emscripten); the desktop IDE drives them via Electron `child_process`.
+The AOT compile harness resolves the C++ compiler at runtime: env
+`NUMKIT_CXX` first (settable from numkit code via `setenv`), build-time
+`NUMKIT_CODEGEN_AOT_CXX` fallback.
 
 ## 10. Reliability architecture
 

@@ -76,6 +76,21 @@ describe('VariableEditor — matrix render smoke', () => {
     );
     expect(container.querySelector('.ve-window')).toBeTruthy();
   });
+
+  it('toggles inline plot and mounts divider without throwing', () => {
+    const { container } = render(
+      <VE variable={matrixVar} onClose={() => {}} engine={makeEngine()} />,
+    );
+    const plotBtn = container.querySelector('button[title*="plot" i]');
+    if (plotBtn) {
+      fireEvent.click(plotBtn);
+      const divider = container.querySelector('.ve-divider');
+      expect(divider).toBeTruthy();
+      fireEvent.mouseDown(divider);
+      fireEvent.mouseMove(window, { clientX: 100 });
+      fireEvent.mouseUp(window);
+    }
+  });
 });
 
 describe('MatrixPanel — 3-D / N-D slice navigator', () => {
@@ -141,6 +156,7 @@ describe('VariableEditor — struct inspector render smoke', () => {
     const { container } = render(
       <VE variable={structVar} onClose={() => {}} engine={engine} />,
     );
+    console.log("CONTAINER:", container.innerHTML);
     // Struct layout uses the dedicated window modifier + breadcrumb.
     expect(container.querySelector('.ve-window-struct')).toBeTruthy();
     expect(container.querySelector('.ve-crumbs')).toBeTruthy();

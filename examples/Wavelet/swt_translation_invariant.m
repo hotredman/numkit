@@ -3,7 +3,7 @@
 % every detail level the same length as the input — useful for
 % denoising and feature extraction where time alignment matters.
 
-import compat.*;
+
 
 clear
 close all

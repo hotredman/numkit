@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import CompositePlot from './CompositePlot';
 import Composite3DPlot from './Composite3DPlot';
 import FigureErrorBoundary from './FigureErrorBoundary';
@@ -17,6 +17,7 @@ import {
   NumberInput, FwPopLocationSubmenu, DisplayToggle, MatrixHead, MatrixToggleRow,
 } from './figureWindow.controls';
 import { buildDelimited, buildJsonObject } from './figureExport';
+import ModalWindow from '../ui/ModalWindow';
 
 function renderFigure(figure, props, threeRef) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
@@ -43,7 +44,7 @@ function isPlaceholder3D(v) {
 }
 
 
-export default function FigureWindow({ figure, onClose, engine = null }) {
+export default function FigureWindow({ figure, onClose, engine = null, embedded = false, aspectRatio = null }) {
   const isPolar   = figure.kind === 'polar';
   const isSubplot = figure.kind === 'subplot';
   const isComposite = figure.kind === 'composite';
@@ -82,7 +83,52 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   // initial mount — Composite3DPlot's onBBox would otherwise lose to
   // this reset (child effects run before parent effects, so the auto-
   // fill viewport gets clobbered back to the placeholder before the
-  // user sees anything).
+  const containerRef = useRef(null);
+  const [toolbarWidth, setToolbarWidth] = useState(600);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w && Math.abs(w - toolbarWidth) > 3) setToolbarWidth(w);
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, [toolbarWidth]);
+
+  const expandedButtons = useMemo(() => {
+    const list = [
+      { id: 'reset', iconW: 28, textDelta: 36 },
+      { id: 'fit', iconW: 32, textDelta: 24 },
+    ];
+    if (is3D && !isSubplot) {
+      list.push({ id: 'view', iconW: 32, textDelta: 32 });
+    }
+    list.push(
+      { id: 'axes', iconW: 32, textDelta: 36 },
+      { id: 'grid', iconW: 32, textDelta: 30 },
+      { id: 'decoration', iconW: 32, textDelta: 72 },
+      { id: 'colormap', iconW: 32, textDelta: 68 },
+      { id: 'save', iconW: 32, textDelta: 48 }
+    );
+
+    const baseWidth = list.reduce((sum, b) => sum + b.iconW, 0) + (list.length - 1) * 4 + 20;
+    let currentWidth = baseWidth;
+    const expanded = {};
+
+    let canExpand = true;
+    for (const b of list) {
+      if (canExpand && currentWidth + b.textDelta <= toolbarWidth) {
+        expanded[b.id] = true;
+        currentWidth += b.textDelta;
+      } else {
+        canExpand = false;
+        expanded[b.id] = false;
+      }
+    }
+    return expanded;
+  }, [toolbarWidth, is3D, isSubplot]);
+
   const lastFigureIdRef = useRef(figure.id);
   useEffect(() => {
     if (!is3D) return;
@@ -479,13 +525,18 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
   const [size, setSize] = useState({ w: 1100, h: 600 });
 
   useEffect(() => {
+    if (embedded) return;
     function onKey(e) {
-      if (e.key === 'Escape') onClose();
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) {
+        return;
+      }
+      if (e.key === 'Escape') onClose?.();
       if (e.key === '0' && figDefault) setViewport(figDefault);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, figure]);
+  }, [onClose, figure, embedded, figDefault]);
 
   useEffect(() => {
     function onDoc(e) {
@@ -501,6 +552,27 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
+  const computePlotSize = (r) => {
+    if (!r || !r.width || !r.height) return null;
+    const pad = embedded ? 8 : 32;
+    const minW = embedded ? 60 : 150;
+    const minH = embedded ? 40 : 100;
+    const availW = Math.max(minW, Math.round(r.width - pad));
+    const availH = Math.max(minH, Math.round(r.height - pad));
+    let w = availW;
+    let h = availH;
+    if (aspectRatio) {
+      const targetW = h * aspectRatio;
+      if (targetW <= availW) {
+        w = Math.round(targetW);
+      } else {
+        w = availW;
+        h = Math.max(minH, Math.round(availW / aspectRatio));
+      }
+    }
+    return { w, h };
+  };
+
   // Synchronous measure before paint so the SVG is sized correctly on the
   // very first frame the modal opens. `[]` deps so this only runs once at
   // mount — without it React would rerun the effect after every state
@@ -510,13 +582,11 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     const el = wrapRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    if (!r.width) return;
-    setSize((prev) => {
-      const w = Math.max(400, Math.round(r.width  - 32));
-      const h = Math.max(300, Math.round(r.height - 32));
-      return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
-    });
-  }, []);
+    const next = computePlotSize(r);
+    if (next) {
+      setSize((prev) => (Math.abs(prev.w - next.w) > 0.5 || Math.abs(prev.h - next.h) > 0.5) ? next : prev);
+    }
+  }, [aspectRatio, embedded]);
 
   // Re-measure on resize signals: window resize (modal is 85vw / 80vh) plus
   // ResizeObserver in modern browsers.
@@ -525,12 +595,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
     if (!el) return;
     const remeasure = () => {
       const r = el.getBoundingClientRect();
-      if (!r.width) return;
-      setSize((prev) => {
-        const w = Math.max(400, Math.round(r.width  - 32));
-        const h = Math.max(300, Math.round(r.height - 32));
-        return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
-      });
+      const next = computePlotSize(r);
+      if (next) {
+        setSize((prev) => (Math.abs(prev.w - next.w) > 0.5 || Math.abs(prev.h - next.h) > 0.5) ? next : prev);
+      }
     };
     let ro = null;
     if (typeof ResizeObserver !== 'undefined') {
@@ -542,7 +610,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
       ro?.disconnect();
       window.removeEventListener('resize', remeasure);
     };
-  }, []);
+  }, [aspectRatio, embedded]);
 
   // Local downloadBlob for CSV/TSV/JSON paths below — image exports go through
   // plotUtils helpers so they share the light-theme + variable-resolution
@@ -723,49 +791,10 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
 
   const fmtVp = (n) => Number.isFinite(n) ? Number(n.toPrecision(5)).toString() : '—';
 
-  return (
-    <div className="fw-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`fw-window ${maximized ? 'is-max' : ''}`}
-        role="dialog" aria-label={`Figure ${figure.id}`}>
-        <div className="fw-titlebar">
-          <div className="fw-title-left">
-            <span className="ve-tag" style={{
-              color: 'var(--accent)',
-              background: 'rgba(127,217,154,0.10)',
-              borderColor: 'rgba(127,217,154,0.30)',
-            }}>▦ figure</span>
-            <span className="fw-name">Figure {figure.id}</span>
-            <span className="ve-dim">{figure.title}</span>
-            <span className="fw-meta">
-              {isSubplot
-                ? `subplot ${figure.grid[0]}×${figure.grid[1]} · ${figure.cells.length} axes`
-                : isPolar
-                  ? `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.theta?.length ?? 0), 0)} points`
-                  : isHeatmap
-                    ? `${heatmapLayer.z?.length ?? 0} × ${heatmapLayer.z?.[0]?.length ?? 0} cells · range [${Number(heatmapLayer.cmin).toPrecision(3)} … ${Number(heatmapLayer.cmax).toPrecision(3)}]${hasSeries ? ` · ${seriesLayers.length} overlay${seriesLayers.length === 1 ? '' : 's'}` : ''}`
-                    : `${seriesLayers.length} series · ${seriesLayers.reduce((s, x) => s + (x.x?.length ?? 0), 0)} points`}
-            </span>
-          </div>
-          <div className="fw-title-right">
-            <button className="ve-close" onClick={() => setMaximized((m) => !m)}
-              title={maximized ? 'Restore' : 'Maximise'} aria-label="Maximise">
-              {maximized ? (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="3.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                  <rect x="3.5" y="1.5" width="7" height="7"
-                    stroke="currentColor" strokeWidth="1.2" fill="var(--bg-2)"/>
-                </svg>
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                  <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="1.2"/>
-                </svg>
-              )}
-            </button>
-            <button className="ve-close" onClick={onClose} aria-label="Close">×</button>
-          </div>
-        </div>
-
+  const contentNode = (
+    <div className={`fw-window ${embedded ? 'is-embedded' : 'fw-modal-body'}`}
+      ref={containerRef}
+      role="region" aria-label={`Figure ${figure.id} content`}>
         <div className="fw-toolbar">
           {/* 🏠 Reset — full reset of viewport AND display state. For
               subplot it fans out to every cell. Standalone toolbar
@@ -778,7 +807,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               <path d="M1 6l5-5 5 5 M2 5v6h8V5"
                     stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round"/>
             </svg>
-            reset
+            {expandedButtons.reset && ' reset'}
           </button>
           {/* fit ▾ — always shown, applies to EVERY cell in subplot mode.
               Per-series rows live in the right-click menu only; the
@@ -788,7 +817,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M2 2L10 10 M2 6V2H6 M10 6v4H6" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
               </svg>
-              fit ▾
+              {expandedButtons.fit && ' fit'} ▾
             </button>
             {fitOpen && (
               <div className="fw-pop">
@@ -862,7 +891,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               <button className="ve-btn"
                       onClick={() => setViewOpen((o) => !o)}
                       title="Camera presets">
-                view ▾
+                {expandedButtons.view && 'view '}▾
               </button>
               {viewOpen && (
                 <div className="fw-pop">
@@ -919,7 +948,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M2 1v10h10" stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
-              axes ▾
+              {expandedButtons.axes && ' axes'} ▾
             </button>
             {axesOpen && (
               <div className="fw-pop">
@@ -1030,7 +1059,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <path d="M4 0v12 M8 0v12 M0 4h12 M0 8h12"
                       stroke="currentColor" strokeWidth="1.2" fill="none"/>
               </svg>
-              grid ▾
+              {expandedButtons.grid && ' grid'} ▾
             </button>
             {gridOpen && (
               <div className="fw-pop">
@@ -1091,7 +1120,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <path d="M2 3h8M2 6h5M2 9h6"
                       stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
               </svg>
-              decoration ▾
+              {expandedButtons.decoration && ' decoration'} ▾
             </button>
             {displayOpen && (
               <div className="fw-pop">
@@ -1175,7 +1204,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
                 <rect x="7" y="3" width="2" height="6" fill="currentColor"/>
                 <rect x="9" y="3" width="2" height="6" fill="currentColor" opacity="0.5"/>
               </svg>
-              colormap ▾
+              {expandedButtons.colormap && ' colormap'} ▾
             </button>
             {cmapOpen && (
               <div className="fw-pop">
@@ -1221,14 +1250,12 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
             )}
           </div>
 
-          <div className="ve-tools-spacer" />
-
           <div className="ve-tools-group" ref={saveRef}>
-            <button className="ve-btn" onClick={() => setSaveOpen((o) => !o)}>
+            <button className="ve-btn" onClick={() => setSaveOpen((o) => !o)} title="Save / export figure">
               <svg width="11" height="11" viewBox="0 0 12 12">
                 <path d="M6 1v8M3 6l3 3 3-3M2 11h8" stroke="currentColor" fill="none" strokeLinecap="round"/>
               </svg>
-              save / export ▾
+              {expandedButtons.save && ' save'} ▾
             </button>
             {saveOpen && (
               <div className="fw-pop fw-pop-right">
@@ -1268,7 +1295,7 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
         <div className="fw-supertitle">{figure.superTitle || ''}</div>
 
         <div className="fw-canvas-wrap" ref={wrapRef}>
-          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {renderFigure(figure, {
               width: size.w, height: size.h,
               viewport, setViewport,
@@ -1470,9 +1497,25 @@ export default function FigureWindow({ figure, onClose, engine = null }) {
           <span className="ve-sep" />
           <span>dbl-click · reset</span>
           <span className="ve-sep" />
-          <span>0 · reset · Esc · close</span>
         </div>
       </div>
-    </div>
+  );
+
+  if (embedded) return contentNode;
+
+  return (
+    <ModalWindow
+      onClose={onClose}
+      title={figure.id ? `Figure ${figure.id}` : 'Figure'}
+      subtitle={figure.title && figure.title !== `Figure ${figure.id}` ? figure.title : null}
+      ariaLabel={`Figure ${figure.id}`}
+      width="min(1280px, 94vw)"
+      height="min(820px, 90vh)"
+      maximized={maximized}
+      onMaximizedChange={setMaximized}
+      className="fw-modal-window"
+    >
+      {contentNode}
+    </ModalWindow>
   );
 }

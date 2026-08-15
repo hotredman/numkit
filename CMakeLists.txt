@@ -18,7 +18,7 @@ if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(/MP)
 endif()
 
-option(NUMKIT_BUILD_EXAMPLE    "Build example executable"              ON)
+option(NUMKIT_BUILD_CLI        "Build the numkit interpreter CLI"        ON)
 option(NUMKIT_BUILD_TESTS      "Build tests"                           ON)
 option(NUMKIT_BUILD_BENCHMARKS "Build Google Benchmark micro-benches"  OFF)
 option(NUMKIT_BUILD_SHARED     "Build shared library"                  OFF)
@@ -60,58 +60,6 @@ if(NOT EMSCRIPTEN)
     set(NUMKIT_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
 else()
     option(NUMKIT_BUILD_REPL "Build WebAssembly module" ON)
-endif()
-
-# ──────────────────────────────────────────────
-# matio (MATLAB .mat file I/O) — gated by NUMKIT_WITH_MATIO
-# ──────────────────────────────────────────────
-#
-# Used by runtime/src/saveload_mat.cpp to back save/load on
-# .mat files (v4 / v5 / v7). HDF5 backend (v7.3) is intentionally
-# disabled — adds a heavy dependency we don't need yet. ZLIB compression
-# (for `-v7`) is also off for the same reason; matio silently falls back
-# to uncompressed v5 in that case, so `-v7` still produces a valid file
-# but isn't actually smaller until we flip MATIO_WITH_ZLIB and pull
-# zlib via FetchContent (planned).
-#
-# Target: `matio` (static, PIC). Linked PRIVATE to numkit so matio.h
-# never leaks into our public headers (only the matio-backed cpp under
-# runtime/src/ includes it).
-if(NUMKIT_WITH_MATIO)
-    include(FetchContent)
-
-    set(MATIO_SHARED        OFF CACHE BOOL "" FORCE)
-    set(MATIO_WITH_HDF5     OFF CACHE BOOL "" FORCE)
-    set(MATIO_WITH_ZLIB     OFF CACHE BOOL "" FORCE)
-    set(MATIO_MAT73         OFF CACHE BOOL "" FORCE)
-    set(MATIO_BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(MATIO_USE_CONAN     OFF CACHE BOOL "" FORCE)
-    set(MATIO_EXTENDED_SPARSE OFF CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-        matio
-        GIT_REPOSITORY https://github.com/tbeu/matio.git
-        GIT_TAG        v1.5.30
-    )
-    FetchContent_MakeAvailable(matio)
-
-    # zlib — for Deflate decompression in TIFF reader. Tiny build,
-    # static library, no examples / tests.
-    set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(SKIP_INSTALL_ALL    ON  CACHE BOOL "" FORCE)
-    FetchContent_Declare(
-        zlib_pkg
-        GIT_REPOSITORY https://github.com/madler/zlib.git
-        GIT_TAG        v1.3.1
-    )
-    FetchContent_MakeAvailable(zlib_pkg)
-    # Expose zlib's source-dir as an include path: the generated zlib.h
-    # ends up in zlib_pkg_BINARY_DIR alongside the static lib.
-    if(TARGET zlibstatic)
-        set_target_properties(zlibstatic PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES
-            "${zlib_pkg_SOURCE_DIR};${zlib_pkg_BINARY_DIR}")
-    endif()
 endif()
 
 # ──────────────────────────────────────────────
@@ -206,12 +154,12 @@ target_link_libraries(numkit PUBLIC
     $<BUILD_INTERFACE:numkit_ops>
     $<BUILD_INTERFACE:numkit_fs>)
 
-# The `numkit build` CLI front end (codegen driver, DESIGN.md §8 M4) — a tool
-# that transpiles a numkit source file to C++. Built after numkit so it links
-# it; skipped under Emscripten (no native CLI in a WASM build).
-if(NOT EMSCRIPTEN)
-    add_subdirectory(src/codegen/tools)
-endif()
+# Product executables (apps/): the `numkit` interpreter CLI and the
+# `numkit_codegen` AOT transpiler CLI (codegen driver, DESIGN.md §8 M4). Both
+# are thin wrappers over the `numkit` lib, so built after it is defined.
+# numkit_codegen is skipped under Emscripten (no native C++ compiler in a WASM
+# build); the interpreter still builds as a Node-runnable .js. See apps/CMakeLists.txt.
+add_subdirectory(apps)
 
 # ── Architectural layering guard ────────────────────────────────────
 #
@@ -297,8 +245,6 @@ target_include_directories(numkit
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/audio/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/wavelet/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/linalg/src
-        # Vendored single-header libs (stb_image, stb_image_write).
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
 
 target_compile_features(numkit PUBLIC cxx_std_17)
@@ -308,22 +254,7 @@ if(EMSCRIPTEN)
     target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
 
-# matio is linked when NUMKIT_WITH_MATIO is ON — runtime' .mat backend
-# (runtime/src/saveload_mat.cpp) pulls in matio.h directly. PRIVATE: matio's header
-# never appears in any of our public include/ trees. BUILD_INTERFACE
-# genex keeps the link dep out of the exported target set — matio isn't
-# exported via install(EXPORT) on our side. The compile-definition lets
-# saveload.cpp #ifdef-out the binary-.mat dispatch when matio is absent.
-if(NUMKIT_WITH_MATIO)
-    target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:matio>)
-    target_compile_definitions(numkit PRIVATE NUMKIT_WITH_MATIO)
-    # zlib comes with matio's FetchContent block — used by the TIFF
-    # reader's Deflate path (toolboxes/image/src/io/tiff_reader.cpp).
-    if(TARGET zlibstatic)
-        target_link_libraries(numkit PRIVATE $<BUILD_INTERFACE:zlibstatic>)
-        target_compile_definitions(numkit PRIVATE NUMKIT_WITH_ZLIB)
-    endif()
-endif()
+
 
 if(NUMKIT_WITH_SIMD)
     # PRIVATE — our public headers never mention Highway types; it's a pure
@@ -373,7 +304,6 @@ function(numkit_configure_layer tgt)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/audio/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/wavelet/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/linalg/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
         ${NUMKIT_BUILD_INFO_DIR})
     foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_FIGURE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
         target_include_directories(${tgt} PRIVATE $<BUILD_INTERFACE:${_dir}>)
@@ -388,14 +318,6 @@ function(numkit_configure_layer tgt)
         find_package(Threads REQUIRED)
         target_link_libraries(${tgt} PRIVATE Threads::Threads)
         target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_THREADS=1)
-    endif()
-    if(NUMKIT_WITH_MATIO)
-        target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:matio>)
-        target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_MATIO)
-        if(TARGET zlibstatic)
-            target_link_libraries(${tgt} PRIVATE $<BUILD_INTERFACE:zlibstatic>)
-            target_compile_definitions(${tgt} PRIVATE NUMKIT_WITH_ZLIB)
-        endif()
     endif()
     if(EMSCRIPTEN)
         target_compile_options(${tgt} PRIVATE -fexceptions)
@@ -412,8 +334,8 @@ foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_math_obj numkit_lang_ob
     numkit_configure_layer(${_obj})
 endforeach()
 
-# Smoke binary (numkit_smoke) is now owned by tests/smoke/CMakeLists.txt;
-# add_subdirectory(tests) below pulls it in via tests/CMakeLists.txt.
+# The `numkit` interpreter CLI is owned by apps/numkit/CMakeLists.txt (pulled
+# in via add_subdirectory(apps) above); tests/ owns only numkit_gtest now.
 
 # ──────────────────────────────────────────────
 # Тесты (Google Test)
@@ -435,9 +357,8 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
 
     enable_testing()
 
-    # tests/ owns numkit_gtest (in tests/gtest/) and numkit_smoke (in
-    # tests/smoke/). Per-component tests/ dirs contribute their gtest
-    # sources via target_sources(numkit_gtest PRIVATE ...).
+    # tests/ owns numkit_gtest (in tests/gtest/). Per-component tests/ dirs
+    # contribute their gtest sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(src/core/tests)
     add_subdirectory(src/math/tests)

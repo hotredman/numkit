@@ -24,6 +24,6 @@ SIMD library:
 
 The polynomial coefficients are copied verbatim; the double-double arithmetic
 follows SLEEF's standard Dekker/FMA scheme. BSL-1.0 is permissive (not
-copyleft) and compatible with numkit's PolyForm Noncommercial license; this
+copyleft) and compatible with numkit's 0BSD license; this
 notice satisfies its source-attribution requirement. The compiled WASM/native
 artifact carries no notice obligation.

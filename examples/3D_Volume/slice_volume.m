@@ -4,7 +4,7 @@
 % to each axis. Each slice gets a per-cell colormap mapping the
 % volume's value through an HSL ramp (blue→red across data range).
 
-import compat.*;
+
 
 clear
 close all

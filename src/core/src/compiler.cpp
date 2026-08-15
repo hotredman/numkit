@@ -1135,11 +1135,13 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         emitAB(OpCode::MOVE, dst, left);
         size_t jumpPos = currentPos();
         emitAD(OpCode::JMP_FALSE, dst, 0); // placeholder
-        constRegCache_.clear(); scalarRegs_.reset(); // right operand may be skipped
+        auto savedConsts = constRegCache_;
+        auto savedScalars = scalarRegs_;
         uint8_t right = compileNode(node->children[1].get());
         emitAB(OpCode::MOVE, dst, right);
         patchJump(jumpPos, static_cast<int16_t>(currentPos() - jumpPos));
-        constRegCache_.clear(); scalarRegs_.reset(); // constants from skipped branch must not leak
+        constRegCache_ = std::move(savedConsts);
+        scalarRegs_ = savedScalars;
         return dst;
     }
     if (op == "||") {
@@ -1148,11 +1150,13 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         emitAB(OpCode::MOVE, dst, left);
         size_t jumpPos = currentPos();
         emitAD(OpCode::JMP_TRUE, dst, 0); // placeholder
-        constRegCache_.clear(); scalarRegs_.reset(); // right operand may be skipped
+        auto savedConsts = constRegCache_;
+        auto savedScalars = scalarRegs_;
         uint8_t right = compileNode(node->children[1].get());
         emitAB(OpCode::MOVE, dst, right);
         patchJump(jumpPos, static_cast<int16_t>(currentPos() - jumpPos));
-        constRegCache_.clear(); scalarRegs_.reset(); // constants from skipped branch must not leak
+        constRegCache_ = std::move(savedConsts);
+        scalarRegs_ = savedScalars;
         return dst;
     }
 
@@ -2882,6 +2886,8 @@ uint8_t Compiler::compileFused(const ASTNode *node, size_t ruleIdx,
     //    exception-safe (compileNode may throw RegisterExhaustionError).
     uint8_t fbDst;
     {
+        auto savedConstCache = constRegCache_;
+        auto savedScalars = scalarRegs_;
         struct Guard {
             bool &f;
             explicit Guard(bool &x) : f(x) { f = true; }
@@ -2895,6 +2901,8 @@ uint8_t Compiler::compileFused(const ASTNode *node, size_t ruleIdx,
             case NodeType::UNARY_OP:  fbDst = compileUnaryOp(node);  break;
             default:                  fbDst = compileCall(node);     break;
         }
+        constRegCache_ = std::move(savedConstCache);
+        scalarRegs_ = savedScalars;
     }
     // 4. Both paths write fbDst; on success FUSE_EWISE skips the fallback span.
     const size_t span = chunk_.code.size() - spanStart;

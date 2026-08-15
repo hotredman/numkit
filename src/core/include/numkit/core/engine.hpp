@@ -65,6 +65,11 @@ public:
                           const std::string &name,
                           ExternalFunc func);
 
+    // --- Implicit Imports ---
+    // Persistent imports (like `import compat.*`) that survive `clear all`.
+    void addImplicitImport(const Import &imp);
+    void clearImplicitImports();
+
     // ── Class registry (object model — see OBJECT_MODEL.md) ──────
     // Register a builtin (C++-backed) class. Later, user classdef
     // populates the same registry via an adapter. Throws on duplicate.
@@ -350,6 +355,7 @@ public:
 
     using OutputFunc = std::function<void(const std::string &)>;
     void setOutputFunc(OutputFunc f);
+    OutputFunc outputFunc() const { return outputFunc_; }
     void setMaxRecursionDepth(int depth);
 
     std::vector<std::string> workspaceVarNames() const;
@@ -754,6 +760,12 @@ private:
 
 public:
     void markClearAll() { clearAllCalled_ = true; }
+    void restoreImplicitImports(Environment *env) const {
+        if (!env) return;
+        for (const auto &imp : implicitImports_) {
+            env->pushImport(imp);
+        }
+    }
 
 private:
     std::unique_ptr<TreeWalker> treeWalker_;
@@ -787,6 +799,8 @@ private:
     // workspaceEnv. eval() calls this once per top-level statement when
     // splitting a multi-statement script for MATLAB-parity semantics.
     Value runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string> src);
+
+    std::vector<Import> implicitImports_;
 
     friend class TreeWalker;
     friend class VM;

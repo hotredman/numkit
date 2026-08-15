@@ -6,6 +6,8 @@ import PolarPlot from './PolarPlot';
 import SubplotGrid from './SubplotGrid';
 import { previewViewport } from './plotUtils';
 
+import { loadSettings } from '../../settings';
+
 /** Pick the right renderer for a figure based on its `kind`. */
 function renderFigure(figure, props) {
   if (figure.kind === 'subplot')     return <SubplotGrid     figure={figure} {...props} />;
@@ -22,14 +24,11 @@ function renderFigure(figure, props) {
   return <CompositePlot figure={figure} {...props} />;
 }
 
-/**
- * Preview card. The body uses CSS `aspect-ratio` so it fills the pane width
- * and computes its height proportionally. We measure the actual rendered
- * size with `getBoundingClientRect` on every render and re-measure on
- * resize/RO so the SVG inside InteractivePlot redraws at the matching pixel
- * dimensions. Aspect comes from CSS — the JS just mirrors it for SVG.
- */
-const PREVIEW_ASPECT  = 1.7; // width / height — keep in sync with CSS rule below
+function getAspectRatio(str) {
+  if (str === '4:3') return 4 / 3;
+  if (str === '16:10') return 16 / 10;
+  return 16 / 9;
+}
 
 function FigurePreviewCard({ figure, onExpand, onClose }) {
   // Preview is non-interactive (no pan/zoom), so derive the viewport directly
@@ -42,7 +41,16 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
   const viewport = previewViewport(figure);
   const setViewport = () => {};   // no-op for non-interactive preview
   const ref = useRef(null);
-  const [size, setSize] = useState({ w: 320, h: Math.round(320 / PREVIEW_ASPECT) });
+  
+  const [aspectStr, setAspectStr] = useState(() => loadSettings().plotAspectRatio || '16:9');
+  const aspect = getAspectRatio(aspectStr);
+  const [size, setSize] = useState({ w: 320, h: Math.round(320 / aspect) });
+
+  useEffect(() => {
+    const onSettings = (e) => setAspectStr(e.detail?.plotAspectRatio || '16:9');
+    window.addEventListener('numkitSettingsChanged', onSettings);
+    return () => window.removeEventListener('numkitSettingsChanged', onSettings);
+  }, []);
 
   // Single measure pipeline — used both for the initial mount-time read
   // (useLayoutEffect, runs synchronously before paint) and for resize signals
@@ -55,10 +63,10 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
     const r = el.getBoundingClientRect();
     if (!r.width) return;
     const ww = Math.max(200, Math.round(r.width));
-    const hh = Math.max(120, Math.round(ww / PREVIEW_ASPECT));
+    const hh = Math.max(120, Math.round(ww / aspect));
     setSize((prev) => (Math.abs(prev.w - ww) > 0.5 || Math.abs(prev.h - hh) > 0.5
       ? { w: ww, h: hh } : prev));
-  }, []);
+  }, [aspect]);
 
   useEffect(() => {
     const el = ref.current;
@@ -67,7 +75,7 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
       const r = el.getBoundingClientRect();
       if (!r.width) return;
       const ww = Math.max(200, Math.round(r.width));
-      const hh = Math.max(120, Math.round(ww / PREVIEW_ASPECT));
+      const hh = Math.max(120, Math.round(ww / aspect));
       setSize((prev) => (Math.abs(prev.w - ww) > 0.5 || Math.abs(prev.h - hh) > 0.5
         ? { w: ww, h: hh } : prev));
     };
@@ -81,7 +89,7 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
       ro?.disconnect();
       window.removeEventListener('resize', remeasure);
     };
-  }, []);
+  }, [aspect]);
 
   // Match the Workspace card interaction model: one click anywhere on
   // the card opens the figure window; the title bar buttons (close /
@@ -102,7 +110,7 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
       </div>
       <div className="fp-card-body" ref={ref}
         style={{
-          aspectRatio: String(PREVIEW_ASPECT),
+          aspectRatio: String(aspect),
           width: '100%',
           position: 'relative',
           overflow: 'hidden',

@@ -232,7 +232,7 @@ the chunk via the `Engine::resolve*`/`classGetter` helpers, `pushCallFrame` +
   method body. (Other compile failures — e.g. a not-yet-supported construct —
   still fall back to the TreeWalker.) Still: **add a VM-level pause-proof test** (`DebugSession`
   break inside the callback) for every embedded `.m` wrapper, and a quick
-  pre-build `numkit_smoke.exe` run compiles the `.m` at runtime and reports any
+  pre-build `numkit.exe` run compiles the `.m` at runtime and reports any
   exhaustion immediately.
 
 ---

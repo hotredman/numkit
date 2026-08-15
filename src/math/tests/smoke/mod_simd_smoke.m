@@ -3,7 +3,7 @@ import compat.*
 % mod smoke — real-double arrays now take the Highway SIMD path
 % (a - floor(a/b)*b, bit-identical to the scalar formula). Integer-typed
 % operands and broadcasting still use the scalar reference. rem unchanged.
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/mod_simd_smoke.m
 
 fprintf('--- same-shape vector (VV) ---\n');

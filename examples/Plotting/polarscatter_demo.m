@@ -1,7 +1,7 @@
 % polarscatter + polarhistogram — polar coordinates
 % polarscatter(theta, rho) places markers in polar; polarhistogram
 % bins theta values into angular sectors over [0, 2π).
-import compat.*;
+
 
 clear
 close all

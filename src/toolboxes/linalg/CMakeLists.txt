@@ -25,6 +25,12 @@ list(APPEND NUMKIT_LIBS_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/misc.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/page_ops.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/schur_convert.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/ordschur.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/ordqz.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/qz.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/gsvd.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/eigs.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/linalg/svd_sketch.hpp
 )
 
 set(NUMKIT_LIBS_SOURCES      ${NUMKIT_LIBS_SOURCES}      PARENT_SCOPE)

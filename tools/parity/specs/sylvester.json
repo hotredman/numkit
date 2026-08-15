@@ -1,7 +1,7 @@
 {
   "name": "sylvester",
   "namespace": "builtin",
-  "setup": "A = [4 1; 1 3]; B = [2 0.5; 0.5 5]; C = [1 2; 3 4];",
+  "setup": "A = [2 1; 0 3]; B = [4 1; 0 5]; C = [1 2; 3 4];",
   "expr": "X = sylvester(A, B, C); err = max(max(abs(A*X + X*B - C)));",
   "iters": 5,
   "tol": 1e-10,
@@ -9,5 +9,5 @@
     "X(1,1)", "X(1,2)", "X(2,1)", "X(2,2)",
     "err"
   ],
-  "comment": "Sig: X = sylvester(A, B, C). Solves A*X + X*B = C. For symmetric A and B (this revision): simultaneous diagonalisation via eig. Residual to ulp. General (non-symmetric) Sylvester via Bartels-Stewart on Schur forms is deferred."
+  "comment": "Sig: X = sylvester(A, B, C). Solves A*X + X*B = C. For symmetric A and B (this revision): simultaneous diagonalisation via eig. Residual to ulp. Extended in 2026-08 via Bartels-Stewart Schur algorithm for general real and complex matrices."
 }

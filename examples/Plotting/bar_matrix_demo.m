@@ -4,7 +4,7 @@
 % Default mode is 'grouped' (sub-pixel offset per series). Add
 % 'stacked' to pile series cumulatively.
 
-import compat.*;
+
 
 clear
 close all

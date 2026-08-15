@@ -10,6 +10,7 @@
 // class (a dangling reference to a moved / renamed identifier) that
 // parse + build + pure-logic tests all miss.
 
+import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Stub WebGLRenderer only. The component reads back a real <canvas> ref

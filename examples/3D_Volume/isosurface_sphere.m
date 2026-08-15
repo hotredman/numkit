@@ -6,7 +6,7 @@
 % Vertex normals are smoothed across cube boundaries for a Gouraud
 % look.
 
-import compat.*;
+
 
 clear
 close all

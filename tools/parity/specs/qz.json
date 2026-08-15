@@ -1,0 +1,12 @@
+{
+  "name": "qz",
+  "namespace": "builtin",
+  "setup": "A = [1 2; 3 4]; B = [1 0; 0 1];",
+  "expr": "[AA, BB, Q, Z] = qz(A, B); errA = max(max(abs(Q*A*Z - AA))); errB = max(max(abs(Q*B*Z - BB)));",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "AA(1,1)", "BB(1,1)", "errA", "errB"
+  ],
+  "comment": "Generalized Schur decomposition: [AA, BB, Q, Z] = qz(A, B). Uses 2x2 Wilkinson shift and exceptional shift safeguards."
+}

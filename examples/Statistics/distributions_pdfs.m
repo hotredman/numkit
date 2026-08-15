@@ -2,7 +2,7 @@
 % Plot the probability density of four classic continuous
 % distributions side-by-side, varying the shape/scale parameter.
 
-import compat.*;
+
 
 clear
 close all

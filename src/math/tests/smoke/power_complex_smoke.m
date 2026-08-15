@@ -3,7 +3,7 @@ import compat.*
 % power complex-promotion smoke — a negative real base ^ non-integer
 % exponent is complex (MATLAB); integer exponents / positive bases stay
 % real; arrays promote per-pair. numkit previously returned real NaN.
-% Run: build/desktop-fast/tests/smoke/Release/numkit_smoke.exe \
+% Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      toolboxes/builtin/tests/smoke/power_complex_smoke.m
 
 s = @(z) sprintf('%.5g%+.5gi', real(z), imag(z));

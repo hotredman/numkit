@@ -52,4 +52,14 @@ inline std::string envGet(const char *name)
 #endif
 }
 
+inline void envSet(const char *name, const std::string &value)
+{
+#ifdef _WIN32
+    _putenv_s(name, value.c_str());
+#else
+    setenv(name, value.c_str(), 1);
+#endif
+}
+
 } // namespace numkit
+
