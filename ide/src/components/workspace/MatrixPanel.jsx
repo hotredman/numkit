@@ -262,7 +262,7 @@ export function MatrixPanel({
     };
   }, []);
 
-  function handlePlotResizeStart(e) {
+  function startDragDivider(e) {
     e.preventDefault();
     const body = veBodyRef.current;
     if (!body) return;
