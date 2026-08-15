@@ -345,8 +345,28 @@ const TREE_SKIP_DIRS = new Set([
   '.gemini', '.android', '.electron', '.pnpm-store', '.cache',
 ]);
 
-const TREE_MAX_ENTRIES = 8000;  // hard cap on total nodes returned
-const TREE_MAX_DEPTH = 6;       // recursion depth (shallow walk for performance)
+ipcMain.handle('fs:listDir', async (_e, root, relPath = '/') => {
+  const full = safePath(root, relPath);
+  let list;
+  try { list = await fsp.readdir(full, { withFileTypes: true }); }
+  catch { return []; }
+  const entries = [];
+  for (const d of list) {
+    if (d.name.startsWith('.DS_Store')) continue;
+    const cleanRel = (relPath || '/').replace(/\\/g, '/').replace(/\/+$/, '');
+    const itemPath = cleanRel === '' || cleanRel === '/' ? `/${d.name}` : `${cleanRel}/${d.name}`;
+    entries.push({
+      name: d.name,
+      path: itemPath,
+      type: d.isDirectory() ? 'folder' : 'file',
+    });
+  }
+  entries.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  return entries;
+});
 
 ipcMain.handle('fs:listTree', async (_e, root) => {
   let total = 0;

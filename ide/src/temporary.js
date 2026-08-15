@@ -154,6 +154,26 @@ const direct = {
     });
   },
 
+  async listDir(relPath = '/') {
+    const all = await reqP(dtx('readonly').getAll());
+    const targetRel = (relPath || '/').replace(/\\/g, '/').replace(/\/+$/, '') || '/';
+    const entries = [];
+    for (const entry of all) {
+      const p = entry.path;
+      const parent = parentPath(p) || '/';
+      if (parent === targetRel) {
+        entries.push({
+          name: p.split('/').pop(),
+          path: p,
+          type: entry.type,
+          modified: entry.modified,
+        });
+      }
+    }
+    entries.sort((a, b) => (a.type !== b.type ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name)));
+    return entries;
+  },
+
   async listTree() {
     const all = await reqP(dtx('readonly').getAll());
     const root = [];
@@ -229,6 +249,14 @@ const tempFS = {
     }
     if (useBridge) await bridge.ready();
     else           await direct.init();
+  },
+
+  async listDir(p = '/') {
+    if (isElectron) {
+      const root = await ensureElectronTempRoot();
+      return root ? window.nativeFS.listDir(root, p) : [];
+    }
+    return direct.listDir(p);
   },
 
   async listTree() {
