@@ -75,12 +75,12 @@ export default function CurrentFolderBar({
         </svg>
       </button>
 
-      {/* 5. [Browse] compact button */}
+      {/* 5. [Browse / Explorer] compact button */}
       <button
         className="cf-btn cf-btn-icon-only"
         onClick={onOpenNavigator}
-        title="Browse Folders (File Navigator)"
-        aria-label="Browse Folders"
+        title="Explorer"
+        aria-label="Explorer"
       >
         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
           <path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 14.5 4H7.414l-1.707-1.707A1 1 0 0 0 5 2H1.5zm0 1H5l1.707 1.707A1 1 0 0 0 7.414 5H14.5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5z"/>

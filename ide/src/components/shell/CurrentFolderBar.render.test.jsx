@@ -34,7 +34,7 @@ describe('CurrentFolderBar render tests', () => {
     fireEvent.click(upBtn);
     expect(onNavigateUp).toHaveBeenCalledTimes(1);
 
-    const browseBtn = getByTitle('Browse Folders (File Navigator)');
+    const browseBtn = getByTitle('Explorer');
     fireEvent.click(browseBtn);
     expect(onOpenNavigator).toHaveBeenCalledTimes(1);
   });
