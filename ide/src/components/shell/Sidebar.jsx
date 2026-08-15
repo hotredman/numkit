@@ -283,46 +283,70 @@ async function openExample(node, tree, vfsAdapters) {
 
   const fname = node.name || 'example.m';
   const scriptBaseName = fname.replace(/\.[^/.]+$/, '');
-  const targetRelDir = `/examples/${scriptBaseName}`;
-  const vfsPath = `${targetRelDir}/${fname}`;
   let content = null;
 
-  const tempBackend = vfsAdapters?.temp || tempFS;
-  if (tempBackend) {
-    try {
-      if (typeof tempBackend.mkdir === 'function') await tempBackend.mkdir(targetRelDir);
-    } catch { /* ignore */ }
-
-    // Check for sibling files in the same example category folder
-    const m = (node.path || '').match(/^\/examples\/([^/]+)\/(.+)$/);
-    if (m) {
-      const [, folder] = m;
-      const folderNode = tree.find((n) => n.path === `/examples/${folder}`);
-      const siblings = folderNode?.children?.filter((c) => c.type === 'file') || [];
-      await Promise.all(siblings.map(async (sib) => {
-        if (sib.name === fname) return;
-        const sibVfsPath = `${targetRelDir}/${sib.name}`;
-        try {
-          if (tempBackend.exists && tempBackend.exists(sibVfsPath)) return;
-          await mirrorExampleFile(tempBackend, sib._fetchPath, sibVfsPath);
-        } catch { /* tolerate */ }
-      }));
-    }
-
-    try {
-      content = await mirrorExampleFile(tempBackend, node._fetchPath, vfsPath);
-    } catch (e) {
-      console.warn('[openExample] mirror failed, fetching directly:', e);
-      const res = await fetch(node._fetchPath);
-      if (res.ok) content = isBinary ? null : await res.text();
-    }
-  } else {
-    const res = await fetch(node._fetchPath);
-    if (!res.ok) throw new Error('fetch failed');
-    content = isBinary ? null : await res.text();
+  // Gather this file and all sibling assets in the same category folder
+  const filesToCopy = [];
+  const m = (node.path || '').match(/^\/examples\/([^/]+)\/(.+)$/);
+  const siblings = [];
+  if (m) {
+    const [, folder] = m;
+    const folderNode = tree.find((n) => n.path === `/examples/${folder}`);
+    const sibNodes = folderNode?.children?.filter((c) => c.type === 'file' && c.name !== fname) || [];
+    siblings.push(...sibNodes);
   }
 
-  return { content, vfsPath, isBinary };
+  // Fetch main file
+  const mainRes = await fetch(node._fetchPath);
+  if (!mainRes.ok) throw new Error('fetch failed: ' + node._fetchPath);
+  if (isBinary) {
+    const buf = await mainRes.arrayBuffer();
+    filesToCopy.push({ name: fname, bytes: Array.from(new Uint8Array(buf)) });
+  } else {
+    content = await mainRes.text();
+    filesToCopy.push({ name: fname, content });
+  }
+
+  // Fetch siblings
+  await Promise.all(siblings.map(async (sib) => {
+    try {
+      const res = await fetch(sib._fetchPath);
+      if (!res.ok) return;
+      if (BINARY_EXAMPLE_EXT.test(sib.name)) {
+        const buf = await res.arrayBuffer();
+        filesToCopy.push({ name: sib.name, bytes: Array.from(new Uint8Array(buf)) });
+      } else {
+        const text = await res.text();
+        filesToCopy.push({ name: sib.name, content: text });
+      }
+    } catch { /* ignore */ }
+  }));
+
+  const isElectron = typeof window !== 'undefined' && typeof window.nativeFS !== 'undefined';
+  if (isElectron && typeof window.nativeFS.setupExample === 'function') {
+    const targetDir = await window.nativeFS.setupExample(scriptBaseName, filesToCopy);
+    const vfsPath = targetDir.includes('\\') ? `${targetDir}\\${fname}` : `${targetDir}/${fname}`;
+    return { content, vfsPath, targetDir, isBinary, fsMode: 'local' };
+  }
+
+  // Web Virtual FS fallback
+  const targetRelDir = `/numkit/examples/${scriptBaseName}`;
+  const tempBackend = vfsAdapters?.temp || tempFS;
+  if (tempBackend) {
+    try { if (tempBackend.mkdir) await tempBackend.mkdir(targetRelDir); } catch { /* ignore */ }
+    for (const f of filesToCopy) {
+      const p = `${targetRelDir}/${f.name}`;
+      try {
+        if (f.bytes && tempBackend.writeFileBytes) {
+          tempBackend.writeFileBytes(p, new Uint8Array(f.bytes));
+        } else if (f.content != null && tempBackend.writeFile) {
+          await tempBackend.writeFile(p, f.content);
+        }
+      } catch { /* ignore */ }
+    }
+  }
+  const vfsPath = `${targetRelDir}/${fname}`;
+  return { content, vfsPath, targetDir: targetRelDir, isBinary, fsMode: 'virtual' };
 }
 
 /* ─────────────── GitHub backend ─────────────── */
@@ -711,15 +735,21 @@ export default function Sidebar({
     if (isExamples) {
       try {
         const r = await openExample(node, tree, vfsAdapters);
-        // Binary examples (images/audio) are mirrored into tempFS for
-        // imread/audioread but aren't text — don't load them in the editor.
-        if (r && !r.isBinary) onOpenFile?.(node.name, r.content, r.vfsPath, 'examples');
+        if (r) {
+          if (r.targetDir && onCwdChange) {
+            onCwdChange(r.targetDir);
+          }
+          if (r.fsMode && onFsModeChange) {
+            onFsModeChange(r.fsMode);
+          }
+          if (!r.isBinary) onOpenFile?.(node.name, r.content, r.vfsPath, 'examples');
+        }
       } catch (e) { console.error('[Sidebar] openExample', e); }
       return;
     }
     const content = await ops.readFile(node.path);
     onOpenFile?.(node.name, content !== null ? content : '', node.path, isLocal ? 'localFolder' : 'temporary');
-  }, [ops, onOpenFile, isLocal, isExamples, tree, vfsAdapters]);
+  }, [ops, onOpenFile, isLocal, isExamples, tree, vfsAdapters, onCwdChange, onFsModeChange]);
 
   const handleCreate = useCallback(async (name) => {
     if (!name || !creating) { setCreating(null); return; }
