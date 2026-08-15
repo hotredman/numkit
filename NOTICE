@@ -1,26 +1,18 @@
 numkit
-Copyright 2026 The numkit Authors
+SPDX-License-Identifier: 0BSD
 
-This software is source-available and dual-licensed:
-
-  * Noncommercial use — PolyForm Noncommercial License 1.0.0
-    https://polyformproject.org/licenses/noncommercial/1.0.0
-    See LICENSE.
-
-  * Commercial use — a separate, paid license is required.
-    See LICENSE-COMMERCIAL.md.
-
-Required Notice: Copyright 2026 The numkit Authors
+This software is released under the BSD Zero Clause License (0BSD).
+See the LICENSE file for details.
 
 --------------------------------------------------------------------
 
 Third-party components bundled with, or built into, numkit retain
-their own licenses. These are all permissive (Apache-2.0 / BSD / MIT)
-and include, among others:
+their own licenses. These are all permissive (Apache-2.0 / BSD / MIT / BSL-1.0)
+and include:
 
   * Highway (SIMD)            Apache-2.0 / BSD-3-Clause
   * GoogleTest                BSD-3-Clause
-  * matio                     BSD-2-Clause
+  * SLEEF (coefficients)      BSL-1.0
   * three.js                  MIT
   * Vite                      MIT
   * Electron                  MIT
