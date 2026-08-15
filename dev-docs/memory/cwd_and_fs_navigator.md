@@ -42,6 +42,10 @@ When running scripts in the IDE (especially examples or user projects doing file
    - Replaced monolithic recursive `listTree()` with shallow `listDir(root, relPath)` across Electron IPC, preload, `localFS`, and `tempFS`.
    - `Sidebar` and `FileNavigatorModal` query only the immediate children of the active folder (`< 1 ms`, minimal memory).
    - In `Sidebar.jsx`, expanding a folder in `TreeRow` dynamically loads that folder's children on demand.
-   - Eliminates artificial file count limits (8000), recursion depth issues, and directory blacklists.
+8. **Sidebar Navigation & Controls Refinement**:
+   - Removed obsolete unmount button and unmount strip.
+   - Added Up button (`⬆`) directly in the sidebar toolbar header actions (alongside New File and New Folder), paired with the `.. (Parent Folder)` top tree row.
+   - Changed search input placeholder and hint to standard `"Filter files…"`.
+
 
 
