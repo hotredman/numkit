@@ -121,6 +121,10 @@ When running scripts in the IDE (especially examples or user projects doing file
     - **Fix**: Removed the conditional so every tab displays the `×` close button; closing the single/last tab cleanly resets the editor with a fresh `untitled.m` tab.
     - Test coverage: 549 tests passing across 41 test files.
 
+17. **`imfinfo` Structure MATLAB Compatibility (`io.cpp`, `io.hpp`)**:
+    - **Problem**: `imfinfo(path)` returned a struct with `NumberOfChannels` but lacked `NumberOfSamples` (the standard MATLAB field representing color samples/channels per pixel), causing scripts like `image_io_roundtrip.m` to throw `Reference to non-existent field 'NumberOfSamples'`.
+    - **Fix**: Added `s.field("NumberOfSamples") = Value::scalar(double(channels), mr);` to `imfinfoFromBytes` in `src/toolboxes/image/src/io/io.cpp`, recompiled the WASM engine, and updated tests.
+
 
 
 
