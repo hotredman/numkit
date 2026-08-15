@@ -144,3 +144,40 @@ export function getFileBaseName(p) {
   const dotIdx = name.lastIndexOf('.');
   return dotIdx > 0 ? name.slice(0, dotIdx) : name;
 }
+
+/**
+ * Resolves full file path, parent folder path, and fsMode ('local' | 'virtual') for an editor tab.
+ *
+ * @param {object} tab - Editor tab object ({ name, vfsPath, source }).
+ * @param {string} localRoot - Current local filesystem root path.
+ * @returns {{ fileName: string, filePath: string, folderPath: string, mode: 'local'|'virtual' }}
+ */
+export function getTabPaths(tab, localRoot = '') {
+  if (!tab) {
+    return { fileName: '', filePath: '', folderPath: '', mode: 'virtual' };
+  }
+  const fileName = tab.name || 'untitled.m';
+  const isLocal = tab.source === 'localFolder';
+
+  if (isLocal) {
+    const rawPath = tab.vfsPath || ('/' + fileName);
+    if (isLocalDiskPath(rawPath)) {
+      const filePath = sanitizeLocalPath(rawPath);
+      const folderPath = getParentDir(filePath, true);
+      return { fileName, filePath, folderPath, mode: 'local' };
+    }
+    const lRoot = localRoot || 'C:\\';
+    const normRoot = sanitizeLocalPath(lRoot);
+    const cleanRel = rawPath.startsWith('/') ? rawPath.slice(1).replace(/\//g, '\\') : rawPath.replace(/\//g, '\\');
+    const filePath = normRoot.endsWith('\\') ? `${normRoot}${cleanRel}` : `${normRoot}\\${cleanRel}`;
+    const folderPath = cleanRel.includes('\\')
+      ? getParentDir(filePath, true)
+      : normRoot;
+    return { fileName, filePath, folderPath, mode: 'local' };
+  }
+
+  // Virtual FS
+  const filePath = tab.vfsPath || ('/' + fileName);
+  const folderPath = getParentDir(filePath, false);
+  return { fileName, filePath, folderPath, mode: 'virtual' };
+}

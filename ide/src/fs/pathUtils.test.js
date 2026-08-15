@@ -6,6 +6,7 @@ import {
   getParentDir,
   getFileName,
   getFileBaseName,
+  getTabPaths,
 } from './pathUtils';
 
 describe('pathUtils', () => {
@@ -120,6 +121,62 @@ describe('pathUtils', () => {
       expect(getFileBaseName('C:\\Users\\image.png')).toBe('image');
       expect(getFileBaseName('archive.tar.gz')).toBe('archive.tar');
       expect(getFileBaseName('noext')).toBe('noext');
+    });
+  });
+
+  describe('getTabPaths', () => {
+    it('resolves paths for local folder tab with root-relative vfsPath', () => {
+      const tab = {
+        name: 'group_aggregation.m',
+        vfsPath: '/group_aggregation.m',
+        source: 'localFolder',
+      };
+      const res = getTabPaths(tab, 'C:\\Users\\User\\Temp\\group_aggregation');
+      expect(res).toEqual({
+        fileName: 'group_aggregation.m',
+        filePath: 'C:\\Users\\User\\Temp\\group_aggregation\\group_aggregation.m',
+        folderPath: 'C:\\Users\\User\\Temp\\group_aggregation',
+        mode: 'local',
+      });
+    });
+
+    it('resolves paths for local folder tab in subfolder', () => {
+      const tab = {
+        name: 'helper.m',
+        vfsPath: '/models/helper.m',
+        source: 'localFolder',
+      };
+      const res = getTabPaths(tab, 'C:\\Projects\\demo');
+      expect(res).toEqual({
+        fileName: 'helper.m',
+        filePath: 'C:\\Projects\\demo\\models\\helper.m',
+        folderPath: 'C:\\Projects\\demo\\models',
+        mode: 'local',
+      });
+    });
+
+    it('resolves paths for virtual temporary tab', () => {
+      const tab = {
+        name: 'arithmetic.m',
+        vfsPath: '/numkit_ide/examples/arithmetic/arithmetic.m',
+        source: 'temporary',
+      };
+      const res = getTabPaths(tab, '');
+      expect(res).toEqual({
+        fileName: 'arithmetic.m',
+        filePath: '/numkit_ide/examples/arithmetic/arithmetic.m',
+        folderPath: '/numkit_ide/examples/arithmetic',
+        mode: 'virtual',
+      });
+    });
+
+    it('handles empty or null tab safely', () => {
+      expect(getTabPaths(null)).toEqual({
+        fileName: '',
+        filePath: '',
+        folderPath: '',
+        mode: 'virtual',
+      });
     });
   });
 });
