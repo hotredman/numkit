@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isLocalDiskPath,
   sanitizeVfsPath,
+  sanitizeLocalPath,
   getParentDir,
   getFileName,
   getFileBaseName,
@@ -13,6 +14,9 @@ describe('pathUtils', () => {
       expect(isLocalDiskPath('C:\\Users\\User\\project')).toBe(true);
       expect(isLocalDiskPath('c:/Users/User/project')).toBe(true);
       expect(isLocalDiskPath('D:\\Data')).toBe(true);
+      expect(isLocalDiskPath('C:')).toBe(true);
+      expect(isLocalDiskPath('c:')).toBe(true);
+      expect(isLocalDiskPath('C:\\')).toBe(true);
     });
 
     it('returns false for POSIX, relative, or empty paths', () => {
@@ -46,6 +50,33 @@ describe('pathUtils', () => {
     });
   });
 
+  describe('sanitizeLocalPath', () => {
+    it('normalizes bare drive letters to drive root with trailing backslash', () => {
+      expect(sanitizeLocalPath('C:')).toBe('C:\\');
+      expect(sanitizeLocalPath('c:')).toBe('C:\\');
+      expect(sanitizeLocalPath('C:\\')).toBe('C:\\');
+      expect(sanitizeLocalPath('c:/')).toBe('C:\\');
+    });
+
+    it('normalizes Windows drive paths with forward slashes and removes trailing slash', () => {
+      expect(sanitizeLocalPath('c:/Users/User/Projects')).toBe('C:\\Users\\User\\Projects');
+      expect(sanitizeLocalPath('C:\\Users\\User\\Projects\\')).toBe('C:\\Users\\User\\Projects');
+      expect(sanitizeLocalPath('D:/Data/')).toBe('D:\\Data');
+    });
+
+    it('resolves relative paths against localRoot', () => {
+      expect(sanitizeLocalPath('subfolder', 'C:\\Users\\User')).toBe('C:\\Users\\User\\subfolder');
+      expect(sanitizeLocalPath('/subfolder', 'C:\\Users\\User')).toBe('C:\\Users\\User\\subfolder');
+      expect(sanitizeLocalPath('\\subfolder', 'C:\\Users\\User')).toBe('C:\\Users\\User\\subfolder');
+      expect(sanitizeLocalPath('nested/dir', 'C:\\')).toBe('C:\\nested\\dir');
+    });
+
+    it('handles empty inputs safely', () => {
+      expect(sanitizeLocalPath('', 'C:\\Users')).toBe('C:\\Users');
+      expect(sanitizeLocalPath(null, 'C:\\Users')).toBe('C:\\Users');
+    });
+  });
+
   describe('getParentDir', () => {
     it('navigates up in Virtual FS mode', () => {
       expect(getParentDir('/numkit_ide/examples/nested_loops', false)).toBe('/numkit_ide/examples');
@@ -59,6 +90,7 @@ describe('pathUtils', () => {
       expect(getParentDir('C:\\Users\\User', true)).toBe('C:\\Users');
       expect(getParentDir('C:\\Users', true)).toBe('C:\\');
       expect(getParentDir('C:\\', true)).toBe('C:\\');
+      expect(getParentDir('C:', true)).toBe('C:\\');
     });
 
     it('handles root edge cases safely', () => {

@@ -5,10 +5,10 @@
  */
 
 /**
- * Checks if a path is an absolute Windows local disk path (e.g. C:\... or C:/...).
+ * Checks if a path is a Windows drive path (e.g. C:, C:\, C:/, C:\Users, etc.).
  */
 export function isLocalDiskPath(p) {
-  return typeof p === 'string' && /^[A-Za-z]:[\\/]/.test(p.trim());
+  return typeof p === 'string' && /^[A-Za-z]:([\\/]|$)/.test(p.trim());
 }
 
 /**
@@ -22,7 +22,7 @@ export function sanitizeVfsPath(rawPath) {
   if (!rawPath || typeof rawPath !== 'string') return '/';
   let p = rawPath.trim().replace(/\\/g, '/');
 
-  // Strip Windows drive letters (e.g. 'C:/...' or '/C:/...')
+  // Strip Windows drive letters (e.g. 'C:/...' or '/C:/...' or 'C:')
   const winMatch = p.match(/^(\/?[A-Za-z]:)(.*)$/);
   if (winMatch) {
     const afterDrive = winMatch[2];
@@ -42,6 +42,42 @@ export function sanitizeVfsPath(rawPath) {
 }
 
 /**
+ * Normalizes a local filesystem path:
+ * - If user entered 'C:' or 'c:', converts to 'C:\'
+ * - If user entered 'C:/', converts to 'C:\'
+ * - If user entered 'C:\Users\', converts to 'C:\Users' (unless root 'C:\')
+ * - Replaces forward slashes with backslashes on Windows drive paths
+ * - Resolves relative paths against localRoot if provided
+ */
+export function sanitizeLocalPath(rawPath, localRoot = '') {
+  if (!rawPath || typeof rawPath !== 'string') return localRoot || '';
+  let p = rawPath.trim();
+
+  // If starts with Windows drive letter (e.g. 'c:', 'C:\', 'D:/foo')
+  if (/^[A-Za-z]:([\\/]|$)/.test(p)) {
+    const driveLetter = p[0].toUpperCase();
+    const rest = p.slice(2).replace(/\//g, '\\');
+    if (!rest || rest === '\\') {
+      return `${driveLetter}:\\`;
+    }
+    let norm = `${driveLetter}:${rest.startsWith('\\') ? rest : '\\' + rest}`;
+    if (norm.length > 3 && norm.endsWith('\\')) norm = norm.slice(0, -1);
+    return norm;
+  }
+
+  // Relative path against localRoot
+  if (localRoot && isLocalDiskPath(localRoot)) {
+    let cleanRel = p.replace(/\//g, '\\');
+    if (cleanRel.startsWith('\\')) cleanRel = cleanRel.slice(1);
+    const normRoot = sanitizeLocalPath(localRoot);
+    if (!cleanRel) return normRoot;
+    return normRoot.endsWith('\\') ? `${normRoot}${cleanRel}` : `${normRoot}\\${cleanRel}`;
+  }
+
+  return p.replace(/\\/g, '/');
+}
+
+/**
  * Resolves the parent directory of a path.
  * In Local mode (Windows), preserves drive roots (e.g. 'C:\').
  * In Virtual mode, stays rooted at '/'.
@@ -50,14 +86,15 @@ export function getParentDir(p, isLocal = false) {
   if (!p || typeof p !== 'string') return isLocal ? '' : '/';
 
   if (isLocal && isLocalDiskPath(p)) {
-    let norm = p.replace(/\//g, '\\');
-    if (norm.endsWith('\\') && norm.length > 3) norm = norm.slice(0, -1);
+    const norm = sanitizeLocalPath(p);
+    if (norm.length <= 3) {
+      return norm; // 'C:\' stays 'C:\'
+    }
     const idx = norm.lastIndexOf('\\');
     if (idx <= 2) {
-      // e.g. 'C:\'
-      return norm.slice(0, 2) + '\\';
+      return norm.slice(0, 2) + '\\'; // 'C:\Users' -> 'C:\'
     }
-    return norm.slice(0, idx);
+    return norm.slice(0, idx); // 'C:\Users\Foo' -> 'C:\Users'
   }
 
   const norm = sanitizeVfsPath(p);
