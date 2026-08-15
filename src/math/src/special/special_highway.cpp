@@ -8,8 +8,7 @@
 // the polynomial coefficients are copied verbatim from SLEEF.
 //
 //   Math kernels ported from SLEEF (commit 7623d6c), src/libm/sleefsimddp.c
-//   (xerf_u1) and src/common/dd.h. Boost Software License 1.0 — see
-//   third_party/sleef/LICENSE.
+//   (xerf_u1) and src/common/dd.h (Boost Software License 1.0).
 //
 // erf: the SLEEF u1 kernel for |x| <= 2.5 is reproduced exactly here (dd
 // polynomial + 16th-power reciprocal). |x| > 2.5, |x| < 1e-8, and the

@@ -9,8 +9,7 @@
 // unlike the naive sin(pi*x) which loses ~1e-10 by x=1e7.
 //
 // Polynomial coefficients (and the d*4 octant reduction) are ported
-// from SLEEF's sinpik/cospik kernels (Boost Software License 1.0; see
-// third_party/sleef/). Only the leading double of each split constant
+// from SLEEF's sinpik/cospik kernels (Boost Software License 1.0). Only the leading double of each split constant
 // is used (single-double evaluation): this is <=2 ULP across the range,
 // which is well inside MATLAB-parity tolerance and avoids the cost of
 // double-double arithmetic. The 32-bit-lane range guard of the SLEEF
