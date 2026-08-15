@@ -538,8 +538,13 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     catch { return 'virtual'; }
   });
   const [virtualCwd, setVirtualCwd] = useState(() => {
-    try { return localStorage.getItem('numkit.ide.cwd.virtual') || '/'; }
-    catch { return '/'; }
+    try {
+      const saved = localStorage.getItem('numkit.ide.cwd.virtual');
+      if (saved && !/^[A-Za-z]:[\\/]/.test(saved) && !saved.startsWith('/C:') && !saved.startsWith('/c:')) {
+        return saved;
+      }
+      return '/';
+    } catch { return '/'; }
   });
   const [localCwd, setLocalCwd] = useState(() => {
     try { return localStorage.getItem('numkit.ide.cwd.local') || (localFS.root?.() || ''); }
@@ -577,9 +582,18 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
 
   const handleFsModeChange = useCallback((newMode) => {
     setFsMode(newMode);
-    const targetCwd = newMode === 'local' ? (localCwd || localFS.root?.() || '') : (virtualCwd || '/');
-    if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
-      window.nativeFS.setCwd(targetCwd);
+    if (newMode === 'virtual') {
+      const vPath = virtualCwd || '/';
+      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        const tRoot = tempFS.root?.();
+        const absTemp = tRoot ? `${tRoot}${vPath.replace(/\//g, '\\')}` : vPath;
+        window.nativeFS.setCwd(absTemp);
+      }
+    } else {
+      const targetCwd = localCwd || localFS.root?.() || '';
+      if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
+        window.nativeFS.setCwd(targetCwd);
+      }
     }
   }, [localCwd, virtualCwd]);
 
@@ -613,7 +627,18 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
       }
     } else {
       let vPath = newCwd.trim().replace(/\\/g, '/');
+      const winMatch = vPath.match(/^(\/?[A-Za-z]:)(.*)$/);
+      if (winMatch) {
+        const afterDrive = winMatch[2];
+        const tempIdx = afterDrive.indexOf('/temporary/');
+        if (tempIdx >= 0) {
+          vPath = afterDrive.slice(tempIdx);
+        } else {
+          vPath = afterDrive || '/';
+        }
+      }
       if (!vPath.startsWith('/')) vPath = '/' + vPath;
+      if (vPath.length > 1 && vPath.endsWith('/')) vPath = vPath.slice(0, -1);
       setVirtualCwd(vPath);
       if (typeof window.nativeFS !== 'undefined' && window.nativeFS.setCwd) {
         const tRoot = tempFS.root?.();
