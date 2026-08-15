@@ -836,7 +836,7 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     }
 
     // ── Browser: WASM engine ──────────────────────────────────────
-    if (origin) engine.pushScriptOrigin(origin, scriptDir || cwd);
+    if (origin) engine.pushScriptOrigin(origin, targetCwd || cwd);
     try {
       result = engine.execute(code);
     } finally {
@@ -886,6 +886,10 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
     if (adapter) adapter.flush().then((wasDirty) => {
       if (mountedRef.current && wasDirty) setVfsRefreshKey((k) => k + 1);
     });
+    } catch (err) {
+      console.error('[runCode] error:', err);
+      addOutput([{ type: 'error', text: `[IDE Error] ${err?.message || err}` }]);
+      setConsoleNotify(true);
     } finally {
       setIsRunning(false);
     }
