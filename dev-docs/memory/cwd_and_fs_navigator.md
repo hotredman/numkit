@@ -63,17 +63,19 @@ When running scripts in the IDE (especially examples or user projects doing file
 9. **Modular Architecture & Test Coverage (`pathUtils.js` & `examples.js`)**:
    - `ide/src/fs/pathUtils.js`: Centralized pure path operations (`sanitizeVfsPath`, `sanitizeLocalPath`, `getParentDir`, `isLocalDiskPath`, `getFileName`, `getFileBaseName`, `getTabPaths`). Handles bare drive letter inputs (e.g. `C:`, `c:`, `C:\`, `C:/`) and root slash inputs (`/`, `\`) cleanly in Local FS mode, navigating to the active drive root (e.g. `C:\` or `D:\`).
    - `ide/src/fs/examples.js`: Encapsulated example extraction, binary media detection, and target VFS/Local cloning.
-   - 100% test coverage with dedicated Vitest suites in `pathUtils.test.js` and `examples.test.js` (535 tests passing).
+   - 100% test coverage with dedicated Vitest suites in `pathUtils.test.js`, `examples.test.js`, `CurrentFolderBar.render.test.jsx`, `FileNavigatorModal.render.test.jsx`, and `Sidebar.render.test.jsx` (543 tests passing across 40 test files).
 
 10. **Editor Tab Context Menu Actions**:
     - Right-clicking any tab in `TabStrip` provides:
-      - `＋ New tab`
-      - `✏ Rename`
-      - `📋 Copy file name`: Copies file basename (e.g. `group_aggregation.m`) to system clipboard.
-      - `📋 Copy file path`: Copies full path (`C:\Users\...\group_aggregation.m` or `/numkit_ide/examples/...`) to clipboard.
-      - `📁 Copy folder path`: Copies parent directory (`C:\Users\...\group_aggregation` or `/numkit_ide/examples`) to clipboard.
-      - `🔍 Show in explorer`: Automatically resolves directory, aligns active `fsMode` and `cwd`, and opens `FileNavigatorModal` positioned directly at that folder.
-      - `× Close`, `× Close all`, `× Close others`.
+      - `New tab`
+      - `Rename`
+      - `Copy file name`: Copies file basename (e.g. `group_aggregation.m`) to system clipboard.
+      - `Copy file path`: Copies full path (`C:\Users\...\group_aggregation.m` or `/numkit_ide/examples/...`) to clipboard.
+      - `Copy folder path`: Copies parent directory (`C:\Users\...\group_aggregation` or `/numkit_ide/examples`) to clipboard.
+      - `Show in explorer`: Automatically resolves directory, aligns active `fsMode` and `cwd`, and opens `FileNavigatorModal` positioned directly at that folder.
+      - `Close`, `Close all`, `Close others`.
+    - Context menu uses monochrome vector SVG icons matching the IDE theme.
+    - Verified and covered by Vitest suites (543 tests passing).
 
 
 
