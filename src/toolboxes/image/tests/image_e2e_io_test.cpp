@@ -51,6 +51,7 @@ TEST_F(ImageE2EIoTest, PngGrayscaleAndRgbWorkflow) {
     EXPECT_EQ(infoGray.field("Width").toScalar(), 3.0);
     EXPECT_EQ(infoGray.field("Height").toScalar(), 2.0);
     EXPECT_EQ(infoGray.field("NumberOfChannels").toScalar(), 1.0);
+    EXPECT_EQ(infoGray.field("NumberOfSamples").toScalar(), 1.0);
     EXPECT_EQ(infoGray.field("ColorType").toString(), "grayscale");
 
     // RGB 3D
@@ -68,6 +69,7 @@ TEST_F(ImageE2EIoTest, PngGrayscaleAndRgbWorkflow) {
 
     Value infoRgb = eval("info_rgb;");
     EXPECT_EQ(infoRgb.field("NumberOfChannels").toScalar(), 3.0);
+    EXPECT_EQ(infoRgb.field("NumberOfSamples").toScalar(), 3.0);
     EXPECT_EQ(infoRgb.field("ColorType").toString(), "truecolor");
 }
 

@@ -72,6 +72,7 @@ std::string imwriteToBytes(const Value &A, const std::string &ext,
 ///   - `Format`           — `"png"|"jpg"|"bmp"|"gif"|"pnm"|"hdr"|"psd"|"tga"`.
 ///   - `Width`, `Height`  — image dimensions in pixels.
 ///   - `NumberOfChannels` — 1, 3, or 4.
+///   - `NumberOfSamples`  — 1, 3, or 4 (MATLAB standard alias for channels).
 ///   - `ColorType`        — `"grayscale"|"truecolor"|"truecoloralpha"`.
 ///   - `FileSize`         — bytes on disk.
 ///

@@ -219,6 +219,7 @@ Value imfinfoFromBytes(const std::string &bytes, const std::string &filename,
     s.field("Width")             = Value::scalar(double(W), mr);
     s.field("Height")            = Value::scalar(double(H), mr);
     s.field("NumberOfChannels")  = Value::scalar(double(channels), mr);
+    s.field("NumberOfSamples")   = Value::scalar(double(channels), mr);
     s.field("BitDepth")          = Value::scalar(double(bits * channels), mr);
     s.field("ColorType")         = Value::fromString(colorTypeFromChannels(channels), mr);
     s.field("FileSize")          = Value::scalar(double(bytes.size()), mr);
