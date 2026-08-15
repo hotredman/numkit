@@ -368,6 +368,9 @@ ipcMain.handle('fs:listDir', async (_e, root, relPath = '/') => {
   return entries;
 });
 
+const TREE_MAX_ENTRIES = 8000;  // hard cap on total nodes returned
+const TREE_MAX_DEPTH = 6;       // recursion depth (shallow walk for performance)
+
 ipcMain.handle('fs:listTree', async (_e, root) => {
   let total = 0;
   let truncated = false;
