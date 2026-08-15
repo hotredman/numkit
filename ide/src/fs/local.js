@@ -99,7 +99,11 @@ function makeNativeBackend() {
             // Verify the path is still reachable — avoids surfacing a
             // stale mount after the folder was renamed/removed from disk.
             try {
-                await api.listTree(saved);
+                if (typeof api.listDir === 'function') {
+                    await api.listDir(saved, '/');
+                } else {
+                    await api.listTree(saved);
+                }
                 setRoot(saved);
                 remember(saved);
                 return rootDisplayName;
@@ -108,7 +112,11 @@ function makeNativeBackend() {
                     try {
                         const home = await api.getUserHome();
                         if (home) {
-                            await api.listTree(home);
+                            if (typeof api.listDir === 'function') {
+                                await api.listDir(home, '/');
+                            } else {
+                                await api.listTree(home);
+                            }
                             setRoot(home);
                             remember(home);
                             return rootDisplayName;
