@@ -109,6 +109,13 @@ When running scripts in the IDE (especially examples or user projects doing file
       - `fs/examples.js`: now constructs and assigns the full target file path (`targetDir + sep + fname`) to `vfsPath`.
       - `Sidebar.jsx` and `FileNavigatorModal.jsx`: resolve full absolute disk paths for all opened local files before passing to `onOpenFile`.
       - `getTabPaths` recognizes absolute disk paths via `isLocalDiskPath` and preserves the exact subfolder and file path regardless of CWD changes.
+
+15. **Full Modal Window Unification (`ModalWindow.jsx`, `Workspace.jsx`, `FigureWindow.jsx`, `FileNavigatorModal.jsx`, `PreferencesModal.jsx`)**:
+    - **Problem**: `FigureWindow` and `Workspace` (`VariableEditor`) implemented ad-hoc titlebar, window wrapper, and maximize/close button HTML/CSS, resulting in disparate styling (missing button pill background in Inspector) and duplicated logic.
+    - **Fix**:
+      - Unified all modal dialogs (`Figure`, `Inspector`, `Explorer`, `Preferences`) to use `<ModalWindow>`.
+      - Styled `.modal-title-right` as a consistent pinned control pill with background `var(--bg-3)`, border `1px solid var(--line)`, and uniform `.ve-close` maximize and close buttons.
+      - Removed duplicate CSS rules for `.ve-titlebar`, `.ve-title-right`, `.fw-titlebar`, `.fw-title-right`.
     - Test coverage: 549 tests passing across 41 test files.
 
 
