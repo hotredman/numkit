@@ -75,7 +75,17 @@ When running scripts in the IDE (especially examples or user projects doing file
       - `Show in explorer`: Automatically resolves directory, aligns active `fsMode` and `cwd`, and opens `FileNavigatorModal` positioned directly at that folder.
       - `Close`, `Close all`, `Close others`.
     - Context menu uses monochrome vector SVG icons matching the IDE theme.
-    - Verified and covered by Vitest suites (543 tests passing).
+    - Verified and covered by Vitest suites.
+
+11. **Unified Modal Window System (`ModalWindow.jsx`)**:
+    - Created `ide/src/components/ui/ModalWindow.jsx` as a single shared foundation for all dialogs and modals (`FileNavigatorModal`, `PreferencesModal`, and future widgets).
+    - Unified design system:
+      - Window container with consistent `1px solid var(--line)`, rounded corners (`var(--r-lg)`), and elevation glow shadow (`box-shadow: 0 24px 80px oklch(...)`).
+      - Fullscreen maximize / restore support with toggle SVG icon (`.modal-window.is-max`).
+      - Standard titlebar with tag badge (`.ve-tag`), title, subtitle (`.ve-dim`), meta text, and pinned top-right controls (`.ve-title-right`).
+      - Neutral monochrome vector SVG icons for toolbar and file types.
+      - Escape key handling and backdrop click dismissal.
+    - Test coverage: 547 tests passing across 41 test files (including dedicated `ModalWindow.render.test.jsx`).
 
 
 
