@@ -162,11 +162,33 @@ const direct = {
       const p = entry.path;
       const parent = parentPath(p) || '/';
       if (parent === targetRel) {
+        let size = entry.size;
+        if (size === undefined && entry.content !== undefined) {
+          if (typeof entry.content === 'string') {
+            size = entry.content.length;
+          } else if (entry.content instanceof ArrayBuffer) {
+            size = entry.content.byteLength;
+          } else if (entry.content && typeof entry.content.byteLength === 'number') {
+            size = entry.content.byteLength;
+          } else if (entry.content && typeof entry.content.length === 'number') {
+            size = entry.content.length;
+          }
+        }
+        let modified = entry.modified;
+        if (!modified) {
+          if (entry.type === 'folder') {
+            const child = all.find((e) => e.path.startsWith(p + '/') && e.modified);
+            modified = child ? child.modified : Date.now();
+          } else {
+            modified = Date.now();
+          }
+        }
         entries.push({
           name: p.split('/').pop(),
           path: p,
           type: entry.type,
-          modified: entry.modified,
+          size: entry.type === 'folder' ? undefined : (size ?? 0),
+          modified,
         });
       }
     }

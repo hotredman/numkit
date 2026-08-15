@@ -325,7 +325,22 @@ function makeFsaBackend() {
                 for await (const [name, handle] of targetDir.entries()) {
                     const cleanRel = (relPath || '/').replace(/\\/g, '/').replace(/\/+$/, '');
                     const itemPath = cleanRel === '' || cleanRel === '/' ? `/${name}` : `${cleanRel}/${name}`;
-                    entries.push({ name, path: itemPath, type: handle.kind === 'directory' ? 'folder' : 'file' });
+                    let size = undefined;
+                    let modified = undefined;
+                    if (handle.kind === 'file') {
+                        try {
+                            const fileObj = await handle.getFile();
+                            size = fileObj.size;
+                            modified = fileObj.lastModified;
+                        } catch (_) {}
+                    }
+                    entries.push({
+                        name,
+                        path: itemPath,
+                        type: handle.kind === 'directory' ? 'folder' : 'file',
+                        size,
+                        modified,
+                    });
                 }
                 entries.sort((a, b) => (a.type !== b.type) ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name));
                 return entries;

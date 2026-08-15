@@ -45,6 +45,39 @@ describe('FileNavigatorModal render smoke', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('handles column header click sorting', async () => {
+    let rendered;
+    await act(async () => {
+      rendered = render(
+        <FileNavigatorModal
+          onClose={vi.fn()}
+          fsMode="virtual"
+          currentCwd="/numkit_ide/examples"
+        />
+      );
+      await Promise.resolve();
+    });
+
+    const { getByTitle } = rendered;
+    const nameHeader = getByTitle('Sort by Name');
+    const sizeHeader = getByTitle('Sort by Size');
+    const modHeader = getByTitle('Sort by Modified Date');
+
+    expect(nameHeader.textContent).toContain('▲');
+
+    // Click Name to toggle desc
+    fireEvent.click(nameHeader);
+    expect(nameHeader.textContent).toContain('▼');
+
+    // Click Size to sort by size
+    fireEvent.click(sizeHeader);
+    expect(sizeHeader.textContent).toContain('▲');
+
+    // Click Modified to sort by date
+    fireEvent.click(modHeader);
+    expect(modHeader.textContent).toContain('▲');
+  });
+
   it('closes on Escape key press', async () => {
     const onClose = vi.fn();
 
