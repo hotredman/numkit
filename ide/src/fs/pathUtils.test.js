@@ -170,6 +170,51 @@ describe('pathUtils', () => {
       });
     });
 
+    it('resolves audio roundtrip example in Virtual FS mode without host disk leaks', () => {
+      const tab = {
+        name: 'audio_io_roundtrip.m',
+        vfsPath: '/numkit_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m',
+        source: 'temporary',
+      };
+      const res = getTabPaths(tab, 'C:\\Users\\User\\Projects');
+      expect(res).toEqual({
+        fileName: 'audio_io_roundtrip.m',
+        filePath: '/numkit_ide/examples/audio_io_roundtrip/audio_io_roundtrip.m',
+        folderPath: '/numkit_ide/examples/audio_io_roundtrip',
+        mode: 'virtual',
+      });
+    });
+
+    it('resolves tab with absolute local Windows path', () => {
+      const tab = {
+        name: 'model.m',
+        vfsPath: 'C:\\Data\\Projects\\model.m',
+        source: 'localFolder',
+      };
+      const res = getTabPaths(tab, 'C:\\Data');
+      expect(res).toEqual({
+        fileName: 'model.m',
+        filePath: 'C:\\Data\\Projects\\model.m',
+        folderPath: 'C:\\Data\\Projects',
+        mode: 'local',
+      });
+    });
+
+    it('resolves tab at Windows drive root', () => {
+      const tab = {
+        name: 'root.m',
+        vfsPath: '/root.m',
+        source: 'localFolder',
+      };
+      const res = getTabPaths(tab, 'C:\\');
+      expect(res).toEqual({
+        fileName: 'root.m',
+        filePath: 'C:\\root.m',
+        folderPath: 'C:\\',
+        mode: 'local',
+      });
+    });
+
     it('handles empty or null tab safely', () => {
       expect(getTabPaths(null)).toEqual({
         fileName: '',
