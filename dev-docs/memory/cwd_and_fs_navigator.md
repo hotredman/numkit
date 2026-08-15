@@ -99,6 +99,11 @@ When running scripts in the IDE (especially examples or user projects doing file
       - Virtual filesystem (`temporary.js` `listDir`): computed sizes from memory buffer lengths/string sizes and populated modified timestamps.
     - Implemented full column click sorting for `Name`, `Type`, `Size`, and `Modified` with interactive asc/desc toggles and `▲`/`▼` indicators.
 
+13. **Streamlined Bottom Dock (`IDE.jsx`)**:
+    - Removed the `Reference` tab and panel from `BottomDock`, keeping only `Console` and `Workspace` in the dock tabs.
+    - Cleaned up unused imports and bundle references, reducing bundle weight.
+    - Test coverage: 549 tests passing across 41 test files.
+
 
 
 
