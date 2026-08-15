@@ -18,13 +18,18 @@ When running scripts in the IDE (especially examples or user projects doing file
    - File Info sidebar with metadata, "Open in Editor", and "Reveal in Explorer" actions.
    - "Select as Current Folder" action to bind the directory as the active CWD.
 
-3. **Examples Auto-Cloning to OS Temporary Directory**:
-   - When double-clicking an example script in the Examples browser (e.g. `arithmetic.m` or `audio_io_roundtrip.m`):
-     - The IDE creates a dedicated folder in the OS-specific temporary directory: `<os_temp_dir>/numkit/examples/<script_base_name>` (e.g. `C:\Users\User\AppData\Local\Temp\numkit\examples\arithmetic` on Windows via `app.getPath('temp')` / `os.tmpdir()`, or `/numkit/examples/<script_base_name>` in virtual FS for web).
-     - Copies the script and any companion assets (WAV, PNG, MAT, helper scripts) into this folder.
-     - Sets this directory as the active `cwd` for the IDE and REPL session.
+3. **Examples Auto-Cloning per Filesystem Mode**:
+   - When double-clicking an example script in the Examples browser:
+     - **In Virtual FS Mode (`fsMode === 'virtual'`)**:
+       - Creates the folder in Virtual FS: `/numkit_ide/examples/<script_base_name>`.
+       - Copies the script and companion assets into `/numkit_ide/examples/<script_base_name>/`.
+       - Sets `virtualCwd` to `/numkit_ide/examples/<script_base_name>` (reflected in `CurrentFolderBar` and REPL virtual sync).
+     - **In Local FS Mode (`fsMode === 'local'`)**:
+       - Creates the folder in OS temporary directory: `<os_temp_dir>/numkit/examples/<script_base_name>` (e.g. `C:\Users\User\AppData\Local\Temp\numkit\examples\arithmetic`).
+       - Sets `localCwd` to `<os_temp_dir>/numkit/examples/<script_base_name>`.
      - Opens the script in the editor tab.
-   - When running the script, `runCode` uses the folder of `activeTabObj.vfsPath` directly, eliminating path compounding/duplication (`/examples/.../examples/...`).
+   - When running the script, `runCode` uses the directory containing `activeTabObj.vfsPath` directly, eliminating path compounding/duplication (`/examples/.../examples/...`).
+
 
 
 4. **Synchronized Electron Temporary Backend**:
