@@ -330,21 +330,6 @@ ipcMain.handle('fs:pickDirectory', async () => {
   return result.filePaths[0];
 });
 
-// Folders that explode the tree without ever being useful in the IDE
-// explorer. Skipped during the recursive walk regardless of depth.
-const TREE_SKIP_DIRS = new Set([
-  'node_modules', '.git', '.svn', '.hg', '.idea', '.vscode',
-  'build', 'build-browser', 'build-bench-wasm', 'build-portable',
-  'desktop-build-fast', 'build-apple-m', 'dist', '.next', '.nuxt',
-  '.cache', '.parcel-cache', '.turbo', '.venv', 'venv', '__pycache__',
-  'target', '.gradle', 'cmake-build-debug', 'cmake-build-release',
-  // System / user-profile heavy cache & junk directories
-  'AppData', 'Application Data', 'Local Settings', 'Cookies', 'NetHood',
-  'PrintHood', 'Recent', 'SendTo', 'Start Menu', 'Templates',
-  '.npm', '.cargo', '.rustup', '.nuget', '.docker', '.m2',
-  '.gemini', '.android', '.electron', '.pnpm-store', '.cache',
-]);
-
 ipcMain.handle('fs:listDir', async (_e, root, relPath = '/') => {
   const full = safePath(root, relPath);
   let list;
@@ -368,56 +353,26 @@ ipcMain.handle('fs:listDir', async (_e, root, relPath = '/') => {
   return entries;
 });
 
-const TREE_MAX_ENTRIES = 8000;  // hard cap on total nodes returned
-const TREE_MAX_DEPTH = 6;       // recursion depth (shallow walk for performance)
-
+// Flat list for any legacy listTree callers
 ipcMain.handle('fs:listTree', async (_e, root) => {
-  let total = 0;
-  let truncated = false;
-
-  async function walk(dir, rel, depth) {
-    if (depth > TREE_MAX_DEPTH) { truncated = true; return []; }
-    if (total >= TREE_MAX_ENTRIES) { truncated = true; return []; }
-    let list;
-    try { list = await fsp.readdir(dir, { withFileTypes: true }); }
-    catch { return []; }
-    const entries = [];
-    for (const d of list) {
-      if (total >= TREE_MAX_ENTRIES) { truncated = true; break; }
-      // Skip obvious junk that shouldn't clutter the tree.
-      if (d.name.startsWith('.DS_Store')) continue;
-      // Skip well-known noise dirs: every numkit worktree has these
-      // at the root and walking them was the proven cause of Electron
-      // renderer OOM (the serialised tree exceeded V8's heap when a
-      // user mounted a folder with a populated node_modules / build-*).
-      if (d.isDirectory() && TREE_SKIP_DIRS.has(d.name)) continue;
-      const full = path.join(dir, d.name);
-      const itemPath = rel === '/' ? `/${d.name}` : `${rel}/${d.name}`;
-      const node = {
-        name: d.name,
-        path: itemPath,
-        type: d.isDirectory() ? 'folder' : 'file',
-      };
-      total++;
-      if (d.isDirectory()) {
-        try { node.children = await walk(full, itemPath, depth + 1); }
-        catch { node.children = []; }
-      }
-      entries.push(node);
-    }
-    entries.sort((a, b) => {
-      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-      return a.name.localeCompare(b.name);
+  const full = safePath(root, '/');
+  let list;
+  try { list = await fsp.readdir(full, { withFileTypes: true }); }
+  catch { return []; }
+  const entries = [];
+  for (const d of list) {
+    if (d.name.startsWith('.DS_Store')) continue;
+    entries.push({
+      name: d.name,
+      path: `/${d.name}`,
+      type: d.isDirectory() ? 'folder' : 'file',
     });
-    return entries;
   }
-
-  const tree = await walk(path.resolve(root), '/', 0);
-  if (truncated) {
-    console.warn(`[Numkit IDE] fs:listTree truncated: ${total} entries reached cap`
-               + ` (max ${TREE_MAX_ENTRIES}, depth ${TREE_MAX_DEPTH}). Some nested folders may be hidden.`);
-  }
-  return tree;
+  entries.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  return entries;
 });
 
 ipcMain.handle('fs:readFile', async (_e, root, relPath) => {
