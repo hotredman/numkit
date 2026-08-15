@@ -322,15 +322,7 @@ export default function FileNavigatorModal({
   return (
     <ModalWindow
       onClose={onClose}
-      tag={{
-        label: '📁 navigator',
-        color: 'var(--accent)',
-        bg: 'rgba(127,217,154,0.10)',
-        border: 'rgba(127,217,154,0.30)',
-      }}
-      title="File Navigator"
-      subtitle="MATLAB Current Folder"
-      meta={browsePath}
+      title="Explorer"
       width="min(1200px, 94vw)"
       height="min(780px, 90vh)"
       className="nav-modal-window"

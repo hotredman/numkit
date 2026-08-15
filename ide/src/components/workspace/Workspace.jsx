@@ -395,17 +395,11 @@ export function VariableEditor({ variable, onClose, engine }) {
     return (
       <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         <div className={`ve-window ve-window-struct ${maximized ? 'is-max' : ''}`}
-          role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
+          role="dialog" aria-label={`Inspector: ${variable.name}`}>
           <div className="ve-titlebar">
             <div className="ve-title-left">
-              <span className="ve-tag" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
-                {meta.glyph} {variable.type}
-              </span>
-              <span className="ve-name">{variable.name}</span>
-              <span className="ve-dim">{variable.size}</span>
-              <span className="ve-meta" title={`${variable.bytes} B`}>
-                {variable.bytes} B · {variable.size}
-              </span>
+              <span className="ve-name" style={{ fontWeight: 600, color: 'var(--fg-0)' }}>Inspector</span>
+              <span className="ve-dim" style={{ color: 'var(--fg-2)', marginLeft: 8 }}>{variable.name}</span>
             </div>
             {titleButtons}
           </div>
@@ -418,24 +412,18 @@ export function VariableEditor({ variable, onClose, engine }) {
   return (
     <div className="ve-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`ve-window ${maximized ? 'is-max' : ''}`}
-        role="dialog" aria-label={`Variable Editor: ${variable.name}`}>
+        role="dialog" aria-label={`Inspector: ${variable.name}`}>
         <div className="ve-titlebar">
           <div className="ve-title-left">
-            <span className="ve-tag" style={{ color: tone.fg, background: tone.bg, borderColor: tone.border }}>
-              {meta.glyph} {variable.type}
-            </span>
-            <span className="ve-name">{variable.name}</span>
-            <span className="ve-dim">{variable.size}</span>
-            <span className="ve-meta" title={`${variable.bytes} B · ${rows * cols} elements`}>
-              {variable.bytes} B · {rows * cols} elements
-            </span>
+            <span className="ve-name" style={{ fontWeight: 600, color: 'var(--fg-0)' }}>Inspector</span>
+            <span className="ve-dim" style={{ color: 'var(--fg-2)', marginLeft: 8 }}>{variable.name}</span>
             {loading && (
-              <span className="ve-meta" style={{ color: 'var(--accent)' }}>
+              <span className="ve-meta" style={{ color: 'var(--accent)', marginLeft: 8 }}>
                 loading…
               </span>
             )}
             {loadError && (
-              <span className="ve-meta" style={{ color: 'var(--danger)' }}
+              <span className="ve-meta" style={{ color: 'var(--danger)', marginLeft: 8 }}
                 title={loadError}>
                 preview only
               </span>

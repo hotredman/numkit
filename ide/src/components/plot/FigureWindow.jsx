@@ -792,22 +792,12 @@ export default function FigureWindow({ figure, onClose, engine = null, embedded 
         {!embedded && (
           <div className="fw-titlebar">
             <div className="fw-title-left">
-              <span className="ve-tag" style={{
-                color: 'var(--accent)',
-                background: 'rgba(127,217,154,0.10)',
-                borderColor: 'rgba(127,217,154,0.30)',
-              }}>▦ figure</span>
-              <span className="fw-name">Figure {figure.id}</span>
-              <span className="ve-dim">{figure.title}</span>
-              <span className="fw-meta">
-                {isSubplot
-                  ? `subplot ${figure.grid[0]}×${figure.grid[1]} · ${figure.cells.length} axes`
-                  : isPolar
-                    ? `${figure.series?.length ?? 0} series · ${(figure.series || []).reduce((s, x) => s + (x.theta?.length ?? 0), 0)} points`
-                    : isHeatmap
-                      ? `${heatmapLayer.z?.length ?? 0} × ${heatmapLayer.z?.[0]?.length ?? 0} cells · range [${Number(heatmapLayer.cmin).toPrecision(3)} … ${Number(heatmapLayer.cmax).toPrecision(3)}]${hasSeries ? ` · ${seriesLayers.length} overlay${seriesLayers.length === 1 ? '' : 's'}` : ''}`
-                      : `${seriesLayers.length} series · ${seriesLayers.reduce((s, x) => s + (x.x?.length ?? 0), 0)} points`}
+              <span className="fw-name" style={{ fontWeight: 600, color: 'var(--fg-0)' }}>
+                {figure.id ? `Figure ${figure.id}` : 'Figure'}
               </span>
+              {figure.title && figure.title !== `Figure ${figure.id}` && (
+                <span className="ve-dim" style={{ color: 'var(--fg-2)', marginLeft: 8 }}>{figure.title}</span>
+              )}
             </div>
             <div className="fw-title-right">
               <button className="ve-close" onClick={() => setMaximized((m) => !m)}
