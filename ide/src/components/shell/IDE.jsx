@@ -9,8 +9,6 @@ import StatusBar from './StatusBar';
 import ResizeHandle from './ResizeHandle';
 import PreferencesModal from './PreferencesModal';
 import { WorkspacePanel, VariableEditor } from '../workspace/Workspace';
-import ReferencePanel from '../reference/Reference';
-import { ALL_DOCS } from '../reference/refData';
 import FiguresPane from '../plot/FiguresPane';
 import FigureWindow from '../plot/FigureWindow';
 import NumkitGraphView from '../lang/NumkitGraphView';
@@ -385,16 +383,6 @@ function BottomDock({
           </svg>
           Workspace <span className="dock-count">{workspaceVars.length}</span>
         </button>
-        <button className={`dock-tab ${active === 'reference' ? 'is-active' : ''}`}
-          onClick={() => setActive('reference')}>
-          <svg width="11" height="11" viewBox="0 0 12 12">
-            <rect x="2" y="1.5" width="8" height="9" rx="1" stroke="currentColor" fill="none"/>
-            <line x1="4" y1="4" x2="8" y2="4" stroke="currentColor"/>
-            <line x1="4" y1="6" x2="8" y2="6" stroke="currentColor"/>
-            <line x1="4" y1="8" x2="6.5" y2="8" stroke="currentColor"/>
-          </svg>
-          Reference
-        </button>
         <div className="dock-spacer" />
         <button className="dock-iconbtn" title="Close panel" onClick={onClose}>×</button>
       </div>
@@ -412,7 +400,6 @@ function BottomDock({
           {consoleNode}
         </div>
         {active === 'workspace' && <WorkspacePanel variables={workspaceVars} onOpen={onOpenVar} />}
-        {active === 'reference' && <ReferencePanel docs={ALL_DOCS} />}
       </div>
     </div>
   );
