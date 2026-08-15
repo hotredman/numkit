@@ -48,3 +48,13 @@ We eliminated `matio` and `zlib` entirely and replaced them with an autonomous, 
 - **100% Pass Rate across all 34 `SaveLoadMatTest` cases:**
   - `RoundTripDoubleMatrix`, `RoundTripSingle`, `RoundTripAllIntegerTypes`, `RoundTripComplexMatrix`, `RoundTripPureImaginary`, `RoundTripLogical`, `RoundTripCharRow`, `RoundTripCharMatrix`, `RoundTrip3DDouble`, `RoundTrip3DComplex`, `RoundTripEmpty`, `RoundTripRowOfZeroCols`, `RoundTripScalar`, `SpecialFloatsPreserved`, `RoundTripCell`, `RoundTripStruct`, `RoundTripStructFieldOrder`, `RoundTripStructArray`, `NestedStructAndCell`, `CellOfCells`, `RoundTripEmptyStructAndCell`, `RoundTripMultipleVarsAndStructForm`, `SaveWholeWorkspaceWithoutVarnames`, `OverwriteReplacesEntireFile`, `UppercaseMatExtensionDispatchesBinary`, `ExplicitMatFlagOverridesAsciiExtension`, `V6AndV7FlagsAccepted`, `V73Rejected`, `FileBeginsWithV5Magic`, `LoadNonexistentFileThrows`, `LoadGarbageFileThrows`, `SaveMissingVariableThrows`, `FunctionHandleStoredAsEmptyPlaceholder`, `MixedTypeBundleSurvivesRoundTrip`.
 - **100% Pass Rate across Deflate, Codecs, and Audio test suites.**
+
+## Gotchas & Bugfixes (Post-Implementation)
+1. **Logical Scalar Tag Representation in `save` (`saveload_mat.cpp`, `value.cpp`):**
+   - In NumKit `Value`, scalar logical booleans (`true` / `false`) use sentinel tag pointers (`logicalTrueTag()` / `logicalFalseTag()`) without heap allocations.
+   - `Value::rawData()` previously returned `nullptr` for tags, causing an access violation in `std::memcpy` inside `MatWriter::writeTag` when saving structs with logical scalar fields (e.g. `config.enabled = true`).
+   - Fixed by returning static `uint8_t` pointers in `Value::rawData()` and `Value::rawBytes()` for logical tags, using `v.logicalData()` in `encodeMat5Matrix`, and adding null safety guards in `writeTag`.
+2. **VM Register File Integrity in `CALL_METHOD` (`vm.cpp`, `vm.hpp`):**
+   - When executing `OpCode::CALL_METHOD` (`obj.field(args)` / `obj.method(args)`), the receiver register `R[I.b]` was previously overwritten in place with the field value (`R[I.b] = std::move(fv)`) before invoking `execCallIndirect`.
+   - In expressions with multiple method/field accesses in a single statement (e.g. `fprintf('...', S.sensors(2).id, S.sensors(2).desc)`), the first access destroyed `S` in the local register, causing subsequent accesses to fail with `"Reference to non-existent field 'sensors'"`.
+   - Refactored `execCallIndirect` and `execIndirectIndex` into target-based `execCallIndirectTarget` and `execIndirectIndexTarget`, preserving the receiver register in `CALL_METHOD`.

@@ -134,16 +134,18 @@ public:
             std::uint32_t tag = ((byteCount & 0xFFFF) << 16) | (type & 0xFFFF);
             writeU32(tag);
             std::uint32_t val = 0;
-            std::memcpy(&val, data, byteCount);
+            if (data) {
+                std::memcpy(&val, data, byteCount);
+            }
             writeU32(val);
         } else {
             writeU32(type);
             writeU32(byteCount);
             if (byteCount > 0 && data) {
                 writeBytes(data, byteCount);
-                std::size_t pad = ((byteCount + 7) & ~7) - byteCount;
-                for (std::size_t i = 0; i < pad; ++i) writeU8(0);
             }
+            std::size_t pad = ((byteCount + 7) & ~7) - byteCount;
+            for (std::size_t i = 0; i < pad; ++i) writeU8(0);
         }
     }
 };
@@ -380,7 +382,7 @@ void encodeMat5Matrix(MatWriter &mw, const std::string &name, const Value &v) {
             default:                 dt = miDOUBLE; elemSize = 8; break;
         }
 
-        const void *srcData = v.rawData();
+        const void *srcData = (v.type() == ValueType::LOGICAL) ? v.logicalData() : v.rawData();
         inner.writeTag(dt, srcData, static_cast<std::uint32_t>(numElems * elemSize));
     }
 
