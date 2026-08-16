@@ -1,4 +1,4 @@
-# Numkit
+# Numkit - My little experiment with vibe-coding a programming language
 
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Web_IDE-Live_Demo-success.svg)](https://hotredman.github.io/numkit-demo/)
