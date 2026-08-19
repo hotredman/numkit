@@ -1024,7 +1024,45 @@ input, select { font-family: inherit; color: inherit; }
   font-size: 14px; line-height: 1;
 }
 .fp-add:hover { background: var(--bg-3); color: var(--accent); border-color: var(--accent); }
-.figures-actions { margin-left: auto; display: flex; gap: 4px; }
+.figures-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.fp-menu-wrap { position: relative; display: inline-flex; }
+.fp-head-btn {
+  background: transparent; border: 1px solid var(--line);
+  color: var(--fg-2); font-family: var(--font-mono); font-size: 11px;
+  padding: 3px 8px; border-radius: var(--r-sm); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  line-height: 1; user-select: none;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.fp-head-btn:hover { background: var(--bg-3); color: var(--fg-0); border-color: var(--line-strong, var(--line)); }
+.fp-head-btn.active { background: var(--bg-3); color: var(--fg-0); border-color: var(--accent); }
+.fp-btn-label { font-size: 11px; }
+.fp-arrow { font-size: 9px; opacity: 0.7; margin-left: 2px; }
+
+.fp-dropdown-menu {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 4px; min-width: 120px; z-index: 1000;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.fp-dropdown-head {
+  font-family: var(--font-mono); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--fg-3); padding: 3px 6px 2px;
+}
+.fp-dropdown-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 8px; background: transparent; border: none;
+  border-radius: 4px; color: var(--fg-1);
+  font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: background 100ms ease, color 100ms ease;
+}
+.fp-dropdown-item:hover { background: var(--bg-3); color: var(--fg-0); }
+.fp-dropdown-item.selected { color: var(--accent); font-weight: 600; }
+.fp-check { font-size: 11px; color: var(--accent); margin-left: 8px; }
+
 .fp-closeall {
   background: transparent; border: 1px solid var(--line);
   color: var(--fg-2); font-family: var(--font-mono); font-size: 11px;
