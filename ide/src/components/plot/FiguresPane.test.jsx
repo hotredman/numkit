@@ -62,4 +62,19 @@ describe('FiguresPane controls', () => {
 
     expect(screen.getByTitle(/Aspect ratio/i).textContent).toContain('4:3');
   });
+
+  it('keeps Close all button visible and disabled when there are no figures', () => {
+    render(
+      <FiguresPane
+        figures={[]}
+        onExpand={() => {}}
+        onCloseFigure={() => {}}
+        onCloseAll={() => {}}
+      />
+    );
+
+    const closeAllBtn = screen.getByTitle(/Close all figures/i);
+    expect(closeAllBtn).toBeTruthy();
+    expect(closeAllBtn.disabled).toBe(true);
+  });
 });

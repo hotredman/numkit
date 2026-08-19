@@ -267,11 +267,14 @@ export default function FiguresPane({
             )}
           </div>
 
-          {figures.length > 0 && (
-            <button className="fp-closeall" onClick={onCloseAll} title="Close all figures">
-              Close all <span style={{ marginLeft: 4 }}>×</span>
-            </button>
-          )}
+          <button
+            className="fp-closeall"
+            onClick={onCloseAll}
+            disabled={figures.length === 0}
+            title="Close all figures"
+          >
+            Close all <span style={{ marginLeft: 4 }}>×</span>
+          </button>
         </div>
       </div>
       {unsupportedCount > 0 && (
