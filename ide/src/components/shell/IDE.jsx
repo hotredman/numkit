@@ -172,9 +172,6 @@ function TabStrip({
             className={`editor-tab ${isActive ? 'is-active' : ''}`}
             onClick={() => onSelect(tab.id)}
             onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, tabId: tab.id }); }}>
-            <svg width="10" height="10" viewBox="0 0 12 12">
-              <rect x="1" y="2" width="10" height="8" rx="1" stroke="currentColor" fill="none"/>
-            </svg>
             {editingId === tab.id ? (
               <input
                 value={editName}
