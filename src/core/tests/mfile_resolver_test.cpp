@@ -143,6 +143,19 @@ TEST_P(MFileResolverTest, RehashClearsCache)
     EXPECT_DOUBLE_EQ(engine.getVariable("b")->toScalar(), 1009.0);
 }
 
+TEST_P(MFileResolverTest, AutomaticRefreshOnMFileModification)
+{
+    writeMFile("autofresh.m", "function y = autofresh(x)\n  y = x + 1;\nend\n");
+    engine.addPath(workDir.string());
+    engine.eval("a = autofresh(10);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("a")->toScalar(), 11.0);
+
+    // Modify the file without calling rehash
+    writeMFile("autofresh.m", "function y = autofresh(x)\n  y = x + 500;\nend\n");
+    engine.eval("b = autofresh(10);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("b")->toScalar(), 510.0);
+}
+
 // ── Phase 9b — builtin wrappers (addpath / rmpath / path / which / exist / run / rehash) ──
 
 TEST_P(MFileResolverTest, AddpathBuiltinWiresPath)
