@@ -400,6 +400,7 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
 
     std::size_t p = 2;
     std::size_t sosOffset = 0;
+    uint16_t restartInterval = 0;
 
     while (p + 4 <= len) {
         if (data[p] != 0xFF) { ++p; continue; }
@@ -448,6 +449,10 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
             }
             sosOffset = p + segLen;
             break;
+        } else if (marker == 0xDD) { // DRI (Define Restart Interval)
+            if (payloadLen >= 2) {
+                restartInterval = (static_cast<std::uint16_t>(seg[0]) << 8) | seg[1];
+            }
         } else if (marker == 0xDB) { // DQT
             std::size_t qOff = 0;
             while (qOff < payloadLen) {
@@ -561,14 +566,15 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
                 if (pos_ < len_) {
                     b = data_[pos_++];
                     if (b == 0xFF) {
+                        while (pos_ < len_ && data_[pos_] == 0xFF) ++pos_;
                         if (pos_ < len_) {
                             std::uint8_t marker = data_[pos_++];
                             if (marker == 0x00) {
                                 // byte stuffing: 0xFF 0x00 represents literal 0xFF
                             } else if (marker >= 0xD0 && marker <= 0xD7) {
-                                // RST marker
-                                alignByte();
-                                return 0;
+                                // RST marker encountered; skip and continue reading next stream byte
+                                if (pos_ < len_) b = data_[pos_++];
+                                else b = 0;
                             } else if (marker == 0xD9) {
                                 pos_ = len_;
                             }
@@ -664,9 +670,14 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
 
     std::vector<int> lastDc(comps.size(), 0);
     JpegBitReader reader(data + sosOffset, len - sosOffset);
+    std::size_t mcuCount = 0;
 
     for (std::size_t my = 0; my < mcuH; ++my) {
         for (std::size_t mx = 0; mx < mcuW; ++mx) {
+            if (restartInterval > 0 && mcuCount > 0 && (mcuCount % restartInterval == 0)) {
+                reader.alignByte();
+                for (auto &dc : lastDc) dc = 0;
+            }
             for (std::size_t ci = 0; ci < comps.size(); ++ci) {
                 const auto &c = comps[ci];
                 for (int v = 0; v < c.vSamp; ++v) {
@@ -684,6 +695,7 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
                     }
                 }
             }
+            ++mcuCount;
         }
     }
 
