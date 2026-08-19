@@ -63,3 +63,27 @@ TEST(JpegCodecTest, Rgb8RoundTripAndQualityLevels) {
     EXPECT_EQ(h32, H);
     EXPECT_EQ(channels, 3);
 }
+
+#include <fstream>
+
+TEST(JpegCodecTest, RealPhoto7Jpg) {
+    std::ifstream f("C:/Users/User/Work/kuzmenko/1/7.jpg", std::ios::binary);
+    if (!f.is_open()) return;
+    std::vector<uint8_t> buf((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+
+    Value v = readJpeg(buf.data(), buf.size());
+    EXPECT_EQ(v.dims().rows(), 768);
+    EXPECT_EQ(v.dims().cols(), 1366);
+
+    const uint8_t *d = v.uint8Data();
+    size_t plane = 768 * 1366;
+    double rSum = 0, gSum = 0, bSum = 0;
+    for (size_t i = 0; i < plane; ++i) {
+        rSum += d[i];
+        gSum += d[plane + i];
+        bSum += d[2 * plane + i];
+    }
+    EXPECT_NEAR(rSum / plane, 58.2, 1.0);
+    EXPECT_NEAR(gSum / plane, 102.5, 1.0);
+    EXPECT_NEAR(bSum / plane, 167.5, 1.0);
+}

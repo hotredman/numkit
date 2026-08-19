@@ -38,8 +38,9 @@ Replaced `stb_image` and `stb_image_write` entirely with a set of autonomous, ze
    - Palette color mapping: `[A, map] = readPngWithMap(...)`.
 
 6. **Baseline JPEG (`jpeg_codec.hpp`, `jpeg_codec.cpp`)**:
-   - JFIF marker parsing (`SOI`, `APP0`, `DQT`, `SOF0`, `SOF2`, `DHT`, `SOS`, `EOI`) and byte stuffing (`0xFF 0x00`).
-   - 2D AAN forward and inverse discrete cosine transform (FDCT / IDCT).
+   - JFIF marker parsing (`SOI`, `APP0`, `APP14`, `DQT`, `SOF0`, `SOF2`, `DHT`, `DRI`, `SOS`, `EOI`) and byte stuffing (`0xFF 0x00`).
+   - Define Restart Interval (`DRI`, marker `0xDD`) support with MCU boundary tracking, byte alignment, and DC predictor resets across `RST0`..`RST7` (markers `0xD0`..`0xD7`).
+   - Exact normalized 2D IDCT ($T \cdot F \cdot T^T$).
    - Quantization table scaling for arbitrary quality levels $Q \in [1, 100]$.
    - Full baseline sequential Huffman entropy decoding and encoding with canonical codebook tree reconstruction.
    - MCU grid dequantization, IDCT, and chroma sub-sampling reconstruction for Grayscale (1-channel) and YCbCr (4:2:0, 4:2:2, 4:4:4).
