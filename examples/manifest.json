@@ -39,6 +39,7 @@
       "name": "Basics",
       "files": [
         "arithmetic.m",
+        "help_system_demo.m",
         "math_functions.m",
         "strings.m",
         "variables.m"

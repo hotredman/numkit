@@ -31,6 +31,10 @@
 #include <set>
 #include <sstream>
 
+namespace numkit::bundle::detail {
+void registerHelpLibrary(Engine &engine);
+}
+
 namespace numkit::builtin::detail {
 // Forward declarations for Phase 6c public-API-backed adapters.
 // Each is defined in the corresponding source file under the section
@@ -771,6 +775,7 @@ void BuiltinLibrary::install(Engine &engine)
     registerUnaryOps(engine);
 
     registerWorkspaceBuiltins(engine);
+    bundle::detail::registerHelpLibrary(engine);
 
     // ── Phase 6c: math/elementary/ public-API-backed built-ins ─────────────
     engine.registerFunction("sqrt",     &builtin::detail::sqrt_reg);
