@@ -2075,10 +2075,11 @@ enter_frame:
                             engine_.lookupUserFunction(funcName,
                                                         currentCallEnv())) {
                         if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
+                            if (funcIdx >= (int16_t) resolvedFuncs.size())
+                                resolvedFuncs.resize(funcIdx + 1, nullptr);
+                            resolvedFuncs[funcIdx] = found;
                             frame.ip = ip + 1;
-                            returnCount_ = 0;
-                            pushCallFrame(*found, &R[argBase], na,
-                                          0, 1, true, I.a, 1);
+                            pushCallFrame(*found, &R[argBase], na, I.a, nargout_val);
                             goto enter_frame;
                         }
                     }
@@ -2245,9 +2246,11 @@ enter_frame:
                     if (auto *uf =
                             engine_.lookupUserFunction(funcName, currentCallEnv())) {
                         if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
+                            if (funcIdx >= (int16_t) resolvedFuncs.size())
+                                resolvedFuncs.resize(funcIdx + 1, nullptr);
+                            resolvedFuncs[funcIdx] = found;
                             frame.ip = ip + 1;
-                            returnCount_ = 0;
-                            pushCallFrame(*found, AB, NF, 0, 1, true, I.a, 1);
+                            pushCallFrame(*found, AB, NF, I.a, nargout_val);
                             goto enter_frame;
                         }
                     }

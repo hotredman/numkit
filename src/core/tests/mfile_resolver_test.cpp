@@ -490,6 +490,21 @@ TEST_P(MFileResolverTest, LocalSubfunctionsResolve)
     EXPECT_DOUBLE_EQ(engine.getVariable("y2")->toScalar(), 8.0);
 }
 
+// A function declaring an output variable (e.g. `function x = myfun()`) but
+// never assigning it, when invoked as a statement without output capture
+// (`myfun();`, nargout=0), must succeed on BOTH the first run (cold m-file
+// lookup) and subsequent runs.
+TEST_P(MFileResolverTest, UnassignedOutputWithZeroNargoutFirstRun)
+{
+    writeMFile("myfun.m", "function x = myfun()\n  disp('hello');\nend\n");
+    engine.addPath(workDir.string());
+
+    // Cold call on first run
+    EXPECT_NO_THROW(engine.eval("clear; myfun();"));
+    // Subsequent warm call
+    EXPECT_NO_THROW(engine.eval("myfun();"));
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, MFileResolverTest,
                           ::testing::Values(Engine::Backend::TreeWalker,
                                             Engine::Backend::VM),
