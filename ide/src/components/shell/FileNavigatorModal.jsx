@@ -606,8 +606,8 @@ export default function FileNavigatorModal({
                 </div>
               )}
 
-              <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {selectedItem.type === 'file' && (
+              {selectedItem.type === 'file' && (
+                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button
                     className="ve-btn"
                     style={{ width: '100%', justifyContent: 'center' }}
@@ -615,37 +615,8 @@ export default function FileNavigatorModal({
                   >
                     Open in Editor
                   </button>
-                )}
-                {selectedItem.type === 'folder' && (
-                  <button
-                    className="ve-btn"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => {
-                      if (navFsMode === 'local') {
-                        const isWin = /^[A-Za-z]:/.test(browsePath) || browsePath.includes('\\');
-                        const sep = isWin ? '\\' : '/';
-                        const newPath = browsePath.endsWith(sep) || (isWin && /^[A-Za-z]:\\?$/.test(browsePath))
-                          ? `${browsePath.replace(/\\?$/, sep)}${selectedItem.name}`
-                          : `${browsePath}${sep}${selectedItem.name}`;
-                        setBrowsePath(newPath);
-                      } else {
-                        setBrowsePath(selectedItem.path);
-                      }
-                    }}
-                  >
-                    Enter Folder
-                  </button>
-                )}
-                {typeof activeFS.revealInExplorer === 'function' && (
-                  <button
-                    className="ve-btn"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => activeFS.revealInExplorer(selectedItem.path)}
-                  >
-                    Reveal in Explorer
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="nav-info-empty">Select a file or folder to view details</div>
