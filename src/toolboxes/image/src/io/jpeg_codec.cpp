@@ -118,65 +118,37 @@ constexpr std::uint8_t kAcValChroma[162] = {
 // Fast AAN IDCT and FDCT
 // ============================================================================
 
-// Fast 1D AAN IDCT on 8 elements
-inline void idct1D(float *data) {
-    float a0 = data[0], a1 = data[1], a2 = data[2], a3 = data[3];
-    float a4 = data[4], a5 = data[5], a6 = data[6], a7 = data[7];
-
-    float p1 = (a2 + a6) * 0.5411961f;
-    float p2 = a2 + (a6 * -1.306563f);
-    float p3 = a0 + a4;
-    float p4 = a0 - a4;
-
-    float t0 = p3 + (a2 * 0.70710678f + p1);
-    float t3 = p3 - (a2 * 0.70710678f + p1);
-    float t1 = p4 + (p2 - a2 * 0.70710678f);
-    float t2 = p4 - (p2 - a2 * 0.70710678f);
-
-    float b1 = a7 + a1;
-    float b2 = a5 + a3;
-    float b3 = a7 + a3;
-    float b4 = a5 + a1;
-    float b5 = (b3 + b4) * 1.1758756f;
-
-    float d1 = a7 * 0.298631336f;
-    float d2 = a5 * 2.053119864f;
-    float d3 = a3 * 3.072711026f;
-    float d4 = a1 * 1.501321110f;
-    float d5 = b1 * -0.899976223f;
-    float d6 = b2 * -2.562915447f;
-    float d7 = b3 * -1.961570560f + b5;
-    float d8 = b4 * -0.390180644f + b5;
-
-    float u0 = d1 + d5 + d7;
-    float u1 = d2 + d6 + d8;
-    float u2 = d3 + d6 + d7;
-    float u3 = d4 + d5 + d8;
-
-    data[0] = t0 + u3;
-    data[7] = t0 - u3;
-    data[1] = t1 + u2;
-    data[6] = t1 - u2;
-    data[2] = t2 + u1;
-    data[5] = t2 - u1;
-    data[3] = t3 + u0;
-    data[4] = t3 - u0;
-}
-
 // 8x8 2D IDCT
 void idct8x8(const float in[64], float out[64]) {
-    float b[64];
+    static const auto T = []() {
+        std::array<std::array<float, 8>, 8> mat{};
+        for (int x = 0; x < 8; ++x) {
+            for (int u = 0; u < 8; ++u) {
+                float cu = (u == 0) ? 0.7071067811865475f : 1.0f;
+                mat[x][u] = 0.5f * cu * std::cos((2 * x + 1) * u * 3.14159265358979323846f / 16.0f);
+            }
+        }
+        return mat;
+    }();
+
+    float tmp[64];
     for (int r = 0; r < 8; ++r) {
-        float row[8];
-        for (int c = 0; c < 8; ++c) row[c] = in[r * 8 + c];
-        idct1D(row);
-        for (int c = 0; c < 8; ++c) b[r * 8 + c] = row[c];
+        for (int c = 0; c < 8; ++c) {
+            float sum = 0.0f;
+            for (int k = 0; k < 8; ++k) {
+                sum += in[r * 8 + k] * T[c][k];
+            }
+            tmp[r * 8 + c] = sum;
+        }
     }
-    for (int c = 0; c < 8; ++c) {
-        float col[8];
-        for (int r = 0; r < 8; ++r) col[r] = b[r * 8 + c];
-        idct1D(col);
-        for (int r = 0; r < 8; ++r) out[r * 8 + c] = col[r];
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            float sum = 0.0f;
+            for (int k = 0; k < 8; ++k) {
+                sum += T[r][k] * tmp[k * 8 + c];
+            }
+            out[r * 8 + c] = sum;
+        }
     }
 }
 
