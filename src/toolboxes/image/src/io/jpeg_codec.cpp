@@ -381,6 +381,16 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
                     0, 0, "imread", "", "numkit:imread:jpegHeader");
     }
 
+    struct ComponentInfo {
+        int id = 0;
+        int hSamp = 1;
+        int vSamp = 1;
+        int qTableId = 0;
+        int dcTableId = 0;
+        int acTableId = 0;
+    };
+    std::vector<ComponentInfo> comps;
+
     // Parse Quantization tables (DQT) and Huffman tables (DHT)
     std::array<std::array<std::uint8_t, 64>, 4> qTables{};
     std::array<bool, 4> hasQTable{};
@@ -388,6 +398,30 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
     struct DecHuffTable {
         std::array<std::uint8_t, 16> counts{};
         std::vector<std::uint8_t> values;
+        std::array<std::uint32_t, 17> minCode{};
+        std::array<std::uint32_t, 17> maxCode{};
+        std::array<int, 17> valPtr{};
+        bool valid = false;
+
+        void build() {
+            std::uint32_t code = 0;
+            int ptr = 0;
+            for (int len = 1; len <= 16; ++len) {
+                valPtr[len] = ptr;
+                int cnt = counts[len - 1];
+                if (cnt > 0) {
+                    minCode[len] = code;
+                    maxCode[len] = code + cnt - 1;
+                    code += cnt;
+                    ptr += cnt;
+                } else {
+                    minCode[len] = 0xFFFFFFFF;
+                    maxCode[len] = 0;
+                }
+                code <<= 1;
+            }
+            valid = true;
+        }
     };
     std::array<DecHuffTable, 4> dcHuff{};
     std::array<DecHuffTable, 4> acHuff{};
@@ -401,25 +435,70 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
         if (p >= len) break;
         std::uint8_t marker = data[p++];
 
-        if (marker == 0xDA) { // SOS (Start of Scan)
-            std::uint16_t segLen = (static_cast<std::uint16_t>(data[p]) << 8) | data[p + 1];
+        if (marker == 0xD9) break; // EOI
+
+        if (p + 2 > len) break;
+        std::uint16_t segLen = (static_cast<std::uint16_t>(data[p]) << 8) | data[p + 1];
+        if (p + segLen > len) break;
+
+        const std::uint8_t *seg = data + p + 2;
+        std::size_t payloadLen = (segLen >= 2) ? (segLen - 2) : 0;
+
+        if (marker == 0xC0 || marker == 0xC2) { // SOF0 / SOF2
+            if (payloadLen >= 6) {
+                bits = seg[0];
+                H = (static_cast<std::uint32_t>(seg[1]) << 8) | seg[2];
+                W = (static_cast<std::uint32_t>(seg[3]) << 8) | seg[4];
+                channels = seg[5];
+                comps.resize(channels);
+                for (std::size_t i = 0; i < channels && 6 + i * 3 + 2 < payloadLen; ++i) {
+                    comps[i].id = seg[6 + i * 3];
+                    comps[i].hSamp = (seg[7 + i * 3] >> 4) & 0x0F;
+                    comps[i].vSamp = seg[7 + i * 3] & 0x0F;
+                    comps[i].qTableId = seg[8 + i * 3] & 0x0F;
+                }
+            }
+        } else if (marker == 0xDA) { // SOS (Start of Scan)
+            if (payloadLen >= 1) {
+                std::size_t numScanComps = seg[0];
+                for (std::size_t j = 0; j < numScanComps && 1 + j * 2 + 1 < payloadLen; ++j) {
+                    int compId = seg[1 + j * 2];
+                    int dcId = (seg[2 + j * 2] >> 4) & 0x0F;
+                    int acId = seg[2 + j * 2] & 0x0F;
+                    for (auto &c : comps) {
+                        if (c.id == compId) {
+                            c.dcTableId = dcId;
+                            c.acTableId = acId;
+                            break;
+                        }
+                    }
+                }
+            }
             sosOffset = p + segLen;
             break;
-        }
-
-        std::uint16_t segLen = (static_cast<std::uint16_t>(data[p]) << 8) | data[p + 1];
-        const std::uint8_t *seg = data + p + 2;
-        std::size_t payloadLen = segLen - 2;
-
-        if (marker == 0xDB) { // DQT
+        } else if (marker == 0xDB) { // DQT
             std::size_t qOff = 0;
             while (qOff < payloadLen) {
                 std::uint8_t info = seg[qOff++];
                 int tableId = info & 0x0F;
-                if (tableId < 4 && qOff + 64 <= payloadLen) {
-                    std::memcpy(qTables[tableId].data(), seg + qOff, 64);
-                    hasQTable[tableId] = true;
-                    qOff += 64;
+                int is16 = (info >> 4) & 1;
+                if (tableId < 4) {
+                    if (is16) {
+                        if (qOff + 128 <= payloadLen) {
+                            for (int i = 0; i < 64; ++i) {
+                                qTables[tableId][i] = static_cast<std::uint8_t>(
+                                    (static_cast<std::uint16_t>(seg[qOff + i * 2]) << 8) | seg[qOff + i * 2 + 1]);
+                            }
+                            hasQTable[tableId] = true;
+                            qOff += 128;
+                        } else break;
+                    } else {
+                        if (qOff + 64 <= payloadLen) {
+                            std::memcpy(qTables[tableId].data(), seg + qOff, 64);
+                            hasQTable[tableId] = true;
+                            qOff += 64;
+                        } else break;
+                    }
                 } else break;
             }
         } else if (marker == 0xC4) { // DHT
@@ -449,85 +528,202 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
                     0, 0, "imread", "", "numkit:imread:jpegNoSos");
     }
 
-    // Huffman bit reader on unstuffed stream
-    std::vector<std::uint8_t> scanData;
-    scanData.reserve(len - sosOffset);
-    for (std::size_t i = sosOffset; i < len; ++i) {
-        if (data[i] == 0xFF) {
-            if (i + 1 < len && data[i + 1] == 0x00) {
-                scanData.push_back(0xFF);
-                ++i;
-            } else if (i + 1 < len && data[i + 1] == 0xD9) {
-                break; // EOI
-            }
-        } else {
-            scanData.push_back(data[i]);
+    if (comps.empty()) {
+        comps.resize(channels);
+        for (std::size_t i = 0; i < channels; ++i) {
+            comps[i].id = static_cast<int>(i + 1);
+            comps[i].hSamp = 1;
+            comps[i].vSamp = 1;
+            comps[i].qTableId = (i == 0) ? 0 : 1;
+            comps[i].dcTableId = (i == 0) ? 0 : 1;
+            comps[i].acTableId = (i == 0) ? 0 : 1;
         }
     }
 
-    // Baseline sequential decode
-    const std::size_t mcuW = (W + 7) / 8;
-    const std::size_t mcuH = (H + 7) / 8;
+    // Initialize missing default quantization tables
+    if (!hasQTable[0]) {
+        std::memcpy(qTables[0].data(), kStdLumaQ, 64);
+        hasQTable[0] = true;
+    }
+    if (!hasQTable[1]) {
+        std::memcpy(qTables[1].data(), kStdChromaQ, 64);
+        hasQTable[1] = true;
+    }
 
-    std::uint64_t bitBuf = 0;
-    int bitCount = 0;
-    std::size_t scanPos = 0;
+    // Build or populate Huffman tables
+    if (!dcHuff[0].counts[0] && dcHuff[0].values.empty()) {
+        std::memcpy(dcHuff[0].counts.data(), kDcBitsLuma, 16);
+        dcHuff[0].values.assign(kDcValLuma, kDcValLuma + sizeof(kDcValLuma));
+    }
+    if (!dcHuff[1].counts[0] && dcHuff[1].values.empty()) {
+        std::memcpy(dcHuff[1].counts.data(), kDcBitsChroma, 16);
+        dcHuff[1].values.assign(kDcValChroma, kDcValChroma + sizeof(kDcValChroma));
+    }
+    if (!acHuff[0].counts[0] && acHuff[0].values.empty()) {
+        std::memcpy(acHuff[0].counts.data(), kAcBitsLuma, 16);
+        acHuff[0].values.assign(kAcValLuma, kAcValLuma + sizeof(kAcValLuma));
+    }
+    if (!acHuff[1].counts[0] && acHuff[1].values.empty()) {
+        std::memcpy(acHuff[1].counts.data(), kAcBitsChroma, 16);
+        acHuff[1].values.assign(kAcValChroma, kAcValChroma + sizeof(kAcValChroma));
+    }
+    for (int i = 0; i < 4; ++i) {
+        dcHuff[i].build();
+        acHuff[i].build();
+    }
 
-    auto ensureBits = [&](int n) {
-        while (bitCount < n && scanPos < scanData.size()) {
-            bitBuf = (bitBuf << 8) | scanData[scanPos++];
-            bitCount += 8;
+    class JpegBitReader {
+    public:
+        JpegBitReader(const std::uint8_t *data, std::size_t len)
+            : data_(data), len_(len), pos_(0), bitBuf_(0), bitCount_(0) {}
+
+        void alignByte() {
+            bitBuf_ = 0;
+            bitCount_ = 0;
         }
-    };
 
-    auto getBits = [&](int n) -> std::uint32_t {
-        if (n == 0) return 0;
-        ensureBits(n);
-        std::uint32_t val = static_cast<std::uint32_t>((bitBuf >> (bitCount - n)) & ((1ull << n) - 1));
-        bitCount -= n;
-        return val;
-    };
-
-    auto decodeHuffSymbol = [&](const DecHuffTable &ht) -> int {
-        std::uint32_t code = 0;
-        std::size_t valIdx = 0;
-        for (int len = 1; len <= 16; ++len) {
-            code = (code << 1) | getBits(1);
-            int count = ht.counts[len - 1];
-            if (count > 0) {
-                // If code is in range
-                // For fast baseline decoding, linear lookup across symbol table
-                valIdx += count;
-            }
-        }
-        return (valIdx < ht.values.size()) ? ht.values[valIdx] : 0;
-    };
-
-    // Decode to Value
-    if (channels == 1) {
-        Value out = Value::matrix(H, W, ValueType::UINT8, mr);
-        std::uint8_t *dst = out.uint8DataMut();
-        std::vector<float> block(64, 0.0f);
-        std::vector<float> spatial(64, 0.0f);
-
-        for (std::size_t my = 0; my < mcuH; ++my) {
-            for (std::size_t mx = 0; mx < mcuW; ++mx) {
-                // Decode 8x8 block
-                std::fill(block.begin(), block.end(), 0.0f);
-                block[0] = 128.0f; // placeholder DC
-                idct8x8(block.data(), spatial.data());
-
-                for (int y = 0; y < 8; ++y) {
-                    for (int x = 0; x < 8; ++x) {
-                        std::size_t px = mx * 8 + x;
-                        std::size_t py = my * 8 + y;
-                        if (px < W && py < H) {
-                            int v = static_cast<int>(spatial[y * 8 + x] + 128.5f);
-                            if (v < 0) v = 0; else if (v > 255) v = 255;
-                            dst[px * H + py] = static_cast<std::uint8_t>(v);
+        std::uint32_t getBits(int n) {
+            if (n == 0) return 0;
+            while (bitCount_ < n) {
+                std::uint8_t b = 0;
+                if (pos_ < len_) {
+                    b = data_[pos_++];
+                    if (b == 0xFF) {
+                        if (pos_ < len_) {
+                            std::uint8_t marker = data_[pos_++];
+                            if (marker == 0x00) {
+                                // byte stuffing: 0xFF 0x00 represents literal 0xFF
+                            } else if (marker >= 0xD0 && marker <= 0xD7) {
+                                // RST marker
+                                alignByte();
+                                return 0;
+                            } else if (marker == 0xD9) {
+                                pos_ = len_;
+                            }
                         }
                     }
                 }
+                bitBuf_ = (bitBuf_ << 8) | b;
+                bitCount_ += 8;
+            }
+            std::uint32_t val = static_cast<std::uint32_t>((bitBuf_ >> (bitCount_ - n)) & ((1ull << n) - 1));
+            bitCount_ -= n;
+            return val;
+        }
+
+        int decodeSymbol(const DecHuffTable &ht) {
+            std::uint32_t code = 0;
+            for (int len = 1; len <= 16; ++len) {
+                code = (code << 1) | getBits(1);
+                if (code <= ht.maxCode[len] && code >= ht.minCode[len]) {
+                    int idx = ht.valPtr[len] + static_cast<int>(code - ht.minCode[len]);
+                    if (idx >= 0 && idx < static_cast<int>(ht.values.size())) {
+                        return ht.values[idx];
+                    }
+                }
+            }
+            return 0;
+        }
+
+        int decodeValue(int cat) {
+            if (cat == 0) return 0;
+            std::uint32_t bits = getBits(cat);
+            if (bits < (1u << (cat - 1))) {
+                return static_cast<int>(bits) - ((1 << cat) - 1);
+            }
+            return static_cast<int>(bits);
+        }
+
+    private:
+        const std::uint8_t *data_;
+        std::size_t len_;
+        std::size_t pos_;
+        std::uint64_t bitBuf_;
+        int bitCount_;
+    };
+
+    auto decodeBlock = [&](JpegBitReader &reader, const DecHuffTable &dcHt,
+                           const DecHuffTable &acHt, const std::uint8_t qTable[64],
+                           int &lastDc, float outSpatial[64]) {
+        float freq[64] = {0};
+        int dcCat = reader.decodeSymbol(dcHt);
+        int dcDiff = reader.decodeValue(dcCat);
+        lastDc += dcDiff;
+        freq[0] = static_cast<float>(lastDc * qTable[0]);
+
+        int k = 1;
+        while (k < 64) {
+            int sym = reader.decodeSymbol(acHt);
+            if (sym == 0x00) break; // EOB
+            if (sym == 0xF0) { // ZRL
+                k += 16;
+                continue;
+            }
+            int run = (sym >> 4) & 0x0F;
+            int cat = sym & 0x0F;
+            k += run;
+            if (k >= 64) break;
+            int val = reader.decodeValue(cat);
+            int zz = kZigzag[k];
+            freq[zz] = static_cast<float>(val * qTable[k]);
+            ++k;
+        }
+        idct8x8(freq, outSpatial);
+    };
+
+    int maxH = 1, maxV = 1;
+    for (const auto &c : comps) {
+        maxH = std::max(maxH, c.hSamp);
+        maxV = std::max(maxV, c.vSamp);
+    }
+
+    const std::size_t mcuW = (W + maxH * 8 - 1) / (maxH * 8);
+    const std::size_t mcuH = (H + maxV * 8 - 1) / (maxV * 8);
+
+    std::vector<std::vector<float>> compPlanes(comps.size());
+    std::vector<std::size_t> compW(comps.size());
+    std::vector<std::size_t> compH(comps.size());
+
+    for (std::size_t i = 0; i < comps.size(); ++i) {
+        compW[i] = mcuW * comps[i].hSamp * 8;
+        compH[i] = mcuH * comps[i].vSamp * 8;
+        compPlanes[i].resize(compW[i] * compH[i], 0.0f);
+    }
+
+    std::vector<int> lastDc(comps.size(), 0);
+    JpegBitReader reader(data + sosOffset, len - sosOffset);
+
+    for (std::size_t my = 0; my < mcuH; ++my) {
+        for (std::size_t mx = 0; mx < mcuW; ++mx) {
+            for (std::size_t ci = 0; ci < comps.size(); ++ci) {
+                const auto &c = comps[ci];
+                for (int v = 0; v < c.vSamp; ++v) {
+                    for (int h = 0; h < c.hSamp; ++h) {
+                        float spatial[64];
+                        decodeBlock(reader, dcHuff[c.dcTableId], acHuff[c.acTableId],
+                                    qTables[c.qTableId].data(), lastDc[ci], spatial);
+                        std::size_t blockRow = (my * c.vSamp + v) * 8;
+                        std::size_t blockCol = (mx * c.hSamp + h) * 8;
+                        for (int by = 0; by < 8; ++by) {
+                            for (int bx = 0; bx < 8; ++bx) {
+                                compPlanes[ci][(blockRow + by) * compW[ci] + (blockCol + bx)] = spatial[by * 8 + bx];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (comps.size() == 1) {
+        Value out = Value::matrix(H, W, ValueType::UINT8, mr);
+        std::uint8_t *dst = out.uint8DataMut();
+        for (std::size_t r = 0; r < H; ++r) {
+            for (std::size_t c = 0; c < W; ++c) {
+                float y = compPlanes[0][r * compW[0] + c] + 128.5f;
+                int val = static_cast<int>(y);
+                if (val < 0) val = 0; else if (val > 255) val = 255;
+                dst[c * H + r] = static_cast<std::uint8_t>(val);
             }
         }
         return out;
@@ -535,12 +731,29 @@ Value readJpeg(const std::uint8_t *data, std::size_t len, std::pmr::memory_resou
         Value out = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
         std::uint8_t *dst = out.uint8DataMut();
         const std::size_t plane = H * W;
-
         for (std::size_t r = 0; r < H; ++r) {
             for (std::size_t c = 0; c < W; ++c) {
-                dst[c * H + r]             = 128;
-                dst[plane + c * H + r]     = 128;
-                dst[2 * plane + c * H + r] = 128;
+                float y = compPlanes[0][r * compW[0] + c];
+
+                std::size_t cbR = (comps[1].vSamp == maxV) ? r : (r * comps[1].vSamp / maxV);
+                std::size_t cbC = (comps[1].hSamp == maxH) ? c : (c * comps[1].hSamp / maxH);
+                std::size_t crR = (comps[2].vSamp == maxV) ? r : (r * comps[2].vSamp / maxV);
+                std::size_t crC = (comps[2].hSamp == maxH) ? c : (c * comps[2].hSamp / maxH);
+
+                float cb = compPlanes[1][cbR * compW[1] + cbC];
+                float cr = compPlanes[2][crR * compW[2] + crC];
+
+                int R = static_cast<int>(y + 1.402f * cr + 128.5f);
+                int G = static_cast<int>(y - 0.344136f * cb - 0.714136f * cr + 128.5f);
+                int B = static_cast<int>(y + 1.772f * cb + 128.5f);
+
+                if (R < 0) R = 0; else if (R > 255) R = 255;
+                if (G < 0) G = 0; else if (G > 255) G = 255;
+                if (B < 0) B = 0; else if (B > 255) B = 255;
+
+                dst[c * H + r]             = static_cast<std::uint8_t>(R);
+                dst[plane + c * H + r]     = static_cast<std::uint8_t>(G);
+                dst[2 * plane + c * H + r] = static_cast<std::uint8_t>(B);
             }
         }
         return out;
