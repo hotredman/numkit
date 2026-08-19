@@ -1963,6 +1963,52 @@ void Engine::rehashMFiles()
     }
 }
 
+void Engine::refreshStaleMFiles()
+{
+    if (mFileCache_.empty())
+        return;
+    std::vector<std::string> stale;
+    for (const auto &[name, entry] : mFileCache_) {
+        ResolvedPath rp;
+        try {
+            rp = resolvePath(entry.fullPath);
+        } catch (...) {
+            stale.push_back(name);
+            continue;
+        }
+        if (!rp.fs || !rp.fs->exists(rp.path)) {
+            stale.push_back(name);
+            continue;
+        }
+        auto st = rp.fs->stat(rp.path);
+        int64_t curMtime = st ? st->mtime : 0;
+        if (curMtime != 0 && entry.mtime != 0 && curMtime != entry.mtime) {
+            stale.push_back(name);
+        } else {
+            try {
+                std::string content = rp.fs->readFile(rp.path);
+                if (entry.sourceCode && content != *entry.sourceCode)
+                    stale.push_back(name);
+            } catch (...) {
+                stale.push_back(name);
+            }
+        }
+    }
+    for (const auto &name : stale) {
+        auto it = mFileCache_.find(name);
+        if (it != mFileCache_.end()) {
+            userFuncs_.erase(name);
+            if (compiler_)
+                compiler_->eraseCompiledFunc(name);
+            if (classDefs_.count(name)) {
+                dropFileClassCtorExternal_(name);
+                unregisterClassDef(name);
+            }
+            mFileCache_.erase(it);
+        }
+    }
+}
+
 const UserFunction *Engine::resolveMFile_(const std::string &name)
 {
     // Build search-path list: script-dir first (if any), then mPath_.
@@ -2483,6 +2529,8 @@ static void markTopLevelSuppressed(ASTNode *ast)
 
 Value Engine::eval(const std::string &code, bool suppressTopLevelDisplay)
 {
+    refreshStaleMFiles();
+
     Lexer lexer(code);
     auto tokens = lexer.tokenize();
     Parser parser(tokens);

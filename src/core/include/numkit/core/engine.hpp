@@ -443,6 +443,10 @@ public:
     // Powers MATLAB's `rehash` builtin.
     void rehashMFiles();
 
+    // Check all cached m-files against disk/VFS and evict any that have been
+    // modified or deleted, so subsequent calls re-parse the latest source.
+    void refreshStaleMFiles();
+
     // Mark the entry/exit of a top-level script or function
     // evaluation. While a script is active, any FUNCTION_DEF it
     // defines compiles into the script-scope buckets instead of the
