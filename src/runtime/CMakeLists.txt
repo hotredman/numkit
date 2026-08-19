@@ -29,11 +29,13 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/strings/print_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/strings/scan_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/programming/errors/diagnostics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/help/help_catalog.cpp
 )
 list(APPEND NUMKIT_RUNTIME_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_RUNTIME_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/runtime.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/saveload.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/help/help_catalog.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/commands/env.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/arrays/accum.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/containers.hpp
