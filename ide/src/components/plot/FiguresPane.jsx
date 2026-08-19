@@ -27,43 +27,29 @@ function renderFigure(figure, props) {
 function getAspectRatio(str) {
   if (str === '4:3') return 4 / 3;
   if (str === '16:10') return 16 / 10;
+  if (str === '1:1') return 1;
   return 16 / 9;
 }
 
-function FigurePreviewCard({ figure, onExpand, onClose }) {
+function FigurePreviewCard({ figure, aspectStr, onExpand, onClose }) {
   // Preview is non-interactive (no pan/zoom), so derive the viewport directly
   // from the figure's data extent on every render — useState would freeze it
   // at mount and stale ranges from a previous run would leak in when the
   // figure is replaced by a new script execution under the same id.
-  // previewViewport applies the log-axis clamp the live window does via
-  // its setViewport effect (which the preview's no-op setViewport can't),
-  // so a log figure renders identically here and in the window.
   const viewport = previewViewport(figure);
   const setViewport = () => {};   // no-op for non-interactive preview
   const ref = useRef(null);
   
-  const [aspectStr, setAspectStr] = useState(() => loadSettings().plotAspectRatio || '16:9');
   const aspect = getAspectRatio(aspectStr);
   const [size, setSize] = useState({ w: 320, h: Math.round(320 / aspect) });
 
-  useEffect(() => {
-    const onSettings = (e) => setAspectStr(e.detail?.plotAspectRatio || '16:9');
-    window.addEventListener('numkitSettingsChanged', onSettings);
-    return () => window.removeEventListener('numkitSettingsChanged', onSettings);
-  }, []);
-
-  // Single measure pipeline — used both for the initial mount-time read
-  // (useLayoutEffect, runs synchronously before paint) and for resize signals
-  // (ResizeObserver / window.resize). Both deps arrays are `[]` so the effect
-  // bodies don't rerun on every render, which would otherwise feed back into
-  // setSize and trip React's "Maximum update depth exceeded" check.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (!r.width) return;
-    const ww = Math.max(200, Math.round(r.width));
-    const hh = Math.max(120, Math.round(ww / aspect));
+    const ww = Math.max(100, Math.round(r.width));
+    const hh = Math.max(80, Math.round(ww / aspect));
     setSize((prev) => (Math.abs(prev.w - ww) > 0.5 || Math.abs(prev.h - hh) > 0.5
       ? { w: ww, h: hh } : prev));
   }, [aspect]);
@@ -74,8 +60,8 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
     const remeasure = () => {
       const r = el.getBoundingClientRect();
       if (!r.width) return;
-      const ww = Math.max(200, Math.round(r.width));
-      const hh = Math.max(120, Math.round(ww / aspect));
+      const ww = Math.max(100, Math.round(r.width));
+      const hh = Math.max(80, Math.round(ww / aspect));
       setSize((prev) => (Math.abs(prev.w - ww) > 0.5 || Math.abs(prev.h - hh) > 0.5
         ? { w: ww, h: hh } : prev));
     };
@@ -91,11 +77,6 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
     };
   }, [aspect]);
 
-  // Match the Workspace card interaction model: one click anywhere on
-  // the card opens the figure window; the title bar buttons (close /
-  // expand-icon) stop propagation so they aren't swallowed by the card
-  // click. The whole card is the button — no double-click, no separate
-  // body-only click target.
   return (
     <div
       className="fp-card"
@@ -115,26 +96,12 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
           position: 'relative',
           overflow: 'hidden',
         }}>
-        {/* SVG is positioned absolutely so its intrinsic pixel size doesn't
-            override the body's aspect-ratio-driven height. */}
         <div style={{ position: 'absolute', inset: 0 }}>
           {renderFigure(figure, {
             width: size.w, height: size.h,
             viewport, setViewport,
-            // Mirror the script's grid state into the preview so that
-            // `grid on` / `grid minor` actually reach the renderer.
-            // Pre-grid-split this branch read `figure.grid === 'minor'`,
-            // which silently never matched after the wire format
-            // switched to two separate "grid" / "gridMinor" fields and
-            // left every preview without a minor grid (and with a
-            // default-on major grid even when the script said
-            // `grid off`).
             major: figure.grid === 'on',
             minor: figure.gridMinor === 'on',
-            // Mirror the script's axis scale so the preview's log/linear
-            // mapping matches the window. (CompositePlot would also fall
-            // back to figure.xscale, but passing explicitly avoids relying
-            // on that and keeps preview == window unambiguous.)
             xLog: figure.xscale === 'log',
             yLog: figure.yscale === 'log',
             fontScale: 0.9, interactive: false,
@@ -148,15 +115,89 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
 /**
  * Right-pane Figures stack. Receives the live `figures` array (from the
  * engine) and surfaces expand / close-one / close-all actions to the parent.
- *
- * `unsupportedCount` is the number of figures that the new InteractivePlot
- * can't render (heatmap, surf, quiver, etc.). When > 0 a small banner offers
- * to open the legacy d3 renderer in a modal.
  */
 export default function FiguresPane({
   figures, unsupportedCount = 0,
   onExpand, onCloseFigure, onCloseAll,
 }) {
+  const [columns, setColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('numkit_figures_cols');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (val >= 1 && val <= 4) return val;
+      }
+    } catch (_) {}
+    return 1;
+  });
+
+  const [aspectRatio, setAspectRatio] = useState(() => {
+    try {
+      const saved = localStorage.getItem('numkit_figures_aspect');
+      if (saved && (saved === '16:9' || saved === '4:3' || saved === '16:10' || saved === '1:1')) {
+        return saved;
+      }
+    } catch (_) {}
+    return loadSettings().plotAspectRatio || '16:9';
+  });
+
+  const [colsOpen, setColsOpen] = useState(false);
+  const [aspectOpen, setAspectOpen] = useState(false);
+
+  const colsMenuRef = useRef(null);
+  const aspectMenuRef = useRef(null);
+
+  // Sync settings when external settings modal changes
+  useEffect(() => {
+    const onSettings = (e) => {
+      if (e.detail?.plotAspectRatio) {
+        setAspectRatio(e.detail.plotAspectRatio);
+      }
+    };
+    window.addEventListener('numkitSettingsChanged', onSettings);
+    return () => window.removeEventListener('numkitSettingsChanged', onSettings);
+  }, []);
+
+  // Close menus on outside click or Esc
+  useEffect(() => {
+    const onMouseDown = (e) => {
+      if (colsMenuRef.current && !colsMenuRef.current.contains(e.target)) {
+        setColsOpen(false);
+      }
+      if (aspectMenuRef.current && !aspectMenuRef.current.contains(e.target)) {
+        setAspectOpen(false);
+      }
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setColsOpen(false);
+        setAspectOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  const handleSetColumns = (n) => {
+    setColumns(n);
+    try {
+      localStorage.setItem('numkit_figures_cols', String(n));
+    } catch (_) {}
+    setColsOpen(false);
+  };
+
+  const handleSetAspect = (ratio) => {
+    setAspectRatio(ratio);
+    try {
+      localStorage.setItem('numkit_figures_aspect', ratio);
+    } catch (_) {}
+    setAspectOpen(false);
+  };
+
   return (
     <div className="figures">
       <div className="figures-head">
@@ -172,8 +213,62 @@ export default function FiguresPane({
           </span>
         </div>
         <div className="figures-actions">
+          {/* Columns dropdown */}
+          <div className="fp-menu-wrap" ref={colsMenuRef}>
+            <button
+              className={`fp-head-btn ${colsOpen ? 'active' : ''}`}
+              onClick={() => { setColsOpen((v) => !v); setAspectOpen(false); }}
+              title="Number of columns in figures panel"
+            >
+              <span className="fp-btn-label">Cols: {columns}</span>
+              <span className="fp-arrow">▾</span>
+            </button>
+            {colsOpen && (
+              <div className="fp-dropdown-menu">
+                <div className="fp-dropdown-head">COLUMNS</div>
+                {[1, 2, 3, 4].map((n) => (
+                  <button
+                    key={n}
+                    className={`fp-dropdown-item ${columns === n ? 'selected' : ''}`}
+                    onClick={() => handleSetColumns(n)}
+                  >
+                    <span>{n} {n === 1 ? 'column' : 'columns'}</span>
+                    {columns === n && <span className="fp-check">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Aspect ratio dropdown */}
+          <div className="fp-menu-wrap" ref={aspectMenuRef}>
+            <button
+              className={`fp-head-btn ${aspectOpen ? 'active' : ''}`}
+              onClick={() => { setAspectOpen((v) => !v); setColsOpen(false); }}
+              title="Aspect ratio for figure previews"
+            >
+              <span className="fp-btn-label">{aspectRatio}</span>
+              <span className="fp-arrow">▾</span>
+            </button>
+            {aspectOpen && (
+              <div className="fp-dropdown-menu">
+                <div className="fp-dropdown-head">ASPECT RATIO</div>
+                {['16:9', '4:3', '16:10', '1:1'].map((ratio) => (
+                  <button
+                    key={ratio}
+                    className={`fp-dropdown-item ${aspectRatio === ratio ? 'selected' : ''}`}
+                    onClick={() => handleSetAspect(ratio)}
+                  >
+                    <span>{ratio}</span>
+                    {aspectRatio === ratio && <span className="fp-check">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {figures.length > 0 && (
-            <button className="fp-closeall" onClick={onCloseAll}>
+            <button className="fp-closeall" onClick={onCloseAll} title="Close all figures">
               Close all <span style={{ marginLeft: 4 }}>×</span>
             </button>
           )}
@@ -191,9 +286,18 @@ export default function FiguresPane({
           unsupported plot type — render skipped.
         </div>
       )}
-      <div className="fp-stack">
+      <div
+        className={`fp-stack ${columns > 1 ? 'fp-grid' : ''}`}
+        style={columns > 1 ? {
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gap: '10px',
+          alignContent: 'start',
+        } : undefined}
+      >
         {figures.map((fig) => (
           <FigurePreviewCard key={fig.id} figure={fig}
+            aspectStr={aspectRatio}
             onExpand={() => onExpand(fig)}
             onClose={() => onCloseFigure(fig.id)} />
         ))}
