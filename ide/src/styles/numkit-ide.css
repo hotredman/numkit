@@ -1067,8 +1067,15 @@ input, select { font-family: inherit; color: inherit; }
   background: transparent; border: 1px solid var(--line);
   color: var(--fg-2); font-family: var(--font-mono); font-size: 11px;
   padding: 3px 10px; border-radius: var(--r-sm); cursor: pointer;
+  display: inline-flex; align-items: center;
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
 }
-.fp-closeall:hover { background: var(--bg-3); color: var(--fg-0); }
+.fp-closeall:hover:not(:disabled) { background: var(--bg-3); color: var(--fg-0); }
+.fp-closeall:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
 
 .fp-stack {
   flex: 1; min-height: 0;
