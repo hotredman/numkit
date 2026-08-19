@@ -38,10 +38,11 @@ Replaced `stb_image` and `stb_image_write` entirely with a set of autonomous, ze
    - Palette color mapping: `[A, map] = readPngWithMap(...)`.
 
 6. **Baseline JPEG (`jpeg_codec.hpp`, `jpeg_codec.cpp`)**:
-   - JFIF marker parsing (`SOI`, `APP0`, `DQT`, `SOF0`, `DHT`, `SOS`, `EOI`) and byte stuffing (`0xFF 0x00`).
+   - JFIF marker parsing (`SOI`, `APP0`, `DQT`, `SOF0`, `SOF2`, `DHT`, `SOS`, `EOI`) and byte stuffing (`0xFF 0x00`).
    - 2D AAN forward and inverse discrete cosine transform (FDCT / IDCT).
    - Quantization table scaling for arbitrary quality levels $Q \in [1, 100]$.
-   - Standard baseline Huffman entropy encoding and decoding.
+   - Full baseline sequential Huffman entropy decoding and encoding with canonical codebook tree reconstruction.
+   - MCU grid dequantization, IDCT, and chroma sub-sampling reconstruction for Grayscale (1-channel) and YCbCr (4:2:0, 4:2:2, 4:4:4).
 
 7. **TIFF & BigTIFF Codec (`tiff_codec.hpp`, `tiff_codec.cpp`)**:
    - Consolidated classic TIFF (magic 42) and BigTIFF (magic 43, 64-bit offsets) reader, writer, and peeker.
