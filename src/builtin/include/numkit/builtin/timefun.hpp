@@ -19,12 +19,20 @@ namespace numkit::builtin {
 
 // ── Timing & Benchmarking ───────────────────────────────────────────────────
 
-/// @brief Total CPU time consumed by the process in seconds (`cputime`).
-/// @return Elapsed CPU seconds.
+/// @brief Total CPU time consumed by the current process in seconds (`cputime`).
+///
+/// Measures CPU execution time across all threads. Useful for profiling algorithm efficiency.
+///
+/// @return Total elapsed CPU seconds since process start as a double.
+/// @see tic, toc, pause, clock
 double cputime();
 
 /// @brief Halts execution for specified number of seconds (`pause(n)`).
-/// @param seconds Duration in seconds.
+///
+/// Suspends current thread execution for the specified duration.
+///
+/// @param seconds Duration to pause in seconds (supports fractional seconds).
+/// @see cputime, tic, toc
 void pause(double seconds);
 
 // ── Date and Clock ──────────────────────────────────────────────────────────

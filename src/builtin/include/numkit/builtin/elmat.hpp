@@ -318,6 +318,7 @@ Value repmat(const Value &x, Span<const size_t> reps, std::pmr::memory_resource 
 /// @param r Row repetition factor.
 /// @param c Column repetition factor.
 /// @param mr Memory resource.
+/// @return 2-D tiled array.
 Value repmat(const Value &x, size_t r, size_t c, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief 3D convenience overload for repmat (`repmat(x, r, c, p)`).
@@ -333,6 +334,7 @@ Value repmat(const Value &x, size_t r, size_t c, size_t p, std::pmr::memory_reso
 /// @param x Input array.
 /// @param tiles Span of repetition counts.
 /// @param mr Memory resource.
+/// @return N-D tiled array.
 /// @return Tiled array.
 Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resource *mr = nullptr);
 

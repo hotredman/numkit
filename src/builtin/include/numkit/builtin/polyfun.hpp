@@ -71,43 +71,105 @@ Value polyfit(const Value &x, const Value &y, int n, std::pmr::memory_resource *
 #include <tuple>
 
 struct PolyDiv {
-    Value q;
-    Value r;
+    Value q; ///< Quotient polynomial coefficients.
+    Value r; ///< Remainder polynomial coefficients.
 };
 
+/// @brief Padé approximation numerator and denominator polynomials.
 struct PadeCoef {
-    Value num;
-    Value den;
+    Value num; ///< Numerator polynomial coefficients.
+    Value den; ///< Denominator polynomial coefficients.
 };
 
 /// @brief Matrix polynomial evaluation (`polyvalm(p, A)`).
+///
+/// Evaluates polynomial `p` at square matrix `A` using Horner's method with matrix multiplications:
+/// `Y = p[0]*A^n + p[1]*A^(n-1) + ... + p[n]*I`.
+///
+/// @param p Coefficient vector in descending powers of s.
+/// @param A Square matrix.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return Square matrix result of polynomial evaluation.
+/// @see polyval, poly_of_matrix
 Value polyvalm(const Value &p, const Value &A, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Characteristic polynomial of matrix (`poly_of_matrix(A)`).
+/// @brief Characteristic polynomial of square matrix (`poly_of_matrix(A)`).
+///
+/// Computes coefficients of `det(s*I - A)`.
+///
+/// @param A Square matrix.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return Row vector containing characteristic polynomial coefficients.
+/// @see poly, roots, polyvalm
 Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Padé approximation of time delay (`[num, den] = padecoef(T, N)`).
+///
+/// Computes order-N Padé rational approximation of time delay `exp(-s*T)`.
+///
+/// @param T Time delay in seconds.
+/// @param N Approximation order.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return PadeCoef containing numerator and denominator polynomials.
 PadeCoef padecoef(double T, int N, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Polynomial division (`[q, r] = polydiv(b, a)`).
+/// @brief Polynomial deconvolution and division (`[q, r] = polydiv(b, a)`).
+///
+/// @param b Dividend polynomial coefficients.
+/// @param a Divisor polynomial coefficients.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return PolyDiv containing quotient `q` and remainder `r`.
+/// @see deconv, conv
 PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Transfer function to zero-pole-gain (`[z, p, k] = tf2zp(b, a)`).
+/// @brief Transfer function to zero-pole-gain conversion (`[z, p, k] = tf2zp(b, a)`).
+///
+/// @param b Numerator polynomial coefficients.
+/// @param a Denominator polynomial coefficients.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return Tuple containing zeros `z`, poles `p`, and gain `k`.
+/// @see zp2tf, residue
 std::tuple<Value, Value, Value> tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Zero-pole-gain to transfer function (`[b, a] = zp2tf(z, p, k)`).
+/// @brief Zero-pole-gain to transfer function conversion (`[b, a] = zp2tf(z, p, k)`).
+///
+/// @param z Zeros vector.
+/// @param p Poles vector.
+/// @param k Scalar gain factor.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return Tuple containing numerator `b` and denominator `a` polynomials.
+/// @see tf2zp, residue
 std::tuple<Value, Value> zp2tf(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Result of partial fraction expansion (residues, poles, direct term).
 struct ResidueResult {
-    Value r;
-    Value p;
-    Value k;
+    Value r; ///< Vector of complex residues.
+    Value p; ///< Vector of complex poles.
+    Value k; ///< Vector of direct term polynomial coefficients.
 };
 
-/// @brief Partial fraction expansion (residues) in s-domain (`[r, p, k] = residue(b, a)`).
+/// @brief Partial fraction expansion (residues) in Laplace s-domain (`[r, p, k] = residue(b, a)`).
+///
+/// Converts transfer function `B(s)/A(s)` to partial fraction form:
+/// `B(s)/A(s) = r(1)/(s-p(1)) + ... + r(n)/(s-p(n)) + k(s)`.
+///
+/// @param b Numerator polynomial coefficients in descending powers of s.
+/// @param a Denominator polynomial coefficients in descending powers of s.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return ResidueResult containing residues `r`, poles `p`, and direct terms `k`.
+/// @see residuez, poly, roots
 ResidueResult residue(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Partial fraction expansion in z-domain (`[r, p, k] = residuez(b, a)`).
+/// @brief Partial fraction expansion in Z-domain (`[r, p, k] = residuez(b, a)`).
+///
+/// Converts discrete transfer function `B(z)/A(z)` to partial fraction form in `z^-1`:
+/// `B(z)/A(z) = r(1)/(1 - p(1)*z^-1) + ... + k(z^-1)`.
+///
+/// @param b Numerator polynomial coefficients in descending powers of z.
+/// @param a Denominator polynomial coefficients in descending powers of z.
+/// @param mr Memory resource for allocations (nullptr for default).
+/// @return ResidueResult containing residues `r`, poles `p`, and direct terms `k`.
+/// @see residue, poly, roots
 ResidueResult residuez(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 // ── Interpolation & Piecewise Polynomials ───────────────────────────────────
