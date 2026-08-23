@@ -37,37 +37,48 @@ static inline double civilToSerial(double yd, double md, double dd, double hd, d
     return static_cast<double>(days) + 719529.0 + frac;
 }
 
-static inline void serialToCivil(double serial, double &yd, double &md, double &dd, double &hd, double &mind, double &sd) {
-    double intPart;
-    double frac = std::modf(serial, &intPart);
-    if (frac < 0.0) {
-        frac += 1.0;
-        intPart -= 1.0;
-    }
-    int64_t z = static_cast<int64_t>(intPart) - 719529 + 719468;
+static inline void civilFromDays(int64_t z, int64_t &Y, int &M, int &D) {
+    z += 719468;
     const int64_t era = (z >= 0 ? z : z - 146096) / 146097;
     const int64_t doe = z - era * 146097;
     const int64_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    int64_t y = yoe + era * 400;
+    const int64_t y = yoe + era * 400;
     const int64_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     const int64_t mp = (5 * doy + 2) / 153;
-    const int64_t d = doy - (153 * mp + 2) / 5 + 1;
-    const int64_t m = mp < 10 ? mp + 3 : mp - 9;
-    if (m <= 2) y += 1;
+    D = static_cast<int>(doy - (153 * mp + 2) / 5 + 1);
+    M = static_cast<int>(mp < 10 ? mp + 3 : mp - 9);
+    Y = y + (M <= 2 ? 1 : 0);
+}
 
-    yd = static_cast<double>(y);
-    md = static_cast<double>(m);
-    dd = static_cast<double>(d);
+static inline void extractTime(double frac, int &H, int &MI, double &S) {
+    const double total_ms = std::round(frac * 86400.0 * 1.0e3);
+    int64_t ms = static_cast<int64_t>(total_ms);
+    H  = static_cast<int>(ms / 3600000LL); ms %= 3600000LL;
+    MI = static_cast<int>(ms / 60000LL);   ms %= 60000LL;
+    S  = static_cast<double>(ms) / 1.0e3;
+}
 
-    double totalSec = frac * 86400.0;
-    double h = std::floor(totalSec / 3600.0);
-    totalSec -= h * 3600.0;
-    double mi = std::floor(totalSec / 60.0);
-    double s = totalSec - mi * 60.0;
-
-    hd = h;
-    mind = mi;
-    sd = s;
+static inline void serialToCivil(double serial, double &yd, double &md, double &dd, double &hd, double &mind, double &sd) {
+    if (serial == 0.0) {
+        yd = 0; md = 0; dd = 0; hd = 0; mind = 0; sd = 0;
+        return;
+    }
+    const double floored = std::floor(serial);
+    const int64_t days = static_cast<int64_t>(floored);
+    const double frac = serial - floored;
+    const int64_t z = days - 719529;
+    int64_t Y; int M, D, H, MI; double S;
+    civilFromDays(z, Y, M, D);
+    extractTime(frac, H, MI, S);
+    if (S >= 60.0) { S -= 60.0; ++MI; }
+    if (MI >= 60)  { MI -= 60;  ++H;  }
+    if (H  >= 24)  { H  -= 24; civilFromDays(z + 1, Y, M, D); }
+    yd = static_cast<double>(Y);
+    md = static_cast<double>(M);
+    dd = static_cast<double>(D);
+    hd = static_cast<double>(H);
+    mind = static_cast<double>(MI);
+    sd = S;
 }
 
 static constexpr double kJDFromSerial  = 1721058.5;
@@ -200,26 +211,47 @@ Value addtodate(const Value &d, double quantity, const std::string &unit, std::p
     else if (u == "millisecond")
         result = serial + q / 86400000.0;
     else if (u == "month" || u == "year") {
-        double y, m, day, h, mi, s;
-        serialToCivil(serial, y, m, day, h, mi, s);
-        int64_t iy = static_cast<int64_t>(y);
-        int64_t im = static_cast<int64_t>(m);
-        if (u == "year")
-            iy += static_cast<int64_t>(q);
-        else {
-            int64_t totalM = (iy * 12 + (im - 1)) + static_cast<int64_t>(q);
-            iy = totalM >= 0 ? totalM / 12 : (totalM - 11) / 12;
-            im = (totalM % 12 + 12) % 12 + 1;
+        const double dayF = std::floor(serial);
+        const double frac = serial - dayF;
+        const int64_t days = static_cast<int64_t>(dayF) - 719529;
+        int64_t z = days + 719468;
+        const int64_t era = (z >= 0 ? z : z - 146096) / 146097;
+        const int64_t doe = z - era * 146097;
+        const int64_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        int64_t Y = yoe + era * 400;
+        const int64_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        const int64_t mp = (5 * doy + 2) / 153;
+        const int64_t D = doy - (153 * mp + 2) / 5 + 1;
+        int64_t M = mp < 10 ? mp + 3 : mp - 9;
+        Y += (M <= 2);
+
+        int64_t nY = Y, nM = M;
+        if (u == "month") {
+            int64_t tm = (M - 1) + static_cast<int64_t>(std::llround(q));
+            int64_t qd = tm / 12, rd = tm % 12;
+            if (rd < 0) { qd -= 1; rd += 12; }
+            nY = Y + qd;
+            nM = rd + 1;
+        } else {
+            nY = Y + static_cast<int64_t>(std::llround(q));
         }
-        auto isLeap = [](int64_t yr) {
-            return (yr % 4 == 0 && yr % 100 != 0) || yr % 400 == 0;
+        auto leap = [](int64_t y) {
+            return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
         };
-        static const int dim[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-        int maxDay = (im == 2 && isLeap(iy)) ? 29 : dim[im];
-        double newDay = std::min(day, static_cast<double>(maxDay));
-        result = civilToSerial(static_cast<double>(iy), static_cast<double>(im), newDay, h, mi, s);
+        static const int dim[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        int64_t maxD = dim[nM - 1];
+        if (nM == 2 && leap(nY)) maxD = 29;
+        int64_t nD = D < maxD ? D : maxD;
+        int64_t y2 = nY;
+        if (nM <= 2) y2 -= 1;
+        const int64_t era2 = (y2 < 0 ? y2 - 399 : y2) / 400;
+        const int64_t yoe2 = y2 - era2 * 400;
+        const int64_t doy2 = (153 * (nM + (nM > 2 ? -3 : 9)) + 2) / 5 + nD - 1;
+        const int64_t doe2 = yoe2 * 365 + yoe2 / 4 - yoe2 / 100 + doy2;
+        const int64_t newDays = era2 * 146097 + doe2 - 719468 + 719529;
+        result = static_cast<double>(newDays) + frac;
     } else {
-        throw std::runtime_error("addtodate: unrecognized time unit '" + u + "'");
+        throw std::runtime_error("addtodate: units must be one of 'year','month','day','hour','minute','second','millisecond'");
     }
     return Value::scalar(result, mr);
 }
@@ -518,129 +550,341 @@ Value calendar(Span<const Value> args, std::pmr::memory_resource *mr) {
 Value datestr(Span<const Value> args, std::pmr::memory_resource *mr) {
     if (args.empty()) {
         const double nowSerial = now();
-        double Y, Mo, D, H, MI, S;
-        serialToCivil(nowSerial, Y, Mo, D, H, MI, S);
-        static const char *MON3[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
-        char buf[64];
-        std::snprintf(buf, sizeof(buf), "%02d-%s-%04d %02d:%02d:%02d",
-                      static_cast<int>(D), MON3[static_cast<int>(Mo) - 1], static_cast<int>(Y),
-                      static_cast<int>(H), static_cast<int>(MI), static_cast<int>(S));
-        return Value::fromString(std::string(buf), mr);
+        Value s = Value::scalar(nowSerial, mr);
+        return datestr(Span<const Value>(&s, 1), mr);
     }
-    const Value &D_in = args[0];
-    std::string fmt = "dd-mmm-yyyy HH:MM:SS";
-    if (args.size() >= 2) {
-        if (args[1].isChar() || args[1].isString())
-            fmt = args[1].toString();
-        else if (args[1].isScalar()) {
-            int code = static_cast<int>(args[1].toScalar());
-            switch (code) {
-                case 0: fmt = "dd-mmm-yyyy HH:MM:SS"; break;
-                case 1: fmt = "dd-mmm-yyyy"; break;
-                case 2: fmt = "mm/dd/yy"; break;
-                case 6: fmt = "mm/dd"; break;
-                case 10: fmt = "yyyy"; break;
-                case 13: fmt = "HH:MM:SS"; break;
-                case 20: fmt = "dd/mm/yyyy"; break;
-                case 23: fmt = "mm/dd/yyyy"; break;
-                case 26: fmt = "yyyy/mm/dd"; break;
-                case 29: fmt = "yyyy-mm-dd"; break;
-                case 30: fmt = "yyyymmddTHHMMSS"; break;
-                case 31: fmt = "yyyy-mm-dd HH:MM:SS"; break;
-                default: fmt = "dd-mmm-yyyy"; break;
-            }
-        }
-    }
-    static const char *MON3[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
-    auto formatOne = [&](double serial) -> std::string {
-        double Y, Mo, D, H, MI, S;
-        serialToCivil(serial, Y, Mo, D, H, MI, S);
-        std::string res;
-        for (size_t fi = 0; fi < fmt.size(); ) {
-            if (fmt.compare(fi, 4, "yyyy") == 0) {
-                char b[8]; std::snprintf(b, sizeof(b), "%04d", static_cast<int>(Y));
-                res += b; fi += 4;
-            } else if (fmt.compare(fi, 2, "yy") == 0) {
-                char b[8]; std::snprintf(b, sizeof(b), "%02d", static_cast<int>(Y) % 100);
-                res += b; fi += 2;
-            } else if (fmt.compare(fi, 3, "mmm") == 0) {
-                res += MON3[std::clamp(static_cast<int>(Mo) - 1, 0, 11)];
-                fi += 3;
-            } else if (fmt.compare(fi, 2, "mm") == 0) {
-                char b[8]; std::snprintf(b, sizeof(b), "%02d", static_cast<int>(Mo));
-                res += b; fi += 2;
-            } else if (fmt.compare(fi, 2, "dd") == 0) {
-                char b[8]; std::snprintf(b, sizeof(b), "%02d", static_cast<int>(D));
-                res += b; fi += 2;
-            } else if (fmt.compare(fi, 2, "HH") == 0) {
-                char b[8]; std::snprintf(b, sizeof(b), "%02d", static_cast<int>(H));
-                res += b; fi += 2;
-            } else if (fmt.compare(fi, 2, "MM") == 0) {
-                char b[8]; std::snprintf(b, sizeof(b), "%02d", static_cast<int>(MI));
-                res += b; fi += 2;
-            } else if (fmt.compare(fi, 2, "SS") == 0) {
-                char b[8]; std::snprintf(b, sizeof(b), "%02d", static_cast<int>(S));
-                res += b; fi += 2;
-            } else {
-                res += fmt[fi++];
-            }
-        }
-        return res;
+    const Value &din = args[0];
+
+    struct Comp { int y, mo, d, h, mi, s; };
+    auto serialToComp = [&](double dval) -> Comp {
+        const double floored = std::floor(dval);
+        const int64_t z = static_cast<int64_t>(floored) - 719529;
+        const double frac = dval - floored;
+        int64_t Y; int M, D;
+        civilFromDays(z, Y, M, D);
+        int64_t ms = static_cast<int64_t>(std::round(frac * 86400.0 * 1.0e3));
+        int H  = static_cast<int>(ms / 3600000LL); ms %= 3600000LL;
+        int MI = static_cast<int>(ms / 60000LL);   ms %= 60000LL;
+        double S = static_cast<double>(ms) / 1.0e3;
+        if (S >= 60.0) { S -= 60.0; ++MI; }
+        if (MI >= 60)  { MI -= 60;  ++H;  }
+        if (H  >= 24)  { H  -= 24; civilFromDays(z + 1, Y, M, D); }
+        return Comp{ static_cast<int>(Y), M, D, H, MI, static_cast<int>(std::round(S)) };
     };
 
-    if (D_in.numel() == 1) {
-        return Value::fromString(formatOne(D_in.toScalar()), mr);
+    std::vector<Comp> dates;
+    if (din.isChar() || din.isString()) {
+        static const char *MON3p[] = {
+            "jan","feb","mar","apr","may","jun",
+            "jul","aug","sep","oct","nov","dec"};
+        const std::string s = din.toString();
+        auto tryFmt = [&](const char *fmt, Comp &c) -> bool {
+            int Y = 0, Mo = 1, D = 1, H = 0, MI = 0, S = 0;
+            const std::string F = fmt;
+            size_t si = 0, fi = 0;
+            auto readNum = [&](int maxD) -> long {
+                long v = 0; int n = 0;
+                while (si < s.size() && n < maxD && std::isdigit(static_cast<unsigned char>(s[si]))) {
+                    v = v * 10 + (s[si] - '0'); ++si; ++n;
+                }
+                return n > 0 ? v : -1;
+            };
+            while (fi < F.size()) {
+                if (F.compare(fi,4,"yyyy")==0) { long v=readNum(4); if(v<0)return false; Y=(int)v; fi+=4; }
+                else if (F.compare(fi,3,"mmm")==0) {
+                    if (si+3>s.size()) return false;
+                    std::string m=s.substr(si,3);
+                    for (auto &ch:m) ch=(char)std::tolower((unsigned char)ch);
+                    int mi=-1; for(int k=0;k<12;++k) if(m==MON3p[k]){mi=k+1;break;}
+                    if (mi<0) return false; Mo=mi; si+=3; fi+=3;
+                }
+                else if (F.compare(fi,2,"mm")==0) { long v=readNum(2); if(v<0)return false; Mo=(int)v; fi+=2; }
+                else if (F.compare(fi,2,"dd")==0) { long v=readNum(2); if(v<0)return false; D=(int)v; fi+=2; }
+                else if (F.compare(fi,2,"HH")==0) { long v=readNum(2); if(v<0)return false; H=(int)v; fi+=2; }
+                else if (F.compare(fi,2,"MM")==0) { long v=readNum(2); if(v<0)return false; MI=(int)v; fi+=2; }
+                else if (F.compare(fi,2,"SS")==0) { long v=readNum(2); if(v<0)return false; S=(int)v; fi+=2; }
+                else { if (si<s.size() && s[si]==F[fi]) { ++si; ++fi; } else return false; }
+            }
+            if (si != s.size()) return false;
+            c = Comp{Y, Mo, D, H, MI, S};
+            return true;
+        };
+        static const char *cands[] = {
+            "yyyy-mm-dd HH:MM:SS", "yyyy-mm-dd",
+            "dd-mmm-yyyy HH:MM:SS", "dd-mmm-yyyy"};
+        Comp c{}; bool ok = false;
+        for (const char *f : cands) if (tryFmt(f, c)) { ok = true; break; }
+        if (!ok)
+            throw std::runtime_error(
+                "datestr: could not parse date string (supported: ISO yyyy-mm-dd and dd-mmm-yyyy forms)");
+        dates.push_back(c);
+    } else {
+        const size_t Rr = din.dims().rows();
+        const size_t Cc = din.dims().cols();
+        if (Cc == 6 && !din.dims().is3D()) {
+            dates.reserve(Rr);
+            for (size_t r = 0; r < Rr; ++r)
+                dates.push_back(Comp{
+                    static_cast<int>(din.elemAsDouble(0 * Rr + r)),
+                    static_cast<int>(din.elemAsDouble(1 * Rr + r)),
+                    static_cast<int>(din.elemAsDouble(2 * Rr + r)),
+                    static_cast<int>(din.elemAsDouble(3 * Rr + r)),
+                    static_cast<int>(din.elemAsDouble(4 * Rr + r)),
+                    static_cast<int>(std::round(din.elemAsDouble(5 * Rr + r)))});
+        } else {
+            const size_t n = din.numel();
+            dates.reserve(n);
+            for (size_t k = 0; k < n; ++k)
+                dates.push_back(serialToComp(din.elemAsDouble(k)));
+        }
     }
-    const size_t N = D_in.numel();
-    auto c = Value::cell(N, 1, mr);
-    for (size_t i = 0; i < N; ++i) {
-        c.cellAt(i) = Value::fromString(formatOne(D_in.elemAsDouble(i)), mr);
+    if (dates.empty())
+        throw std::runtime_error("datestr: empty date input");
+    bool anyTime = false;
+    for (const auto &c : dates)
+        if (c.h != 0 || c.mi != 0 || c.s != 0) { anyTime = true; break; }
+
+    std::string fmt;
+    if (args.size() >= 2) {
+        const Value &f = args[1];
+        if (f.isChar() || f.isString())
+            fmt = f.toString();
+        else {
+            static const char *DATEFORM[] = {
+                "dd-mmm-yyyy HH:MM:SS", // 0
+                "dd-mmm-yyyy",          // 1
+                "mm/dd/yy",             // 2
+                "mmm",                  // 3
+                "m",                    // 4
+                "mm",                   // 5
+                "mm/dd",                // 6
+                "dd",                   // 7
+                "ddd",                  // 8
+                "d",                    // 9
+                "yyyy",                 // 10
+                "yy",                   // 11
+                "mmmyy",                // 12
+                "HH:MM:SS",             // 13
+                "HH:MM:SS PM",          // 14
+                "HH:MM",                // 15
+                "HH:MM PM",             // 16
+                "QQ-yy",                // 17
+                "QQ",                   // 18
+                "dd/mm",                // 19
+                "dd/mm/yy",             // 20
+                "mmm.dd,yyyy HH:MM:SS", // 21
+                "mmm.dd,yyyy",          // 22
+                "mm/dd/yyyy",           // 23
+                "dd/mm/yyyy",           // 24
+                "yy/mm/dd",             // 25
+                "yyyy/mm/dd",           // 26
+                "QQ-yyyy",              // 27
+                "mmmyyyy",              // 28
+                "yyyy-mm-dd",           // 29
+                "yyyymmddTHHMMSS",      // 30
+                "yyyy-mm-dd HH:MM:SS",  // 31
+            };
+            const int code = static_cast<int>(std::round(f.elemAsDouble(0)));
+            if (code < 0 || code > 31)
+                throw std::runtime_error("datestr: unsupported numeric format code (expected 0-31)");
+            fmt = DATEFORM[code];
+        }
+    } else {
+        fmt = anyTime ? "dd-mmm-yyyy HH:MM:SS" : "dd-mmm-yyyy";
     }
-    return c;
+
+    static const char *MON3[] = {
+        "Jan","Feb","Mar","Apr","May","Jun",
+        "Jul","Aug","Sep","Oct","Nov","Dec"};
+    static const char *MONF[] = {
+        "January","February","March","April","May",
+        "June","July","August","September","October",
+        "November","December"};
+    static const char *DOW3[] = {
+        "Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    static const char *DOWF[] = {
+        "Sunday","Monday","Tuesday","Wednesday",
+        "Thursday","Friday","Saturday"};
+    static const int dt[] = {0,3,2,5,0,3,5,1,4,6,2,4};
+    bool hour12 = false;
+    for (size_t k = 0; k + 1 < fmt.size(); ++k) {
+        char a = (char)std::tolower((unsigned char)fmt[k]);
+        char b = (char)std::tolower((unsigned char)fmt[k+1]);
+        if ((a == 'a' || a == 'p') && b == 'm') { hour12 = true; break; }
+    }
+
+    auto renderOne = [&](const Comp &cc) -> std::string {
+        const int yi = cc.y, moi = cc.mo, di = cc.d,
+                  hi = cc.h, mii = cc.mi, si = cc.s;
+        int yw = yi - (moi < 3 ? 1 : 0);
+        int dow = ((yw + yw/4 - yw/100 + yw/400 + dt[(moi - 1 + 12) % 12] + di) % 7 + 7) % 7;
+        const int h12 = (hi % 12 == 0) ? 12 : (hi % 12);
+        std::string out;
+        char buf[16];
+        size_t i = 0;
+        auto at = [&](const char *t, size_t L) {
+            return fmt.compare(i, L, t) == 0;
+        };
+        while (i < fmt.size()) {
+            if (at("yyyy", 4)) { std::snprintf(buf,sizeof buf,"%04d",yi); out+=buf; i+=4; }
+            else if (at("yy", 2)) { std::snprintf(buf,sizeof buf,"%02d",((yi%100)+100)%100); out+=buf; i+=2; }
+            else if (at("mmmm", 4)) { out += MONF[(moi-1+12)%12]; i+=4; }
+            else if (at("mmm", 3)) { out += MON3[(moi-1+12)%12]; i+=3; }
+            else if (at("mm", 2)) { std::snprintf(buf,sizeof buf,"%02d",moi); out+=buf; i+=2; }
+            else if (at("m", 1)) { out += MON3[(moi-1+12)%12][0]; i+=1; }
+            else if (at("QQ", 2)) { out += 'Q'; out += static_cast<char>('0' + ((moi - 1) / 3 + 1)); i+=2; }
+            else if (at("dddd", 4)) { out += DOWF[dow]; i+=4; }
+            else if (at("ddd", 3)) { out += DOW3[dow]; i+=3; }
+            else if (at("dd", 2)) { std::snprintf(buf,sizeof buf,"%02d",di); out+=buf; i+=2; }
+            else if (at("d", 1)) { out += DOW3[dow][0]; i+=1; }
+            else if (at("HH", 2)) {
+                if (hour12) std::snprintf(buf,sizeof buf,"%2d",h12);
+                else        std::snprintf(buf,sizeof buf,"%02d",hi);
+                out+=buf; i+=2;
+            }
+            else if (at("MM", 2)) { std::snprintf(buf,sizeof buf,"%02d",mii); out+=buf; i+=2; }
+            else if (at("SS", 2)) { std::snprintf(buf,sizeof buf,"%02d",si); out+=buf; i+=2; }
+            else if (hour12 && i + 1 < fmt.size()
+                     && ((std::tolower((unsigned char)fmt[i])=='a'
+                          || std::tolower((unsigned char)fmt[i])=='p')
+                         && std::tolower((unsigned char)fmt[i+1])=='m')) {
+                out += (hi < 12) ? "AM" : "PM"; i += 2;
+            }
+            else { out += fmt[i]; ++i; }
+        }
+        return out;
+    };
+
+    if (dates.size() == 1) {
+        return Value::fromString(renderOne(dates[0]), mr);
+    }
+    std::vector<std::string> rowstr;
+    rowstr.reserve(dates.size());
+    size_t maxW = 0;
+    for (const auto &c : dates) {
+        rowstr.push_back(renderOne(c));
+        if (rowstr.back().size() > maxW)
+            maxW = rowstr.back().size();
+    }
+    const size_t N = rowstr.size();
+    Value Mc = Value::matrix(N, maxW, ValueType::CHAR, mr);
+    char *dst = static_cast<char *>(Mc.rawDataMut());
+    for (size_t r = 0; r < N; ++r)
+        for (size_t c = 0; c < maxW; ++c)
+            dst[c * N + r] = (c < rowstr[r].size()) ? rowstr[r][c] : ' ';
+    return Mc;
 }
 
 Value datevec(Span<const Value> args, std::pmr::memory_resource *mr) {
     if (args.empty())
         throw std::runtime_error("datevec requires at least one argument");
     if (args[0].isChar() || args[0].isString()) {
-        Value dnum = datenum(args, mr);
+        const std::string s = args[0].toString();
+        static const char *MON3s[] = {
+            "jan","feb","mar","apr","may","jun",
+            "jul","aug","sep","oct","nov","dec"};
+        auto tryFmt = [&](const std::string &fmt, double &Y, double &Mo, double &D, double &H, double &MI, double &S) -> bool {
+            Y = 0; Mo = 1; D = 1; H = 0; MI = 0; S = 0;
+            size_t si = 0, fi = 0;
+            auto readNum = [&](int maxD) -> long {
+                long v = 0; int n = 0;
+                while (si < s.size() && n < maxD && std::isdigit(static_cast<unsigned char>(s[si]))) {
+                    v = v * 10 + (s[si] - '0'); ++si; ++n;
+                }
+                return n > 0 ? v : -1;
+            };
+            while (fi < fmt.size()) {
+                if (fmt.compare(fi, 4, "yyyy") == 0) {
+                    long v = readNum(4); if (v < 0) return false; Y = static_cast<double>(v); fi += 4;
+                } else if (fmt.compare(fi, 4, "mmmm") == 0 || fmt.compare(fi, 3, "mmm") == 0) {
+                    bool full = fmt.compare(fi, 4, "mmmm") == 0;
+                    if (si + 3 > s.size()) return false;
+                    std::string mon = s.substr(si, 3);
+                    for (auto &c : mon) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    int mi = -1;
+                    for (int k = 0; k < 12; ++k) if (mon == MON3s[k]) { mi = k + 1; break; }
+                    if (mi < 0) return false;
+                    Mo = static_cast<double>(mi); si += 3;
+                    if (full) {
+                        while (si < s.size() && std::isalpha(static_cast<unsigned char>(s[si]))) ++si;
+                        fi += 4;
+                    } else { fi += 3; }
+                } else if (fmt.compare(fi, 2, "mm") == 0) {
+                    long v = readNum(2); if (v < 0) return false; Mo = static_cast<double>(v); fi += 2;
+                } else if (fmt.compare(fi, 2, "dd") == 0) {
+                    long v = readNum(2); if (v < 0) return false; D = static_cast<double>(v); fi += 2;
+                } else if (fmt.compare(fi, 2, "HH") == 0) {
+                    long v = readNum(2); if (v < 0) return false; H = static_cast<double>(v); fi += 2;
+                } else if (fmt.compare(fi, 2, "MM") == 0) {
+                    long v = readNum(2); if (v < 0) return false; MI = static_cast<double>(v); fi += 2;
+                } else if (fmt.compare(fi, 2, "SS") == 0) {
+                    long v = readNum(2); if (v < 0) return false; S = static_cast<double>(v); fi += 2;
+                } else {
+                    if (si < s.size() && s[si] == fmt[fi]) { ++si; ++fi; }
+                    else return false;
+                }
+            }
+            return si == s.size();
+        };
         double Y, Mo, D, H, MI, S;
-        serialToCivil(dnum.toScalar(), Y, Mo, D, H, MI, S);
+        bool ok = false;
+        if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
+            ok = tryFmt(args[1].toString(), Y, Mo, D, H, MI, S);
+        } else {
+            static const char *cands[] = {
+                "yyyy-mm-dd HH:MM:SS", "yyyy-mm-dd",
+                "dd-mmm-yyyy HH:MM:SS", "dd-mmm-yyyy"};
+            for (const char *c : cands)
+                if (tryFmt(c, Y, Mo, D, H, MI, S)) { ok = true; break; }
+        }
+        if (!ok)
+            throw std::runtime_error(
+                "datevec: could not parse date string (supported: explicit format string, or ISO yyyy-mm-dd and dd-mmm-yyyy forms)");
+        const double vals[6] = {Y, Mo, D, H, MI, S};
         auto out = Value::matrix(1, 6, ValueType::DOUBLE, mr);
         double *o = out.doubleDataMut();
-        o[0] = Y; o[1] = Mo; o[2] = D; o[3] = H; o[4] = MI; o[5] = S;
+        for (int k = 0; k < 6; ++k) o[k] = vals[k];
         return out;
     }
-    const Value &D_in = args[0];
-    const size_t N = D_in.numel();
+
+    const Value &Din = args[0];
+    const size_t N = Din.numel();
     auto out = Value::matrix(N, 6, ValueType::DOUBLE, mr);
     double *o = out.doubleDataMut();
+    double tmp[6];
     for (size_t i = 0; i < N; ++i) {
-        double Y, Mo, D, H, MI, S;
-        serialToCivil(D_in.elemAsDouble(i), Y, Mo, D, H, MI, S);
-        o[i + 0 * N] = Y;
-        o[i + 1 * N] = Mo;
-        o[i + 2 * N] = D;
-        o[i + 3 * N] = H;
-        o[i + 4 * N] = MI;
-        o[i + 5 * N] = S;
+        serialToCivil(Din.elemAsDouble(i), tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5]);
+        for (int c = 0; c < 6; ++c)
+            o[i + c * N] = tmp[c];
     }
     return out;
 }
 
 Value yyyymmdd(Span<const Value> args, std::pmr::memory_resource *mr) {
     if (args.empty())
-        throw std::runtime_error("yyyymmdd requires at least one argument");
-    const Value &D_in = args[0];
-    const size_t N = D_in.numel();
-    auto out = Value::matrix(D_in.dims().rows(), D_in.dims().cols(), ValueType::DOUBLE, mr);
-    double *o = out.doubleDataMut();
-    for (size_t i = 0; i < N; ++i) {
-        double Y, Mo, D, H, MI, S;
-        serialToCivil(D_in.elemAsDouble(i), Y, Mo, D, H, MI, S);
-        o[i] = Y * 10000.0 + Mo * 100.0 + D;
+        throw std::runtime_error("yyyymmdd requires one argument");
+    if (args[0].isChar() || args[0].isString())
+        throw std::runtime_error("yyyymmdd: string parsing not supported");
+
+    auto packOne = [&](double dval) {
+        if (dval == 0.0) return 0.0;
+        const int64_t days = static_cast<int64_t>(std::floor(dval));
+        const int64_t z = days - 719529;
+        int64_t Y; int M, D;
+        civilFromDays(z, Y, M, D);
+        return static_cast<double>(Y * 10000 + M * 100 + D);
+    };
+
+    const Value &Din = args[0];
+    const size_t N = Din.numel();
+    if (N == 1) {
+        return Value::scalar(packOne(Din.toScalar()), mr);
     }
-    return D_in.numel() == 1 ? Value::scalar(o[0], mr) : out;
+    auto out = Value::matrix(Din.dims().rows(), Din.dims().cols(), ValueType::DOUBLE, mr);
+    double *o = out.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        o[i] = packOne(Din.elemAsDouble(i));
+    return out;
 }
 
 } // namespace numkit::builtin
