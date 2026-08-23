@@ -1,11 +1,17 @@
-// toolboxes/builtin/include/numkit/builtin/language/commands/env.hpp
+// src/runtime/include/numkit/runtime/language/commands/env.hpp
 #pragma once
 
 #include <memory_resource>
 #include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
-namespace numkit::builtin {
+namespace numkit {
+class Engine;
+}
+
+namespace numkit::runtime {
+
+void registerEnvRuntime(Engine &engine);
 
 /// @file
 /// @brief Process-environment builtins.
@@ -27,11 +33,11 @@ void setenv(Span<const Value> args);
 /// @brief Read an environment variable (`val = getenv(name)`).
 ///
 /// @param args  `(name)` — CHAR / STRING.
-/// @param mr    Memory resource (nullptr → process default).
+/// @param mr    Memory resource (nullptr -> process default).
 /// @return      Value of the variable as a CHAR row, or empty `''` if
 ///              the variable is unset.
 /// @throws Error  Bad argument type or count
 ///                (`m:getenv:nargin` / `m:getenv:badArg`).
 Value getenv(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::runtime

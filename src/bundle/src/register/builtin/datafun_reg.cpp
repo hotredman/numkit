@@ -9,7 +9,6 @@
 
 namespace numkit::builtin::detail {
 
-void accumarray_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void allunique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitand_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitcmp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -123,7 +122,6 @@ void register_datafun(Engine &engine) {
     engine.registerFunction("histcounts", &::numkit::builtin::detail::histcounts_reg);
     engine.registerFunction("histc",      &::numkit::builtin::detail::histc_reg);
     engine.registerFunction("discretize", &::numkit::builtin::detail::discretize_reg);
-    engine.registerFunction("accumarray", &::numkit::builtin::detail::accumarray_reg);
     engine.registerFunction("deg2rad",    &::numkit::builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",    &::numkit::builtin::detail::rad2deg_reg);
     engine.registerFunction("wrapToPi",   &::numkit::builtin::detail::wrapToPi_reg);

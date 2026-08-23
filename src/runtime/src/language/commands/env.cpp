@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::runtime {
 
 // ════════════════════════════════════════════════════════════════════════
 // setenv / getenv — MATLAB-compatible process-environment access.
@@ -74,4 +74,10 @@ void getenv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 } // namespace detail
 
-} // namespace numkit::builtin
+void registerEnvRuntime(Engine &engine)
+{
+    engine.registerFunction("setenv", &detail::setenv_reg);
+    engine.registerFunction("getenv", &detail::getenv_reg);
+}
+
+} // namespace numkit::runtime

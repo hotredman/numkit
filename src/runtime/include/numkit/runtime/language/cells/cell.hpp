@@ -9,15 +9,9 @@ namespace numkit {
 class Engine;
 }
 
-namespace numkit::builtin {
+namespace numkit::runtime {
 
-/// @brief Register cellfun's VM-continuation driver (state-machine callbacks).
-///
-/// Installs a CallbackBuiltin so that, under the VM backend,
-/// `cellfun(@userfunc, c)` runs each callback as a pausable VM frame instead of
-/// the synchronous callReentrant path. Builtin handles / multi-output / other
-/// argument forms fall back to the synchronous `cellfun` builtin. Call once at
-/// engine setup, alongside `registerFunction("cellfun", ...)`.
+void registerCellsRuntime(Engine &engine);
 void registerCellfunCallbackBuiltin(Engine &engine);
 
 /// @brief Square cell array (`c = cell(n)`).
@@ -134,4 +128,4 @@ Value mat2cell(const Value &x, const Value &rowSizes,
                const Value &colSizes = Value::Empty,
                std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::runtime

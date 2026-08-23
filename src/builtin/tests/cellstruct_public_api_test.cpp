@@ -1,6 +1,6 @@
 // toolboxes/builtin/tests/cellstruct_public_api_test.cpp
 //
-// Direct-call tests for numkit::builtin cell/struct functions.
+// Direct-call tests for numkit::runtime cell/struct functions.
 
 #include <numkit/runtime/language/cells/cell.hpp>
 #include <numkit/runtime/language/structures/struct.hpp>
@@ -26,7 +26,7 @@ Value mkStr(std::pmr::memory_resource *mr, const char *s) { return Value::fromSt
 TEST(BuiltinCellStructPublicApi, EmptyStructure)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value s = numkit::builtin::structure(mr);
+    Value s = numkit::runtime::structure(mr);
     EXPECT_TRUE(s.isStruct());
     EXPECT_EQ(s.structFields().size(), 0u);
 }
@@ -39,7 +39,7 @@ TEST(BuiltinCellStructPublicApi, StructureFromNameValuePairs)
         mkStr(mr, "y"), Value::scalar(42.0, mr),
     };
     Span<const Value> span(pairs, 4);
-    Value s = numkit::builtin::structure(span, mr);
+    Value s = numkit::runtime::structure(span, mr);
     ASSERT_TRUE(s.isStruct());
     EXPECT_TRUE(s.hasField("x"));
     EXPECT_TRUE(s.hasField("y"));
@@ -52,7 +52,7 @@ TEST(BuiltinCellStructPublicApi, StructureRejectsNonCharName)
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value pairs[] = {Value::scalar(1.0, mr), Value::scalar(2.0, mr)};
     Span<const Value> span(pairs, 2);
-    EXPECT_THROW(numkit::builtin::structure(span, mr), Error);
+    EXPECT_THROW(numkit::runtime::structure(span, mr), Error);
 }
 
 TEST(BuiltinCellStructPublicApi, StructureOddArgDropsTrailingName)
@@ -63,7 +63,7 @@ TEST(BuiltinCellStructPublicApi, StructureOddArgDropsTrailingName)
         mkStr(mr, "b"),  // no matching value
     };
     Span<const Value> span(pairs, 3);
-    Value s = numkit::builtin::structure(span, mr);
+    Value s = numkit::runtime::structure(span, mr);
     EXPECT_TRUE(s.hasField("a"));
     EXPECT_FALSE(s.hasField("b"));
 }
@@ -76,8 +76,8 @@ TEST(BuiltinCellStructPublicApi, FieldnamesReturnsAllNames)
         mkStr(mr, "alpha"), Value::scalar(1.0, mr),
         mkStr(mr, "beta"),  Value::scalar(2.0, mr),
     };
-    Value s = numkit::builtin::structure(Span<const Value>(pairs, 4), mr);
-    Value names = numkit::builtin::fieldnames(s, mr);
+    Value s = numkit::runtime::structure(Span<const Value>(pairs, 4), mr);
+    Value names = numkit::runtime::fieldnames(s, mr);
     ASSERT_EQ(names.numel(), 2u);
     // Insertion order preserved.
     EXPECT_EQ(names.cellAt(0).toString(), "alpha");
@@ -88,22 +88,22 @@ TEST(BuiltinCellStructPublicApi, FieldnamesThrowsOnNonStruct)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     EXPECT_THROW(
-        numkit::builtin::fieldnames(Value::scalar(1.0, mr), mr), Error);
+        numkit::runtime::fieldnames(Value::scalar(1.0, mr), mr), Error);
 }
 
 TEST(BuiltinCellStructPublicApi, IsfieldPresent)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     Value pairs[] = {mkStr(mr, "x"), Value::scalar(1.0, mr)};
-    Value s = numkit::builtin::structure(Span<const Value>(pairs, 2), mr);
-    EXPECT_TRUE(numkit::builtin::isfield(s, mkStr(mr, "x"), mr).toBool());
-    EXPECT_FALSE(numkit::builtin::isfield(s, mkStr(mr, "y"), mr).toBool());
+    Value s = numkit::runtime::structure(Span<const Value>(pairs, 2), mr);
+    EXPECT_TRUE(numkit::runtime::isfield(s, mkStr(mr, "x"), mr).toBool());
+    EXPECT_FALSE(numkit::runtime::isfield(s, mkStr(mr, "y"), mr).toBool());
 }
 
 TEST(BuiltinCellStructPublicApi, IsfieldOnNonStructReturnsFalse)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value r = numkit::builtin::isfield(Value::scalar(1.0, mr), mkStr(mr, "x"), mr);
+    Value r = numkit::runtime::isfield(Value::scalar(1.0, mr), mkStr(mr, "x"), mr);
     EXPECT_FALSE(r.toBool());
 }
 
@@ -114,8 +114,8 @@ TEST(BuiltinCellStructPublicApi, RmfieldRemovesExistingField)
         mkStr(mr, "a"), Value::scalar(1.0, mr),
         mkStr(mr, "b"), Value::scalar(2.0, mr),
     };
-    Value s = numkit::builtin::structure(Span<const Value>(pairs, 4), mr);
-    Value r = numkit::builtin::rmfield(s, mkStr(mr, "a"), mr);
+    Value s = numkit::runtime::structure(Span<const Value>(pairs, 4), mr);
+    Value r = numkit::runtime::rmfield(s, mkStr(mr, "a"), mr);
     EXPECT_FALSE(r.hasField("a"));
     EXPECT_TRUE(r.hasField("b"));
 }
@@ -123,8 +123,8 @@ TEST(BuiltinCellStructPublicApi, RmfieldRemovesExistingField)
 TEST(BuiltinCellStructPublicApi, RmfieldIgnoresMissingField)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value s = numkit::builtin::structure(mr);
-    Value r = numkit::builtin::rmfield(s, mkStr(mr, "nope"), mr);
+    Value s = numkit::runtime::structure(mr);
+    Value r = numkit::runtime::rmfield(s, mkStr(mr, "nope"), mr);
     EXPECT_TRUE(r.isStruct());
     EXPECT_EQ(r.structFields().size(), 0u);
 }
@@ -133,7 +133,7 @@ TEST(BuiltinCellStructPublicApi, RmfieldIgnoresMissingField)
 TEST(BuiltinCellStructPublicApi, CellOneArgIsSquare)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::cell(3, mr);
+    Value c = numkit::runtime::cell(3, mr);
     EXPECT_EQ(c.dims().rows(), 3u);
     EXPECT_EQ(c.dims().cols(), 3u);
 }
@@ -141,7 +141,7 @@ TEST(BuiltinCellStructPublicApi, CellOneArgIsSquare)
 TEST(BuiltinCellStructPublicApi, CellTwoArgs)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::cell(2, 5, mr);
+    Value c = numkit::runtime::cell(2, 5, mr);
     EXPECT_EQ(c.dims().rows(), 2u);
     EXPECT_EQ(c.dims().cols(), 5u);
 }
@@ -149,7 +149,7 @@ TEST(BuiltinCellStructPublicApi, CellTwoArgs)
 TEST(BuiltinCellStructPublicApi, CellThreeArgsIs3D)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::cell(2, 3, 4, mr);
+    Value c = numkit::runtime::cell(2, 3, 4, mr);
     EXPECT_EQ(c.dims().rows(), 2u);
     EXPECT_EQ(c.dims().cols(), 3u);
     EXPECT_EQ(c.dims().pages(), 4u);
@@ -158,7 +158,7 @@ TEST(BuiltinCellStructPublicApi, CellThreeArgsIs3D)
 TEST(BuiltinCellStructPublicApi, CellThreeArgsPagesZeroIs2D)
 {
     std::pmr::memory_resource *mr = std::pmr::get_default_resource();
-    Value c = numkit::builtin::cell(2, 3, 0, mr);
+    Value c = numkit::runtime::cell(2, 3, 0, mr);
     EXPECT_EQ(c.dims().rows(), 2u);
     EXPECT_EQ(c.dims().cols(), 3u);
     EXPECT_FALSE(c.dims().is3D());

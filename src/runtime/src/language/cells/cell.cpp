@@ -16,11 +16,12 @@
 
 #include "../handles/_handlefn_helpers.hpp"
 
-namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c cross-area
-using namespace numkit::builtin;  // C4c cross-area
+namespace numkit::runtime {
 
-namespace hf = ::numkit::builtin::detail::handlefn;
+using numkit::builtin::horzcat;
+using numkit::builtin::vertcat;
+
+namespace hf = ::numkit::runtime::detail::handlefn;
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -726,11 +727,194 @@ void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     }
 }
 
+struct ArrayfunCallbackBuiltin : CallbackBuiltin
+{
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
+    {
+        if (args.size() < 2 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr; // builtin handle -> fast synchronous path
+        bool uniform = true;
+        auto inputs = std::make_shared<std::vector<Value>>();
+        for (std::size_t k = 1; k < args.size(); ++k) {
+            if (args[k].isChar() && k + 1 < args.size()) {
+                std::string key = args[k].toString();
+                for (auto &ch : key)
+                    ch = static_cast<char>(std::tolower((unsigned char)ch));
+                if (key == "uniformoutput") {
+                    uniform = args[k + 1].toScalar() != 0.0;
+                    ++k;
+                    continue;
+                }
+                if (key == "errorhandler") {
+                    ++k;
+                    continue;
+                }
+            }
+            inputs->push_back(args[k]);
+        }
+        if (inputs->empty())
+            return nullptr;
+        const std::size_t n = (*inputs)[0].numel();
+        for (const auto &p : *inputs)
+            if (p.numel() != n)
+                return nullptr; // size mismatch -> sync path throws the error
+        auto *mr = eng.resource();
+        const std::size_t rows = (*inputs)[0].dims().rows();
+        const std::size_t cols = (*inputs)[0].dims().cols();
+        auto cont = std::make_shared<LoopContinuation>();
+        cont->handle = args[0];
+        cont->n = n;
+        cont->dest = dest;
+        cont->makeArgs = [inputs, mr](std::size_t i) -> std::vector<Value> {
+            std::vector<Value> callArgs(inputs->size());
+            for (std::size_t k = 0; k < inputs->size(); ++k)
+                callArgs[k] = Value::scalar((*inputs)[k].elemAsDouble(i), mr);
+            return callArgs;
+        };
+        cont->pack = [uniform, rows, cols, mr](std::vector<Value> &results) -> Value {
+            const std::size_t n = results.size();
+            if (uniform) {
+                Value out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+                for (std::size_t k = 0; k < n; ++k)
+                    out.doubleDataMut()[k] = results[k].toScalar();
+                return out;
+            }
+            Value out = Value::cell(rows, cols, mr);
+            for (std::size_t k = 0; k < n; ++k)
+                out.cellAt(k) = results[k];
+            return out;
+        };
+        cont->results.reserve(n);
+        return cont;
+    }
+};
+
 } // namespace detail
 
 void registerCellfunCallbackBuiltin(Engine &engine)
 {
     engine.registerCallbackBuiltin("cellfun", std::make_shared<detail::CellfunCallbackBuiltin>());
+    engine.registerCallbackBuiltin("arrayfun", std::make_shared<detail::ArrayfunCallbackBuiltin>());
 }
 
-} // namespace numkit::builtin
+void registerCellsRuntime(Engine &engine)
+{
+    engine.registerFunction("cell",     &detail::cell_reg);
+    engine.registerFunction("num2cell", &detail::num2cell_reg);
+    engine.registerFunction("cell2mat", &detail::cell2mat_reg);
+    engine.registerFunction("iscellstr",&detail::iscellstr_reg);
+    engine.registerFunction("cellstr",  &detail::cellstr_reg);
+    engine.registerFunction("mat2cell", &detail::mat2cell_reg);
+    engine.registerFunction("cellfun",  &detail::cellfun_reg);
+
+    engine.registerFunction("deal",
+        [](Span<const Value> args, size_t nargout,
+           Span<Value> outs, CallContext &) {
+            if (args.empty())
+                throw std::runtime_error("deal requires at least 1 argument");
+            if (args.size() == 1) {
+                for (size_t i = 0; i < nargout && i < outs.size(); ++i)
+                    outs[i] = args[0];
+                return;
+            }
+            const size_t n = std::min(nargout, args.size());
+            for (size_t i = 0; i < n && i < outs.size(); ++i)
+                outs[i] = args[i];
+        });
+
+    engine.registerFunction("celldisp",
+        [](Span<const Value> args, size_t, Span<Value>, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("celldisp requires 1 argument");
+            const Value &c = args[0];
+            if (!c.isCell())
+                throw std::runtime_error("celldisp: input must be a cell");
+            const std::string name = (args.size() >= 2)
+                                          ? args[1].toString()
+                                          : std::string("ans");
+            for (size_t i = 0; i < c.numel(); ++i) {
+                ctx.engine->outputText(name + "{" + std::to_string(i + 1) + "} =\n");
+                ctx.engine->outputText(c.cellAt(i).formatDisplay("") + "\n");
+            }
+        });
+
+    engine.registerFunction("arrayfun",
+        [](Span<const Value> args,
+           size_t nargout,
+           Span<Value> outs,
+           CallContext &ctx) {
+            (void)nargout;
+            if (args.size() < 2)
+                throw std::runtime_error("arrayfun requires at least 2 arguments");
+            if (!args[0].isFuncHandle())
+                throw std::runtime_error("arrayfun: first argument must be a function handle");
+            const Value &handle = args[0];
+
+            bool uniformOutput = true;
+            std::vector<const Value *> inputs;
+            inputs.reserve(args.size() - 1);
+            for (size_t i = 1; i < args.size(); ++i) {
+                if (args[i].isChar() && i + 1 < args.size()) {
+                    std::string key = args[i].toString();
+                    for (auto &c : key)
+                        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    if (key == "uniformoutput") {
+                        uniformOutput = args[i + 1].toScalar() != 0.0;
+                        ++i;
+                        continue;
+                    }
+                    if (key == "errorhandler") {
+                        ++i;
+                        continue;
+                    }
+                }
+                inputs.push_back(&args[i]);
+            }
+            if (inputs.empty())
+                throw std::runtime_error("arrayfun: at least one input array required");
+
+            const size_t n = inputs[0]->numel();
+            for (const auto *p : inputs) {
+                if (p->numel() != n)
+                    throw std::runtime_error("arrayfun: all input arrays must be the same size");
+            }
+            auto *mr = ctx.engine->resource();
+
+            std::vector<Value> callArgs(inputs.size());
+            if (uniformOutput) {
+                auto out = Value::matrix(inputs[0]->dims().rows(),
+                                         inputs[0]->dims().cols(),
+                                         ValueType::DOUBLE, mr);
+                for (size_t i = 0; i < n; ++i) {
+                    for (size_t k = 0; k < inputs.size(); ++k)
+                        callArgs[k] = Value::scalar(inputs[k]->elemAsDouble(i), mr);
+                    Value r = ctx.engine->callFunctionHandle(
+                        handle,
+                        Span<const Value>(callArgs.data(), callArgs.size()),
+                        ctx.env);
+                    out.doubleDataMut()[i] = r.toScalar();
+                }
+                outs[0] = std::move(out);
+            } else {
+                auto cell = Value::cell(inputs[0]->dims().rows(),
+                                        inputs[0]->dims().cols(), mr);
+                for (size_t i = 0; i < n; ++i) {
+                    for (size_t k = 0; k < inputs.size(); ++k)
+                        callArgs[k] = Value::scalar(inputs[k]->elemAsDouble(i), mr);
+                    Value r = ctx.engine->callFunctionHandle(
+                        handle,
+                        Span<const Value>(callArgs.data(), callArgs.size()),
+                        ctx.env);
+                    cell.cellAt(i) = std::move(r);
+                }
+                outs[0] = std::move(cell);
+            }
+        });
+
+    registerCellfunCallbackBuiltin(engine);
+}
+
+} // namespace numkit::runtime

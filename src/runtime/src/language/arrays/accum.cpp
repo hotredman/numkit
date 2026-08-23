@@ -29,7 +29,7 @@
 #include <memory_resource>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::runtime {
 
 namespace {
 
@@ -399,4 +399,9 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+void registerArraysRuntime(Engine &engine)
+{
+    engine.registerFunction("accumarray", &detail::accumarray_reg);
+}
+
+} // namespace numkit::runtime

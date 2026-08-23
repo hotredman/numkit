@@ -15,9 +15,9 @@
 
 #include "../handles/_handlefn_helpers.hpp"
 
-namespace numkit::builtin {
+namespace numkit::runtime {
 
-namespace hf = ::numkit::builtin::detail::handlefn;
+namespace hf = ::numkit::runtime::detail::handlefn;
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -536,4 +536,20 @@ void registerStructfunCallbackBuiltin(Engine &engine)
                                    std::make_shared<detail::StructfunCallbackBuiltin>());
 }
 
-} // namespace numkit::builtin
+void registerStructuresRuntime(Engine &engine)
+{
+    engine.registerFunction("struct",      &detail::struct_reg);
+    engine.registerFunction("fieldnames",  &detail::fieldnames_reg);
+    engine.registerFunction("isfield",     &detail::isfield_reg);
+    engine.registerFunction("rmfield",     &detail::rmfield_reg);
+    engine.registerFunction("structfun",   &detail::structfun_reg);
+    engine.registerFunction("getfield",    &detail::getfield_reg);
+    engine.registerFunction("setfield",    &detail::setfield_reg);
+    engine.registerFunction("orderfields", &detail::orderfields_reg);
+    engine.registerFunction("struct2cell", &detail::struct2cell_reg);
+    engine.registerFunction("cell2struct", &detail::cell2struct_reg);
+
+    registerStructfunCallbackBuiltin(engine);
+}
+
+} // namespace numkit::runtime

@@ -1,26 +1,22 @@
-// runtime/include/numkit/runtime/runtime.hpp
+// src/runtime/include/numkit/runtime/runtime.hpp
 //
-// Language-runtime layer (L2, engine-coupled). These are NOT math/io toolbox
-// functions — they are the scripting runtime itself (the eval-family today;
-// the workspace who/whos/clear/clearvars/exist/assignin/inputname and import
-// clusters land here as the runtime extraction proceeds). Extracted out of
-// toolboxes/builtin so the math/io toolboxes stay free of engine-runtime glue.
-// Wired by bundle/installStandardLibrary (NOT by builtin).
+// Language-runtime layer (L2, engine-coupled). Scripting runtime execution,
+// workspace commands, cells, structures, containers, diagnostics, I/O, and callbacks.
 #pragma once
 
 namespace numkit {
 class Engine;
-}
 
-namespace numkit::runtime {
+class RuntimeLibrary {
+public:
+    static void install(Engine &engine);
+};
 
-/// @brief Register the language-runtime builtins.
-///
-/// Currently the eval-family (`run` / `eval` / `evalin`). Engine-coupled (L2);
-/// called once from `installStandardLibrary` after the toolbox installs.
-///
-/// @param engine  Engine to register the runtime builtins on.
+namespace runtime {
+
+/// @brief Forwarder for backward compatibility.
 void installRuntimeLibrary(Engine &engine);
 void registerWorkspaceRuntime(Engine &engine);
 
-} // namespace numkit::runtime
+} // namespace runtime
+} // namespace numkit

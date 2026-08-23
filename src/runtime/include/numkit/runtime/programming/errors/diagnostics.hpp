@@ -9,7 +9,9 @@ namespace numkit {
 class Engine;
 }
 
-namespace numkit::builtin {
+namespace numkit::runtime {
+
+void registerDiagnosticsRuntime(Engine &engine);
 
 // ── error() ───────────────────────────────────────────────────
 
@@ -100,4 +102,4 @@ Value mexception(Span<const Value> args, std::pmr::memory_resource *mr = nullptr
 /// @throws Error  Condition is false (form-dependent identifier / message).
 void assertCond(Span<const Value> args);
 
-} // namespace numkit::builtin
+} // namespace numkit::runtime

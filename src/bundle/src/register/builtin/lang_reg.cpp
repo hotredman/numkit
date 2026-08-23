@@ -17,19 +17,10 @@
 #include <vector>
 
 namespace numkit::builtin::detail {
-void MException_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void assert_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void coder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void coder_run_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void error_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void getenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void lastwarn_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void rethrow_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void runNative_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void setenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void system_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void throw_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void warning_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 struct FevalCallbackBuiltin : CallbackBuiltin
 {
     std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
@@ -38,7 +29,7 @@ struct FevalCallbackBuiltin : CallbackBuiltin
         if (args.empty() || nargout > 1)
             return nullptr;
         if (!eng.isUserCodeHandle(args[0]))
-            return nullptr; // name/string/builtin handle → synchronous feval
+            return nullptr; // name/string/builtin handle -> synchronous feval
         std::vector<Value> callArgs(args.begin() + 1, args.end());
         auto cont = std::make_shared<LoopContinuation>();
         cont->handle = args[0];
@@ -59,11 +50,7 @@ namespace numkit::bundle::builtin {
 
 void register_lang(Engine &engine) {
     using namespace ::numkit::builtin::detail;
-// ── env.cpp public-API-backed built-ins ────────────────────────
-    engine.registerFunction("setenv",     &::numkit::builtin::detail::setenv_reg);
-    engine.registerFunction("getenv",     &::numkit::builtin::detail::getenv_reg);
 
-    
 // ── coder.cpp public-API-backed built-ins ──────────────────────
     // coder = transpile (pure C++, works under WASM); coder_run/system/
     // runNative spawn a native process (native-only, throw under WASM).
@@ -71,16 +58,6 @@ void register_lang(Engine &engine) {
     engine.registerFunction("coder_run",  &::numkit::builtin::detail::coder_run_reg);
     engine.registerFunction("system",     &::numkit::builtin::detail::system_reg);
     engine.registerFunction("runNative",  &::numkit::builtin::detail::runNative_reg);
-
-    
-// ── programming/errors/diagnostics.cpp public-API-backed built-ins ──────
-    engine.registerFunction("error",      &::numkit::builtin::detail::error_reg);
-    engine.registerFunction("warning",    &::numkit::builtin::detail::warning_reg);
-    engine.registerFunction("lastwarn",   &::numkit::builtin::detail::lastwarn_reg);
-    engine.registerFunction("MException", &::numkit::builtin::detail::MException_reg);
-    engine.registerFunction("rethrow",    &::numkit::builtin::detail::rethrow_reg);
-    engine.registerFunction("throw",      &::numkit::builtin::detail::throw_reg);
-    engine.registerFunction("assert",     &::numkit::builtin::detail::assert_reg);
 
     
 // ── Pack 13: function handles ─────────────────────────────────────

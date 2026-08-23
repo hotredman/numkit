@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit {
+namespace numkit::runtime {
 namespace {
 
 // ── Shared opaque payload ────────────────────────────────────
@@ -261,7 +261,6 @@ Value values(const Value &m, std::pmr::memory_resource *mr)
 // ============================================================
 // Registry hooks — thin adapters over the public C++ API.
 // ============================================================
-namespace runtime {
 
 void registerContainersRuntime(Engine &engine)
 {
@@ -424,6 +423,4 @@ void registerContainersRuntime(Engine &engine)
     }
 }
 
-} // namespace runtime
-
-} // namespace numkit
+} // namespace numkit::runtime

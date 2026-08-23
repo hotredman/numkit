@@ -1,25 +1,47 @@
-// runtime/src/runtime.cpp
+// src/runtime/src/runtime.cpp
 //
-// Orchestrator for the runtime language-runtime layer. installRuntimeLibrary is
-// the single public entry (called once by bundle/installStandardLibrary); it
-// composes the per-cluster registrars, each defined in its own translation unit
-// (eval.cpp, workspace.cpp, …) as the extraction out of toolboxes/builtin proceeds.
+// RuntimeLibrary orchestrator. Registers language runtime, containers,
+// cells, structures, reflection, and execution engines.
+
 #include <numkit/runtime/runtime.hpp>
 
-namespace numkit::runtime {
+namespace numkit {
+
+namespace runtime {
 
 // Per-cluster registrars (defined in sibling TUs).
-void registerEvalFamily(Engine &engine);        // eval.cpp     — run / eval / evalin
-void registerWorkspaceRuntime(Engine &engine);  // workspace.cpp — assignin / inputname / …
-void registerFunctionHandles(Engine &engine);   // function_handles.cpp — str2func / func2str
-void registerContainersRuntime(Engine &engine);   // containers.cpp - dictionary / containers.Map
+void registerEvalFamily(Engine &engine);              // eval.cpp
+void registerWorkspaceRuntime(Engine &engine);        // workspace.cpp
+void registerFunctionHandles(Engine &engine);         // function_handles.cpp
+void registerContainersRuntime(Engine &engine);       // containers.cpp
+void registerCellsRuntime(Engine &engine);            // cell.cpp
+void registerStructuresRuntime(Engine &engine);       // struct.cpp
+void registerArraysRuntime(Engine &engine);           // accum.cpp
+void registerEnvRuntime(Engine &engine);              // env.cpp
+void registerReflectionRuntime(Engine &engine);       // reflection.cpp
+void registerDiagnosticsRuntime(Engine &engine);      // diagnostics.cpp
+void registerSplitapplyCallbackBuiltin(Engine &engine); // splitapply_callback.cpp
 
 void installRuntimeLibrary(Engine &engine)
 {
-    registerEvalFamily(engine);
-    registerWorkspaceRuntime(engine);
-    registerFunctionHandles(engine);
-    registerContainersRuntime(engine);
+    RuntimeLibrary::install(engine);
 }
 
-} // namespace numkit::runtime
+} // namespace runtime
+
+void RuntimeLibrary::install(Engine &engine)
+{
+    runtime::registerEvalFamily(engine);
+    runtime::registerWorkspaceRuntime(engine);
+    runtime::registerFunctionHandles(engine);
+    runtime::registerContainersRuntime(engine);
+    runtime::registerCellsRuntime(engine);
+    runtime::registerStructuresRuntime(engine);
+    runtime::registerArraysRuntime(engine);
+    runtime::registerEnvRuntime(engine);
+    runtime::registerDiagnosticsRuntime(engine);
+    runtime::registerReflectionRuntime(engine);
+    runtime::registerSplitapplyCallbackBuiltin(engine);
+}
+
+} // namespace numkit

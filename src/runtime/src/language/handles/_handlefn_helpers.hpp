@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::builtin::detail::handlefn {
+namespace numkit::runtime::detail::handlefn {
 
 using ::numkit::Engine;
 
@@ -250,4 +250,4 @@ inline bool parseUniformOutputFlag(Span<const Value> args, size_t dataArgCount,
     return uniform;
 }
 
-} // namespace numkit::builtin::detail::handlefn
+} // namespace numkit::runtime::detail::handlefn

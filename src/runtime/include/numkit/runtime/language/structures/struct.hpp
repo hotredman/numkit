@@ -10,13 +10,9 @@ namespace numkit {
 class Engine;
 }
 
-namespace numkit::builtin {
+namespace numkit::runtime {
 
-/// @brief Register structfun's VM-continuation driver (state-machine callbacks).
-///
-/// Under the VM backend, `structfun(@userfunc, S)` runs each field's callback as
-/// a pausable VM frame; builtin handles / multi-output / non-scalar-struct fall
-/// back to the synchronous `structfun`. Call once at engine setup.
+void registerStructuresRuntime(Engine &engine);
 void registerStructfunCallbackBuiltin(Engine &engine);
 
 /// @brief Empty struct scalar (`s = struct()`).
@@ -101,5 +97,5 @@ Value setfield(const Value &s, const Value &name, const Value &value, std::pmr::
 Value orderfields(const Value &s, std::pmr::memory_resource *mr = nullptr);
 Value struct2cell(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
-} // namespace numkit::builtin
+} // namespace numkit::runtime
 
