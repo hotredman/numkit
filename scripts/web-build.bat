@@ -14,6 +14,10 @@ set EMCC_DIR=%EMSDK%\upstream\emscripten
 echo === Numkit IDE Static Build -- output to deploy\ ===
 echo.
 
+set SKIP_WASM=0
+if "%1"=="--skip-wasm" set SKIP_WASM=1
+if "%2"=="--skip-wasm" set SKIP_WASM=1
+
 :: Check Node.js
 where node >nul 2>&1
 if errorlevel 1 (
@@ -21,9 +25,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Build WASM if emsdk available and not yet built
+:: Build WASM if emsdk available
 if exist "%EMCC_DIR%\emcc.bat" (
-    if not exist "%WASM_DIST%\numkit_ide.wasm" (
+    if "%SKIP_WASM%"=="1" (
+        echo [WASM] Skipping rebuild (--skip-wasm)
+    ) else (
         echo Building WASM...
         call "%~dp0engine-build.bat" --wasm
         if errorlevel 1 exit /b 1

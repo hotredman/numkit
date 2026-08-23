@@ -17,9 +17,16 @@ if [ -f "${PROJECT_DIR}/.claude_emsdk_env.sh" ]; then
     source "${PROJECT_DIR}/.claude_emsdk_env.sh"
 fi
 
-# Build WASM if emcc available; otherwise reuse a pre-built one if it exists.
+SKIP_WASM=0
+for arg in "$@"; do
+    if [ "$arg" == "--skip-wasm" ]; then SKIP_WASM=1; fi
+done
+
+# Build WASM if emcc available; otherwise reuse pre-built if present.
 if command -v emcc &>/dev/null; then
-    if [ ! -f "${WASM_DIST}/numkit_ide.wasm" ]; then
+    if [ "$SKIP_WASM" -eq 1 ]; then
+        echo "Skipping WASM rebuild (--skip-wasm)..."
+    else
         echo "Building WASM..."
         bash "$(dirname "$0")/engine-build.sh" --wasm
     fi
