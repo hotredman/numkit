@@ -6,19 +6,7 @@
 @mainpage NumKit — High-Performance C++ Numerical Computing Runtime
 
 \htmlonly
-<div class="header-tagline">
-  <p class="tagline-text">High-performance standalone C++20 numerical framework and embedded script engine with <b>MATLAB®-compatible</b> syntax, functions, and toolboxes.</p>
-  <div class="badge-row">
-    <span class="badge badge-blue">C++20</span>
-    <span class="badge badge-green">Highway SIMD &amp; Multi-Threading</span>
-    <span class="badge badge-purple">Zero External Dependencies</span>
-    <span class="badge badge-orange">WASM / Web IDE Ready</span>
-  </div>
-</div>
-
-<hr/>
-
-<h2 class="section-title">MATLAB Language Fundamentals</h2>
+<h2 class="section-title">Fundamentals</h2>
 <div class="topics-grid">
 
   <a class="topic-card" href="group__group__elmat.html">
@@ -103,7 +91,7 @@
 
 </div>
 
-<h2 class="section-title">MATLAB Toolboxes</h2>
+<h2 class="section-title">Toolboxes</h2>
 <div class="topics-grid">
 
   <a class="topic-card" href="group__group__signal.html">

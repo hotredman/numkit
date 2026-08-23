@@ -4,7 +4,7 @@
 // Organizes all NumKit free functions, structs, and toolboxes into discoverable modules.
 
 /**
- * @defgroup group_matlab MATLAB Language Fundamentals
+ * @defgroup group_matlab Fundamentals
  * @brief Core matrix manipulation, elementary math, data types, string formatting, and language execution.
  * @{
  */
@@ -73,7 +73,7 @@
 
 
 /**
- * @defgroup group_toolboxes MATLAB Toolboxes
+ * @defgroup group_toolboxes Toolboxes
  * @brief Domain-specific mathematical and engineering toolboxes matching MATLAB standards.
  * @{
  */
