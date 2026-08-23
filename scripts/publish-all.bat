@@ -9,9 +9,9 @@ if "%~1"=="-h" goto show_help
 echo =======================================================
 echo   [1/3] Publishing Source Code to GitHub
 echo =======================================================
-call "%SCRIPT_DIR%publish-code.bat"
+call "%SCRIPT_DIR%code-publish.bat"
 if errorlevel 1 (
-    echo ERROR: publish-code.bat failed!
+    echo ERROR: code-publish.bat failed!
     exit /b 1
 )
 
