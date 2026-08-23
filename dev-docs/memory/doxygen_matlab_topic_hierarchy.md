@@ -5,21 +5,25 @@ NumKit exposes more than 1,000 public C++ functions and types across 15+ toolbox
 
 ## Solution & Architectural Decisions
 1. **Topic Hierarchy (`doxygen/groups.dox`)**:
-   - Organized the entire documentation using standard MATLAB categories and toolboxes:
-     - **MATLAB Language Fundamentals (`group_matlab`)**: `elmat`, `elfun`, `matfun` (linalg), `datafun`, `specfun`, `polyfun`, `strfun`, `datatypes`, `timefun`, `iofun`.
-     - **MATLAB Toolboxes (`group_toolboxes`)**: `signal`, `stats`, `image`, `control`, `optim`, `wavelet`, `comm`, `audio`, `ode`, `graphics`.
-   - Annotated all public headers in `src/` with `@ingroup`.
+   - Organized the entire documentation using clean 12 Fundamentals + 10 Toolboxes modules:
+     - **Fundamentals (`group_matlab`)**: `elmat`, `elfun`, `ops`, `matfun`, `datafun`, `specfun`, `polyfun`, `strfun`, `datatypes`, `timefun`, `lang`, `iofun`.
+     - **Toolboxes (`group_toolboxes`)**: `signal`, `stats`, `image`, `control`, `optim`, `wavelet`, `comm`, `audio`, `ode`, `graphics`.
+   - Bound all public functions directly into sub-groups via `@addtogroup` blocks inside header namespaces, ensuring `Fundamentals` and `Toolboxes` display strictly clean topic directories with 0 loose functions.
+   - Suppressed raw file tables on topic pages and configured `FULL_PATH_NAMES = NO`.
 2. **Interactive Landing Page (`doxygen/doxygen_mainpage.dox`)**:
-   - Replaced flat text lists with an interactive CSS Grid containing clickable topic cards, feature badges, and a code quick-start snippet.
-   - Included standard nominative fair use trademark disclaimer for MATLAB.
-3. **Modern Theme UX (`doxygen-awesome-css` + `custom.css`)**:
-   - Integrated Doxygen Awesome theme with dark/light mode toggle, copy buttons on code blocks, and interactive table of contents.
-   - Reduced header height to ~45px with sleek, vertically centered logo.
-   - Added quick links in top bar to GitHub repository (`hotredman/numkit`) and Web IDE (`hotredman.github.io/numkit-demo/`).
-4. **Native Deployment Scripts**:
-   - `scripts/publish-doxy.bat` and `scripts/publish-doxy.sh` without external Python dependencies.
-   - Integrated into `scripts/publish-all.bat` and `scripts/publish-all.sh`.
+   - Clean, modern grid of cards under **Fundamentals** and **Toolboxes**.
+   - Made header logo mark `[n_k]` and project title clickable links pointing back to `index.html`.
+3. **Modern Theme UX (`doxygen-awesome-css` + `custom.css` + `signature-highlighter.js`)**:
+   - Injected semantic AST/token highlighting for all C++ prototypes (return types, keywords, parameters, default values, references).
+   - Removed right TOC panel for spacious, full-width readability.
+4. **Synchronized Help Catalog (`src/bundle/src/help/help_catalog.cpp`)**:
+   - Built-in REPL `help` system mirrors the exact 22 topics (Fundamentals + Toolboxes) with full aliases and discoverability.
+5. **Unified Script Convention (`<target>-<action>`)**:
+   - `code-publish`, `web-run`, `web-build`, `web-publish`, `desktop-run`, `desktop-build`, `doxy-run`, `doxy-publish`, `all-publish`.
 
 ## Verification & Deployment
-- Doxygen generates all `topics.html` and `group__*.html` modules cleanly.
-- Static assets published and pushed directly to `git@github.com:hotredman/numkit-doxy.git` on branch `main`.
+- Automated tests pass in `numkit_gtest` (29 tests in General/Help).
+- Full pipeline deployed:
+  - Source Code: `https://github.com/hotredman/numkit`
+  - Web IDE Demo: `https://hotredman.github.io/numkit-demo/`
+  - Doxygen API: `https://hotredman.github.io/numkit-doxy/`
