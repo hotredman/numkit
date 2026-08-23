@@ -17,6 +17,7 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/workspace.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/function_handles.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload_ascii.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload_mat.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/env.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/containers.cpp
