@@ -12,6 +12,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_elmat
+/// @{
+
+
 /// @file
 /// @ingroup group_elmat
 /// @brief Elementary matrices and array manipulation functions (MATLAB parity).
@@ -730,4 +734,6 @@ Value nonzeros(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return Logical array where true indicates either `a` or `b` is nonzero, but not both.
 Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

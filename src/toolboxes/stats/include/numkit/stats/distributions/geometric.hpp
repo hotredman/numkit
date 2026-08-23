@@ -12,7 +12,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -74,4 +78,6 @@ Value geornd(::numkit::ops::RngContext &rng, double p, size_t rows = 1, size_t c
 /// @see geopdf
 std::tuple<double, double> geostat(double p);
 
+
+/// @}
 } // namespace numkit::stats

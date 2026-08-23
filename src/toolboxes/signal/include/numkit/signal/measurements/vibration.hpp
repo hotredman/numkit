@@ -14,6 +14,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Envelope spectrum: magnitude FFT of the AC-coupled analytic-signal envelope.
 ///
 /// Pipeline: `|hilbert(x - mean(x))| → fft → |·|`. Used in vibration
@@ -94,4 +98,6 @@ tsa(const Value &                x,
     int                          n_per_rev = 1024,
     std::pmr::memory_resource *  mr        = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

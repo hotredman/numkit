@@ -10,7 +10,11 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -80,4 +84,6 @@ Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
 Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

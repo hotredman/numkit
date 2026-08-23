@@ -11,6 +11,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Root-mean-square along a dimension.
 ///
 /// Computes \f$ y = \sqrt{\frac{1}{N}\sum x^2} \f$ along the chosen axis.
@@ -68,4 +72,6 @@ Value peak2rms(const Value &                x,
                int                          dim = 0,
                std::pmr::memory_resource *  mr  = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

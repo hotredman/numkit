@@ -16,6 +16,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Matrix inverse via LU (`B = inv(A)`).
 ///
 /// Prefer @ref linsolve / `\` for solving `A·x = b`; this function
@@ -88,4 +92,6 @@ Value condest(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// `[V, D, s] = condeig(A)` is exposed via the engine adapter.
 Value condeig(const Value &A, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

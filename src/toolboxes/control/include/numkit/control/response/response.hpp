@@ -16,6 +16,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Unit-step response (`[y, t] = step(sys, tFinal_or_t)`).
 ///
 /// Simulates the response of `sys` to a unit step input. The time
@@ -102,4 +106,6 @@ std::pair<Value, Value>
 initial_response(const Value &sys, const Value &x0, const Value &tArg,
                  std::pmr::memory_resource *mr = nullptr, Value *xOut = nullptr);
 
+
+/// @}
 } // namespace numkit::control

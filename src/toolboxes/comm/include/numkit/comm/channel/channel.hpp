@@ -13,7 +13,11 @@
 #include <string>
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_comm
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::comm {
 
@@ -148,4 +152,6 @@ Value convertSNR(const Value &snr_in,
                  int bits_per_symbol,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

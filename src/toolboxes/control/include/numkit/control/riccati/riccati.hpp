@@ -26,6 +26,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Result of an algebraic Riccati solve, matching MATLAB's `[X, L, G]`
 /// output order for `care` / `dare`.
 struct RiccatiResult {
@@ -73,4 +77,6 @@ RiccatiResult care(const Value &A, const Value &B, const Value &Q,
 RiccatiResult dare(const Value &A, const Value &B, const Value &Q,
                    const Value &R, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

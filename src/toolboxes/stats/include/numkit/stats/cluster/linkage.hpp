@@ -15,6 +15,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// Agglomerative hierarchical clustering tree (`Z = linkage(Y, method)`).
 ///
 /// Builds an N−1 × 3 linkage table from a pdist row `Y`. Row i is
@@ -160,4 +164,6 @@ Value cophenet(const Value &Z, const Value &Y,
 Value inconsistent(const Value &Z, int depth,
                    std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

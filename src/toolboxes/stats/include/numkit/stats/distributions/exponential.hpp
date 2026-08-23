@@ -12,7 +12,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -71,4 +75,6 @@ Value exprnd(::numkit::ops::RngContext &rng, double mu, size_t rows = 1, size_t 
 /// @see exppdf
 std::tuple<double, double> expstat(double mu);
 
+
+/// @}
 } // namespace numkit::stats

@@ -12,6 +12,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Randomized low-rank SVD approximation (`[U, S, V] = svdsketch(A, tol)`).
 /// Uses Halko–Martinsson–Tropp algorithm with Gaussian random test matrix.
 std::tuple<Value, Value, Value> svdsketch(const Value &A, double tol = 1e-6,
@@ -23,4 +27,6 @@ std::tuple<Value, Value, Value> svdappend(const Value &U, const Value &S, const 
                                           const Value &A_new,
                                           std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

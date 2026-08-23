@@ -11,7 +11,11 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_comm
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::comm {
 
@@ -62,4 +66,6 @@ Value randerr(::numkit::ops::RngContext &rng, size_t m, size_t n, const Value &e
               bool have_state, uint32_t state,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

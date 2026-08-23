@@ -14,6 +14,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// Gray-level co-occurrence matrix (`G = graycomatrix(I, ...)`).
 ///
 /// Quantises `I` into `numLevels` bins over `[gLow, gHigh]`, then for
@@ -67,4 +71,6 @@ Value graycomatrix(const Value &I, int numLevels, int offR, int offC,
 Value graycoprops(const Value &G,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

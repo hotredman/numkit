@@ -11,6 +11,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// 1-D convolution of two real vectors.
 ///
 /// Computes \f$ c[k] = \sum_{j} a[j] \cdot b[k - j] \f$ (the standard
@@ -201,4 +205,6 @@ Value convn(const Value &                A,
             const std::string &          shape = "full",
             std::pmr::memory_resource *  mr    = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

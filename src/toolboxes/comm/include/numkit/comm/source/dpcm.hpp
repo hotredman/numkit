@@ -12,6 +12,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief DPCM encoder
 /// (`[indx, quanterr] = dpcmenco(sig, codebook, partition, predictor)`).
 ///
@@ -49,4 +53,6 @@ dpcmdeco(const Value &indx, const Value &codebook,
          const Value &predictor,
          std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

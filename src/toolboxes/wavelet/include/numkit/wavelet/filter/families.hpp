@@ -13,6 +13,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// @brief Daubechies scaling filter — `F = dbwavf(name)`.
 ///
 /// Returns the Daubechies synthesis lowpass scaling filter `Lo_R / sqrt(2)`
@@ -74,4 +78,6 @@ struct OrthfiltResult {
 /// @see dbwavf, coifwavf, symwavf
 OrthfiltResult orthfilt(const Value &W, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

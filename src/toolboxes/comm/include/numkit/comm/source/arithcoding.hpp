@@ -12,6 +12,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Arithmetic-encode a symbol sequence
 /// (`code = arithenco(seq, counts)`).
 ///
@@ -43,4 +47,6 @@ Value arithenco(const Value &seq, const Value &counts,
 Value arithdeco(const Value &code, const Value &counts, std::size_t len,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

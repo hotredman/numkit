@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -83,4 +87,6 @@ Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t ro
 /// @see lognpdf
 std::tuple<double, double> lognstat(double mu, double sigma);
 
+
+/// @}
 } // namespace numkit::stats

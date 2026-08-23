@@ -12,6 +12,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Compute generalized singular values of matrix pair (A, B) as a column vector (ascending order).
 Value gsvd_values(const Value &A, const Value &B, std::pmr::memory_resource *mr = nullptr);
 
@@ -21,4 +25,6 @@ Value gsvd_values(const Value &A, const Value &B, std::pmr::memory_resource *mr 
 std::tuple<Value, Value, Value, Value, Value> gsvd(const Value &A, const Value &B,
                                                    std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

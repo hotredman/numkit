@@ -10,7 +10,11 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_comm
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::comm {
 
@@ -43,4 +47,6 @@ Value rayleighchan(::numkit::ops::RngContext &rng, const Value &x,
 Value ricianchan(::numkit::ops::RngContext &rng, const Value &x, double K,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

@@ -12,6 +12,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Apply a second-order-sections cascade to a signal.
 ///
 /// Each row of `sos` represents one biquad section
@@ -58,4 +62,6 @@ Value sosfiltfilt(const Value &                sos,
                   const Value &                x,
                   std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

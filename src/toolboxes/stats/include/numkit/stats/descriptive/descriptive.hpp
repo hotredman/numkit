@@ -15,6 +15,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @file
 /// @ingroup group_stats
 /// @brief Descriptive statistics.
@@ -814,4 +818,6 @@ Value filloutliers(const Value &A, const Value &fillMethod,
                    double thresholdFactor = std::numeric_limits<double>::quiet_NaN(),
                    std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

@@ -13,6 +13,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Moore-Penrose pseudoinverse (`P = pinv(A, tol)`).
 ///
 /// Via SVD: `pinv(A) = V · S⁺ · U'` where `S⁺` inverts non-zero
@@ -35,4 +39,6 @@ Value null_basis(const Value &A, double tol = -1.0, std::pmr::memory_resource *m
 /// `[0, π/2]`.
 Value subspace(const Value &A, const Value &B, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

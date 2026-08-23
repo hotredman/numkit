@@ -13,6 +13,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// @brief Sørensen–Dice similarity coefficient
 /// (`d = dice(BW1, BW2)`).
 ///
@@ -376,4 +380,6 @@ Value bwdistgeodesic(const Value &BW, const Value &seeds,
 Value imoverlay(const Value &I, const Value &BW, const Value &color,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

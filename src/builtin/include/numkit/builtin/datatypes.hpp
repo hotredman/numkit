@@ -11,6 +11,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_datatypes
+/// @{
+
+
 /// @file
 /// @ingroup group_datatypes
 /// @brief Data type construction, inspection, structures, cell arrays, and limits.
@@ -408,4 +412,6 @@ Value flintmax(const std::string &className = "double", std::pmr::memory_resourc
 /// @return Maximum consecutive float integer.
 Value flintmax(const Value &t, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

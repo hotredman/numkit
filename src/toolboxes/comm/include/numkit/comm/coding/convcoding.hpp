@@ -13,6 +13,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Convolutional-code trellis from polynomial generators
 /// (`trellis = poly2trellis(ConstraintLength, CodeGenerator)`).
 ///
@@ -110,4 +114,6 @@ Value vitdec(const Value &code, const Value &trellis, long long tblen,
 /// @see poly2trellis
 Value istrellis(const Value &S, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

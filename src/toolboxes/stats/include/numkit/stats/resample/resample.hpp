@@ -10,7 +10,11 @@
 #include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -75,4 +79,6 @@ Value combnk(int N, int K,
 Value combnk(Span<const double> v, int K,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

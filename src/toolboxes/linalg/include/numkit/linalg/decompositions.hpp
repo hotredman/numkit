@@ -13,6 +13,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Cholesky factorisation (`R = chol(A)`).
 ///
 /// Returns the upper-triangular `R` such that `R' · R == A`.
@@ -104,4 +108,6 @@ qrdelete(const Value &Q, const Value &R, std::size_t k_1based,
 Value cholupdate(const Value &R, const Value &x, int sign = 1,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

@@ -14,6 +14,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// k-nearest-neighbour search (`[Idx, D] = knnsearch(X, Y, K, metric, p)`).
 ///
 /// For each row of `Y` find the `K` nearest rows of `X` under the
@@ -58,4 +62,6 @@ rangesearch(const Value &X, const Value &Y, double r,
             const std::string &metric = "euclidean", double p = 2.0,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

@@ -11,6 +11,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// @file
 /// @ingroup group_control
 /// @brief LTI-system predicates and analytic properties.
@@ -165,4 +169,6 @@ Value isstatic(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 /// @see zero
 Value tzero(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

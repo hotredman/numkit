@@ -228,6 +228,12 @@ code, tt, kbd, samp, pre {
     overflow: hidden;
 }
 
+/* Hide redundant raw Files list on topic/group pages */
+.contents > table.memberdecls:has(#header-files),
+.contents > table.memberdecls:has(a[name="files"]) {
+    display: none !important;
+}
+
 /* ── C++ Function Prototype Modern Styling & Syntax Highlighting ── */
 
 .memproto {

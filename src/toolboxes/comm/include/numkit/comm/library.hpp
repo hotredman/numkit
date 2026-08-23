@@ -7,7 +7,11 @@
 
 #pragma once
 
-namespace numkit { class Engine; }  // fwd-decl — keep this public header core-free
+namespace numkit {
+
+/// @addtogroup group_comm
+/// @{
+ class Engine; }  // fwd-decl — keep this public header core-free
 
 namespace numkit {
 
@@ -17,4 +21,6 @@ public:
     static void install(Engine &engine);
 };
 
+
+/// @}
 } // namespace numkit

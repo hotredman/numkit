@@ -17,6 +17,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Continuous-time Lyapunov equation solver (`X = lyap(A, Q)`).
 ///
 /// Solves @f$ A X + X A^{T} + Q = 0 @f$ by vectorising the equation
@@ -56,4 +60,6 @@ Value lyap(const Value &A, const Value &Q,
 Value dlyap(const Value &A, const Value &Q,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

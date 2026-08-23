@@ -10,6 +10,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_timefun
+/// @{
+
+
 /// @file
 /// @ingroup group_timefun
 /// @brief Date, time, high-resolution profiling timers, and calendar utilities.
@@ -138,4 +142,6 @@ Value addtodate(const Value &d, double quantity, const std::string &unit, std::p
 /// @return Array of packed `YYYYMMDD` integer values.
 Value yyyymmdd(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

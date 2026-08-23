@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 // ─────────────────────────────────────────────────────────────────────
 // Window generators — every function returns an N×1 DOUBLE column.
 //
@@ -209,4 +213,6 @@ Value bohmanwin(size_t N, std::pmr::memory_resource *mr = nullptr);
 /// @return    N×1 DOUBLE column vector.
 Value barthannwin(size_t N, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

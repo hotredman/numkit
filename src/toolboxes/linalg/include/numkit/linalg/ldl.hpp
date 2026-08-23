@@ -13,6 +13,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Block LDL' factorisation (`[L, D, P] = ldl(A, upper_form, p_as_vector)`).
 ///
 /// v1 implements Crout LDL' without pivoting (works for PD/ND and most
@@ -28,4 +32,6 @@ std::tuple<Value, Value, Value>
 ldl(const Value &A, bool upper_form, bool p_as_vector,
     std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

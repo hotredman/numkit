@@ -15,6 +15,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Rectangular pulse of unit amplitude on the open interval `(-w/2, w/2)`.
 ///
 /// \f$ y(t) = 1 \f$ inside the support, `0` outside; the boundary
@@ -268,4 +272,6 @@ Value vco(const Value &x, double fc, double fs,
 Value vco(const Value &x, double fmin, double fmax, double fs,
           std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

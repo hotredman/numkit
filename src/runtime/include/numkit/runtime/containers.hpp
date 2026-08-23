@@ -11,6 +11,10 @@
 #include <memory_resource>
 
 namespace numkit {
+
+/// @addtogroup group_datatypes
+/// @{
+
 class Engine;
 }
 
@@ -87,4 +91,6 @@ Value values(const Value &m, std::pmr::memory_resource *mr = nullptr);
 
 namespace numkit::containers {
 using namespace ::numkit::runtime::containers;
+
+/// @}
 }

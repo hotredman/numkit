@@ -8,6 +8,10 @@
 #include <numkit/value/value.hpp>
 
 namespace numkit {
+
+/// @addtogroup group_matlab
+/// @{
+
 class Engine;
 }
 
@@ -104,4 +108,6 @@ Value mexception(Span<const Value> args, std::pmr::memory_resource *mr = nullptr
 /// @throws Error  Condition is false (form-dependent identifier / message).
 void assertCond(Span<const Value> args);
 
+
+/// @}
 } // namespace numkit::runtime

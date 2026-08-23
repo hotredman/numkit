@@ -15,6 +15,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Result of @ref tf2zp — zeros, poles, and gain from tf coefficients.
 struct Tf2ZpResult {
     Value z;   ///< Zeros (column vector, complex if needed).
@@ -144,4 +148,6 @@ ss2tf(const Value &A, const Value &B,
 Value minreal(const Value &sys, double tol = 0.0,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

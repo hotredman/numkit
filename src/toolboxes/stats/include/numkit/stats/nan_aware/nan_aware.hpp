@@ -9,6 +9,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @file
 /// @ingroup group_stats
 /// @brief NaN-aware reductions.
@@ -136,4 +140,6 @@ Value nancov(const Value &x, int normFlag = 0,
 Value nancov(const Value &x, const Value &y, int normFlag = 0,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

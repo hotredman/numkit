@@ -11,6 +11,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Butterworth IIR lowpass / highpass filter design.
 /// Returns (b, a) — numerator and denominator polynomials.
 ///
@@ -148,4 +152,6 @@ firpm(int                          N,
       const std::string &          ftype  = "",
       std::pmr::memory_resource *  mr     = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

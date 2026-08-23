@@ -13,6 +13,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Cascade two LTI blocks (`series(sys1, sys2)`).
 ///
 /// Implements the topology u → sys1 → sys2 → y, equivalent to
@@ -79,4 +83,6 @@ Value parallel(const Value &sys1, const Value &sys2,
 Value feedback(const Value &G, const Value &H, int sign,
                std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

@@ -11,6 +11,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Generic constellation modulator
 /// (`y = genqammod(x, constellation)`).
 ///
@@ -42,4 +46,6 @@ Value genqammod(const Value &x, const Value &constellation,
 Value genqamdemod(const Value &y, const Value &constellation,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

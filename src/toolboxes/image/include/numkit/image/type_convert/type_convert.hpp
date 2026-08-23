@@ -12,6 +12,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// @file
 /// @ingroup group_image
 /// @brief Image type-conversion helpers.
@@ -271,4 +275,6 @@ Value iscolormap(const Value &cmap, std::pmr::memory_resource *mr = nullptr);
 Value intlut(const Value &A, const Value &LUT,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

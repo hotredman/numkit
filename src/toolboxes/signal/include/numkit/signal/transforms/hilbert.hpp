@@ -9,6 +9,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Analytic signal via the discrete Hilbert transform.
 ///
 /// Computes \f$ z[n] = x[n] + j \hat{x}[n] \f$, where \f$ \hat{x} \f$ is
@@ -77,4 +81,6 @@ envelope_full(const Value &                x,
               std::size_t                  n,
               std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -12,6 +12,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @file
 /// @ingroup group_stats
 /// @brief Hypothesis tests. Most parametric tests return `(h, p, ci, tstat)`:
@@ -399,4 +403,6 @@ std::tuple<Value, Value, Value, Value>
 lillietest(const Value &x, double alpha = 0.05,
            std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

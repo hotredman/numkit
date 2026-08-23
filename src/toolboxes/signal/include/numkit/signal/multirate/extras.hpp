@@ -11,6 +11,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Upsample-FIR-Downsample (polyphase) rational rate conversion.
 ///
 /// Pipeline: upsample `x` by `p` (zero-stuffing) → FIR-filter with `h` →
@@ -90,4 +94,6 @@ Value fftfilt(const Value &                b,
               size_t                       nfft = 0,
               std::pmr::memory_resource *  mr   = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

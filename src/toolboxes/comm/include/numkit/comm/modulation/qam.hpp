@@ -13,6 +13,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief M-ary PAM modulator
 /// (`y = pammod(x, M, ini_phase, symbol_order)`).
 ///
@@ -96,4 +100,6 @@ Value qamdemod(const Value &y, int M, const std::string &symbol_order,
 Value modnorm(const Value &ref, const std::string &type, double target,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

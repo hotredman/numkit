@@ -12,6 +12,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @file
 /// @ingroup group_stats
 /// @brief Moving / sliding-window statistics over a 1-D / N-D array.
@@ -195,4 +199,6 @@ Value smoothdata(const Value &x, const std::string &method = "movmean",
 Value hampel(const Value &x, int k = 3, double nsigmas = 3.0,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

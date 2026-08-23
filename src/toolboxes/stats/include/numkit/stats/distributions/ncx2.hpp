@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -82,4 +86,6 @@ Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t ro
 /// @see ncx2pdf
 std::tuple<double, double> ncx2stat(double k, double lambda);
 
+
+/// @}
 } // namespace numkit::stats

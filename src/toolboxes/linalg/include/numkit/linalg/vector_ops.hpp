@@ -14,6 +14,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Cross product of two 3-vectors or `3 × N` / `N × 3` batches.
 ///
 /// Operates along the first dimension of length 3. Result has the same
@@ -82,4 +86,6 @@ Value dot(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr
 /// @throws Error  COMPLEX input, or rank > 2.
 Value kron(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

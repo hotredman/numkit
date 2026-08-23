@@ -8,6 +8,10 @@
 // (library.cpp) includes the full Engine and is the sole Engine-coupled glue.
 namespace numkit {
 
+/// @addtogroup group_graphics
+/// @{
+
+
 class Engine;
 
 class GraphicsLibrary
@@ -16,4 +20,6 @@ public:
     static void install(Engine &engine);
 };
 
+
+/// @}
 } // namespace numkit

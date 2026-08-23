@@ -12,6 +12,10 @@
 
 namespace numkit::audio {
 
+/// @addtogroup group_audio
+/// @{
+
+
 /// Mel-band power spectrogram.
 ///
 /// Defaults:
@@ -57,4 +61,6 @@ Value audioDelta(const Value &                x,
                  int                          windowLength = 9,
                  std::pmr::memory_resource *  mr           = nullptr);
 
+
+/// @}
 } // namespace numkit::audio

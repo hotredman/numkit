@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -160,4 +164,6 @@ std::tuple<double, double> nctstat(double nu, double delta);
 Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, std::size_t rows = 1, std::size_t cols = 1,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

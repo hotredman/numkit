@@ -14,6 +14,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Greville knot averages (`a = aveknt(t, k)`).
 ///
 /// `a_i = mean(t_{i+1}, …, t_{i+k-1})` for `i = 1..length(t) - k`.
@@ -162,4 +166,6 @@ Value fncmb(const Value &pp1, double c1,
             const Value &pp2 = Value::Empty, double c2 = 0.0,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

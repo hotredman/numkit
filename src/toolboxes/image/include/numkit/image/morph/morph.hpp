@@ -13,6 +13,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// @file
 /// @ingroup group_image
 /// @brief Morphological operations (function-form).
@@ -481,4 +485,6 @@ Value bwtraceboundary(const Value &BW, const Value &P,
                       std::size_t m, const std::string &dir,
                       std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

@@ -10,7 +10,11 @@
 #include <string>
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -65,4 +69,6 @@ dbscan(const Value &X, double eps, int minpts, const std::string &metric,
        double p,
        std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

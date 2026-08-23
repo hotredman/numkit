@@ -14,6 +14,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Convert zeros / poles / gain to a second-order-sections (SOS) matrix.
 ///
 /// Pairs complex-conjugate roots into biquadratic sections, then arranges
@@ -98,4 +102,6 @@ std::tuple<Value, double>
 tf2sosWithGain(const Value &b, const Value &a,
                std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

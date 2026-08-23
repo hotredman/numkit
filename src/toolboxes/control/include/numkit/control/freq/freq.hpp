@@ -15,6 +15,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Single-point frequency response (`H = evalfr(sys, f)`).
 ///
 /// Returns the complex value of the transfer function at a single
@@ -112,4 +116,6 @@ std::pair<Value, Value>
 rlocus(const Value &sys, const Value &kVec,
        std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

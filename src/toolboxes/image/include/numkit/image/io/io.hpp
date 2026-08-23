@@ -19,6 +19,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// Read an image from disk (`A = imread(path)`).
 ///
 /// Decoded element type is uint8 or uint16 (preserving native bit depth).
@@ -189,4 +193,6 @@ writeTiffToBytes(const Value &A,
                  const std::string &compression = "none",
                  const std::vector<std::uint8_t> *existing = nullptr);
 
+
+/// @}
 } // namespace numkit::image

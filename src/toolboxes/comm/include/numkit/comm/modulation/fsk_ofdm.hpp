@@ -13,6 +13,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief M-ary FSK modulator
 /// (`y = fskmod(x, M, freq_sep, nsamp, fs, phase_continuity, symbol_order)`).
 ///
@@ -79,4 +83,6 @@ Value ofdmmod(const Value &in, int nfft, int cplen,
 Value ofdmdemod(const Value &in, int nfft, int cplen, int symoffset,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

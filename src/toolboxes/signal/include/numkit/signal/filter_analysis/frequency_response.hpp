@@ -10,6 +10,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Frequency response of a digital filter.
 ///
 /// Computes
@@ -98,4 +102,6 @@ grpdelay(const Value &                b,
          std::pmr::memory_resource *  mr   = nullptr,
          double                       fs   = 0.0);
 
+
+/// @}
 } // namespace numkit::signal

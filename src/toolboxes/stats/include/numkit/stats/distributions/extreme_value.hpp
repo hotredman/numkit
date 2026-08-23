@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -132,4 +136,6 @@ Value evfit_ci(const Value &x, double alpha,
                const Value &censoring, const Value &freq,
                std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

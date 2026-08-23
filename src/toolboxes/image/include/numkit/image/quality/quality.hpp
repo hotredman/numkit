@@ -12,6 +12,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// @brief Mean squared error (`err = immse(A, B)`).
 ///
 /// @f$ \text{MSE} = \dfrac{1}{N}\sum_i (A_i - B_i)^2 @f$.
@@ -186,4 +190,6 @@ Value multissim3(const Value &V, const Value &Vref,
                  std::vector<Value> *quality_maps_out,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

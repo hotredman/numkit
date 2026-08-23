@@ -13,6 +13,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Ackermann's pole placement (`K = acker(A, B, p)`).
 ///
 /// Computes the SISO state-feedback gain row K such that
@@ -61,4 +65,6 @@ Value acker(const Value &A, const Value &B, const Value &p,
 Value place(const Value &A, const Value &B, const Value &p,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

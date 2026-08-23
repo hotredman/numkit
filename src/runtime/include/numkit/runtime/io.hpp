@@ -11,6 +11,10 @@
 #include <numkit/value/span.hpp>
 
 namespace numkit {
+
+/// @addtogroup group_iofun
+/// @{
+
 class Engine;
 }
 
@@ -41,4 +45,6 @@ void fscanf(::numkit::Engine &engine, Span<const Value> args, size_t nargout, Sp
 /// @param outs Output spans to fill with results.
 void textscan(::numkit::Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
 
+
+/// @}
 } // namespace numkit::runtime

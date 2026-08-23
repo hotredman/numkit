@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Direct-form II transposed IIR / FIR filter.
 ///
 /// Implements the standard difference equation
@@ -60,4 +64,6 @@ Value filtfilt(const Value &                b,
                const Value &                x,
                std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

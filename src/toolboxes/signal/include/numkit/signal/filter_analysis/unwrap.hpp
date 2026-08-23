@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Unwrap a wrapped radian phase sequence.
 ///
 /// Walks `phase` from start to end; whenever the jump between
@@ -29,4 +33,6 @@ namespace numkit::signal {
 Value unwrap(const Value &                phase,
              std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

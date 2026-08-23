@@ -10,7 +10,11 @@
 #include <memory_resource>
 #include <numkit/value/value.hpp>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -221,4 +225,6 @@ Value mvtcdf_box(const Value &L, const Value &U, const Value &C, double df,
                  double tol = 0.01,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

@@ -6,6 +6,10 @@
 #include <numkit/value/value.hpp>
 
 namespace numkit {
+
+/// @addtogroup group_iofun
+/// @{
+
 class Engine;
 }
 
@@ -41,4 +45,6 @@ void setenv(Span<const Value> args);
 ///                (`m:getenv:nargin` / `m:getenv:badArg`).
 Value getenv(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::runtime

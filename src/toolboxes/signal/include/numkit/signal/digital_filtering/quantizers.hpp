@@ -13,6 +13,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// @brief Quantise and encode `u` as N-bit integers (`y = uencode(u, N, V, type)`).
 ///
 /// @param u             Real input.
@@ -42,4 +46,6 @@ Value udecode(const Value &u, int N, double V = 1.0,
               bool wrapOnOverflow = false,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

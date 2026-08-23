@@ -17,6 +17,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Filter response type for IIR designs.
 enum class FilterType {
     Lowpass,   ///< Pass below the cutoff, stop above.
@@ -240,4 +244,6 @@ kaiserord(const Value &                F,
           double                       fs = 2.0,
           std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

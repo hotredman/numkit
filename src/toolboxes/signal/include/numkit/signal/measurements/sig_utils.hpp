@@ -10,6 +10,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Find the smallest repetition period of a signal.
 ///
 /// Returns the smallest integer `d` ≤ N such that
@@ -76,4 +80,6 @@ CusumResult cusum(const Value &x, double climit = 5.0, double mshift = 1.0,
                   const Value &tdev = Value::Empty,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

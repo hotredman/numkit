@@ -14,6 +14,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Continuous-to-discrete conversion (`c2d(sys, Ts, method)`).
 ///
 /// Discretises a continuous-time LTI model at sample time `Ts`. The
@@ -59,4 +63,6 @@ Value c2d(const Value &sys, double Ts, const std::string &method,
 Value d2c(const Value &sys, const std::string &method,
           std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

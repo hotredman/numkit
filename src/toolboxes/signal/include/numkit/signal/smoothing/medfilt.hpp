@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// 1-D median filter.
 ///
 /// Sliding-window median over a window of `k` samples centered on each
@@ -39,4 +43,6 @@ Value medfilt1(const Value &                x,
                bool                         zeropad  = true,
                std::pmr::memory_resource *  mr       = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

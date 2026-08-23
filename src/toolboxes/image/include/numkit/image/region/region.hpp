@@ -15,6 +15,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// Connected-component labelling (`[L, num] = bwlabel(BW, conn)`).
 ///
 /// Two-pass union-find labelling. Returns the label image as uint16
@@ -328,4 +332,6 @@ std::tuple<Value, Value>
 bwselect(const Value &BW, const Value &cols, const Value &rows, int conn,
          std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

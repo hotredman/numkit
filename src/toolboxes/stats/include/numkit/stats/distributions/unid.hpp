@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -71,4 +75,6 @@ Value unidrnd(::numkit::ops::RngContext &rng, double N, size_t rows = 1, size_t 
 /// @see unidpdf
 std::tuple<double, double> unidstat(double N);
 
+
+/// @}
 } // namespace numkit::stats

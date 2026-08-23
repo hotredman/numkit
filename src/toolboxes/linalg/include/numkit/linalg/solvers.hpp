@@ -13,6 +13,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Solve `A·X = B` (`X = linsolve(A, B)`).
 ///
 /// LU for square `A`, Householder QR for tall `A` (least-squares).
@@ -45,4 +49,6 @@ struct NnlsResult {
 NnlsResult lsqnonneg_impl(const Value &C, const Value &d,
                           std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

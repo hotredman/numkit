@@ -11,6 +11,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief One-output form of `quantiz` — bin index per sample
 /// (`indx = quantiz(sig, partition)`).
 ///
@@ -46,4 +50,6 @@ QuantizResult
 quantiz(const Value &sig, const Value &partition, const Value &codebook,
         std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -84,4 +88,6 @@ std::tuple<double, double>
 ricestat(double s, double sigma,
          std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

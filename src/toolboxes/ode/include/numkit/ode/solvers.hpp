@@ -22,6 +22,10 @@
 
 namespace numkit::ode {
 
+/// @addtogroup group_ode
+/// @{
+
+
 /// @brief Explicit Dormand-Prince 5(4) RK solver
 /// (`[t, y] = ode45(f, tspan, y0[, opts])`).
 ///
@@ -82,4 +86,6 @@ std::tuple<Value, Value>
 ode23(FnHandle rhs, const Value &tspan, const Value &y0,
       const Value &opts, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::ode

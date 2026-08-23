@@ -14,6 +14,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_polyfun
+/// @{
+
+
 using ::numkit::FnHandle;
 
 /// @brief Computes polynomial roots (`roots(p)`).
@@ -540,4 +544,6 @@ Value griddatan(const Value &Xv, const Value &vv, const Value &xi, const std::st
 /// @return 2-D matrix of bivariate count values.
 Value histcounts2(const Value &x, const Value &y, const Value &xedgesV, const Value &yedgesV, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

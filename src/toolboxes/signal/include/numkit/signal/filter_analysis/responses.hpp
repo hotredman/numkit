@@ -15,6 +15,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Impulse response of a digital filter.
 ///
 /// Computes the first `n` samples of `h[k] = filter(b, a, δ[k])`, where
@@ -114,4 +118,6 @@ zerophase(const Value &                b,
           size_t                       n  = 512,
           std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

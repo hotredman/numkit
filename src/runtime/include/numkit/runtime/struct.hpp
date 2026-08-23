@@ -9,6 +9,10 @@
 #include <numkit/value/value.hpp>
 
 namespace numkit {
+
+/// @addtogroup group_datatypes
+/// @{
+
 class Engine;
 }
 
@@ -125,5 +129,7 @@ Value orderfields(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @see cell2struct, structfun
 Value struct2cell(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::runtime
 

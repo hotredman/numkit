@@ -9,6 +9,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_specfun
+/// @{
+
+
 /// @file
 /// @ingroup group_specfun
 /// @brief Special mathematical functions (gamma, beta, erf, Bessel, Airy, combinatorics).
@@ -330,4 +334,6 @@ Value colperm(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @see colperm
 Value symrcm(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

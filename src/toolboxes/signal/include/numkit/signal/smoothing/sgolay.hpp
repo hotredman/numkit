@@ -11,6 +11,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Savitzky-Golay filter projection matrix.
 ///
 /// Returns the `framelen × framelen` projection matrix B such that row
@@ -104,4 +108,6 @@ Value sgolayfilt(const Value &                x,
                  int                          dim,
                  std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

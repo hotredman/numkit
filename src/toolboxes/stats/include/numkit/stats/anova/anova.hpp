@@ -13,6 +13,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// One-way ANOVA (`[p, F, df_b, df_w, ss_b, ss_w] = anova1(y, group)`).
 ///
 /// Returns the standard test statistics: between-group p-value `p`,
@@ -117,4 +121,6 @@ Value multcompare(const Value &stats, double alpha = 0.05,
                    McCorrection ctype = McCorrection::Bonferroni,
                    std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

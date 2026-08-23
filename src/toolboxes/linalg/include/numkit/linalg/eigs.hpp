@@ -12,6 +12,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Compute top k eigenvalues of A as a column vector.
 Value eigs_values(const Value &A, std::size_t k = 6, std::pmr::memory_resource *mr = nullptr);
 
@@ -24,4 +28,6 @@ Value svds_values(const Value &A, std::size_t k = 6, std::pmr::memory_resource *
 /// @brief Compute top k singular values and vectors of A: [U, S, V] = svds(A, k).
 std::tuple<Value, Value, Value> svds(const Value &A, std::size_t k = 6, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

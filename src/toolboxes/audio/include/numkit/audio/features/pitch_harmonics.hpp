@@ -9,6 +9,10 @@
 
 namespace numkit::audio {
 
+/// @addtogroup group_audio
+/// @{
+
+
 /// @file
 /// @ingroup group_audio
 /// @brief Fundamental-frequency estimation and harmonic-content metrics.
@@ -124,4 +128,6 @@ Value pitchSRH(const Value &x, double fs,
 Value harmonicRatio(const Value &x, double fs,
                     std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::audio

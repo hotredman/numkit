@@ -11,6 +11,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// @brief Reverse a vector / flip each column — `y = wrev(x)`.
 ///
 /// Row vector → element reverse; column vector → element reverse; matrix
@@ -36,4 +40,6 @@ Value wrev(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @see wrev
 Value qmf(const Value &x, int p = 0, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

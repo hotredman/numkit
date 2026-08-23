@@ -12,6 +12,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Lloyd-Max scalar quantizer designer
 /// (`[partition, codebook, distor, rel] = lloyds(training, ini_codebook, tol)`).
 ///
@@ -39,4 +43,6 @@ lloyds(const Value &training_set, const Value &ini_codebook,
        double tol = 1e-7,
        std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

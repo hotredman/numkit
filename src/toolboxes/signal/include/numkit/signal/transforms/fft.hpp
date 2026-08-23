@@ -9,6 +9,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// 1-D discrete Fourier transform along a given dimension.
 ///
 /// Call forms:
@@ -220,4 +224,6 @@ Value interpft(const Value &                x,
                int                          dim = 0,
                std::pmr::memory_resource *  mr  = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -11,6 +11,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Filter bank for an orthogonal wavelet family.
 ///
 /// Holds the four canonical filters used by 1-D / 2-D DWT:
@@ -95,4 +99,6 @@ struct WFiltersResult {
 WFiltersResult wfilters(const std::string &name, const std::string &kind = "",
                         std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

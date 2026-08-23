@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -81,4 +85,6 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, size_t rows = 
 /// @see binopdf
 std::tuple<double, double> binostat(double n, double p);
 
+
+/// @}
 } // namespace numkit::stats

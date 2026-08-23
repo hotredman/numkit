@@ -14,6 +14,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Symmetric eigendecomposition (`[V, D] = eig(A)`).
 ///
 /// Classical Jacobi rotations. Returns `(V, D)` such that `A·V == V·D`,
@@ -128,4 +132,6 @@ polyeig_VE(Span<const Value> coeffs, std::pmr::memory_resource *mr = nullptr);
 /// eigenvalues from a manually-reordered Schur factor.
 Value ordeig(const Value &T, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

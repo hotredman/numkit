@@ -19,6 +19,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Parity-check matrix from a generator matrix, or vice versa
 /// (`h = gen2par(g)`).
 ///
@@ -212,4 +216,6 @@ DecodeResult decode(const Value &code, long long n, long long k,
 /// @see hammgen, gen2par, decode
 Value syndtable(const Value &H, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

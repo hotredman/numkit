@@ -12,6 +12,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Result of @ref balance_impl.
 struct BalanceResult {
     Value B;         ///< Balanced matrix.
@@ -27,4 +31,6 @@ struct BalanceResult {
 BalanceResult balance_impl(const Value &A, bool noperm,
                            std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

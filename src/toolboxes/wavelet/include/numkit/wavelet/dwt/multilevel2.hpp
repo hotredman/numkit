@@ -10,6 +10,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Result of @ref wavedec2 (`[C, S] = wavedec2(X, N, wname)`).
 ///
 /// `C` is a row vector packing the coefficients coarsest-first:
@@ -63,4 +67,6 @@ Value appcoef2(const Value &C, const Value &S, const std::string &wname,
 Value detcoef2(const std::string &type, const Value &C, const Value &S,
                int level, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

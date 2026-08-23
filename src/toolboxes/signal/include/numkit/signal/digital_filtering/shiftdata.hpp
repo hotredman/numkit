@@ -14,6 +14,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Move a chosen dimension to the leading axis for dim-aware processing.
 ///
 /// Two operating modes:
@@ -54,4 +58,6 @@ shiftdata(const Value &                x,
 Value unshiftdata(const Value &x, const Value &perm, const Value &nshifts,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

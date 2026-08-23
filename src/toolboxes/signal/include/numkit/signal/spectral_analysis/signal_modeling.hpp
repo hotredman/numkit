@@ -16,6 +16,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 // ─────────────────────────────────────────────────────────────────────
 // Foundation: Levinson-Durbin
 // ─────────────────────────────────────────────────────────────────────
@@ -404,4 +408,6 @@ std::tuple<Value, Value>
 invfreqz(const Value &H, const Value &w, int nb, int na,
          std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -15,6 +15,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Page-wise inverse of a 3-D array (`B = pageinv(A)`).
 ///
 /// Each `m × n` page is independently inverted via LU.
@@ -65,4 +69,6 @@ Value pagemrdivide(const Value &A, const Value &B, std::pmr::memory_resource *mr
 Value pagelsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
                      std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

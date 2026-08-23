@@ -11,6 +11,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Build a Halton stream descriptor (`p = haltonset(d, 'Skip', s, 'Leap', l)`).
 ///
 /// Returns an opaque stream value (`struct {kind='halton', dim, skip, leap}`)
@@ -41,4 +45,6 @@ Value haltonset(int d, long long skip, long long leap,
 Value net(const Value &stream, long long n,
           std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

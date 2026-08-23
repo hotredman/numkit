@@ -11,6 +11,10 @@
 
 namespace numkit {
 
+/// @addtogroup group_matlab
+/// @{
+
+
 class Engine;
 
 class StandardLibrary {
@@ -27,4 +31,6 @@ inline void installStandardLibrary(Engine &engine) {
 // already installed. Returned by unique_ptr because Engine is non-movable.
 std::unique_ptr<Engine> makeStandardEngine(std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit

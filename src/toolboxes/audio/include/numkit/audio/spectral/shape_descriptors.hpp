@@ -9,6 +9,10 @@
 
 namespace numkit::audio {
 
+/// @addtogroup group_audio
+/// @{
+
+
 /// @file
 /// @ingroup group_audio
 /// @brief Spectral-shape descriptors.
@@ -149,4 +153,6 @@ Value spectralKurtosis(const Value &x, const Value &f,
 Value spectralSkewness(const Value &x, const Value &f,
                        std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::audio

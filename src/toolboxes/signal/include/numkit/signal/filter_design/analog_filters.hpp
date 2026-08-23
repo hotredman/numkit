@@ -16,6 +16,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 // ─────────────────────────────────────────────────────────────────────
 // Analog lowpass prototypes (cutoff Ω = 1 rad/s)
 //
@@ -228,4 +232,6 @@ Value freqs(const Value &                b,
             const Value &                w,
             std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

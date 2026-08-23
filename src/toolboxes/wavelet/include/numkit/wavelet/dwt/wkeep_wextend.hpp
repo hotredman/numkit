@@ -14,6 +14,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// @brief Keep part of a vector / a sub-matrix (`y = wkeep(x, len, opt)`).
 ///
 /// 1-D form (`len` is a scalar `n`): keep `n` elements of the vector `x` —
@@ -63,4 +67,6 @@ Value wextend(const Value &type, const std::string &mode, const Value &x,
               long long lf, const std::string &side = "b",
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

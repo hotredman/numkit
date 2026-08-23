@@ -16,6 +16,10 @@
 
 namespace numkit {
 
+/// @addtogroup group_graphics
+/// @{
+
+
 // ── Flat JSON number-array helpers (line-series downsampling) ────────────
 namespace figdetail {
 
@@ -1121,4 +1125,6 @@ private:
     OutputFunc outputFunc_;
 };
 
+
+/// @}
 } // namespace numkit

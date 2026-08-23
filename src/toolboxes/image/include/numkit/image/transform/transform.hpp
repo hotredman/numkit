@@ -15,6 +15,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// @brief 2-D Type-II orthonormal DCT (`B = dct2(A)`).
 ///
 /// Separable: `dct2(A) == dct(dct(A).').'`. Internally applies the
@@ -277,4 +281,6 @@ std::tuple<Value, Value>
 phantom(const Value &model_or_E, size_t n,
         std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

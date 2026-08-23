@@ -10,6 +10,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// @file
 /// @ingroup group_signal
 /// @brief Spectral measurement functions.
@@ -249,4 +253,6 @@ Value instfreq(const Value &x, const Value &fs = Value::Empty,
 Value instbw(const Value &x, const Value &fs = Value::Empty,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -12,6 +12,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Build a canonical Huffman dictionary
 /// (`[dict, avglen] = huffmandict(symbols, probs)`).
 ///
@@ -63,4 +67,6 @@ Value huffmanenco(const Value &sig, const Value &dict,
 Value huffmandeco(const Value &bits, const Value &dict,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

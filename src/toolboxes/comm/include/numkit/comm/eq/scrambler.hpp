@@ -13,6 +13,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Multiplicative bit scrambler
 /// (`y = scrambler(x, poly, initState)`).
 ///
@@ -61,4 +65,6 @@ Value descrambler(const Value &y, const Value &poly,
                   const Value &initState,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

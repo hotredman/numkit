@@ -14,6 +14,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Pack a bit vector into integers — `y = bit2int(b, n)`.
 ///
 /// Groups the `numel(b)` bits of `b` (which must be divisible by `n`) into
@@ -102,4 +106,6 @@ std::pair<Value, int>
 vec2mat(const Value &v, int n, double padval = 0.0,
         std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -77,4 +81,6 @@ Value poissrnd(::numkit::ops::RngContext &rng, double lambda, size_t rows = 1, s
 /// @see poisspdf
 std::tuple<double, double> poisstat(double lambda);
 
+
+/// @}
 } // namespace numkit::stats

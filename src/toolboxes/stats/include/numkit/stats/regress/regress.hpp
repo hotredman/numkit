@@ -16,6 +16,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Ordinary least-squares regression
 /// (`[b, bint, r, stats] = regress(y, X, alpha)`).
 ///
@@ -346,4 +350,6 @@ LassoResult lassoglm(const Value &X, const Value &y,
                       const Value &lambdas, double alpha = 1.0,
                       std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

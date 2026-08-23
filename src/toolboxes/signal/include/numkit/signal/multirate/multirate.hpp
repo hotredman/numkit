@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Integer-rate downsampling — keep every n-th sample.
 ///
 /// `y[i] = x[i · n]`. Does NOT apply an anti-aliasing filter — use
@@ -87,4 +91,6 @@ Value resample(const Value &                x,
                size_t                       q,
                std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

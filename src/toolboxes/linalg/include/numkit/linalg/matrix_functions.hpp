@@ -15,6 +15,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Matrix exponential (`B = expm(A)`).
 ///
 /// Padé(6) approximation with scaling-and-squaring (Higham 2005).
@@ -60,4 +64,6 @@ Value funm(const Value &A, std::function<std::complex<double>(std::complex<doubl
 Value funm(const Value &A, const std::string &fnName,
            std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

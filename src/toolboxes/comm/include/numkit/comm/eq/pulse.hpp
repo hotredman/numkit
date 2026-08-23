@@ -13,6 +13,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Design a raised-cosine or root-raised-cosine FIR filter
 /// (`h = rcosdesign(beta, span, sps, shape)`).
 ///
@@ -88,4 +92,6 @@ Value rectpulse(const Value &x, int n,
 Value intdump(const Value &x, int n,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

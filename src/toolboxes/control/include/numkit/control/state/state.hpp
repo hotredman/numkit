@@ -12,6 +12,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Controllability matrix from raw (A, B) (`Co = ctrb(A, B)`).
 ///
 /// Builds @f$ \mathcal{C} = [B,\ AB,\ A^2 B,\ \ldots,\ A^{n-1} B] @f$
@@ -114,4 +118,6 @@ struct CovarResult {
 CovarResult covar(const Value &sys, const Value &W,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

@@ -10,6 +10,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Result of @ref dwt2 (`[cA, cH, cV, cD] = dwt2(X, wname)`).
 ///
 /// Naming follows the standard 2-D wavelet decomposition:
@@ -69,4 +73,6 @@ Value idwt2(const Value &cA, const Value &cH,
             long long outRows /* = -1 */, long long outCols /* = -1 */,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

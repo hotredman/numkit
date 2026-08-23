@@ -22,6 +22,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Gaussian copula density (`y = copulapdf('Gaussian', U, R)`).
 ///
 /// `c(u; R) = (det R)^{-1/2} · exp(−½·z'·(R^{-1} − I)·z)` where
@@ -75,4 +79,6 @@ Value copulapdf_gumbel(const Value &U, double alpha,
 Value copulacdf_gumbel(const Value &U, double alpha,
                        std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

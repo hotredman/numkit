@@ -8,6 +8,10 @@
 
 namespace numkit::optim {
 
+/// @addtogroup group_optim
+/// @{
+
+
 /// @file
 /// @ingroup group_optim
 /// @brief Scalar root-finding and unconstrained minimisation.
@@ -82,4 +86,6 @@ Value fminbnd(FnHandle fn, double lo, double hi, double tol,
 Value fminsearch(FnHandle fn, Span<const double> x0, double tol,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::optim

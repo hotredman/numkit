@@ -12,6 +12,10 @@
 
 namespace numkit::audio {
 
+/// @addtogroup group_audio
+/// @{
+
+
 /// Generic cepstral coefficient extractor.
 ///
 /// Pipeline: log10 / cubic-root rectification → DCT-II → keep first
@@ -74,4 +78,6 @@ gtcc(const Value &                x,
      int                          numCoeffs = 13,
      std::pmr::memory_resource *  mr        = nullptr);
 
+
+/// @}
 } // namespace numkit::audio

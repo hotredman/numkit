@@ -15,6 +15,10 @@
 
 namespace numkit::ode {
 
+/// @addtogroup group_ode
+/// @{
+
+
 /// @brief Build / extend an ODE options struct (`odeset(...)`).
 ///
 /// MATLAB signatures supported:
@@ -41,4 +45,6 @@ Value odeset(const Value *args, std::size_t nargs,
 Value odeget(const Value &opts, const Value &name,
              const Value &default_v, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::ode

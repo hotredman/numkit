@@ -11,6 +11,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// @brief Radial scaling of polynomial roots (`y = polyscale(p, scale)`).
 ///
 /// Computes `y[k] = p[k] · scale^k` for `k = 0..N-1`, equivalent to
@@ -46,4 +50,6 @@ Value polyscale(const Value &p, const Value &scale,
 /// @see polyscale
 Value polystab(const Value &a, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

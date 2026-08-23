@@ -11,6 +11,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Phase modulator
 /// (`y = pmmod(x, fc, fs, phasedev, ini_phase)`).
 ///
@@ -196,4 +200,6 @@ Value mskdemod(const Value &y, int nSamp, double ini_phase,
                double *phase_out = nullptr,
                std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

@@ -24,6 +24,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Estimate the [low, high] state levels of a step-shaped signal.
 ///
 /// Uses a histogram-mode estimator: 100 bins, split at `mean(x)`. The
@@ -183,4 +187,6 @@ Value dutycycle(const Value &                x,
                 const Value &                fs = Value::Empty,
                 std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

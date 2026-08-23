@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -73,4 +77,6 @@ Value raylrnd(::numkit::ops::RngContext &rng, double b, size_t rows = 1, size_t 
 /// @see raylpdf
 std::tuple<double, double> raylstat(double b);
 
+
+/// @}
 } // namespace numkit::stats

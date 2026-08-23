@@ -9,6 +9,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_elfun
+/// @{
+
+
 /// @file
 /// @ingroup group_elfun
 /// @brief Elementary mathematical functions (trigonometry, exp, log, complex numbers, rounding).
@@ -935,4 +939,6 @@ Value mod(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullpt
 /// @see mod, fix
 Value rem(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

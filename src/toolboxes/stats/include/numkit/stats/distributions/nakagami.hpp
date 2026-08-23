@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -81,4 +85,6 @@ Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, size_t ro
 /// @see nakapdf
 std::tuple<double, double> nakastat(double mu, double omega);
 
+
+/// @}
 } // namespace numkit::stats

@@ -15,6 +15,10 @@
 
 namespace numkit::audio {
 
+/// @addtogroup group_audio
+/// @{
+
+
 /// @brief Decoded audio waveform data and basic metadata.
 struct AudioData {
     Value y;                      ///< Audio data matrix `N x C` (samples along rows, channels along columns).
@@ -132,4 +136,6 @@ void audiowrite(const std::string &path, const Value &y, double sampleRate,
                 const std::string &artist = "",
                 const std::string &comment = "");
 
+
+/// @}
 } // namespace numkit::audio

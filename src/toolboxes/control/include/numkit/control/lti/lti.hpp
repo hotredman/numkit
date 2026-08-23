@@ -15,6 +15,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// Transfer-function LTI constructor (`tf(num, den, Ts)`).
 ///
 /// Builds a `tf`-tagged struct value with fields `{kind="tf",
@@ -182,4 +186,6 @@ ssdata(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 Value ss2ss(const Value &sys, const Value &T,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

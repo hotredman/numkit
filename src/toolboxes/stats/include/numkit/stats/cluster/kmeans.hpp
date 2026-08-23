@@ -9,7 +9,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -34,4 +38,6 @@ std::tuple<Value, Value, Value>
 kmeans(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
        std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

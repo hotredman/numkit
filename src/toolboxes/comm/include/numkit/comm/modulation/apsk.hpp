@@ -12,6 +12,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief APSK modulator
 /// (`y = apskmod(x, M, radii, phaseoffset, mapping)`).
 ///
@@ -60,4 +64,6 @@ Value apskdemod(const Value &y, Span<const size_t> M,
                 const Value &mapping = Value::Empty,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

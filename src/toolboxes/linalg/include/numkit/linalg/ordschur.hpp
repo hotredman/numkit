@@ -14,6 +14,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Reorder Schur decomposition A = U * T * U^H using a boolean select vector.
 /// Returns std::tuple<Value, Value>{U_out, T_out}.
 std::tuple<Value, Value> ordschur(const Value &U, const Value &T,
@@ -26,4 +30,6 @@ std::tuple<Value, Value> ordschur(const Value &U, const Value &T,
                                   const std::string &domain,
                                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

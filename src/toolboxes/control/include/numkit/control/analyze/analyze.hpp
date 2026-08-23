@@ -12,6 +12,10 @@
 
 namespace numkit::control {
 
+/// @addtogroup group_control
+/// @{
+
+
 /// DC (steady-state) gain of an LTI system.
 ///
 /// Evaluates the transfer function at the steady-state frequency:
@@ -120,4 +124,6 @@ Value allmargin(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 /// @see margin, sigma, dcgain
 Value hinfnorm(const Value &sys, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::control

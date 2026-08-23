@@ -14,6 +14,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Short-time Fourier transform with explicit `(S, F, T)` outputs.
 ///
 /// Slides a window of length `winLen` across `x` with `noverlap` samples
@@ -120,4 +124,6 @@ iscola(const Value &                window,
        const std::string &          method,
        std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -14,6 +14,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// @brief Partition `x` into frames of length `n`.
 ///
 /// Returns the frame matrix `Y` only. Use @ref buffer2 for the
@@ -53,4 +57,6 @@ buffer2(const Value &x, int n, int p = 0,
         const Value &opt = Value::Empty,
         std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

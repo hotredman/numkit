@@ -12,6 +12,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Generalized Schur decomposition of matrix pair (A, B).
 /// Returns std::tuple<Value, Value, Value, Value>{AA, BB, Q, Z}
 /// such that Q * A * Z = AA and Q * B * Z = BB, where AA is upper quasi-triangular,
@@ -19,4 +23,6 @@ namespace numkit::linalg {
 std::tuple<Value, Value, Value, Value> qz(const Value &A, const Value &B,
                                            std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

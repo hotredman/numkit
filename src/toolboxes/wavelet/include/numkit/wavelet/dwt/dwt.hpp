@@ -12,6 +12,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Single-level discrete wavelet transform (`[cA, cD] = dwt(x, wname)`).
 ///
 /// Decomposes the 1-D signal `x` into an approximation band `cA`
@@ -101,4 +105,6 @@ Value idwt_with_filters_pub(const Value &cA, const Value &cD,
                             long long len,
                             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

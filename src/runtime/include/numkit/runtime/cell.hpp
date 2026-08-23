@@ -8,6 +8,10 @@
 #include <numkit/value/value.hpp>
 
 namespace numkit {
+
+/// @addtogroup group_datatypes
+/// @{
+
 class Engine;
 }
 
@@ -130,4 +134,6 @@ Value mat2cell(const Value &x, const Value &rowSizes,
                const Value &colSizes = Value::Empty,
                std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::runtime

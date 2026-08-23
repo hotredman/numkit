@@ -13,6 +13,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Detects whether a digital filter is FIR.
 ///
 /// A filter is FIR when its denominator is effectively `[1]` —
@@ -175,4 +179,6 @@ double filternorm(const Value &                b,
                   double                       pnorm = 2.0,
                   std::pmr::memory_resource *  mr    = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

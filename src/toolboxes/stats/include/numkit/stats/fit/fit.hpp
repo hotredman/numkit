@@ -11,6 +11,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @file
 /// @ingroup group_stats
 /// @brief Distribution fitters (`*fit`) and negative-log-likelihood
@@ -261,4 +265,6 @@ double gevlike(double k, double sigma, double mu, const Value &x,
 double gplike(double k, double sigma, const Value &x,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

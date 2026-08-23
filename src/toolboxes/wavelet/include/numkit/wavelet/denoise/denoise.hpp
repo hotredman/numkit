@@ -14,6 +14,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Element-wise wavelet coefficient thresholding (`Y = wthresh(X, sorh, T)`).
 ///
 /// Applies one of two thresholding rules at level `T`:
@@ -130,4 +134,6 @@ struct DdencmpResult {
 DdencmpResult ddencmp(const std::string &opt, const std::string &type,
                       const Value &x, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

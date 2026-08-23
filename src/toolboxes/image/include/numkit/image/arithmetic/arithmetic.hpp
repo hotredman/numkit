@@ -18,6 +18,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// Saturating image addition (`Z = imadd(X, Y)`).
 ///
 /// Element-wise @f$ Z = X + Y @f$ with saturation for
@@ -130,4 +134,6 @@ Value imapplymatrix(const Value &M, const Value &x,
                     ValueType output_class,
                     std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

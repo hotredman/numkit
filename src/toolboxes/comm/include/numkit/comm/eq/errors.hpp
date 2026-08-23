@@ -12,6 +12,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Bit-error count and rate (`[number, ratio] = biterr(x, y, k)`).
 ///
 /// Counts the differing bits between the same-shape non-negative integer
@@ -42,4 +46,6 @@ std::pair<Value, Value> biterr(const Value &x, const Value &y, int k = 0,
 std::pair<Value, Value> symerr(const Value &x, const Value &y,
                                std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

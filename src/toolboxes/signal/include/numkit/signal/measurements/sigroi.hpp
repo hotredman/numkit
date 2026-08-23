@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// @file
 /// @ingroup group_signal
 /// @brief Signal-region-of-interest utilities.
@@ -124,4 +128,6 @@ Value sigrangebinmask(const Value &x, double threshold,
 Value sigrangebinmask(const Value &x, double lo, double hi,
                       std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

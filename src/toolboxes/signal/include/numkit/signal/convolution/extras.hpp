@@ -18,6 +18,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Circular (cyclic) convolution of two real vectors.
 ///
 /// Computes \f$ out[k] = \sum_{m=0}^{N-1} x[m] \cdot y[(k - m) \bmod N] \f$
@@ -108,4 +112,6 @@ alignsignals(const Value &                x,
              long                         max_lag = 0,
              std::pmr::memory_resource *  mr      = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

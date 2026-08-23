@@ -10,6 +10,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Locate strict local maxima in a signal.
 ///
 /// A sample at position i is a peak iff `x[i-1] < x[i] > x[i+1]`. The
@@ -32,4 +36,6 @@ std::tuple<Value, Value>
 findpeaks(const Value &                x,
           std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

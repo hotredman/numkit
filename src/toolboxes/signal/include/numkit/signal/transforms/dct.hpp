@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Type-II discrete cosine transform (the default form).
 ///
 /// 1-D entry point — computes
@@ -66,4 +70,6 @@ Value dct(const Value &                x,
 Value idct(const Value &x, int n, int dim,
            std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -80,4 +84,6 @@ Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N,
 /// @see hygepdf
 std::tuple<double, double> hygestat(double M, double K, double N);
 
+
+/// @}
 } // namespace numkit::stats

@@ -14,6 +14,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// Image histogram (`[counts, bin_centers] = imhist(I, n)`).
 ///
 /// Default `n` depends on input class: 256 for uint8, 65536 for
@@ -342,4 +346,6 @@ Value grayslice(const Value &I, int N,
 Value grayslice(const Value &I, Span<const double> levels,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

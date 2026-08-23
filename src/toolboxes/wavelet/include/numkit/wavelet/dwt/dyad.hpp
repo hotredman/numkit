@@ -12,6 +12,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// @brief Dyadic downsampling — `y = dyaddown(x, odd, type)`.
 ///
 /// Keeps every other sample. `odd == 0` (default) keeps the even-indexed
@@ -60,4 +64,6 @@ Value dyadup(const Value &x, int odd = 1, char type = 'c',
 Value wmaxlev(const Value &N, const std::string &wname,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

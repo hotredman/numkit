@@ -34,6 +34,10 @@
 
 namespace numkit {
 
+/// @addtogroup group_graphics
+/// @{
+
+
 // Context passed to every graphics plotting body. Core-free: it knows the
 // figure session (fm), a scratch arena (mr), and how to re-enter the runtime
 // for the two operations that genuinely require it (callBuiltin / callHandle).
@@ -81,4 +85,6 @@ struct PlotEntry {
 // registers it under graphics.<sub>.<name> + compat.<name> (+ core when set).
 void buildPlotTable(std::vector<PlotEntry> &table);
 
+
+/// @}
 } // namespace numkit

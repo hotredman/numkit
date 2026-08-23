@@ -11,6 +11,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Sample skewness along `dim` (`y = skewness(X, normFlag, dim)`).
 ///
 /// Standardised third central moment: @f$ E[((X-\mu)/\sigma)^3] @f$.
@@ -43,4 +47,6 @@ Value skewness(const Value &x, int normFlag = 1, int dim = 0,
 Value kurtosis(const Value &x, int normFlag = 1, int dim = 0,
                std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

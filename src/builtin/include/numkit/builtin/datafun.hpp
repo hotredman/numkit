@@ -11,6 +11,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_datafun
+/// @{
+
+
 using ::numkit::ops::RngContext;
 using ::numkit::ops::rand;
 using ::numkit::ops::randn;
@@ -520,4 +524,6 @@ Value accumarray(const Value &subs, const Value &vals, Span<const size_t> outSha
                  AccumReducer op = AccumReducer::Sum, double fillVal = 0.0,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

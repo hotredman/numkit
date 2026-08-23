@@ -14,6 +14,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// Resample an image to a new size by a uniform scale factor
 /// (`B = imresize(A, scale, method)`).
 ///
@@ -210,4 +214,6 @@ Value imrotate3(const Value &V, double angle_deg,
 Value impyramid(const Value &A, const std::string &type,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

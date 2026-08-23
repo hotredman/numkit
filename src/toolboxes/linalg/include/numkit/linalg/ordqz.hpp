@@ -13,6 +13,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Reorder Generalized Schur decomposition using a boolean select vector.
 std::tuple<Value, Value, Value, Value> ordqz(const Value &AA, const Value &BB,
                                               const Value &Q, const Value &Z,
@@ -25,4 +29,6 @@ std::tuple<Value, Value, Value, Value> ordqz(const Value &AA, const Value &BB,
                                               const std::string &domain,
                                               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

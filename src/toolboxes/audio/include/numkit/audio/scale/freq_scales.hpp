@@ -12,6 +12,10 @@
 
 namespace numkit::audio {
 
+/// @addtogroup group_audio
+/// @{
+
+
 /// Hertz → Mel (O'Shaughnessy 1987 default form).
 ///
 /// \f$ m = 2595 \log_{10}(1 + f / 700) \f$
@@ -95,4 +99,6 @@ Value sone2phon(const Value &sone,
                 bool standardIs532_2 = false,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::audio

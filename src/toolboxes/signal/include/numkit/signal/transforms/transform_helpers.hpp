@@ -12,6 +12,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Smallest integer p such that \f$ 2^p \ge n \f$ (scalar form).
 ///
 /// Useful for padding sequences to a length suitable
@@ -75,4 +79,6 @@ Value fftshift(const Value &                x,
 Value ifftshift(const Value &x, int dim,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

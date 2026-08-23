@@ -14,6 +14,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Classify samples via LDA / QDA
 /// (`[c, err, posterior, logp] = classify(sample, training, group, type)`).
 ///
@@ -43,4 +47,6 @@ classify(const Value &sample, const Value &training, const Value &group,
          const std::string &type,
          std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

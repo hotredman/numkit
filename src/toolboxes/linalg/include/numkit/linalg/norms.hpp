@@ -18,6 +18,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Vector / matrix p-norm (`n = norm(x, p)`).
 ///
 /// Vector input: `(Σ |x|^p)^(1/p)`; `p = 1` → sum of abs,
@@ -54,4 +58,6 @@ Value norm_fro(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return     Norms reduced along `dim`.
 Value vecnorm(const Value &A, double p = 2.0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

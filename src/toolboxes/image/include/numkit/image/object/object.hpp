@@ -14,6 +14,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// Component gradients (`[Gx, Gy] = imgradientxy(I, method)`).
 ///
 /// Computes the horizontal and vertical first-order partial
@@ -286,4 +290,6 @@ Value houghlines(const Value &BW, const Value &theta_deg,
                  double fillgap, double minlength,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

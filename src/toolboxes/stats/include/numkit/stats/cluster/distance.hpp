@@ -14,6 +14,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// Pairwise distances between rows of X (`d = pdist(X, metric, p)`).
 ///
 /// Returns a `1 × M(M-1)/2` row (upper-triangular packed). Supported
@@ -84,4 +88,6 @@ Value squareform(const Value &d,
 Value mahal(const Value &Y, const Value &X,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

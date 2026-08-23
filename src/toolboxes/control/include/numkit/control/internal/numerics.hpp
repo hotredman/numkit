@@ -18,6 +18,10 @@
 
 namespace numkit::control::internal {
 
+/// @addtogroup group_control
+/// @{
+
+
 using Mat = std::vector<double>;
 using Vec = std::vector<double>;
 
@@ -71,4 +75,6 @@ Vec charPoly(const Mat &A, std::size_t n);
 /// @return   Column-major n×n product.
 Mat matmulSq(const Mat &A, const Mat &B, std::size_t n);
 
+
+/// @}
 } // namespace numkit::control::internal

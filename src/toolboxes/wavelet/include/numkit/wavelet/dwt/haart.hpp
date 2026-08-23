@@ -11,6 +11,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// @brief Result of `haart` — `[a, d]`.
 struct HaartResult {
     Value a;  ///< Final-level approximation (column-oriented; per-column for a matrix).
@@ -38,4 +42,6 @@ struct HaartResult {
 HaartResult haart(const Value &x, int level = 0, bool integer = false,
                   std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

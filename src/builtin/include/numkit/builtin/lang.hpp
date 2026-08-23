@@ -11,6 +11,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_matlab
+/// @{
+
+
 /// @file
 /// @ingroup group_matlab
 /// @brief Language keywords, variable name validation, process environment, and diagnostics.
@@ -107,4 +111,6 @@ Value isvarname(const Value &name, std::pmr::memory_resource *mr = nullptr);
 /// @throws std::runtime_error If @p args is empty.
 Value isvarname(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

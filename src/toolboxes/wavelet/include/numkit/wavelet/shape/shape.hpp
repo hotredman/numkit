@@ -14,6 +14,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Mexican-hat wavelet sampled on a grid (`[psi, x] = mexihat(LB, UB, N)`).
 ///
 /// @f$ \psi(t) = \frac{2}{\sqrt{3}\,\pi^{1/4}}\,(1 - t^2)\,e^{-t^2/2} @f$.
@@ -115,4 +119,6 @@ std::tuple<Value, Value>
 cgauwavf(double lb, double ub, size_t N, int p,
          std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

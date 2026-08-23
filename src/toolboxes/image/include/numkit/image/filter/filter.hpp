@@ -16,7 +16,11 @@
 #include <vector>
 #include <vector>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_image
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::image {
 
@@ -1117,4 +1121,6 @@ Value fwind1(const Value &Hd, const Value &win1, const Value &win2,
 Value fwind2(const Value &Hd, const Value &W,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

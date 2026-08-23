@@ -12,7 +12,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -73,4 +77,6 @@ Value chi2rnd(::numkit::ops::RngContext &rng, double k, size_t rows = 1, size_t 
 /// @see chi2pdf
 std::tuple<double, double> chi2stat(double k);
 
+
+/// @}
 } // namespace numkit::stats

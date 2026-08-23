@@ -13,6 +13,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// One-call zero-phase Butterworth lowpass filter.
 ///
 /// Designs an order-`order` Butterworth lowpass with cutoff `fpass` Hz,
@@ -93,4 +97,6 @@ Value bandstop(const Value &                x,
                int                          order = 8,
                std::pmr::memory_resource *  mr    = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -12,6 +12,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Complex-diagonal → real-block-diagonal Schur form
 /// (`[VR, DR] = cdf2rdf(V, D)`).
 ///
@@ -40,4 +44,6 @@ cdf2rdf(const Value &V, const Value &D, std::pmr::memory_resource *mr = nullptr)
 std::tuple<Value, Value>
 rsf2csf(const Value &UR, const Value &TR, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

@@ -14,6 +14,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// N×N complex DFT matrix.
 ///
 /// Returns the matrix \f$ F \f$ with
@@ -121,4 +125,6 @@ Value cceps(const Value &x, std::pmr::memory_resource *mr = nullptr,
 /// @see cceps
 Value icceps(const Value &c, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

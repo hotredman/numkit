@@ -14,6 +14,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Convert magnitude or power to decibels.
 ///
 /// For `signalType == "voltage"` (default):
@@ -79,4 +83,6 @@ Value db2pow(const Value &                d,
 Value pow2db(const Value &                p,
              std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

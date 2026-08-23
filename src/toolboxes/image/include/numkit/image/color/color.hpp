@@ -12,6 +12,10 @@
 
 namespace numkit::image {
 
+/// @addtogroup group_image
+/// @{
+
+
 /// @file
 /// @ingroup group_image
 /// @brief Colour-space conversions, Lab helpers, colormaps.
@@ -991,4 +995,6 @@ Value raw2planar(const Value &cfa, std::pmr::memory_resource *mr = nullptr);
 /// @return    `(2M)×(2N)` mosaic of the input class.
 Value planar2raw(const Value &I, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::image

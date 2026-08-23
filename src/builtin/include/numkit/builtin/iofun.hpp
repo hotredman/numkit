@@ -11,6 +11,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_iofun
+/// @{
+
+
 /// @file
 /// @ingroup group_iofun
 /// @brief Formatted text I/O and display builtins.
@@ -68,4 +72,6 @@ Value sscanf(const std::string &str, const std::string &fmt, std::pmr::memory_re
 /// @param mr Memory resource.
 void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

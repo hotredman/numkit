@@ -11,6 +11,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief Result of @ref dpcmopt.
 struct DpcmOptResult {
     Value predictor;  ///< Length-(ord+1) row vector `[0, p1, …, pM]`.
@@ -43,4 +47,6 @@ dpcmopt(const Value &training_set, int ord,
         const Value &ini_codebook = Value::Empty,
         std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

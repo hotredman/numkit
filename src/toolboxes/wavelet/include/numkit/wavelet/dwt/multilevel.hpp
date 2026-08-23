@@ -15,6 +15,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Multi-level 1-D DWT (`[C, L] = wavedec(x, n, wname)`).
 ///
 /// Runs `n` successive single-level @ref dwt passes on the running
@@ -197,4 +201,6 @@ WenergyResult wenergy(const Value &C, const Value &L,
 Value upcoef(const std::string &type, const Value &X, const std::string &wname,
              int n, long long len = -1, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

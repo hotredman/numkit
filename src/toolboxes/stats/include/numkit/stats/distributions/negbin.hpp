@@ -11,7 +11,11 @@
 
 #include <tuple>
 
-namespace numkit { namespace ops { class RngContext; } }
+namespace numkit {
+
+/// @addtogroup group_stats
+/// @{
+ namespace ops { class RngContext; } }
 
 namespace numkit::stats {
 
@@ -102,4 +106,6 @@ Value nbinfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 Value nbinfit_ci(const Value &x, double alpha = 0.05,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

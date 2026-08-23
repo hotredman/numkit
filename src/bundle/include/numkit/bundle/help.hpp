@@ -11,6 +11,10 @@
 #include <vector>
 
 namespace numkit {
+
+/// @addtogroup group_matlab
+/// @{
+
 class Engine;
 }
 
@@ -79,4 +83,6 @@ std::vector<std::string> categories();
 /// @return Cell array of category name strings.
 Value categories(std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::bundle

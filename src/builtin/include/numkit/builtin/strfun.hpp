@@ -10,6 +10,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_strfun
+/// @{
+
+
 /// @file
 /// @ingroup group_strfun
 /// @brief String, character vector, and regular expression operations.
@@ -699,4 +703,6 @@ size_t countFormatSpecs(const std::string &fmt);
 /// @return Rendered string for display.
 std::string dispFormat(const Value &a);
 
+
+/// @}
 } // namespace numkit::builtin

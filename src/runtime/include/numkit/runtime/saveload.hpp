@@ -5,6 +5,10 @@
 #include <numkit/value/value.hpp>
 
 namespace numkit {
+
+/// @addtogroup group_iofun
+/// @{
+
 class Engine;
 class Environment;
 }
@@ -61,4 +65,6 @@ void save(Engine &engine, Environment &env, Span<const Value> args);
 void load(Engine &engine, Environment &env, Span<const Value> args,
           size_t nargout, Span<Value> outs);
 
+
+/// @}
 } // namespace numkit::runtime

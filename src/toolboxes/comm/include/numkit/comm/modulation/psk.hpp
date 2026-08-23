@@ -14,6 +14,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief M-ary PSK modulator
 /// (`y = pskmod(x, M, ini_phase, symbol_order)`).
 ///
@@ -76,4 +80,6 @@ Value dpskdemod(const Value &y, int M, double phase_rot,
                 const std::string &symbol_order,
                 std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

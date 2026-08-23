@@ -9,6 +9,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// @brief Fast Walsh-Hadamard transform (`y = fwht(x[, n[, ordering]])`).
 ///
 /// Computes `y = (1/N) · H_natural · x` (the discrete Walsh-Hadamard
@@ -59,4 +63,6 @@ Value ifwht(const Value &              y,
             const std::string &        ordering,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

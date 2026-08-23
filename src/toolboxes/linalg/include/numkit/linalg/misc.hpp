@@ -14,6 +14,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Reduced row echelon form (`[R, jb] = rref(A, have_tol, tol)`).
 ///
 /// `jb` is the 1-based pivot-column indices. Real-only in v1.
@@ -28,4 +32,6 @@ rref(const Value &A, bool have_tol, double tol_user,
 std::pair<Value, Value>
 planerot(const Value &xy, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

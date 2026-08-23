@@ -11,6 +11,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief MIL-STD-188-110 QAM modulator
 /// (`y = mil188qammod(x, M)`).
 ///
@@ -41,4 +45,6 @@ Value mil188qammod(const Value &x, int M,
 Value mil188qamdemod(const Value &y, int M,
                      std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

@@ -9,6 +9,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_matlab
+/// @{
+
+
 /// @file
 /// @ingroup group_matlab
 /// @brief Fundamental arithmetic, relational, logical, and array operator functions.
@@ -429,4 +433,6 @@ Value bitset(const Value &a, const Value &n, const Value &val = Value(), std::pm
 /// @return Bit values (0 or 1).
 Value bitget(const Value &a, const Value &n, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

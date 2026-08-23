@@ -11,6 +11,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// @brief 1-D inverse Haar wavelet transform
 /// (`xrec = ihaart(a, d, level, integerflag)`).
 ///
@@ -35,4 +39,6 @@ namespace numkit::wavelet {
 Value ihaart(const Value &a, const Value &d, int level = 0,
              bool integer = false, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

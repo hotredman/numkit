@@ -13,6 +13,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Principal Component Analysis
 /// (`[coeff, score, latent, tsquared, explained, mu] = pca(X)`).
 ///
@@ -57,4 +61,6 @@ pcacov(const Value &C, std::pmr::memory_resource *mr = nullptr);
 Value pcares(const Value &X, int ndim,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

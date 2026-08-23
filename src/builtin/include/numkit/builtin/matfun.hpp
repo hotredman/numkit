@@ -10,6 +10,10 @@
 
 namespace numkit::builtin {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @file
 /// @ingroup group_matfun
 /// @brief Matrix functions, integer division with rounding modes, and matrix algebra.
@@ -35,4 +39,6 @@ namespace numkit::builtin {
 /// @see numkit::builtin::rdivide, numkit::builtin::ldivide
 Value idivide(const Value &a, const Value &b, const std::string &mode = "fix", std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::builtin

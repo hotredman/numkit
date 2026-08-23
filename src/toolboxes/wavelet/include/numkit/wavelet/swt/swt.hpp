@@ -13,6 +13,10 @@
 
 namespace numkit::wavelet {
 
+/// @addtogroup group_wavelet
+/// @{
+
+
 /// Stationary (à trous) discrete wavelet transform (`swc = swt(x, n, wname)`).
 ///
 /// Computes `n` levels of the **non-decimated** wavelet transform.
@@ -89,4 +93,6 @@ Value modwt(const Value &x, int n, const std::string &wname,
 Value imodwt(const Value &swc, const std::string &wname,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::wavelet

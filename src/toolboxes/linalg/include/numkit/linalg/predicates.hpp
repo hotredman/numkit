@@ -14,6 +14,10 @@
 
 namespace numkit::linalg {
 
+/// @addtogroup group_matfun
+/// @{
+
+
 /// @brief Banded structure test (`tf = isbanded(A, lower, upper)`).
 ///
 /// True iff entries outside the `[-lower, +upper]` diagonal band are
@@ -45,4 +49,6 @@ bandwidth(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @brief Single-output bandwidth selector (`x = bandwidth(A, which)`).
 Value bandwidthOpt(const Value &A, const std::string &which, std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::linalg

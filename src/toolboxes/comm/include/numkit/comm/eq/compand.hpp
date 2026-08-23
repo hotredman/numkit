@@ -12,6 +12,10 @@
 
 namespace numkit::comm {
 
+/// @addtogroup group_comm
+/// @{
+
+
 /// @brief μ-law / A-law signal compander
 /// (`y = compand(x, param, V, method)`).
 ///
@@ -36,4 +40,6 @@ Value compand(const Value &x, double param, double V,
               const std::string &method,
               std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::comm

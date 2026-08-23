@@ -21,6 +21,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Second-order sections to transfer function.
 ///
 /// Convolves every section row `[b0 b1 b2 1 a1 a2]` across the cascade
@@ -188,4 +192,6 @@ sos2ss(const Value &                sos,
 Value ss2sos(const Value &A, const Value &B, const Value &C, double D = 0.0,
              std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

@@ -13,6 +13,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Per-point silhouette coefficient (`s = silhouette(X, clust, metric, p)`).
 ///
 /// For each point `i` with label `k`, computes:
@@ -35,4 +39,6 @@ Value silhouette(const Value &X, const Value &clust,
                  const std::string &metric = "sqeuclidean", double p = 2.0,
                  std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats

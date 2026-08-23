@@ -8,6 +8,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Goertzel algorithm — single-frequency DFT evaluation.
 ///
 /// Returns the DFT of `x` at the (1-based) frequency indices in `ind`.
@@ -36,4 +40,6 @@ Value goertzel(const Value &                x,
                const Value &                ind,
                std::pmr::memory_resource *  mr = nullptr);
 
+
+/// @}
 } // namespace numkit::signal

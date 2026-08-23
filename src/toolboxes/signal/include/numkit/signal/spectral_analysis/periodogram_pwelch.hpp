@@ -15,6 +15,10 @@
 
 namespace numkit::signal {
 
+/// @addtogroup group_signal
+/// @{
+
+
 /// Single-segment periodogram PSD estimate.
 ///
 /// Computes
@@ -206,4 +210,6 @@ pburg(const Value &                x,
 
 // `aryule` and `lpc` live in toolboxes/signal's signal_modeling header.
 
+
+/// @}
 } // namespace numkit::signal

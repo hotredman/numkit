@@ -11,6 +11,10 @@
 
 namespace numkit::stats {
 
+/// @addtogroup group_stats
+/// @{
+
+
 /// @brief Multivariate normal pdf (`y = mvnpdf(X, mu, Sigma)`).
 ///
 /// @f$ f(x; \mu, \Sigma) = \dfrac{1}{(2\pi)^{d/2}\,|\Sigma|^{1/2}}\,
@@ -50,4 +54,6 @@ Value mvtpdf(const Value &X, const Value &C, double df,
 Value mnpdf(const Value &X, const Value &P,
             std::pmr::memory_resource *mr = nullptr);
 
+
+/// @}
 } // namespace numkit::stats
