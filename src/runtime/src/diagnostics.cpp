@@ -1,6 +1,6 @@
 // toolboxes/builtin/src/programming/errors/diagnostics.cpp
 
-#include <numkit/runtime/programming/errors/diagnostics.hpp>
+#include <numkit/runtime/diagnostics.hpp>
 #include <numkit/builtin/strfun.hpp>
 #include <numkit/core/engine.hpp>
 

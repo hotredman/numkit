@@ -4,17 +4,16 @@
 // + cellfun. Shares the function-handle dispatch helpers with
 // struct.cpp via the inline header below.
 
-#include <numkit/runtime/language/cells/cell.hpp>
+#include <numkit/runtime/cell.hpp>
 #include <numkit/builtin/elmat.hpp>  // horzcat / vertcat
 #include <numkit/core/engine.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/vm.hpp>
 
-#include "../handles/_handlefn_helpers.hpp"
+#include "_handlefn_helpers.hpp"
 
 namespace numkit::runtime {
 

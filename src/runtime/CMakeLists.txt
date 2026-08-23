@@ -18,27 +18,25 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/function_handles.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/saveload_mat.cpp
-    # Core-coupled builtins relocated from builtin (Phase 3-A step C3) — their
-    # compute pulls core/engine|vm|callback_builtin, so they belong in runtime.
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/commands/env.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/datatypes/containers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/splitapply_callback.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/cells/cell.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/structures/struct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/strings/print_io.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/strings/scan_io.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/programming/errors/diagnostics.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/reflection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/env.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/containers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/splitapply_callback.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cell.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/struct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/print_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scan_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/diagnostics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/reflection.cpp
 )
 list(APPEND NUMKIT_RUNTIME_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_RUNTIME_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/runtime.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/saveload.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/commands/env.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/env.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/containers.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/cells/cell.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/structures/struct.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/programming/errors/diagnostics.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/cell.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/struct.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/diagnostics.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/io.hpp
 )
 

@@ -4,16 +4,15 @@
 // Shares function-handle dispatch helpers with cell.cpp via the inline
 // header below.
 
-#include <numkit/runtime/language/structures/struct.hpp>
+#include <numkit/runtime/struct.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
-#include <numkit/core/engine.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/vm.hpp>
 
-#include "../handles/_handlefn_helpers.hpp"
+#include "_handlefn_helpers.hpp"
 
 namespace numkit::runtime {
 
