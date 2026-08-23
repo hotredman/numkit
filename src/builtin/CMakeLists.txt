@@ -25,7 +25,8 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/manipulation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/predicates.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/regex.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun/clock.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun/dates.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/iofun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/general.cpp
