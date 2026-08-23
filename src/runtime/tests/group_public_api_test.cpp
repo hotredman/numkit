@@ -6,7 +6,7 @@
 // (GroupcountsResult). (splitapply/groupsummary/grouptransform/groupfilter
 // stay adapter-only — they need engine function-handle callbacks.)
 
-#include <numkit/runtime/math/group/group.hpp>
+#include <numkit/builtin/datafun.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <cmath>

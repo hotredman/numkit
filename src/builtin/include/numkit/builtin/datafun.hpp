@@ -7,12 +7,17 @@
 #include <string>
 #include <tuple>
 #include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/ops/rng_context.hpp>
+#include <numkit/ops/rng.hpp>
 
 namespace numkit::builtin {
 
 using ::numkit::ops::RngContext;
+using ::numkit::ops::rand;
+using ::numkit::ops::randn;
+using ::numkit::ops::randND;
+using ::numkit::ops::randnND;
+using ::numkit::ops::randi;
+using ::numkit::ops::randperm;
 
 /// @file
 /// @brief Data analysis, reductions, search, set operations, and random distributions.
@@ -224,40 +229,7 @@ Value anyOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr
 Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── Random Number Generation ────────────────────────────────────────────────
-
-/// @brief Uniformly distributed random numbers in [0, 1).
-/// @param rows Row count (default: 1).
-/// @param cols Column count (default: 1).
-/// @param mr Memory resource.
-/// @return `rows x cols` matrix of uniformly distributed random doubles.
-/// @see randn, randi, randperm
-Value rand(size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Normally distributed random numbers (mean 0, variance 1).
-/// @param rows Row count (default: 1).
-/// @param cols Column count (default: 1).
-/// @param mr Memory resource.
-/// @return `rows x cols` matrix of standard normal random doubles.
-/// @see rand, randi
-Value randn(size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Uniformly distributed random integers in range [imin, imax].
-/// @param imin Minimum integer bound.
-/// @param imax Maximum integer bound.
-/// @param rows Row count (default: 1).
-/// @param cols Column count (default: 1).
-/// @param mr Memory resource.
-/// @return `rows x cols` matrix of random integers.
-/// @see rand, randperm
-Value randi(int imin, int imax, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Random permutation of integers 1 to n.
-/// @param n Integer upper bound.
-/// @param k Number of unique elements to sample (0 = all @p n elements).
-/// @param mr Memory resource.
-/// @return Row vector of permuted integers.
-/// @see rand, randi
-Value randperm(size_t n, size_t k = 0, std::pmr::memory_resource *mr = nullptr);
+// See RngContext-taking declarations re-exported at header top.
 
 /// @brief Binning method for histograms.
 enum class HistBinMethod {
@@ -437,5 +409,85 @@ Value ismembertol(const Value &a, const Value &s, double tol = 1e-6, std::pmr::m
 /// @param mr Memory resource.
 /// @return Unique elements within tolerance.
 Value uniquetol(const Value &x, double tol = 1e-6, std::pmr::memory_resource *mr = nullptr);
+
+// ── Grouping Operations ─────────────────────────────────────────────────────
+
+/// @brief Result of `findgroups` — `[G, ID]`.
+struct FindgroupsResult {
+    Value G;   ///< Group index per element (shape of input; NaN = missing).
+    Value ID;  ///< Column of unique non-NaN values (sorted ascending).
+};
+
+/// @brief Assign 1-based group IDs (`[G, ID] = findgroups(g)`).
+///
+/// `G[i]` is the group ID of `g[i]`, based on the sorted-unique order of the
+/// finite values of `g`; `ID` is the column of those unique values. `NaN`
+/// entries are treated as missing (`G[i] = NaN`, excluded from `ID`),
+/// matching MATLAB R2025b. `G` takes the shape of `g`.
+///
+/// @param g Grouping variable (numeric / logical / char).
+/// @param mr Memory resource.
+/// @return @ref FindgroupsResult `{ G, ID }`.
+/// @see groupcounts, groupsummary, grouptransform
+FindgroupsResult findgroups(const Value &g, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Result of `groupcounts` — `[C, GR, P]`.
+struct GroupcountsResult {
+    Value C;   ///< Count per group (trailing NaN bucket if `g` has any NaN).
+    Value GR;  ///< Group representatives (sorted unique; NaN trailing).
+    Value P;   ///< Percentage `100 * count / total` per group.
+};
+
+/// @brief Count elements per group (`[C, GR, P] = groupcounts(g)`).
+///
+/// `C` is the per-group element count over the sorted-unique values of `g`;
+/// `GR` the matching representatives; `P` the percentages. `NaN` entries
+/// form a single trailing bucket (matching MATLAB R2025b).
+///
+/// @param g Grouping variable.
+/// @param mr Memory resource.
+/// @return @ref GroupcountsResult `{ C, GR, P }`.
+/// @see findgroups, groupsummary
+GroupcountsResult groupcounts(const Value &g, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Result of the array form of `groupsummary` — `[B, BG, BC]`.
+struct GroupsummaryResult {
+    Value B;   ///< `nGroups x cols(A)` per-group, per-column reduction.
+    Value BG;  ///< Group representatives (sorted unique; NaN trailing).
+    Value BC;  ///< Element count per group.
+};
+
+/// @brief Per-group reduction (`[B, BG, BC] = groupsummary(A, G, method)`).
+///
+/// Groups the rows of `A` (length-`size(A,1)` grouping vector `G`) and
+/// applies `method` per group, per column. Supported `method` strings:
+/// `"sum"`, `"mean"`, `"median"`, `"max"`, `"min"`, `"std"`, `"var"`,
+/// `"numunique"`, `"nnz"`, `"mode"`, `"all"`, `"any"`. `NaN` group values
+/// form a single trailing bucket.
+///
+/// @param A Column vector or matrix (DOUBLE).
+/// @param G Grouping vector, length `size(A,1)`.
+/// @param method Reduction method string.
+/// @param mr Memory resource.
+/// @return @ref GroupsummaryResult `{ B, BG, BC }`.
+/// @see findgroups, groupcounts, grouptransform
+GroupsummaryResult groupsummary(const Value &A, const Value &G,
+                                const std::string &method,
+                                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Group transformation (`grouptransform(A, G, method)`).
+///
+/// Supported string methods: `"meancenter"`, `"zscore"`, `"norm"`,
+/// `"rescale"`, `"meanfill"`, `"linearfill"`.
+///
+/// @param A Column vector or matrix (DOUBLE).
+/// @param G Grouping vector, length `size(A,1)`.
+/// @param method Transformation method string.
+/// @param mr Memory resource.
+/// @return Transformed array with same shape as @p A.
+/// @see groupsummary, findgroups
+Value grouptransform(const Value &A, const Value &G,
+                     const std::string &method,
+                     std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

@@ -32,8 +32,11 @@
 #include <string>
 #include <vector>
 
-namespace numkit::builtin {
+namespace numkit::runtime {
 void registerSplitapplyCallbackBuiltin(Engine &engine);
+}
+
+namespace numkit::builtin {
 void registerIntegralM(Engine &engine);
 void registerCellfunCallbackBuiltin(Engine &engine);
 void registerStructfunCallbackBuiltin(Engine &engine);
@@ -491,7 +494,7 @@ void register_datatypes(Engine &engine) {
     // forms fall back to the synchronous arrayfun above.
     engine.registerCallbackBuiltin(
         "arrayfun", std::make_shared<::numkit::builtin::detail::ArrayfunCallbackBuiltin>());
-    ::numkit::builtin::registerSplitapplyCallbackBuiltin(engine);
+    ::numkit::runtime::registerSplitapplyCallbackBuiltin(engine);
 
     
 // ── class ──────────────────────────────────────────────────

@@ -13,8 +13,8 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/nd_manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matfun/matfun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/reductions.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/random.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/sets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/group.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/special.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/combinatorics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/polynomials.cpp
