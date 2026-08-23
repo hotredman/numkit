@@ -1,11 +1,11 @@
-#include <numkit/runtime/help/help_catalog.hpp>
+#include <numkit/bundle/help/help_catalog.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
 #include <sstream>
 
-namespace numkit::runtime {
+namespace numkit::bundle {
 
 namespace {
 std::string toLowerStr(std::string s) {

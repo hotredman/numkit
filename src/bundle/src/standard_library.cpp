@@ -18,6 +18,7 @@
 #include <numkit/graphics/library.hpp>
 #include <numkit/io/library.hpp>
 #include <numkit/optim/library.hpp>
+#include <numkit/bundle/help.hpp>
 #include <numkit/audio/library.hpp>
 #include <numkit/ode/library.hpp>
 
@@ -48,6 +49,9 @@ void StandardLibrary::install(Engine &engine)
     OptimLibrary::install(engine);
     AudioLibrary::install(engine);
     OdeLibrary::install(engine);
+
+    // 4. Help & Discovery system
+    bundle::HelpLibrary::install(engine);
 
     // Element-wise fusion rules — registered last, after all builtins exist.
     registerFusionRules(engine);

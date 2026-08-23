@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <numkit/builtin/general.hpp>
+#include <numkit/bundle/help.hpp>
 #include <numkit/bundle/standard_library.hpp>
 #include <numkit/core/engine.hpp>
 
@@ -36,35 +36,35 @@ TEST_F(GeneralTest, HelpAndBuiltins) {
 
 TEST_F(GeneralTest, DirectCppGeneralAPI) {
     // Categories
-    std::vector<std::string> cats = builtin::categories();
+    std::vector<std::string> cats = bundle::categories();
     EXPECT_GT(cats.size(), 8u);
     EXPECT_NE(std::find(cats.begin(), cats.end(), "elmat"), cats.end());
     EXPECT_NE(std::find(cats.begin(), cats.end(), "elfun"), cats.end());
 
     // Help query
-    std::string hAll = builtin::help();
+    std::string hAll = bundle::help();
     EXPECT_FALSE(hAll.empty());
     EXPECT_NE(hAll.find("elmat"), std::string::npos);
 
-    std::string hCat = builtin::help("elmat");
+    std::string hCat = bundle::help("elmat");
     EXPECT_NE(hCat.find("zeros"), std::string::npos);
 
-    std::string hFunc = builtin::help("sin");
+    std::string hFunc = bundle::help("sin");
     EXPECT_NE(hFunc.find("sin"), std::string::npos);
 
     // What
-    std::vector<std::string> elmatFuncs = builtin::what("elmat");
+    std::vector<std::string> elmatFuncs = bundle::what("elmat");
     EXPECT_GT(elmatFuncs.size(), 10u);
     EXPECT_NE(std::find(elmatFuncs.begin(), elmatFuncs.end(), "zeros"), elmatFuncs.end());
     EXPECT_NE(std::find(elmatFuncs.begin(), elmatFuncs.end(), "ones"), elmatFuncs.end());
 
     // Builtins
-    std::vector<std::string> elfunBuiltins = builtin::builtins("elfun");
+    std::vector<std::string> elfunBuiltins = bundle::builtins("elfun");
     EXPECT_GT(elfunBuiltins.size(), 10u);
     EXPECT_NE(std::find(elfunBuiltins.begin(), elfunBuiltins.end(), "sin"), elfunBuiltins.end());
 
     // Value overloads
-    Value vWhat = builtin::what(Span<const Value>{});
+    Value vWhat = bundle::what(Span<const Value>{});
     EXPECT_TRUE(vWhat.isStruct());
     EXPECT_TRUE(vWhat.hasField("m"));
     EXPECT_TRUE(vWhat.field("m").isCell());

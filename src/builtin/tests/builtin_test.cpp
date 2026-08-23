@@ -30,7 +30,7 @@ TEST_F(BuiltinTest, FullLibraryInstalled) {
     // String
     EXPECT_TRUE(engine->eval("strcmp('a', 'a');").toBool());
 
-    // Help
-    Value h = engine->eval("h = help('elmat');");
-    EXPECT_TRUE(h.isChar() || h.isString());
+    // Datafun
+    EXPECT_DOUBLE_EQ(engine->eval("sum([1 2 3]);").toScalar(), 6.0);
+    EXPECT_DOUBLE_EQ(engine->eval("diff([10 25]);").toScalar(), 15.0);
 }

@@ -15,6 +15,5 @@
 #include <numkit/builtin/timefun.hpp>
 #include <numkit/builtin/datatypes.hpp>
 #include <numkit/builtin/iofun.hpp>
-#include <numkit/builtin/general.hpp>
 #include <numkit/builtin/lang.hpp>
 #include <numkit/builtin/scan_core.hpp>

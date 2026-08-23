@@ -1,6 +1,3 @@
-// src/bundle/src/register/builtin/general_reg.cpp
-
-#include <numkit/builtin/general.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
@@ -8,7 +5,6 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/core/vm.hpp>
 #include <numkit/runtime/runtime.hpp>
-#include <numkit/runtime/help/help_catalog.hpp>
 
 #include <algorithm>
 #include <iomanip>
@@ -47,87 +43,6 @@ void which_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 namespace numkit::bundle::builtin {
 
 using namespace ::numkit::builtin;
-
-static void help_builtin(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-    std::string text;
-
-    if (args.empty()) {
-        text = help("");
-    } else {
-        std::string query = args[0].isChar() ? args[0].toString() : "";
-        if (query.empty() && args[0].isString()) query = args[0].toString();
-
-        const auto &catalog = runtime::HelpCatalog::instance();
-        if (catalog.findCategory(query) || catalog.findFunction(query)) {
-            text = help(query);
-        } else if (ctx.engine->hasUserFunction(query)) {
-            text = query + " is a user-defined function.\n";
-        } else if (ctx.engine->hasExternalFunction(query)) {
-            text = query + " is a built-in function.\n";
-        } else {
-            text = "'" + query + "' not found. Type 'help' for a list of topics.\n";
-        }
-    }
-
-    if (nargout > 0) {
-        outs[0] = Value::fromString(text, ctx.engine->resource());
-    } else {
-        ctx.engine->outputText(text);
-        outs[0] = Value();
-    }
-}
-
-static void what_builtin(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
-    if (nargout > 0) {
-        outs[0] = what(args, ctx.engine->resource());
-    } else {
-        std::string topic = args.empty() ? "elmat" : (args[0].isChar() ? args[0].toString() : "");
-        const auto &catalog = runtime::HelpCatalog::instance();
-        const runtime::HelpCategory *cat = catalog.findCategory(topic);
-        std::vector<std::string> funcs = what(topic);
-        std::string title = cat ? cat->title : topic;
-
-        std::ostringstream os;
-        os << "Functions in " << topic << " (" << title << "):\n\n";
-        for (size_t i = 0; i < funcs.size(); ++i) {
-            os << std::left << std::setw(16) << funcs[i];
-            if ((i + 1) % 4 == 0 || i + 1 == funcs.size()) os << "\n";
-        }
-        os << "\n";
-        ctx.engine->outputText(os.str());
-        outs[0] = Value();
-    }
-}
-
-static void builtins_builtin(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
-    outs[0] = builtins(args, ctx.engine->resource());
-}
-
-static void inmem_builtin(Span<const Value>, size_t nargout, Span<Value> outs, CallContext &ctx) {
-    std::vector<std::string> userFuncs;
-    std::vector<std::string> classes;
-
-    for (const auto &name : ctx.engine->namespaces()) {
-        classes.push_back(name);
-    }
-
-    Value mCell = Value::cell(userFuncs.size(), 1, ctx.engine->resource());
-    for (size_t i = 0; i < userFuncs.size(); ++i) {
-        mCell.cellAt(i) = Value::fromString(userFuncs[i], ctx.engine->resource());
-    }
-    outs[0] = std::move(mCell);
-
-    if (nargout > 1) {
-        outs[1] = Value::cell(0, 1, ctx.engine->resource());
-    }
-    if (nargout > 2) {
-        Value cCell = Value::cell(classes.size(), 1, ctx.engine->resource());
-        for (size_t i = 0; i < classes.size(); ++i) {
-            cCell.cellAt(i) = Value::fromString(classes[i], ctx.engine->resource());
-        }
-        outs[2] = std::move(cCell);
-    }
-}
 
 void register_general(Engine &engine) {
     using namespace ::numkit::builtin::detail;
@@ -650,12 +565,6 @@ void register_general(Engine &engine) {
                 throw std::runtime_error("freqspace: 2-vec input requires 2 output args");
             outs[0] = whole ? whole_vec(n_rows) : half_vec(n_rows);
         });
-
-    engine.registerFunction("help", &help_builtin);
-    engine.registerFunction("doc", &help_builtin);
-    engine.registerFunction("what", &what_builtin);
-    engine.registerFunction("builtins", &builtins_builtin);
-    engine.registerFunction("inmem", &inmem_builtin);
 }
 
 } // namespace numkit::bundle::builtin

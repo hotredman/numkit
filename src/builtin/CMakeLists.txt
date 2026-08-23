@@ -31,7 +31,6 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun/dates.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/iofun/formatted_io.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/general/catalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/environment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/keywords.cpp
 )
@@ -81,7 +80,6 @@ list(APPEND NUMKIT_BUILTIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/timefun.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/datatypes.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/iofun.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/general.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/builtin/lang.hpp
 )
 

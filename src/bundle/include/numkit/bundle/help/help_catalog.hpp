@@ -4,7 +4,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace numkit::runtime {
+namespace numkit::bundle {
 
 struct HelpEntry {
     std::string name;
@@ -61,4 +61,4 @@ private:
     std::unordered_map<std::string, HelpEntry> functionIndex_;
 };
 
-} // namespace numkit::runtime
+} // namespace numkit::bundle
