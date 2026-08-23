@@ -68,7 +68,7 @@ console.error = (...a) => { logToFile('error', ...a); origErr(...a); };
 
 const IDE_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(__dirname, 'dist');
-const IS_PROD = fs.existsSync(path.join(DIST_DIR, 'index.html'));
+const IS_PROD = fs.existsSync(path.join(DIST_DIR, 'index.html')) && !process.argv.includes('--dev');
 const PRELOAD = path.join(__dirname, 'preload.js');
 
 let mainWindow = null;

@@ -57,9 +57,13 @@ if exist "%IDE_DIR%\scripts\generate-manifest.js" (
     node "%IDE_DIR%\scripts\generate-manifest.js"
 )
 
+set RUN_MODE=--dev
+if "%1"=="--prod" set RUN_MODE=
+if "%1"=="--dist" set RUN_MODE=
+
 echo.
 echo Starting Numkit IDE...
 echo.
 
 cd /d "%DESKTOP_DIR%"
-node_modules\electron\dist\electron.exe .
+node_modules\electron\dist\electron.exe . %RUN_MODE%
