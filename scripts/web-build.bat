@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
 set PROJECT_DIR=%~dp0..\
 set IDE_DIR=%PROJECT_DIR%ide
@@ -8,8 +8,11 @@ set DEPLOY_DIR=%PROJECT_DIR%deploy
 if not defined EMSDK (
     if exist "%USERPROFILE%\Repo\emsdk" set "EMSDK=%USERPROFILE%\Repo\emsdk"
     if exist "%USERPROFILE%\emsdk" set "EMSDK=%USERPROFILE%\emsdk"
+    if exist "C:\Users\User\Repo\emsdk" set "EMSDK=C:\Users\User\Repo\emsdk"
 )
-set EMCC_DIR=%EMSDK%\upstream\emscripten
+if defined EMSDK (
+    set "EMCC_DIR=%EMSDK%\upstream\emscripten"
+)
 
 echo === Numkit IDE Static Build -- output to deploy\ ===
 echo.
