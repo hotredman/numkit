@@ -15,7 +15,6 @@ using ::numkit::builtin::mldivide;
 using ::numkit::builtin::power;
 using ::numkit::builtin::elementPower;
 using ::numkit::builtin::mpower;
-using ::numkit::builtin::pagemtimes;
 using ::numkit::builtin::eq;
 using ::numkit::builtin::ne;
 using ::numkit::builtin::lt;

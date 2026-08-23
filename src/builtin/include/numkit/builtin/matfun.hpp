@@ -1,6 +1,6 @@
-// include/numkit/builtin/matfun.hpp
+// src/builtin/include/numkit/builtin/matfun.hpp
 //
-// Matrix functions and integer division (MATLAB parity).
+// Pure C++ Matrix functions and integer division (MATLAB parity).
 #pragma once
 
 #include <memory_resource>
@@ -8,14 +8,13 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
 
-namespace numkit {
-class Engine;
-}
-
 namespace numkit::builtin {
 
 /// @file
 /// @brief Matrix functions, integer division with rounding modes, and matrix algebra.
+///
+/// Provides a clean, engine-free C++ API for integer division with rounding modes
+/// and matrix arithmetic utility functions.
 
 // ── Integer Division ────────────────────────────────────────────────────────
 
@@ -32,12 +31,7 @@ namespace numkit::builtin {
 /// @param mr Memory resource for allocations (nullptr for default).
 /// @return Quotient after integer division, maintaining integer type of operands.
 /// @throws std::runtime_error If neither argument is an integer class or if invalid mode is passed.
-/// @see rdivide, ldivide
+/// @see numkit::builtin::rdivide, numkit::builtin::ldivide
 Value idivide(const Value &a, const Value &b, const std::string &mode = "fix", std::pmr::memory_resource *mr = nullptr);
-
-// ── Registration ────────────────────────────────────────────────────────────
-
-/// @brief Registers all matrix builtins into the engine instance.
-void register_matfun(Engine &engine);
 
 } // namespace numkit::builtin
