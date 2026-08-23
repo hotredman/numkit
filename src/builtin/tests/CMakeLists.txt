@@ -1,6 +1,7 @@
 # src/builtin/tests/CMakeLists.txt
 
 target_sources(numkit_gtest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/accum_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/acos_asin_complex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/arith_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic_test.cpp

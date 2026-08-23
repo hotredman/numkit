@@ -21,7 +21,6 @@ list(APPEND NUMKIT_RUNTIME_SOURCES
     # Core-coupled builtins relocated from builtin (Phase 3-A step C3) — their
     # compute pulls core/engine|vm|callback_builtin, so they belong in runtime.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/commands/env.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/language/arrays/accum.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/datatypes/containers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/splitapply_callback.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/language/cells/cell.cpp
@@ -38,7 +37,6 @@ list(APPEND NUMKIT_RUNTIME_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/saveload.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/help/help_catalog.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/commands/env.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/arrays/accum.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/containers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/cells/cell.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/structures/struct.hpp

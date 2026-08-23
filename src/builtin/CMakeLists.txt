@@ -15,6 +15,7 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/reductions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/sets.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/group.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/accum.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/special.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/combinatorics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/polynomials.cpp

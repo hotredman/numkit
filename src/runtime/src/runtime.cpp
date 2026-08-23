@@ -16,7 +16,6 @@ void registerFunctionHandles(Engine &engine);         // function_handles.cpp
 void registerContainersRuntime(Engine &engine);       // containers.cpp
 void registerCellsRuntime(Engine &engine);            // cell.cpp
 void registerStructuresRuntime(Engine &engine);       // struct.cpp
-void registerArraysRuntime(Engine &engine);           // accum.cpp
 void registerEnvRuntime(Engine &engine);              // env.cpp
 void registerReflectionRuntime(Engine &engine);       // reflection.cpp
 void registerDiagnosticsRuntime(Engine &engine);      // diagnostics.cpp
@@ -37,7 +36,6 @@ void RuntimeLibrary::install(Engine &engine)
     runtime::registerContainersRuntime(engine);
     runtime::registerCellsRuntime(engine);
     runtime::registerStructuresRuntime(engine);
-    runtime::registerArraysRuntime(engine);
     runtime::registerEnvRuntime(engine);
     runtime::registerDiagnosticsRuntime(engine);
     runtime::registerReflectionRuntime(engine);
