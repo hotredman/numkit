@@ -1,0 +1,75 @@
+/* doxygen/theme/custom.css — NumKit custom branding adjustments */
+
+:root {
+    --side-nav-fixed-width: 320px;
+    --primary-color: #3b82f6;
+    --primary-dark-color: #2563eb;
+    --primary-light-color: #60a5fa;
+}
+
+/* Compact Header with sleek logo */
+#titlearea {
+    padding: 6px 16px !important;
+    margin-bottom: 0 !important;
+    border-bottom: 1px solid var(--separator-color);
+}
+
+#projectlogo {
+    vertical-align: middle !important;
+    padding-right: 12px !important;
+}
+
+#projectlogo img {
+    max-height: 36px !important;
+    width: auto !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+
+#projectalign {
+    vertical-align: middle !important;
+    padding-left: 0 !important;
+}
+
+#projectname {
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
+    line-height: 1.2 !important;
+}
+
+#projectnumber {
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    opacity: 0.75;
+    margin-left: 6px !important;
+}
+
+#projectbrief {
+    font-size: 0.78rem !important;
+    line-height: 1.2 !important;
+    opacity: 0.65;
+    margin-top: 2px !important;
+}
+
+/* Modern Typography */
+body, input, button, select, textarea {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
+}
+
+code, tt, kbd, samp, pre {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, "Courier New", monospace !important;
+    font-size: 0.9em !important;
+}
+
+/* Polished badges and function titles */
+.memtitle {
+    font-weight: 600 !important;
+    border-radius: 6px 6px 0 0 !important;
+}
+
+.memitem {
+    border-radius: 6px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px !important;
+}

@@ -116,7 +116,15 @@ VERBATIM_HEADERS       = YES
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
 HTML_FILE_EXTENSION    = .html
-HTML_COLORSTYLE        = AUTO_LIGHT
+HTML_HEADER            = doxygen/theme/header.html
+HTML_COLORSTYLE        = LIGHT
+HTML_EXTRA_STYLESHEET  = doxygen/theme/doxygen-awesome.css \
+                         doxygen/theme/doxygen-awesome-sidebar-only.css \
+                         doxygen/theme/custom.css
+HTML_EXTRA_FILES       = doxygen/theme/doxygen-awesome-darkmode-toggle.js \
+                         doxygen/theme/doxygen-awesome-fragment-copy-button.js \
+                         doxygen/theme/doxygen-awesome-paragraph-link.js \
+                         doxygen/theme/doxygen-awesome-interactive-toc.js
 HTML_DYNAMIC_MENUS     = YES
 HTML_DYNAMIC_SECTIONS  = YES
 GENERATE_TREEVIEW      = YES
