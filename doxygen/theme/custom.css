@@ -221,7 +221,106 @@ code, tt, kbd, samp, pre {
 }
 
 .memitem {
-    border-radius: 6px !important;
+    border-radius: 8px !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    margin-bottom: 20px !important;
+    margin-bottom: 24px !important;
+    border: 1px solid var(--separator-color) !important;
+    overflow: hidden;
 }
+
+/* ── C++ Function Prototype Modern Styling & Syntax Highlighting ── */
+
+.memproto {
+    background-color: var(--code-background) !important;
+    border-bottom: 1px solid var(--separator-color) !important;
+    padding: 10px 16px !important;
+}
+
+.memproto table.memname {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace !important;
+    font-size: 0.86rem !important;
+    line-height: 1.65 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 2px !important;
+    color: var(--page-foreground-color) !important;
+}
+
+.memproto td {
+    padding: 1px 4px !important;
+    vertical-align: baseline !important;
+}
+
+/* Return Type & Type Identifiers (Blue / Cyan) */
+.cxx-type,
+.cxx-type-link,
+.cxx-return-type .cxx-type,
+.memproto td.paramtype .el,
+.memproto td.memname .el {
+    color: #0284c7 !important; /* Sky 600 in light */
+    font-weight: 600 !important;
+    text-decoration: none !important;
+}
+
+html.dark-mode .cxx-type,
+html.dark-mode .cxx-type-link,
+html.dark-mode .cxx-return-type .cxx-type,
+html.dark-mode .memproto td.paramtype .el,
+html.dark-mode .memproto td.memname .el {
+    color: #38bdf8 !important; /* Sky 400 in dark */
+}
+
+/* Keywords (const, noexcept, etc. - Violet / Magenta) */
+.cxx-keyword {
+    color: #7c3aed !important; /* Violet 600 in light */
+    font-weight: 500 !important;
+}
+
+html.dark-mode .cxx-keyword {
+    color: #c084fc !important; /* Violet 400 in dark */
+}
+
+/* Symbols (&, *, -> - Muted Slate) */
+.cxx-symbol {
+    color: #64748b !important;
+    font-weight: 400 !important;
+}
+
+html.dark-mode .cxx-symbol {
+    color: #94a3b8 !important;
+}
+
+/* Function Name (Bold Slate / Crisp White) */
+.cxx-func-name {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+html.dark-mode .cxx-func-name {
+    color: #f8fafc !important;
+}
+
+/* Parameter Names (Amber / Golden Orange) */
+.cxx-param-name,
+.memproto .paramname em {
+    color: #b45309 !important;
+    font-style: normal !important;
+    font-weight: 500 !important;
+}
+
+html.dark-mode .cxx-param-name,
+html.dark-mode .memproto .paramname em {
+    color: #fcd34d !important;
+}
+
+/* Default Values & Literals (Emerald Green) */
+.cxx-param-defval,
+.memproto .paramdefval {
+    color: #15803d !important;
+    font-weight: 500 !important;
+}
+
+html.dark-mode .cxx-param-defval,
+html.dark-mode .memproto .paramdefval {
+    color: #4ade80 !important;
+}
+
