@@ -21,11 +21,23 @@
     padding-right: 12px !important;
 }
 
+#projectlogo a {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    text-decoration: none !important;
+}
+
 #projectlogo img {
     max-height: 34px !important;
     width: auto !important;
     display: inline-block !important;
     vertical-align: middle !important;
+    transition: transform 0.15s ease-in-out;
+}
+
+#projectlogo a:hover img {
+    transform: scale(1.05);
 }
 
 #projectalign {
@@ -33,11 +45,23 @@
     padding-left: 0 !important;
 }
 
+.brand-home-link {
+    text-decoration: none !important;
+    color: inherit !important;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.brand-home-link:hover #projectname {
+    color: var(--primary-light-color) !important;
+}
+
 #projectname {
     font-size: 1.25rem !important;
     font-weight: 700 !important;
     letter-spacing: -0.02em;
     line-height: 1.2 !important;
+    transition: color 0.15s ease-in-out;
 }
 
 #projectnumber {
