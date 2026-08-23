@@ -70,6 +70,7 @@ Value polyfit(const Value &x, const Value &y, int n, std::pmr::memory_resource *
 
 #include <tuple>
 
+/// @brief Result of polynomial division and deconvolution (`[q, r] = polydiv(b, a)`).
 struct PolyDiv {
     Value q; ///< Quotient polynomial coefficients.
     Value r; ///< Remainder polynomial coefficients.

@@ -177,37 +177,36 @@ enum class RobustWeight {
 /// @param y       Response (`n × 1`).
 /// @param weight  Weight function (`Bisquare` default; full MATLAB set:
 ///                Andrews/Bisquare/Cauchy/Fair/Huber/Logistic/Ols/
-///                Talwar/Welsch).
-/// @param tune    Tuning constant (`NaN` → the weight-specific default,
-///                e.g. 4.685 bisquare, 1.345 Huber).
-/// @param mr      Memory resource (nullptr → process default).
-/// @return        `{b, s}` — coefficients and final robust scale.
-struct RobustfitResult { Value b; Value s; };
+/// @brief Result of robust regression (`[b, stats] = robustfit(X, y)`).
+struct RobustfitResult {
+    Value b; ///< Robust regression coefficient vector.
+    Value s; ///< Robust scale estimate.
+};
+
+/// @brief Robust linear regression via Iteratively Reweighted Least Squares (IRLS) (`robustfit(X, y)`).
+/// @param X Design matrix (`n × p`).
+/// @param y Response vector (`n × 1`).
+/// @param weight Weight function (`Bisquare`, `Huber`, `Cauchy`, `Fair`, `Logistic`, `Talwar`, `Welsch`).
+/// @param tune Tuning constant (`NaN` to use weight-specific default).
+/// @param mr Memory resource for output allocation.
+/// @return RobustfitResult containing coefficients `b` and robust scale `s`.
+/// @see regress, fitlm
 RobustfitResult robustfit(const Value &X, const Value &y,
                            RobustWeight weight = RobustWeight::Bisquare,
                            double tune = std::numeric_limits<double>::quiet_NaN(),
                            std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Robust multivariate covariance estimate via trimmed-MCD
-/// (`[sigma, mu] = robustcov(X)`).
-///
-/// Iterative concentration-step approach (a simplified FAST-MCD):
-///   1. Start from classical mean / cov.
-///   2. Compute Mahalanobis distances, keep the `h = ceil(0.75 · n)`
-///      smallest, recompute mean / cov on the kept subset.
-///   3. Iterate until the kept set stabilises (or 20 iterations).
-///   4. Apply standard consistency correction `c = MAD / chi2inv(0.75, d)`.
-///
-/// KNOWN GAPs: full FAST-MCD with multiple random elemental subsets
-/// (Rousseeuw-Van Driessen 1999), MVE method, OGK estimator — not in
-/// v1. v1 returns a single-start estimate which differs from MATLAB
-/// when the data has heavy contamination clusters.
-///
-/// @param X   Data matrix (`n × d`, rows = observations).
-/// @param mr  Memory resource (nullptr → process default).
-/// @return    `{sigma, mu}` — `d × d` robust covariance and `1 × d`
-///            robust location vector.
-struct RobustcovResult { Value sigma; Value mu; };
+/// @brief Result of robust covariance estimation (`[sigma, mu] = robustcov(X)`).
+struct RobustcovResult {
+    Value sigma; ///< Robust covariance matrix (`d × d`).
+    Value mu;    ///< Robust mean location vector (`1 × d`).
+};
+
+/// @brief Robust multivariate covariance estimate via trimmed-MCD (`[sigma, mu] = robustcov(X)`).
+/// @param X Data matrix (`n × d`, rows = observations).
+/// @param mr Memory resource for output allocation.
+/// @return RobustcovResult containing robust covariance `sigma` and location `mu`.
+/// @see cov, corrcoef
 RobustcovResult robustcov(const Value &X,
                            std::pmr::memory_resource *mr = nullptr);
 

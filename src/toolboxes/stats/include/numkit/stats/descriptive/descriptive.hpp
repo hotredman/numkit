@@ -569,7 +569,20 @@ ecdfhist(const Value &f, const Value &x, int m = 10, std::pmr::memory_resource *
 ///                `[N,C,S]=normalize`): one value per operating slice, 1×1 for
 ///                a vector / 1×W for a matrix, with n == (A - c) ./ s.
 /// @see rescale, zscore
-struct NormalizeResult { Value n; Value c; Value s; };
+/// @brief Result of array normalization (`[N, C, S] = normalize(A, ...)`).
+struct NormalizeResult {
+    Value n; ///< Normalized array (`(A - c) ./ s`).
+    Value c; ///< Centering values `C`.
+    Value s; ///< Scaling values `S`.
+};
+
+/// @brief Normalizes data using z-score, min-max, scale, or center methods (`[N, C, S] = normalize(...)`).
+/// @param A Input array.
+/// @param method Normalization method (`"zscore"`, `"range"`, `"scale"`, `"center"`, `"median"`).
+/// @param param Optional method-specific parameter (e.g. range target `[lo, hi]`).
+/// @param mr Memory resource for output allocation.
+/// @return NormalizeResult containing `{n, c, s}`.
+/// @see rescale, zscore
 NormalizeResult normalize(const Value &A, const std::string &method,
                           const Value &param = Value::Empty,
                           std::pmr::memory_resource *mr = nullptr);

@@ -169,15 +169,17 @@ Value besselk(const Value &nu, const Value &z, std::pmr::memory_resource *mr = n
 /// @see besselj, bessely
 Value besselh(const Value &nu, int k, const Value &z, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Complete elliptic integrals of the first and second kinds (`[K, E] = ellipke(M)`).
 struct EllipKE {
-    Value K;
-    Value E;
+    Value K; ///< Complete elliptic integral of the first kind.
+    Value E; ///< Complete elliptic integral of the second kind.
 };
 
+/// @brief Jacobi elliptic functions (`[sn, cn, dn] = ellipj(u, M)`).
 struct EllipJ {
-    Value sn;
-    Value cn;
-    Value dn;
+    Value sn; ///< Jacobi elliptic sine function `sn(u|M)`.
+    Value cn; ///< Jacobi elliptic cosine function `cn(u|M)`.
+    Value dn; ///< Jacobi delta amplitude function `dn(u|M)`.
 };
 
 /// @brief Airy function (`Ai(z)` or `k`-th derivative / `Bi`).

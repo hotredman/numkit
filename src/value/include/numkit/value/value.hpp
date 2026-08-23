@@ -53,9 +53,14 @@ template<> struct value_type_for<std::complex<double>> { static constexpr ValueT
 //   heap_ == deletedTag()      → tombstone for indexed-delete
 //   otherwise                  → heap-allocated object
 // ============================================================
+/// @brief Core MATLAB-compatible multidimensional array and scalar value type.
+///
+/// Represents scalars, matrices, multi-dimensional arrays, strings, cell arrays, and structures
+/// with copy-on-write (COW) semantics and polymorphic PMR memory resource allocation.
 class Value
 {
 public:
+    /// @brief Constructs an empty `0 x 0` double matrix (`[]`).
     Value();
     ~Value();
 

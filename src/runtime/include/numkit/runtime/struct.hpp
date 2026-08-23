@@ -94,9 +94,35 @@ Value rmfield(const Value &s, const Value &name,
 Value structfun(FnHandle fn, const Value &s, bool uniformOutput,
                 std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Gets the value of specified field in structure (`v = getfield(s, 'field')`).
+/// @param s Structure array.
+/// @param name Field name string.
+/// @param mr Memory resource for output allocation.
+/// @return Field value.
+/// @see setfield, rmfield, isfield
 Value getfield(const Value &s, const Value &name, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Sets the value of specified field in structure (`s = setfield(s, 'field', val)`).
+/// @param s Structure array.
+/// @param name Field name string.
+/// @param value New field value.
+/// @param mr Memory resource for output allocation.
+/// @return Updated structure array.
+/// @see getfield, rmfield, isfield
 Value setfield(const Value &s, const Value &name, const Value &value, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Orders fields of structure array alphabetically (`s = orderfields(s)`).
+/// @param s Structure array.
+/// @param mr Memory resource for output allocation.
+/// @return Structure array with sorted field names.
+/// @see fieldnames, isfield
 Value orderfields(const Value &s, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Converts structure array to cell array of field values (`c = struct2cell(s)`).
+/// @param s Structure array.
+/// @param mr Memory resource for output allocation.
+/// @return Cell array containing all field contents.
+/// @see cell2struct, structfun
 Value struct2cell(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::runtime
