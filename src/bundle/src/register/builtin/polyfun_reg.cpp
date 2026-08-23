@@ -1,83 +1,16 @@
-// src/builtin/src/polyfun.cpp
-//
-// Polynomials, interpolation, and integration implementations.
+// src/bundle/src/register/builtin/polyfun_reg.cpp
+
 #include <numkit/builtin/polyfun.hpp>
 #include <numkit/core/engine.hpp>
-#include <numkit/math/poly/polynomials.hpp>
-#include <numkit/math/interp/interp.hpp>
-#include <numkit/math/integration/integration.hpp>
+#include <numkit/value/value.hpp>
+#include <numkit/value/span.hpp>
 
 namespace numkit::builtin {
-
-Value roots(const Value &p, std::pmr::memory_resource *mr) { return numkit::math::roots(p, mr); }
-Value poly(const Value &r, std::pmr::memory_resource *mr) { return numkit::math::poly(r, mr); }
-Value polyval(const Value &p, const Value &x, std::pmr::memory_resource *mr) { return numkit::math::polyval(p, x, mr); }
-Value polyder(const Value &p, std::pmr::memory_resource *mr) { return numkit::math::polyder(p, mr); }
-Value polyint(const Value &p, double k, std::pmr::memory_resource *mr) { return numkit::math::polyint(p, k, mr); }
-Value polyfit(const Value &x, const Value &y, size_t n, std::pmr::memory_resource *mr) { return numkit::math::polyfit(x, y, n, mr); }
-
-Value interp1(const Value &x, const Value &v, const Value &xq, const std::string &method, std::pmr::memory_resource *mr)
-{
-    return numkit::math::interp1(x, v, xq, method, mr);
+void registerIntegralM(Engine &engine);
 }
 
-Value interp2(const Value &x, const Value &y, const Value &v, const Value &xq, const Value &yq, const std::string &method, std::pmr::memory_resource *mr)
-{
-    return numkit::math::interp2(x, y, v, xq, yq, method, mr);
-}
+namespace numkit::builtin::detail {
 
-Value spline(const Value &x, const Value &y, const Value &xq, std::pmr::memory_resource *mr)
-{
-    return numkit::math::spline(x, y, xq, mr);
-}
-
-Value pchip(const Value &x, const Value &y, const Value &xq, std::pmr::memory_resource *mr)
-{
-    return numkit::math::pchip(x, y, xq, mr);
-}
-
-Value mkpp(const Value &breaks, const Value &coefs, std::pmr::memory_resource *mr)
-{
-    return numkit::math::mkpp(breaks, coefs, mr);
-}
-
-Value unmkpp(const Value &pp, std::pmr::memory_resource *mr)
-{
-    (void)mr;
-    if (pp.isStruct() && pp.hasField("breaks"))
-        return pp.field("breaks");
-    return Value();
-}
-
-Value ppval(const Value &pp, const Value &xq, std::pmr::memory_resource *mr)
-{
-    return numkit::math::ppval(pp, xq, mr);
-}
-
-Value trapz(const Value &y, std::pmr::memory_resource *mr)
-{
-    return numkit::math::trapz(y, mr);
-}
-
-Value trapz(const Value &x, const Value &y, int /*dim*/, std::pmr::memory_resource *mr)
-{
-    return numkit::math::trapz(x, y, mr);
-}
-
-Value cumtrapz(const Value &y, std::pmr::memory_resource *mr)
-{
-    return numkit::math::cumtrapz(y, mr);
-}
-
-Value cumtrapz(const Value &x, const Value &y, int dim, std::pmr::memory_resource *mr)
-{
-    if (dim > 0) {
-        return numkit::math::cumtrapzDim(y, dim, mr);
-    }
-    return numkit::math::cumtrapz(x, y, mr);
-}
-
-namespace detail {
 void cumtrapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void gk15_nodes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void integral2_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -108,9 +41,10 @@ void tf2zp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void trapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void unmkpp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void zp2tf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-} // namespace detail
 
-void registerIntegralM(Engine &engine);
+} // namespace numkit::builtin::detail
+
+namespace numkit::bundle::builtin {
 
 void register_polyfun(Engine &engine) {
     engine.registerFunction("__gk15_nodes", &::numkit::builtin::detail::gk15_nodes_reg);
@@ -147,4 +81,4 @@ void register_polyfun(Engine &engine) {
     engine.registerFunction("zp2tf",     &::numkit::builtin::detail::zp2tf_reg);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::bundle::builtin

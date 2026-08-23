@@ -18,7 +18,9 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/erf.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/bessel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/combinatorics.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/polynomials.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/interpolation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes.cpp
