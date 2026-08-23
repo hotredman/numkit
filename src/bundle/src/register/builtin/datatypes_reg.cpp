@@ -1,3 +1,5 @@
+// src/bundle/src/register/builtin/datatypes_reg.cpp
+
 #include <numkit/builtin/datatypes.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/callback_builtin.hpp>
@@ -18,12 +20,9 @@
 #include <numkit/math/arithmetic/rounding.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <cctype>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
-#include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -33,67 +32,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::builtin {
-
-Value iscell(const Value &v, std::pmr::memory_resource *mr) {
-    return numkit::lang::iscell(v, mr);
-}
-
-Value isstruct(const Value &v, std::pmr::memory_resource *mr) {
-    return numkit::lang::isstruct(v, mr);
-}
-
-Value isfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr) {
-    return isfield(s, Value::fromString(field, mr), mr);
-}
-
-Value getfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr) {
-    return getfield(s, Value::fromString(field, mr), mr);
-}
-
-Value setfield(const Value &s, const std::string &field, const Value &val, std::pmr::memory_resource *mr) {
-    return setfield(s, Value::fromString(field, mr), val, mr);
-}
-
-Value rmfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr) {
-    return rmfield(s, Value::fromString(field, mr), mr);
-}
-
-Value isnumeric(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isnumeric(v, mr); }
-Value isfloat(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isfloat(v, mr); }
-Value isinteger(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isinteger(v, mr); }
-Value islogical(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::islogical(v, mr); }
-Value ischar(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::ischar(v, mr); }
-Value isstring(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isstring(v, mr); }
-Value isnan(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isnan(v, mr); }
-Value isinf(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isinf(v, mr); }
-Value isfinite(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isfinite(v, mr); }
-Value isempty(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isempty(v, mr); }
-Value isscalar(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isscalar(v, mr); }
-Value isvector(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isvector(v, mr); }
-Value isrow(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::isrow(v, mr); }
-Value iscolumn(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::iscolumn(v, mr); }
-Value ismatrix(const Value &v, std::pmr::memory_resource *mr) { return numkit::lang::ismatrix(v, mr); }
-Value isequal(const Value &a, const Value &b, std::pmr::memory_resource *mr) { return numkit::lang::isequal(a, b, mr); }
-Value isequaln(const Value &a, const Value &b, std::pmr::memory_resource *mr) { return numkit::lang::isequaln(a, b, mr); }
-
-Value cast(const Value &v, const std::string &targetType, std::pmr::memory_resource *mr) { return numkit::lang::cast(v, targetType, mr); }
-Value realmin(const std::string &className, std::pmr::memory_resource *mr) {
-    return numkit::lang::realmin(className.empty() ? Value::Empty : Value::fromString(className, mr), mr);
-}
-Value realmax(const std::string &className, std::pmr::memory_resource *mr) {
-    return numkit::lang::realmax(className.empty() ? Value::Empty : Value::fromString(className, mr), mr);
-}
-Value intmin(const std::string &className, std::pmr::memory_resource *mr) {
-    return numkit::lang::intmin(className.empty() ? Value::Empty : Value::fromString(className, mr), mr);
-}
-Value intmax(const std::string &className, std::pmr::memory_resource *mr) {
-    return numkit::lang::intmax(className.empty() ? Value::Empty : Value::fromString(className, mr), mr);
-}
-Value flintmax(const std::string &className, std::pmr::memory_resource *mr) {
-    return numkit::lang::flintmax(className.empty() ? Value::Empty : Value::fromString(className, mr), mr);
-}
-
+namespace numkit {
 void registerSplitapplyCallbackBuiltin(Engine &engine);
 void registerIntegralM(Engine &engine);
 void registerCellfunCallbackBuiltin(Engine &engine);
@@ -292,10 +231,10 @@ Value buildMetaClass(const std::string &cn, Engine &eng, std::pmr::memory_resour
 
 } // namespace numkit::builtin::detail
 
-namespace numkit::builtin {
+namespace numkit::bundle::builtin {
 
 void register_datatypes(Engine &engine) {
-    using namespace detail;
+    using namespace ::numkit::builtin::detail;
 // ── Pack 34: function-handle introspection ────────────────────────
     //
     // functions(@h) returns a small struct describing the handle.
@@ -797,5 +736,4 @@ void register_datatypes(Engine &engine) {
     engine.registerFunction("isduration",        alwaysFalsePredicate);
     engine.registerFunction("iscalendarduration",alwaysFalsePredicate);
 }
-
-} // namespace numkit::builtin
+} // namespace numkit::bundle::builtin
