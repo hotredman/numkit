@@ -17,22 +17,21 @@
 ///
 /// - **Namespaces** tab (top) → pick a sub-namespace below to see every
 ///   function, struct, and enum exposed by that library:
-///   - @ref numkit::builtin "numkit::builtin"  — array / matrix / linalg
-///     / strings / types / I/O builtins (the bulk of the surface)
-///   - @ref numkit::stats   "numkit::stats"    — descriptive statistics,
-///     distributions, hypothesis tests, regression, fit, spline, PCA, …
-///   - @ref numkit::signal  "numkit::signal"   — DSP: filter design /
-///     analysis / implementation, transforms, windows, measurements
-///   - @ref numkit::image   "numkit::image"    — colour, morphology,
-///     transforms, quality metrics
-///   - @ref numkit::audio   "numkit::audio"    — pitch, harmonics,
-///     spectral shape, cepstral, mel
-///   - @ref numkit::wavelet "numkit::wavelet"  — DWT / SWT / wavelet
-///     filters / wavelet denoising
-///   - @ref numkit::control "numkit::control"  — LTI conversions, freq
-///     response, time response, props
-///   - @ref numkit::comm    "numkit::comm"     — modulation, channels,
-///     source coding, equalisation
+///   - @ref numkit::builtin "numkit::builtin"  — standard mathematical, array, string, and type manipulation
+///   - @ref numkit::linalg  "numkit::linalg"   — linear algebra, matrix factorizations, solvers, eigensystems
+///   - @ref numkit::runtime "numkit::runtime"  — language execution engine, cell/struct runtime, workspace persistence
+///   - @ref numkit::bundle  "numkit::bundle"   — top-level composition layer, standard library installer, help catalog
+///   - @ref numkit::stats   "numkit::stats"    — descriptive statistics, distributions, hypothesis tests, fitters, PCA
+///   - @ref numkit::signal  "numkit::signal"   — DSP: filter design/analysis, transforms, windows, measurements
+///   - @ref numkit::image   "numkit::image"    — colour, morphology, transforms, quality metrics
+///   - @ref numkit::audio   "numkit::audio"    — pitch, harmonics, spectral shape, cepstral, mel
+///   - @ref numkit::wavelet "numkit::wavelet"  — DWT / SWT / wavelet filters / denoising
+///   - @ref numkit::control "numkit::control"  — LTI systems, frequency response, time response, stability
+///   - @ref numkit::comm    "numkit::comm"     — modulation, channels, source coding, equalisation
+///   - @ref numkit::optim   "numkit::optim"    — optimization solvers, nonlinear root finding, least squares
+///   - @ref numkit::ode     "numkit::ode"      — numerical ODE solvers (ode45, ode23, ode113, ode15s)
+///   - @ref numkit::io      "numkit::io"       — scientific data formats, MAT-file I/O, audio/image I/O
+///   - @ref numkit::graphics "numkit::graphics"— 2D/3D plotting and visualization
 ///
 /// - **Files** tab — same content browsable by physical layout
 ///   (`toolboxes/<lib>/include/numkit/<lib>/.../*.hpp`).
@@ -177,6 +176,47 @@
 /// Modulation (PSK, QAM, APSK, FSK, OFDM, generic-QAM, analog,
 /// MIL-188), channel models, source coding (Huffman, arithmetic
 /// coding, DPCM, Lloyd quantisation), equalisation, scrambling.
+
+/// @namespace numkit::linalg
+/// @brief Linear Algebra & Advanced Matrix Factorizations.
+///
+/// Linear solvers (`linsolve`, `mldivide`, `mrdivide`), matrix decompositions
+/// (`lu`, `qr`, `chol`, `svd`, `eig`, `schur`, `hess`), matrix functions
+/// (`expm`, `logm`, `sqrtm`), condition numbers, rank, norms, and pseudoinverses.
+
+/// @namespace numkit::runtime
+/// @brief Scripting engine execution layer and language runtime.
+///
+/// Interpreter workspace persistence (`save`, `load`), cell array and structure
+/// runtime operations, and process environment access.
+
+/// @namespace numkit::bundle
+/// @brief Top-level Standard Library installer and Help documentation catalog.
+///
+/// Wires together all computing libraries into `StandardLibrary::install(engine)`
+/// and provides unified documentation discovery through `HelpLibrary` and `HelpCatalog`.
+
+/// @namespace numkit::optim
+/// @brief Optimization and Nonlinear Solvers.
+///
+/// Unconstrained and bound-constrained optimization (`fminunc`, `fminsearch`, `fminbnd`),
+/// nonlinear equation solving (`fsolve`), and nonlinear least-squares (`lsqcurvefit`, `lsqnonlin`).
+
+/// @namespace numkit::ode
+/// @brief Numerical Ordinary Differential Equation Solvers.
+///
+/// Non-stiff and stiff ODE integrators (`ode45`, `ode23`, `ode113`, `ode15s`, `ode23s`, `ode23t`, `ode23tb`).
+
+/// @namespace numkit::io
+/// @brief Scientific Data and File I/O.
+///
+/// Formatted data parsing, MAT-file v5/v7 serialization, and scientific file format readers.
+
+/// @namespace numkit::graphics
+/// @brief 2D and 3D Plotting and Scientific Visualization.
+///
+/// Figure management, 2D line plots (`plot`), 3D surface plots (`surf`, `mesh`),
+/// scatter plots, bar charts, histograms, colormaps, and plot styling.
 
 /// @namespace numkit::builtin::detail
 /// @brief Implementation detail of @ref numkit::builtin.

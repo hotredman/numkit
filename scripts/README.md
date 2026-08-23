@@ -39,6 +39,7 @@ vite build → dist/ — static bundle                        BASE_URL = ./ (rel
 | `web-build.{sh,bat}` | Build the static site (WASM + `vite build`) into `deploy/` (gitignored). Host it anywhere. | HTTP, root or sub-path |
 | `publish-code.{sh,bat}` | Push source code, main branch, and tags to GitHub source mirror repository. | Git / GitHub |
 | `publish-pages.{sh,bat}` | Synchronize built static site (`deploy/`) into GitHub Pages distribution repository (`--push` to push). | Git / GitHub Pages |
+| `publish-doxy.{sh,bat}` | Generate Doxygen API documentation and deploy/push directly to `numkit-doxy` GitHub Pages repo. | Git / GitHub Pages |
 | `publish-all.{sh,bat}` | Publish both source code repository and Web IDE GitHub Pages distribution in one command. | Git / GitHub |
 | `desktop-build.bat` *(win)* | Full desktop build: WASM + `vite build --base ./` + `electron-builder --win portable` → `.exe`. | file:// |
 
