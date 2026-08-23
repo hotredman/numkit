@@ -14,7 +14,10 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/reductions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/random.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/sets.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/gamma_beta.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/erf.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/bessel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/combinatorics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun.cpp

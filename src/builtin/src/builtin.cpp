@@ -1,5 +1,4 @@
 #include <numkit/builtin/builtin.hpp>
-#include <numkit/builtin/specfun.hpp>
 #include <numkit/builtin/polyfun.hpp>
 #include <numkit/builtin/strfun.hpp>
 #include <numkit/builtin/timefun.hpp>
@@ -14,6 +13,7 @@ void register_elfun(Engine &engine);
 void register_elmat(Engine &engine);
 void register_matfun(Engine &engine);
 void register_datafun(Engine &engine);
+void register_specfun(Engine &engine);
 }
 
 namespace numkit {
@@ -24,7 +24,7 @@ void BuiltinLibrary::install(Engine &engine) {
     bundle::builtin::register_elmat(engine);
     bundle::builtin::register_matfun(engine);
     bundle::builtin::register_datafun(engine);
-    builtin::register_specfun(engine);
+    bundle::builtin::register_specfun(engine);
     builtin::register_polyfun(engine);
     builtin::register_strfun(engine);
     builtin::register_timefun(engine);

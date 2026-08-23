@@ -1,56 +1,12 @@
-// src/builtin/src/specfun.cpp
-//
-// Special mathematical functions implementations.
+// src/bundle/src/register/builtin/specfun_reg.cpp
+
 #include <numkit/builtin/specfun.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/value/value.hpp>
-#include <numkit/math/special/special.hpp>
-#include <numkit/math/discrete/discrete.hpp>
-#include <numkit/math/permutations.hpp>
-#include <numkit/lang/bitwise/int_math.hpp>
+#include <numkit/value/span.hpp>
 
-namespace numkit::builtin {
+namespace numkit::builtin::detail {
 
-Value gamma(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::gammaFn(x, mr); }
-Value gammaln(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::gammaln(x, mr); }
-Value gammainc(const Value &x, const Value &a, std::pmr::memory_resource *mr) { return numkit::math::gammainc(x, a, mr); }
-Value gammaincinv(const Value &y, const Value &a, std::pmr::memory_resource *mr) { return numkit::math::gammaincinv(y, a, mr); }
-Value psi(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::psi(x, mr); }
-
-Value beta(const Value &z, const Value &w, std::pmr::memory_resource *mr) { return numkit::math::beta(z, w, mr); }
-Value betaln(const Value &z, const Value &w, std::pmr::memory_resource *mr) { return numkit::math::betaln(z, w, mr); }
-Value betainc(const Value &x, const Value &z, const Value &w, std::pmr::memory_resource *mr) { return numkit::math::betainc(x, z, w, mr); }
-Value betaincinv(const Value &y, const Value &z, const Value &w, std::pmr::memory_resource *mr) { return numkit::math::betaincinv(y, z, w, mr); }
-
-Value erf(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::erf(x, mr); }
-Value erfc(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::erfc(x, mr); }
-Value erfcx(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::erfcx(x, mr); }
-Value erfinv(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::erfinv(x, mr); }
-Value erfcinv(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::erfcinv(x, mr); }
-
-Value besselj(const Value &nu, const Value &z, std::pmr::memory_resource *mr) { return numkit::math::besselj(nu, z, mr); }
-Value bessely(const Value &nu, const Value &z, std::pmr::memory_resource *mr) { return numkit::math::bessely(nu, z, mr); }
-Value besseli(const Value &nu, const Value &z, std::pmr::memory_resource *mr) { return numkit::math::besseli(nu, z, mr); }
-Value besselk(const Value &nu, const Value &z, std::pmr::memory_resource *mr) { return numkit::math::besselk(nu, z, mr); }
-Value besselh(const Value &nu, int k, const Value &z, std::pmr::memory_resource *mr) { return numkit::math::besselh(nu, k, z, mr); }
-
-Value airy(const Value &z, std::pmr::memory_resource *mr) { return numkit::math::airy(0, z, mr); }
-Value expint(const Value &x, std::pmr::memory_resource *mr) { return numkit::math::expint(x, mr); }
-Value ellipke(const Value &m, std::pmr::memory_resource *mr) { return numkit::math::ellipke(m, mr).K; }
-Value legendre(int n, const Value &x, std::pmr::memory_resource *mr) { return numkit::math::legendre(n, x, mr); }
-
-Value factorial(const Value &n, std::pmr::memory_resource *mr) { return numkit::math::factorial(n, mr); }
-Value nchoosek(const Value &v, int k, std::pmr::memory_resource *mr) {
-    if (v.isScalar()) {
-        return numkit::math::nchoosek(v.toScalar(), static_cast<double>(k), mr);
-    }
-    return numkit::math::nchoosekCombinations(v, static_cast<double>(k), mr);
-}
-Value perms(const Value &v, std::pmr::memory_resource *mr) { return numkit::math::perms(v, mr); }
-Value gcd(const Value &a, const Value &b, std::pmr::memory_resource *mr) { return numkit::lang::gcd(a, b, mr); }
-Value lcm(const Value &a, const Value &b, std::pmr::memory_resource *mr) { return numkit::lang::lcm(a, b, mr); }
-
-namespace detail {
 void airy_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void besselh_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void besseli_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -83,7 +39,10 @@ void nchoosek_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void perms_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void primes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void psi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-} // namespace detail
+
+} // namespace numkit::builtin::detail
+
+namespace numkit::bundle::builtin {
 
 void register_specfun(Engine &engine) {
     engine.registerFunction("airy",        &::numkit::builtin::detail::airy_reg);
@@ -120,4 +79,4 @@ void register_specfun(Engine &engine) {
     engine.registerFunction("psi",         &::numkit::builtin::detail::psi_reg);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::bundle::builtin
