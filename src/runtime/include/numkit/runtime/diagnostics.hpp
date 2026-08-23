@@ -1,5 +1,5 @@
 /// @file diagnostics.hpp
-/// @ingroup group_matlab
+/// @ingroup group_lang
 // toolboxes/builtin/include/numkit/builtin/programming/errors/diagnostics.hpp
 #pragma once
 
@@ -8,14 +8,13 @@
 #include <numkit/value/value.hpp>
 
 namespace numkit {
-
-/// @addtogroup group_matlab
-/// @{
-
 class Engine;
 }
 
 namespace numkit::runtime {
+
+/// @addtogroup group_lang
+/// @{
 
 void registerDiagnosticsRuntime(Engine &engine);
 

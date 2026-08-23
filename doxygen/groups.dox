@@ -22,6 +22,12 @@
  */
 
 /**
+ * @defgroup group_ops Operators and Elementary Operations (ops)
+ * @ingroup group_matlab
+ * @brief Arithmetic (+, -, *, /), relational (==, <, >), logical (&, |, ~, xor), bitwise (bitand, bitshift), and transpose operations.
+ */
+
+/**
  * @defgroup group_matfun Matrix Functions and Numerical Linear Algebra (matfun)
  * @ingroup group_matlab
  * @brief Linear equation solvers, matrix factorizations (LU, QR, SVD, Cholesky), condition numbers, and matrix exponentials.
@@ -54,7 +60,7 @@
 /**
  * @defgroup group_datatypes Data Types and Structures (datatypes)
  * @ingroup group_matlab
- * @brief Numeric type casting, logical operations, struct arrays, cell arrays, and type inspection.
+ * @brief Numeric type casting, struct arrays, cell arrays, map/dictionary containers, and type introspection (isa, isnumeric).
  */
 
 /**
@@ -64,9 +70,15 @@
  */
 
 /**
- * @defgroup group_iofun File I/O and Workspace Persistence (iofun & general)
+ * @defgroup group_lang Language Syntax, Diagnostics and Help (lang)
  * @ingroup group_matlab
- * @brief Formatted file streams, textscan/csvread parsing, workspace save/load persistence, and session commands.
+ * @brief Keywords, variable naming rules, error/warning handling, exception structures, and interactive discovery (help, what).
+ */
+
+/**
+ * @defgroup group_iofun File I/O and Workspace Persistence (iofun)
+ * @ingroup group_matlab
+ * @brief Formatted file streams, textscan/csvread parsing, and workspace save/load persistence.
  */
 
 /** @} */ // end of group_matlab

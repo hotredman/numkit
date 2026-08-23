@@ -1,5 +1,5 @@
 /// @file standard_library.hpp
-/// @ingroup group_matlab
+/// @ingroup group_lang
 // src/bundle/include/numkit/bundle/standard_library.hpp
 //
 // The composition layer for NumKit. StandardLibrary::install wires all
@@ -11,7 +11,7 @@
 
 namespace numkit {
 
-/// @addtogroup group_matlab
+/// @addtogroup group_lang
 /// @{
 
 

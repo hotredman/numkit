@@ -25,6 +25,14 @@
     </div>
   </a>
 
+  <a class="topic-card" href="group__group__ops.html">
+    <div class="card-icon">⚡</div>
+    <div class="card-body">
+      <div class="card-title">ops — Operators &amp; Elementary Operations</div>
+      <div class="card-desc">Arithmetic (<code>+</code>, <code>-</code>, <code>.*</code>, <code>./</code>), relational (<code>==</code>, <code>&lt;</code>), logical (<code>&amp;</code>, <code>|</code>, <code>~</code>), bitwise (<code>bitand</code>, <code>bitshift</code>), and transpose (<code>.'</code>).</div>
+    </div>
+  </a>
+
   <a class="topic-card" href="group__group__matfun.html">
     <div class="card-icon">🧮</div>
     <div class="card-body">
@@ -69,7 +77,7 @@
     <div class="card-icon">📦</div>
     <div class="card-body">
       <div class="card-title">datatypes — Data Types, Structs &amp; Cells</div>
-      <div class="card-desc">Structure arrays (<code>struct</code>, <code>fieldnames</code>), Cell arrays (<code>cell</code>, <code>cellfun</code>, <code>deal</code>), type casting, and predicates.</div>
+      <div class="card-desc">Structure arrays (<code>struct</code>, <code>fieldnames</code>), Cell arrays (<code>cell</code>, <code>cellfun</code>, <code>deal</code>), type casting, and predicates (<code>isa</code>, <code>isnumeric</code>).</div>
     </div>
   </a>
 
@@ -81,11 +89,19 @@
     </div>
   </a>
 
+  <a class="topic-card" href="group__group__lang.html">
+    <div class="card-icon">🛠️</div>
+    <div class="card-body">
+      <div class="card-title">lang — Language Syntax, Diagnostics &amp; Help</div>
+      <div class="card-desc">Keywords, variable validation (<code>isvarname</code>), error diagnostics (<code>error</code>, <code>warning</code>, <code>lastwarn</code>), and help (<code>help</code>, <code>what</code>).</div>
+    </div>
+  </a>
+
   <a class="topic-card" href="group__group__iofun.html">
     <div class="card-icon">💾</div>
     <div class="card-body">
-      <div class="card-title">iofun &amp; general — Workspace &amp; File I/O</div>
-      <div class="card-desc">Workspace persistence (<code>save</code>, <code>load</code>, <code>who</code>, <code>clear</code>), text parsing (<code>textscan</code>, <code>csvread</code>), and file streams.</div>
+      <div class="card-title">iofun — File I/O &amp; Persistence</div>
+      <div class="card-desc">Workspace persistence (<code>save</code>, <code>load</code>, <code>who</code>, <code>clear</code>), text parsing (<code>textscan</code>, <code>csvread</code>), and formatted streams.</div>
     </div>
   </a>
 

@@ -1,5 +1,5 @@
 /// @file help.hpp
-/// @ingroup group_matlab
+/// @ingroup group_lang
 #pragma once
 
 #include <numkit/bundle/help/help_catalog.hpp>
@@ -11,14 +11,13 @@
 #include <vector>
 
 namespace numkit {
-
-/// @addtogroup group_matlab
-/// @{
-
 class Engine;
 }
 
 namespace numkit::bundle {
+
+/// @addtogroup group_lang
+/// @{
 
 /// @brief Installs MATLAB-compatible help and documentation commands into the script Engine.
 class HelpLibrary {
