@@ -341,10 +341,28 @@ SphTriple cart2sph(const Value &x, const Value &y, const Value &z, std::pmr::mem
 /// @brief Transforms 3D spherical coordinates to Cartesian coordinates.
 CartTriple sph2cart(const Value &az, const Value &el, const Value &r, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Generic variadic span wrappers for coordinate transforms.
+/// @brief Transforms 2D Cartesian coordinates to polar coordinates (span wrapper).
+/// @param args Span containing `x` and `y`.
+/// @param mr Memory resource.
+/// @return Struct containing `{th, r}`.
 Value cart2pol(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Transforms 2D polar coordinates to Cartesian coordinates (span wrapper).
+/// @param args Span containing `th` and `r`.
+/// @param mr Memory resource.
+/// @return Struct containing `{x, y}`.
 Value pol2cart(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Transforms 3D Cartesian coordinates to spherical coordinates (span wrapper).
+/// @param args Span containing `x`, `y`, `z`.
+/// @param mr Memory resource.
+/// @return Struct containing `{az, el, r}`.
 Value cart2sph(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Transforms 3D spherical coordinates to Cartesian coordinates (span wrapper).
+/// @param args Span containing `az`, `el`, `r`.
+/// @param mr Memory resource.
+/// @return Struct containing `{x, y, z}`.
 Value sph2cart(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
 // ── Exponentials and Logarithms ─────────────────────────────────────────────
@@ -367,8 +385,17 @@ Value log2(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @brief Computes `log(1 + x)` accurately for small `x`.
 Value log1p(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Base-2 power scaling (`y = x .* 2.^y` or `pow2(f, e)`).
+/// @brief Base-2 power scaling (`y = 2.^x`).
+/// @param x Power exponent.
+/// @param mr Memory resource.
+/// @return Array of `2.^x`.
 Value pow2(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Base-2 power scaling with mantissa and exponent (`y = f .* 2.^e`).
+/// @param f Mantissa array.
+/// @param e Exponent array.
+/// @param mr Memory resource.
+/// @return Scaled values `f .* 2.^e`.
 Value pow2(const Value &f, const Value &e, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Next higher power of 2 exponent (`p = nextpow2(n)`).
@@ -415,8 +442,17 @@ Value angle(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @brief Absolute value / complex magnitude (`y = abs(x)`).
 Value abs(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Constructs complex array from real part or real and imaginary parts.
+/// @brief Constructs complex array from real part (`complex(re)`).
+/// @param re Real components (imaginary set to zero).
+/// @param mr Memory resource.
+/// @return Complex array `re + 0i`.
 Value complex(const Value &re, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Constructs complex array from real and imaginary parts (`complex(re, im)`).
+/// @param re Real components.
+/// @param im Imaginary components.
+/// @param mr Memory resource.
+/// @return Complex array `re + im * 1i`.
 Value complex(const Value &re, const Value &im, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Signum function (-1, 0, 1 or unit complex phasor).
@@ -430,8 +466,18 @@ Value isreal(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── Rounding and Remainder ──────────────────────────────────────────────────
 
-/// @brief Rounds elements to the nearest integer or specified decimals.
+/// @brief Rounds elements to the nearest integer.
+/// @param x Input array.
+/// @param mr Memory resource.
+/// @return Rounded elements.
 Value round(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Rounds elements to N decimal digits or N significant digits (`round(x, n, type)`).
+/// @param x Input array.
+/// @param n Number of decimal or significant digits.
+/// @param significant True to round to significant digits, false for decimals.
+/// @param mr Memory resource.
+/// @return Rounded elements.
 Value roundN(const Value &x, int n, bool significant = false, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Rounds down to the nearest integer (`y = floor(x)`).

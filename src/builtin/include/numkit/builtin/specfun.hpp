@@ -185,6 +185,11 @@ struct EllipJ {
 /// @param mr Memory resource.
 /// @return Airy function values.
 Value airy(int k, const Value &z, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Airy function of the first kind (`Ai(z)`).
+/// @param z Argument.
+/// @param mr Memory resource.
+/// @return Airy function values.
 Value airy(const Value &z, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Exponential integral function (`E_1(x)`).
@@ -222,20 +227,67 @@ Value legendre(int n, const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @see gamma, nchoosek
 Value factorial(const Value &n, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Binomial coefficient or all combinations (`n choose k`).
-/// @param v Scalar `n` or vector of elements.
-/// @param k Subset size.
+/// @brief Generates row vector of all prime numbers less than or equal to n (`primes(n)`).
+/// @param n Upper limit.
 /// @param mr Memory resource.
-/// @return Binomial coefficient or combination matrix.
+/// @return Row vector of prime numbers.
+/// @see isprime, factor
 Value primes(double n, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Generates row vector of all prime numbers less than or equal to n (`primes(n)`).
+/// @param n Upper limit value.
+/// @param mr Memory resource.
+/// @return Row vector of prime numbers.
+/// @see isprime, factor
 Value primes(const Value &n, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Tests if array elements are prime numbers (`isprime(x)`).
+/// @param x Input array of integers.
+/// @param mr Memory resource.
+/// @return Logical array where true indicates prime numbers.
+/// @see primes, factor
 Value isprime(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Computes prime factors of positive integer (`factor(n)`).
+/// @param n Positive integer.
+/// @param mr Memory resource.
+/// @return Row vector containing prime factors in ascending order.
+/// @see primes, isprime
 Value factor(double n, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Computes prime factors of positive integer value (`factor(n)`).
+/// @param n Positive integer value.
+/// @param mr Memory resource.
+/// @return Row vector containing prime factors.
 Value factor(const Value &n, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Computes binomial coefficient n choose k (`nchoosek(n, k)`).
+/// @param n Total number of items.
+/// @param k Items chosen.
+/// @param mr Memory resource.
+/// @return Binomial coefficient value.
+/// @see perms, factorial
 Value nchoosek(double n, double k, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Generates all combinations of vector elements taken k at a time (`nchoosek(v, k)`).
+/// @param v Input vector.
+/// @param kd Number of elements to pick.
+/// @param mr Memory resource.
+/// @return Matrix with `nchoosek(length(v), k)` rows and `k` columns.
 Value nchoosekCombinations(const Value &v, double kd, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Binomial coefficient or all combinations (`nchoosek(v, k)`).
+/// @param v Input vector or scalar `n`.
+/// @param k Subset size.
+/// @param mr Memory resource.
+/// @return Binomial coefficient or combinations matrix.
 Value nchoosek(const Value &v, int k, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Binomial coefficient or all combinations (`nchoosek(v, k)`).
+/// @param v Input vector or scalar `n`.
+/// @param k Subset size value.
+/// @param mr Memory resource.
+/// @return Binomial coefficient or combinations matrix.
 Value nchoosek(const Value &v, const Value &k, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief All permutations of a vector elements.
@@ -245,16 +297,34 @@ Value nchoosek(const Value &v, const Value &k, std::pmr::memory_resource *mr = n
 /// @see nchoosek, randperm
 Value perms(const Value &v, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Greatest common divisor of two integers or arrays.
+/// @brief Greatest common divisor of two integers or arrays (`gcd(a, b)`).
 /// @param a First operand.
 /// @param b Second operand.
 /// @param mr Memory resource.
 /// @return Greatest common divisor.
 /// @see lcm
 Value gcd(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Least common multiple of two integers or arrays (`lcm(a, b)`).
+/// @param a First operand.
+/// @param b Second operand.
+/// @param mr Memory resource.
+/// @return Least common multiple.
+/// @see gcd
 Value lcm(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Column permutation vector for sparse matrix bandwidth/fill-in reduction (`colperm(s)`).
+/// @param s Sparse or dense matrix.
+/// @param mr Memory resource.
+/// @return Column permutation vector.
+/// @see symrcm
 Value colperm(const Value &s, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Symmetric reverse Cuthill-McKee ordering permutation vector (`symrcm(s)`).
+/// @param s Symmetric sparse or dense adjacency matrix.
+/// @param mr Memory resource.
+/// @return Permutation vector that reduces matrix bandwidth.
+/// @see colperm
 Value symrcm(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

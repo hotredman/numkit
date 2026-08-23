@@ -155,13 +155,31 @@ Value uplus(const Value &a, std::pmr::memory_resource *mr = nullptr);
 /// @see uplus, minus
 Value uminus(const Value &a, std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Transposition operator for page-wise matrix multiplication.
 enum class TranspOp {
-    None,
-    Transpose,
-    CTranspose
+    None,       ///< No transposition
+    Transpose,  ///< Non-conjugate transpose (.')
+    CTranspose  ///< Complex conjugate transpose (')
 };
 
+/// @brief Page-wise matrix multiplication (`pagemtimes(a, b)`).
+///
+/// Multiplies slices (pages) of N-D arrays along the first two dimensions with broadcasting.
+///
+/// @param a Left N-D matrix operand.
+/// @param b Right N-D matrix operand.
+/// @param mr Memory resource for allocations.
+/// @return Resulting page-wise multiplied array.
+/// @see mtimes
 Value pagemtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Page-wise matrix multiplication with transpositions (`pagemtimes(x, tx, y, ty)`).
+/// @param x Left operand.
+/// @param tx Transposition operator for left operand (`None`, `Transpose`, `CTranspose`).
+/// @param y Right operand.
+/// @param ty Transposition operator for right operand (`None`, `Transpose`, `CTranspose`).
+/// @param mr Memory resource.
+/// @return Resulting page-wise multiplied array.
 Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::pmr::memory_resource *mr = nullptr);
 
 // ── Relational & Comparison Operations ──────────────────────────────────────
@@ -360,12 +378,54 @@ inline Value logicalXor(const Value &a, const Value &b, std::pmr::memory_resourc
 
 inline Value transposeNC(const Value &a, std::pmr::memory_resource *mr = nullptr) { return transpose(a, mr); }
 
+/// @brief Bitwise AND of integer arrays (`bitand(a, b)`).
+/// @param a First integer operand.
+/// @param b Second integer operand.
+/// @param mr Memory resource.
+/// @return Bitwise AND result.
 Value bitand_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Bitwise OR of integer arrays (`bitor(a, b)`).
+/// @param a First integer operand.
+/// @param b Second integer operand.
+/// @param mr Memory resource.
+/// @return Bitwise OR result.
 Value bitor_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Bitwise XOR of integer arrays (`bitxor(a, b)`).
+/// @param a First integer operand.
+/// @param b Second integer operand.
+/// @param mr Memory resource.
+/// @return Bitwise XOR result.
 Value bitxor_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Bitwise shift of integer values (`bitshift(a, k)`).
+/// @param a Input integer array.
+/// @param k Shift amount (positive for left shift, negative for right shift).
+/// @param mr Memory resource.
+/// @return Bitwise shifted values.
 Value bitshift(const Value &a, const Value &k, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Bitwise complement (`bitcmp(a, width)`).
+/// @param a Input integer array.
+/// @param width Number of bits in unsigned bit representation (default: 64).
+/// @param mr Memory resource.
+/// @return Bitwise inverted values.
 Value bitcmp(const Value &a, int width = 64, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Sets specified bit in integer array (`bitset(a, n, val)`).
+/// @param a Input integer array.
+/// @param n 1-based bit position index.
+/// @param val Bit value (0 or 1, default 1).
+/// @param mr Memory resource.
+/// @return Modified integer array.
 Value bitset(const Value &a, const Value &n, const Value &val = Value(), std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Gets bit value at specified bit position in integer array (`bitget(a, n)`).
+/// @param a Input integer array.
+/// @param n 1-based bit position index.
+/// @param mr Memory resource.
+/// @return Bit values (0 or 1).
 Value bitget(const Value &a, const Value &n, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

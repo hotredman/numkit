@@ -25,9 +25,18 @@ struct ScanfOut
     std::size_t bytesConsumed;
 };
 
-// Common fscanf/sscanf body once the input buffer has been materialised:
-// parse `input` per `fmt` (cyclically, bounded by `sz`), write the shaped
-// result into outs[0] and (when nargout > 1) the count into outs[1].
+/// @brief Common fscanf/sscanf body once the input buffer has been materialised.
+///
+/// Parses `input` per `fmt` (cyclically, bounded by `sz`), writes the shaped
+/// result into `outs[0]` and (when `nargout > 1`) the count into `outs[1]`.
+///
+/// @param input Input string buffer to scan.
+/// @param fmt C-style scan format specification.
+/// @param sz Target array size specification.
+/// @param nargout Number of requested output values.
+/// @param outs Output spans to fill with results.
+/// @param mr Memory resource for allocations.
+/// @param r Output statistics struct (count + bytes consumed).
 void scanfEmit(const std::string &input, const std::string &fmt,
                const ::numkit::ops::SizeSpec &sz, std::size_t nargout,
                Span<Value> outs, std::pmr::memory_resource *mr, ScanfOut &r);

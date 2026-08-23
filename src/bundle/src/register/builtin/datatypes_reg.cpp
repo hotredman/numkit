@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit {
+namespace numkit::builtin {
 void registerSplitapplyCallbackBuiltin(Engine &engine);
 void registerIntegralM(Engine &engine);
 void registerCellfunCallbackBuiltin(Engine &engine);
