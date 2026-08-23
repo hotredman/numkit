@@ -10,6 +10,7 @@ set PAGES_DIR=%NUMKIT_PAGES_DIR%
 if "%PAGES_DIR%"=="" (
     if exist "%PROJECT_DIR%..\..\hotredman\numkit-demo\.git" set "PAGES_DIR=%PROJECT_DIR%..\..\hotredman\numkit-demo"
     if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-demo\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-demo"
+    if not defined PAGES_DIR if exist "C:\Users\User\Projects\hotredman\numkit-demo\.git" set "PAGES_DIR=C:\Users\User\Projects\hotredman\numkit-demo"
     if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-pages\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-pages"
     if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-web\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-web"
     if not defined PAGES_DIR if exist "%PROJECT_DIR%..\..\czssgkavo\numkit\.git" set "PAGES_DIR=%PROJECT_DIR%..\..\czssgkavo\numkit"
