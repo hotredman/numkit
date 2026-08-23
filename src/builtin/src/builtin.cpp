@@ -1,5 +1,4 @@
 #include <numkit/builtin/builtin.hpp>
-#include <numkit/builtin/lang.hpp>
 
 namespace numkit::bundle::builtin {
 void register_ops(Engine &engine);
@@ -14,6 +13,7 @@ void register_timefun(Engine &engine);
 void register_datatypes(Engine &engine);
 void register_iofun(Engine &engine);
 void register_general(Engine &engine);
+void register_lang(Engine &engine);
 }
 
 namespace numkit {
@@ -31,7 +31,7 @@ void BuiltinLibrary::install(Engine &engine) {
     bundle::builtin::register_datatypes(engine);
     bundle::builtin::register_iofun(engine);
     bundle::builtin::register_general(engine);
-    builtin::register_lang(engine);
+    bundle::builtin::register_lang(engine);
 }
 
 void BuiltinLibrary::registerWorkspaceBuiltins(Engine &) {

@@ -32,7 +32,8 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/limits.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/iofun/formatted_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/general/catalog.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/lang.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/environment.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/keywords.cpp
 )
 
 if(NUMKIT_WITH_SIMD)

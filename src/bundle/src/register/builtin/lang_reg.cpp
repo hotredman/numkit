@@ -1,46 +1,20 @@
+// src/bundle/src/register/builtin/lang_reg.cpp
+
 #include <numkit/builtin/lang.hpp>
-#include <numkit/fs/branding.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/value/object.hpp>
 #include <numkit/core/vm.hpp>
-#include <numkit/core/build_info.hpp>
 #include <numkit/runtime/runtime.hpp>
-#include <numkit/runtime/language/cells/cell.hpp>
-#include <numkit/runtime/language/structures/struct.hpp>
-#include <numkit/runtime/help/help_catalog.hpp>
-#include <numkit/lang/operators/binary_ops.hpp>
-#include <numkit/lang/operators/unary_ops.hpp>
-#include <numkit/lang/types/types.hpp>
-#include <numkit/math/arithmetic/rounding.hpp>
 
 #include <algorithm>
-#include <atomic>
-#include <cctype>
-#include <chrono>
-#include <cmath>
-#include <cstdlib>
-#include <ctime>
-#include <iomanip>
-#include <iostream>
 #include <memory>
-#include <set>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-namespace numkit::builtin {
-void registerSplitapplyCallbackBuiltin(Engine &engine);
-void registerIntegralM(Engine &engine);
-void registerCellfunCallbackBuiltin(Engine &engine);
-void registerStructfunCallbackBuiltin(Engine &engine);
-}
-
 
 namespace numkit::builtin::detail {
 void MException_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -80,91 +54,11 @@ struct FevalCallbackBuiltin : CallbackBuiltin
 };
 } // namespace numkit::builtin::detail
 
-namespace numkit::builtin {
 
-// ── Pure C++ Environment & Identifier Implementations ──────────────────────
-
-void setenv(const std::string &name, const std::string &value)
-{
-    if (name.empty())
-        throw std::runtime_error("setenv: variable name cannot be empty");
-    if (name.find('=') != std::string::npos)
-        throw std::runtime_error("setenv: variable name cannot contain '='");
-#ifdef _WIN32
-    _putenv_s(name.c_str(), value.c_str());
-#else
-    ::setenv(name.c_str(), value.c_str(), 1);
-#endif
-}
-
-std::string getenv(const std::string &name)
-{
-    return numkit::envGet(name.c_str());
-}
-
-Value getenv(const Value &name, std::pmr::memory_resource *mr)
-{
-    if (!name.isChar() && !name.isString())
-        throw std::runtime_error("getenv: argument must be a variable name");
-    return Value::fromString(getenv(name.toString()), mr);
-}
-
-const std::vector<std::string> &keywords()
-{
-    static const std::vector<std::string> kw = {
-        "break", "case", "catch", "classdef", "continue", "else",
-        "elseif", "end", "for", "function", "global", "if",
-        "otherwise", "parfor", "persistent", "return", "spmd",
-        "switch", "try", "while"
-    };
-    return kw;
-}
-
-bool iskeyword(const std::string &name)
-{
-    const auto &kw = keywords();
-    return std::find(kw.begin(), kw.end(), name) != kw.end();
-}
-
-Value iskeyword(Span<const Value> args, std::pmr::memory_resource *mr)
-{
-    const auto &kw = keywords();
-    if (args.empty()) {
-        auto c = Value::cell(kw.size(), 1, mr);
-        for (size_t i = 0; i < kw.size(); ++i)
-            c.cellAt(i) = Value::fromString(kw[i], mr);
-        return c;
-    }
-    const std::string s = args[0].toString();
-    return Value::logicalScalar(iskeyword(s), mr);
-}
-
-bool isvarname(const std::string &s)
-{
-    if (s.empty()) return false;
-    if (std::isalpha(static_cast<unsigned char>(s[0])) == 0) return false;
-    for (size_t i = 1; i < s.size(); ++i) {
-        const unsigned char c = static_cast<unsigned char>(s[i]);
-        if (!(std::isalnum(c) || c == '_')) return false;
-    }
-    return !iskeyword(s);
-}
-
-Value isvarname(const Value &a, std::pmr::memory_resource *mr)
-{
-    const bool isText = a.isChar() || (a.isString() && a.numel() == 1);
-    if (!isText) return Value::logicalScalar(false, mr);
-    return Value::logicalScalar(isvarname(a.toString()), mr);
-}
-
-Value isvarname(Span<const Value> args, std::pmr::memory_resource *mr)
-{
-    if (args.empty())
-        throw std::runtime_error("isvarname requires 1 argument");
-    return isvarname(args[0], mr);
-}
+namespace numkit::bundle::builtin {
 
 void register_lang(Engine &engine) {
+    using namespace ::numkit::builtin::detail;
 // ── env.cpp public-API-backed built-ins ────────────────────────
     engine.registerFunction("setenv",     &::numkit::builtin::detail::setenv_reg);
     engine.registerFunction("getenv",     &::numkit::builtin::detail::getenv_reg);
@@ -221,7 +115,7 @@ void register_lang(Engine &engine) {
     // feval into a user-code handle runs as a pausable VM frame; a name/string
     // handle or multi-output falls back to the synchronous feval above.
     engine.registerCallbackBuiltin(
-        "feval", std::make_shared<builtin::detail::FevalCallbackBuiltin>());
+        "feval", std::make_shared<::numkit::builtin::detail::FevalCallbackBuiltin>());
 
     // __nk_fwd_call__(n, fname, args...) — internal helper for anonymous
     // multi-output forwarding: call `fname` with nargout = n and return the
@@ -286,4 +180,5 @@ void register_lang(Engine &engine) {
 
 }
 
-} // namespace numkit::builtin
+
+} // namespace numkit::bundle::builtin

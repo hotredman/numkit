@@ -1,6 +1,6 @@
-// include/numkit/builtin/lang.hpp
+// src/builtin/include/numkit/builtin/lang.hpp
 //
-// Language keywords, variable name validation, environment, and evaluation.
+// Pure C++ Language keywords, variable name validation, environment, and evaluation.
 #pragma once
 
 #include <memory_resource>
@@ -9,14 +9,15 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
 
-namespace numkit {
-class Engine;
-}
-
 namespace numkit::builtin {
 
 /// @file
 /// @brief Language keywords, variable name validation, process environment, and diagnostics.
+///
+/// Provides clean, engine-free C++ API for environment variable access,
+/// keyword inspection, and variable name validation.
+
+#include <numkit/runtime/language/commands/env.hpp>
 
 // ── Environment Variables ───────────────────────────────────────────────────
 
@@ -30,13 +31,6 @@ namespace numkit::builtin {
 /// @throws std::runtime_error If @p name is empty or contains '='.
 /// @see getenv
 void setenv(const std::string &name, const std::string &value = "");
-
-/// @brief Span-based MATLAB-compatible overload for @ref setenv.
-///
-/// @param args Span containing `(name)` or `(name, value)`.
-/// @throws std::runtime_error On invalid argument count or types.
-/// @see getenv
-void setenv(Span<const Value> args);
 
 /// @brief Reads an operating system environment variable as a C++ string (`getenv(name)`).
 ///
@@ -52,14 +46,6 @@ std::string getenv(const std::string &name);
 /// @return Character array Value containing the variable value, or empty `''` if unset.
 /// @see setenv
 Value getenv(const Value &name, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Span-based MATLAB-compatible overload for @ref getenv.
-///
-/// @param args Span containing `(name)`.
-/// @param mr Memory resource for allocations.
-/// @return Character array Value containing the variable value, or empty `''` if unset.
-/// @throws std::runtime_error On invalid argument count or types.
-Value getenv(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
 // ── Keyword & Identifier Inspection ─────────────────────────────────────────
 
@@ -119,10 +105,5 @@ Value isvarname(const Value &name, std::pmr::memory_resource *mr = nullptr);
 /// @return LOGICAL scalar Value.
 /// @throws std::runtime_error If @p args is empty.
 Value isvarname(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
-
-// ── Registration ────────────────────────────────────────────────────────────
-
-/// @brief Registers all language builtins and diagnostics into the engine instance.
-void register_lang(Engine &engine);
 
 } // namespace numkit::builtin
