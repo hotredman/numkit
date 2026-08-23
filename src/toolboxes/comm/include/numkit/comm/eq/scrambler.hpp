@@ -1,3 +1,5 @@
+/// @file scrambler.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/eq/scrambler.hpp
 //
 // Multiplicative bit scrambler / descrambler — the function-form

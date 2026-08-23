@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_wavelet
 // toolboxes/wavelet/include/numkit/wavelet/library.hpp
 //
 // Wavelet builtins — function-form only.

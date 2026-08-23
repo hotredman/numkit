@@ -1,3 +1,5 @@
+/// @file base_conversions.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/source/base_conversions.hpp
 //
 // Communications Toolbox base-conversion utilities: bit <-> integer

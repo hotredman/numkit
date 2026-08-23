@@ -1,3 +1,5 @@
+/// @file lyapunov.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/lyapunov/lyapunov.hpp
 //
 // Continuous and discrete Lyapunov equations.

@@ -1,3 +1,5 @@
+/// @file freq.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/freq/freq.hpp
 //
 // Frequency-domain responses for tf / zpk / ss systems.

@@ -1,3 +1,5 @@
+/// @file multirate.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/multirate/multirate.hpp
 #pragma once
 

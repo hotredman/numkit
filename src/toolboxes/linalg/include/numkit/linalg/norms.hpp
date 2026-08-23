@@ -1,3 +1,5 @@
+/// @file norms.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/norms.hpp
 //
 // Vector and matrix norms. Migrated from toolboxes/builtin/src/language/

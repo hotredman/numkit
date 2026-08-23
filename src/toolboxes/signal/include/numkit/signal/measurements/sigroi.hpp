@@ -9,6 +9,7 @@
 namespace numkit::signal {
 
 /// @file
+/// @ingroup group_signal
 /// @brief Signal-region-of-interest utilities.
 ///
 /// ROIs are represented as `N × 2` matrices where each row is a 1-based

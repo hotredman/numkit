@@ -1,3 +1,5 @@
+/// @file psk.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/modulation/psk.hpp
 //
 // PSK / DPSK modulator and demodulator. Function-form (no

@@ -1,3 +1,5 @@
+/// @file shape.hpp
+/// @ingroup group_wavelet
 // toolboxes/wavelet/include/numkit/wavelet/shape/shape.hpp
 //
 // Continuous wavelet shapes — analytical functions sampled on a grid.

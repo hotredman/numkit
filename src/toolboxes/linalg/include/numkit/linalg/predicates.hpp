@@ -1,3 +1,5 @@
+/// @file predicates.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/predicates.hpp
 //
 // Matrix-structure predicates and bandwidth queries. Migrated from

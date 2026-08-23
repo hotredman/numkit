@@ -1,3 +1,5 @@
+/// @file sgolay.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/smoothing/sgolay.hpp
 //
 // Savitzky-Golay smoothing filter family.

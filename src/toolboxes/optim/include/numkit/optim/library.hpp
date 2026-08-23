@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_optim
 #pragma once
 
 namespace numkit { class Engine; }  // fwd-decl — keep this public header core-free

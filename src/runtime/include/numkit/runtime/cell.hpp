@@ -1,3 +1,5 @@
+/// @file cell.hpp
+/// @ingroup group_datatypes
 // toolboxes/builtin/include/numkit/builtin/language/cells/cell.hpp
 #pragma once
 

@@ -14,6 +14,7 @@ namespace numkit::runtime {
 void registerEnvRuntime(Engine &engine);
 
 /// @file
+/// @ingroup group_iofun
 /// @brief Process-environment builtins.
 ///
 /// Thin wrappers over `_putenv_s` / `::setenv` and the cross-platform

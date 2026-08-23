@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_audio
 // toolboxes/audio/include/numkit/audio/library.hpp
 //
 // Audio builtins — function-form only, no System Object hierarchy.

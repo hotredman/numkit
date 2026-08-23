@@ -1,3 +1,5 @@
+/// @file spec_driven.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/digital_filtering/spec_driven.hpp
 //
 // Spec-driven filter wrappers: lowpass / highpass / bandpass / bandstop.

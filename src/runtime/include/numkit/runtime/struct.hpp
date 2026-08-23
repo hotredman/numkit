@@ -1,3 +1,5 @@
+/// @file struct.hpp
+/// @ingroup group_datatypes
 // toolboxes/builtin/include/numkit/builtin/language/structures/struct.hpp
 #pragma once
 

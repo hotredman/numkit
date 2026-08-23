@@ -1,3 +1,5 @@
+/// @file buffer.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/digital_filtering/buffer.hpp
 //
 // `buffer` — partition a signal into

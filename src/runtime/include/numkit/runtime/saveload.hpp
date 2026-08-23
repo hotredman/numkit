@@ -12,6 +12,7 @@ class Environment;
 namespace numkit::runtime {
 
 /// @file
+/// @ingroup group_iofun
 /// @brief Workspace persistence — `save` / `load` (ASCII + matio v5 .mat).
 ///
 /// Companion to the session-state workspace runtime builtins (`clear` /

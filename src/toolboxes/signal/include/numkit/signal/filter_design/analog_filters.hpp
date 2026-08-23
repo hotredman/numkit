@@ -1,3 +1,5 @@
+/// @file analog_filters.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/filter_design/analog_filters.hpp
 //
 // Analog filter prototypes + lowpass-to-X frequency transformations +

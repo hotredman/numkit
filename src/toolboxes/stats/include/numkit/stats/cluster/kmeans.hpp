@@ -1,3 +1,5 @@
+/// @file kmeans.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/cluster/kmeans.hpp
 
 #pragma once

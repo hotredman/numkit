@@ -1,3 +1,5 @@
+/// @file rayleigh.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/rayleigh.hpp
 //
 // Rayleigh distribution. Single scale parameter b > 0.

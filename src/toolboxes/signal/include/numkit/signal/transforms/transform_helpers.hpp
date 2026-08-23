@@ -1,3 +1,5 @@
+/// @file transform_helpers.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/transforms/transform_helpers.hpp
 //
 // Cross-cutting helpers for transform-domain code: nextpow2 (length

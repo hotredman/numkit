@@ -16,6 +16,7 @@
 namespace numkit::stats {
 
 /// @file
+/// @ingroup group_stats
 /// @brief Descriptive statistics.
 ///
 /// **Conventions across this header:**

@@ -1,3 +1,5 @@
+/// @file diagnostics.hpp
+/// @ingroup group_matlab
 // toolboxes/builtin/include/numkit/builtin/programming/errors/diagnostics.hpp
 #pragma once
 

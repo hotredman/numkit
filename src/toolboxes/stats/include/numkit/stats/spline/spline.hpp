@@ -1,3 +1,5 @@
+/// @file spline.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/spline/spline.hpp
 //
 // Knot-manipulation primitives and pp-form splines.

@@ -1,3 +1,5 @@
+/// @file windows.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/windows/windows.hpp
 #pragma once
 

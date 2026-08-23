@@ -1,3 +1,5 @@
+/// @file conversions.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/filter_implementation/conversions.hpp
 //
 // Convert between filter representations: zp2sos / tf2sos. The cascade

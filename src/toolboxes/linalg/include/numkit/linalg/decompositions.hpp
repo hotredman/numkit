@@ -1,3 +1,5 @@
+/// @file decompositions.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/decompositions.hpp
 //
 // Classical matrix factorisations: Cholesky, LU, QR, SVD.

@@ -1,3 +1,5 @@
+/// @file mil188.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/modulation/mil188.hpp
 //
 // MIL-STD-188-110B/C QAM constellation modulation/demodulation.

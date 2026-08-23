@@ -1,3 +1,5 @@
+/// @file graphics_context.hpp
+/// @ingroup group_graphics
 #pragma once
 // numkit/graphics/graphics_context.hpp
 //

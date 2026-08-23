@@ -1,3 +1,5 @@
+/// @file ldl.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/ldl.hpp
 //
 // MATLAB ldl: block LDL' factorization. Migrated from

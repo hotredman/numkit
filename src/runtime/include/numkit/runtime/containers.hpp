@@ -1,3 +1,5 @@
+/// @file containers.hpp
+/// @ingroup group_datatypes
 // src/runtime/include/numkit/runtime/containers.hpp
 //
 // Public C++ API for the key–value container objects (`containers.Map`, `dictionary`).

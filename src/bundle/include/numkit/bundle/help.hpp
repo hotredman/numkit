@@ -1,3 +1,5 @@
+/// @file help.hpp
+/// @ingroup group_matlab
 #pragma once
 
 #include <numkit/bundle/help/help_catalog.hpp>

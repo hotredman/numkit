@@ -1,3 +1,5 @@
+/// @file sosfilt.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/digital_filtering/sosfilt.hpp
 //
 // Apply an SOS biquad cascade. Conversions zp2sos / tf2sos live in

@@ -11,6 +11,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_strfun
 /// @brief String, character vector, and regular expression operations.
 ///
 /// Provides a clean, engine-free C++ API for string comparisons, formatting,

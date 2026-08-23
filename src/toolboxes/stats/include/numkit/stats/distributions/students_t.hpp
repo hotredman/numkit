@@ -1,3 +1,5 @@
+/// @file students_t.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/students_t.hpp
 //
 // Student's t-distribution.

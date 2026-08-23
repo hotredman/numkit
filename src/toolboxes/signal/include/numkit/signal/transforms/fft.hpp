@@ -1,3 +1,5 @@
+/// @file fft.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/transforms/fft.hpp
 #pragma once
 

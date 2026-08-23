@@ -1,3 +1,5 @@
+/// @file eig.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/eig.hpp
 //
 // Eigenvalue family — symmetric & general eig, Hessenberg reduction,

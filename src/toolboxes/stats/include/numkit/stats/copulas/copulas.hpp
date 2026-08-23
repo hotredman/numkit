@@ -1,3 +1,5 @@
+/// @file copulas.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/copulas/copulas.hpp
 //
 // Copula density and CDF for the five MATLAB families:

@@ -13,6 +13,7 @@
 namespace numkit::image {
 
 /// @file
+/// @ingroup group_image
 /// @brief Image type-conversion helpers.
 ///
 /// **Scaling conventions:**

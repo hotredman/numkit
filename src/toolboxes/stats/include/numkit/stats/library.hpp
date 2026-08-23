@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/library.hpp
 //
 // Statistics builtins. Currently houses moments (skewness, kurtosis) and

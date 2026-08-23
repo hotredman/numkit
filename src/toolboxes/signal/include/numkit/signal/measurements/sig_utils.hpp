@@ -1,3 +1,5 @@
+/// @file sig_utils.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/measurements/sig_utils.hpp
 #pragma once
 

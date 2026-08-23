@@ -9,6 +9,7 @@
 namespace numkit::optim {
 
 /// @file
+/// @ingroup group_optim
 /// @brief Scalar root-finding and unconstrained minimisation.
 ///
 /// All functions take a @ref numkit::FnHandle callback for the user

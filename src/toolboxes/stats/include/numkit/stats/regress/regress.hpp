@@ -1,3 +1,5 @@
+/// @file regress.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/regress/regress.hpp
 //
 // Linear regression — function form.

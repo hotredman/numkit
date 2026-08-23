@@ -10,6 +10,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_elfun
 /// @brief Elementary mathematical functions (trigonometry, exp, log, complex numbers, rounding).
 ///
 /// Provides an engine-free, highly optimized C++ interface for MATLAB-compatible elementary mathematical functions,

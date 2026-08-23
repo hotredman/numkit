@@ -13,6 +13,7 @@
 namespace numkit::stats {
 
 /// @file
+/// @ingroup group_stats
 /// @brief Moving / sliding-window statistics over a 1-D / N-D array.
 ///
 /// **Window descriptor `k`** (shared by all `mov*` functions):

@@ -1,3 +1,5 @@
+/// @file shiftdata.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/digital_filtering/shiftdata.hpp
 //
 // shiftdata + unshiftdata (Phase 4.4):

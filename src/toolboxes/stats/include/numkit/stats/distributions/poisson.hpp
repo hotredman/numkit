@@ -1,3 +1,5 @@
+/// @file poisson.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/poisson.hpp
 //
 // Poisson distribution.

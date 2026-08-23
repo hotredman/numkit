@@ -1,3 +1,5 @@
+/// @file pca.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/dim/pca.hpp
 //
 // Principal Component Analysis.

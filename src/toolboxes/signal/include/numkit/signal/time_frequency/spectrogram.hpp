@@ -1,3 +1,5 @@
+/// @file spectrogram.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/time_frequency/spectrogram.hpp
 //
 // Short-time Fourier transform. periodogram / pwelch (which collapse the

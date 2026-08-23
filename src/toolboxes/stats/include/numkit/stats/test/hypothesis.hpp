@@ -13,6 +13,7 @@
 namespace numkit::stats {
 
 /// @file
+/// @ingroup group_stats
 /// @brief Hypothesis tests. Most parametric tests return `(h, p, ci, tstat)`:
 /// - `h ∈ {0, 1}`: 1 if H0 is rejected at the given significance level `α`
 /// - `p`: two-sided (or one-sided per `tail`) p-value

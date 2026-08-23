@@ -1,3 +1,5 @@
+/// @file geom.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/geom/geom.hpp
 //
 // Basic geometric transforms: resize / crop / rotate / translate.

@@ -1,3 +1,5 @@
+/// @file object.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/object/object.hpp
 //
 // Object analysis: gradient / edge detection.

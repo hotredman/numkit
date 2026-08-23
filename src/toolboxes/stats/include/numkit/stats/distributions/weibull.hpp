@@ -1,3 +1,5 @@
+/// @file weibull.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/weibull.hpp
 //
 // Weibull distribution. Convention: a = scale, b = shape, so

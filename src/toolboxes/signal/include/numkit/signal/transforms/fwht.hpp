@@ -1,3 +1,5 @@
+/// @file fwht.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/transforms/fwht.hpp
 #pragma once
 

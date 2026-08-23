@@ -1,3 +1,5 @@
+/// @file gamma_dist.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/gamma_dist.hpp
 //
 // Gamma distribution Gamma(a, b): a = shape, b = scale.

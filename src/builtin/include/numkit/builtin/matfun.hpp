@@ -11,6 +11,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_matfun
 /// @brief Matrix functions, integer division with rounding modes, and matrix algebra.
 ///
 /// Provides a clean, engine-free C++ API for integer division with rounding modes

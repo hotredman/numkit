@@ -1,3 +1,5 @@
+/// @file hilbert.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/transforms/hilbert.hpp
 #pragma once
 

@@ -1,3 +1,5 @@
+/// @file moments.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/moments/moments.hpp
 //
 // Higher moments: skewness, kurtosis.

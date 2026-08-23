@@ -12,6 +12,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_matlab
 /// @brief Language keywords, variable name validation, process environment, and diagnostics.
 ///
 /// Provides clean, engine-free C++ API for environment variable access,

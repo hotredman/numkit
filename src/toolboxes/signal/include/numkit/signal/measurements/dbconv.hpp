@@ -1,3 +1,5 @@
+/// @file dbconv.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/measurements/dbconv.hpp
 //
 // Magnitude / dB conversion utilities. Element-wise transforms over

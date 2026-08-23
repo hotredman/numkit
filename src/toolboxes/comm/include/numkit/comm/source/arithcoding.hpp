@@ -1,3 +1,5 @@
+/// @file arithcoding.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/source/arithcoding.hpp
 //
 // Arithmetic coding encoder + decoder.

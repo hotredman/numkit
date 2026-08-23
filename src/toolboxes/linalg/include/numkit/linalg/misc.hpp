@@ -1,3 +1,5 @@
+/// @file misc.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/misc.hpp
 //
 // Miscellaneous linalg utilities: reduced row echelon form (rref),

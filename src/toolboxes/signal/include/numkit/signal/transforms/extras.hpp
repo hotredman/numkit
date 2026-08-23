@@ -1,3 +1,5 @@
+/// @file extras.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/transforms/extras.hpp
 //
 // Transform extras (E2): dftmtx, bitrevorder, dst, idst, rceps, cceps, icceps.

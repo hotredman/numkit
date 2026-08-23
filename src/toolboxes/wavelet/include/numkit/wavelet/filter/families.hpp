@@ -1,3 +1,5 @@
+/// @file families.hpp
+/// @ingroup group_wavelet
 // toolboxes/wavelet/include/numkit/wavelet/filter/families.hpp
 //
 // Family-named scaling filters (dbwavf / coifwavf / symwavf) and the

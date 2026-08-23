@@ -1,3 +1,5 @@
+/// @file connect.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/connect/connect.hpp
 //
 // LTI block-diagram interconnections. All three return a `tf`

@@ -1,3 +1,5 @@
+/// @file vector_ops.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/vector_ops.hpp
 //
 // Vector-algebra operations: cross product, dot product, Kronecker

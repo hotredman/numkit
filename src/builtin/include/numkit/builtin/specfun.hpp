@@ -10,6 +10,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_specfun
 /// @brief Special mathematical functions (gamma, beta, erf, Bessel, Airy, combinatorics).
 ///
 /// Provides a clean, engine-free C++ API for special functions across analysis,

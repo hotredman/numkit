@@ -1,3 +1,5 @@
+/// @file response.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/response/response.hpp
 //
 // Time-domain responses for continuous and discrete LTI systems.

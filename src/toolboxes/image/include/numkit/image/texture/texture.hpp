@@ -1,3 +1,5 @@
+/// @file texture.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/texture/texture.hpp
 //
 // Texture-analysis primitives. The gray-level co-occurrence matrix

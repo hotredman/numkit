@@ -1,3 +1,5 @@
+/// @file lhs.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/sampling/lhs.hpp
 //
 // Latin Hypercube sampling.

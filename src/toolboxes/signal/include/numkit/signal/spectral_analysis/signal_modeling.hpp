@@ -1,3 +1,5 @@
+/// @file signal_modeling.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/spectral_analysis/signal_modeling.hpp
 //
 // Parametric signal modelling: Yule-Walker / Burg / linear-prediction

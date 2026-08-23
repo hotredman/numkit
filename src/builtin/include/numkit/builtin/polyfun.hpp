@@ -1,3 +1,5 @@
+/// @file polyfun.hpp
+/// @ingroup group_polyfun
 // src/builtin/include/numkit/builtin/polyfun.hpp
 //
 // Pure C++ Polynomials, interpolation, integration, and piecewise polynomials.

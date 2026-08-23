@@ -1,3 +1,5 @@
+/// @file multilevel2.hpp
+/// @ingroup group_wavelet
 // toolboxes/wavelet/include/numkit/wavelet/dwt/multilevel2.hpp
 
 #pragma once

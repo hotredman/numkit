@@ -1,3 +1,5 @@
+/// @file filter.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/filter/filter.hpp
 //
 // Image filtering primitives. Portable scalar; SIMD planned for a

@@ -10,6 +10,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_matlab
 /// @brief Fundamental arithmetic, relational, logical, and array operator functions.
 ///
 /// Provides an engine-free, highly-optimized C++ interface for standard MATLAB operators,

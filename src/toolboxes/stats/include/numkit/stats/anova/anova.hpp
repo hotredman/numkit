@@ -1,3 +1,5 @@
+/// @file anova.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/anova/anova.hpp
 //
 // One-way ANOVA + dummy-coding helper.

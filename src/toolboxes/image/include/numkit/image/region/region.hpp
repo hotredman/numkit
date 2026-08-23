@@ -1,3 +1,5 @@
+/// @file region.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/region/region.hpp
 //
 // Connected-component labelling and basic region descriptors.

@@ -1,3 +1,5 @@
+/// @file eigs.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/eigs.hpp
 //
 // eigs & svds: Subset of eigenvalues / singular values via Arnoldi iteration.

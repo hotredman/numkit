@@ -1,3 +1,5 @@
+/// @file silhouette.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/cluster/silhouette.hpp
 //
 // Silhouette coefficient — cluster-validity score per point.

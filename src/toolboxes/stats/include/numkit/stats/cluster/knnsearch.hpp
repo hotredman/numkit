@@ -1,3 +1,5 @@
+/// @file knnsearch.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/cluster/knnsearch.hpp
 //
 // Brute-force k-nearest-neighbor and radius search.

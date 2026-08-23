@@ -1,3 +1,5 @@
+/// @file predicates.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/filter_analysis/predicates.hpp
 //
 // Boolean classifiers for digital filters: isfir / isallpass / isstable /

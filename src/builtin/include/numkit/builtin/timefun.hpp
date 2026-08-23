@@ -11,6 +11,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_timefun
 /// @brief Date, time, high-resolution profiling timers, and calendar utilities.
 ///
 /// Provides a clean, engine-free C++ API for serial date numbers, calendar operations,

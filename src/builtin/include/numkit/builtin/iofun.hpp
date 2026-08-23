@@ -12,6 +12,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_iofun
 /// @brief Formatted text I/O and display builtins.
 ///
 /// Provides clean, engine-free C++ API for formatted string generation (`sprintf`),

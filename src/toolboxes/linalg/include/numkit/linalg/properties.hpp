@@ -1,3 +1,5 @@
+/// @file properties.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/properties.hpp
 //
 // Scalar properties of a matrix: determinant, trace, rank, condition

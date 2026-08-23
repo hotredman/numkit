@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/library.hpp
 //
 // Image-processing builtins. Function-form only — no OOP class hierarchy

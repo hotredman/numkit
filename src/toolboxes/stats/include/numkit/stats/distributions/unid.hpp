@@ -1,3 +1,5 @@
+/// @file unid.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/unid.hpp
 //
 // Discrete uniform on {1, 2, ..., N}.

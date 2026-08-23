@@ -1,3 +1,5 @@
+/// @file pulse.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/eq/pulse.hpp
 //
 // Pulse-shaping filter design (raised-cosine, root-raised-cosine,

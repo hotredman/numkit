@@ -1,3 +1,5 @@
+/// @file solvers.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/solvers.hpp
 //
 // Linear-system solvers: linsolve, lsqminnorm, lsqnonneg.

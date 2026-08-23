@@ -10,6 +10,7 @@
 namespace numkit::audio {
 
 /// @file
+/// @ingroup group_audio
 /// @brief Fundamental-frequency estimation and harmonic-content metrics.
 ///
 /// Five fundamental-frequency estimators, one dedicated entry point per

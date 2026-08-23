@@ -1,3 +1,5 @@
+/// @file errors.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/eq/errors.hpp
 //
 // Bit/symbol error metrics (biterr, symerr) — Communications Toolbox.

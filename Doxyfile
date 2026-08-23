@@ -24,6 +24,7 @@ OUTPUT_LANGUAGE        = English
 # Only the public include trees of each lib. Implementation .cpp files
 # under toolboxes/*/src are excluded (they're not user-facing API).
 INPUT                  = doxygen/doxygen_mainpage.dox \
+                         doxygen/groups.dox             \
                          src/value/include              \
                          src/core/include               \
                          src/ops/include                \

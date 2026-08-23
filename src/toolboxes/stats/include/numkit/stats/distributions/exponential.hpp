@@ -1,3 +1,5 @@
+/// @file exponential.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/exponential.hpp
 //
 // Exponential distribution. Parameterized by the MEAN μ

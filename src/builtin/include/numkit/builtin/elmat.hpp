@@ -13,6 +13,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_elmat
 /// @brief Elementary matrices and array manipulation functions (MATLAB parity).
 ///
 /// Provides a clean, engine-free C++ API for generating elementary matrices,

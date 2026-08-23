@@ -1,3 +1,5 @@
+/// @file state.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/state/state.hpp
 //
 // State-space structural primitives: controllability and

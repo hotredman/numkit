@@ -1,3 +1,5 @@
+/// @file filter.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/digital_filtering/filter.hpp
 #pragma once
 

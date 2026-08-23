@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/library.hpp
 //
 // Linear Algebra Toolbox — user-facing linalg functions (lu, qr, chol,

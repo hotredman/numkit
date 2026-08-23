@@ -20,6 +20,7 @@ using ::numkit::ops::randi;
 using ::numkit::ops::randperm;
 
 /// @file
+/// @ingroup group_datafun
 /// @brief Data analysis, reductions, search, set operations, and random distributions.
 ///
 /// Provides a clean, engine-free C++ API for reduction operators (sum, mean, min, max, prod),

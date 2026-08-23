@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/library.hpp
 //
 // Communications builtins — function-form only, no System Object

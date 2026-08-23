@@ -1,3 +1,5 @@
+/// @file vibration.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/measurements/vibration.hpp
 //
 // Vibration analysis — envelope spectrum, tachometer → RPM, rainflow

@@ -1,3 +1,5 @@
+/// @file audio_io.hpp
+/// @ingroup group_audio
 // toolboxes/audio/include/numkit/audio/io/audio_io.hpp
 //
 // Unified Audio I/O facade for NumKit: audioread, audiowrite, audioinfo.

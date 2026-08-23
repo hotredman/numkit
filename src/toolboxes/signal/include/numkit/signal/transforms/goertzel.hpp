@@ -1,3 +1,5 @@
+/// @file goertzel.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/transforms/goertzel.hpp
 #pragma once
 

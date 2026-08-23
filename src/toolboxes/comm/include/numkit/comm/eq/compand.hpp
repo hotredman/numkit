@@ -1,3 +1,5 @@
+/// @file compand.hpp
+/// @ingroup group_comm
 // toolboxes/comm/include/numkit/comm/eq/compand.hpp
 //
 // μ-law / A-law signal compander.

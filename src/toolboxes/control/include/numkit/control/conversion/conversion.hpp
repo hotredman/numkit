@@ -1,3 +1,5 @@
+/// @file conversion.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/conversion/conversion.hpp
 //
 // Inter-form converters between tf / zpk / ss representations. These

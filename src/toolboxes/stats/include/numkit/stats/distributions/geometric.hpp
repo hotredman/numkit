@@ -1,3 +1,5 @@
+/// @file geometric.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/geometric.hpp
 //
 // Geometric distribution (number of failures before the first success).

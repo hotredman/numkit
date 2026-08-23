@@ -14,6 +14,7 @@
 namespace numkit::image {
 
 /// @file
+/// @ingroup group_image
 /// @brief Morphological operations (function-form).
 ///
 /// **Inputs.** Most operators accept an `H × W` (or `H × W × P`) image

@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_signal
 #pragma once
 
 namespace numkit { class Engine; }

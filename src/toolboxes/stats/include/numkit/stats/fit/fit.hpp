@@ -12,6 +12,7 @@
 namespace numkit::stats {
 
 /// @file
+/// @ingroup group_stats
 /// @brief Distribution fitters (`*fit`) and negative-log-likelihood
 /// scoring (`*like`).
 ///

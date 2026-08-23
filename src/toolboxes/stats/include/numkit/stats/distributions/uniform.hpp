@@ -1,3 +1,5 @@
+/// @file uniform.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/uniform.hpp
 //
 // Continuous uniform distribution on [a, b]. Closed-form throughout.

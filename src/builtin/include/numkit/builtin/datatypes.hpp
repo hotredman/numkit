@@ -12,6 +12,7 @@
 namespace numkit::builtin {
 
 /// @file
+/// @ingroup group_datatypes
 /// @brief Data type construction, inspection, structures, cell arrays, and limits.
 ///
 /// Provides a clean, engine-free C++ API for type predicates, structure manipulation,

@@ -1,3 +1,5 @@
+/// @file analyze.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/analyze/analyze.hpp
 //
 // Steady-state and time-domain quality metrics on top of the

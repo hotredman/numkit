@@ -1,3 +1,5 @@
+/// @file gsvd.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/gsvd.hpp
 //
 // Generalized Singular Value Decomposition: [U, V, X, C, S] = gsvd(A, B) or sigma = gsvd(A, B)

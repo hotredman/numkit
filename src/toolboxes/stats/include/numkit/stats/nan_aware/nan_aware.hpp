@@ -10,6 +10,7 @@
 namespace numkit::stats {
 
 /// @file
+/// @ingroup group_stats
 /// @brief NaN-aware reductions.
 ///
 /// **All-NaN slice handling:**

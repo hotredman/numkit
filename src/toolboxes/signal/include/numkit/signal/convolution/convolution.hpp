@@ -1,3 +1,5 @@
+/// @file convolution.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/convolution/convolution.hpp
 #pragma once
 

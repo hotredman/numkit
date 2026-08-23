@@ -13,6 +13,7 @@
 namespace numkit::image {
 
 /// @file
+/// @ingroup group_image
 /// @brief Colour-space conversions, Lab helpers, colormaps.
 ///
 /// **Image shape convention.** Most colour-space conversions accept

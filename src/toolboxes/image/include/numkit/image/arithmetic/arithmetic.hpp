@@ -1,3 +1,5 @@
+/// @file arithmetic.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/arithmetic/arithmetic.hpp
 //
 // Image arithmetic. Element-wise operations on image arrays with

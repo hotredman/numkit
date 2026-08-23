@@ -12,6 +12,7 @@
 namespace numkit::control {
 
 /// @file
+/// @ingroup group_control
 /// @brief LTI-system predicates and analytic properties.
 ///
 /// Every function in this header operates on the `kind`-tagged LTI

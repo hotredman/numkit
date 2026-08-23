@@ -1,229 +1,227 @@
 // doxygen/doxygen_mainpage.dox
 //
-// This file is read by Doxygen only (file pattern `*.dox` is ignored
-// by C++ compilation). It adds a landing page and namespace summary
-// pages so the public function catalog becomes discoverable from the
-// "Namespaces" tab.
+// Modern, interactive landing page for NumKit C++ API Documentation.
 
-/// @mainpage numkit — C++ MATLAB-compatible runtime
-///
-/// @section nav Quick navigation
-///
-/// numkit is a C++ runtime with a MATLAB-compatible script engine
-/// and a public C++ library API. Most of the **API surface is free
-/// functions inside `numkit::<lib>` namespaces** — not classes.
-///
-/// To browse the function catalog:
-///
-/// - **Namespaces** tab (top) → pick a sub-namespace below to see every
-///   function, struct, and enum exposed by that library:
-///   - @ref numkit::builtin "numkit::builtin"  — standard mathematical, array, string, and type manipulation
-///   - @ref numkit::linalg  "numkit::linalg"   — linear algebra, matrix factorizations, solvers, eigensystems
-///   - @ref numkit::runtime "numkit::runtime"  — language execution engine, cell/struct runtime, workspace persistence
-///   - @ref numkit::bundle  "numkit::bundle"   — top-level composition layer, standard library installer, help catalog
-///   - @ref numkit::stats   "numkit::stats"    — descriptive statistics, distributions, hypothesis tests, fitters, PCA
-///   - @ref numkit::signal  "numkit::signal"   — DSP: filter design/analysis, transforms, windows, measurements
-///   - @ref numkit::image   "numkit::image"    — colour, morphology, transforms, quality metrics
-///   - @ref numkit::audio   "numkit::audio"    — pitch, harmonics, spectral shape, cepstral, mel
-///   - @ref numkit::wavelet "numkit::wavelet"  — DWT / SWT / wavelet filters / denoising
-///   - @ref numkit::control "numkit::control"  — LTI systems, frequency response, time response, stability
-///   - @ref numkit::comm    "numkit::comm"     — modulation, channels, source coding, equalisation
-///   - @ref numkit::optim   "numkit::optim"    — optimization solvers, nonlinear root finding, least squares
-///   - @ref numkit::ode     "numkit::ode"      — numerical ODE solvers (ode45, ode23, ode113, ode15s)
-///   - @ref numkit::io      "numkit::io"       — scientific data formats, MAT-file I/O, audio/image I/O
-///   - @ref numkit::graphics "numkit::graphics"— 2D/3D plotting and visualization
-///
-/// - **Files** tab — same content browsable by physical layout
-///   (`toolboxes/<lib>/include/numkit/<lib>/.../*.hpp`).
-///
-/// - **Classes** tab — small set; mostly named-return structs
-///   (e.g. @ref numkit::builtin::BalanceResult,
-///   @ref numkit::stats::EllipKE).
-///
-/// @section conv API conventions
-///
-/// All public functions follow @ref public_api_rules:
-/// - Last parameter is always `std::pmr::memory_resource *mr = nullptr`.
-/// - Numeric data inputs are `const Value &` (handles any numeric
-///   class — DOUBLE / SINGLE / INT* / LOGICAL — via `elemAsDouble`).
-/// - Structural inputs (shape vectors, permutations, window
-///   descriptors) are `Span<const T>` for type-safe small spans.
-/// - Optional `Value`-typed args default to `Value::Empty` and are
-///   checked via `isEmpty()`.
-///
-/// @section build Building the docs
-///
-/// ```bash
-/// cmake --build build/<preset> --target docs       # HTML (this site)
-/// cmake --build build/<preset> --target docs-pdf   # PDF reference
-/// ```
-///
-/// LaTeX formulas (`@f$ ... @f$`) render via MathJax in HTML and via
-/// pdflatex (MiKTeX / TeX Live) in PDF.
-///
-/// @section trademark Compatibility &amp; trademark
-///
-/// numkit is built for compatibility with **MATLAB R2025b**
-/// semantics. MATLAB is a registered trademark of The MathWorks, Inc.
-/// numkit is an independent project and is **not affiliated with,
-/// endorsed by, or sponsored by** The MathWorks, Inc.; references to
-/// MATLAB describe interoperability only.
+/**
+@mainpage NumKit — High-Performance C++ Numerical Computing Runtime
 
-// ── Namespace stubs ──────────────────────────────────────────────────
-//
-// Each @namespace block triggers Doxygen to emit a dedicated summary
-// page listing every function, struct, and enum inside that namespace.
-// The pages are linked from the "Namespaces" tab.
+<div class="header-tagline">
+  <p class="tagline-text">High-performance standalone C++20 numerical framework and embedded script engine with <b>MATLAB®-compatible</b> syntax, functions, and toolboxes.</p>
+  <div class="badge-row">
+    <span class="badge badge-blue">C++20</span>
+    <span class="badge badge-green">Highway SIMD & Multi-Threading</span>
+    <span class="badge badge-purple">Zero External Dependencies</span>
+    <span class="badge badge-orange">WASM / Web IDE Ready</span>
+  </div>
+</div>
 
-/// @namespace numkit
-/// @brief Root namespace for the numkit library.
-///
-/// Top-level. Most user-facing API lives in the sub-namespaces listed
-/// on the @ref index "main page".
+<hr/>
 
-/// @namespace numkit::builtin
-/// @brief MATLAB-language builtins — the bulk of the public API.
-///
-/// Covers MATLAB's language-level builtins:
-/// - **Math:** `sin`, `cos`, `exp`, `log`, `gamma`, `besselj`, etc.
-///   (`numkit/builtin/math/`).
-/// - **Arithmetic / reductions:** `sum`, `prod`, `mean`, `max`, `min`,
-///   `linspace`, `logspace`, `cumsum`, `diff`, …
-/// - **Linear algebra:** `inv`, `lu_decompose`, `qr_decompose`,
-///   `svd_decompose`, `chol`, `eig_symmetric`, `expm`, `pinv`, `rank_of`,
-///   `norm_value`, `cond_2norm` — see `language/arrays/matrix.hpp`.
-/// - **Array manipulation:** `reshape`, `permute`, `cat`, `horzcat`,
-///   `vertcat`, `repmat`, `circshift`, `tril`, `triu`, `flip`, …
-/// - **Types & casts:** `toDouble`, `int8`..`int64`, `uint8`..`uint64`,
-///   `single`, `logical`, `isnumeric`, `isfinite`, `isnan`, `class`, …
-/// - **Strings:** `sprintf`, `num2str`, `str2double`, `strcmp`, `regexp`,
-///   `split`, `join`, `compose`, …
-/// - **Cells / structs:** `cell`, `cellfun`, `cell2mat`, `struct`,
-///   `fieldnames`, `isfield`, `rmfield`, `structfun`.
-/// - **Interpolation:** `interp1`, `interp2`, `interp3`, `spline`,
-///   `pchip`, `mkpp`, `ppval`.
-/// - **Polynomials:** `polyfit`, `polyval`, `roots`, `poly`, `polyder`,
-///   `polyint`.
-/// - **Random:** `rand`, `randn`, `randi`, `randperm`, `rngSeed`, …
-/// - **Bitwise / I/O / programming primitives.**
+<h2 class="section-title">MATLAB Language Fundamentals</h2>
+<div class="topics-grid">
 
-/// @namespace numkit::stats
-/// @brief Statistics Toolbox parity.
-///
-/// - **Descriptive:** `var`, `std`, `median`, `quantile`, `prctile`,
-///   `cov`, `corrcoef`, `iqr`, `mad`, `range`, `zscore`, …
-/// - **Distributions** (`stats/distributions/`): `normpdf` / `normcdf` /
-///   `norminv` / `normrnd` / `normstat` + similar 5-tuple for binomial,
-///   poisson, gamma, beta, chi², F, t, weibull, exponential, lognormal,
-///   rayleigh, rician, nakagami, GEV, GP, NCX², negbin, hypergeometric,
-///   discrete uniform, continuous uniform, extreme value.
-/// - **Hypothesis tests:** `ttest`, `ttest2`, `ztest`, `vartest`,
-///   `vartest2`, `kstest`, `kstest2`, `jbtest`, `signtest`, `vartestn`,
-///   `fishertest`, `chi2gof`, `runstest`, `ranksum`, `signrank`.
-/// - **Moving windows:** `movmean`, `movmedian`, `movsum`, `movstd`,
-///   `movvar`, `movmin`, `movmax`, `movmad`, `movprod`, `smoothdata`,
-///   `hampel`.
-/// - **NaN-aware:** `nansum`, `nanmean`, `nanstdev`, `nanvar`,
-///   `nanmedian`, `nanmax`, `nanmin`.
-/// - **Fitters:** `normfit`, `expfit`, `lognfit`, `binofit`, `raylfit`,
-///   `unifit`, `poissfit` + `*like` (negative-log-likelihood) for each.
-/// - **Regression / clustering / PCA / spline / QMC / resampling.**
+  <a class="topic-card" href="group__group__elmat.html">
+    <div class="card-icon">🔢</div>
+    <div class="card-body">
+      <div class="card-title">elmat — Elementary Matrices & Arrays</div>
+      <div class="card-desc">Constructors (<code>zeros</code>, <code>ones</code>, <code>eye</code>, <code>rand</code>), shape transformations (<code>reshape</code>, <code>permute</code>, <code>repmat</code>, <code>cat</code>), and test matrices.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::signal
-/// @brief Signal Toolbox: DSP primitives.
-///
-/// Filter design / analysis / implementation, transforms (FFT, DCT,
-/// Hilbert), windows, measurements, multirate, convolution, smoothing,
-/// spectral analysis, time-frequency.
+  <a class="topic-card" href="group__group__elfun.html">
+    <div class="card-icon">📐</div>
+    <div class="card-body">
+      <div class="card-title">elfun — Elementary Math Functions</div>
+      <div class="card-desc">Trigonometric (<code>sin</code>, <code>cos</code>, <code>atan2</code>), exponential (<code>exp</code>, <code>log</code>, <code>sqrt</code>), complex (<code>abs</code>, <code>angle</code>), and rounding (<code>floor</code>, <code>ceil</code>, <code>mod</code>).</div>
+    </div>
+  </a>
 
-/// @namespace numkit::image
-/// @brief Image Processing Toolbox.
-///
-/// Colour-space conversions (`rgb2hsv`, `rgb2lab`, …), 16 standard
-/// colormaps (`hot`, `cool`, `jet`, …), morphology (`imerode`,
-/// `imdilate`, `imreconstruct`, `bwmorph`, …), transforms
-/// (`dct2`, `psf2otf`, `integralImage`, `normxcorr2`, …), type
-/// conversions (`im2double`, `im2uint8`, …), quality metrics
-/// (`immse`, `psnr`, `ssim`).
+  <a class="topic-card" href="group__group__matfun.html">
+    <div class="card-icon">🧮</div>
+    <div class="card-body">
+      <div class="card-title">matfun / linalg — Matrix Algebra & Solvers</div>
+      <div class="card-desc">Linear equation solvers (<code>linsolve</code>, <code>mldivide</code>, <code>inv</code>), decompositions (<code>lu</code>, <code>qr</code>, <code>chol</code>, <code>svd</code>, <code>eig</code>), and matrix functions.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::audio
-/// @brief Audio Toolbox.
-///
-/// Pitch & harmonics (`pitch`, `pitchCEP`, `pitchPEF`, `pitchLHS`,
-/// `pitchSRH`, `harmonicRatio`), spectral shape (`spectralCentroid`,
-/// `spectralSpread`, `spectralRolloffPoint`, `spectralFlux`, …),
-/// cepstral (`mfcc`, …), mel-spectrogram, frequency-scale conversions.
+  <a class="topic-card" href="group__group__datafun.html">
+    <div class="card-icon">📈</div>
+    <div class="card-body">
+      <div class="card-title">datafun — Data Analysis & Fourier Transforms</div>
+      <div class="card-desc">Summary reductions (<code>sum</code>, <code>mean</code>, <code>std</code>), cumulative diffs (<code>cumsum</code>, <code>diff</code>), 1D/2D FFTs (<code>fft</code>, <code>ifft</code>), and <code>accumarray</code>.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::wavelet
-/// @brief Wavelet Toolbox.
-///
-/// 1-D / 2-D DWT, SWT / MODWT, undecimated wavelet transforms,
-/// wavelet filters (`wfilters`, `orthfilt`, `qmf`), continuous wavelets
-/// (`gauswavf`, `mexihat`, `morlet`, `meyeraux`, …), wavelet
-/// reconstruction (`appcoef`, `detcoef`, `waverec`, `wrcoef`),
-/// denoising (`wnoisest`).
+  <a class="topic-card" href="group__group__specfun.html">
+    <div class="card-icon">🔬</div>
+    <div class="card-body">
+      <div class="card-title">specfun — Specialized Math Functions</div>
+      <div class="card-desc">Bessel functions (<code>besselj</code>, <code>bessely</code>), Airy functions, Gamma, Beta, Error functions (<code>erf</code>, <code>erfc</code>), and number theory.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::control
-/// @brief Control System Toolbox.
-///
-/// LTI conversions (`tf2ss`, `ss2tf`, `tf2zp`, `zp2tf`, `zpk`), frequency
-/// response (`bode`, `nyquist`, `freqresp`), time response (`step`,
-/// `impulse`, `lsim`), properties (`pole`, `zero`, `dcgain`, `damp`).
+  <a class="topic-card" href="group__group__polyfun.html">
+    <div class="card-icon">📊</div>
+    <div class="card-body">
+      <div class="card-title">polyfun — Polynomials & Interpolation</div>
+      <div class="card-desc">Polynomial operations (<code>polyfit</code>, <code>polyval</code>, <code>roots</code>), 1D/2D/3D interpolation (<code>interp1</code>, <code>griddata</code>), and splines (<code>spline</code>, <code>pchip</code>).</div>
+    </div>
+  </a>
 
-/// @namespace numkit::comm
-/// @brief Communications Toolbox.
-///
-/// Modulation (PSK, QAM, APSK, FSK, OFDM, generic-QAM, analog,
-/// MIL-188), channel models, source coding (Huffman, arithmetic
-/// coding, DPCM, Lloyd quantisation), equalisation, scrambling.
+  <a class="topic-card" href="group__group__strfun.html">
+    <div class="card-icon">📝</div>
+    <div class="card-body">
+      <div class="card-title">strfun — Strings & Text Manipulation</div>
+      <div class="card-desc">String composition (<code>sprintf</code>, <code>compose</code>, <code>strjoin</code>), search & regex (<code>strcmp</code>, <code>strfind</code>, <code>regexp</code>), and numerical conversions.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::linalg
-/// @brief Linear Algebra & Advanced Matrix Factorizations.
-///
-/// Linear solvers (`linsolve`, `mldivide`, `mrdivide`), matrix decompositions
-/// (`lu`, `qr`, `chol`, `svd`, `eig`, `schur`, `hess`), matrix functions
-/// (`expm`, `logm`, `sqrtm`), condition numbers, rank, norms, and pseudoinverses.
+  <a class="topic-card" href="group__group__datatypes.html">
+    <div class="card-icon">📦</div>
+    <div class="card-body">
+      <div class="card-title">datatypes — Data Types, Structs & Cells</div>
+      <div class="card-desc">Structure arrays (<code>struct</code>, <code>fieldnames</code>), Cell arrays (<code>cell</code>, <code>cellfun</code>, <code>deal</code>), type casting, and predicates.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::runtime
-/// @brief Scripting engine execution layer and language runtime.
-///
-/// Interpreter workspace persistence (`save`, `load`), cell array and structure
-/// runtime operations, and process environment access.
+  <a class="topic-card" href="group__group__timefun.html">
+    <div class="card-icon">⏱️</div>
+    <div class="card-body">
+      <div class="card-title">timefun — Time & Date Functions</div>
+      <div class="card-desc">Wall-clock timers (<code>tic</code>, <code>toc</code>), date arithmetic (<code>now</code>, <code>datestr</code>, <code>datevec</code>), and execution delays.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::bundle
-/// @brief Top-level Standard Library installer and Help documentation catalog.
-///
-/// Wires together all computing libraries into `StandardLibrary::install(engine)`
-/// and provides unified documentation discovery through `HelpLibrary` and `HelpCatalog`.
+  <a class="topic-card" href="group__group__iofun.html">
+    <div class="card-icon">💾</div>
+    <div class="card-body">
+      <div class="card-title">iofun & general — Workspace & File I/O</div>
+      <div class="card-desc">Workspace persistence (<code>save</code>, <code>load</code>, <code>who</code>, <code>clear</code>), text parsing (<code>textscan</code>, <code>csvread</code>), and file streams.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::optim
-/// @brief Optimization and Nonlinear Solvers.
-///
-/// Unconstrained and bound-constrained optimization (`fminunc`, `fminsearch`, `fminbnd`),
-/// nonlinear equation solving (`fsolve`), and nonlinear least-squares (`lsqcurvefit`, `lsqnonlin`).
+</div>
 
-/// @namespace numkit::ode
-/// @brief Numerical Ordinary Differential Equation Solvers.
-///
-/// Non-stiff and stiff ODE integrators (`ode45`, `ode23`, `ode113`, `ode15s`, `ode23s`, `ode23t`, `ode23tb`).
+<h2 class="section-title">MATLAB Toolboxes</h2>
+<div class="topics-grid">
 
-/// @namespace numkit::io
-/// @brief Scientific Data and File I/O.
-///
-/// Formatted data parsing, MAT-file v5/v7 serialization, and scientific file format readers.
+  <a class="topic-card" href="group__group__signal.html">
+    <div class="card-icon">📡</div>
+    <div class="card-body">
+      <div class="card-title">Signal Processing Toolbox (signal)</div>
+      <div class="card-desc">IIR/FIR filter design (<code>butter</code>, <code>fir1</code>), filter implementation (<code>filtfilt</code>, <code>sosfilt</code>), spectral analysis (<code>pwelch</code>, <code>spectrogram</code>), and windows.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::graphics
-/// @brief 2D and 3D Plotting and Scientific Visualization.
-///
-/// Figure management, 2D line plots (`plot`), 3D surface plots (`surf`, `mesh`),
-/// scatter plots, bar charts, histograms, colormaps, and plot styling.
+  <a class="topic-card" href="group__group__stats.html">
+    <div class="card-icon">📊</div>
+    <div class="card-body">
+      <div class="card-title">Statistics and Machine Learning (stats)</div>
+      <div class="card-desc">20+ Probability distributions (<code>normpdf</code>, <code>tinv</code>), hypothesis tests (<code>ttest</code>, <code>anova1</code>), regression (<code>regress</code>, <code>fitlm</code>, <code>lasso</code>), and <code>pca</code>.</div>
+    </div>
+  </a>
 
-/// @namespace numkit::builtin::detail
-/// @brief Implementation detail of @ref numkit::builtin.
-///
-/// Not part of the stable public API.
+  <a class="topic-card" href="group__group__image.html">
+    <div class="card-icon">🖼️</div>
+    <div class="card-body">
+      <div class="card-title">Image Processing Toolbox (image)</div>
+      <div class="card-desc">Color space transforms (<code>rgb2gray</code>, <code>rgb2hsv</code>), morphology (<code>imerode</code>, <code>imreconstruct</code>, <code>bwlabel</code>), spatial filtering, and quality metrics (<code>psnr</code>, <code>ssim</code>).</div>
+    </div>
+  </a>
 
-/// @namespace numkit::stats::detail
-/// @brief Implementation detail of @ref numkit::stats.
-///
-/// Not part of the stable public API.
+  <a class="topic-card" href="group__group__control.html">
+    <div class="card-icon">⚙️</div>
+    <div class="card-body">
+      <div class="card-title">Control System Toolbox (control)</div>
+      <div class="card-desc">LTI model conversions (<code>tf2ss</code>, <code>ss2tf</code>, <code>zp2tf</code>), frequency response (<code>bode</code>, <code>nyquist</code>), time response (<code>step</code>, <code>impulse</code>), and stability metrics.</div>
+    </div>
+  </a>
+
+  <a class="topic-card" href="group__group__optim.html">
+    <div class="card-icon">🎯</div>
+    <div class="card-body">
+      <div class="card-title">Optimization Toolbox (optim)</div>
+      <div class="card-desc">Unconstrained & bound optimization (<code>fminunc</code>, <code>fminbnd</code>), nonlinear equations (<code>fzero</code>, <code>fsolve</code>), and curve fitting (<code>lsqcurvefit</code>, <code>lsqnonlin</code>).</div>
+    </div>
+  </a>
+
+  <a class="topic-card" href="group__group__wavelet.html">
+    <div class="card-icon">🌊</div>
+    <div class="card-body">
+      <div class="card-title">Wavelet Toolbox (wavelet)</div>
+      <div class="card-desc">1D/2D Discrete Wavelet Transforms (<code>dwt</code>, <code>wavedec2</code>), Stationary Wavelets (<code>swt</code>), filter banks (<code>wfilters</code>), and wavelet denoising (<code>wdenoise</code>).</div>
+    </div>
+  </a>
+
+  <a class="topic-card" href="group__group__comm.html">
+    <div class="card-icon">📶</div>
+    <div class="card-body">
+      <div class="card-title">Communications Toolbox (comm)</div>
+      <div class="card-desc">Digital modulation (<code>pskmod</code>, <code>qammod</code>, <code>fskmod</code>, <code>ofdmmod</code>), channel models (<code>awgn</code>, <code>rayleighchan</code>), error control coding, and scrambling.</div>
+    </div>
+  </a>
+
+  <a class="topic-card" href="group__group__audio.html">
+    <div class="card-icon">🎵</div>
+    <div class="card-body">
+      <div class="card-title">Audio Toolbox (audio)</div>
+      <div class="card-desc">Pitch estimation (<code>pitch</code>, <code>harmonicRatio</code>), spectral shape descriptors (<code>spectralCentroid</code>, <code>spectralFlux</code>), and representations (<code>mfcc</code>, <code>melSpectrogram</code>).</div>
+    </div>
+  </a>
+
+  <a class="topic-card" href="group__group__ode.html">
+    <div class="card-icon">🔄</div>
+    <div class="card-body">
+      <div class="card-title">Differential Equations (ode)</div>
+      <div class="card-desc">Explicit & implicit Runge-Kutta numerical ODE integrators (<code>ode45</code>, <code>ode23</code>, <code>ode113</code>, <code>ode15s</code>, <code>ode23s</code>) and integration options (<code>odeset</code>).</div>
+    </div>
+  </a>
+
+  <a class="topic-card" href="group__group__graphics.html">
+    <div class="card-icon">📊</div>
+    <div class="card-body">
+      <div class="card-title">2D & 3D Scientific Graphics (graphics)</div>
+      <div class="card-desc">Interactive figures, line plots (<code>plot</code>), surface meshes (<code>surf</code>, <code>mesh</code>), scatter charts, histograms, colormaps, and plot styling.</div>
+    </div>
+  </a>
+
+</div>
+
+<hr/>
+
+<h2 class="section-title">Quick Code Example</h2>
+
+```cpp
+#include <numkit/bundle/standard_library.hpp>
+#include <numkit/builtin/builtin.hpp>
+#include <numkit/signal/signal.hpp>
+#include <numkit/linalg/linalg.hpp>
+#include <iostream>
+
+using namespace numkit;
+
+int main() {
+    // 1. Pure C++ Public API with SIMD acceleration
+    Value t = builtin::linspace(0.0, 1.0, 1000);
+    Value sig = builtin::sin(2.0 * 3.141592653589793 * 50.0 * t);
+    
+    // 2. DSP Signal Processing
+    Value filtered = signal::filter(signal::fir1(16, 0.2), Value::scalar(1.0), sig);
+    
+    // 3. Embedded Scripting Engine
+    auto engine = makeStandardEngine();
+    engine->eval("x = [1, 2, 3; 4, 5, 6];");
+    Value res = engine->eval("y = sum(x, 1) * 2;");
+    std::cout << "Result: " << res.toString() << std::endl;
+    return 0;
+}
+```
+
+<hr/>
+
+<div class="trademark-footer">
+  <h4>Trademark & Compatibility Notice</h4>
+  <p>MATLAB® is a registered trademark of The MathWorks, Inc. NumKit is an independent, clean-room open-source project and is <b>not affiliated with, endorsed by, or sponsored by</b> The MathWorks, Inc. References to MATLAB describe functional syntax and algorithm compatibility only.</p>
+</div>
+
+*/

@@ -1,3 +1,5 @@
+/// @file numerics.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/internal/numerics.hpp
 //
 // Shared numerical kernels for toolboxes/control. All matrices are stored

@@ -1,3 +1,5 @@
+/// @file gev.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/gev.hpp
 //
 // Generalized Extreme Value distribution.

@@ -1,3 +1,5 @@
+/// @file frequency_response.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/filter_analysis/frequency_response.hpp
 #pragma once
 

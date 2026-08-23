@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_graphics
 #pragma once
 
 // Engine is only named (by reference) in install()'s signature — a forward

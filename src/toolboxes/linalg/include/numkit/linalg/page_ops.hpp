@@ -1,3 +1,5 @@
+/// @file page_ops.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/page_ops.hpp
 //
 // Page-wise linalg ops on 3-D arrays. Wrappers that iterate over

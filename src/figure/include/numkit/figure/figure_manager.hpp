@@ -1,3 +1,5 @@
+/// @file figure_manager.hpp
+/// @ingroup group_graphics
 #pragma once
 
 #include <functional>

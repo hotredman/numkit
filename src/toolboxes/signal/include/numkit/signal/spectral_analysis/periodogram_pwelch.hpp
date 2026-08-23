@@ -1,3 +1,5 @@
+/// @file periodogram_pwelch.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/spectral_analysis/periodogram_pwelch.hpp
 //
 // Power spectrum estimation: periodogram + Welch's method.

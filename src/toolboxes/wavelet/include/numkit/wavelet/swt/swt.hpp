@@ -1,3 +1,5 @@
+/// @file swt.hpp
+/// @ingroup group_wavelet
 // toolboxes/wavelet/include/numkit/wavelet/swt/swt.hpp
 //
 // Shift-invariant wavelet transforms — the stationary DWT (swt) and

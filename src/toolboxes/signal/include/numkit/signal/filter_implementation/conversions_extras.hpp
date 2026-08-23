@@ -1,3 +1,5 @@
+/// @file conversions_extras.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/filter_implementation/conversions_extras.hpp
 //
 // Additional filter-form conversions: sos ↔ tf, sos ↔ zpk, tf ↔ ss,

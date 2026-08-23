@@ -1,3 +1,5 @@
+/// @file rician.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/rician.hpp
 //
 // Rician (Rice) distribution.

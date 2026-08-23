@@ -1,3 +1,5 @@
+/// @file waveform_generation.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/waveform_generation/waveform_generation.hpp
 //
 // Pulse and chirp waveforms.

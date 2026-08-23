@@ -1,3 +1,5 @@
+/// @file distance.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/cluster/distance.hpp
 //
 // Pairwise distance utilities. These primitives feed every clustering

@@ -1,3 +1,5 @@
+/// @file chi2.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/chi2.hpp
 //
 // Chi-squared distribution. χ²(k) is the sum of k independent

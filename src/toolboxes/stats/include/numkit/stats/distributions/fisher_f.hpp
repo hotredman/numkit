@@ -1,3 +1,5 @@
+/// @file fisher_f.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/fisher_f.hpp
 //
 // Fisher's F-distribution.

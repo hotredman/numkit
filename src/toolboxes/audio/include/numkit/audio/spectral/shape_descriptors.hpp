@@ -10,6 +10,7 @@
 namespace numkit::audio {
 
 /// @file
+/// @ingroup group_audio
 /// @brief Spectral-shape descriptors.
 ///
 /// **Two input forms** (shared by every function in this header):

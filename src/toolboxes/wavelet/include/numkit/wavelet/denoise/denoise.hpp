@@ -1,3 +1,5 @@
+/// @file denoise.hpp
+/// @ingroup group_wavelet
 // toolboxes/wavelet/include/numkit/wavelet/denoise/denoise.hpp
 //
 // Wavelet-domain denoising: thresholding rules (wthresh), noise σ

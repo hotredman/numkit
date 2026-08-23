@@ -11,6 +11,7 @@
 namespace numkit::signal {
 
 /// @file
+/// @ingroup group_signal
 /// @brief Spectral measurement functions.
 ///
 /// **Conventions:**

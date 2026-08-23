@@ -1,3 +1,5 @@
+/// @file nakagami.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/nakagami.hpp
 //
 // Nakagami distribution.

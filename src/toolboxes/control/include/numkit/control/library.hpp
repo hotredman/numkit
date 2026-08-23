@@ -1,3 +1,5 @@
+/// @file library.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/library.hpp
 //
 // Control-system builtins — function-form only. LTI systems are plain

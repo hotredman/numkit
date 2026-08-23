@@ -1,3 +1,5 @@
+/// @file place.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/state/place.hpp
 //
 // Pole-placement state-feedback design via Ackermann's formula.

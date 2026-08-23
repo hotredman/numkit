@@ -1,3 +1,5 @@
+/// @file lti.hpp
+/// @ingroup group_control
 // toolboxes/control/include/numkit/control/lti/lti.hpp
 //
 // LTI (Linear Time-Invariant) system constructors. Each returns a

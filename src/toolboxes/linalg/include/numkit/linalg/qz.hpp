@@ -1,3 +1,5 @@
+/// @file qz.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/qz.hpp
 //
 // Generalized Schur decomposition: [AA, BB, Q, Z] = qz(A, B)

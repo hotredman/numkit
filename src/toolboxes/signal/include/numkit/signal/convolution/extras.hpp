@@ -1,3 +1,5 @@
+/// @file extras.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/convolution/extras.hpp
 //
 // Convolution / correlation extras (E1):

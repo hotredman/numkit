@@ -1,3 +1,5 @@
+/// @file findpeaks.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/measurements/findpeaks.hpp
 #pragma once
 

@@ -1,3 +1,5 @@
+/// @file freq_scales.hpp
+/// @ingroup group_audio
 // toolboxes/audio/include/numkit/audio/scale/freq_scales.hpp
 //
 // Frequency-scale conversions (Mel / Bark / ERB / phon-sone) used in

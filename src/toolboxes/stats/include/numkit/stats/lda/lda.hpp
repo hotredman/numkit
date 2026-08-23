@@ -1,3 +1,5 @@
+/// @file lda.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/lda/lda.hpp
 //
 // Linear / Quadratic Discriminant Analysis — function form.

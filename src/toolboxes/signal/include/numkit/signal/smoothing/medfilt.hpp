@@ -1,3 +1,5 @@
+/// @file medfilt.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/smoothing/medfilt.hpp
 #pragma once
 

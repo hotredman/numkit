@@ -1,0 +1,141 @@
+// doxygen/groups.dox
+//
+// Structured MATLAB-authentic topic hierarchy for Doxygen documentation.
+// Organizes all NumKit free functions, structs, and toolboxes into discoverable modules.
+
+/**
+ * @defgroup group_matlab MATLAB Language Fundamentals
+ * @brief Core matrix manipulation, elementary math, data types, string formatting, and language execution.
+ * @{
+ */
+
+/**
+ * @defgroup group_elmat Elementary Matrices and Array Manipulation (elmat)
+ * @ingroup group_matlab
+ * @brief Elementary matrix constructors, shape modification, indexing, concatenation, and specialized test matrices.
+ */
+
+/**
+ * @defgroup group_elfun Elementary Math Functions (elfun)
+ * @ingroup group_matlab
+ * @brief Trigonometric, hyperbolic, exponential, logarithmic, complex, and rounding operations.
+ */
+
+/**
+ * @defgroup group_matfun Matrix Functions and Numerical Linear Algebra (matfun)
+ * @ingroup group_matlab
+ * @brief Linear equation solvers, matrix factorizations (LU, QR, SVD, Cholesky), condition numbers, and matrix exponentials.
+ */
+
+/**
+ * @defgroup group_datafun Data Analysis and Fourier Transforms (datafun)
+ * @ingroup group_matlab
+ * @brief Reductions, basic summary statistics, cumulative operations, numerical differences, 1D/2D/N-D Fourier transforms, and accumarray.
+ */
+
+/**
+ * @defgroup group_specfun Specialized Mathematical Functions (specfun)
+ * @ingroup group_matlab
+ * @brief Bessel functions, Airy functions, Gamma, Beta, Error functions, and Number Theory primitives.
+ */
+
+/**
+ * @defgroup group_polyfun Polynomials and Interpolation (polyfun)
+ * @ingroup group_matlab
+ * @brief Polynomial curve fitting, roots, derivatives, integration, 1D/2D/3D interpolation, and piecewise cubic splines.
+ */
+
+/**
+ * @defgroup group_strfun Character Strings and Text (strfun)
+ * @ingroup group_matlab
+ * @brief Text composition, formatted string output (sprintf), search, regular expressions, and type conversions.
+ */
+
+/**
+ * @defgroup group_datatypes Data Types and Structures (datatypes)
+ * @ingroup group_matlab
+ * @brief Numeric type casting, logical operations, struct arrays, cell arrays, and type inspection.
+ */
+
+/**
+ * @defgroup group_timefun Time and Dates (timefun)
+ * @ingroup group_matlab
+ * @brief System clock, benchmarking timers (tic/toc), date calculations, and execution pauses.
+ */
+
+/**
+ * @defgroup group_iofun File I/O and Workspace Persistence (iofun & general)
+ * @ingroup group_matlab
+ * @brief Formatted file streams, textscan/csvread parsing, workspace save/load persistence, and session commands.
+ */
+
+/** @} */ // end of group_matlab
+
+
+/**
+ * @defgroup group_toolboxes MATLAB Toolboxes
+ * @brief Domain-specific mathematical and engineering toolboxes matching MATLAB standards.
+ * @{
+ */
+
+/**
+ * @defgroup group_signal Signal Processing Toolbox (signal)
+ * @ingroup group_toolboxes
+ * @brief Digital filter design (IIR/FIR), filter implementation (filtfilt/sosfilt), spectral analysis (FFT/pwelch/spectrogram), windows, and waveforms.
+ */
+
+/**
+ * @defgroup group_stats Statistics and Machine Learning Toolbox (stats)
+ * @ingroup group_toolboxes
+ * @brief Descriptive statistics, 20+ probability distributions, hypothesis testing (t-test, ANOVA), regression models, PCA, and clustering.
+ */
+
+/**
+ * @defgroup group_image Image Processing Toolbox (image)
+ * @ingroup group_toolboxes
+ * @brief Color space conversions, morphological operations, 2D spatial filtering, geometric transformations, and quality metrics (SSIM, PSNR).
+ */
+
+/**
+ * @defgroup group_control Control System Toolbox (control)
+ * @ingroup group_toolboxes
+ * @brief Linear time-invariant (LTI) system representation (tf, ss, zpk), frequency response (Bode, Nyquist), time response (step, impulse), and stability.
+ */
+
+/**
+ * @defgroup group_optim Optimization Toolbox (optim)
+ * @ingroup group_toolboxes
+ * @brief Unconstrained and bound-constrained nonlinear optimization, root finding (fzero, fsolve), and nonlinear curve fitting.
+ */
+
+/**
+ * @defgroup group_wavelet Wavelet Toolbox (wavelet)
+ * @ingroup group_toolboxes
+ * @brief 1D/2D Discrete Wavelet Transform (DWT), Stationary Wavelet Transform (SWT), filter banks, wavelet denoising, and continuous wavelets.
+ */
+
+/**
+ * @defgroup group_comm Communications Toolbox (comm)
+ * @ingroup group_toolboxes
+ * @brief Digital modulation schemes (PSK, QAM, APSK, FSK, OFDM), channel models (AWGN, fading), error correction coding, and source coding.
+ */
+
+/**
+ * @defgroup group_audio Audio Toolbox (audio)
+ * @ingroup group_toolboxes
+ * @brief Acoustic feature extraction (pitch, spectral flux, roll-off), audio representations (MFCC, Mel-spectrogram), and equalization DSP.
+ */
+
+/**
+ * @defgroup group_ode Differential Equations (ode)
+ * @ingroup group_toolboxes
+ * @brief Explicit and implicit Runge-Kutta numerical ODE solvers (ode45, ode23, ode113, ode15s, ode23s) and event handling.
+ */
+
+/**
+ * @defgroup group_graphics 2D & 3D Scientific Graphics (graphics)
+ * @ingroup group_toolboxes
+ * @brief Interactive figure management, line plots (plot), surface visualization (surf, mesh), scatter charts, histograms, and colormaps.
+ */
+
+/** @} */ // end of group_toolboxes

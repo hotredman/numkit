@@ -1,3 +1,5 @@
+/// @file extreme_value.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/extreme_value.hpp
 //
 // Type-I extreme value (Gumbel for minima) distribution.

@@ -1,3 +1,5 @@
+/// @file binomial.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/distributions/binomial.hpp
 //
 // Binomial distribution.

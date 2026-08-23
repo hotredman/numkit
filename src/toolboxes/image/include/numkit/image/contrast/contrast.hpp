@@ -1,3 +1,5 @@
+/// @file contrast.hpp
+/// @ingroup group_image
 // toolboxes/image/include/numkit/image/contrast/contrast.hpp
 // Histogram-based contrast operations.
 

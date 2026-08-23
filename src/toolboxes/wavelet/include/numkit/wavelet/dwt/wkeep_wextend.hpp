@@ -1,3 +1,5 @@
+/// @file wkeep_wextend.hpp
+/// @ingroup group_wavelet
 // toolboxes/wavelet/include/numkit/wavelet/dwt/wkeep_wextend.hpp
 //
 // Wavelet Toolbox boundary helpers: wkeep (keep central/edge part) and

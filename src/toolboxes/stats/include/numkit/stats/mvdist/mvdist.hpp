@@ -1,3 +1,5 @@
+/// @file mvdist.hpp
+/// @ingroup group_stats
 // toolboxes/stats/include/numkit/stats/mvdist/mvdist.hpp
 //
 // Multivariate distribution PDFs / PMFs.

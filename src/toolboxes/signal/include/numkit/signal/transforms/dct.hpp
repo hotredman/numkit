@@ -1,3 +1,5 @@
+/// @file dct.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/transforms/dct.hpp
 #pragma once
 

@@ -1,3 +1,5 @@
+/// @file schur_convert.hpp
+/// @ingroup group_matfun
 // toolboxes/linalg/include/numkit/linalg/schur_convert.hpp
 //
 // Schur form conversions: complex-diagonal ↔ real-block-diagonal.

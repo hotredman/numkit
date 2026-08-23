@@ -1,3 +1,5 @@
+/// @file iir_designs.hpp
+/// @ingroup group_signal
 // toolboxes/signal/include/numkit/signal/filter_design/iir_designs.hpp
 //
 // Top-level IIR filter designs that compose the analog prototypes
