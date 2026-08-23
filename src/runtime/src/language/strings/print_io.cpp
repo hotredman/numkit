@@ -10,9 +10,9 @@
 // numkit::lang, matching the cell/struct precedent: runtime-located,
 // language-namespaced builtins.
 
-#include <numkit/builtin/strfun.hpp>  // formatCyclic
-#include <numkit/builtin/strfun.hpp>   // dispFormat + disp/fprintf decls
-#include <numkit/core/engine.hpp>          // Engine, findFile, OpenFile
+#include <numkit/runtime/io.hpp>
+#include <numkit/builtin/strfun.hpp>  // formatCyclic, dispFormat
+#include <numkit/core/engine.hpp>     // Engine, findFile, OpenFile
 
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
@@ -21,7 +21,10 @@
 #include <cstring>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::runtime {
+
+using numkit::builtin::dispFormat;
+using numkit::builtin::formatCyclic;
 
 void disp(Engine &engine, Span<const Value> args)
 {
@@ -68,4 +71,4 @@ std::size_t fprintf(Engine &engine, Span<const Value> args)
     return result.size();
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::runtime

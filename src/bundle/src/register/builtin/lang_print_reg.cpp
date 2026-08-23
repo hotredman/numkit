@@ -1,4 +1,5 @@
 #include <numkit/core/engine.hpp>
+#include <numkit/runtime/io.hpp>
 #include <numkit/builtin/strfun.hpp>
 #include <numkit/builtin/iofun.hpp>
 #include <numkit/value/error.hpp>
@@ -37,7 +38,7 @@ void fprintf_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 {
     if (args.empty())
         throw Error("fprintf: requires at least 1 argument", 0, 0, "fprintf", "", "numkit:fprintf:nargin");
-    size_t count = fprintf(*ctx.engine, args);
+    size_t count = ::numkit::runtime::fprintf(*ctx.engine, args);
     if (nargout >= 1 && !outs.empty())
         outs[0] = Value::scalar(static_cast<double>(count), ctx.engine->resource());
 }

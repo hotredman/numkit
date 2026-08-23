@@ -42,6 +42,7 @@ list(APPEND NUMKIT_RUNTIME_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/math/group/group.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/cells/cell.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/language/structures/struct.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/runtime/io.hpp
 )
 
 set(NUMKIT_RUNTIME_SOURCES      ${NUMKIT_RUNTIME_SOURCES}      PARENT_SCOPE)

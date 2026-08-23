@@ -1,7 +1,6 @@
 # src/builtin/CMakeLists.txt
 
 list(APPEND NUMKIT_BUILTIN_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/builtin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/binary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/unary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/int_math.cpp

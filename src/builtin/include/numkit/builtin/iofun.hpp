@@ -68,36 +68,3 @@ Value sscanf(const std::string &str, const std::string &fmt, std::pmr::memory_re
 void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin
-
-namespace numkit {
-class Engine;
-}
-
-namespace numkit::builtin {
-
-/// @brief Formats and writes text to engine stdout or open file descriptor.
-/// @param engine Reference to executing Engine instance.
-/// @param args Arguments `[fid, fmt, ...]` or `[fmt, ...]`.
-/// @return Number of characters written.
-std::size_t fprintf(::numkit::Engine &engine, Span<const Value> args);
-
-/// @brief Displays value to engine standard output (`disp(v)`).
-/// @param engine Reference to executing Engine instance.
-/// @param args Arguments span containing value to display.
-void disp(::numkit::Engine &engine, Span<const Value> args);
-
-/// @brief Reads formatted data from file descriptor (`fscanf(fid, fmt, size)`).
-/// @param engine Reference to executing Engine instance.
-/// @param args Input arguments span `[fid, fmt, size]`.
-/// @param nargout Number of requested outputs.
-/// @param outs Output spans to fill with results.
-void fscanf(::numkit::Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
-
-/// @brief Reads tabular data from open file descriptor or string (`textscan(fid, fmt)`).
-/// @param engine Reference to executing Engine instance.
-/// @param args Input arguments span `[fid/str, fmt, ...]`.
-/// @param nargout Number of requested outputs.
-/// @param outs Output spans to fill with results.
-void textscan(::numkit::Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
-
-} // namespace numkit::builtin

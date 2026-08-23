@@ -4,14 +4,13 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
+#include <numkit/runtime/io.hpp>
 #include <numkit/builtin/strfun.hpp>
 #include <numkit/builtin/iofun.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/ops/io_helpers.hpp>
-#include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
 
 #include <algorithm>
@@ -25,13 +24,13 @@
 #include <vector>
 
 namespace numkit::builtin {
-using namespace numkit::builtin;  // C4c localized (umbrella removed)
+using namespace numkit::builtin;
 
 namespace detail {
 
 void fscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    fscanf(*ctx.engine, args, nargout, outs);
+    ::numkit::runtime::fscanf(*ctx.engine, args, nargout, outs);
 }
 
 void sscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -41,7 +40,7 @@ void sscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
 void textscan_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    textscan(*ctx.engine, args, nargout, outs);
+    ::numkit::runtime::textscan(*ctx.engine, args, nargout, outs);
 }
 
 } // namespace detail

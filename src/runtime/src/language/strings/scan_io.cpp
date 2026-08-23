@@ -9,15 +9,16 @@
 // language-namespaced builtins). textscan + its format parser are textscan-
 // only, so they ride along here whole.
 
-#include <numkit/builtin/strfun.hpp>        // fscanf / textscan decls
+#include <numkit/runtime/io.hpp>
+#include <numkit/builtin/strfun.hpp>
 #include <numkit/builtin/scan_core.hpp>     // detail::scanfEmit + ScanfOut
-#include <numkit/core/engine.hpp>              // Engine, findFile, OpenFile
+#include <numkit/core/engine.hpp>          // Engine, findFile, OpenFile
 
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
-#include <numkit/ops/io_helpers.hpp>                       // SizeSpec / parseReadSize (numkit::builtin::detail)
+#include <numkit/ops/io_helpers.hpp>       // SizeSpec / parseReadSize (numkit::builtin::detail)
 
 #include <algorithm>
 #include <array>
@@ -30,10 +31,10 @@
 #include <string>
 #include <utility>
 
-namespace numkit::builtin {
+namespace numkit::runtime {
 
-using detail::scanfEmit;
-using detail::ScanfOut;
+using numkit::builtin::detail::scanfEmit;
+using numkit::builtin::detail::ScanfOut;
 
 void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
@@ -515,4 +516,4 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     outs[0] = std::move(result);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::runtime

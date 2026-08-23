@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <numkit/builtin/builtin.hpp>
+#include <numkit/bundle/builtin_library.hpp>
 #include <numkit/core/engine.hpp>
 
 using namespace numkit;
