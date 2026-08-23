@@ -115,7 +115,7 @@ else
     echo
     echo "Changes committed locally in: $PAGES_DIR"
     echo "To push to GitHub, run: cd '$PAGES_DIR' && git push origin main"
-    echo "Or pass --push next time: ./scripts/publish-pages.sh --push"
+    echo "Or pass --push next time: ./scripts/web-publish.sh --push"
 fi
 
 echo

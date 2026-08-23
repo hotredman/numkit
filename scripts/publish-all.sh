@@ -20,7 +20,7 @@ echo
 echo "======================================================="
 echo "  [2/3] Deploying Web IDE Bundle to GitHub Pages"
 echo "======================================================="
-"$SCRIPT_DIR/publish-pages.sh" --push
+"$SCRIPT_DIR/web-publish.sh" --push
 
 echo
 echo "======================================================="

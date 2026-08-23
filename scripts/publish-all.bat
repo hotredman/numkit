@@ -19,9 +19,9 @@ echo.
 echo =======================================================
 echo   [2/3] Deploying Web IDE Bundle to GitHub Pages
 echo =======================================================
-call "%SCRIPT_DIR%publish-pages.bat" --push
+call "%SCRIPT_DIR%web-publish.bat" --push
 if errorlevel 1 (
-    echo ERROR: publish-pages.bat failed!
+    echo ERROR: web-publish.bat failed!
     exit /b 1
 )
 

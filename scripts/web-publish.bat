@@ -133,7 +133,7 @@ echo To push to GitHub, run:
 echo   cd /d "%PAGES_DIR%"
 echo   git push origin main
 echo Or pass --push next time:
-echo   scripts\publish-pages.bat --push
+echo   scripts\web-publish.bat --push
 
 :done
 cd /d "%PROJECT_DIR%"
