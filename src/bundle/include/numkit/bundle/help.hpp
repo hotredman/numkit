@@ -78,10 +78,10 @@ Value builtins(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 /// @see help, what, builtins
 std::vector<std::string> categories();
 
-/// @brief MATLAB script engine wrapper for `categories`.
+/// @brief Returns all registered categories as a cell array of strings.
 /// @param mr Memory resource for output allocation.
 /// @return Cell array of category name strings.
-Value categories(std::pmr::memory_resource *mr = nullptr);
+Value categories(std::pmr::memory_resource *mr);
 
 
 /// @}

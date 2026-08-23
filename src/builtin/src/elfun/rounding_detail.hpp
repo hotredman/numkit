@@ -7,6 +7,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
+#include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
@@ -29,6 +30,8 @@
 namespace numkit::builtin {
 
 namespace {
+
+using namespace numkit::ops;
 
 // Shared shape: scalar shortcut → result; double-array → SIMD/portable
 // loop; other numeric types → fall through to unaryDouble (which calls
