@@ -28,21 +28,27 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Build WASM if emsdk available
-if exist "!EMCC_DIR!\emcc.bat" (
-    if "!SKIP_WASM!"=="1" (
-        echo [WASM] Skipping rebuild (--skip-wasm)
-    ) else (
-        echo Building WASM...
-        call "%~dp0engine-build.bat" --wasm
-        if errorlevel 1 exit /b 1
-    )
-    echo Copying WASM files into ide\public\...
-    copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
-) else (
-    echo emsdk not found — building without WASM (fallback mode only)
+set HAS_EMSDK=0
+if exist "!EMCC_DIR!\emcc.bat" set HAS_EMSDK=1
+
+if "!HAS_EMSDK!"=="0" (
+    echo emsdk not found -- building without WASM (fallback mode only)
+    goto after_wasm
 )
+
+if "!SKIP_WASM!"=="1" (
+    echo [WASM] Skipping rebuild (--skip-wasm)
+) else (
+    echo Building WASM...
+    call "%~dp0engine-build.bat" --wasm
+    if errorlevel 1 exit /b 1
+)
+
+echo Copying WASM files into ide\public\...
+copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
+copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
+
+:after_wasm
 
 :: Generate examples manifest
 if exist "%IDE_DIR%\scripts\generate-manifest.js" (
