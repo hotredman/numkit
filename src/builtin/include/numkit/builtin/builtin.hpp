@@ -1,8 +1,8 @@
 #pragma once
 
-#include <numkit/core/engine.hpp>
-
 namespace numkit {
+class Engine;
+
 
 class BuiltinLibrary {
 public:

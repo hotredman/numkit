@@ -21,17 +21,10 @@ namespace numkit::builtin {
 // ── Multi-value Return Types ───────────────────────────────────────────────
 
 /// @brief Result of 2D grid generation via meshgrid/ndgrid.
-struct Meshgrid2D {
-    Value X;
-    Value Y;
-};
+using Meshgrid2D = std::tuple<Value, Value>;
 
 /// @brief Result of 3D grid generation via meshgrid/ndgrid.
-struct Meshgrid3D {
-    Value X;
-    Value Y;
-    Value Z;
-};
+using Meshgrid3D = std::tuple<Value, Value, Value>;
 
 // ── Array Creation ──────────────────────────────────────────────────────────
 
@@ -70,20 +63,19 @@ Value ones(Span<const size_t> dims, ValueType dtype = ValueType::DOUBLE, std::pm
 /// @return `rows x cols` matrix of ones.
 Value ones(size_t rows, size_t cols, ValueType dtype = ValueType::DOUBLE, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Creates an identity matrix of size `n x n`.
-/// @param n Number of rows and columns.
-/// @param dtype Data type (default: ValueType::DOUBLE).
-/// @param mr Memory resource.
-/// @return `n x n` identity matrix.
-Value eye(size_t n, ValueType dtype = ValueType::DOUBLE, std::pmr::memory_resource *mr = nullptr);
+Value eye(size_t n, std::pmr::memory_resource *mr = nullptr);
+Value eye(size_t m, size_t n, std::pmr::memory_resource *mr = nullptr);
+Value eye(size_t n, ValueType dtype, std::pmr::memory_resource *mr = nullptr);
+Value eye(size_t m, size_t n, ValueType dtype, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Creates an identity matrix of size `m x n`.
-/// @param m Number of rows.
-/// @param n Number of columns.
-/// @param dtype Data type (default: ValueType::DOUBLE).
-/// @param mr Memory resource.
-/// @return `m x n` matrix with ones on the main diagonal and zeros elsewhere.
-Value eye(size_t m, size_t n, ValueType dtype = ValueType::DOUBLE, std::pmr::memory_resource *mr = nullptr);
+Value size(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value size(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value length(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value numel(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value ndims(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value pagetranspose(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value pagectranspose(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value peaks(size_t n = 49, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Generates linearly spaced vector between `a` and `b`.
 /// @param a Start point.
@@ -127,8 +119,8 @@ Value invhilb(size_t n, std::pmr::memory_resource *mr = nullptr);
 /// @param n Order of the matrix.
 /// @param k Form selector (0=symmetric, 1=lower triangular, 2=upper triangular Cholesky factor).
 /// @param mr Memory resource.
-/// @return `n x n` Pascal matrix.
-Value pascal(size_t n, int k = 0, std::pmr::memory_resource *mr = nullptr);
+Value pascal(size_t n, std::pmr::memory_resource *mr = nullptr);
+Value pascal(size_t n, int k, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Creates a Toeplitz matrix.
 /// @param c First column vector.
@@ -167,11 +159,17 @@ Value hadamard(size_t n, std::pmr::memory_resource *mr = nullptr);
 /// @return Hankel matrix.
 Value hankel(const Value &c, const Value &r = Value(), std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Companion matrix of a polynomial.
-/// @param p Vector of polynomial coefficients.
-/// @param mr Memory resource.
-/// @return Companion matrix whose eigenvalues are roots of `p`.
 Value compan(const Value &p, std::pmr::memory_resource *mr = nullptr);
+
+struct Surface3 {
+    Value X;
+    Value Y;
+    Value Z;
+};
+
+Surface3 sphere(size_t n = 20, std::pmr::memory_resource *mr = nullptr);
+Surface3 cylinder(const Value &R, size_t n = 20, std::pmr::memory_resource *mr = nullptr);
+Surface3 ellipsoid(double xc, double yc, double zc, double xr, double yr, double zr, size_t n = 20, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief 2-D meshgrid (`[X, Y] = meshgrid(x, y)`).
 /// @param x x-axis grid coordinates.
@@ -224,8 +222,9 @@ Value repmat(const Value &x, Span<const size_t> reps, std::pmr::memory_resource 
 /// @param r Row repetition factor.
 /// @param c Column repetition factor.
 /// @param mr Memory resource.
-/// @return Tiled array.
 Value repmat(const Value &x, size_t r, size_t c, std::pmr::memory_resource *mr = nullptr);
+Value repmat(const Value &x, size_t r, size_t c, size_t p, std::pmr::memory_resource *mr = nullptr);
+Value repmatND(const Value &x, Span<const size_t> tiles, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Repeats elements of an array.
 /// @param x Input array.
@@ -240,6 +239,7 @@ Value repelem(const Value &x, Span<const size_t> reps, std::pmr::memory_resource
 /// @param mr Memory resource.
 /// @return Reshaped array (shares buffer COW when possible).
 Value reshape(const Value &x, Span<const size_t> newDims, std::pmr::memory_resource *mr = nullptr);
+Value reshape(const Value &x, size_t rows, size_t cols, size_t pages = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Extracts diagonal or builds a diagonal matrix.
 /// @param x Vector or matrix.
@@ -300,19 +300,17 @@ Value flipud(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return Flipped array.
 Value flip(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Circularly shifts elements of an array.
-/// @param x Input array.
-/// @param shifts Shift amount per dimension.
-/// @param mr Memory resource.
-/// @return Shifted array.
-Value circshift(const Value &x, Span<const int> shifts, std::pmr::memory_resource *mr = nullptr);
+Value circshift(const Value &x, int64_t k, std::pmr::memory_resource *mr = nullptr);
+Value circshift(const Value &x, int64_t kRow, int64_t kCol, std::pmr::memory_resource *mr = nullptr);
+Value circshift(const Value &x, Span<const int64_t> shifts, std::pmr::memory_resource *mr = nullptr);
+Value circshiftND(const Value &x, Span<const int64_t> shifts, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Permutes dimensions of an N-D array.
-/// @param x Input array.
-/// @param order New ordering of dimensions (1-based).
-/// @param mr Memory resource.
-/// @return Permuted array.
-/// @see ipermute
+Value repelem(const Value &x, size_t n, std::pmr::memory_resource *mr = nullptr);
+Value repelem(const Value &x, size_t m, size_t n, std::pmr::memory_resource *mr = nullptr);
+Value repelem(const Value &x, const Value &counts, std::pmr::memory_resource *mr = nullptr);
+Value repelem(const Value &x, const Value &rCounts, const Value &cCounts, std::pmr::memory_resource *mr = nullptr);
+
+Value permute(const Value &x, Span<const int> order, std::pmr::memory_resource *mr = nullptr);
 Value permute(const Value &x, Span<const size_t> order, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Inverse permutes dimensions of an N-D array.
@@ -320,14 +318,16 @@ Value permute(const Value &x, Span<const size_t> order, std::pmr::memory_resourc
 /// @param order Ordering of dimensions used in previous `permute` call.
 /// @param mr Memory resource.
 /// @return Array with dimensions restored.
+Value ipermute(const Value &x, Span<const int> order, std::pmr::memory_resource *mr = nullptr);
 Value ipermute(const Value &x, Span<const size_t> order, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Shifts dimensions of an N-D array.
-/// @param x Input array.
-/// @param n Number of positions to shift dimensions (positive: left, negative: right).
-/// @param mr Memory resource.
-/// @return Array with shifted dimensions.
+struct ShiftDimAuto {
+    Value v;
+    int dropped = 0;
+};
+
 Value shiftdim(const Value &x, int n = 0, std::pmr::memory_resource *mr = nullptr);
+ShiftDimAuto shiftdimAuto(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Removes singleton dimensions from an array.
 /// @param x Input array.
@@ -351,24 +351,16 @@ Value head(const Value &x, size_t k = 8, std::pmr::memory_resource *mr = nullptr
 /// @see head
 Value tail(const Value &x, size_t k = 8, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Pads array with zeros or a constant to a specified target length.
-/// @param x Input array.
-/// @param len Target length along dimension.
-/// @param dim Dimension to pad along (0 = first non-singleton).
-/// @param side "right" (trailing) or "left" (leading).
-/// @param mr Memory resource.
-/// @return Padded array.
-/// @see trimdata
-Value paddata(const Value &x, size_t len, int dim = 0, const std::string &side = "right", std::pmr::memory_resource *mr = nullptr);
+Value paddata(const Value &x, size_t len, std::pmr::memory_resource *mr = nullptr);
+Value paddata(const Value &x, size_t len, int dim, const std::string &side = "right", std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Trims array to a specified target length along a dimension.
-/// @param x Input array.
-/// @param len Target length.
-/// @param dim Dimension to trim along (0 = first non-singleton).
-/// @param side "right" (trailing) or "left" (leading).
-/// @param mr Memory resource.
-/// @return Trimmed array.
-Value trimdata(const Value &x, size_t len, int dim = 0, const std::string &side = "right", std::pmr::memory_resource *mr = nullptr);
+Value trimdata(const Value &x, size_t len, std::pmr::memory_resource *mr = nullptr);
+Value trimdata(const Value &x, size_t len, int dim, const std::string &side = "right", std::pmr::memory_resource *mr = nullptr);
+
+Value resize(const Value &v, size_t n, std::pmr::memory_resource *mr = nullptr);
+
+Value sub2ind(const Value &siz, Span<const Value> subs, std::pmr::memory_resource *mr = nullptr);
+std::vector<Value> ind2sub(const Value &siz, const Value &ind, size_t nout = 0, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Applies element-wise binary operator with singleton expansion (broadcasting).
 /// @param op Binary operator name (e.g. "plus", "times", "rdivide", "power").
@@ -393,5 +385,25 @@ Value tril(const Value &x, int k = 0, std::pmr::memory_resource *mr = nullptr);
 /// @return Upper triangular matrix.
 /// @see tril
 Value triu(const Value &x, int k = 0, std::pmr::memory_resource *mr = nullptr);
+
+enum class NanPlace {
+    Auto,
+    First,
+    Last
+};
+
+std::tuple<Value, Value> sort(const Value &x, int dim = 0, bool descend = false, NanPlace nanPlace = NanPlace::Auto, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> sortrows(const Value &x, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> sortrows(const Value &x, Span<const int> cols, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> sortrows(const Value &x, Span<const int> cols, Span<const bool> desc, std::pmr::memory_resource *mr = nullptr);
+Value issorted(const Value &x, int dim = 0, bool descend = false, std::pmr::memory_resource *mr = nullptr);
+Value issortedrows(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value issortedrows(const Value &x, Span<const int> cols, Span<const bool> desc = {}, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> topkrows(const Value &x, size_t k, Span<const int> cols = {}, Span<const bool> desc = {}, std::pmr::memory_resource *mr = nullptr);
+
+Value find(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value nnz(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value nonzeros(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value xorOf(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

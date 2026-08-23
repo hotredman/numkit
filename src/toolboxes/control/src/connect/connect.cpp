@@ -13,7 +13,7 @@
 #include <numkit/control/lti/lti.hpp>
 #include <numkit/control/conversion/conversion.hpp>
 
-#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/builtin/polyfun.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The series / parallel

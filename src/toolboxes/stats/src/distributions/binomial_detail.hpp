@@ -64,7 +64,7 @@ inline double bino_cdf_scalar(double k, double n, double p, std::pmr::memory_res
     Value xv = Value::scalar(1.0 - p, mr);
     Value av = Value::scalar(n - kf, mr);
     Value bv = Value::scalar(kf + 1.0, mr);
-    Value r = ::numkit::math::betainc(xv, av, bv, mr);
+    Value r = ::numkit::builtin::betainc(xv, av, bv, mr);
     return r.toScalar();
 }
 

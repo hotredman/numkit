@@ -16,7 +16,7 @@
 
 #include <numkit/signal/digital_filtering/poly_utils.hpp>
 
-#include <numkit/math/poly/polynomials.hpp>  // numkit::math::roots / numkit::math::poly
+#include <numkit/builtin/polyfun.hpp>  // numkit::builtin::roots / numkit::builtin::poly
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
@@ -158,9 +158,9 @@ Value polyscale(const Value &p, const Value &scale,
 // 1/|r|, same angle — which preserves |A(e^jω)| and changes only the
 // phase (Oppenheim & Schafer §5.6, minimum-phase systems).
 // Procedure:
-//   1. roots r_k of a            (numkit::math::roots)
+//   1. roots r_k of a            (numkit::builtin::roots)
 //   2. r_k ← 1/conj(r_k)  when |r_k| > 1, else keep
-//   3. rebuild monic poly p      (numkit::math::poly)
+//   3. rebuild monic poly p      (numkit::builtin::poly)
 //   4. p ← p · (first non-zero coefficient of a)   — restore gain
 //   5. a real → take real part to drop round-off
 // ─────────────────────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
 
     // ── Step 1: roots of a ───────────────────────────────────────────
     ScratchArena arena(mr);
-    Value rv = numkit::math::roots(a, &arena);
+    Value rv = numkit::builtin::roots(a, &arena);
     const size_t nr = rv.numel();
 
     // No finite roots (e.g. a degree-0 leftover after stripping) — the
@@ -264,7 +264,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
     }
 
     // ── Step 3: rebuild the monic polynomial from the stabilised roots.
-    // numkit::math::poly needs a COMPLEX vector to yield a COMPLEX result;
+    // numkit::builtin::poly needs a COMPLEX vector to yield a COMPLEX result;
     // if all stabilised roots are real, a DOUBLE root vector suffices.
     Value rootVec;
     if (rootsComplex) {
@@ -278,7 +278,7 @@ Value polystab(const Value &a, std::pmr::memory_resource *mr)
         for (size_t k = 0; k < nr; ++k)
             rd[k] = stabRoots[k].real();
     }
-    Value monic = numkit::math::poly(rootVec, &arena);
+    Value monic = numkit::builtin::poly(rootVec, &arena);
     const size_t mlen = monic.numel();
 
     // ── Steps 4 & 5: apply gain, drop round-off for real input ───────

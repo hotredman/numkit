@@ -5,8 +5,9 @@
 
 #include <numkit/comm/source/random_source.hpp>
 
-#include <numkit/math/random/rng.hpp>
+#include <numkit/builtin/datafun.hpp>
 #include <numkit/ops/matlab_mt19937.hpp>
+#include <numkit/ops/rng_context.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

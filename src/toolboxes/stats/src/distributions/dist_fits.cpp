@@ -16,7 +16,7 @@
 #include <numkit/stats/distributions/gp.hpp>
 #include <numkit/stats/distributions/gev.hpp>
 
-#include <numkit/math/special/special.hpp>   // gammainc (used by gamfit_full)
+#include <numkit/builtin/specfun.hpp>   // gammainc (used by gamfit_full)
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -55,7 +55,7 @@ static double nll_gam_full(double a, double b,
         if (cens[i] > 0.5 && f > 0.0) {
             Value xv_arg = Value::scalar(xv[i] / b, mr);
             Value av_arg = Value::scalar(a, mr);
-            const double P = ::numkit::math::gammainc(xv_arg, av_arg, mr).toScalar();
+            const double P = ::numkit::builtin::gammainc(xv_arg, av_arg, mr).toScalar();
             const double Q = 1.0 - P;
             if (!(Q > 0.0)) return std::numeric_limits<double>::infinity();
             S_cens -= f * std::log(Q);

@@ -52,25 +52,18 @@ ALLOWED = {
     # figure (L0.5 header-only): plot/figure session state (FigureManager); uses
     # only ops (decimate) + STL, never core. core + graphics depend on it.
     "figure": {"value", "fs", "ops", "figure"},
-    # math/lang (L2 compute, ns numkit::math / numkit::lang after the C4 split)
-    # must stay free of core / runtime / toolboxes — the whole point of the split.
-    # They may use value/fs/ops and each other (e.g. lang/arrays -> math's private
-    # arithmetic/cumsum.hpp reduction kernel, via the shared src -I). The
-    # core-coupled `*_reg.cpp` registration glue lives in bundle/src/register and
-    # is excluded from the scan. (The transitional `builtin` allowance was dropped
-    # once the C4 include-path migration completed — no math/lang TU includes a
-    # <numkit/builtin/...> header any more.)
-    "math":  {"value", "fs", "ops", "math", "lang", "builtin"},
-    "lang":  {"value", "fs", "ops", "math", "lang", "builtin"},
+    # builtin (L2 compute, ns numkit::builtin) — standard library compute & catalog.
+    # May use value/fs/ops/runtime and its own headers. Must stay free of core / toolboxes.
+    "builtin": {"value", "fs", "ops", "builtin", "runtime"},
     # toolboxes/* (L2 compute) must stay free of core / runtime — all their
-    # Engine glue (the `*_reg.cpp` adapters) was relocated to bundle in F, and
+    # Engine glue (the `*_reg.cpp` adapters) was relocated to bundle, and
     # the stateful surfaces were decoupled (FsContext / FnHandle). They may use
-    # value/fs/ops, math/lang compute, graphics, and each other (sibling toolbox
+    # value/fs/ops, builtin standard library compute, graphics, and each other (sibling toolbox
     # names added dynamically below). Two sanctioned core users are exempt
     # per-file in scan(): each toolbox's `library.cpp` installer (registration
     # ABI) and io's `type.cpp` (legitimately Engine& — it writes via
     # engine.outputText).
-    "toolboxes": {"value", "fs", "ops", "math", "lang", "graphics", "builtin"},
+    "toolboxes": {"value", "fs", "ops", "builtin", "graphics"},
     # graphics (L2 service): the plotting library (figure/plot/imshow/…). Now
     # core-free like every other L2 lib — the plotting bodies (plots.cpp) take a
     # GraphicsContext (FigureManager + scratch arena + callBuiltin/callHandle
@@ -96,9 +89,7 @@ ALLOWED = {
     # the Engine), so `core` is allowed — but it must NOT reach UP into the
     # libraries (toolboxes / graphics / scriptgraph) or bundle. Pinned so that
     # boundary is enforced, not just observed (it is clean today).
-    "runtime": {"value", "fs", "ops", "core", "math", "lang", "runtime"},
-    # builtin (L2 standard library): registers built-in categories (elmat, elfun, matfun...)
-    "builtin": {"value", "fs", "ops", "core", "figure", "math", "lang", "graphics", "runtime", "builtin"},
+    "runtime": {"value", "fs", "ops", "core", "builtin", "runtime"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -108,13 +99,11 @@ LAYER_DIRS = {
     "ops":   ["src/ops"],
     "core":  ["src/core"],
     "figure": ["src/figure"],
-    "math":  ["src/math"],
-    "lang":  ["src/lang"],
+    "builtin": ["src/builtin"],
     "graphics": ["src/graphics"],
     "scriptgraph": ["src/scriptgraph"],
     "runtime": ["src/runtime"],
     "toolboxes": ["src/toolboxes"],
-    "builtin": ["src/builtin"],
 }
 
 INCLUDE_RE = re.compile(r'#\s*include\s*<numkit/([a-zA-Z0-9_]+)/')
@@ -126,11 +115,7 @@ HEADER_SUFFIXES = {".hpp", ".h", ".ipp", ".cuh", ".hh", ".hxx"}
 # these layers must resolve to a header that physically lives inside the layer's
 # own tree. A quoted include whose basename isn't found in the layer resolves via
 # some external -I — a cross-layer leak. The convention is <numkit/...> for ANY
-# cross-module dependency; quoted form is for same-component headers only. This is
-# the bug class the angle-include check misses: ops/src/fft_portable.cpp once did
-# `#include "dsp_helpers.hpp"`, reaching up into the signal toolbox (+ core),
-# invisible because it was a quoted include. math/lang are intentionally excluded
-# (their compile uses a broad shared -I + transitional builtin helpers).
+# cross-module dependency; quoted form is for same-component headers only.
 STRICT_QUOTED = ("value", "fs", "ops", "core")
 
 
@@ -221,7 +206,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print("Layering OK: value, fs, ops, core, figure, math, lang, graphics, scriptgraph, runtime, toolboxes respect the dependency direction.")
+    print("Layering OK: value, fs, ops, core, figure, builtin, graphics, scriptgraph, runtime, toolboxes respect the dependency direction.")
     return 0
 
 

@@ -47,10 +47,19 @@ Value setfield(const Value &s, const std::string &field, const Value &val, std::
 /// @brief Removes field from structure by string name (`rmfield(s, field)`).
 /// @param s Structure value.
 /// @param field Field name string to remove.
-/// @param mr Memory resource.
-/// @return Updated structure with field removed.
-/// @see setfield, getfield, isfield
 Value rmfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr = nullptr);
+
+Value toDouble(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value single(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value int8(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value int16(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value int32(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value int64(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value uint8(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value uint16(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value uint32(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value uint64(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value logical(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 // ── Type Predicates & Introspection ─────────────────────────────────────────
 
@@ -74,12 +83,6 @@ Value isstruct(const Value &v, std::pmr::memory_resource *mr = nullptr);
 /// @return Logical scalar.
 /// @see isfloat, isinteger
 Value isnumeric(const Value &v, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Tests if input is floating-point (double or single) (`isfloat(v)`).
-/// @param v Input value.
-/// @param mr Memory resource.
-/// @return Logical scalar.
-/// @see isnumeric, isinteger
 Value isfloat(const Value &v, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Tests if input is an integer class (`isinteger(v)`).
@@ -171,20 +174,13 @@ Value iscolumn(const Value &v, std::pmr::memory_resource *mr = nullptr);
 /// @see isvector, isscalar
 Value ismatrix(const Value &v, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Tests if two arrays are strictly equal (`isequal(a, b)`).
-/// @param a First array.
-/// @param b Second array.
-/// @param mr Memory resource.
-/// @return Logical scalar.
-/// @see isequaln
-Value isequal(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value issingle(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value issparse(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value ismissing(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value ismissing(const Value &x, const Value &indicator, std::pmr::memory_resource *mr = nullptr);
+Value issorted(const Value &x, const Value &mode = Value::Empty, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Tests if two arrays are equal treating NaNs as equal (`isequaln(a, b)`).
-/// @param a First array.
-/// @param b Second array.
-/// @param mr Memory resource.
-/// @return Logical scalar.
-/// @see isequal
+Value isequal(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 Value isequaln(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
 
 // ── Type Conversion & Limits ────────────────────────────────────────────────
@@ -192,43 +188,31 @@ Value isequaln(const Value &a, const Value &b, std::pmr::memory_resource *mr = n
 /// @brief Casts input array to target type name (`cast(v, targetType)`).
 /// @param v Input array.
 /// @param targetType Target class name (e.g. `'double'`, `'single'`, `'int32'`, `'uint8'`, `'logical'`).
-/// @param mr Memory resource.
-/// @return Casted value array.
 Value cast(const Value &v, const std::string &targetType, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Smallest positive normalized floating-point number (`realmin(class)`).
-/// @param className Class name (`"double"` or `"single"`).
-/// @param mr Memory resource.
-/// @return Scalar minimum value.
-/// @see realmax, eps
+Value standardizeMissing(const Value &x, const Value &indicator, std::pmr::memory_resource *mr = nullptr);
+Value anymissing(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value isuniform(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value classOf(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value swapbytes(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value typecast(const Value &x, const std::string &datatype, std::pmr::memory_resource *mr = nullptr);
+
+Value allfinite(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value anynan(const Value &x, std::pmr::memory_resource *mr = nullptr);
+
 Value realmin(const std::string &className = "double", std::pmr::memory_resource *mr = nullptr);
+Value realmin(const Value &t, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Largest positive normalized floating-point number (`realmax(class)`).
-/// @param className Class name (`"double"` or `"single"`).
-/// @param mr Memory resource.
-/// @return Scalar maximum value.
-/// @see realmin, intmax
 Value realmax(const std::string &className = "double", std::pmr::memory_resource *mr = nullptr);
+Value realmax(const Value &t, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Smallest representable integer value (`intmin(class)`).
-/// @param className Integer class name (`"int8"`, `"int16"`, `"int32"`, `"int64"`, `"uint8"`, etc.).
-/// @param mr Memory resource.
-/// @return Scalar minimum integer value.
-/// @see intmax, realmin
 Value intmin(const std::string &className = "int32", std::pmr::memory_resource *mr = nullptr);
+Value intmin(const Value &t, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Largest representable integer value (`intmax(class)`).
-/// @param className Integer class name (`"int8"`, `"int16"`, `"int32"`, `"int64"`, `"uint8"`, etc.).
-/// @param mr Memory resource.
-/// @return Scalar maximum integer value.
-/// @see intmin, realmax
 Value intmax(const std::string &className = "int32", std::pmr::memory_resource *mr = nullptr);
+Value intmax(const Value &t, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Largest consecutive integer represented exactly in floating-point (`flintmax(class)`).
-/// @param className Class name (`"double"` or `"single"`).
-/// @param mr Memory resource.
-/// @return Maximum consecutive flint integer (`2^53` for double, `2^24` for single).
-/// @see eps, realmax
 Value flintmax(const std::string &className = "double", std::pmr::memory_resource *mr = nullptr);
+Value flintmax(const Value &t, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

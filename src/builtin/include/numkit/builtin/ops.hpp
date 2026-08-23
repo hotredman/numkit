@@ -155,18 +155,14 @@ Value uplus(const Value &a, std::pmr::memory_resource *mr = nullptr);
 /// @see uplus, minus
 Value uminus(const Value &a, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Page-wise matrix multiplication (`C = pagemtimes(A, B)`).
-///
-/// Multiplies corresponding 2-D matrix slices (pages) across higher dimensions (3-D, 4-D, N-D)
-/// with full batch dimension broadcasting support.
-///
-/// @param a Left N-D array (`M x K x ...`).
-/// @param b Right N-D array (`K x N x ...`).
-/// @param mr Memory resource for allocations (nullptr for default).
-/// @return Multiplied N-D array (`M x N x ...`).
-/// @throws std::runtime_error If inner 2-D dimensions or batch dimensions do not agree.
-/// @see mtimes
+enum class TranspOp {
+    None,
+    Transpose,
+    CTranspose
+};
+
 Value pagemtimes(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value pagemtimes(const Value &x, TranspOp tx, const Value &y, TranspOp ty, std::pmr::memory_resource *mr = nullptr);
 
 // ── Relational & Comparison Operations ──────────────────────────────────────
 
@@ -362,7 +358,14 @@ inline Value logicalNot(const Value &a, std::pmr::memory_resource *mr = nullptr)
 /// @brief Alias for @ref logical_xor.
 inline Value logicalXor(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr) { return logical_xor(a, b, mr); }
 
-/// @brief Non-conjugate array transpose alias (`y = a.'`).
 inline Value transposeNC(const Value &a, std::pmr::memory_resource *mr = nullptr) { return transpose(a, mr); }
+
+Value bitand_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value bitor_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value bitxor_(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value bitshift(const Value &a, const Value &k, std::pmr::memory_resource *mr = nullptr);
+Value bitcmp(const Value &a, int width = 64, std::pmr::memory_resource *mr = nullptr);
+Value bitset(const Value &a, const Value &n, const Value &val = Value(), std::pmr::memory_resource *mr = nullptr);
+Value bitget(const Value &a, const Value &n, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

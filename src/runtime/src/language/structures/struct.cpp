@@ -212,6 +212,22 @@ Value setfield(const Value &s, const Value &name, const Value &value, std::pmr::
     return out;
 }
 
+Value isfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr) {
+    return isfield(s, Value::fromString(field, mr), mr);
+}
+
+Value getfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr) {
+    return getfield(s, Value::fromString(field, mr), mr);
+}
+
+Value setfield(const Value &s, const std::string &field, const Value &val, std::pmr::memory_resource *mr) {
+    return setfield(s, Value::fromString(field, mr), val, mr);
+}
+
+Value rmfield(const Value &s, const std::string &field, std::pmr::memory_resource *mr) {
+    return rmfield(s, Value::fromString(field, mr), mr);
+}
+
 Value orderfields(const Value &s, std::pmr::memory_resource *mr)
 {
     if (!s.isStruct())

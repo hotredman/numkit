@@ -5,7 +5,7 @@
 
 #include <numkit/stats/cluster/kmeans.hpp>
 
-#include <numkit/math/random/rng.hpp>
+#include <numkit/builtin/datafun.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

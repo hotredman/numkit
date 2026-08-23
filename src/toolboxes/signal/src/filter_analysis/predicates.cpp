@@ -5,7 +5,7 @@
 #include <numkit/signal/filter_analysis/predicates.hpp>
 #include "predicates_detail.hpp"
 
-#include <numkit/math/poly/polynomials.hpp>             // roots()
+#include <numkit/builtin/polyfun.hpp>             // roots()
 #include <numkit/signal/filter_analysis/frequency_response.hpp> // freqz()
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -34,7 +34,7 @@ bool isTrivialA(const Value &a)
 double maxRootRadius(const Value &p, std::pmr::memory_resource *mr)
 {
     if (p.numel() < 2) return 0.0;
-    auto r = numkit::math::roots(p, mr);
+    auto r = numkit::builtin::roots(p, mr);
     double mx = 0.0;
     if (r.isComplex()) {
         const Complex *src = r.complexData();

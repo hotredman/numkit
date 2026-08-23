@@ -4,8 +4,8 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
+#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <numkit/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/stats/distributions/multivariate.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

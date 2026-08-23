@@ -9,7 +9,7 @@
 
 #include <numkit/stats/distributions/normal.hpp>
 
-#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 

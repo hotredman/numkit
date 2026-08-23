@@ -17,7 +17,7 @@ namespace numkit::builtin {
 /// Provides clean, engine-free C++ API for environment variable access,
 /// keyword inspection, and variable name validation.
 
-#include <numkit/runtime/language/commands/env.hpp>
+#include <numkit/fs/branding.hpp>
 
 // ── Environment Variables ───────────────────────────────────────────────────
 

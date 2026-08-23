@@ -403,21 +403,4 @@ Value logical_xor(const Value &a, const Value &b, std::pmr::memory_resource *mr)
     return logicalBinary("xor", [](bool x, bool y) { return (x || y) && !(x && y); }, mr, a, b);
 }
 
-// ── N-D Batch Matrix Multiplication (pagemtimes) ──────────────────────────
-
-Value pagemtimes(const Value &x, const Value &y, std::pmr::memory_resource *mr)
-{
-    auto isFloatLike = [](ValueType t) {
-        return t == ValueType::DOUBLE || t == ValueType::SINGLE || t == ValueType::COMPLEX;
-    };
-    if (!isFloatLike(x.type()) || !isFloatLike(y.type()))
-        throw Error("pagemtimes: inputs must be 'single', 'double', or complex",
-                     0, 0, "pagemtimes", "", "numkit:pagemtimes:type");
-    if (x.isComplex() || y.isComplex())
-        return pagemtimesImpl<Complex>(x, TranspOp::None, y, TranspOp::None, mr);
-    if (x.type() == ValueType::SINGLE || y.type() == ValueType::SINGLE)
-        return pagemtimesImpl<float  >(x, TranspOp::None, y, TranspOp::None, mr);
-    return     pagemtimesImpl<double >(x, TranspOp::None, y, TranspOp::None, mr);
-}
-
 } // namespace numkit::builtin

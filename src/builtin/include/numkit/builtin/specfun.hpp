@@ -168,10 +168,23 @@ Value besselk(const Value &nu, const Value &z, std::pmr::memory_resource *mr = n
 /// @see besselj, bessely
 Value besselh(const Value &nu, int k, const Value &z, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Airy function (`Ai(z)`).
+struct EllipKE {
+    Value K;
+    Value E;
+};
+
+struct EllipJ {
+    Value sn;
+    Value cn;
+    Value dn;
+};
+
+/// @brief Airy function (`Ai(z)` or `k`-th derivative / `Bi`).
+/// @param k Function kind / derivative index (0: Ai, 1: Ai', 2: Bi, 3: Bi').
 /// @param z Argument.
 /// @param mr Memory resource.
 /// @return Airy function values.
+Value airy(int k, const Value &z, std::pmr::memory_resource *mr = nullptr);
 Value airy(const Value &z, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Exponential integral function (`E_1(x)`).
@@ -180,11 +193,18 @@ Value airy(const Value &z, std::pmr::memory_resource *mr = nullptr);
 /// @return Exponential integral values.
 Value expint(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Complete elliptic integrals of the first and second kind.
+/// @brief Complete elliptic integrals of the first and second kind (`[K, E] = ellipke(m)`).
 /// @param m Parameter `m = k^2`.
 /// @param mr Memory resource.
 /// @return Complete elliptic integral values.
-Value ellipke(const Value &m, std::pmr::memory_resource *mr = nullptr);
+EllipKE ellipke(const Value &m, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Jacobi elliptic functions (`[sn, cn, dn] = ellipj(u, m)`).
+/// @param u Argument.
+/// @param m Parameter.
+/// @param mr Memory resource.
+/// @return Jacobi elliptic function values.
+EllipJ ellipj(const Value &u, const Value &m, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Associated Legendre functions (`P_n^m(x)`).
 /// @param n Degree of the Legendre function.
@@ -207,8 +227,16 @@ Value factorial(const Value &n, std::pmr::memory_resource *mr = nullptr);
 /// @param k Subset size.
 /// @param mr Memory resource.
 /// @return Binomial coefficient or combination matrix.
-/// @see perms, factorial
+Value primes(double n, std::pmr::memory_resource *mr = nullptr);
+Value primes(const Value &n, std::pmr::memory_resource *mr = nullptr);
+Value isprime(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value factor(double n, std::pmr::memory_resource *mr = nullptr);
+Value factor(const Value &n, std::pmr::memory_resource *mr = nullptr);
+
+Value nchoosek(double n, double k, std::pmr::memory_resource *mr = nullptr);
+Value nchoosekCombinations(const Value &v, double kd, std::pmr::memory_resource *mr = nullptr);
 Value nchoosek(const Value &v, int k, std::pmr::memory_resource *mr = nullptr);
+Value nchoosek(const Value &v, const Value &k, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief All permutations of a vector elements.
 /// @param v Input vector.
@@ -224,13 +252,9 @@ Value perms(const Value &v, std::pmr::memory_resource *mr = nullptr);
 /// @return Greatest common divisor.
 /// @see lcm
 Value gcd(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Least common multiple of two integers or arrays.
-/// @param a First operand.
-/// @param b Second operand.
-/// @param mr Memory resource.
-/// @return Least common multiple.
-/// @see gcd
 Value lcm(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+Value colperm(const Value &s, std::pmr::memory_resource *mr = nullptr);
+Value symrcm(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

@@ -8,7 +8,7 @@
 
 #include <numkit/signal/spectral_analysis/signal_modeling.hpp>
 
-#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/builtin/polyfun.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -726,7 +726,7 @@ Value poly2lsf(const Value &a, std::pmr::memory_resource *mr)
     std::vector<double> angles;
     for (auto &poly : {P, Q}) {
         Value polyV = rowVec(poly, mr);
-        Value rts = numkit::math::roots(polyV, mr);
+        Value rts = numkit::builtin::roots(polyV, mr);
         const size_t n = rts.numel();
         for (size_t i = 0; i < n; ++i) {
             const Complex c = rts.complexData()[i];

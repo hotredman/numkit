@@ -14,10 +14,10 @@
 #include <numkit/runtime/language/cells/cell.hpp>
 #include <numkit/runtime/language/structures/struct.hpp>
 #include <numkit/runtime/help/help_catalog.hpp>
-#include <numkit/lang/operators/binary_ops.hpp>
-#include <numkit/lang/operators/unary_ops.hpp>
-#include <numkit/lang/types/types.hpp>
-#include <numkit/math/arithmetic/rounding.hpp>
+#include <numkit/builtin/ops.hpp>
+#include <numkit/builtin/ops.hpp>
+#include <numkit/builtin/datatypes.hpp>
+#include <numkit/builtin/elfun.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -491,6 +491,7 @@ void register_datatypes(Engine &engine) {
     // forms fall back to the synchronous arrayfun above.
     engine.registerCallbackBuiltin(
         "arrayfun", std::make_shared<::numkit::builtin::detail::ArrayfunCallbackBuiltin>());
+    ::numkit::builtin::registerSplitapplyCallbackBuiltin(engine);
 
     
 // ── class ──────────────────────────────────────────────────

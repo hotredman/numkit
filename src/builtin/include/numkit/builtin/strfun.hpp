@@ -24,6 +24,8 @@ namespace numkit::builtin {
 /// @return Character vector representation.
 /// @see int2str, mat2str, str2num
 Value num2str(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value num2str(const Value &x, int N, std::pmr::memory_resource *mr = nullptr);
+Value num2str(const Value &x, const std::string &fmt, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Formats integer into character vector (`int2str(x)`).
 /// @param x Input integer or numeric value.
@@ -59,6 +61,7 @@ Value str2double(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @return Character array.
 /// @see string_array
 Value char_array(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value toChar(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Converts input to string array (`string(x)`).
 /// @param x Input value.
@@ -66,6 +69,7 @@ Value char_array(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return String array.
 /// @see char_array
 Value string_array(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value toString(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Creates character vector of blank spaces (`blanks(n)`).
 /// @param n Number of spaces.
@@ -183,6 +187,8 @@ Value strjoin(const Value &c, const std::string &delim = " ", std::pmr::memory_r
 /// @return Cell array of split substrings.
 /// @see strjoin, splitlines
 Value strsplit(const Value &s, const std::string &delim = " ", std::pmr::memory_resource *mr = nullptr);
+Value strsplit(const Value &s, const Value &delim, std::pmr::memory_resource *mr = nullptr);
+Value strsplit(const Value &s, std::pmr::memory_resource *mr);
 
 /// @brief Splits string into separate lines (`splitlines(s)`).
 /// @param s Input string.
@@ -216,23 +222,10 @@ Value strrep(const Value &orig, const Value &oldStr, const Value &newStr, std::p
 /// @param mr Memory resource.
 /// @return Logical scalar or array.
 /// @see startsWith, endsWith, matches
-Value contains(const Value &str, const Value &pat, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Checks if string starts with pattern (`startsWith(str, pat)`).
-/// @param str Text to check.
-/// @param pat Prefix pattern.
-/// @param mr Memory resource.
-/// @return Logical scalar or array.
-/// @see endsWith, contains
-Value startsWith(const Value &str, const Value &pat, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Checks if string ends with pattern (`endsWith(str, pat)`).
-/// @param str Text to check.
-/// @param pat Suffix pattern.
-/// @param mr Memory resource.
-/// @return Logical scalar or array.
-/// @see startsWith, contains
-Value endsWith(const Value &str, const Value &pat, std::pmr::memory_resource *mr = nullptr);
+Value contains(const Value &str, const Value &pat, bool ignoreCase = false, std::pmr::memory_resource *mr = nullptr);
+Value startsWith(const Value &str, const Value &pat, bool ignoreCase = false, std::pmr::memory_resource *mr = nullptr);
+Value endsWith(const Value &str, const Value &pat, bool ignoreCase = false, std::pmr::memory_resource *mr = nullptr);
+Value strlength(const Value &s, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Counts occurrences of pattern in string (`count(str, pat)`).
 /// @param str Text to search.
@@ -358,14 +351,22 @@ Value regexp(const Value &str, const Value &pat, std::pmr::memory_resource *mr =
 /// @see regexp, regexprep
 Value regexpi(const Value &str, const Value &pat, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Regular expression replacement (`regexprep(str, pat, rep)`).
+/// @brief Regular expression search helper.
+Value regexpFind(const Value &s, const Value &pat, const std::string &option, bool ignoreCase, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Regular expression search once helper.
+Value regexpFindOnce(const Value &s, const Value &pat, const std::string &option, bool ignoreCase, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Regular expression replacement (`regexprep(str, pat, rep, ignoreCase, once)`).
 /// @param str Original text.
 /// @param pat Regex pattern.
 /// @param rep Replacement string.
+/// @param ignoreCase Case-insensitive match flag.
+/// @param once Replace first match only flag.
 /// @param mr Memory resource.
 /// @return Text with matches replaced.
 /// @see regexp, strrep
-Value regexprep(const Value &str, const Value &pat, const Value &rep, std::pmr::memory_resource *mr = nullptr);
+Value regexprep(const Value &str, const Value &pat, const Value &rep, bool ignoreCase = false, bool once = false, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Translates wildcard strings to regular expressions (`regexptranslate(type, str)`).
 /// @param type Translation type (`"wildcard"` or `"escape"`).
@@ -373,6 +374,43 @@ Value regexprep(const Value &str, const Value &pat, const Value &rep, std::pmr::
 /// @param mr Memory resource.
 /// @return Regex pattern string.
 /// @see regexp
+Value regexptranslate(const std::string &type, const std::string &str, std::pmr::memory_resource *mr = nullptr);
 Value regexptranslate(const std::string &type, const Value &str, std::pmr::memory_resource *mr = nullptr);
+
+Value split(const Value &s, const Value &delim = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+Value join(const Value &arr, const Value &delim = Value::Empty, std::pmr::memory_resource *mr = nullptr);
+
+Value replaceBetween(const Value &s, const Value &start, const Value &end, const Value &newText, std::pmr::memory_resource *mr = nullptr);
+Value hex2num(const Value &s, std::pmr::memory_resource *mr = nullptr);
+Value num2hex(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value rat(const Value &x, double tol = 0.0, std::pmr::memory_resource *mr = nullptr);
+Value rats(const Value &x, int len = 13, std::pmr::memory_resource *mr = nullptr);
+std::pair<Value, Value> strtok(const Value &str, const std::string &delim = " \t\n\r", std::pmr::memory_resource *mr = nullptr);
+Value newlineFn(std::pmr::memory_resource *mr = nullptr);
+Value stringsND(Span<const size_t> dims, std::pmr::memory_resource *mr = nullptr);
+Value mat2str(const Value &x, int precision, std::pmr::memory_resource *mr = nullptr);
+Value strjoin(const Value &arr, const Value &delim, std::pmr::memory_resource *mr = nullptr);
+Value append(Span<const Value> parts, std::pmr::memory_resource *mr = nullptr);
+Value erase(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
+Value replace(const Value &s, const Value &oldPat, const Value &newPat, std::pmr::memory_resource *mr = nullptr);
+Value pad(const Value &s, size_t n, const Value &side = Value(), const Value &padChar = Value(), std::pmr::memory_resource *mr = nullptr);
+Value strip(const Value &s, const Value &side, const Value &ch, std::pmr::memory_resource *mr = nullptr);
+Value convertCharsToStrings(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value convertStringsToChars(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value isstrprop(const Value &s, const Value &category, std::pmr::memory_resource *mr = nullptr);
+Value isspaceFn(const Value &s, std::pmr::memory_resource *mr = nullptr);
+Value extractAfter(const Value &s, const Value &p, std::pmr::memory_resource *mr = nullptr);
+Value extractBefore(const Value &s, const Value &p, std::pmr::memory_resource *mr = nullptr);
+Value extractBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr = nullptr);
+Value insertAfter(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr = nullptr);
+Value insertBefore(const Value &s, const Value &p, const Value &newText, std::pmr::memory_resource *mr = nullptr);
+Value eraseBetween(const Value &s, const Value &start, const Value &end, std::pmr::memory_resource *mr = nullptr);
+Value compose(const Value &fmt, const Value &x, std::pmr::memory_resource *mr = nullptr);
+std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t argStart = 0, bool literalWhenShort = false);
+std::string formatCyclic(const std::string &fmt, Span<const Value> args, size_t argStart = 0, std::pmr::memory_resource *mr = nullptr);
+size_t countFormatSpecs(const std::string &fmt);
+std::string dispFormat(const Value &a);
+Value strjust(const Value &M, const std::string &side = "left", std::pmr::memory_resource *mr = nullptr);
+Value extract(const Value &s, const Value &pat, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

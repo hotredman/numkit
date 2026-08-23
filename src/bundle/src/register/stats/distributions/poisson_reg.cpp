@@ -4,8 +4,8 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/random/rng.hpp>
-#include <numkit/math/special/special.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/builtin/specfun.hpp>
 #include <numkit/stats/distributions/poisson.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
@@ -62,7 +62,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         } else {
             const size_t N = dist_match_numel({nk, nl}, "poisscdf");
             Value xs = elementwise(k, [](double ki) { return ki < 0.0 ? 1.0 : std::floor(ki) + 1.0; }, mr);
-            Value lower = ::numkit::math::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
+            Value lower = ::numkit::builtin::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
             const Value &ref = (nl == N) ? lam : k;
             v = dist_empty_like(ref, mr);
             double *od = v.doubleDataMut();

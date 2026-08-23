@@ -5,7 +5,7 @@
 
 #include <numkit/stats/distributions/hypergeom.hpp>
 
-#include <numkit/math/random/rng.hpp>
+#include <numkit/builtin/datafun.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

@@ -91,10 +91,49 @@ void zeros_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 struct BsxfunCallbackBuiltin : CallbackBuiltin
 {
-    std::shared_ptr<VmContinuation> tryStart(Span<const Value> /*args*/, std::size_t /*nargout*/,
-                                             Value * /*dest*/, Engine & /*eng*/) override
+    std::shared_ptr<VmContinuation> tryStart(Span<const Value> args, std::size_t nargout,
+                                             Value *dest, Engine &eng) override
     {
-        return nullptr;
+        if (args.size() < 3 || nargout > 1)
+            return nullptr;
+        if (!eng.isUserCodeHandle(args[0]))
+            return nullptr;
+        const auto &a = args[1];
+        const auto &b = args[2];
+        if (a.isEmpty() || b.isEmpty())
+            return nullptr;
+        size_t ar = a.dims().rows(), ac = a.dims().cols();
+        size_t br = b.dims().rows(), bc = b.dims().cols();
+        if ((ar != br && ar != 1 && br != 1) || (ac != bc && ac != 1 && bc != 1))
+            return nullptr;
+        size_t outR = std::max(ar, br);
+        size_t outC = std::max(ac, bc);
+        size_t n = outR * outC;
+        auto *mr = eng.resource();
+
+        auto cont = std::make_shared<LoopContinuation>();
+        cont->handle = args[0];
+        cont->n = n;
+        cont->dest = dest;
+        cont->makeArgs = [a, b, ar, ac, br, bc, outR, mr](std::size_t i) -> std::vector<Value> {
+            size_t r = i % outR;
+            size_t c = i / outR;
+            size_t arIdx = (ar == 1) ? 0 : r;
+            size_t acIdx = (ac == 1) ? 0 : c;
+            size_t brIdx = (br == 1) ? 0 : r;
+            size_t bcIdx = (bc == 1) ? 0 : c;
+            Value elemA = Value::scalar(a.elemAsDouble(acIdx * ar + arIdx), mr);
+            Value elemB = Value::scalar(b.elemAsDouble(bcIdx * br + brIdx), mr);
+            return {elemA, elemB};
+        };
+        cont->pack = [outR, outC, mr](std::vector<Value> &results) -> Value {
+            Value out = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+            for (size_t k = 0; k < results.size(); ++k)
+                out.doubleDataMut()[k] = results[k].toScalar();
+            return out;
+        };
+        cont->results.reserve(n);
+        return cont;
     }
 };
 

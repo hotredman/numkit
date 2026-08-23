@@ -62,7 +62,7 @@ inline double nbin_cdf_scalar(double k, double r, double p, std::pmr::memory_res
     Value xv = Value::scalar(p, mr);
     Value av = Value::scalar(r, mr);
     Value bv = Value::scalar(kf + 1.0, mr);
-    Value rv = ::numkit::math::betainc(xv, av, bv, mr);
+    Value rv = ::numkit::builtin::betainc(xv, av, bv, mr);
     return rv.toScalar();
 }
 

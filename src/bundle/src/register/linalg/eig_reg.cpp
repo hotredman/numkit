@@ -13,7 +13,7 @@
 #include <numkit/linalg/eig.hpp>
 
 #include <numkit/linalg/properties.hpp>               // inv (generalized eig B\A)
-#include <numkit/lang/operators/binary_ops.hpp>  // mtimes (eig(A,B))
+#include <numkit/builtin/ops.hpp>  // mtimes (eig(A,B))
 
 #include <numkit/core/engine.hpp>   // CallContext, Span, ctx.engine->resource()
 #include <numkit/value/value.hpp>
@@ -153,7 +153,7 @@ void eig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     // Reduce a generalized problem (A, B) to the standard problem on
     // M = B\A = inv(B)·A. The eigenvalues of M equal the generalized
     // eigenvalues, and any eigenvector v of M satisfies A·v = B·v·λ.
-    Value M = B ? numkit::lang::mtimes(inv(*B, mr), *A, mr) : *A;
+    Value M = B ? numkit::builtin::mtimes(inv(*B, mr), *A, mr) : *A;
 
     if (nargout >= 2) {
         auto [V, D] = eigVDAuto(M, mr);

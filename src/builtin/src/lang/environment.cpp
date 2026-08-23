@@ -3,7 +3,7 @@
 // Environment variable utilities for numkit::builtin.
 
 #include <numkit/builtin/lang.hpp>
-#include <numkit/runtime/language/commands/env.hpp>
+#include <numkit/fs/branding.hpp>
 #include <numkit/fs/branding.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
@@ -29,7 +29,19 @@ void setenv(const std::string &name, const std::string &value)
 
 std::string getenv(const std::string &name)
 {
-    return ::numkit::envGet(name.c_str());
+#ifdef _WIN32
+    char *buf = nullptr;
+    size_t len = 0;
+    if (_dupenv_s(&buf, &len, name.c_str()) == 0 && buf != nullptr) {
+        std::string res(buf);
+        free(buf);
+        return res;
+    }
+    return "";
+#else
+    const char *val = ::getenv(name.c_str());
+    return val ? std::string(val) : std::string();
+#endif
 }
 
 Value getenv(const Value &name, std::pmr::memory_resource *mr)

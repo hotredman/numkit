@@ -6,7 +6,7 @@
 #include <numkit/core/engine.hpp>
 #include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/vm.hpp>
-#include <numkit/math/random/rng.hpp>
+#include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/resample/resample.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>

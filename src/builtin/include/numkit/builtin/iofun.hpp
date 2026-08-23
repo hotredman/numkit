@@ -33,6 +33,8 @@ Value sprintf(const Value &fmt, Span<const Value> args, std::pmr::memory_resourc
 /// @see fprintf, disp
 std::string sprintf(const std::string &fmt, Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
 
+std::string dispFormat(const Value &a);
+
 /// @brief Displays value to the standard output or specified stream (`disp(v)`).
 /// @param v Value to display.
 /// @param os Target output stream (defaults to std::cout).
@@ -54,6 +56,7 @@ int fprintf(std::ostream &os, const std::string &fmt, Span<const Value> args, st
 /// @return Scanned values array.
 /// @see textscan, sprintf
 Value sscanf(const std::string &str, const std::string &fmt, std::pmr::memory_resource *mr = nullptr);
+void sscanf(Span<const Value> args, size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Reads formatted data from a string into cell arrays (`textscan(str, fmt)`).
 /// @param str Source string to scan.
@@ -61,6 +64,16 @@ Value sscanf(const std::string &str, const std::string &fmt, std::pmr::memory_re
 /// @param mr Memory resource.
 /// @return Cell array containing extracted columns.
 /// @see sscanf
-Value textscan(const std::string &str, const std::string &fmt, std::pmr::memory_resource *mr = nullptr);
+} // namespace numkit::builtin
+
+namespace numkit {
+class Engine;
+}
+
+namespace numkit::builtin {
+std::size_t fprintf(::numkit::Engine &engine, Span<const Value> args);
+void disp(::numkit::Engine &engine, Span<const Value> args);
+void fscanf(::numkit::Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
+void textscan(::numkit::Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
 
 } // namespace numkit::builtin

@@ -22,7 +22,7 @@
 
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
-#include "arithmetic/var_reduction.hpp"
+#include "datafun/var_reduction.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -45,7 +45,7 @@ namespace numkit::stats {
 // firstNonSingletonDim, outShapeForDim, outShapeForDimND, sliceLenForDim,
 // varianceTwoPass, … by short name as before the move.
 using namespace ::numkit::ops;
-using ::numkit::math::varianceTwoPass;
+using ::numkit::builtin::varianceTwoPass;
 
 // ────────────────────────────────────────────────────────────────────
 // var / std

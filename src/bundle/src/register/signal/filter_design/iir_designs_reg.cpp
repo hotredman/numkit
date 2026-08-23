@@ -5,10 +5,11 @@
 // TU; collected here verbatim (reg-side arg parsers nested in their anon
 // namespaces ride along). See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/poly/polynomials.hpp>
-#include <numkit/math/special/special.hpp>
+#include <numkit/builtin/polyfun.hpp>
+#include <numkit/builtin/specfun.hpp>
 #include <numkit/signal/filter_design/analog_filters.hpp>
 #include <numkit/signal/filter_design/iir_designs.hpp>
+#include <numkit/signal/filter_implementation/conversions_extras.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -89,9 +90,9 @@ void cheby1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = cheby1(N, R, Wn, ftype, t.analog, ctx.engine->resource());
-    if (outs.size() >= 3) {   // [z, p, k] = cheby1(...): digital ZPK via tf2zp
-        auto [z, p, k] = ::numkit::math::tf2zp(b, a, ctx.engine->resource());
-        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+    if (outs.size() >= 3) {   // [z, p, k] = cheby1(...): digital ZPK via tf2zpk
+        auto [z, p, k] = tf2zpk(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = Value::scalar(k, ctx.engine->resource());
         return;
     }
     outs[0] = std::move(b);
@@ -109,9 +110,9 @@ void cheby2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     auto t = parseTrailing(args, 3);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = cheby2(N, R, Wn, ftype, t.analog, ctx.engine->resource());
-    if (outs.size() >= 3) {   // [z, p, k] = cheby2(...): digital ZPK via tf2zp
-        auto [z, p, k] = ::numkit::math::tf2zp(b, a, ctx.engine->resource());
-        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+    if (outs.size() >= 3) {   // [z, p, k] = cheby2(...): digital ZPK via tf2zpk
+        auto [z, p, k] = tf2zpk(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = Value::scalar(k, ctx.engine->resource());
         return;
     }
     outs[0] = std::move(b);
@@ -148,9 +149,9 @@ void ellip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     auto t = parseTrailing(args, 4);
     auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
     auto [b, a] = ellip(N, Rp, Rs, Wn, ftype, t.analog, ctx.engine->resource());
-    if (outs.size() >= 3) {   // [z, p, k] = ellip(...): digital ZPK via tf2zp
-        auto [z, p, k] = ::numkit::math::tf2zp(b, a, ctx.engine->resource());
-        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = std::move(k);
+    if (outs.size() >= 3) {   // [z, p, k] = ellip(...): digital ZPK via tf2zpk
+        auto [z, p, k] = tf2zpk(b, a, ctx.engine->resource());
+        outs[0] = std::move(z); outs[1] = std::move(p); outs[2] = Value::scalar(k, ctx.engine->resource());
         return;
     }
     outs[0] = std::move(b);

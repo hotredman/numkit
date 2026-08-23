@@ -4,7 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/builtin/polyfun.hpp>
 #include <numkit/signal/filter_design/analog_filters.hpp>
 #include <numkit/signal/filter_implementation/conversions_extras.hpp>
 #include <numkit/value/error.hpp>
@@ -113,7 +113,7 @@ static Value lp2StripLeadingZeros(const Value &b, std::pmr::memory_resource *mr)
             const double Wo = args[2].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, mr);                          \
-            auto [bt, at] = numkit::math::zp2tf(zt, pt, kt.toScalar(), mr);           \
+            auto [bt, at] = numkit::builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
             bt = lp2StripLeadingZeros(bt, mr);                                   \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \
@@ -148,7 +148,7 @@ NK_LP2X1_REG(lp2hp, lp2hp)
             const double Bw = args[3].toScalar();                                \
             auto [z0, p0, k0] = tf2zpk(args[0], args[1], mr);                    \
             auto [zt, pt, kt] = fn(z0, p0, k0, Wo, Bw, mr);                      \
-            auto [bt, at] = numkit::math::zp2tf(zt, pt, kt.toScalar(), mr);           \
+            auto [bt, at] = numkit::builtin::zp2tf(zt, pt, kt.toScalar(), mr);           \
             bt = lp2StripLeadingZeros(bt, mr);                                   \
             outs[0] = std::move(bt);                                             \
             if (nargout > 1) outs[1] = std::move(at);                            \

@@ -18,7 +18,7 @@
 
 #include <numkit/linalg/decompositions.hpp>           // svd_decompose
 #include <numkit/linalg/properties.hpp>               // inv (polyeig companion)
-#include <numkit/math/poly/polynomials.hpp>   // roots
+#include <numkit/builtin/polyfun.hpp>   // roots
 
 // Compute-only TU: Value substrate + Error, no engine. The eig / hess /
 // schur / sylvester / polyeig / ordeig builtins (CallContext wrappers)
@@ -160,7 +160,7 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
     }
 
     if (!A.isComplex()) {
-        auto eig_vals = numkit::math::roots(poly_of_matrix(A, mr), mr);
+        auto eig_vals = numkit::builtin::roots(poly_of_matrix(A, mr), mr);
         bool has_complex = false;
         if (eig_vals.isComplex()) {
             const Complex *ev = eig_vals.complexData();

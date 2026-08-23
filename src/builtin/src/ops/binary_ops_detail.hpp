@@ -458,8 +458,6 @@ Value logicalBinary(const char *opName, Op op,
     return r;
 }
 
-enum class TranspOp { None, Transpose, CTranspose };
-
 template <typename T>
 inline void runPageMatmul(const T *, const T *, T *,
                           size_t, size_t, size_t);

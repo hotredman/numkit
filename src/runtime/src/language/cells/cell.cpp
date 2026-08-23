@@ -5,7 +5,7 @@
 // struct.cpp via the inline header below.
 
 #include <numkit/runtime/language/cells/cell.hpp>
-#include <numkit/lang/arrays/matrix.hpp>  // horzcat / vertcat
+#include <numkit/builtin/elmat.hpp>  // horzcat / vertcat
 #include <numkit/core/engine.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
@@ -17,8 +17,8 @@
 #include "../handles/_handlefn_helpers.hpp"
 
 namespace numkit::builtin {
-using namespace numkit::lang;  // C4c cross-area
-using namespace numkit::math;  // C4c cross-area
+using namespace numkit::builtin;  // C4c cross-area
+using namespace numkit::builtin;  // C4c cross-area
 
 namespace hf = ::numkit::builtin::detail::handlefn;
 

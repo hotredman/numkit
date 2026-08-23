@@ -10,7 +10,7 @@
 #include <numkit/control/freq/freq.hpp>
 #include <numkit/control/response/response.hpp>
 #include <numkit/control/conversion/conversion.hpp>   // allmargin: open-loop num/den
-#include <numkit/math/poly/polynomials.hpp>            // allmargin: roots for Stable
+#include <numkit/builtin/polyfun.hpp>            // allmargin: roots for Stable
 
 // Compute-only TU: Value substrate + Error, no engine. The dcgain/margin/
 // stepinfo builtins (CallContext wrappers) live in analyze_reg.cpp.
@@ -215,7 +215,7 @@ Value allmargin(const Value &sys, std::pmr::memory_resource *mr)
         std::vector<double> mags;
         auto addRoots = [&](const std::vector<double> &c) {
             if (c.size() < 2) return;
-            Value rts = numkit::math::roots(rowFrom(c, mr), mr);
+            Value rts = numkit::builtin::roots(rowFrom(c, mr), mr);
             const size_t n = rts.numel();
             if (rts.type() == ValueType::COMPLEX) {
                 const std::complex<double> *p = rts.complexData();
@@ -285,7 +285,7 @@ Value allmargin(const Value &sys, std::pmr::memory_resource *mr)
         while (s0 + 1 < cl.size() && cl[s0] == 0.0) ++s0;
         cl.erase(cl.begin(), cl.begin() + s0);
         if (cl.size() >= 2) {
-            Value rts = numkit::math::roots(rowFrom(cl, mr), mr);
+            Value rts = numkit::builtin::roots(rowFrom(cl, mr), mr);
             const size_t n = rts.numel();
             if (rts.type() == ValueType::COMPLEX) {
                 const std::complex<double> *p = rts.complexData();

@@ -12,7 +12,7 @@
 #include <numkit/control/conversion/conversion.hpp>
 #include <numkit/control/internal/numerics.hpp>
 
-#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/builtin/polyfun.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The c2d/d2c builtins
@@ -245,8 +245,8 @@ Value packResult(const Mat &Ad, const Vec &Bd, const Vec &Cd, double Dd, size_t 
         return tf(numV, denV, Ts, mr);
     }
     if (origKind == "zpk") {
-        Value zV = numkit::math::roots(numV, mr);
-        Value pV = numkit::math::roots(denV, mr);
+        Value zV = numkit::builtin::roots(numV, mr);
+        Value pV = numkit::builtin::roots(denV, mr);
         // Gain = num(1)/den(1) (after stripping leading zeros).
         Vec numVec = coeffsReal(numV);
         Vec denVec = coeffsReal(denV);

@@ -10,8 +10,8 @@
 
 #include <numkit/stats/distributions/multivariate.hpp>
 
-#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/math/special/special.hpp>  // betainc (used by mvtcdf d=1)
+#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <numkit/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
@@ -523,7 +523,7 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
             Value zv = Value::scalar(z, mr);
             Value av = Value::scalar(0.5 * df, mr);
             Value bv = Value::scalar(0.5, mr);
-            const double I = ::numkit::math::betainc(zv, av, bv, mr).toScalar();
+            const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
             od[i] = (xi >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
         }
         return out;
@@ -581,7 +581,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
                 Value zv = Value::scalar(z, mr);
                 Value av = Value::scalar(0.5 * df, mr);
                 Value bv = Value::scalar(0.5, mr);
-                const double I = ::numkit::math::betainc(zv, av, bv, mr).toScalar();
+                const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
                 return (x >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
             };
             od[i] = std::max(0.0, cdf_one(Uv) - cdf_one(Lv));

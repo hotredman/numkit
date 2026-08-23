@@ -22,7 +22,7 @@
 
 #include <numkit/stats/descriptive/descriptive.hpp>
 
-#include <numkit/lang/arrays/matrix.hpp>
+#include <numkit/builtin/elmat.hpp>
 #include <numkit/linalg/decompositions.hpp>   // chol (migrated)
 #include <numkit/linalg/eig.hpp>              // eig_symmetric (migrated)
 #include <numkit/value/value.hpp>

@@ -8,7 +8,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/math/special/special.hpp>
+#include <numkit/builtin/specfun.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -120,8 +120,8 @@ periodogramConf(const Value &Pxx, double confidenceLevel, bool realInput, bool n
     //   chi2inv(q, 1) = (√2 · erfinv(q))²     (folded normal / 1 DOF)
     const double c2Lo = -2.0 * std::log(1.0 - qLo);
     const double c2Hi = -2.0 * std::log(1.0 - qHi);
-    const double eLo  = math::erfinv(Value::scalar(qLo, mr)).toScalar();
-    const double eHi  = math::erfinv(Value::scalar(qHi, mr)).toScalar();
+    const double eLo  = numkit::builtin::erfinv(Value::scalar(qLo, mr)).toScalar();
+    const double eHi  = numkit::builtin::erfinv(Value::scalar(qHi, mr)).toScalar();
     const double c1Lo = 2.0 * eLo * eLo;
     const double c1Hi = 2.0 * eHi * eHi;
 

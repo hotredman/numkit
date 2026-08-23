@@ -2,8 +2,8 @@
 
 #include <numkit/stats/distributions/binomial.hpp>
 
-#include <numkit/math/random/rng.hpp>
-#include <numkit/math/special/special.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/builtin/specfun.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>

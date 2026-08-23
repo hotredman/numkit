@@ -4,8 +4,8 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/random/rng.hpp>
-#include <numkit/math/special/special.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/builtin/specfun.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
@@ -67,7 +67,7 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
                 return nui / (nui + xi * xi);
             });
             Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
-            Value Iz = ::numkit::math::betainc(z, hnu, Value::scalar(0.5, mr), mr);
+            Value Iz = ::numkit::builtin::betainc(z, hnu, Value::scalar(0.5, mr), mr);
             const Value &ref = (nnu == N) ? nu : x;
             v = dist_empty_like(ref, mr);
             double *od = v.doubleDataMut();
@@ -111,7 +111,7 @@ void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
     }, mr);
     Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
-    Value zv = ::numkit::math::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
+    Value zv = ::numkit::builtin::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
     const Value &ref = (nnu == N) ? nu : p;
     Value out = dist_empty_like(ref, mr);
     double *od = out.doubleDataMut();

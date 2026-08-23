@@ -28,10 +28,10 @@ foreach(_bench_lib signal stats image comm control wavelet graphics io optim lin
                          ${CMAKE_BINARY_DIR}/toolboxes/${_bench_lib}/benchmarks)
     endif()
 endforeach()
-# Base-layer (math / lang) + interpreter/VM (core) benches — co-located under
+# Base-layer (builtin / ops) + interpreter/VM (core) benches — co-located under
 # src/<layer>/benchmarks/, same as the per-toolbox benches above and the
 # src/<module>/tests/ layout.
-foreach(_bench_layer math lang ops core codegen)
+foreach(_bench_layer builtin ops core codegen)
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/${_bench_layer}/benchmarks/CMakeLists.txt)
         add_subdirectory(${CMAKE_SOURCE_DIR}/src/${_bench_layer}/benchmarks
                          ${CMAKE_BINARY_DIR}/${_bench_layer}/benchmarks)

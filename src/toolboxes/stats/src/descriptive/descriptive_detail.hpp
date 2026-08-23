@@ -9,7 +9,7 @@
 #include <numkit/value/span.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
-#include "arithmetic/var_reduction.hpp" // varianceTwoPass (engine-free)
+#include "datafun/var_reduction.hpp" // varianceTwoPass (engine-free)
 
 #include <algorithm>
 #include <cmath>
@@ -31,7 +31,7 @@
 namespace numkit::stats {
 
 using namespace ::numkit::ops;
-using ::numkit::math::varianceTwoPass;
+using ::numkit::builtin::varianceTwoPass;
 
 // Named (external-linkage) so the file-scope worker quantileWithOpts can
 // take it across the compute/register TU boundary.

@@ -22,7 +22,7 @@
 #include <numkit/control/props/props.hpp>
 #include <numkit/control/internal/numerics.hpp>
 
-#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/builtin/polyfun.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. The step/impulse/lsim
 // builtins (CallContext wrappers) live in response_reg.cpp.

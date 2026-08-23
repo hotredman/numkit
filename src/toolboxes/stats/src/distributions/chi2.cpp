@@ -5,8 +5,8 @@
 
 #include <numkit/stats/distributions/chi2.hpp>
 
-#include <numkit/math/random/rng.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
-#include <numkit/math/special/special.hpp> // gammainc, gammaincinv
+#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <numkit/builtin/specfun.hpp> // gammainc, gammaincinv
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -52,10 +52,10 @@ Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr)
     if (k <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // F(x; k) = gammainc(x/2, k/2) (regularized lower).
-    // numkit::math::gammainc takes Values for x and a — call elementwise.
+    // numkit::builtin::gammainc takes Values for x and a — call elementwise.
     auto out = elementwise(x, [](double xi){ return std::max(0.0, 0.5 * xi); }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
-    return ::numkit::math::gammainc(out, ar, mr);
+    return ::numkit::builtin::gammainc(out, ar, mr);
 }
 
 Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
@@ -70,7 +70,7 @@ Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
                                             : std::numeric_limits<double>::quiet_NaN();
         }, mr);
     Value ar = Value::scalar(0.5 * k, mr);
-    Value q = ::numkit::math::gammaincinv(p, ar, mr);
+    Value q = ::numkit::builtin::gammaincinv(p, ar, mr);
     // x = 2 * gammaincinv(p, k/2)
     return elementwise(q, [](double v){ return 2.0 * v; }, mr);
 }

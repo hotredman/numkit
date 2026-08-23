@@ -2,8 +2,9 @@
 
 #include <numkit/comm/channel/channel.hpp>
 
-#include <numkit/math/random/rng.hpp>
-#include <numkit/math/special/special.hpp>     // betaincinv
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/builtin/specfun.hpp>     // betaincinv
+#include <numkit/ops/rng_context.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -355,7 +356,7 @@ static double betaincinv_scalar(std::pmr::memory_resource *mr,
     Value pV = Value::scalar(p, mr);
     Value aV = Value::scalar(a, mr);
     Value bV = Value::scalar(b, mr);
-    return ::numkit::math::betaincinv(pV, aV, bV, mr).toScalar();
+    return ::numkit::builtin::betaincinv(pV, aV, bV, mr).toScalar();
 }
 
 std::tuple<Value, Value>

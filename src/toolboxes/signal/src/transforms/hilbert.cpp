@@ -6,7 +6,7 @@
 #include <numkit/signal/transforms/hilbert.hpp>
 
 #include <numkit/signal/transforms/fft.hpp>  // general fft/ifft for non-pow2 N
-#include <numkit/math/interp/interp.hpp>     // interp1 (spline)
+#include <numkit/builtin/polyfun.hpp>     // interp1 (spline)
 #include <numkit/signal/windows/windows.hpp>          // kaiser
 
 #include <numkit/value/value.hpp>
@@ -287,7 +287,7 @@ void env_peak(const Value &x, size_t n, ScratchVec<double> &up, ScratchVec<doubl
             yd[i] = sig[locs[i]];
         }
         for (size_t i = 0; i < N; ++i) qd[i] = double(i + 1);
-        Value yi = numkit::math::interp1(x_loc, y_loc, xq, "spline", mr);
+        Value yi = numkit::builtin::interp1(x_loc, y_loc, xq, "spline", mr);
         for (size_t i = 0; i < N; ++i) out[i] = yi.elemAsDouble(i);
     };
     build_envelope(v, up);

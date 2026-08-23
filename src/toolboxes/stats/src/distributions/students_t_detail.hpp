@@ -101,7 +101,7 @@ inline double betainc_scalar(double y, double a, double b, std::pmr::memory_reso
     Value yv = Value::scalar(y, mr);
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
-    return ::numkit::math::betainc(yv, av, bv, mr).toScalar();
+    return ::numkit::builtin::betainc(yv, av, bv, mr).toScalar();
 }
 
 double nctpdf_one(double x, double nu, double delta,
@@ -220,7 +220,7 @@ double tinv_scalar(double p, double nu, std::pmr::memory_resource *mr)
     Value tv = Value::scalar(tail, mr);
     Value av = Value::scalar(0.5 * nu, mr);
     Value bv = Value::scalar(0.5, mr);
-    const double y = ::numkit::math::betaincinv(tv, av, bv, mr).toScalar();
+    const double y = ::numkit::builtin::betaincinv(tv, av, bv, mr).toScalar();
     if (y <= 0.0) return lower_half ? -std::numeric_limits<double>::infinity()
                                      :  std::numeric_limits<double>::infinity();
     if (y >= 1.0) return 0.0;

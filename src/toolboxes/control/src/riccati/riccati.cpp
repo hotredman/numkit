@@ -31,7 +31,7 @@
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/math/poly/polynomials.hpp>   // numkit::math::roots
+#include <numkit/builtin/polyfun.hpp>   // numkit::builtin::roots
 
 #include <algorithm>
 #include <cmath>
@@ -167,7 +167,7 @@ Value closedLoopEig(const Mat &A, const Mat &B, const Mat &G,
     auto cp = charPoly(Acl, n);          // [1, c1, …, cn]
     Value row = Value::matrix(1, cp.size(), ValueType::DOUBLE, mr);
     if (!cp.empty()) std::copy(cp.begin(), cp.end(), row.doubleDataMut());
-    return numkit::math::roots(row, mr);
+    return numkit::builtin::roots(row, mr);
 }
 
 void checkShapes(const Value &A, const Value &B, const Value &Q,

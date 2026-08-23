@@ -4,13 +4,13 @@
 // lang/src/strings/scan.cpp in C6c-2b: both read through the engine fid table
 // (findFile / OpenFile), so they belong in the core-aware runtime layer. The
 // pure parse+shape core (scanfEmit) and the pure sscanf stay in lang; fscanf
-// reads the file buffer then delegates to numkit::lang::detail::scanfEmit.
+// reads the file buffer then delegates to numkit::builtin::detail::scanfEmit.
 // Namespace stays numkit::lang (cell/struct precedent: runtime-located,
 // language-namespaced builtins). textscan + its format parser are textscan-
 // only, so they ride along here whole.
 
-#include <numkit/lang/strings/scan.hpp>        // fscanf / textscan decls
-#include <numkit/lang/strings/scan_core.hpp>   // detail::scanfEmit + ScanfOut
+#include <numkit/builtin/strfun.hpp>        // fscanf / textscan decls
+#include <numkit/builtin/scan_core.hpp>     // detail::scanfEmit + ScanfOut
 #include <numkit/core/engine.hpp>              // Engine, findFile, OpenFile
 
 #include <numkit/value/error.hpp>
@@ -30,9 +30,9 @@
 #include <string>
 #include <utility>
 
-namespace numkit::lang {
+namespace numkit::builtin {
 
-using detail::scanfEmit;   // fscanf delegates to the pure core (stays in lang)
+using detail::scanfEmit;
 using detail::ScanfOut;
 
 void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
@@ -515,4 +515,4 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     outs[0] = std::move(result);
 }
 
-} // namespace numkit::lang
+} // namespace numkit::builtin

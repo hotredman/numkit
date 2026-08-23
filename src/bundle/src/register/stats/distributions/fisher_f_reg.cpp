@@ -4,8 +4,8 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/random/rng.hpp>
-#include <numkit/math/special/special.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/builtin/specfun.hpp>
 #include <numkit/stats/distributions/fisher_f.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
@@ -70,7 +70,7 @@ void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
             });
             Value a = elementwise(v1, [](double d) { return 0.5 * d; }, mr);
             Value b = elementwise(v2, [](double d) { return 0.5 * d; }, mr);
-            v = ::numkit::math::betainc(y, a, b, mr);
+            v = ::numkit::builtin::betainc(y, a, b, mr);
         }
     }
     if (upper) applyUpperInPlace(v);
@@ -99,7 +99,7 @@ void finv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const size_t N = dist_match_numel({np, n1, n2}, "finv");
     Value a = elementwise(v1, [](double d) { return 0.5 * d; }, mr);
     Value b = elementwise(v2, [](double d) { return 0.5 * d; }, mr);
-    Value z = ::numkit::math::betaincinv(p, a, b, mr);
+    Value z = ::numkit::builtin::betaincinv(p, a, b, mr);
     const Value &ref = (n1 == N) ? v1 : (n2 == N ? v2 : p);
     Value out = dist_empty_like(ref, mr);
     double *od = out.doubleDataMut();

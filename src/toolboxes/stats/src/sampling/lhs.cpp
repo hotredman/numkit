@@ -5,7 +5,8 @@
 #include <numkit/stats/sampling/lhs.hpp>
 #include <numkit/stats/distributions/normal.hpp>
 
-#include <numkit/math/random/rng.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/ops/rng_context.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 

@@ -7,8 +7,8 @@
 
 #include <numkit/stats/distributions/gamma_dist.hpp>
 
-#include <numkit/math/random/rng.hpp>
-#include <numkit/math/special/special.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/builtin/specfun.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
@@ -58,7 +58,7 @@ Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
         return (xi <= 0.0) ? 0.0 : xi / b;
     }, mr);
     Value av = Value::scalar(a, mr);
-    return ::numkit::math::gammainc(xs, av, mr);
+    return ::numkit::builtin::gammainc(xs, av, mr);
 }
 
 Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
@@ -72,7 +72,7 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
                                             : std::numeric_limits<double>::quiet_NaN();
         }, mr);
     Value av = Value::scalar(a, mr);
-    Value q  = ::numkit::math::gammaincinv(p, av, mr);
+    Value q  = ::numkit::builtin::gammaincinv(p, av, mr);
     return elementwise(q, [=](double qi){ return b * qi; }, mr);
 }
 

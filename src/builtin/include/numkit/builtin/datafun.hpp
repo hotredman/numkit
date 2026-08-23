@@ -6,11 +6,13 @@
 #include <memory_resource>
 #include <string>
 #include <tuple>
-#include <vector>
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
+#include <numkit/ops/rng_context.hpp>
 
 namespace numkit::builtin {
+
+using ::numkit::ops::RngContext;
 
 /// @file
 /// @brief Data analysis, reductions, search, set operations, and random distributions.
@@ -20,13 +22,8 @@ namespace numkit::builtin {
 
 // ── Reductions ──────────────────────────────────────────────────────────────
 
-/// @brief Sum of array elements along specified dimension.
-/// @param x Input array.
-/// @param dim Dimension along which to operate (0 = first non-singleton).
-/// @param mr Memory resource for allocations (nullptr for default).
-/// @return Sum array.
-/// @see prod, mean
-Value sum(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value sum(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value sum(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Product of array elements along specified dimension.
 /// @param x Input array.
@@ -34,7 +31,8 @@ Value sum(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 /// @param mr Memory resource.
 /// @return Product array.
 /// @see sum, mean
-Value prod(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value prod(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value prod(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Mean (arithmetic average) of array elements.
 /// @param x Input array.
@@ -42,25 +40,38 @@ Value prod(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr)
 /// @param mr Memory resource.
 /// @return Mean array.
 /// @see sum, median
-Value mean(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value mean(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value mean(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Largest elements in array or element-wise maximum between two arrays.
-/// @param a First array or input array.
-/// @param b Second array for elementwise max (empty if reduction over @p dim).
-/// @param dim Dimension along which to operate (0 = first non-singleton).
-/// @param mr Memory resource.
-/// @return Maximum values.
-/// @see min
-Value max(const Value &a, const Value &b = Value(), int dim = 0, std::pmr::memory_resource *mr = nullptr);
+#include <tuple>
 
-/// @brief Smallest elements in array or element-wise minimum between two arrays.
-/// @param a First array or input array.
-/// @param b Second array for elementwise min (empty if reduction over @p dim).
-/// @param dim Dimension along which to operate (0 = first non-singleton).
-/// @param mr Memory resource.
-/// @return Minimum values.
-/// @see max
-Value min(const Value &a, const Value &b = Value(), int dim = 0, std::pmr::memory_resource *mr = nullptr);
+/// @brief Largest elements in array. Returns tuple `(values, indices)`.
+std::tuple<Value, Value> max(const Value &x, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> max(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value max(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> maxOmitNan(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value maxOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Smallest elements in array. Returns tuple `(values, indices)`.
+std::tuple<Value, Value> min(const Value &x, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> min(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value min(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> minOmitNan(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value minOmitNanBinary(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+Value cumsum(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value cumsum(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value cumprod(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value cumprod(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value cummax(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value cummax(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value cummin(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value cummin(const Value &x, int dim, std::pmr::memory_resource *mr = nullptr);
+Value diff(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value diff(const Value &x, int n, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+
+Value anyOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value allOf(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 
 // ── Random Number Generation ────────────────────────────────────────────────
 
@@ -98,53 +109,59 @@ Value randi(int imin, int imax, size_t rows = 1, size_t cols = 1, std::pmr::memo
 /// @see rand, randi
 Value randperm(size_t n, size_t k = 0, std::pmr::memory_resource *mr = nullptr);
 
-// ── Set Operations ──────────────────────────────────────────────────────────
 
-/// @brief Finds unique values in array.
-/// @param x Input array.
-/// @param mr Memory resource.
-/// @return Sorted vector of unique values.
-/// @see ismember, union_set, intersect, setdiff
-Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Checks which elements of @p a are members of set @p s.
-/// @param a Input array to test.
-/// @param s Set array.
-/// @param mr Memory resource.
-/// @return Logical array where true indicates membership in @p s.
-/// @see unique, intersect
-Value ismember(const Value &a, const Value &s, std::pmr::memory_resource *mr = nullptr);
+enum class HistBinMethod {
+    Auto,
+    Scott,
+    Fd,
+    Integers,
+    Sturges,
+    Sqrt
+};
 
-/// @brief Set union of two arrays (`A ∪ B`).
-/// @param a First array.
-/// @param b Second array.
-/// @param mr Memory resource.
-/// @return Sorted union vector without duplicates.
-/// @see intersect, setdiff, setxor
-Value union_set(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+enum class HistNorm {
+    Count,
+    Probability,
+    CountDensity,
+    Pdf,
+    CumCount,
+    Cdf
+};
 
-/// @brief Set intersection of two arrays (`A ∩ B`).
-/// @param a First array.
-/// @param b Second array.
-/// @param mr Memory resource.
-/// @return Sorted intersection vector without duplicates.
-/// @see union_set, setdiff, setxor
-Value intersect(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+struct HistBinSpec {
+    HistBinMethod method = HistBinMethod::Auto;
+    bool hasNumBins = false;
+    double numBins = 0.0;
+    bool hasBinWidth = false;
+    double binWidth = 0.0;
+    bool hasBinLimits = false;
+    double limLo = 0.0;
+    double limHi = 0.0;
+};
 
-/// @brief Set difference of two arrays (`A \ B`).
-/// @param a First array.
-/// @param b Second array.
-/// @param mr Memory resource.
-/// @return Sorted vector of elements in @p a that are not in @p b.
-/// @see union_set, intersect, setxor
-Value setdiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+/// @brief Set operations and discrete functions.
+Value unique(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false);
+Value uniqueRows(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false);
+std::tuple<Value, Value, Value> uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false, bool last = false);
+std::tuple<Value, Value, Value> uniqueRowsWithIndices(const Value &x, std::pmr::memory_resource *mr = nullptr, bool stable = false, bool last = false);
 
-/// @brief Set exclusive OR of two arrays (`(A \ B) ∪ (B \ A)`).
-/// @param a First array.
-/// @param b Second array.
-/// @param mr Memory resource.
-/// @return Sorted XOR vector.
-/// @see union_set, intersect, setdiff
+Value ismember(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+std::pair<Value, Value> ismemberComplex(const Value &a, const Value &b, bool wantLoc, std::pmr::memory_resource *mr);
+
+Value setUnion(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
+Value setIntersect(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
+Value setDiff(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr, bool stable = false);
 Value setxor(const Value &a, const Value &b, std::pmr::memory_resource *mr = nullptr);
+
+Value discretize(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
+Value histc(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
+Value histcounts(const Value &x, const Value &edges, std::pmr::memory_resource *mr = nullptr);
+Value histcounts(const Value &x, const Value &edges, HistNorm norm, std::pmr::memory_resource *mr = nullptr);
+Value histcountsAutoEdges(const Value &x, const HistBinSpec &spec, std::pmr::memory_resource *mr = nullptr);
+Value allunique(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value numunique(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value ismembertol(const Value &a, const Value &s, double tol = 1e-6, std::pmr::memory_resource *mr = nullptr);
+Value uniquetol(const Value &x, double tol = 1e-6, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

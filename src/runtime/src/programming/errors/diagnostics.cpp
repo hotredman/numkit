@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/programming/errors/diagnostics.cpp
 
 #include <numkit/runtime/programming/errors/diagnostics.hpp>
-#include <numkit/lang/strings/format.hpp>
+#include <numkit/builtin/strfun.hpp>
 #include <numkit/core/engine.hpp>
 
 #include <numkit/value/value.hpp>
@@ -10,7 +10,7 @@
 #include <string>
 
 namespace numkit::builtin {
-using namespace numkit::lang;  // C4c (formatOnce)
+using namespace numkit::builtin;  // C4c (formatOnce)
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API

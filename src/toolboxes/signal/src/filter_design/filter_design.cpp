@@ -5,7 +5,7 @@
 
 #include <numkit/signal/filter_design/filter_design.hpp>
 #include <numkit/signal/transforms/fft.hpp>
-#include <numkit/math/poly/polynomials.hpp>  // tf2zp (ZPK 3-output)
+#include <numkit/builtin/polyfun.hpp>  // tf2zp (ZPK 3-output)
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

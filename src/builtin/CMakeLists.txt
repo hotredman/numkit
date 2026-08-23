@@ -4,32 +4,32 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/builtin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/binary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/unary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ops/int_math.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/trigonometry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/exponents.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/complex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/rounding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/creation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/manipulation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/matrix.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/manip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/nd_manip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matfun/matfun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/reductions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/random.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/sets.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/gamma_beta.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/erf.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/bessel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/special.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/combinatorics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/polynomials.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/interpolation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/integration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/conversion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/manipulation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/predicates.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/geometry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/regex.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/strings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/format.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/print.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/scan.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun/clock.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun/dates.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/predicates.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/structs_cells.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/limits.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/iofun/formatted_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/general/catalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lang/environment.cpp
@@ -44,6 +44,12 @@ if(NUMKIT_WITH_SIMD)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/rounding_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/abs_highway.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/mod_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/special_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/cumsum_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/logical_reductions_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/var_reduction_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/isfinite_highway.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/casts_highway.cpp
     )
 else()
     list(APPEND NUMKIT_BUILTIN_SOURCES
@@ -53,6 +59,12 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/rounding_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/abs_portable.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/elfun/mod_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun/special_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/cumsum_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/logical_reductions_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/var_reduction_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/isfinite_portable.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/casts_portable.cpp
     )
 endif()
 

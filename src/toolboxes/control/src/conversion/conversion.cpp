@@ -1,12 +1,12 @@
 // toolboxes/control/src/conversion/conversion.cpp
 //
 // Inter-form conversions tf ↔ zpk ↔ ss. Built on the existing
-// numkit::math::roots / numkit::math::poly polynomial primitives, plus a local
+// numkit::builtin::roots / numkit::builtin::poly polynomial primitives, plus a local
 // Faddeev–LeVerrier expansion for ss2tf.
 
 #include <numkit/control/conversion/conversion.hpp>
 
-#include <numkit/math/poly/polynomials.hpp>
+#include <numkit/builtin/polyfun.hpp>
 
 // Compute-only TU: Value substrate + Error, no engine. conversion.cpp has no
 // CallContext builtins of its own (the tf2ss/ss2tf/etc. register wrappers live
@@ -73,10 +73,10 @@ Tf2ZpResult tf2zp(const Value &num, const Value &den,
     // Gain is num(1)/den(1) (after stripping leading zeros).
     const double k = numV.empty() ? 0.0 : numV[0] / denV[0];
 
-    // Roots of num and den. The existing numkit::math::roots already
+    // Roots of num and den. The existing numkit::builtin::roots already
     // handles both real-and-complex output and trailing-zero roots.
-    Value zRoots = numkit::math::roots(num, mr);
-    Value pRoots = numkit::math::roots(den, mr);
+    Value zRoots = numkit::builtin::roots(num, mr);
+    Value pRoots = numkit::builtin::roots(den, mr);
 
     return {std::move(zRoots), std::move(pRoots),
             Value::scalar(k, mr)};
@@ -86,14 +86,14 @@ std::pair<Value, Value>
 zp2tf(const Value &z, const Value &p, const Value &k,
       std::pmr::memory_resource *mr)
 {
-    // num = k * poly(z), den = poly(p). numkit::math::poly takes a column
+    // num = k * poly(z), den = poly(p). numkit::builtin::poly takes a column
     // vector of roots and returns the row of polynomial coefficients
     // (leading 1, descending powers).
-    Value den = numkit::math::poly(p, mr);
-    Value num = numkit::math::poly(z, mr);
+    Value den = numkit::builtin::poly(p, mr);
+    Value num = numkit::builtin::poly(z, mr);
 
     // poly([]) of no zeros is the constant polynomial 1 (MATLAB: poly([])==1).
-    // numkit::math::poly returns an empty row for empty input, which would
+    // numkit::builtin::poly returns an empty row for empty input, which would
     // collapse num to [] and silently drop the gain (bugs/control/zpk-empty-zeros).
     // Normalize the no-zero case to [1] so num scales to [k].
     if (num.numel() == 0) {
@@ -327,7 +327,7 @@ double sampleTimeOf(const Value &sys) {
 
 std::vector<std::complex<double>>
 rootsComplex(const Value &polyV, std::pmr::memory_resource *mr) {
-    Value r = numkit::math::roots(polyV, mr);
+    Value r = numkit::builtin::roots(polyV, mr);
     const size_t n = r.numel();
     std::vector<std::complex<double>> out(n);
     if (r.type() == ValueType::COMPLEX) {

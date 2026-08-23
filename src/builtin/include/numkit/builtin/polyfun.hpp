@@ -3,20 +3,16 @@
 // Pure C++ Polynomials, interpolation, integration, and piecewise polynomials.
 #pragma once
 
+#include <functional>
 #include <memory_resource>
 #include <string>
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
+#include <numkit/value/fn_handle.hpp>
 
 namespace numkit::builtin {
 
-/// @file
-/// @brief Polynomials, interpolation, numerical integration, and piecewise polynomial curves.
-///
-/// Provides a clean, engine-free C++ API for polynomial arithmetic and root finding,
-/// 1D/2D interpolation, spline and PCHIP curves, and trapezoidal integration.
-
-// ── Polynomials ─────────────────────────────────────────────────────────────
+using ::numkit::FnHandle;
 
 /// @brief Computes polynomial roots (`roots(p)`).
 /// @param p Vector of polynomial coefficients in descending powers: `p[0]*x^N + ... + p[N]`.
@@ -46,6 +42,7 @@ Value polyval(const Value &p, const Value &x, std::pmr::memory_resource *mr = nu
 /// @return Derivative polynomial coefficients.
 /// @see polyint, polyval
 Value polyder(const Value &p, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> polyder(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Computes polynomial integral (`polyint(p, k)`).
 /// @param p Vector of polynomial coefficients.
@@ -61,8 +58,49 @@ Value polyint(const Value &p, double k = 0.0, std::pmr::memory_resource *mr = nu
 /// @param n Degree of the fitting polynomial.
 /// @param mr Memory resource.
 /// @return Fitted polynomial coefficients of length `n + 1`.
-/// @see polyval
-Value polyfit(const Value &x, const Value &y, size_t n, std::pmr::memory_resource *mr = nullptr);
+Value polyfit(const Value &x, const Value &y, int n, std::pmr::memory_resource *mr = nullptr);
+
+#include <tuple>
+
+struct PolyDiv {
+    Value q;
+    Value r;
+};
+
+struct PadeCoef {
+    Value num;
+    Value den;
+};
+
+/// @brief Matrix polynomial evaluation (`polyvalm(p, A)`).
+Value polyvalm(const Value &p, const Value &A, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Characteristic polynomial of matrix (`poly_of_matrix(A)`).
+Value poly_of_matrix(const Value &A, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Padé approximation of time delay (`[num, den] = padecoef(T, N)`).
+PadeCoef padecoef(double T, int N, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Polynomial division (`[q, r] = polydiv(b, a)`).
+PolyDiv polydiv(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Transfer function to zero-pole-gain (`[z, p, k] = tf2zp(b, a)`).
+std::tuple<Value, Value, Value> tf2zp(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Zero-pole-gain to transfer function (`[b, a] = zp2tf(z, p, k)`).
+std::tuple<Value, Value> zp2tf(const Value &z, const Value &p, double k, std::pmr::memory_resource *mr = nullptr);
+
+struct ResidueResult {
+    Value r;
+    Value p;
+    Value k;
+};
+
+/// @brief Partial fraction expansion (residues) in s-domain (`[r, p, k] = residue(b, a)`).
+ResidueResult residue(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Partial fraction expansion in z-domain (`[r, p, k] = residuez(b, a)`).
+ResidueResult residuez(const Value &b, const Value &a, std::pmr::memory_resource *mr = nullptr);
 
 // ── Interpolation & Piecewise Polynomials ───────────────────────────────────
 
@@ -86,25 +124,15 @@ Value interp1(const Value &x, const Value &v, const Value &xq, const std::string
 /// @param mr Memory resource.
 /// @return Interpolated values.
 /// @see interp1
+Value interp2(const Value &V, const Value &Xq, const Value &Yq, const std::string &method = "linear", std::pmr::memory_resource *mr = nullptr);
 Value interp2(const Value &x, const Value &y, const Value &v, const Value &xq, const Value &yq, const std::string &method = "linear", std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Cubic spline data interpolation.
-/// @param x Sample grid points.
-/// @param y Sample values.
-/// @param xq Query points (optional, returns piecewise polynomial struct if empty).
-/// @param mr Memory resource.
-/// @return Interpolated values or ppform structure.
-/// @see pchip, ppval, unmkpp
-Value spline(const Value &x, const Value &y, const Value &xq = Value(), std::pmr::memory_resource *mr = nullptr);
+Value interp3(const Value &V, const Value &Xq, const Value &Yq, const Value &Zq, const std::string &method = "linear", std::pmr::memory_resource *mr = nullptr);
+Value interp3(const Value &X, const Value &Y, const Value &Z, const Value &V, const Value &Xq, const Value &Yq, const Value &Zq, const std::string &method = "linear", std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Piecewise Cubic Hermite Interpolating Polynomial (PCHIP - shape-preserving).
-/// @param x Sample grid points.
-/// @param y Sample values.
-/// @param xq Query points (optional, returns piecewise polynomial struct if empty).
-/// @param mr Memory resource.
-/// @return Interpolated values or ppform structure.
-/// @see spline, ppval
+Value spline(const Value &x, const Value &y, const Value &xq = Value(), std::pmr::memory_resource *mr = nullptr);
 Value pchip(const Value &x, const Value &y, const Value &xq = Value(), std::pmr::memory_resource *mr = nullptr);
+Value makima(const Value &x, const Value &y, const Value &xq, std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Constructs a piecewise polynomial structure (ppform).
 /// @param breaks Vector of break points.
@@ -129,38 +157,54 @@ Value unmkpp(const Value &pp, std::pmr::memory_resource *mr = nullptr);
 /// @see mkpp, unmkpp, spline, pchip
 Value ppval(const Value &pp, const Value &xq, std::pmr::memory_resource *mr = nullptr);
 
-// ── Numerical Integration ───────────────────────────────────────────────────
+Value gradient(const Value &f, double h = 1.0, std::pmr::memory_resource *mr = nullptr);
+std::tuple<Value, Value> gradient2(const Value &f, double hx = 1.0, double hy = 1.0, std::pmr::memory_resource *mr = nullptr);
+Value del2(const Value &u, double h = 1.0, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Trapezoidal numerical integration with unit spacing (`trapz(y)`).
-/// @param y Input array.
-/// @param mr Memory resource.
-/// @return Approximate integral.
-/// @see cumtrapz
 Value trapz(const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value trapz(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value trapz(const Value &x, const Value &y, int dim, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Trapezoidal numerical integration with coordinate array `x` (`trapz(x, y)`).
-/// @param x Coordinate vector.
-/// @param y Input array.
-/// @param dim Dimension along which to integrate (0 = default).
-/// @param mr Memory resource.
-/// @return Approximate integral.
-/// @see cumtrapz
-Value trapz(const Value &x, const Value &y, int dim = 0, std::pmr::memory_resource *mr = nullptr);
-
-/// @brief Cumulative trapezoidal numerical integration with unit spacing (`cumtrapz(y)`).
-/// @param y Input array.
-/// @param mr Memory resource.
-/// @return Cumulative integral array.
-/// @see trapz
 Value cumtrapz(const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value cumtrapz(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value cumtrapz(const Value &x, const Value &y, int dim, std::pmr::memory_resource *mr = nullptr);
+Value cumtrapzDim(const Value &y, int dim, std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Cumulative trapezoidal numerical integration with coordinate array `x` (`cumtrapz(x, y)`).
-/// @param x Coordinate vector.
-/// @param y Input array.
-/// @param dim Dimension along which to integrate (0 = default).
-/// @param mr Memory resource.
-/// @return Cumulative integral array.
-/// @see trapz
-Value cumtrapz(const Value &x, const Value &y, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value integral(FnHandle fn, double a, double b, double absTol = 1e-10, std::pmr::memory_resource *mr = nullptr);
+Value integral2(FnHandle fn, double a, double b, double c, double d, double absTol = 1e-10, std::pmr::memory_resource *mr = nullptr);
+Value integral3(FnHandle fn, double a, double b, double c, double d, double e, double f, double absTol = 1e-10, std::pmr::memory_resource *mr = nullptr);
+
+// ── Computational Geometry ──────────────────────────────────────────────────
+
+struct MatchpairsResult {
+    Value M;
+    Value uR;
+    Value uC;
+};
+
+struct InpolygonResult {
+    Value in;
+    Value on;
+};
+
+struct PolyxpolyResult {
+    Value xi;
+    Value yi;
+    Value segments;
+};
+
+Value polyarea(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value inpolygon(const Value &xq, const Value &yq, const Value &xv, const Value &yv, std::pmr::memory_resource *mr = nullptr);
+InpolygonResult inpolygon2(const Value &xq, const Value &yq, const Value &xv, const Value &yv, std::pmr::memory_resource *mr = nullptr);
+Value convhull(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
+PolyxpolyResult polyxpoly(const Value &x1, const Value &y1, const Value &x2, const Value &y2, std::pmr::memory_resource *mr = nullptr);
+MatchpairsResult matchpairs(const Value &C, double cU, const std::string &mode = "min", std::pmr::memory_resource *mr = nullptr);
+Value boundary(const Value &x, const Value &y, double shrink = 0.5, std::pmr::memory_resource *mr = nullptr);
+Value delaunay(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value griddata(const Value &x, const Value &y, const Value &v, const Value &xq, const Value &yq, std::pmr::memory_resource *mr = nullptr);
+Value griddata(const Value &x, const Value &y, const Value &v, const Value &xq, const Value &yq, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+Value griddatan(const Value &Xv, const Value &vv, const Value &xi, std::pmr::memory_resource *mr = nullptr);
+Value griddatan(const Value &Xv, const Value &vv, const Value &xi, const std::string &method, std::pmr::memory_resource *mr = nullptr);
+Value histcounts2(const Value &x, const Value &y, const Value &xedgesV, const Value &yedgesV, std::pmr::memory_resource *mr = nullptr);
 
 } // namespace numkit::builtin

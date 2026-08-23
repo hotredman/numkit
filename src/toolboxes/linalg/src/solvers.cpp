@@ -9,7 +9,7 @@
 
 #include <numkit/linalg/pseudo_subspace.hpp>      // pinv
 #include <numkit/ops/la_solve.hpp>   // numkit::ops::la_solve
-#include <numkit/lang/operators/binary_ops.hpp>  // mtimes
+#include <numkit/builtin/ops.hpp>  // mtimes
 
 // Compute-only TU: Value substrate + Error, no engine. The linsolve /
 // lsqminnorm / lsqnonneg builtins (CallContext wrappers) live in
@@ -147,7 +147,7 @@ Value lsqminnorm(const Value &A, const Value &B, bool have_tol, double tol_user,
                     0, 0, "lsqminnorm", "", "numkit:lsqminnorm:DimMismatch");
 
     Value Ap = pinv(A, have_tol ? tol_user : -1.0, mr);
-    return numkit::lang::mtimes(Ap, B, mr);
+    return numkit::builtin::mtimes(Ap, B, mr);
 }
 
 // ── lsqnonneg ─────────────────────────────────────────────────────────

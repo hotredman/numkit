@@ -2,8 +2,8 @@
 
 #include <numkit/stats/distributions/rician.hpp>
 
-#include <numkit/math/special/special.hpp>   // besseli
-#include <numkit/math/random/rng.hpp>
+#include <numkit/builtin/specfun.hpp>   // besseli
+#include <numkit/builtin/datafun.hpp>
 #include <numkit/comm/channel/channel.hpp>           // marcumq
 
 #include <numkit/value/value.hpp>

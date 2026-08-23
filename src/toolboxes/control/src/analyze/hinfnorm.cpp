@@ -26,7 +26,7 @@
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/math/poly/polynomials.hpp>   // numkit::math::roots
+#include <numkit/builtin/polyfun.hpp>   // numkit::builtin::roots
 
 #include <algorithm>
 #include <cmath>
@@ -153,7 +153,7 @@ std::vector<Cd> eigOf(const Mat &M, size_t n, std::pmr::memory_resource *mr) {
     auto cp = charPoly(M, n);                    // [1, c1, …, cn]
     Value row = Value::matrix(1, cp.size(), ValueType::DOUBLE, mr);
     if (!cp.empty()) std::copy(cp.begin(), cp.end(), row.doubleDataMut());
-    Value r = numkit::math::roots(row, mr);
+    Value r = numkit::builtin::roots(row, mr);
     const size_t N = r.numel();
     std::vector<Cd> out(N);
     if (r.type() == ValueType::COMPLEX) {

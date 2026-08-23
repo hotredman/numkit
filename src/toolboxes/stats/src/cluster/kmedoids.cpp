@@ -2,7 +2,8 @@
 
 #include <numkit/stats/cluster/kmedoids.hpp>
 
-#include <numkit/math/random/rng.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/ops/rng_context.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/scratch.hpp>

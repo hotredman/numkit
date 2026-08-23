@@ -119,7 +119,7 @@ inline double betainc_scalar(double y, double a, double b,
     Value yv = Value::scalar(y, mr);
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);
-    return ::numkit::math::betainc(yv, av, bv, mr).toScalar();
+    return ::numkit::builtin::betainc(yv, av, bv, mr).toScalar();
 }
 
 double ncfcdf_one(double x, double nu1, double nu2, double delta,

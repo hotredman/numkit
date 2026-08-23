@@ -5,8 +5,10 @@
 // TU; collected here verbatim (reg-side arg parsers nested in their anon
 // namespaces ride along). See project_layering_refactor.
 #include <numkit/core/engine.hpp>
-#include <numkit/math/poly/polynomials.hpp>  // tf2zp (ZPK 3-output)
+#include <numkit/builtin/polyfun.hpp>
+#include <numkit/builtin/specfun.hpp>
 #include <numkit/signal/filter_design/filter_design.hpp>
+#include <numkit/signal/filter_implementation/conversions_extras.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
@@ -44,12 +46,12 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     auto [bv, av] = butter(N, Wn, type, ctx.engine->resource());
     if (nargout >= 3) {
         // [z, p, k] = butter(...): digital zero/pole/gain. The denominator
-        // is monic so the ZPK gain equals b(1); tf2zp recovers z/p as the
+        // is monic so the ZPK gain equals b(1); tf2zpk recovers z/p as the
         // roots of b/a (same set MATLAB returns; order may differ).
-        auto [z, p, k] = ::numkit::math::tf2zp(bv, av, ctx.engine->resource());
+        auto [z, p, k] = tf2zpk(bv, av, ctx.engine->resource());
         outs[0] = std::move(z);
         outs[1] = std::move(p);
-        outs[2] = std::move(k);
+        outs[2] = Value::scalar(k, ctx.engine->resource());
         return;
     }
     outs[0] = std::move(bv);

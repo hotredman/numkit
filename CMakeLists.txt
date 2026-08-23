@@ -96,14 +96,12 @@ add_subdirectory(src/fs)      # L0:   filesystem abstraction (numkit_fs) — STL
 add_subdirectory(src/ops)     # L0.5: numeric primitives + threading (numkit_ops) → value (+Highway)
 add_subdirectory(src/figure)  # L0.5 header-only: figure/plot session state (FigureManager) — below core, used by core+graphics
 add_subdirectory(src/core)
-add_subdirectory(src/math)    # L2: MATLAB Mathematics compute (numkit math) — extracted from builtin (Phase 3-A step C)
-add_subdirectory(src/lang)    # L2: MATLAB Language Fundamentals compute (numkit lang) — extracted from builtin (Phase 3-A step C2)
+add_subdirectory(src/builtin)  # L2: MATLAB built-in standard library (elmat, elfun, matfun, datafun, ...)
 add_subdirectory(src/graphics)   # L2 service: plotting (figure/plot/…) — depends on no toolbox; toolboxes MAY depend on it
 add_subdirectory(src/scriptgraph) # L2 IDE-analysis: AST→NodeGraph→JSON (buildScriptGraph) — core-coupled (parser), registers no builtin
 add_subdirectory(src/codegen)    # L2 codegen: AST→typed IR→C++ transpiler (type inference) — core-coupled, registers no builtin
 add_subdirectory(src/toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
 add_subdirectory(src/runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
-add_subdirectory(src/builtin)  # L2: MATLAB built-in standard library (elmat, elfun, matfun, datafun, ...)
 add_subdirectory(src/bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
 # Fail loudly if any aggregated layer include-dir variable came back empty — the owning
@@ -112,8 +110,7 @@ add_subdirectory(src/bundle)  # L3: installStandardLibrary / makeStandardEngine 
 # would drop that layer's headers from every target's include path and surface only as a
 # confusing downstream "file not found" (architecture review §5 — CMake aggregation).
 foreach(_inc_var NUMKIT_CORE_INCLUDE_DIRS NUMKIT_FIGURE_INCLUDE_DIRS NUMKIT_LIBS_INCLUDE_DIRS
-                 NUMKIT_MATH_INCLUDE_DIRS NUMKIT_LANG_INCLUDE_DIRS NUMKIT_RUNTIME_INCLUDE_DIRS
-                 NUMKIT_BUILTIN_INCLUDE_DIRS NUMKIT_BUNDLE_INCLUDE_DIRS)
+                 NUMKIT_RUNTIME_INCLUDE_DIRS NUMKIT_BUILTIN_INCLUDE_DIRS NUMKIT_BUNDLE_INCLUDE_DIRS)
     if(NOT ${_inc_var})
         message(FATAL_ERROR
             "Layer include-dir variable ${_inc_var} is empty — the owning layer's "
@@ -129,12 +126,10 @@ set(NUMKIT_SOURCES )
 set(NUMKIT_LAYER_OBJECTS
     $<TARGET_OBJECTS:numkit_core_obj>
     $<TARGET_OBJECTS:numkit_toolboxes_obj>
-    $<TARGET_OBJECTS:numkit_math_obj>
-    $<TARGET_OBJECTS:numkit_lang_obj>
     $<TARGET_OBJECTS:numkit_runtime_obj>
     $<TARGET_OBJECTS:numkit_builtin_obj>
     $<TARGET_OBJECTS:numkit_bundle_obj>)
-set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_MATH_HEADERS} ${NUMKIT_LANG_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
+set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_BUILTIN_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
 
 if(NUMKIT_BUILD_SHARED)
     add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS} ${NUMKIT_LAYER_OBJECTS})
@@ -328,12 +323,10 @@ endfunction()
 
 add_library(numkit_core_obj      OBJECT ${NUMKIT_CORE_SOURCES})
 add_library(numkit_toolboxes_obj OBJECT ${NUMKIT_LIBS_SOURCES})
-add_library(numkit_math_obj      OBJECT ${NUMKIT_MATH_SOURCES})
-add_library(numkit_lang_obj      OBJECT ${NUMKIT_LANG_SOURCES})
 add_library(numkit_runtime_obj   OBJECT ${NUMKIT_RUNTIME_SOURCES})
 add_library(numkit_builtin_obj   OBJECT ${NUMKIT_BUILTIN_SOURCES})
 add_library(numkit_bundle_obj    OBJECT ${NUMKIT_BUNDLE_SOURCES})
-foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_math_obj numkit_lang_obj numkit_runtime_obj numkit_builtin_obj numkit_bundle_obj)
+foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_runtime_obj numkit_builtin_obj numkit_bundle_obj)
     numkit_configure_layer(${_obj})
 endforeach()
 
@@ -364,8 +357,6 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     # contribute their gtest sources via target_sources(numkit_gtest PRIVATE ...).
     add_subdirectory(tests)
     add_subdirectory(src/core/tests)
-    add_subdirectory(src/math/tests)
-    add_subdirectory(src/lang/tests)
     add_subdirectory(src/runtime/tests)
     add_subdirectory(src/builtin/tests)
     add_subdirectory(src/bundle/tests)
