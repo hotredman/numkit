@@ -6,12 +6,13 @@ set IDE_DIR=%PROJECT_DIR%ide
 set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
 set DEPLOY_DIR=%PROJECT_DIR%deploy
 if not defined EMSDK (
-    if exist "%USERPROFILE%\Repo\emsdk\upstream\emscripten\emcc.bat" set "EMSDK=%USERPROFILE%\Repo\emsdk"
-    if exist "%USERPROFILE%\emsdk\upstream\emscripten\emcc.bat" set "EMSDK=%USERPROFILE%\emsdk"
-    if exist "C:\Users\User\Repo\emsdk\upstream\emscripten\emcc.bat" set "EMSDK=C:\Users\User\Repo\emsdk"
+    if exist "C:\Users\User\Repo\emsdk" set "EMSDK=C:\Users\User\Repo\emsdk"
+    if exist "%USERPROFILE%\Repo\emsdk" set "EMSDK=%USERPROFILE%\Repo\emsdk"
+    if exist "%USERPROFILE%\emsdk" set "EMSDK=%USERPROFILE%\emsdk"
 )
-if defined EMSDK (
-    set "EMCC_DIR=!EMSDK!\upstream\emscripten"
+if not defined EMCC_DIR (
+    if exist "C:\Users\User\Repo\emsdk\upstream\emscripten\emcc.bat" set "EMCC_DIR=C:\Users\User\Repo\emsdk\upstream\emscripten"
+    if exist "%USERPROFILE%\Repo\emsdk\upstream\emscripten\emcc.bat" set "EMCC_DIR=%USERPROFILE%\Repo\emsdk\upstream\emscripten"
 )
 
 echo === Numkit IDE Static Build -- output to deploy\ ===
@@ -28,15 +29,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set HAS_EMSDK=0
-if exist "!EMCC_DIR!\emcc.bat" set HAS_EMSDK=1
-
-if "!HAS_EMSDK!"=="0" (
+:: Build WASM if emsdk available
+if not exist "%EMCC_DIR%\emcc.bat" (
     echo emsdk not found -- building without WASM (fallback mode only)
     goto after_wasm
 )
 
-if "!SKIP_WASM!"=="1" (
+if "%SKIP_WASM%"=="1" (
     echo [WASM] Skipping rebuild (--skip-wasm)
 ) else (
     echo Building WASM...
