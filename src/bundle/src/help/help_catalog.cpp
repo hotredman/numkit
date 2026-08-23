@@ -41,8 +41,13 @@ const HelpCategory *HelpCatalog::findCategory(std::string name) const {
     if (name == "math") name = "elfun";
     if (name == "strings") name = "strfun";
     if (name == "time" || name == "dates") name = "timefun";
-    if (name == "io" || name == "file") name = "iofun";
+    if (name == "io" || name == "file" || name == "files") name = "iofun";
     if (name == "plots" || name == "plot") name = "graphics";
+    if (name == "operators" || name == "operator" || name == "arithmetic") name = "ops";
+    if (name == "general" || name == "language" || name == "errors" || name == "diag" || name == "diagnostics") name = "lang";
+    if (name == "communications" || name == "comms") name = "comm";
+    if (name == "wavelets") name = "wavelet";
+    if (name == "sound" || name == "sounds") name = "audio";
 
     auto it = categoryIndex_.find(name);
     if (it != categoryIndex_.end() && it->second < categories_.size()) {
@@ -63,9 +68,13 @@ const HelpEntry *HelpCatalog::findFunction(std::string name) const {
 std::string HelpCatalog::formatAllCategories() const {
     std::ostringstream os;
     os << "Numkit Help Topics:\n\n";
-    os << "  Standard MATLAB Library:\n";
-    for (const auto &cat : categories_) {
-        os << "    " << padRight(cat.name, 14) << "- " << cat.title << "\n";
+    os << "  Fundamentals:\n";
+    for (size_t i = 0; i < 12 && i < categories_.size(); ++i) {
+        os << "    " << padRight(categories_[i].name, 14) << "- " << categories_[i].title << "\n";
+    }
+    os << "\n  Toolboxes:\n";
+    for (size_t i = 12; i < categories_.size(); ++i) {
+        os << "    " << padRight(categories_[i].name, 14) << "- " << categories_[i].title << "\n";
     }
     os << "\nType \"help <topic>\" for a list of functions in that topic.\n";
     os << "Type \"help <function>\" for documentation on a specific function.\n";
@@ -102,15 +111,9 @@ std::string HelpCatalog::formatFunction(const std::string &funcName) const {
         return static_cast<char>(std::toupper(c));
     });
 
-    os << " " << upperName << "    " << entry->summary << "\n\n";
-    if (!entry->signature.empty()) {
-        os << "    " << entry->signature << "\n\n";
-    }
-    if (!entry->doc.empty()) {
-        os << "    " << entry->doc << "\n";
-    } else {
-        os << "    " << upperName << "(...) computes the " << entry->summary << "\n";
-    }
+    os << " " << upperName << " " << entry->summary << "\n\n";
+    os << "    " << entry->signature << "\n\n";
+    os << "    " << entry->doc << "\n";
     return os.str();
 }
 
@@ -153,7 +156,7 @@ void HelpCatalog::initCategories() {
                         {"eye", "Identity matrix.", "eye(N) or eye(M, N)", "eye(N) returns an N-by-N identity matrix."},
                         {"rand", "Uniformly distributed random numbers.", "rand(M, N)", "rand(M,N) returns an M-by-N matrix of random numbers in (0, 1)."},
                         {"randn", "Normally distributed random numbers.", "randn(M, N)", "randn(M,N) returns an M-by-N matrix of standard normal random numbers."},
-                        {"randi", "Pseudorandom integers from a uniform discrete distribution.", "randi(IMAX, M, N)", "randi(IMAX, M, N) returns random integers between 1 and IMAX."},
+                        {"randi", "Pseudorandom integers from uniform discrete distribution.", "randi(IMAX, M, N)", "randi(IMAX, M, N) returns random integers between 1 and IMAX."},
                         {"linspace", "Linearly spaced vector.", "linspace(X1, X2, N)", "linspace(X1, X2, N) generates N linearly spaced points between X1 and X2."},
                         {"logspace", "Logarithmically spaced vector.", "logspace(D1, D2, N)", "logspace(D1, D2, N) generates N logarithmically spaced points between 10^D1 and 10^D2."},
                         {"freqspace", "Frequency spacing for frequency response.", "freqspace(N)", "freqspace returns the frequency range for frequency response."},
@@ -195,7 +198,7 @@ void HelpCatalog::initCategories() {
                         {"shiftdim", "Shift array dimensions.", "B = shiftdim(A, N)", "shiftdim shifts the dimensions of A by N steps."},
                         {"circshift", "Shift array circularly.", "B = circshift(A, K)", "circshift circularly shifts array elements by K."},
                         {"squeeze", "Remove singleton dimensions.", "B = squeeze(A)", "squeeze removes dimensions of size 1 from N-D array A."},
-                        {"find", "Find indices and values of non-zero elements.", "[row, col, v] = find(X)", "find returns the linear or subscript indices of non-zero elements."},
+                        {"find", "Find indices and values of non-zero elements.", "[row, col, v] = find(X)", "find returns linear or subscript indices of non-zero elements."},
                         {"sub2ind", "Linear index from multiple subscripts.", "IND = sub2ind(SZ, I, J)", "sub2ind converts row and column subscripts to linear index."},
                         {"ind2sub", "Multiple subscripts from linear index.", "[I, J] = ind2sub(SZ, IND)", "ind2sub converts linear index to row and column subscripts."},
                         {"bsxfun", "Binary singleton expansion function.", "C = bsxfun(FUN, A, B)", "bsxfun applies element-wise binary operation with singleton expansion."}
@@ -248,8 +251,8 @@ void HelpCatalog::initCategories() {
                         {"tanh", "Hyperbolic tangent.", "Y = tanh(X)", "tanh(X) computes the hyperbolic tangent."},
                         {"atan", "Inverse tangent.", "Y = atan(X)", "atan(X) computes the arctangent in radians."},
                         {"atand", "Inverse tangent in degrees.", "Y = atand(X)", "atand(X) computes the arctangent in degrees."},
-                        {"atan2", "Four-quadrant inverse tangent.", "Y = atan2(Y, X)", "atan2(Y, X) computes the four-quadrant arctangent in [-pi, pi]."},
-                        {"atan2d", "Four-quadrant inverse tangent in degrees.", "Y = atan2d(Y, X)", "atan2d computes the four-quadrant arctangent in degrees."},
+                        {"atan2", "Four-quadrant inverse tangent.", "Y = atan2(Y, X)", "atan2(Y, X) computes four-quadrant arctangent in [-pi, pi]."},
+                        {"atan2d", "Four-quadrant inverse tangent in degrees.", "Y = atan2d(Y, X)", "atan2d computes four-quadrant arctangent in degrees."},
                         {"atanh", "Inverse hyperbolic tangent.", "Y = atanh(X)", "atanh(X) computes the inverse hyperbolic tangent."},
                         {"sec", "Secant.", "Y = sec(X)", "sec(X) computes the secant 1/cos(X)."},
                         {"csc", "Cosecant.", "Y = csc(X)", "csc(X) computes the cosecant 1/sin(X)."},
@@ -262,191 +265,260 @@ void HelpCatalog::initCategories() {
                 {
                     "Exponential and logarithmic.",
                     {
-                        {"exp", "Exponential e^x.", "Y = exp(X)", "exp(X) computes the exponential e^x for each element of X."},
-                        {"log", "Natural logarithm ln(x).", "Y = log(X)", "log(X) computes the natural logarithm base e."},
-                        {"log10", "Common (base 10) logarithm.", "Y = log10(X)", "log10(X) computes the logarithm base 10."},
-                        {"log2", "Base 2 logarithm and dissect floating-point number.", "Y = log2(X)", "log2(X) computes the logarithm base 2."},
-                        {"pow2", "Base 2 power and scale.", "Y = pow2(X)", "pow2(X) computes 2.^X."},
-                        {"sqrt", "Square root.", "Y = sqrt(X)", "sqrt(X) computes the square root of elements of X."},
-                        {"cbrt", "Cube root.", "Y = cbrt(X)", "cbrt(X) computes the real cube root."},
-                        {"nextpow2", "Next higher power of 2.", "P = nextpow2(N)", "nextpow2(N) returns the smallest integer P such that 2^P >= abs(N)."}
+                        {"exp", "Exponential e^x.", "Y = exp(X)", "exp(X) computes the natural exponential e^x for each element."},
+                        {"log", "Natural logarithm ln(x).", "Y = log(X)", "log(X) computes the natural logarithm ln(x)."},
+                        {"log10", "Common (base 10) logarithm.", "Y = log10(X)", "log10(X) computes the base-10 logarithm."},
+                        {"log2", "Base 2 logarithm and dissect floating point.", "Y = log2(X)", "log2(X) computes the base-2 logarithm."},
+                        {"sqrt", "Square root.", "Y = sqrt(X)", "sqrt(X) computes the square root of each element."},
+                        {"nthroot", "Real nth root of real numbers.", "Y = nthroot(X, N)", "nthroot returns the real nth root of elements of X."},
+                        {"nextpow2", "Next higher power of 2.", "P = nextpow2(N)", "nextpow2 returns the smallest integer P such that 2^P >= abs(N)."},
+                        {"pow2", "Base 2 power and scale floating point.", "Y = pow2(X)", "pow2(X) computes 2.^X."}
                     }
                 },
                 {
-                    "Complex numbers.",
+                    "Complex operations.",
                     {
-                        {"abs", "Absolute value and complex magnitude.", "Y = abs(X)", "abs(X) computes the absolute value or complex magnitude |X|."},
-                        {"angle", "Phase angle in radians.", "P = angle(Z)", "angle(Z) computes the phase angle in radians for complex Z."},
-                        {"complex", "Construct complex data from real and imaginary parts.", "Z = complex(A, B)", "complex(A, B) creates complex array A + B*i."},
-                        {"conj", "Complex conjugate.", "Y = conj(Z)", "conj(Z) computes the complex conjugate of Z."},
-                        {"real", "Real part of complex number.", "X = real(Z)", "real(Z) returns the real part of complex array Z."},
-                        {"imag", "Imaginary part of complex number.", "Y = imag(Z)", "imag(Z) returns the imaginary part of complex array Z."}
+                        {"abs", "Absolute value and complex magnitude.", "Y = abs(X)", "abs(X) computes the absolute value or complex magnitude |z|."},
+                        {"angle", "Phase angle of complex numbers.", "P = angle(Z)", "angle(Z) returns the phase angles in radians in [-pi, pi]."},
+                        {"complex", "Construct complex from real and imaginary.", "Z = complex(A, B)", "complex(A, B) creates complex array A + B*i."},
+                        {"conj", "Complex conjugate.", "Y = conj(X)", "conj(X) reverses the sign of the imaginary parts."},
+                        {"real", "Real part of complex number.", "Y = real(X)", "real(X) returns the real part of complex array X."},
+                        {"imag", "Imaginary part of complex number.", "Y = imag(X)", "imag(X) returns the imaginary part of complex array X."},
+                        {"isreal", "True for real array.", "TF = isreal(X)", "isreal(X) returns true if X does not contain complex elements."},
+                        {"sign", "Signum function.", "Y = sign(X)", "sign(X) returns 1 for x>0, -1 for x<0, 0 for x=0, and x/abs(x) for complex x."},
+                        {"unwrap", "Unwrap phase angles.", "Q = unwrap(P)", "unwrap corrects phase angles by adding multiples of +/- 2*pi."}
                     }
                 },
                 {
-                    "Rounding and remainder.",
+                    "Rounding and remainders.",
                     {
-                        {"round", "Round to nearest integer.", "Y = round(X)", "round(X) rounds elements of X to the nearest integers."},
-                        {"floor", "Round towards minus infinity.", "Y = floor(X)", "floor(X) rounds elements down to nearest integers."},
-                        {"ceil", "Round towards plus infinity.", "Y = ceil(X)", "ceil(X) rounds elements up to nearest integers."},
-                        {"fix", "Round towards zero.", "Y = fix(X)", "fix(X) truncates decimals towards zero."},
-                        {"mod", "Modulus (signed remainder after division).", "M = mod(X, Y)", "mod(X, Y) computes X - Y.*floor(X./Y)."},
-                        {"rem", "Remainder after division.", "R = rem(X, Y)", "rem(X, Y) computes X - Y.*fix(X./Y)."},
-                        {"sign", "Signum function.", "S = sign(X)", "sign(X) returns 1 for X>0, -1 for X<0, and 0 for X==0."}
+                        {"floor", "Round toward minus infinity.", "Y = floor(X)", "floor(X) rounds elements to the nearest integers <= X."},
+                        {"ceil", "Round toward plus infinity.", "Y = ceil(X)", "ceil(X) rounds elements to the nearest integers >= X."},
+                        {"round", "Round to nearest integer.", "Y = round(X)", "round(X) rounds elements to nearest integers (half away from zero)."},
+                        {"fix", "Round toward zero.", "Y = fix(X)", "fix(X) rounds elements to nearest integers toward zero."},
+                        {"mod", "Modulus after division.", "M = mod(X, Y)", "mod(X, Y) returns X - Y.*floor(X./Y)."},
+                        {"rem", "Remainder after division.", "R = rem(X, Y)", "rem(X, Y) returns X - Y.*fix(X./Y)."}
                     }
                 }
             }
         },
 
-        // ── 3. matfun: Matrix algebra and linear equations ───────────────
+        // ── 3. ops: Operators and elementary operations ──────────────────
+        {
+            "ops",
+            "Operators and elementary operations.",
+            {
+                {
+                    "Arithmetic operators.",
+                    {
+                        {"plus", "Addition (+).", "C = plus(A, B) or A + B", "plus adds corresponding elements of arrays with broadcasting."},
+                        {"uplus", "Unary plus (+).", "B = uplus(A) or +A", "uplus returns unchanged copy of numeric array."},
+                        {"minus", "Subtraction (-).", "C = minus(A, B) or A - B", "minus subtracts B from A element-by-element."},
+                        {"uminus", "Unary minus (-).", "B = uminus(A) or -A", "uminus negates each element of array A."},
+                        {"times", "Element-wise multiplication (.*).", "C = times(A, B) or A .* B", "times multiplies arrays element-by-element with broadcasting."},
+                        {"rdivide", "Right array division (./).", "C = rdivide(A, B) or A ./ B", "rdivide divides A by B element-by-element."},
+                        {"ldivide", "Left array division (.\).", "C = ldivide(A, B) or A .\\ B", "ldivide divides B by A element-by-element."},
+                        {"power", "Element-wise power (.^).", "C = power(A, B) or A .^ B", "power raises elements of A to powers in B."},
+                        {"mtimes", "Matrix multiplication (*).", "C = mtimes(A, B) or A * B", "mtimes computes algebraic matrix product of A and B."},
+                        {"mrdivide", "Matrix right division (/): B / A = B * inv(A).", "X = mrdivide(B, A) or B / A", "mrdivide solves X * A = B for X."},
+                        {"mldivide", "Matrix left division (\): A \ B = inv(A) * B.", "X = mldivide(A, B) or A \\ B", "mldivide solves linear system A * X = B."},
+                        {"mpower", "Matrix power (^).", "C = mpower(A, B) or A ^ B", "mpower computes matrix exponential or repeated multiplication."},
+                        {"pagemtimes", "Page-wise matrix multiplication.", "C = pagemtimes(A, B)", "pagemtimes evaluates matrix products page-by-page across N-D arrays."},
+                        {"transpose", "Array non-conjugate transpose (.').", "B = transpose(A) or A.'", "transpose interchanges row and column indices of array."},
+                        {"ctranspose", "Complex conjugate transpose (').", "B = ctranspose(A) or A'", "ctranspose computes Hermitian transpose (conjugate transpose)."}
+                    }
+                },
+                {
+                    "Relational operators.",
+                    {
+                        {"eq", "Equal (==).", "TF = eq(A, B) or A == B", "eq compares elements for equality, returning logical array."},
+                        {"ne", "Not equal (~=).", "TF = ne(A, B) or A ~= B", "ne tests if corresponding elements are not equal."},
+                        {"lt", "Less than (<).", "TF = lt(A, B) or A < B", "lt tests if A is strictly less than B element-wise."},
+                        {"gt", "Greater than (>).", "TF = gt(A, B) or A > B", "gt tests if A is strictly greater than B element-wise."},
+                        {"le", "Less than or equal (<=).", "TF = le(A, B) or A <= B", "le tests if A is less than or equal to B."},
+                        {"ge", "Greater than or equal (>=).", "TF = ge(A, B) or A >= B", "ge tests if A is greater than or equal to B."}
+                    }
+                },
+                {
+                    "Logical and bitwise operators.",
+                    {
+                        {"and", "Logical AND (&).", "C = and(A, B) or A & B", "and performs element-wise logical AND."},
+                        {"or", "Logical OR (|).", "C = or(A, B) or A | B", "or performs element-wise logical OR."},
+                        {"not", "Logical NOT (~).", "B = not(A) or ~A", "not negates logical values of elements."},
+                        {"xor", "Logical EXCLUSIVE-OR.", "C = xor(A, B)", "xor performs element-wise exclusive OR."},
+                        {"any", "True if any element of vector is non-zero.", "TF = any(X, DIM)", "any tests if any elements along DIM are non-zero."},
+                        {"all", "True if all elements of vector are non-zero.", "TF = all(X, DIM)", "all tests if all elements along DIM are non-zero."},
+                        {"bitand", "Bitwise AND.", "C = bitand(A, B)", "bitand computes bitwise AND of integer inputs."},
+                        {"bitor", "Bitwise OR.", "C = bitor(A, B)", "bitor computes bitwise OR of integer inputs."},
+                        {"bitxor", "Bitwise XOR.", "C = bitxor(A, B)", "bitxor computes bitwise exclusive OR of integers."},
+                        {"bitcmp", "Bitwise complement.", "C = bitcmp(A, N)", "bitcmp returns bitwise complement of unsigned integers."},
+                        {"bitshift", "Bitwise shift.", "C = bitshift(A, K)", "bitshift shifts integer bits left (K>0) or right (K<0)."},
+                        {"bitget", "Get bit at specified position.", "B = bitget(A, POS)", "bitget extracts bit values at bit position POS."},
+                        {"bitset", "Set bit at specified position.", "C = bitset(A, POS, V)", "bitset sets bit at position POS to V (0 or 1)."}
+                    }
+                }
+            }
+        },
+
+        // ── 4. matfun: Matrix functions - numerical linear algebra ───────
         {
             "matfun",
             "Matrix functions - numerical linear algebra.",
             {
                 {
-                    "Matrix analysis and norms.",
+                    "Matrix analysis.",
                     {
-                        {"norm", "Matrix or vector norm.", "N = norm(A, p)", "norm computes the vector or matrix norm."},
-                        {"rank", "Matrix rank.", "K = rank(A)", "rank(A) computes the number of linearly independent rows or columns."},
-                        {"det", "Matrix determinant.", "D = det(A)", "det(A) computes the determinant of square matrix A."},
-                        {"trace", "Sum of diagonal elements.", "T = trace(A)", "trace(A) returns the sum of diagonal elements of A."},
-                        {"null", "Null space.", "Z = null(A)", "null(A) computes an orthonormal basis for the null space of A."},
-                        {"orth", "Orthogonalization.", "Q = orth(A)", "orth(A) computes an orthonormal basis for the range of A."},
-                        {"rref", "Reduced row echelon form.", "[R, jb] = rref(A)", "rref(A) produces the reduced row echelon form of A."},
-                        {"cond", "Condition number with respect to inversion.", "C = cond(A)", "cond(A) returns the 2-norm condition number of matrix A."},
-                        {"rcond", "Reciprocal condition estimator.", "C = rcond(A)", "rcond(A) estimates the reciprocal 1-norm condition number."}
+                        {"norm", "Matrix or vector norm.", "N = norm(A, P)", "norm(A) calculates 1-, 2-, Inf-, or Frobenius norm."},
+                        {"normest", "Estimate 2-norm of matrix.", "E = normest(A)", "normest estimates matrix 2-norm using power iteration."},
+                        {"rank", "Matrix rank.", "K = rank(A, TOL)", "rank returns number of singular values greater than tolerance."},
+                        {"det", "Matrix determinant.", "D = det(A)", "det computes algebraic determinant of square matrix."},
+                        {"trace", "Sum of diagonal elements.", "T = trace(A)", "trace computes sum of main diagonal elements."},
+                        {"null", "Null space of matrix.", "Z = null(A)", "null finds orthonormal basis for null space A*Z = 0."},
+                        {"orth", "Orthonormal basis for range of matrix.", "Q = orth(A)", "orth computes orthonormal basis for range space of A."},
+                        {"rref", "Reduced row echelon form.", "[R, JB] = rref(A)", "rref produces reduced row echelon form using Gauss-Jordan elimination."},
+                        {"subspace", "Angle between two subspaces.", "THETA = subspace(A, B)", "subspace calculates angle in radians between column spaces of A and B."}
                     }
                 },
                 {
-                    "Linear equations and factorizations.",
+                    "Linear equations.",
                     {
-                        {"inv", "Matrix inverse.", "Y = inv(A)", "inv(A) computes the inverse of square matrix A."},
-                        {"pinv", "Pseudoinverse.", "Y = pinv(A)", "pinv(A) computes the Moore-Penrose pseudoinverse."},
-                        {"linsolve", "Solve linear system of equations.", "X = linsolve(A, B)", "linsolve(A, B) solves linear system A*X = B with options."},
-                        {"decomposition", "Matrix decomposition object.", "d = decomposition(A)", "decomposition creates reusable factorization objects."},
-                        {"lu", "LU factorization with partial pivoting.", "[L, U, P] = lu(A)", "lu(A) computes lower and upper triangular factors such that P*A = L*U."},
-                        {"qr", "Orthogonal-triangular decomposition.", "[Q, R] = qr(A)", "qr(A) factorizes matrix A into orthogonal Q and upper triangular R."},
-                        {"chol", "Cholesky factorization.", "R = chol(A)", "chol(A) computes upper triangular R such that R'*R = A for positive definite A."},
-                        {"svd", "Singular value decomposition.", "[U, S, V] = svd(A)", "svd(A) factorizes matrix A = U*S*V' into singular vectors and values."},
-                        {"eig", "Eigenvalues and eigenvectors.", "[V, D] = eig(A)", "eig(A) computes eigenvalues and eigenvectors of square matrix A."},
-                        {"schur", "Schur decomposition.", "[U, T] = schur(A)", "schur(A) produces unitary U and Schur matrix T such that A = U*T*U'."},
-                        {"balance", "Diagonal scaling for eigenvalue accuracy.", "[T, B] = balance(A)", "balance balances square matrix A to improve eigenvalue condition."}
+                        {"inv", "Matrix inverse.", "Y = inv(X)", "inv(X) computes exact matrix inverse X^(-1)."},
+                        {"pinv", "Moore-Penrose pseudoinverse.", "Y = pinv(X, TOL)", "pinv calculates Moore-Penrose pseudoinverse via SVD."},
+                        {"linsolve", "Solve linear system of equations.", "X = linsolve(A, B, OPTS)", "linsolve solves linear system with optional structure flags."},
+                        {"cond", "Condition number with respect to inversion.", "C = cond(A, P)", "cond computes matrix 2-norm condition number ratio."},
+                        {"rcond", "Reciprocal condition number estimate.", "R = rcond(A)", "rcond returns 1-norm reciprocal condition estimate in (0, 1]."}
+                    }
+                },
+                {
+                    "Matrix factorizations.",
+                    {
+                        {"lu", "LU matrix factorization.", "[L, U, P] = lu(A)", "lu factors square or rectangular matrix into permutation, unit lower and upper triangular."},
+                        {"qr", "QR matrix factorization.", "[Q, R, P] = qr(A)", "qr factors matrix into orthogonal Q and upper triangular R."},
+                        {"chol", "Cholesky factorization of positive definite matrix.", "R = chol(A)", "chol factors Hermitian positive-definite matrix into R'*R."},
+                        {"cholupdate", "Rank 1 update to Cholesky factorization.", "R1 = cholupdate(R, X, OP)", "cholupdate updates Cholesky factor R after rank-1 modification."},
+                        {"svd", "Singular value decomposition.", "[U, S, V] = svd(A)", "svd computes singular values and unitary matrices A = U*S*V'."},
+                        {"gsvd", "Generalized singular value decomposition.", "[U, V, X, C, S] = gsvd(A, B)", "gsvd computes simultaneous SVD of matrices A and B."},
+                        {"eig", "Eigenvalues and eigenvectors.", "[V, D] = eig(A)", "eig calculates eigenvalues and right eigenvectors of square matrix."},
+                        {"schur", "Schur decomposition.", "[U, T] = schur(A)", "schur factors matrix into unitary U and quasi-upper-triangular T."},
+                        {"ordschur", "Reorder eigenvalues in Schur factorization.", "[US, TS] = ordschur(U, T, SELECT)", "ordschur reorders diagonal blocks of Schur form."},
+                        {"hess", "Hessenberg form of matrix.", "[P, H] = hess(A)", "hess computes unitary similarity reduction to upper Hessenberg form."},
+                        {"qz", "QZ factorization for generalized eigenvalues.", "[AA, BB, Q, Z, V, W] = qz(A, B)", "qz computes generalized Schur decomposition."},
+                        {"ordqz", "Reorder eigenvalues in QZ factorization.", "[AAS, BBS, QS, ZS] = ordqz(AA, BB, Q, Z, SELECT)", "ordqz reorders generalized eigenvalues in QZ form."},
+                        {"rsf2csf", "Real to complex Schur form.", "[U, T] = rsf2csf(UR, TR)", "rsf2csf converts real Schur form to complex triangular Schur form."}
                     }
                 },
                 {
                     "Matrix functions.",
                     {
-                        {"expm", "Matrix exponential.", "E = expm(A)", "expm(A) computes the matrix exponential e^A via Pade approximation."},
-                        {"logm", "Matrix logarithm.", "L = logm(A)", "logm(A) computes the principal matrix logarithm."},
-                        {"sqrtm", "Matrix square root.", "X = sqrtm(A)", "sqrtm(A) computes matrix square root X such that X*X = A."},
-                        {"funm", "Evaluate general matrix function.", "F = funm(A, @fun)", "funm evaluates an analytic scalar function on a square matrix."}
+                        {"expm", "Matrix exponential e^A.", "E = expm(A)", "expm computes matrix exponential via Pade approximation with scaling."},
+                        {"logm", "Matrix logarithm ln(A).", "L = logm(A)", "logm computes principal matrix logarithm."},
+                        {"sqrtm", "Matrix square root A^(1/2).", "S = sqrtm(A)", "sqrtm computes principal matrix square root."},
+                        {"funm", "Evaluate general matrix function.", "F = funm(A, @fun)", "funm evaluates analytic scalar function on square matrix via Parlett recurrence."},
+                        {"kron", "Kronecker tensor product.", "K = kron(A, B)", "kron computes Kronecker matrix tensor product."},
+                        {"sylvester", "Solve Sylvester matrix equation A*X + X*B = C.", "X = sylvester(A, B, C)", "sylvester solves Sylvester matrix equation using Bartels-Stewart algorithm."}
                     }
                 }
             }
         },
 
-        // ── 4. datafun: Data analysis and Fourier transforms ─────────────
+        // ── 5. datafun: Data analysis and Fourier transforms ─────────────
         {
             "datafun",
             "Data analysis, summary statistics and Fourier transforms.",
             {
                 {
-                    "Summary statistics.",
+                    "Basic summary statistics.",
                     {
-                        {"sum", "Sum of elements.", "S = sum(X, DIM)", "sum(X) computes the sum of array elements along dimension DIM."},
-                        {"prod", "Product of elements.", "P = prod(X, DIM)", "prod(X) computes product of elements along dimension DIM."},
-                        {"cumsum", "Cumulative sum.", "Y = cumsum(X)", "cumsum(X) computes cumulative sum along dimension."},
-                        {"cumprod", "Cumulative product.", "Y = cumprod(X)", "cumprod(X) computes cumulative product along dimension."},
-                        {"diff", "Differences and approximate derivatives.", "Y = diff(X)", "diff(X) calculates differences between adjacent elements."},
-                        {"gradient", "Numerical gradient.", "[FX, FY] = gradient(F)", "gradient(F) computes numerical gradient of N-D array."},
-                        {"mean", "Average or mean value.", "M = mean(X, DIM)", "mean(X) calculates arithmetic mean along dimension DIM."},
-                        {"median", "Median value.", "M = median(X, DIM)", "median(X) calculates median along dimension DIM."},
-                        {"mode", "Most frequent value.", "M = mode(X)", "mode(X) returns the sample mode of elements."},
-                        {"std", "Standard deviation.", "S = std(X)", "std(X) computes sample standard deviation."},
-                        {"var", "Variance.", "V = var(X)", "var(X) computes sample variance."},
-                        {"min", "Minimum value.", "[M, I] = min(X)", "min(X) returns the minimum values along dimension."},
-                        {"max", "Maximum value.", "[M, I] = max(X)", "max(X) returns the maximum values along dimension."},
-                        {"bounds", "Smallest and largest elements.", "[L, U] = bounds(X)", "bounds(X) returns [min(X), max(X)]."},
-                        {"sort", "Sort array elements.", "[B, I] = sort(A, DIM, MODE)", "sort sorts array elements in ascending or descending order."},
-                        {"sortrows", "Sort matrix rows.", "[B, I] = sortrows(A, COLS)", "sortrows sorts rows of matrix A based on specified columns."}
-                    }
-                },
-                {
-                    "Correlation and convolution.",
-                    {
-                        {"cov", "Covariance matrix.", "C = cov(X)", "cov(X) computes covariance matrix."},
-                        {"corrcoef", "Correlation coefficients.", "R = corrcoef(X)", "corrcoef(X) computes matrix of correlation coefficients."},
-                        {"conv", "1-D Convolution and polynomial multiplication.", "C = conv(A, B, SHAPE)", "conv convolves vectors A and B."},
-                        {"conv2", "2-D Convolution.", "C = conv2(A, B, SHAPE)", "conv2 computes 2-D convolution of matrices A and B."},
-                        {"filter", "1-D digital filter.", "Y = filter(B, A, X)", "filter filters input vector X with rational transfer function B/A."},
-                        {"filter2", "2-D digital filter.", "Y = filter2(H, X, SHAPE)", "filter2 applies 2-D FIR filter H to matrix X."}
+                        {"max", "Largest elements in array.", "M = max(A, [], DIM)", "max returns maximum element values along dimension DIM."},
+                        {"min", "Smallest elements in array.", "M = min(A, [], DIM)", "min returns minimum element values along dimension DIM."},
+                        {"mean", "Average or mean value of array.", "M = mean(A, DIM)", "mean computes arithmetic mean along specified dimension."},
+                        {"median", "Median value of array.", "M = median(A, DIM)", "median computes sample median value along dimension."},
+                        {"std", "Standard deviation.", "S = std(A, W, DIM)", "std computes sample standard deviation (W=0 for N-1 normalization)."},
+                        {"var", "Variance.", "V = var(A, W, DIM)", "var computes sample variance along specified dimension."},
+                        {"sum", "Sum of array elements.", "S = sum(A, DIM)", "sum computes sum of elements along dimension DIM."},
+                        {"prod", "Product of array elements.", "P = prod(A, DIM)", "prod computes product of elements along dimension DIM."},
+                        {"cumsum", "Cumulative sum of elements.", "S = cumsum(A, DIM)", "cumsum computes running cumulative sum along dimension."},
+                        {"cumprod", "Cumulative product of elements.", "P = cumprod(A, DIM)", "cumprod computes running cumulative product along dimension."},
+                        {"cummax", "Cumulative maximum.", "M = cummax(A, DIM)", "cummax computes running maximum along dimension."},
+                        {"cummin", "Cumulative minimum.", "M = cummin(A, DIM)", "cummin computes running minimum along dimension."},
+                        {"diff", "Differences and approximate derivatives.", "Y = diff(X, N, DIM)", "diff computes Nth forward difference adjacent elements."},
+                        {"gradient", "Numerical gradient.", "[FX, FY] = gradient(F)", "gradient computes central differences numerical gradient."},
+                        {"trapz", "Trapezoidal numerical integration.", "Z = trapz(X, Y)", "trapz computes trapezoidal integration over discrete points."},
+                        {"cumtrapz", "Cumulative trapezoidal integration.", "Z = cumtrapz(X, Y)", "cumtrapz computes cumulative trapezoidal integral."},
+                        {"corrcoef", "Correlation coefficients matrix.", "R = corrcoef(X, Y)", "corrcoef computes Pearson linear correlation coefficient matrix."},
+                        {"cov", "Covariance matrix.", "C = cov(X, Y)", "cov computes sample covariance matrix."},
+                        {"sort", "Sort array elements in ascending or descending order.", "B = sort(A, DIM, MODE)", "sort sorts elements along dimension DIM in 'ascend' or 'descend' order."},
+                        {"sortrows", "Sort matrix rows based on keys.", "B = sortrows(A, COL)", "sortrows sorts rows of matrix according to specified columns."},
+                        {"issorted", "Determine if array is sorted.", "TF = issorted(A, DIM)", "issorted returns true if elements are in sorted order."},
+                        {"accumarray", "Construct array by accumulation.", "A = accumarray(SUBS, VALS, SZ, FUN)", "accumarray groups values by subscript indices and reduces via FUN."}
                     }
                 },
                 {
                     "Fourier transforms.",
                     {
-                        {"fft", "1-D Fast Fourier Transform.", "Y = fft(X, N, DIM)", "fft(X) computes the discrete Fourier transform via FFT algorithm."},
-                        {"ifft", "1-D Inverse Fast Fourier Transform.", "Y = ifft(X, N, DIM)", "ifft(X) computes inverse discrete Fourier transform."},
-                        {"fft2", "2-D Fast Fourier Transform.", "Y = fft2(X)", "fft2(X) computes 2-D discrete Fourier transform."},
-                        {"ifft2", "2-D Inverse Fast Fourier Transform.", "Y = ifft2(X)", "ifft2(X) computes 2-D inverse discrete Fourier transform."},
-                        {"fftn", "N-D Fast Fourier Transform.", "Y = fftn(X)", "fftn(X) computes N-D discrete Fourier transform."},
-                        {"ifftn", "N-D Inverse Fast Fourier Transform.", "Y = ifftn(X)", "ifftn(X) computes N-D inverse discrete Fourier transform."},
-                        {"fftshift", "Shift zero-frequency component to center.", "Y = fftshift(X)", "fftshift centers zero frequency in Fourier transform."},
-                        {"ifftshift", "Inverse zero-frequency shift.", "Y = ifftshift(X)", "ifftshift undoes the effect of fftshift."}
-                    }
-                },
-                {
-                    "Moving window statistics.",
-                    {
-                        {"movmean", "Moving average.", "Y = movmean(A, K)", "movmean computes moving average over window length K."},
-                        {"movmedian", "Moving median.", "Y = movmedian(A, K)", "movmedian computes moving median over window length K."},
-                        {"movstd", "Moving standard deviation.", "Y = movstd(A, K)", "movstd computes moving standard deviation."},
-                        {"movvar", "Moving variance.", "Y = movvar(A, K)", "movvar computes moving variance."},
-                        {"movmin", "Moving minimum.", "Y = movmin(A, K)", "movmin computes moving minimum."},
-                        {"movmax", "Moving maximum.", "Y = movmax(A, K)", "movmax computes moving maximum."},
-                        {"movsum", "Moving sum.", "Y = movsum(A, K)", "movsum computes moving sum."}
+                        {"fft", "1-D Fast Fourier Transform.", "Y = fft(X, N, DIM)", "fft computes discrete Fourier transform using Cooley-Tukey FFT algorithm."},
+                        {"ifft", "1-D Inverse Fast Fourier Transform.", "Y = ifft(X, N, DIM)", "ifft computes inverse discrete Fourier transform."},
+                        {"fft2", "2-D Fast Fourier Transform.", "Y = fft2(X, M, N)", "fft2 computes 2-D discrete Fourier transform."},
+                        {"ifft2", "2-D Inverse Fast Fourier Transform.", "Y = ifft2(X, M, N)", "ifft2 computes 2-D inverse discrete Fourier transform."},
+                        {"fftn", "N-D Fast Fourier Transform.", "Y = fftn(X, SZ)", "fftn computes N-D discrete Fourier transform."},
+                        {"ifftn", "N-D Inverse Fast Fourier Transform.", "Y = ifftn(X, SZ)", "ifftn computes N-D inverse discrete Fourier transform."},
+                        {"fftshift", "Shift zero-frequency component to center of spectrum.", "Y = fftshift(X, DIM)", "fftshift swaps left and right halves of transform."},
+                        {"ifftshift", "Inverse zero-frequency component shift.", "Y = ifftshift(X, DIM)", "ifftshift undoes the effect of fftshift."}
                     }
                 }
             }
         },
 
-        // ── 5. specfun: Special mathematical functions ───────────────────
+        // ── 6. specfun: Special mathematical functions ───────────────────
         {
             "specfun",
             "Special mathematical functions.",
             {
                 {
-                    "Gamma, beta and factorial.",
+                    "Bessel and Airy functions.",
                     {
-                        {"gamma", "Gamma function.", "Y = gamma(X)", "gamma(X) computes the gamma function."},
-                        {"gammainc", "Incomplete gamma function.", "Y = gammainc(X, A)", "gammainc computes regularized lower incomplete gamma function."},
-                        {"gammaln", "Logarithm of gamma function.", "Y = gammaln(X)", "gammaln(X) computes ln(gamma(X)) accurately."},
-                        {"psi", "Digamma and polygamma functions.", "Y = psi(K, X)", "psi(X) computes the logarithmic derivative of gamma function."},
-                        {"beta", "Beta function.", "Y = beta(Z, W)", "beta(Z, W) computes the beta function B(Z, W)."},
-                        {"betainc", "Incomplete beta function.", "Y = betainc(X, Z, W)", "betainc computes regularized incomplete beta function."},
-                        {"betaln", "Logarithm of beta function.", "Y = betaln(Z, W)", "betaln(Z, W) computes ln(beta(Z, W))."},
-                        {"factorial", "Factorial function.", "Y = factorial(N)", "factorial(N) computes N!."}
+                        {"besselj", "Bessel function of the first kind J_nu(z).", "J = besselj(NU, Z)", "besselj computes Bessel functions of the first kind."},
+                        {"bessely", "Bessel function of the second kind Y_nu(z).", "Y = bessely(NU, Z)", "bessely computes Bessel functions of the second kind (Neumann)."},
+                        {"besseli", "Modified Bessel function of first kind I_nu(z).", "I = besseli(NU, Z)", "besseli computes modified Bessel functions of first kind."},
+                        {"besselk", "Modified Bessel function of second kind K_nu(z).", "K = besselk(NU, Z)", "besselk computes modified Bessel functions of second kind."},
+                        {"besselh", "Bessel functions of the third kind (Hankel).", "H = besselh(M, NU, Z)", "besselh computes Hankel functions H1 and H2."},
+                        {"airy", "Airy functions Ai(x) and Bi(x).", "W = airy(K, Z)", "airy computes Airy functions and their derivatives."}
                     }
                 },
                 {
-                    "Error and Bessel functions.",
+                    "Gamma, Beta and Error functions.",
                     {
-                        {"erf", "Error function.", "Y = erf(X)", "erf(X) computes the error function 2/sqrt(pi)*int_0^X e^(-t^2) dt."},
-                        {"erfc", "Complementary error function.", "Y = erfc(X)", "erfc(X) computes 1 - erf(X)."},
-                        {"erfinv", "Inverse error function.", "Y = erfinv(X)", "erfinv(X) satisfies erf(erfinv(X)) = X."},
-                        {"erfcinv", "Inverse complementary error function.", "Y = erfcinv(X)", "erfcinv(X) satisfies erfc(erfcinv(X)) = X."},
-                        {"besselj", "Bessel function of the first kind.", "J = besselj(NU, Z)", "besselj computes Bessel function J_nu(z)."},
-                        {"bessely", "Bessel function of the second kind.", "Y = bessely(NU, Z)", "bessely computes Bessel function Y_nu(z)."},
-                        {"besseli", "Modified Bessel function of first kind.", "I = besseli(NU, Z)", "besseli computes modified Bessel I_nu(z)."},
-                        {"besselk", "Modified Bessel function of second kind.", "K = besselk(NU, Z)", "besselk computes modified Bessel K_nu(z)."},
-                        {"legendre", "Associated Legendre functions.", "P = legendre(N, X)", "legendre computes associated Legendre functions P_n^m(x)."},
-                        {"ellipke", "Complete elliptic integrals of first and second kind.", "[K, E] = ellipke(M)", "ellipke computes complete elliptic integrals."}
+                        {"gamma", "Gamma function Gamma(z).", "Y = gamma(X)", "gamma(X) evaluates the complete Gamma function."},
+                        {"gammainc", "Incomplete gamma function.", "Y = gammainc(X, A, TAIL)", "gammainc evaluates regularized lower or upper incomplete gamma function."},
+                        {"gammaln", "Logarithm of gamma function ln(Gamma(x)).", "Y = gammaln(X)", "gammaln computes logarithm of Gamma function avoiding overflow."},
+                        {"psi", "Digamma and polygamma functions.", "Y = psi(K, X)", "psi computes derivatives of the logarithm of the gamma function."},
+                        {"beta", "Beta function B(z, w).", "Y = beta(Z, W)", "beta evaluates Beta function B(z, w) = Gamma(z)*Gamma(w)/Gamma(z+w)."},
+                        {"betainc", "Incomplete beta function.", "Y = betainc(X, A, B, TAIL)", "betainc evaluates regularized incomplete beta function."},
+                        {"betaln", "Logarithm of beta function ln(B(z,w)).", "Y = betaln(Z, W)", "betaln computes logarithm of Beta function."},
+                        {"erf", "Error function.", "Y = erf(X)", "erf(X) computes the Gauss error function 2/sqrt(pi) * int(0..x, exp(-t^2) dt)."},
+                        {"erfc", "Complementary error function 1 - erf(x).", "Y = erfc(X)", "erfc(X) evaluates 1 - erf(X) with high precision for large X."},
+                        {"erfinv", "Inverse error function.", "Y = erfinv(X)", "erfinv computes the inverse error function such that erf(erfinv(x)) = x."},
+                        {"erfcinv", "Inverse complementary error function.", "Y = erfcinv(X)", "erfcinv computes inverse complementary error function."},
+                        {"ellipke", "Complete elliptic integrals of first and second kind.", "[K, E] = ellipke(M)", "ellipke calculates complete elliptic integrals K(m) and E(m)."},
+                        {"ellipj", "Jacobi elliptic functions sn, cn, dn.", "[SN, CN, DN] = ellipj(U, M)", "ellipj computes Jacobian elliptic functions."}
+                    }
+                },
+                {
+                    "Number theory.",
+                    {
+                        {"gcd", "Greatest common divisor.", "[G, C, D] = gcd(A, B)", "gcd computes greatest common divisor of integer values."},
+                        {"lcm", "Least common multiple.", "L = lcm(A, B)", "lcm computes least common multiple of integers."},
+                        {"factor", "Prime factor decomposition.", "F = factor(N)", "factor returns prime factors of positive integer N."},
+                        {"isprime", "True for prime numbers.", "TF = isprime(X)", "isprime returns true for prime integers."},
+                        {"primes", "Generate list of prime numbers <= N.", "P = primes(N)", "primes returns row vector of all primes less than or equal to N."},
+                        {"nchoosek", "Binomial coefficient (n choose k) and combinations.", "C = nchoosek(N, K)", "nchoosek computes n! / (k! * (n-k)!)."},
+                        {"factorial", "Factorial function n!.", "F = factorial(N)", "factorial computes product of integers 1 to N."}
                     }
                 }
             }
         },
 
-        // ── 6. polyfun: Polynomials, interpolation and numerical calculus ───
+        // ── 7. polyfun: Polynomials and interpolation ────────────────────
         {
             "polyfun",
             "Polynomials, interpolation and numerical integration.",
@@ -454,40 +526,34 @@ void HelpCatalog::initCategories() {
                 {
                     "Polynomials.",
                     {
-                        {"roots", "Polynomial roots.", "R = roots(P)", "roots(P) computes the roots of polynomial with coefficients P."},
-                        {"poly", "Polynomial with specified roots or characteristic polynomial.", "P = poly(R)", "poly(R) computes polynomial coefficients from roots."},
-                        {"polyval", "Evaluate polynomial.", "Y = polyval(P, X)", "polyval(P, X) evaluates polynomial P at points X."},
-                        {"polyfit", "Polynomial curve fitting.", "P = polyfit(X, Y, N)", "polyfit(X, Y, N) fits degree N polynomial in least-squares sense."},
-                        {"polyder", "Polynomial derivative.", "Q = polyder(P)", "polyder calculates derivative of polynomial."},
-                        {"polyint", "Polynomial integration.", "Q = polyint(P, K)", "polyint integrates polynomial with constant K."},
-                        {"deconv", "Deconvolution and polynomial division.", "[Q, R] = deconv(B, A)", "deconv deconvolves vector A from vector B."}
+                        {"poly", "Polynomial with specified roots or characteristic polynomial.", "P = poly(R)", "poly returns polynomial coefficients given roots or matrix."},
+                        {"roots", "Polynomial roots.", "R = roots(P)", "roots calculates complex roots of polynomial P via companion matrix eigenvalues."},
+                        {"polyval", "Evaluate polynomial.", "Y = polyval(P, X)", "polyval evaluates polynomial P at points X using Horner's method."},
+                        {"polyvalm", "Evaluate polynomial with matrix argument.", "Y = polyvalm(P, A)", "polyvalm evaluates matrix polynomial P(A)."},
+                        {"polyfit", "Polynomial curve fitting (least squares).", "[P, S, MU] = polyfit(X, Y, N)", "polyfit finds least-squares polynomial fit of degree N."},
+                        {"polyder", "Differentiate polynomial or polynomial product.", "K = polyder(P)", "polyder calculates derivative of polynomial P."},
+                        {"polyint", "Integrate polynomial analytically.", "K = polyint(P, C)", "polyint returns analytical integral of polynomial with constant C."},
+                        {"conv", "Convolution and polynomial multiplication.", "C = conv(A, B, SHAPE)", "conv multiplies polynomials or computes 1-D convolution."},
+                        {"deconv", "Deconvolution and polynomial division.", "[Q, R] = deconv(B, A)", "deconv computes quotient and remainder polynomials B = A*Q + R."},
+                        {"residue", "Partial fraction expansion (residues and poles).", "[R, P, K] = residue(B, A)", "residue converts rational transfer function to residue partial fractions."}
                     }
                 },
                 {
                     "Interpolation.",
                     {
-                        {"interp1", "1-D data interpolation.", "Vq = interp1(X, V, Xq, METHOD)", "interp1 interpolates 1-D data (linear, cubic, spline, nearest)."},
-                        {"interp2", "2-D data interpolation.", "Vq = interp2(X, Y, V, Xq, Yq, METHOD)", "interp2 interpolates 2-D gridded data."},
-                        {"interp3", "3-D data interpolation.", "Vq = interp3(X, Y, Z, V, Xq, Yq, Zq)", "interp3 interpolates 3-D volumetric data."},
-                        {"interpn", "N-D data interpolation.", "Vq = interpn(X1, X2, ..., V, Xq1, Xq2, ...)", "interpn interpolates N-D data on regular grids."},
-                        {"spline", "Cubic spline data interpolation.", "Yq = spline(X, Y, Xq)", "spline computes cubic spline interpolation with not-a-knot end conditions."},
-                        {"pchip", "Piecewise Cubic Hermite Interpolating Polynomial.", "Yq = pchip(X, Y, Xq)", "pchip computes shape-preserving Hermite interpolation."}
-                    }
-                },
-                {
-                    "Numerical integration.",
-                    {
-                        {"integral", "Numerically evaluate integral.", "Q = integral(FUN, A, B)", "integral computes adaptive numerical quadrature of scalar function."},
-                        {"integral2", "2-D numerical integration.", "Q = integral2(FUN, XMIN, XMAX, YMIN, YMAX)", "integral2 evaluates double integrals over rectangular domains."},
-                        {"integral3", "3-D numerical integration.", "Q = integral3(FUN, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX)", "integral3 evaluates triple integrals."},
-                        {"trapz", "Trapezoidal numerical integration.", "Z = trapz(X, Y)", "trapz computes trapezoidal integration over discrete points."},
-                        {"cumtrapz", "Cumulative trapezoidal integration.", "Z = cumtrapz(X, Y)", "cumtrapz computes cumulative trapezoidal integral."}
+                        {"interp1", "1-D data interpolation.", "YI = interp1(X, Y, XI, METHOD)", "interp1 interpolates 1-D data via 'linear', 'spline', 'pchip', 'nearest'."},
+                        {"interp2", "2-D grid data interpolation.", "ZI = interp2(X, Y, Z, XI, YI, METHOD)", "interp2 interpolates 2-D gridded surface data."},
+                        {"interp3", "3-D volume data interpolation.", "VI = interp3(X, Y, Z, V, XI, YI, ZI)", "interp3 performs tri-linear or cubic 3-D volume interpolation."},
+                        {"interpn", "N-D gridded interpolation.", "VI = interpn(X1, X2, ..., V, Y1, Y2, ...)", "interpn performs multidimensional interpolation on regular grids."},
+                        {"griddata", "Interpolate scattered data in 2-D.", "ZI = griddata(X, Y, Z, XI, YI, METHOD)", "griddata fits surface to scattered data points via Delaunay triangulation."},
+                        {"spline", "Cubic spline data interpolation.", "YY = spline(X, Y, XX)", "spline evaluates cubic spline with not-a-knot end conditions."},
+                        {"pchip", "Piecewise Cubic Hermite Interpolating Polynomial.", "YY = pchip(X, Y, XX)", "pchip constructs shape-preserving monotonic cubic interpolant."}
                     }
                 }
             }
         },
 
-        // ── 7. strfun: Character and string manipulation ─────────────────
+        // ── 8. strfun: Character and string manipulation ─────────────────
         {
             "strfun",
             "Character and string manipulation.",
@@ -527,7 +593,52 @@ void HelpCatalog::initCategories() {
             }
         },
 
-        // ── 8. timefun: Time and dates ───────────────────────────────────
+        // ── 9. datatypes: Data types and structures ──────────────────────
+        {
+            "datatypes",
+            "Data types, structures, cells and object introspection.",
+            {
+                {
+                    "Structures and cells.",
+                    {
+                        {"struct", "Create structure array.", "S = struct('field1', val1, ...)", "struct creates scalar or struct arrays."},
+                        {"cell", "Create cell array.", "C = cell(M, N)", "cell(M, N) creates an M-by-N cell array of empty matrices."},
+                        {"isstruct", "True for structures.", "TF = isstruct(S)", "isstruct(S) returns true if S is a struct."},
+                        {"iscell", "True for cell array.", "TF = iscell(C)", "iscell(C) returns true if C is a cell array."},
+                        {"iscellstr", "True for cell array of strings.", "TF = iscellstr(C)", "iscellstr(C) returns true if C contains only strings."},
+                        {"fieldnames", "Field names of structure or class.", "NAMES = fieldnames(S)", "fieldnames returns a cellstr of field names."},
+                        {"isfield", "Determine if structure has field.", "TF = isfield(S, 'name')", "isfield returns true if field exists."},
+                        {"getfield", "Get structure field contents.", "V = getfield(S, 'name')", "getfield retrieves field value."},
+                        {"setfield", "Set structure field contents.", "S = setfield(S, 'name', V)", "setfield assigns value to structure field."},
+                        {"rmfield", "Remove fields from structure.", "S = rmfield(S, 'name')", "rmfield deletes specified field from structure."},
+                        {"orderfields", "Order fields of structure array.", "S2 = orderfields(S1)", "orderfields sorts fields alphabetically or according to template."},
+                        {"cellfun", "Apply function to each cell in array.", "[A, B] = cellfun(@fun, C)", "cellfun evaluates function over all elements of cell array."},
+                        {"arrayfun", "Apply function to each element of array.", "B = arrayfun(@fun, A)", "arrayfun evaluates function over array elements."},
+                        {"structfun", "Apply function to each field in structure.", "B = structfun(@fun, S)", "structfun applies function to each field of structure."}
+                    }
+                },
+                {
+                    "Object model and class introspection.",
+                    {
+                        {"class", "Class name of object.", "CN = class(OBJ)", "class(OBJ) returns class name string."},
+                        {"isa", "Determine if input is of specified class.", "TF = isa(OBJ, 'classname')", "isa tests if object belongs to class or superclass."},
+                        {"isnumeric", "True for numeric array.", "TF = isnumeric(A)", "isnumeric returns true if input contains numeric elements."},
+                        {"ischar", "True for character array.", "TF = ischar(A)", "ischar returns true for 1-D/2-D character matrices."},
+                        {"isstring", "True for string array.", "TF = isstring(A)", "isstring returns true for string arrays."},
+                        {"islogical", "True for logical array.", "TF = islogical(A)", "islogical returns true for boolean arrays."},
+                        {"cast", "Cast variable to different data type.", "B = cast(A, 'newclass')", "cast converts variable to specified numeric or logical class."},
+                        {"isobject", "True for MATLAB OOP objects.", "TF = isobject(OBJ)", "isobject returns true for instances of classdef classes."},
+                        {"isprop", "True if object declares property.", "TF = isprop(OBJ, 'propname')", "isprop tests if class has specified property."},
+                        {"ismethod", "True if object declares method.", "TF = ismethod(OBJ, 'methodname')", "ismethod tests if class declares specified method."},
+                        {"methods", "List class methods.", "M = methods('classname')", "methods returns cellstr of all accessible methods."},
+                        {"properties", "List class property names.", "P = properties('classname')", "properties returns cellstr of public property names."},
+                        {"containers.Map", "Key-value associative map container.", "M = containers.Map(keys, values)", "containers.Map creates key-value map collection."}
+                    }
+                }
+            }
+        },
+
+        // ── 10. timefun: Time and dates ──────────────────────────────────
         {
             "timefun",
             "Time, dates and profiling.",
@@ -550,49 +661,56 @@ void HelpCatalog::initCategories() {
             }
         },
 
-        // ── 9. datatypes: Data types and structures ──────────────────────
+        // ── 11. lang: Language syntax, diagnostics and session ───────────
         {
-            "datatypes",
-            "Data types, structures, cells and object introspection.",
+            "lang",
+            "Language syntax, diagnostics and session.",
             {
                 {
-                    "Structures and cells.",
+                    "Language syntax and keywords.",
                     {
-                        {"struct", "Create structure array.", "S = struct('field1', val1, ...)", "struct creates scalar or struct arrays."},
-                        {"cell", "Create cell array.", "C = cell(M, N)", "cell(M, N) creates an M-by-N cell array of empty matrices."},
-                        {"isstruct", "True for structures.", "TF = isstruct(S)", "isstruct(S) returns true if S is a struct."},
-                        {"iscell", "True for cell array.", "TF = iscell(C)", "iscell(C) returns true if C is a cell array."},
-                        {"iscellstr", "True for cell array of strings.", "TF = iscellstr(C)", "iscellstr(C) returns true if C contains only strings."},
-                        {"fieldnames", "Field names of structure or class.", "NAMES = fieldnames(S)", "fieldnames returns a cellstr of field names."},
-                        {"isfield", "Determine if structure has field.", "TF = isfield(S, 'name')", "isfield returns true if field exists."},
-                        {"getfield", "Get structure field contents.", "V = getfield(S, 'name')", "getfield retrieves field value."},
-                        {"setfield", "Set structure field contents.", "S = setfield(S, 'name', V)", "setfield assigns value to structure field."},
-                        {"rmfield", "Remove fields from structure.", "S = rmfield(S, 'name')", "rmfield deletes specified field from structure."},
-                        {"cellfun", "Apply function to each cell in array.", "[A, B] = cellfun(@fun, C)", "cellfun evaluates function over all elements of cell array."},
-                        {"arrayfun", "Apply function to each element of array.", "B = arrayfun(@fun, A)", "arrayfun evaluates function over array elements."},
-                        {"structfun", "Apply function to each field in structure.", "B = structfun(@fun, S)", "structfun applies function to each field of structure."}
+                        {"iskeyword", "True for MATLAB keywords.", "TF = iskeyword('name')", "iskeyword returns true if name is a reserved keyword."},
+                        {"isvarname", "True for valid variable names.", "TF = isvarname('name')", "isvarname tests if string conforms to identifier rules."},
+                        {"getenv", "Get environment variable value.", "VAL = getenv('NAME')", "getenv reads operating system environment variable."},
+                        {"setenv", "Set environment variable.", "setenv('NAME', 'VAL')", "setenv assigns value to environment variable in current process."}
                     }
                 },
                 {
-                    "Object model and class introspection.",
+                    "Error handling and diagnostics.",
                     {
-                        {"class", "Class name of object.", "CN = class(OBJ)", "class(OBJ) returns the class name string."},
-                        {"isa", "Determine if input is of specified class.", "TF = isa(OBJ, 'classname')", "isa tests if object belongs to class or superclass."},
-                        {"isobject", "True for MATLAB OOP objects.", "TF = isobject(OBJ)", "isobject returns true for instances of classdef classes."},
-                        {"isprop", "True if object declares property.", "TF = isprop(OBJ, 'propname')", "isprop tests if class has specified property."},
-                        {"ismethod", "True if object declares method.", "TF = ismethod(OBJ, 'methodname')", "ismethod tests if class declares specified method."},
-                        {"methods", "List class methods.", "M = methods('classname')", "methods returns a cellstr of all accessible methods."},
-                        {"properties", "List class property names.", "P = properties('classname')", "properties returns a cellstr of public property names."},
-                        {"containers.Map", "Key-value associative map container.", "M = containers.Map(keys, values)", "containers.Map creates key-value map collection."}
+                        {"error", "Throw exception and terminate function.", "error('msg')", "error aborts execution and reports message string."},
+                        {"warning", "Display warning message.", "warning('msg')", "warning outputs diagnostic warning without halting execution."},
+                        {"lastwarn", "Last warning message and identifier.", "[MSG, ID] = lastwarn", "lastwarn retrieves or resets the most recent warning."},
+                        {"assert", "Generate error if condition is false.", "assert(COND, 'msg')", "assert throws error if logical condition evaluates to false."}
+                    }
+                },
+                {
+                    "Workspace and session management.",
+                    {
+                        {"clear", "Clear variables, functions, and session items from memory.", "clear or clear VAR1 VAR2", "clear removes specified items or all variables from workspace."},
+                        {"clc", "Clear command window.", "clc", "clc clears the interactive terminal output."},
+                        {"who", "List current variables in workspace.", "who", "who displays variable names in workspace."},
+                        {"whos", "List current variables with size, bytes, and class.", "whos", "whos displays detailed table of workspace variables."},
+                        {"which", "Locate functions and files.", "which NAME", "which displays origin (built-in, function, .m file) of NAME."},
+                        {"exist", "Check existence of variable, script, function, or class.", "E = exist('name')", "exist returns 1 (var), 2 (file), 5 (builtin), 8 (class)."},
+                        {"what", "List Numkit/MATLAB files and toolboxes in folder.", "what or what TOPIC", "what returns list of functions, classes, and packages."},
+                        {"inmem", "List functions, classes, and MEX files loaded in memory.", "[M, MEX, C] = inmem", "inmem returns list of loaded functions and classes in session."},
+                        {"help", "Display help for functions, categories, or toolboxes.", "help or help TOPIC", "help displays formatted reference documentation."},
+                        {"path", "View or change search path.", "P = path", "path displays or modifies search path list."},
+                        {"addpath", "Add directories to search path.", "addpath(DIR1, DIR2)", "addpath adds directories to start of search path."},
+                        {"rmpath", "Remove directories from search path.", "rmpath(DIR1, DIR2)", "rmpath removes directories from search path."},
+                        {"cd", "Change working directory.", "cd NEWDIR", "cd changes current working directory."},
+                        {"pwd", "Current working directory.", "DIR = pwd", "pwd returns current working directory path."},
+                        {"dir", "List folder contents.", "LIST = dir(PATH)", "dir returns struct array of files in folder."}
                     }
                 }
             }
         },
 
-        // ── 10. iofun: File input and output ─────────────────────────────
+        // ── 12. iofun: File input and output ─────────────────────────────
         {
             "iofun",
-            "File input and output.",
+            "File input and output, workspace persistence.",
             {
                 {
                     "File open, read, write and close.",
@@ -613,39 +731,287 @@ void HelpCatalog::initCategories() {
                         {"tempname", "Unique temporary filename.", "NAME = tempname", "tempname returns unique path for temporary file."},
                         {"tempdir", "Path of temporary directory.", "DIR = tempdir", "tempdir returns system temporary directory path."}
                     }
-                }
-            }
-        },
-
-        // ── 11. general: General purpose commands ────────────────────────
-        {
-            "general",
-            "General purpose commands - workspace and session.",
-            {
+                },
                 {
-                    "Workspace and session management.",
+                    "Workspace persistence.",
                     {
-                        {"clear", "Clear variables, functions, and session items from memory.", "clear or clear VAR1 VAR2", "clear removes specified items or all variables from workspace."},
-                        {"clc", "Clear command window.", "clc", "clc clears the interactive terminal output."},
-                        {"who", "List current variables in workspace.", "who", "who displays variable names in workspace."},
-                        {"whos", "List current variables with size, bytes, and class.", "whos", "whos displays detailed table of workspace variables."},
-                        {"which", "Locate functions and files.", "which NAME", "which displays the origin (built-in, function, .m file) of NAME."},
-                        {"exist", "Check existence of variable, script, function, or class.", "E = exist('name')", "exist returns 1 (var), 2 (file), 5 (builtin), 8 (class)."},
-                        {"what", "List Numkit/MATLAB files and toolboxes in folder.", "what or what TOPIC", "what returns list of functions, classes, and packages."},
-                        {"inmem", "List functions, classes, and MEX files loaded in memory.", "[M, MEX, C] = inmem", "inmem returns list of loaded functions and classes in session."},
-                        {"help", "Display help for functions, categories, or toolboxes.", "help or help TOPIC", "help displays formatted reference documentation."},
-                        {"path", "View or change search path.", "P = path", "path displays or modifies search path list."},
-                        {"addpath", "Add directories to search path.", "addpath(DIR1, DIR2)", "addpath adds directories to start of search path."},
-                        {"rmpath", "Remove directories from search path.", "rmpath(DIR1, DIR2)", "rmpath removes directories from search path."},
-                        {"cd", "Change working directory.", "cd NEWDIR", "cd changes current working directory."},
-                        {"pwd", "Current working directory.", "DIR = pwd", "pwd returns current working directory path."},
-                        {"dir", "List folder contents.", "LIST = dir(PATH)", "dir returns struct array of files in folder."}
+                        {"save", "Save workspace variables to file.", "save(FILENAME, VAR1, VAR2)", "save stores workspace variables in binary .MAT or ASCII formats."},
+                        {"load", "Load variables from file into workspace.", "load(FILENAME, VAR1, ...)", "load reads variables from .MAT file into current workspace."}
                     }
                 }
             }
         },
 
-        // ── 12. graphics: Plotting and visualization ─────────────────────
+        // ── 13. signal: Signal Processing Toolbox ────────────────────────
+        {
+            "signal",
+            "Signal Processing Toolbox.",
+            {
+                {
+                    "Filter design and implementation.",
+                    {
+                        {"butter", "Butterworth filter design.", "[B, A] = butter(N, Wn, BTYPE)", "butter designs Nth-order digital or analog Butterworth filter."},
+                        {"cheby1", "Chebyshev Type I filter design.", "[B, A] = cheby1(N, Rp, Wn)", "cheby1 designs Chebyshev Type I filter with passband ripple."},
+                        {"cheby2", "Chebyshev Type II filter design.", "[B, A] = cheby2(N, Rs, Wn)", "cheby2 designs Chebyshev Type II filter with stopband attenuation."},
+                        {"ellip", "Elliptic (Cauer) filter design.", "[B, A] = ellip(N, Rp, Rs, Wn)", "ellip designs elliptic filter with equiripple passband and stopband."},
+                        {"fir1", "Window-based FIR filter design.", "B = fir1(N, Wn, TYPE, WIN)", "fir1 designs linear-phase FIR filter using window method."},
+                        {"fir2", "Frequency-sampling FIR filter design.", "B = fir2(N, F, A)", "fir2 designs arbitrary shape FIR filter using frequency sampling."},
+                        {"firpm", "Parks-McClellan optimal equiripple FIR filter.", "B = firpm(N, F, A)", "firpm designs optimal equiripple linear-phase FIR filter."},
+                        {"filtfilt", "Zero-phase forward and reverse digital filtering.", "Y = filtfilt(B, A, X)", "filtfilt performs forward and backward filtering with zero phase distortion."},
+                        {"filter", "1-D digital rational transfer function filter.", "Y = filter(B, A, X)", "filter implements Direct Form II Transposed difference equations."},
+                        {"sosfilt", "Second-order sections (biquad) filtering.", "Y = sosfilt(SOS, X)", "sosfilt evaluates cascaded second-order sections filter."},
+                        {"tf2sos", "Transfer function to second-order sections.", "[SOS, G] = tf2sos(B, A)", "tf2sos decomposes high-order rational filter into stable biquads."},
+                        {"sos2tf", "Second-order sections to transfer function.", "[B, A] = sos2tf(SOS, G)", "sos2tf converts cascaded biquad representation back to polynomial ratio."}
+                    }
+                },
+                {
+                    "Spectral analysis and transforms.",
+                    {
+                        {"periodogram", "Periodogram spectral power estimate.", "[Pxx, W] = periodogram(X, WIN, NFFT, Fs)", "periodogram computes discrete power spectral density estimate."},
+                        {"pwelch", "Welch's averaged periodogram spectral estimate.", "[Pxx, W] = pwelch(X, WIN, NOVERLAP, NFFT, Fs)", "pwelch computes low-variance power spectrum via overlapping segments."},
+                        {"spectrogram", "Short-Time Fourier Transform spectrogram.", "[S, F, T, P] = spectrogram(X, WIN, NOVERLAP, NFFT, Fs)", "spectrogram computes time-frequency spectrogram distribution."},
+                        {"hilbert", "Hilbert transform and analytic signal.", "Z = hilbert(X)", "hilbert creates discrete-time analytic signal Z = X + i*H(X)."},
+                        {"dct", "Discrete Cosine Transform (Type II).", "Y = dct(X)", "dct evaluates orthonormal Discrete Cosine Transform."},
+                        {"idct", "Inverse Discrete Cosine Transform.", "Y = idct(X)", "idct reconstructs original signal from DCT coefficients."},
+                        {"czt", "Chirp Z-transform.", "Y = czt(X, K, W, A)", "czt evaluates Z-transform along spiral contours in complex plane."}
+                    }
+                }
+            }
+        },
+
+        // ── 14. stats: Statistics and Machine Learning ───────────────────
+        {
+            "stats",
+            "Statistics and Machine Learning Toolbox.",
+            {
+                {
+                    "Probability distributions.",
+                    {
+                        {"normpdf", "Normal probability density function.", "Y = normpdf(X, MU, SIGMA)", "normpdf evaluates Gaussian normal probability density."},
+                        {"normcdf", "Normal cumulative distribution function.", "P = normcdf(X, MU, SIGMA)", "normcdf computes standard normal cumulative distribution integral."},
+                        {"norminv", "Normal inverse cumulative distribution.", "X = norminv(P, MU, SIGMA)", "norminv computes inverse Gaussian quantile function."},
+                        {"normfit", "Normal distribution parameter estimation.", "[MUHAT, SIGMAHAT] = normfit(X)", "normfit computes maximum likelihood estimates of mean and variance."},
+                        {"tpdf", "Student's t probability density function.", "Y = tpdf(X, V)", "tpdf evaluates Student's t distribution with V degrees of freedom."},
+                        {"tcdf", "Student's t cumulative distribution function.", "P = tcdf(X, V)", "tcdf evaluates Student's t cumulative distribution."},
+                        {"tinv", "Student's t inverse cumulative distribution.", "X = tinv(P, V)", "tinv computes Student's t distribution quantiles."},
+                        {"chi2pdf", "Chi-square probability density function.", "Y = chi2pdf(X, V)", "chi2pdf evaluates chi-square probability density."},
+                        {"chi2cdf", "Chi-square cumulative distribution function.", "P = chi2cdf(X, V)", "chi2cdf evaluates chi-square cumulative distribution."},
+                        {"chi2inv", "Chi-square inverse cumulative distribution.", "X = chi2inv(P, V)", "chi2inv evaluates chi-square quantiles."},
+                        {"fpdf", "F probability density function.", "Y = fpdf(X, V1, V2)", "fpdf evaluates Snedecor's F distribution density."},
+                        {"fcdf", "F cumulative distribution function.", "P = fcdf(X, V1, V2)", "fcdf evaluates F cumulative distribution integral."},
+                        {"finv", "F inverse cumulative distribution.", "X = finv(P, V1, V2)", "finv evaluates F distribution quantiles."},
+                        {"poisspdf", "Poisson probability mass function.", "Y = poisspdf(X, LAMBDA)", "poisspdf computes Poisson discrete probability P(X=k)."},
+                        {"poisscdf", "Poisson cumulative distribution function.", "P = poisscdf(X, LAMBDA)", "poisscdf evaluates Poisson cumulative distribution."},
+                        {"binopdf", "Binomial probability mass function.", "Y = binopdf(X, N, P)", "binopdf computes binomial discrete probability mass."},
+                        {"binocdf", "Binomial cumulative distribution function.", "Y = binocdf(X, N, P)", "binocdf computes binomial cumulative distribution."}
+                    }
+                },
+                {
+                    "Hypothesis testing, regression and clustering.",
+                    {
+                        {"ttest", "One-sample or paired-sample t-test.", "[H, P, CI, STATS] = ttest(X, M)", "ttest performs Student's t-test of null hypothesis mean(X) == M."},
+                        {"ttest2", "Two-sample independent t-test.", "[H, P, CI, STATS] = ttest2(X, Y)", "ttest2 tests if two independent samples have equal means."},
+                        {"ztest", "Z-test for known population variance.", "[H, P, CI, STATS] = ztest(X, M, SIGMA)", "ztest performs normal Z-test of sample mean."},
+                        {"anova1", "One-way analysis of variance (ANOVA).", "[P, TABLE, STATS] = anova1(X, GROUP)", "anova1 tests whether group columns have identical means."},
+                        {"regress", "Multiple linear regression least-squares fit.", "[B, BINT, R, RINT, STATS] = regress(Y, X)", "regress computes multivariate linear least squares regression."},
+                        {"lasso", "Lasso and elastic net linear regression.", "[B, FITINFO] = lasso(X, Y)", "lasso fits regularized linear regression models with L1 penalty."},
+                        {"pca", "Principal Component Analysis.", "[COEFF, SCORE, LATENT, TSQUARED, EXPLAINED] = pca(X)", "pca computes principal component loadings and variances."},
+                        {"kmeans", "K-means clustering.", "[IDX, C, SUMD, D] = kmeans(X, K)", "kmeans partitions observations into K clusters by minimizing squared Euclidean distance."}
+                    }
+                }
+            }
+        },
+
+        // ── 15. image: Image Processing Toolbox ──────────────────────────
+        {
+            "image",
+            "Image Processing Toolbox.",
+            {
+                {
+                    "Spatial filtering, morphology and color conversions.",
+                    {
+                        {"rgb2gray", "Convert RGB image or colormap to grayscale.", "I = rgb2gray(RGB)", "rgb2gray converts RGB color image to luminance intensity map."},
+                        {"gray2rgb", "Convert grayscale intensity image to RGB.", "RGB = gray2rgb(I)", "gray2rgb replicates grayscale image into 3 color channels."},
+                        {"rgb2hsv", "Convert RGB to HSV color space.", "HSV = rgb2hsv(RGB)", "rgb2hsv converts red-green-blue components to Hue-Saturation-Value."},
+                        {"hsv2rgb", "Convert HSV to RGB color space.", "RGB = hsv2rgb(HSV)", "hsv2rgb converts Hue-Saturation-Value to red-green-blue."},
+                        {"imfilter", "N-D spatial multidimensional image filtering.", "J = imfilter(I, H, BOUNDARY)", "imfilter computes discrete 2-D spatial correlation or convolution."},
+                        {"fspecial", "Create predefined 2-D spatial filters.", "H = fspecial(TYPE, PARAMS)", "fspecial creates standard filters ('gaussian', 'sobel', 'laplacian')."},
+                        {"imerode", "Erode grayscale or binary image.", "IM2 = imerode(IM, SE)", "imerode computes morphological erosion using structuring element SE."},
+                        {"imdilate", "Dilate grayscale or binary image.", "IM2 = imdilate(IM, SE)", "imdilate computes morphological dilation using structuring element SE."},
+                        {"imopen", "Morphologically open image (erosion then dilation).", "IM2 = imopen(IM, SE)", "imopen removes small bright foreground artifacts."},
+                        {"imclose", "Morphologically close image (dilation then erosion).", "IM2 = imclose(IM, SE)", "imclose closes small dark holes in foreground objects."},
+                        {"imreconstruct", "Morphological grayscale reconstruction by dilation.", "IM2 = imreconstruct(MARKER, MASK)", "imreconstruct performs geodesic morphological reconstruction."},
+                        {"bwlabel", "Label connected components in 2-D binary image.", "[L, NUM] = bwlabel(BW, CONN)", "bwlabel assigns integer labels to connected components (4- or 8-connected)."},
+                        {"imresize", "Resize image using interpolation.", "J = imresize(I, SCALE, METHOD)", "imresize resamples image dimensions via bicubic or bilinear interpolation."},
+                        {"imrotate", "Rotate image by angle.", "J = imrotate(I, ANGLE, METHOD)", "imrotate rotates 2-D image around center by specified degrees."},
+                        {"psnr", "Peak Signal-to-Noise Ratio for images.", "[P, MSE] = psnr(A, REF)", "psnr computes Peak Signal-to-Noise Ratio between images in decibels."},
+                        {"ssim", "Structural Similarity Index for images.", "[SSIMVAL, SSIMMAP] = ssim(A, REF)", "ssim measures structural degradation between distorted and reference images."}
+                    }
+                }
+            }
+        },
+
+        // ── 16. control: Control System Toolbox ──────────────────────────
+        {
+            "control",
+            "Control System Toolbox.",
+            {
+                {
+                    "LTI model creation and interconnection.",
+                    {
+                        {"tf", "Create transfer function model.", "SYS = tf(NUM, DEN)", "tf creates continuous- or discrete-time transfer function system SYS(s) = NUM(s)/DEN(s)."},
+                        {"ss", "Create state-space model.", "SYS = ss(A, B, C, D)", "ss creates state-space dynamic system model dx/dt = A*x + B*u, y = C*x + D*u."},
+                        {"zpk", "Create zero-pole-gain model.", "SYS = zpk(Z, P, K)", "zpk creates LTI model from roots Z, poles P, and scalar gain K."},
+                        {"pid", "Create PID controller model.", "C = pid(Kp, Ki, Kd, Tf)", "pid creates continuous-time parallel PID controller C(s) = Kp + Ki/s + Kd*s/(Tf*s+1)."},
+                        {"feedback", "Feedback connection of two models.", "SYS = feedback(SYS1, SYS2, SIGN)", "feedback computes closed-loop interconnection SYS1 / (1 + SYS1*SYS2)."},
+                        {"series", "Series connection of two models.", "SYS = series(SYS1, SYS2)", "series computes cascade connection SYS1 * SYS2."},
+                        {"parallel", "Parallel connection of two models.", "SYS = parallel(SYS1, SYS2)", "parallel computes parallel sum SYS1 + SYS2."}
+                    }
+                },
+                {
+                    "Time and frequency response.",
+                    {
+                        {"step", "Step response of dynamic system.", "[Y, T] = step(SYS)", "step computes and plots transient response to unit step input."},
+                        {"impulse", "Impulse response of dynamic system.", "[Y, T] = impulse(SYS)", "impulse computes and plots transient response to unit Dirac impulse."},
+                        {"bode", "Bode frequency response plot.", "[MAG, PHASE, W] = bode(SYS)", "bode computes magnitude (dB) and phase (deg) frequency response curves."},
+                        {"nyquist", "Nyquist plot of dynamic system.", "[RE, IM, W] = nyquist(SYS)", "nyquist plots complex frequency response in polar coordinates."},
+                        {"margin", "Gain and phase margins and crossover frequencies.", "[Gm, Pm, Wcg, Wcp] = margin(SYS)", "margin calculates stability margins of open-loop system."}
+                    }
+                }
+            }
+        },
+
+        // ── 17. optim: Optimization Toolbox ──────────────────────────────
+        {
+            "optim",
+            "Optimization Toolbox.",
+            {
+                {
+                    "Nonlinear optimization and root finding.",
+                    {
+                        {"fminunc", "Find minimum of unconstrained multivariable function.", "[X, FVAL, EXITFLAG] = fminunc(@fun, X0)", "fminunc minimizes objective function using BFGS quasi-Newton method."},
+                        {"fminsearch", "Unconstrained multivariable minimization using Nelder-Mead simplex.", "[X, FVAL] = fminsearch(@fun, X0)", "fminsearch minimizes derivative-free function using Nelder-Mead simplex."},
+                        {"fminbnd", "Find minimum of single-variable function on bounded interval.", "[X, FVAL] = fminbnd(@fun, X1, X2)", "fminbnd performs golden section search with parabolic interpolation."},
+                        {"fzero", "Root of single-variable nonlinear continuous function.", "[X, FVAL] = fzero(@fun, X0)", "fzero finds zero of continuous scalar function using Brent's method."},
+                        {"fsolve", "Solve system of nonlinear equations F(x) = 0.", "[X, FVAL] = fsolve(@fun, X0)", "fsolve finds root vector of nonlinear vector equations using Trust-Region Dogleg."},
+                        {"lsqnonlin", "Solve nonlinear least-squares curve-fitting problems.", "[X, RESNORM] = lsqnonlin(@fun, X0)", "lsqnonlin minimizes sum of squares sum(f_i(x)^2) using Levenberg-Marquardt."}
+                    }
+                }
+            }
+        },
+
+        // ── 18. wavelet: Wavelet Toolbox ─────────────────────────────────
+        {
+            "wavelet",
+            "Wavelet Toolbox.",
+            {
+                {
+                    "1-D and 2-D wavelet transforms.",
+                    {
+                        {"dwt", "Single-level 1-D Discrete Wavelet Transform.", "[CA, CD] = dwt(X, 'wname')", "dwt computes single-level approximation CA and detail CD coefficients."},
+                        {"idwt", "Single-level 1-D Inverse Discrete Wavelet Transform.", "X = idwt(CA, CD, 'wname')", "idwt reconstructs 1-D signal from approximation and detail coefficients."},
+                        {"dwt2", "Single-level 2-D Discrete Wavelet Transform.", "[CA, CH, CV, CD] = dwt2(X, 'wname')", "dwt2 computes 2-D image decomposition into approximation and directional details."},
+                        {"idwt2", "Single-level 2-D Inverse Discrete Wavelet Transform.", "X = idwt2(CA, CH, CV, CD, 'wname')", "idwt2 reconstructs 2-D image from approximation and detail matrices."},
+                        {"wavedec", "Multilevel 1-D wavelet decomposition.", "[C, L] = wavedec(X, N, 'wname')", "wavedec computes N-level wavelet decomposition vector C and bookkeeping vector L."},
+                        {"waverec", "Multilevel 1-D wavelet reconstruction.", "X = waverec(C, L, 'wname')", "waverec reconstructs 1-D signal from multilevel decomposition components."},
+                        {"wavedec2", "Multilevel 2-D wavelet decomposition.", "[C, S] = wavedec2(X, N, 'wname')", "wavedec2 computes N-level 2-D wavelet decomposition coefficients."},
+                        {"waverec2", "Multilevel 2-D wavelet reconstruction.", "X = waverec2(C, S, 'wname')", "waverec2 reconstructs 2-D image from multilevel coefficients."},
+                        {"swt", "Stationary Wavelet Transform (undecimated).", "[SWA, SWD] = swt(X, N, 'wname')", "swt computes translation-invariant undecimated wavelet transform."},
+                        {"iswt", "Inverse Stationary Wavelet Transform.", "X = iswt(SWA, SWD, 'wname')", "iswt reconstructs signal from stationary wavelet coefficients."}
+                    }
+                },
+                {
+                    "Wavelet filters and denoising.",
+                    {
+                        {"wfilters", "Wavelet decomposition and reconstruction filters.", "[LoD, HiD, LoR, HiR] = wfilters('wname')", "wfilters returns lowpass and highpass FIR filter coefficients."},
+                        {"waveinfo", "Information on wavelet families.", "waveinfo('wname')", "waveinfo displays properties, vanishing moments, and filter lengths of wavelet families."},
+                        {"wden", "Automatic 1-D wavelet denoising.", "[XD, CXD, LXD] = wden(X, TPTR, SORH, SCAL, N, 'wname')", "wden performs thresholding denoising on 1-D signal."},
+                        {"thselect", "Threshold selection for denoising.", "THR = thselect(X, 'rigrsure')", "thselect computes universal (sqtwolog) or Stein's Unbiased Risk threshold."},
+                        {"wthresh", "Soft or hard thresholding.", "Y = wthresh(X, 's', T)", "wthresh applies soft or hard thresholding to input coefficients."},
+                        {"wenergy", "Energy percentage of wavelet decomposition.", "[Ea, Ed] = wenergy(C, L)", "wenergy computes percentage of energy stored in approximation and details."}
+                    }
+                }
+            }
+        },
+
+        // ── 19. comm: Communications Toolbox ─────────────────────────────
+        {
+            "comm",
+            "Communications Toolbox.",
+            {
+                {
+                    "Digital modulation and demodulation.",
+                    {
+                        {"pskmod", "Phase Shift Keying modulation.", "Y = pskmod(X, M, PHI)", "pskmod maps integer symbols 0..M-1 to M-ary PSK constellation."},
+                        {"pskdemod", "Phase Shift Keying demodulation.", "Z = pskdemod(Y, M, PHI)", "pskdemod recovers symbols from received complex M-ary PSK samples."},
+                        {"qammod", "Quadrature Amplitude Modulation.", "Y = qammod(X, M, OPTS)", "qammod maps integer symbols to complex square or rectangular M-QAM constellation."},
+                        {"qamdemod", "Quadrature Amplitude Demodulation.", "Z = qamdemod(Y, M, OPTS)", "qamdemod demodulates complex M-QAM constellation points back to integer symbols."},
+                        {"fskmod", "Frequency Shift Keying modulation.", "Y = fskmod(X, M, FREQ_SEP, NSAMP, Fs)", "fskmod generates discrete-time M-ary FSK modulated waveform."},
+                        {"fskdemod", "Frequency Shift Keying demodulation.", "Z = fskdemod(Y, M, FREQ_SEP, NSAMP, Fs)", "fskdemod recovers integer symbols from M-FSK waveform."},
+                        {"pammod", "Pulse Amplitude Modulation.", "Y = pammod(X, M, PHI)", "pammod modulates integer symbols into real 1-D M-PAM signal levels."},
+                        {"pamdemod", "Pulse Amplitude Demodulation.", "Z = pamdemod(Y, M, PHI)", "pamdemod demodulates M-PAM signal levels back to integer symbols."}
+                    }
+                },
+                {
+                    "Channel modeling and performance metrics.",
+                    {
+                        {"awgn", "Add white Gaussian noise to signal.", "Y = awgn(X, SNR, 'measured')", "awgn adds white Gaussian noise of specified Signal-to-Noise Ratio (dB)."},
+                        {"biterr", "Compute number of bit errors and Bit Error Rate.", "[NUM, RATIO] = biterr(A, B)", "biterr compares bit matrices and returns total error count and BER."},
+                        {"symerr", "Compute symbol errors and Symbol Error Rate.", "[NUM, RATIO] = symerr(A, B)", "symerr counts differing symbol elements and calculates SER."},
+                        {"berawgn", "Theoretical Bit Error Rate for AWGN channel.", "BER = berawgn(EbNo, 'psk', M, 'nondiff')", "berawgn calculates theoretical closed-form BER/SER for standard constellations."}
+                    }
+                }
+            }
+        },
+
+        // ── 20. audio: Audio Toolbox ─────────────────────────────────────
+        {
+            "audio",
+            "Audio Toolbox.",
+            {
+                {
+                    "Audio file input and output.",
+                    {
+                        {"audioread", "Read audio file.", "[Y, FS] = audioread(FILENAME)", "audioread loads PCM/WAV/FLAC audio samples normalized in [-1, 1] and sampling rate FS."},
+                        {"audiowrite", "Write audio file.", "audiowrite(FILENAME, Y, FS)", "audiowrite exports audio matrix Y at sampling rate FS to audio file."},
+                        {"audioinfo", "Information about audio file.", "INFO = audioinfo(FILENAME)", "audioinfo returns struct with duration, sample rate, channels, and bits per sample."}
+                    }
+                },
+                {
+                    "Acoustic and spectral analysis.",
+                    {
+                        {"pitch", "Fundamental frequency (F0 pitch) of audio signal.", "[F0, LOCS] = pitch(AUDIO, FS)", "pitch estimates time-varying fundamental frequency contour using NDF/PEF methods."},
+                        {"mfcc", "Mel-Frequency Cepstral Coefficients.", "[COEFFS, DELTA] = mfcc(AUDIO, FS)", "mfcc computes 13-band acoustic Mel-frequency cepstral feature representations."},
+                        {"spectralCentroid", "Spectral centroid frequency.", "C = spectralCentroid(AUDIO, FS)", "spectralCentroid computes frequency center of mass of power spectrum."},
+                        {"spectralSpread", "Spectral spread (spectral standard deviation).", "S = spectralSpread(AUDIO, FS)", "spectralSpread computes second central moment of spectrum around centroid."},
+                        {"spectralFlux", "Spectral flux (rate of spectral change).", "F = spectralFlux(AUDIO, FS)", "spectralFlux measures rate of local spectral power frame changes over time."},
+                        {"spectralRolloff", "Spectral roll-off frequency point.", "R = spectralRolloff(AUDIO, FS, THRESH)", "spectralRolloff computes frequency below which 85% or 95% of spectral energy lies."}
+                    }
+                }
+            }
+        },
+
+        // ── 21. ode: Ordinary Differential Equations ─────────────────────
+        {
+            "ode",
+            "Ordinary Differential Equation (ODE) Solvers.",
+            {
+                {
+                    "Initial value problem numerical solvers.",
+                    {
+                        {"ode45", "Solve non-stiff differential equations (Dormand-Prince 4(5)).", "[T, Y] = ode45(@odefun, TSPAN, Y0, OPTS)", "ode45 is the standard explicit adaptive Runge-Kutta 4th/5th order solver for non-stiff ODEs."},
+                        {"ode23", "Solve non-stiff differential equations (Bogacki-Shampine 2(3)).", "[T, Y] = ode23(@odefun, TSPAN, Y0, OPTS)", "ode23 is a lower-order adaptive Runge-Kutta solver suitable for moderate error tolerances."},
+                        {"ode113", "Solve non-stiff differential equations (variable-order Adams-Bashforth-Moulton).", "[T, Y] = ode113(@odefun, TSPAN, Y0, OPTS)", "ode113 is a multi-step variable-order Adams predictor-corrector solver for smooth problems."},
+                        {"ode15s", "Solve stiff differential equations and DAEs (variable-order BDF/NDFs).", "[T, Y] = ode15s(@odefun, TSPAN, Y0, OPTS)", "ode15s is an implicit multi-step numerical differentiation formula solver for stiff systems."},
+                        {"ode23s", "Solve stiff differential equations (modified Rosenbrock order 2).", "[T, Y] = ode23s(@odefun, TSPAN, Y0, OPTS)", "ode23s is a one-step implicit Rosenbrock solver effective for crude-tolerance stiff ODEs."},
+                        {"odeset", "Create or alter ODE options structure.", "OPTS = odeset('RelTol', 1e-4, 'AbsTol', 1e-6)", "odeset configures tolerances, Jacobian functions, event functions, and max step size."},
+                        {"odeget", "Extract ODE options parameter.", "VAL = odeget(OPTS, 'RelTol')", "odeget retrieves parameter value from ODE options structure."}
+                    }
+                }
+            }
+        },
+
+        // ── 22. graphics: Plotting and visualization ─────────────────────
         {
             "graphics",
             "2-D and 3-D plotting and visualization.",
@@ -694,229 +1060,6 @@ void HelpCatalog::initCategories() {
                     }
                 }
             }
-        },
-
-        // ── 13. image: Image Processing Toolbox ──────────────────────────
-        {
-            "image",
-            "Image Processing Toolbox.",
-            {
-                {
-                    "Image I/O and display.",
-                    {
-                        {"imread", "Read image from graphics file.", "A = imread(FILENAME)", "imread reads image from JPG, PNG, BMP, TGA, PNM, TIFF files into uint8/uint16 array."},
-                        {"imwrite", "Write image to graphics file.", "imwrite(A, FILENAME)", "imwrite writes image array to disk with automatic codec format detection."},
-                        {"imfinfo", "Information about graphics file.", "INFO = imfinfo(FILENAME)", "imfinfo queries image header without full decode."},
-                        {"imshow", "Display image in figure window.", "imshow(I)", "imshow displays grayscale or RGB image with aspect ratio preservation."},
-                        {"rgb2gray", "Convert RGB image or colormap to grayscale.", "I = rgb2gray(RGB)", "rgb2gray computes weighted luminance 0.2989*R + 0.5870*G + 0.1140*B."},
-                        {"gray2rgb", "Convert grayscale image to RGB.", "RGB = gray2rgb(I)", "gray2rgb replicates grayscale intensities into 3 RGB planes."},
-                        {"im2double", "Convert image to double precision.", "I2 = im2double(I)", "im2double scales integer images to [0, 1] double range."},
-                        {"im2uint8", "Convert image to 8-bit unsigned integers.", "I2 = im2uint8(I)", "im2uint8 quantizes [0, 1] data into [0, 255] uint8 array."}
-                    }
-                },
-                {
-                    "Morphological operations.",
-                    {
-                        {"strel", "Create morphological structuring element.", "SE = strel('disk', R)", "strel creates disk, square, rectangle, diamond structuring elements."},
-                        {"imdilate", "Dilate image.", "J = imdilate(I, SE)", "imdilate computes morphological dilation over neighborhood SE."},
-                        {"imerode", "Erode image.", "J = imerode(I, SE)", "imerode computes morphological erosion over neighborhood SE."},
-                        {"imopen", "Morphologically open image.", "J = imopen(I, SE)", "imopen performs erosion followed by dilation."},
-                        {"imclose", "Morphologically close image.", "J = imclose(I, SE)", "imclose performs dilation followed by erosion."},
-                        {"imfill", "Fill image regions and holes.", "J = imfill(I, 'holes')", "imfill fills holes in binary and grayscale images."},
-                        {"bwareaopen", "Remove small objects from binary image.", "BW2 = bwareaopen(BW, P)", "bwareaopen removes connected components with fewer than P pixels."},
-                        {"bwperim", "Find perimeter of objects in binary image.", "BW2 = bwperim(BW)", "bwperim extracts outer 1-pixel boundary of binary regions."},
-                        {"bwboundaries", "Trace region boundaries in binary image.", "B = bwboundaries(BW)", "bwboundaries returns boundary pixel coordinates for all regions."}
-                    }
-                },
-                {
-                    "Segmentation and region analysis.",
-                    {
-                        {"edge", "Find edges in intensity image.", "BW = edge(I, 'Canny', THRESH)", "edge detects intensity boundaries using Canny, Sobel, Prewitt, or Roberts filters."},
-                        {"bwlabel", "Label connected components in 2-D binary image.", "[L, NUM] = bwlabel(BW, CONN)", "bwlabel labels 4- or 8-connected binary regions with unique integers."},
-                        {"bwconncomp", "Find connected components in binary image.", "CC = bwconncomp(BW)", "bwconncomp returns struct of connected component pixel lists."},
-                        {"regionprops", "Measure properties of image regions.", "STATS = regionprops(BW, 'Area', 'Centroid')", "regionprops calculates Area, Centroid, BoundingBox, Perimeter, Orientation."},
-                        {"imbinarize", "Binarize 2-D grayscale image.", "BW = imbinarize(I, METHOD)", "imbinarize thresholds grayscale image to binary using Otsu or adaptive methods."},
-                        {"graythresh", "Global image threshold using Otsu's method.", "LEVEL = graythresh(I)", "graythresh computes optimal threshold minimizing intra-class variance."},
-                        {"watershed", "Watershed transform.", "L = watershed(A)", "watershed computes catchment basins and watershed ridge lines."}
-                    }
-                },
-                {
-                    "Spatial transformations and filtering.",
-                    {
-                        {"imresize", "Resize image.", "J = imresize(I, SCALE, METHOD)", "imresize scales image with bilinear, bicubic, or nearest interpolation."},
-                        {"imrotate", "Rotate image.", "J = imrotate(I, ANGLE, METHOD)", "imrotate rotates image by specified degrees."},
-                        {"imcrop", "Crop image.", "J = imcrop(I, RECT)", "imcrop extracts rectangular subregion [xmin ymin width height]."},
-                        {"imfilter", "N-D filtering of multidimensional images.", "J = imfilter(I, H)", "imfilter computes spatial correlation with kernel H."},
-                        {"fspecial", "Create predefined 2-D filters.", "H = fspecial('gaussian', SZ, SIGMA)", "fspecial generates gaussian, sobel, prewitt, laplacian, average filters."},
-                        {"medfilt2", "2-D median filtering.", "J = medfilt2(I, [M N])", "medfilt2 applies 2-D median noise reduction filter."},
-                        {"imhist", "Histogram of image data.", "[COUNTS, BINLOC] = imhist(I)", "imhist computes pixel intensity distribution."},
-                        {"histeq", "Enhance contrast using histogram equalization.", "J = histeq(I)", "histeq equalizes image intensity histogram."},
-                        {"adapthisteq", "Contrast-limited adaptive histogram equalization (CLAHE).", "J = adapthisteq(I)", "adapthisteq enhances local contrast avoiding over-amplification."}
-                    }
-                }
-            }
-        },
-
-        // ── 14. signal: Signal Processing Toolbox ────────────────────────
-        {
-            "signal",
-            "Signal Processing Toolbox.",
-            {
-                {
-                    "Filter design and analysis.",
-                    {
-                        {"butter", "Butterworth analog and digital filter design.", "[B, A] = butter(N, Wn, TYPE)", "butter designs N-th order lowpass, highpass, bandpass, or bandstop filters."},
-                        {"cheby1", "Chebyshev Type I filter design.", "[B, A] = cheby1(N, Rp, Wn)", "cheby1 designs Chebyshev Type I filter with passband ripple."},
-                        {"cheby2", "Chebyshev Type II filter design.", "[B, A] = cheby2(N, Rs, Wn)", "cheby2 designs Chebyshev Type II filter with stopband attenuation."},
-                        {"ellip", "Elliptic (Cauer) filter design.", "[B, A] = ellip(N, Rp, Rs, Wn)", "ellip designs elliptic filter with equiripple passband and stopband."},
-                        {"fir1", "Window-based FIR filter design.", "B = fir1(N, Wn, TYPE)", "fir1 designs N-th order linear-phase FIR filter using window method."},
-                        {"freqz", "Frequency response of digital filter.", "[H, W] = freqz(B, A, N)", "freqz computes the complex frequency response H(e^jw)."},
-                        {"grpdelay", "Average filter delay (group delay).", "[GD, W] = grpdelay(B, A, N)", "grpdelay computes filter group delay across frequencies."},
-                        {"zplane", "Zero-pole plot for discrete-time systems.", "zplane(B, A)", "zplane plots filter transfer function poles and zeros in complex z-plane."}
-                    }
-                },
-                {
-                    "Spectral analysis and transforms.",
-                    {
-                        {"periodogram", "Periodogram power spectral density estimate.", "[Pxx, F] = periodogram(X, WIN, NFFT, Fs)", "periodogram computes nonparametric PSD estimate."},
-                        {"pwelch", "Welch's power spectral density estimate.", "[Pxx, F] = pwelch(X, WIN, NOVERLAP, NFFT, Fs)", "pwelch computes averaged modified periodogram PSD."},
-                        {"spectrogram", "Spectrogram using short-time Fourier transform (STFT).", "[S, F, T, P] = spectrogram(X, WIN, NOVERLAP, NFFT, Fs)", "spectrogram computes time-frequency spectrogram."},
-                        {"findpeaks", "Find local peaks in data.", "[PKS, LOCS] = findpeaks(Y, X)", "findpeaks detects local maxima exceeding threshold and prominence."},
-                        {"xcorr", "Cross-correlation and autocorrelation.", "[R, LAGS] = xcorr(X, Y)", "xcorr computes cross-correlation sequence of vectors X and Y."},
-                        {"hilbert", "Hilbert transform and analytic signal.", "Z = hilbert(X)", "hilbert computes the discrete-time analytic signal Z = X + i*H(X)."},
-                        {"envelope", "Signal envelope extraction.", "[UP, LO] = envelope(X)", "envelope extracts upper and lower signal envelopes."},
-                        {"resample", "Resample uniform data at new rate.", "Y = resample(X, P, Q)", "resample resamples signal by rational factor P/Q with polyphase anti-aliasing."}
-                    }
-                },
-                {
-                    "Waveforms and signal generators.",
-                    {
-                        {"chirp", "Swept-frequency cosine signal.", "Y = chirp(T, F0, T1, F1, METHOD)", "chirp generates linear, quadratic, logarithmic frequency sweep."},
-                        {"sawtooth", "Sawtooth wave.", "Y = sawtooth(T, WIDTH)", "sawtooth generates periodic sawtooth waveform."},
-                        {"square", "Square wave.", "Y = square(T, DUTY)", "square generates periodic square wave with duty cycle."},
-                        {"sinc", "Normalized sinc function.", "Y = sinc(X)", "sinc(X) computes sin(pi*X)./(pi*X)."}
-                    }
-                }
-            }
-        },
-
-        // ── 15. optim: Optimization Toolbox ──────────────────────────────
-        {
-            "optim",
-            "Optimization Toolbox.",
-            {
-                {
-                    "Unconstrained and constrained nonlinear optimization.",
-                    {
-                        {"fminunc", "Find minimum of unconstrained multivariable function.", "[X, FVAL] = fminunc(@fun, X0)", "fminunc minimizes objective function using BFGS quasi-Newton method."},
-                        {"fmincon", "Find minimum of constrained nonlinear multivariable function.", "[X, FVAL] = fmincon(@fun, X0, A, B, Aeq, Beq, LB, UB, @nonlcon)", "fmincon solves nonlinear constrained optimization problems."},
-                        {"fminsearch", "Find minimum of unconstrained multivariable function (derivative-free).", "[X, FVAL] = fminsearch(@fun, X0)", "fminsearch uses Nelder-Mead simplex algorithm."},
-                        {"fminbnd", "Find minimum of single-variable function on fixed interval.", "[X, FVAL] = fminbnd(@fun, X1, X2)", "fminbnd finds local minimizer on bounded interval [X1, X2] using golden section search."},
-                        {"fzero", "Root of nonlinear function of one variable.", "[X, FVAL] = fzero(@fun, X0)", "fzero solves scalar equation f(x) = 0 using Brent's method."},
-                        {"fsolve", "Solve system of nonlinear equations.", "[X, FVAL] = fsolve(@fun, X0)", "fsolve solves F(x) = 0 using Trust-Region Dogleg / Levenberg-Marquardt."},
-                        {"lsqnonlin", "Solve nonlinear least-squares problem.", "[X, RESNORM] = lsqnonlin(@fun, X0, LB, UB)", "lsqnonlin minimizes sum of squares of nonlinear vector function."},
-                        {"lsqcurvefit", "Fit nonlinear curve to data in least-squares sense.", "[X, RESNORM] = lsqcurvefit(@fun, X0, XDATA, YDATA)", "lsqcurvefit fits model parameters to experimental data."},
-                        {"linprog", "Linear programming.", "[X, FVAL] = linprog(F, A, B, Aeq, Beq, LB, UB)", "linprog solves min f'*x subject to linear inequality and equality constraints."},
-                        {"quadprog", "Quadratic programming.", "[X, FVAL] = quadprog(H, F, A, B, Aeq, Beq, LB, UB)", "quadprog solves min 0.5*x'*H*x + f'*x subject to linear constraints."}
-                    }
-                }
-            }
-        },
-
-        // ── 16. ode: Ordinary Differential Equations ─────────────────────
-        {
-            "ode",
-            "Ordinary Differential Equation (ODE) Solvers.",
-            {
-                {
-                    "Nonstiff and stiff ODE initial value problem solvers.",
-                    {
-                        {"ode45", "Solve nonstiff differential equations (Runge-Kutta 4th/5th order).", "[T, Y] = ode45(@odefun, TSPAN, Y0)", "ode45 solves y' = f(t, y) with adaptive step size Dormand-Prince (4,5) pair."},
-                        {"ode23", "Solve nonstiff differential equations (Bogacki-Shampine 2nd/3rd order).", "[T, Y] = ode23(@odefun, TSPAN, Y0)", "ode23 solves ODEs with adaptive Bogacki-Shampine (2,3) pair."},
-                        {"ode113", "Solve nonstiff differential equations (Adams-Bashforth-Moulton).", "[T, Y] = ode113(@odefun, TSPAN, Y0)", "ode113 uses variable-order Adams-Bashforth-Moulton multistep solver."},
-                        {"ode15s", "Solve stiff differential equations and DAEs (variable order NDF/BDF).", "[T, Y] = ode15s(@odefun, TSPAN, Y0)", "ode15s solves stiff ODEs and DAEs with numerical differentiation formulas."},
-                        {"ode23s", "Solve stiff differential equations (modified Rosenbrock order 2).", "[T, Y] = ode23s(@odefun, TSPAN, Y0)", "ode23s uses Rosenbrock formula for stiff systems with crude tolerances."},
-                        {"odeset", "Create or alter ODE options structure.", "OPTIONS = odeset('RelTol', 1e-6, 'AbsTol', 1e-9)", "odeset configures tolerances, step limits, Jacobian, and event functions."},
-                        {"odeget", "Extract ODE options parameter.", "VAL = odeget(OPTIONS, 'RelTol')", "odeget retrieves parameter value from options structure."}
-                    }
-                }
-            }
-        },
-
-        // ── 17. stats: Statistics and Machine Learning ───────────────────
-        {
-            "stats",
-            "Statistics and Machine Learning Toolbox.",
-            {
-                {
-                    "Regression, fitting and ANOVA.",
-                    {
-                        {"fitlm", "Fit linear regression model.", "MDL = fitlm(X, Y)", "fitlm estimates linear model coefficients with ANOVA diagnostics and p-values."},
-                        {"fitglm", "Fit generalized linear model.", "MDL = fitglm(X, Y, 'Distribution', 'binomial')", "fitglm fits generalized linear models for logistic, Poisson, and gamma regression."},
-                        {"nlinfit", "Nonlinear regression model fitting.", "[BETA, R, J] = nlinfit(X, Y, @modelfun, BETA0)", "nlinfit fits nonlinear parameters via Levenberg-Marquardt."},
-                        {"regress", "Multiple linear regression using least squares.", "[B, BINT, R, RINT, STATS] = regress(Y, X)", "regress computes OLS coefficients with confidence intervals and R^2."},
-                        {"anova1", "One-way analysis of variance.", "[P, TABLE, STATS] = anova1(Y, GROUP)", "anova1 performs one-way ANOVA comparing group means."}
-                    }
-                },
-                {
-                    "Hypothesis tests.",
-                    {
-                        {"ttest", "One-sample or paired-sample t-test.", "[H, P, CI, STATS] = ttest(X, M)", "ttest tests null hypothesis that sample mean equals M."},
-                        {"ttest2", "Two-sample t-test with equal or unequal variances.", "[H, P, CI, STATS] = ttest2(X, Y)", "ttest2 performs independent two-sample t-test."},
-                        {"ztest", "Z-test for known population standard deviation.", "[H, P, CI, STATS] = ztest(X, M, SIGMA)", "ztest tests hypothesis with known variance SIGMA^2."},
-                        {"kstest", "One-sample Kolmogorov-Smirnov test.", "[H, P, KSSTAT] = kstest(X)", "kstest evaluates empirical distribution vs reference distribution."},
-                        {"ranksum", "Wilcoxon rank-sum test for two independent samples.", "[P, H, STATS] = ranksum(X, Y)", "ranksum performs Mann-Whitney U nonparametric rank-sum test."}
-                    }
-                },
-                {
-                    "Probability distributions and random generators.",
-                    {
-                        {"normpdf", "Normal probability density function.", "Y = normpdf(X, MU, SIGMA)", "normpdf computes Gaussian probability density."},
-                        {"normcdf", "Normal cumulative distribution function.", "P = normcdf(X, MU, SIGMA)", "normcdf computes standard normal CDF."},
-                        {"norminv", "Normal inverse cumulative distribution function.", "X = norminv(P, MU, SIGMA)", "norminv computes quantiles of normal distribution."},
-                        {"normrnd", "Random numbers from normal distribution.", "R = normrnd(MU, SIGMA, M, N)", "normrnd generates random matrices from Gaussian distribution."},
-                        {"tpdf", "Student's t probability density function.", "Y = tpdf(X, NU)", "tpdf computes Student's t distribution PDF with NU degrees of freedom."},
-                        {"tcdf", "Student's t cumulative distribution function.", "P = tcdf(X, NU)", "tcdf computes Student's t distribution CDF."},
-                        {"tinv", "Student's t inverse cumulative distribution function.", "X = tinv(P, NU)", "tinv computes quantiles of Student's t distribution."},
-                        {"chi2pdf", "Chi-square probability density function.", "Y = chi2pdf(X, NU)", "chi2pdf computes chi-square distribution density with NU degrees of freedom."},
-                        {"chi2cdf", "Chi-square cumulative distribution function.", "P = chi2cdf(X, NU)", "chi2cdf computes chi-square distribution CDF."},
-                        {"fpdf", "F probability density function.", "Y = fpdf(X, NU1, NU2)", "fpdf computes Snedecor's F distribution density."},
-                        {"fcdf", "F cumulative distribution function.", "P = fcdf(X, NU1, NU2)", "fcdf computes Snedecor's F distribution CDF."},
-                        {"poissrnd", "Random numbers from Poisson distribution.", "R = poissrnd(LAMBDA, M, N)", "poissrnd generates random numbers from Poisson distribution."},
-                        {"binornd", "Random numbers from binomial distribution.", "R = binornd(N, P, M, K)", "binornd generates random numbers from binomial distribution."}
-                    }
-                }
-            }
-        },
-
-        // ── 18. control: Control System Toolbox ───────────────────────────
-        {
-            "control",
-            "Control System Toolbox.",
-            {
-                {
-                    "Linear time-invariant (LTI) models.",
-                    {
-                        {"tf", "Create transfer function model.", "SYS = tf(NUM, DEN)", "tf creates continuous- or discrete-time transfer function system SYS(s) = NUM(s)/DEN(s)."},
-                        {"ss", "Create state-space model.", "SYS = ss(A, B, C, D)", "ss creates state-space dynamic system model dx/dt = A*x + B*u, y = C*x + D*u."},
-                        {"zpk", "Create zero-pole-gain model.", "SYS = zpk(Z, P, K)", "zpk creates LTI model from roots Z, poles P, and scalar gain K."},
-                        {"pid", "Create PID controller model.", "C = pid(Kp, Ki, Kd, Tf)", "pid creates continuous-time parallel PID controller C(s) = Kp + Ki/s + Kd*s/(Tf*s+1)."},
-                        {"feedback", "Feedback connection of two models.", "SYS = feedback(SYS1, SYS2, SIGN)", "feedback computes closed-loop interconnection SYS1 / (1 + SYS1*SYS2)."},
-                        {"series", "Series connection of two models.", "SYS = series(SYS1, SYS2)", "series computes cascade connection SYS1 * SYS2."},
-                        {"parallel", "Parallel connection of two models.", "SYS = parallel(SYS1, SYS2)", "parallel computes parallel sum SYS1 + SYS2."}
-                    }
-                },
-                {
-                    "Time and frequency response.",
-                    {
-                        {"step", "Step response of dynamic system.", "[Y, T] = step(SYS)", "step computes and plots transient response to unit step input."},
-                        {"impulse", "Impulse response of dynamic system.", "[Y, T] = impulse(SYS)", "impulse computes and plots transient response to unit Dirac impulse."},
-                        {"bode", "Bode frequency response plot.", "[MAG, PHASE, W] = bode(SYS)", "bode computes magnitude (dB) and phase (deg) frequency response curves."},
-                        {"nyquist", "Nyquist plot of dynamic system.", "[RE, IM, W] = nyquist(SYS)", "nyquist plots complex frequency response in polar coordinates."},
-                        {"margin", "Gain and phase margins and crossover frequencies.", "[Gm, Pm, Wcg, Wcp] = margin(SYS)", "margin calculates stability margins of open-loop system."}
-                    }
-                }
-            }
         }
     };
 
@@ -935,4 +1078,4 @@ void HelpCatalog::initCategories() {
     }
 }
 
-} // namespace numkit::runtime
+} // namespace numkit::bundle
