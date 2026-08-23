@@ -9,6 +9,15 @@
     --card-border: var(--separator-color);
 }
 
+/* Remove right panel and allow main content to breathe */
+#page-nav, .page-nav-panel {
+    display: none !important;
+}
+
+#doc-content {
+    margin-right: 0 !important;
+}
+
 /* Compact Header with sleek logo */
 #titlearea {
     padding: 6px 16px !important;

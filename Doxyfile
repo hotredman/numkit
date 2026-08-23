@@ -126,7 +126,6 @@ HTML_EXTRA_STYLESHEET  = doxygen/theme/doxygen-awesome.css \
 HTML_EXTRA_FILES       = doxygen/theme/doxygen-awesome-darkmode-toggle.js \
                          doxygen/theme/doxygen-awesome-fragment-copy-button.js \
                          doxygen/theme/doxygen-awesome-paragraph-link.js \
-                         doxygen/theme/doxygen-awesome-interactive-toc.js \
                          doxygen/theme/signature-highlighter.js
 HTML_DYNAMIC_MENUS     = YES
 HTML_DYNAMIC_SECTIONS  = YES
