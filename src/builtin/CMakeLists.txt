@@ -11,7 +11,9 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/creation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/elmat/manipulation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/matfun/matfun.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/reductions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/random.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/datafun/sets.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/specfun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun.cpp

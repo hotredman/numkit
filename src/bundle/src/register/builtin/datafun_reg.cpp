@@ -1,22 +1,14 @@
-// src/builtin/src/datafun.cpp
-//
-// Data analysis, reductions, random distributions, set operations implementations.
+// src/bundle/src/register/builtin/datafun_reg.cpp
+
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
-#include <numkit/math/random/rng.hpp>
-#include <numkit/math/discrete/discrete.hpp>
-#include <numkit/math/geom/geom.hpp>
-#include <numkit/math/arithmetic/misc.hpp>
-#include <numkit/math/arithmetic/reductions.hpp>
-#include <numkit/ops/reductions.hpp>
-#include <numkit/ops/rng.hpp>
 
-namespace numkit::builtin {
+#include <stdexcept>
 
-namespace detail {
+namespace numkit::builtin::detail {
+
 void accumarray_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void allunique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitand_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -82,96 +74,10 @@ void wrapTo180_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void wrapTo2Pi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void wrapTo360_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void wrapToPi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-} // namespace detail
 
-// ── Pure C++ API Implementations ───────────────────────────────────────────
+} // namespace numkit::builtin::detail
 
-Value sum(const Value &x, int dim, std::pmr::memory_resource *mr)
-{
-    return numkit::math::sum(x, dim, mr);
-}
-
-Value prod(const Value &x, int dim, std::pmr::memory_resource *mr)
-{
-    return numkit::math::prod(x, dim, mr);
-}
-
-Value mean(const Value &x, int dim, std::pmr::memory_resource *mr)
-{
-    return numkit::math::mean(x, dim, mr);
-}
-
-Value max(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr)
-{
-    if (b.isEmpty()) {
-        return std::get<0>(numkit::math::max(a, dim, mr));
-    }
-    return numkit::math::max(a, b, mr);
-}
-
-Value min(const Value &a, const Value &b, int dim, std::pmr::memory_resource *mr)
-{
-    if (b.isEmpty()) {
-        return std::get<0>(numkit::math::min(a, dim, mr));
-    }
-    return numkit::math::min(a, b, mr);
-}
-
-Value rand(size_t rows, size_t cols, std::pmr::memory_resource *mr)
-{
-    ops::RngContext defaultRng;
-    return numkit::ops::rand(defaultRng, rows, cols, 0, mr);
-}
-
-Value randn(size_t rows, size_t cols, std::pmr::memory_resource *mr)
-{
-    ops::RngContext defaultRng;
-    return numkit::ops::randn(defaultRng, rows, cols, 0, mr);
-}
-
-Value randi(int imin, int imax, size_t rows, size_t cols, std::pmr::memory_resource *mr)
-{
-    ops::RngContext defaultRng;
-    return numkit::ops::randi(defaultRng, imin, imax, rows, cols, 0, mr);
-}
-
-Value randperm(size_t n, size_t k, std::pmr::memory_resource *mr)
-{
-    ops::RngContext defaultRng;
-    return numkit::ops::randperm(defaultRng, n, k, mr);
-}
-
-Value unique(const Value &x, std::pmr::memory_resource *mr)
-{
-    return numkit::math::unique(x, mr);
-}
-
-Value ismember(const Value &a, const Value &s, std::pmr::memory_resource *mr)
-{
-    return numkit::math::ismember(a, s, mr);
-}
-
-Value union_(const Value &a, const Value &b, std::pmr::memory_resource *mr)
-{
-    return numkit::math::setUnion(a, b, mr);
-}
-
-Value intersect(const Value &a, const Value &b, std::pmr::memory_resource *mr)
-{
-    return numkit::math::setIntersect(a, b, mr);
-}
-
-Value setdiff(const Value &a, const Value &b, std::pmr::memory_resource *mr)
-{
-    return numkit::math::setDiff(a, b, mr);
-}
-
-Value setxor(const Value &a, const Value &b, std::pmr::memory_resource *mr)
-{
-    return numkit::math::setxor(a, b, mr);
-}
-
-// ── Registration Implementation ────────────────────────────────────────────
+namespace numkit::bundle::builtin {
 
 void register_datafun(Engine &engine) {
     engine.registerFunction("linspace", &::numkit::builtin::detail::linspace_reg);
@@ -253,4 +159,4 @@ void register_datafun(Engine &engine) {
         });
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::bundle::builtin
