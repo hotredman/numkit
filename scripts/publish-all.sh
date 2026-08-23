@@ -12,19 +12,26 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 echo "======================================================="
-echo "  [1/2] Publishing Source Code to GitHub"
+echo "  [1/3] Publishing Source Code to GitHub"
 echo "======================================================="
 "$SCRIPT_DIR/publish-code.sh"
 
 echo
 echo "======================================================="
-echo "  [2/2] Deploying Web IDE Bundle to GitHub Pages"
+echo "  [2/3] Deploying Web IDE Bundle to GitHub Pages"
 echo "======================================================="
 "$SCRIPT_DIR/publish-pages.sh" --push
+
+echo
+echo "======================================================="
+echo "  [3/3] Deploying Doxygen API Documentation"
+echo "======================================================="
+"$SCRIPT_DIR/publish-doxy.sh" --push
 
 echo
 echo "======================================================="
 echo "  All published successfully to GitHub!"
 echo "  Code: https://github.com/hotredman/numkit"
 echo "  Demo: https://hotredman.github.io/numkit-demo/"
+echo "  Docs: https://hotredman.github.io/numkit-doxy/"
 echo "======================================================="
