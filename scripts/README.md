@@ -41,7 +41,7 @@ vite build → dist/ — static bundle                        BASE_URL = ./ (rel
 | `web-publish.{sh,bat}` | Synchronize built static site (`deploy/`) into GitHub Pages distribution repository (`--push` to push). | Git / GitHub Pages |
 | `doxy-run.{sh,bat}` | Build (if needed) and serve Doxygen API documentation locally at `http://localhost:8080/`. | HTTP, local server |
 | `doxy-publish.{sh,bat}` | Generate Doxygen API documentation and deploy/push directly to `numkit-doxy` GitHub Pages repo. | Git / GitHub Pages |
-| `publish-all.{sh,bat}` | Publish source code repository, Web IDE distribution, and Doxygen API docs in one command. | Git / GitHub |
+| `all-publish.{sh,bat}` | Publish source code repository, Web IDE distribution, and Doxygen API docs in one command. | Git / GitHub |
 | `desktop-build.bat` *(win)* | Full desktop build: WASM + `vite build --base ./` + `electron-builder --win portable` → `.exe`. | file:// |
 
 ### Why `base: './'` (relative)
