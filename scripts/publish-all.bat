@@ -29,9 +29,9 @@ echo.
 echo =======================================================
 echo   [3/3] Deploying Doxygen API Documentation
 echo =======================================================
-call "%SCRIPT_DIR%publish-doxy.bat" --push
+call "%SCRIPT_DIR%doxy-publish.bat" --push
 if errorlevel 1 (
-    echo ERROR: publish-doxy.bat failed!
+    echo ERROR: doxy-publish.bat failed!
     exit /b 1
 )
 

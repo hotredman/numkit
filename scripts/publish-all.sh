@@ -26,7 +26,7 @@ echo
 echo "======================================================="
 echo "  [3/3] Deploying Doxygen API Documentation"
 echo "======================================================="
-"$SCRIPT_DIR/publish-doxy.sh" --push
+"$SCRIPT_DIR/doxy-publish.sh" --push
 
 echo
 echo "======================================================="

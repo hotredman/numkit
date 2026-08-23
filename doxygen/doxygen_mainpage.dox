@@ -5,11 +5,12 @@
 /**
 @mainpage NumKit — High-Performance C++ Numerical Computing Runtime
 
+\htmlonly
 <div class="header-tagline">
   <p class="tagline-text">High-performance standalone C++20 numerical framework and embedded script engine with <b>MATLAB®-compatible</b> syntax, functions, and toolboxes.</p>
   <div class="badge-row">
     <span class="badge badge-blue">C++20</span>
-    <span class="badge badge-green">Highway SIMD & Multi-Threading</span>
+    <span class="badge badge-green">Highway SIMD &amp; Multi-Threading</span>
     <span class="badge badge-purple">Zero External Dependencies</span>
     <span class="badge badge-orange">WASM / Web IDE Ready</span>
   </div>
@@ -23,7 +24,7 @@
   <a class="topic-card" href="group__group__elmat.html">
     <div class="card-icon">🔢</div>
     <div class="card-body">
-      <div class="card-title">elmat — Elementary Matrices & Arrays</div>
+      <div class="card-title">elmat — Elementary Matrices &amp; Arrays</div>
       <div class="card-desc">Constructors (<code>zeros</code>, <code>ones</code>, <code>eye</code>, <code>rand</code>), shape transformations (<code>reshape</code>, <code>permute</code>, <code>repmat</code>, <code>cat</code>), and test matrices.</div>
     </div>
   </a>
@@ -39,7 +40,7 @@
   <a class="topic-card" href="group__group__matfun.html">
     <div class="card-icon">🧮</div>
     <div class="card-body">
-      <div class="card-title">matfun / linalg — Matrix Algebra & Solvers</div>
+      <div class="card-title">matfun / linalg — Matrix Algebra &amp; Solvers</div>
       <div class="card-desc">Linear equation solvers (<code>linsolve</code>, <code>mldivide</code>, <code>inv</code>), decompositions (<code>lu</code>, <code>qr</code>, <code>chol</code>, <code>svd</code>, <code>eig</code>), and matrix functions.</div>
     </div>
   </a>
@@ -47,7 +48,7 @@
   <a class="topic-card" href="group__group__datafun.html">
     <div class="card-icon">📈</div>
     <div class="card-body">
-      <div class="card-title">datafun — Data Analysis & Fourier Transforms</div>
+      <div class="card-title">datafun — Data Analysis &amp; Fourier Transforms</div>
       <div class="card-desc">Summary reductions (<code>sum</code>, <code>mean</code>, <code>std</code>), cumulative diffs (<code>cumsum</code>, <code>diff</code>), 1D/2D FFTs (<code>fft</code>, <code>ifft</code>), and <code>accumarray</code>.</div>
     </div>
   </a>
@@ -63,7 +64,7 @@
   <a class="topic-card" href="group__group__polyfun.html">
     <div class="card-icon">📊</div>
     <div class="card-body">
-      <div class="card-title">polyfun — Polynomials & Interpolation</div>
+      <div class="card-title">polyfun — Polynomials &amp; Interpolation</div>
       <div class="card-desc">Polynomial operations (<code>polyfit</code>, <code>polyval</code>, <code>roots</code>), 1D/2D/3D interpolation (<code>interp1</code>, <code>griddata</code>), and splines (<code>spline</code>, <code>pchip</code>).</div>
     </div>
   </a>
@@ -71,15 +72,15 @@
   <a class="topic-card" href="group__group__strfun.html">
     <div class="card-icon">📝</div>
     <div class="card-body">
-      <div class="card-title">strfun — Strings & Text Manipulation</div>
-      <div class="card-desc">String composition (<code>sprintf</code>, <code>compose</code>, <code>strjoin</code>), search & regex (<code>strcmp</code>, <code>strfind</code>, <code>regexp</code>), and numerical conversions.</div>
+      <div class="card-title">strfun — Strings &amp; Text Manipulation</div>
+      <div class="card-desc">String composition (<code>sprintf</code>, <code>compose</code>, <code>strjoin</code>), search &amp; regex (<code>strcmp</code>, <code>strfind</code>, <code>regexp</code>), and numerical conversions.</div>
     </div>
   </a>
 
   <a class="topic-card" href="group__group__datatypes.html">
     <div class="card-icon">📦</div>
     <div class="card-body">
-      <div class="card-title">datatypes — Data Types, Structs & Cells</div>
+      <div class="card-title">datatypes — Data Types, Structs &amp; Cells</div>
       <div class="card-desc">Structure arrays (<code>struct</code>, <code>fieldnames</code>), Cell arrays (<code>cell</code>, <code>cellfun</code>, <code>deal</code>), type casting, and predicates.</div>
     </div>
   </a>
@@ -87,7 +88,7 @@
   <a class="topic-card" href="group__group__timefun.html">
     <div class="card-icon">⏱️</div>
     <div class="card-body">
-      <div class="card-title">timefun — Time & Date Functions</div>
+      <div class="card-title">timefun — Time &amp; Date Functions</div>
       <div class="card-desc">Wall-clock timers (<code>tic</code>, <code>toc</code>), date arithmetic (<code>now</code>, <code>datestr</code>, <code>datevec</code>), and execution delays.</div>
     </div>
   </a>
@@ -95,7 +96,7 @@
   <a class="topic-card" href="group__group__iofun.html">
     <div class="card-icon">💾</div>
     <div class="card-body">
-      <div class="card-title">iofun & general — Workspace & File I/O</div>
+      <div class="card-title">iofun &amp; general — Workspace &amp; File I/O</div>
       <div class="card-desc">Workspace persistence (<code>save</code>, <code>load</code>, <code>who</code>, <code>clear</code>), text parsing (<code>textscan</code>, <code>csvread</code>), and file streams.</div>
     </div>
   </a>
@@ -141,7 +142,7 @@
     <div class="card-icon">🎯</div>
     <div class="card-body">
       <div class="card-title">Optimization Toolbox (optim)</div>
-      <div class="card-desc">Unconstrained & bound optimization (<code>fminunc</code>, <code>fminbnd</code>), nonlinear equations (<code>fzero</code>, <code>fsolve</code>), and curve fitting (<code>lsqcurvefit</code>, <code>lsqnonlin</code>).</div>
+      <div class="card-desc">Unconstrained &amp; bound optimization (<code>fminunc</code>, <code>fminbnd</code>), nonlinear equations (<code>fzero</code>, <code>fsolve</code>), and curve fitting (<code>lsqcurvefit</code>, <code>lsqnonlin</code>).</div>
     </div>
   </a>
 
@@ -173,14 +174,14 @@
     <div class="card-icon">🔄</div>
     <div class="card-body">
       <div class="card-title">Differential Equations (ode)</div>
-      <div class="card-desc">Explicit & implicit Runge-Kutta numerical ODE integrators (<code>ode45</code>, <code>ode23</code>, <code>ode113</code>, <code>ode15s</code>, <code>ode23s</code>) and integration options (<code>odeset</code>).</div>
+      <div class="card-desc">Explicit &amp; implicit Runge-Kutta numerical ODE integrators (<code>ode45</code>, <code>ode23</code>, <code>ode113</code>, <code>ode15s</code>, <code>ode23s</code>) and integration options (<code>odeset</code>).</div>
     </div>
   </a>
 
   <a class="topic-card" href="group__group__graphics.html">
     <div class="card-icon">📊</div>
     <div class="card-body">
-      <div class="card-title">2D & 3D Scientific Graphics (graphics)</div>
+      <div class="card-title">2D &amp; 3D Scientific Graphics (graphics)</div>
       <div class="card-desc">Interactive figures, line plots (<code>plot</code>), surface meshes (<code>surf</code>, <code>mesh</code>), scatter charts, histograms, colormaps, and plot styling.</div>
     </div>
   </a>
@@ -190,6 +191,7 @@
 <hr/>
 
 <h2 class="section-title">Quick Code Example</h2>
+\endhtmlonly
 
 ```cpp
 #include <numkit/bundle/standard_library.hpp>
@@ -217,11 +219,13 @@ int main() {
 }
 ```
 
+\htmlonly
 <hr/>
 
 <div class="trademark-footer">
-  <h4>Trademark & Compatibility Notice</h4>
+  <h4>Trademark &amp; Compatibility Notice</h4>
   <p>MATLAB® is a registered trademark of The MathWorks, Inc. NumKit is an independent, clean-room open-source project and is <b>not affiliated with, endorsed by, or sponsored by</b> The MathWorks, Inc. References to MATLAB describe functional syntax and algorithm compatibility only.</p>
 </div>
+\endhtmlonly
 
 */
