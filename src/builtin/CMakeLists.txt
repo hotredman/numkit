@@ -21,7 +21,10 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/polynomials.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/interpolation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/polyfun/integration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/conversion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/manipulation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/predicates.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strfun/regex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/timefun.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/iofun.cpp

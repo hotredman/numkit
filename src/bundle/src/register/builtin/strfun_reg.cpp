@@ -1,20 +1,14 @@
-// src/builtin/src/strfun.cpp
-//
-// String and character array manipulation implementations and registrations.
+// src/bundle/src/register/builtin/strfun_reg.cpp
+
 #include <numkit/builtin/strfun.hpp>
 #include <numkit/core/engine.hpp>
-#include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
-#include <numkit/lang/strings/strings.hpp>
-#include <numkit/lang/strings/regex.hpp>
 
 #include <stdexcept>
-#include <string>
 
-namespace numkit::builtin {
+namespace numkit::builtin::detail {
 
-namespace detail {
 void append_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void base2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bin2dec_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -85,94 +79,10 @@ void strtok_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strtrim_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void upper_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void validatestring_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-} // namespace detail
 
-// ── Pure C++ API Implementations ───────────────────────────────────────────
+} // namespace numkit::builtin::detail
 
-Value num2str(const Value &x, std::pmr::memory_resource *mr) { return numkit::lang::num2str(x, mr); }
-Value int2str(const Value &x, std::pmr::memory_resource *mr) { return numkit::lang::int2str(x, mr); }
-Value mat2str(const Value &x, std::pmr::memory_resource *mr) { return numkit::lang::mat2str(x, 15, mr); }
-Value str2num(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::str2num(s, mr); }
-Value str2double(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::str2double(s, mr); }
-Value char_array(const Value &x, std::pmr::memory_resource *mr) { return numkit::lang::toChar(x, mr); }
-Value string_array(const Value &x, std::pmr::memory_resource *mr) { return numkit::lang::toString(x, mr); }
-Value blanks(size_t n, std::pmr::memory_resource *mr) { return numkit::lang::blanks(n, mr); }
-Value newline(std::pmr::memory_resource *mr) { return Value::fromString("\n", mr); }
-
-Value strcmp(const Value &s1, const Value &s2, std::pmr::memory_resource *mr) { return numkit::lang::strcmp(s1, s2, mr); }
-Value strncmp(const Value &s1, const Value &s2, size_t n, std::pmr::memory_resource *mr) { return numkit::lang::strncmp(s1, s2, n, mr); }
-Value strcmpi(const Value &s1, const Value &s2, std::pmr::memory_resource *mr) { return numkit::lang::strcmpi(s1, s2, mr); }
-Value strncmpi(const Value &s1, const Value &s2, size_t n, std::pmr::memory_resource *mr) { return numkit::lang::strncmpi(s1, s2, n, mr); }
-Value matches(const Value &str, const Value &pat, std::pmr::memory_resource *mr) { return numkit::lang::matches(str, pat, mr); }
-
-Value upper(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::upper(s, mr); }
-Value lower(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::lower(s, mr); }
-Value strtrim(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::strtrim(s, mr); }
-Value deblank(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::deblank(s, mr); }
-Value strip(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::strip(s, Value::Empty, Value::Empty, mr); }
-
-Value strcat(Span<const Value> args, std::pmr::memory_resource *mr) { return numkit::lang::strcat(args, mr); }
-Value strjoin(const Value &c, const std::string &delim, std::pmr::memory_resource *mr) { return numkit::lang::strjoin(c, delim.empty() ? Value::Empty : Value::fromString(delim, mr), mr); }
-Value strsplit(const Value &s, const std::string &delim, std::pmr::memory_resource *mr) { return delim.empty() ? numkit::lang::strsplit(s, mr) : numkit::lang::strsplit(s, Value::fromString(delim, mr), mr); }
-Value splitlines(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::splitlines(s, mr); }
-
-Value strfind(const Value &text, const Value &pattern, std::pmr::memory_resource *mr) { return numkit::lang::strfind(text, pattern, mr); }
-Value strrep(const Value &orig, const Value &oldStr, const Value &newStr, std::pmr::memory_resource *mr) { return numkit::lang::strrep(orig, oldStr, newStr, mr); }
-Value contains(const Value &str, const Value &pat, std::pmr::memory_resource *mr) { return numkit::lang::contains(str, pat, mr); }
-Value startsWith(const Value &str, const Value &pat, std::pmr::memory_resource *mr) { return numkit::lang::startsWith(str, pat, mr); }
-Value endsWith(const Value &str, const Value &pat, std::pmr::memory_resource *mr) { return numkit::lang::endsWith(str, pat, mr); }
-Value count(const Value &str, const Value &pat, std::pmr::memory_resource *mr) { return numkit::lang::count(str, pat, mr); }
-Value reverse(const Value &str, std::pmr::memory_resource *mr) { return numkit::lang::reverse(str, mr); }
-
-Value isletter(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::isletter(s, mr); }
-Value isspace(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::isspaceFn(s, mr); }
-Value isstrprop(const Value &s, const std::string &category, std::pmr::memory_resource *mr) { return numkit::lang::isstrprop(s, Value::fromString(category, mr), mr); }
-Value isstringscalar(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::isstringscalar(s, mr); }
-Value validatestring(const Value &str, const Value &validStrings, std::pmr::memory_resource *mr) { return numkit::lang::validatestring(str, validStrings, mr); }
-
-Value convertContainedStringsToChars(const Value &v, std::pmr::memory_resource *mr)
-{
-    if (v.isString()) {
-        if (v.numel() <= 1)
-            return Value::fromString(v.toString(), mr);
-        auto c = Value::cell(v.numel(), 1, mr);
-        for (size_t i = 0; i < v.numel(); ++i)
-            c.cellAt(i) = Value::fromString(v.stringElem(i), mr);
-        return c;
-    }
-    if (v.isCell()) {
-        const auto &d = v.dims();
-        auto c = d.is3D()
-                    ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
-                    : Value::cell(d.rows(), d.cols(), mr);
-        for (size_t i = 0; i < v.numel(); ++i)
-            c.cellAt(i) = convertContainedStringsToChars(v.cellAt(i), mr);
-        return c;
-    }
-    if (v.isStruct() && !v.isStructArray()) {
-        auto s = Value::structure(mr);
-        for (auto &kv : v.structFields())
-            s.field(kv.first) = convertContainedStringsToChars(kv.second, mr);
-        return s;
-    }
-    return v;
-}
-
-Value dec2bin(const Value &d, int minDigits, std::pmr::memory_resource *mr) { return numkit::lang::dec2bin(d, minDigits, mr); }
-Value dec2hex(const Value &d, int minDigits, std::pmr::memory_resource *mr) { return numkit::lang::dec2hex(d, minDigits, mr); }
-Value dec2base(const Value &d, int base, int minDigits, std::pmr::memory_resource *mr) { return numkit::lang::dec2base(d, base, minDigits, mr); }
-Value base2dec(const Value &s, int base, std::pmr::memory_resource *mr) { return numkit::lang::base2dec(s, base, mr); }
-Value bin2dec(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::bin2dec(s, mr); }
-Value hex2dec(const Value &s, std::pmr::memory_resource *mr) { return numkit::lang::hex2dec(s, mr); }
-
-Value regexp(const Value &str, const Value &pat, std::pmr::memory_resource *mr) { return numkit::lang::regexpFind(str, pat, "", false, mr); }
-Value regexpi(const Value &str, const Value &pat, std::pmr::memory_resource *mr) { return numkit::lang::regexpFind(str, pat, "", true, mr); }
-Value regexprep(const Value &str, const Value &pat, const Value &rep, std::pmr::memory_resource *mr) { return numkit::lang::regexprep(str, pat, rep, false, false, mr); }
-Value regexptranslate(const std::string &type, const Value &str, std::pmr::memory_resource *mr) {
-    return numkit::lang::regexptranslate(type, str.isChar() || str.isString() ? str.toString() : "", mr);
-}
-
-// ── Registration Implementation ────────────────────────────────────────────
+namespace numkit::bundle::builtin {
 
 void register_strfun(Engine &engine) {
     engine.registerFunction("convertContainedStringsToChars",
@@ -266,4 +176,4 @@ void register_strfun(Engine &engine) {
     engine.registerFunction("regexptranslate", &::numkit::builtin::detail::regexptranslate_reg);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::bundle::builtin
