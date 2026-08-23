@@ -103,6 +103,7 @@ add_subdirectory(src/scriptgraph) # L2 IDE-analysis: AST→NodeGraph→JSON (bui
 add_subdirectory(src/codegen)    # L2 codegen: AST→typed IR→C++ transpiler (type inference) — core-coupled, registers no builtin
 add_subdirectory(src/toolboxes)  # L2: MATLAB toolboxes (pure compute + file I/O via fs/)
 add_subdirectory(src/runtime)  # L2: language runtime extracted from builtin (eval-family; who/clear/import to follow)
+add_subdirectory(src/builtin)  # L2: MATLAB built-in standard library (elmat, elfun, matfun, datafun, ...)
 add_subdirectory(src/bundle)  # L3: installStandardLibrary / makeStandardEngine / StandardEngine
 
 # Fail loudly if any aggregated layer include-dir variable came back empty — the owning
@@ -112,7 +113,7 @@ add_subdirectory(src/bundle)  # L3: installStandardLibrary / makeStandardEngine 
 # confusing downstream "file not found" (architecture review §5 — CMake aggregation).
 foreach(_inc_var NUMKIT_CORE_INCLUDE_DIRS NUMKIT_FIGURE_INCLUDE_DIRS NUMKIT_LIBS_INCLUDE_DIRS
                  NUMKIT_MATH_INCLUDE_DIRS NUMKIT_LANG_INCLUDE_DIRS NUMKIT_RUNTIME_INCLUDE_DIRS
-                 NUMKIT_BUNDLE_INCLUDE_DIRS)
+                 NUMKIT_BUILTIN_INCLUDE_DIRS NUMKIT_BUNDLE_INCLUDE_DIRS)
     if(NOT ${_inc_var})
         message(FATAL_ERROR
             "Layer include-dir variable ${_inc_var} is empty — the owning layer's "
@@ -131,6 +132,7 @@ set(NUMKIT_LAYER_OBJECTS
     $<TARGET_OBJECTS:numkit_math_obj>
     $<TARGET_OBJECTS:numkit_lang_obj>
     $<TARGET_OBJECTS:numkit_runtime_obj>
+    $<TARGET_OBJECTS:numkit_builtin_obj>
     $<TARGET_OBJECTS:numkit_bundle_obj>)
 set(NUMKIT_HEADERS ${NUMKIT_CORE_HEADERS} ${NUMKIT_LIBS_HEADERS} ${NUMKIT_MATH_HEADERS} ${NUMKIT_LANG_HEADERS} ${NUMKIT_RUNTIME_HEADERS})
 
@@ -213,7 +215,7 @@ set_source_files_properties(
 
 # Public include paths — collected from per-area CMakeLists. Wrap each
 # in BUILD_INTERFACE so the export set stays clean for find_package.
-foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_FIGURE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_FIGURE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUILTIN_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
     target_include_directories(numkit PUBLIC $<BUILD_INTERFACE:${_dir}>)
 endforeach()
 target_include_directories(numkit PUBLIC $<INSTALL_INTERFACE:include>)
@@ -305,7 +307,7 @@ function(numkit_configure_layer tgt)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/wavelet/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/toolboxes/linalg/src
         ${NUMKIT_BUILD_INFO_DIR})
-    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_FIGURE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
+    foreach(_dir ${NUMKIT_CORE_INCLUDE_DIRS} ${NUMKIT_FIGURE_INCLUDE_DIRS} ${NUMKIT_LIBS_INCLUDE_DIRS} ${NUMKIT_MATH_INCLUDE_DIRS} ${NUMKIT_LANG_INCLUDE_DIRS} ${NUMKIT_RUNTIME_INCLUDE_DIRS} ${NUMKIT_BUILTIN_INCLUDE_DIRS} ${NUMKIT_BUNDLE_INCLUDE_DIRS})
         target_include_directories(${tgt} PRIVATE $<BUILD_INTERFACE:${_dir}>)
     endforeach()
     target_link_libraries(${tgt} PRIVATE
@@ -329,8 +331,9 @@ add_library(numkit_toolboxes_obj OBJECT ${NUMKIT_LIBS_SOURCES})
 add_library(numkit_math_obj      OBJECT ${NUMKIT_MATH_SOURCES})
 add_library(numkit_lang_obj      OBJECT ${NUMKIT_LANG_SOURCES})
 add_library(numkit_runtime_obj   OBJECT ${NUMKIT_RUNTIME_SOURCES})
+add_library(numkit_builtin_obj   OBJECT ${NUMKIT_BUILTIN_SOURCES})
 add_library(numkit_bundle_obj    OBJECT ${NUMKIT_BUNDLE_SOURCES})
-foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_math_obj numkit_lang_obj numkit_runtime_obj numkit_bundle_obj)
+foreach(_obj numkit_core_obj numkit_toolboxes_obj numkit_math_obj numkit_lang_obj numkit_runtime_obj numkit_builtin_obj numkit_bundle_obj)
     numkit_configure_layer(${_obj})
 endforeach()
 
@@ -364,6 +367,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(src/math/tests)
     add_subdirectory(src/lang/tests)
     add_subdirectory(src/runtime/tests)
+    add_subdirectory(src/builtin/tests)
     add_subdirectory(src/bundle/tests)
     if(EXISTS ${CMAKE_SOURCE_DIR}/src/graphics/tests/CMakeLists.txt)
         add_subdirectory(src/graphics/tests)   # graphics is a top-level service lib now

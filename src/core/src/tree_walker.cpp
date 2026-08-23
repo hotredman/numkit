@@ -1518,6 +1518,7 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     // rvalue receiver (`f().m()`, `a.b.m()`) is evaluated exactly once. A
     // class method returning several outputs fills nout result slots.
     auto *headNode = node->children[0].get();
+    std::string funcName;
     if (headNode->type == NodeType::FIELD_ACCESS) {
         const ASTNode *recvNode = headNode->children[0].get();
         Value recvTmp;
@@ -1544,9 +1545,19 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
                 return outBuf;
             }
         }
+        std::string dotted = headNode->strValue;
+        const ASTNode *cur = recvNode;
+        while (cur && cur->type == NodeType::FIELD_ACCESS) {
+            dotted = cur->strValue + "." + dotted;
+            cur = cur->children.empty() ? nullptr : cur->children[0].get();
+        }
+        if (cur && cur->type == NodeType::IDENTIFIER) {
+            dotted = cur->strValue + "." + dotted;
+        }
+        funcName = std::move(dotted);
+    } else {
+        funcName = node->children[0]->strValue;
     }
-
-    const std::string &funcName = node->children[0]->strValue;
 
     std::vector<Value> args;
     args.reserve(node->children.size() - 1);

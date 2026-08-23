@@ -56,8 +56,10 @@ public:
         // functions into the workspace so existing tests can write
         // `fft(x)`, `std(v)`, `plot(x,y)` etc. without explicit imports.
         // Pre-Phase-7 this is a no-op (compat namespace empty); after
-        // migration it makes ~hundreds of namespaced functions reachable
-        // by short name.
+        Import compatImp;
+        compatImp.path.push_back("compat");
+        compatImp.wildcard = true;
+        engine.addImplicitImport(compatImp);
         engine.eval("import compat.*;");
     }
 

@@ -78,8 +78,4 @@ inline double roundNScalar(double v, int n, bool significant)
 }
 
 } // namespace
-
-// round(x,n)/round(x,n,'significant') worker (def in rounding.cpp, external).
-Value roundN(const Value &x, int n, bool significant, std::pmr::memory_resource *mr);
-
 } // namespace numkit::math

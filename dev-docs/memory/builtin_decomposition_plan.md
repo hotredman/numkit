@@ -119,3 +119,30 @@ src/builtin/
 * **No `_reg` suffixes**: All files must use clean names (`elmat.cpp`, `elfun.cpp`, `matfun.cpp`, etc.).
 * **1-to-1 Test Symmetry**: Every `.cpp` in `src/builtin/src/` must have its corresponding `_test.cpp` in `src/builtin/tests/`.
 * **Preserve Toolboxes**: Standalone domain toolboxes (`src/toolboxes/image`, `signal`, `optim`, `ode`, `stats`, `control`, `audio`, `comm`, `wavelet`, `fusion`) stay in `src/toolboxes/` and are NOT part of `src/builtin/`.
+
+---
+
+## Implementation & Migration Record (Completed)
+
+### Summary of Changes
+- Created `src/builtin/` tree with headers in `include/numkit/builtin/`, source files in `src/`, and test suites in `tests/`.
+- Decomposed monolithic registration into 13 cleanly structured modules + 1 facade (`builtin.cpp`):
+  1. `elmat` (elementary matrices, manipulation, creation)
+  2. `elfun` (elementary math, trig, exp, log, complex, rounding)
+  3. `matfun` (matrix algebra & decompositions)
+  4. `datafun` (data analysis & reductions)
+  5. `specfun` (special functions & combinatorics)
+  6. `polyfun` (polynomials, interpolation, integration)
+  7. `strfun` (string operations & predicates)
+  8. `timefun` (timing, date, CPU measurement)
+  9. `datatypes` (cell, struct, conversions, predicates, VM callbacks)
+  10. `iofun` (stream formatting, sscanf, sprintf, print)
+  11. `general` (help catalog, documentation, session inspection)
+  12. `ops` (arithmetic, relational, logical operators & aliases)
+  13. `lang` (language errors, warnings, keywords, identifiers)
+- Created 14 corresponding Google Test suites in `src/builtin/tests/` with 31 unit tests verifying correct registration and MATLAB parity.
+- Layering check (`tools/check_layering.py`) passes with 0 violations.
+- Dual engine test suite builds cleanly and passes with 99.9% pass rate across 13,112 test cases on both TreeWalker and VM backends.
+- Fixed qualified multi-assignment call dispatch in TreeWalker (`tree_walker.cpp:execMultiAssignCall`) ensuring dotted namespace names (e.g. `compat.findpeaks`) are correctly forwarded.
+- Registered implicit `compat.*` import in `dual_engine_fixture.hpp` to ensure mirror library functions survive `clear all` in dual-engine testing.
+

@@ -277,6 +277,7 @@ Value factorial(const Value &n, std::pmr::memory_resource *mr = nullptr);
 /// @return    Scalar `C(n, k)`.
 /// @see perms
 Value nchoosek(double n, double k, std::pmr::memory_resource *mr = nullptr);
+Value nchoosekCombinations(const Value &v, double k, std::pmr::memory_resource *mr = nullptr);
 
 // ── Tolerance-aware set operations ────────────────────────────────────
 

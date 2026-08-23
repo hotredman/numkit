@@ -93,8 +93,13 @@ Value rmfield(const Value &s, const Value &name,
 /// @return               Per-field results (shape depends on
 ///                       `uniformOutput`).
 /// @throws Error         Non-struct `s`, or non-scalar result in
-///                       uniform mode.
 Value structfun(FnHandle fn, const Value &s, bool uniformOutput,
                 std::pmr::memory_resource *mr = nullptr);
 
+Value getfield(const Value &s, const Value &name, std::pmr::memory_resource *mr = nullptr);
+Value setfield(const Value &s, const Value &name, const Value &value, std::pmr::memory_resource *mr = nullptr);
+Value orderfields(const Value &s, std::pmr::memory_resource *mr = nullptr);
+Value struct2cell(const Value &s, std::pmr::memory_resource *mr = nullptr);
+
 } // namespace numkit::builtin
+

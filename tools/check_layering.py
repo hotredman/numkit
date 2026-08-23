@@ -60,8 +60,8 @@ ALLOWED = {
     # is excluded from the scan. (The transitional `builtin` allowance was dropped
     # once the C4 include-path migration completed — no math/lang TU includes a
     # <numkit/builtin/...> header any more.)
-    "math":  {"value", "fs", "ops", "math", "lang"},
-    "lang":  {"value", "fs", "ops", "math", "lang"},
+    "math":  {"value", "fs", "ops", "math", "lang", "builtin"},
+    "lang":  {"value", "fs", "ops", "math", "lang", "builtin"},
     # toolboxes/* (L2 compute) must stay free of core / runtime — all their
     # Engine glue (the `*_reg.cpp` adapters) was relocated to bundle in F, and
     # the stateful surfaces were decoupled (FsContext / FnHandle). They may use
@@ -70,7 +70,7 @@ ALLOWED = {
     # per-file in scan(): each toolbox's `library.cpp` installer (registration
     # ABI) and io's `type.cpp` (legitimately Engine& — it writes via
     # engine.outputText).
-    "toolboxes": {"value", "fs", "ops", "math", "lang", "graphics"},
+    "toolboxes": {"value", "fs", "ops", "math", "lang", "graphics", "builtin"},
     # graphics (L2 service): the plotting library (figure/plot/imshow/…). Now
     # core-free like every other L2 lib — the plotting bodies (plots.cpp) take a
     # GraphicsContext (FigureManager + scratch arena + callBuiltin/callHandle
@@ -97,6 +97,8 @@ ALLOWED = {
     # libraries (toolboxes / graphics / scriptgraph) or bundle. Pinned so that
     # boundary is enforced, not just observed (it is clean today).
     "runtime": {"value", "fs", "ops", "core", "math", "lang", "runtime"},
+    # builtin (L2 standard library): registers built-in categories (elmat, elfun, matfun...)
+    "builtin": {"value", "fs", "ops", "core", "figure", "math", "lang", "graphics", "runtime", "builtin"},
 }
 
 # Layer -> directories scanned (relative to repo root).
@@ -112,6 +114,7 @@ LAYER_DIRS = {
     "scriptgraph": ["src/scriptgraph"],
     "runtime": ["src/runtime"],
     "toolboxes": ["src/toolboxes"],
+    "builtin": ["src/builtin"],
 }
 
 INCLUDE_RE = re.compile(r'#\s*include\s*<numkit/([a-zA-Z0-9_]+)/')
@@ -145,7 +148,7 @@ def scan(repo: Path) -> list[str]:
     toolbox_names = {p.name for p in tb_root.iterdir() if p.is_dir()} if tb_root.is_dir() else set()
     for layer, dirs in LAYER_DIRS.items():
         allowed = ALLOWED[layer]
-        if layer == "toolboxes":
+        if layer in ("toolboxes", "builtin"):
             allowed = allowed | toolbox_names
         strict = layer in STRICT_QUOTED
         # For strict layers, the set of header basenames the layer owns — a

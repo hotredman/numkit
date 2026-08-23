@@ -28,9 +28,7 @@ list(APPEND NUMKIT_LANG_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/format.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/print.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/strings/scan.cpp
-    # operators/ (arithmetic/relational/logical binary + unary; SIMD kernels in ops)
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/binary_ops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/operators/unary_ops.cpp
+    # operators/ (migrated to src/builtin/src/ops/)
     # arrays/ (matrix ops / manip flip-rot-sort / N-D manip — accum stays in builtin: core-coupled)
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/matrix.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arrays/manip.cpp

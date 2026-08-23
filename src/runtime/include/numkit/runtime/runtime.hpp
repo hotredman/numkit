@@ -21,5 +21,6 @@ namespace numkit::runtime {
 ///
 /// @param engine  Engine to register the runtime builtins on.
 void installRuntimeLibrary(Engine &engine);
+void registerWorkspaceRuntime(Engine &engine);
 
 } // namespace numkit::runtime
