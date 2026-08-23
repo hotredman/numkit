@@ -1,147 +1,52 @@
+// src/bundle/src/register/builtin/general_reg.cpp
+
 #include <numkit/builtin/general.hpp>
 #include <numkit/core/engine.hpp>
-#include <numkit/core/callback_builtin.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
 #include <numkit/value/scratch.hpp>
-#include <numkit/value/object.hpp>
 #include <numkit/core/vm.hpp>
-#include <numkit/core/build_info.hpp>
 #include <numkit/runtime/runtime.hpp>
-#include <numkit/runtime/language/cells/cell.hpp>
-#include <numkit/runtime/language/structures/struct.hpp>
 #include <numkit/runtime/help/help_catalog.hpp>
-#include <numkit/lang/operators/binary_ops.hpp>
-#include <numkit/lang/operators/unary_ops.hpp>
-#include <numkit/lang/types/types.hpp>
-#include <numkit/math/arithmetic/rounding.hpp>
 
 #include <algorithm>
-#include <atomic>
-#include <cctype>
-#include <chrono>
-#include <cmath>
-#include <cstdlib>
-#include <ctime>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-namespace numkit::builtin {
-void registerSplitapplyCallbackBuiltin(Engine &engine);
-void registerIntegralM(Engine &engine);
-void registerCellfunCallbackBuiltin(Engine &engine);
-void registerStructfunCallbackBuiltin(Engine &engine);
-}
-
+#include <numkit/core/build_info.hpp>
 
 namespace numkit::builtin::detail {
-
-
-} // namespace numkit::builtin::detail
-
-namespace numkit::builtin {
-
-// ── Pure C++ Catalog & Documentation Implementations ───────────────────────
-
-std::string help(const std::string &query)
-{
-    const auto &catalog = runtime::HelpCatalog::instance();
-    if (query.empty()) {
-        return catalog.formatAllCategories();
-    }
-    const runtime::HelpCategory *cat = catalog.findCategory(query);
-    if (cat) {
-        return catalog.formatCategory(cat->name);
-    }
-    const runtime::HelpEntry *func = catalog.findFunction(query);
-    if (func) {
-        return catalog.formatFunction(func->name);
-    }
-    return "'" + query + "' not found. Type 'help' for a list of topics.\n";
+void addpath_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void cd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void clc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void delete_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void dir_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void format_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void formatteddisplaytext_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void freqspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void home_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void inmem_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ls_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void mkdir_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void optimget_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void optimset_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void path_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void pathsep_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void pwd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void rehash_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void rmdir_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void rmpath_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void which_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 }
 
-Value help(Span<const Value> args, std::pmr::memory_resource *mr)
-{
-    std::string query = args.empty() ? "" : args[0].toString();
-    return Value::fromString(help(query), mr);
-}
+namespace numkit::bundle::builtin {
 
-std::vector<std::string> what(const std::string &category)
-{
-    const auto &catalog = runtime::HelpCatalog::instance();
-    const runtime::HelpCategory *cat = catalog.findCategory(category);
-    if (cat) {
-        return catalog.getCategoryFunctions(cat->name);
-    }
-    return catalog.getCategoryFunctions(category);
-}
-
-Value what(Span<const Value> args, std::pmr::memory_resource *mr)
-{
-    const auto &catalog = runtime::HelpCatalog::instance();
-    std::string topic = args.empty() ? "elmat" : args[0].toString();
-    const runtime::HelpCategory *cat = catalog.findCategory(topic);
-    std::vector<std::string> funcs = what(topic);
-
-    Value cellM = Value::cell(funcs.size(), 1, mr);
-    for (size_t i = 0; i < funcs.size(); ++i) {
-        cellM.cellAt(i) = Value::fromString(funcs[i], mr);
-    }
-    Value st = Value::structure(mr);
-    st.structFields()["path"] = Value::fromString(cat ? cat->name : topic, mr);
-    st.structFields()["m"] = std::move(cellM);
-    st.structFields()["classes"] = Value::cell(0, 1, mr);
-    st.structFields()["packages"] = Value::cell(0, 1, mr);
-    return st;
-}
-
-std::vector<std::string> builtins(const std::string &category)
-{
-    const auto &catalog = runtime::HelpCatalog::instance();
-    if (category.empty()) {
-        return catalog.getAllFunctions();
-    }
-    return catalog.getCategoryFunctions(category);
-}
-
-Value builtins(Span<const Value> args, std::pmr::memory_resource *mr)
-{
-    std::string topic = args.empty() ? "" : args[0].toString();
-    std::vector<std::string> funcs = builtins(topic);
-    Value cellOut = Value::cell(funcs.size(), 1, mr);
-    for (size_t i = 0; i < funcs.size(); ++i) {
-        cellOut.cellAt(i) = Value::fromString(funcs[i], mr);
-    }
-    return cellOut;
-}
-
-std::vector<std::string> categories()
-{
-    const auto &catalog = runtime::HelpCatalog::instance();
-    std::vector<std::string> cats;
-    cats.reserve(catalog.categories().size());
-    for (const auto &c : catalog.categories()) {
-        cats.push_back(c.name);
-    }
-    return cats;
-}
-
-Value categories(std::pmr::memory_resource *mr)
-{
-    std::vector<std::string> cats = categories();
-    Value cellOut = Value::cell(cats.size(), 1, mr);
-    for (size_t i = 0; i < cats.size(); ++i) {
-        cellOut.cellAt(i) = Value::fromString(cats[i], mr);
-    }
-    return cellOut;
-}
+using namespace ::numkit::builtin;
 
 static void help_builtin(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
     std::string text;
@@ -225,6 +130,7 @@ static void inmem_builtin(Span<const Value>, size_t nargout, Span<Value> outs, C
 }
 
 void register_general(Engine &engine) {
+    using namespace ::numkit::builtin::detail;
 // ── clc ────────────────────────────────────────────────────
     engine.registerFunction("clc",
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
@@ -752,4 +658,4 @@ void register_general(Engine &engine) {
     engine.registerFunction("inmem", &inmem_builtin);
 }
 
-} // namespace numkit::builtin
+} // namespace numkit::bundle::builtin

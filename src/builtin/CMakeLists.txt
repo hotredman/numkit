@@ -31,7 +31,7 @@ list(APPEND NUMKIT_BUILTIN_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/structs_cells.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/datatypes/limits.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/iofun/formatted_io.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/general.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/general/catalog.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lang.cpp
 )
 

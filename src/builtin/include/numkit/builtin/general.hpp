@@ -1,6 +1,6 @@
-// include/numkit/builtin/general.hpp
+// src/builtin/include/numkit/builtin/general.hpp
 //
-// General purpose commands, catalog introspection, help system, and session inspection.
+// Pure C++ General purpose commands, catalog introspection, help system, and session inspection.
 #pragma once
 
 #include <memory_resource>
@@ -9,14 +9,13 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/span.hpp>
 
-namespace numkit {
-class Engine;
-}
-
 namespace numkit::builtin {
 
 /// @file
 /// @brief General utility functions, documentation query, and standard library catalog introspection.
+///
+/// Provides clean, engine-free C++ API for querying catalog help documentation,
+/// listing category functions, and inspecting standard library built-ins.
 
 // ── Catalog & Documentation Introspection ───────────────────────────────────
 
@@ -84,10 +83,5 @@ std::vector<std::string> categories();
 /// @return Cell array Value of category name strings.
 /// @see builtins, help
 Value categories(std::pmr::memory_resource *mr);
-
-// ── Registration ────────────────────────────────────────────────────────────
-
-/// @brief Registers all general and introspection builtins into the engine instance.
-void register_general(Engine &engine);
 
 } // namespace numkit::builtin
