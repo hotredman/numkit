@@ -1623,10 +1623,6 @@ std::string repl_execute(const std::string& input) {
     std::string trimmed = input.substr(start, end - start + 1);
     if (trimmed.empty()) return "";
     if (trimmed == "clc") return "__CLEAR__";
-    if (trimmed == "help") {
-        return "Commands: clc, clear, who, whos, help\n"
-               "Keys: Enter=exec, Shift+Enter=newline, Tab=autocomplete";
-    }
     return g_session->execute(trimmed);
 }
 

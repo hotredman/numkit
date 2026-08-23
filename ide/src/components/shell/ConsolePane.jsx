@@ -48,12 +48,8 @@ const ConsolePane = forwardRef(function ConsolePane(
     setInputVal('');
     setAcItems([]);
     const hm = val.match(/^help\s+(\w+)$/);
-    if (hm && HELP_DB[hm[1]]) { onSetHelpTopic(hm[1]); return; }
-    if (val === 'help') {
-      onSetHelpTopic(null);
-      onAddOutput([{ type: 'system', text: 'Commands: clc, clear, who, whos, help <topic>' }]);
-      return;
-    }
+    if (hm && HELP_DB[hm[1]]) { onSetHelpTopic(hm[1]); }
+    if (val === 'help') { onSetHelpTopic(null); }
     onRunCode(val);
   }, [inputVal, onAddOutput, onRunCode, onSetHelpTopic]);
 

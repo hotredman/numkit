@@ -394,7 +394,35 @@ export function createInterpreter() {
         continue;
       }
       if (cleanLine === "help") {
-        output.push("Commands: clc, clear, who, whos, help <topic>\nKeys: Enter=exec, Shift+Enter=newline, Tab=autocomplete, ↑↓=history");
+        output.push(
+          "Numkit Help Topics:\n\n" +
+          "  Fundamentals:\n" +
+          "    elmat         - Elementary matrices and matrix manipulation.\n" +
+          "    elfun         - Elementary math functions.\n" +
+          "    ops           - Operators and elementary operations.\n" +
+          "    matfun        - Matrix functions - numerical linear algebra.\n" +
+          "    datafun       - Data analysis, summary statistics and Fourier transforms.\n" +
+          "    specfun       - Special mathematical functions.\n" +
+          "    polyfun       - Polynomials, interpolation and numerical integration.\n" +
+          "    strfun        - Character and string manipulation.\n" +
+          "    datatypes     - Data types, structures, cells and object introspection.\n" +
+          "    timefun       - Time, dates and profiling.\n" +
+          "    lang          - Language syntax, diagnostics and session.\n" +
+          "    iofun         - File input and output, workspace persistence.\n\n" +
+          "  Toolboxes:\n" +
+          "    signal        - Signal Processing Toolbox.\n" +
+          "    stats         - Statistics and Machine Learning Toolbox.\n" +
+          "    image         - Image Processing Toolbox.\n" +
+          "    control       - Control System Toolbox.\n" +
+          "    optim         - Optimization Toolbox.\n" +
+          "    wavelet       - Wavelet Toolbox.\n" +
+          "    comm          - Communications Toolbox.\n" +
+          "    audio         - Audio Toolbox.\n" +
+          "    ode           - Ordinary Differential Equation (ODE) Solvers.\n" +
+          "    graphics      - 2-D and 3-D plotting and visualization.\n\n" +
+          "Type \"help <topic>\" for a list of functions in that topic.\n" +
+          "Type \"help <function>\" for documentation on a specific function."
+        );
         continue;
       }
 
