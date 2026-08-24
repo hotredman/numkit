@@ -7,6 +7,8 @@
 
 👉 **Try it in your browser:** [https://hotredman.github.io/numkit-demo/](https://hotredman.github.io/numkit-demo/)
 
+👉 **C++ Library Documentation** [https://hotredman.github.io/numkit-doxy/](https://hotredman.github.io/numkit-doxy/)
+
 Designed both for embedding scientific scripting into C++ applications and for standalone engineering workflows.
 
 ---
