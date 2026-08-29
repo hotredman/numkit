@@ -29,7 +29,14 @@ MATLAB = Path(r"C:\Program Files\MATLAB\R2025b\bin\matlab.exe")
 BAD_TOKENS = ["input(", "urlread", "system(", "java.", "actxserver", "parfor",
               "gpuArray", "sym(", "sim(", "mex", "waitfor", "pause(", "tic",
               "clock", "now,", "datenum", "websave", "webread", "video",
-              "aviread", "VideoReader"]
+              "aviread", "VideoReader",
+              # Display/graphics phase is out of scope: any drawing call
+              # excludes the script (plots print nothing; a missing plot
+              # option must not fail an otherwise-computational script).
+              "figure", "plot(", "subplot", "surf", "mesh", "imagesc",
+              "contour", "scatter", "bar(", "hist(", "histogram", "gca",
+              "gcf", "axes(", "legend", "title(", "xlabel", "ylabel",
+              "annotation", "colorbar", "colormap", "savefig", "print("]
 NEED_OUTPUT = ("disp(", "fprintf(", "sprintf(")
 
 
