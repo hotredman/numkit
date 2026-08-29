@@ -3632,9 +3632,17 @@ bool VM::tryObjectSubsrefFrame(uint8_t dst, uint8_t selfReg, Span<const Value> i
     Value *R = frame.R;
     if (!R[selfReg].isObject())
         return false;
+    return tryObjectSubsrefFrameObj(R[selfReg], dst, idx, frame, ip);
+}
+
+bool VM::tryObjectSubsrefFrameObj(const Value &self, uint8_t dst, Span<const Value> idx,
+                                  CallFrame &frame, const Instruction *ip)
+{
+    if (!self.isObject())
+        return false;
     std::string ownerClass;
     std::vector<Value> args;
-    const BytecodeChunk *cc = engine_.resolveSubsrefChunk(R[selfReg], idx, ownerClass, args);
+    const BytecodeChunk *cc = engine_.resolveSubsrefChunk(self, idx, ownerClass, args);
     if (!cc)
         return false;
     frame.ip = ip + 1;
@@ -3791,6 +3799,12 @@ bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t arg
             std::vector<Value> idx(na);
             for (uint8_t i = 0; i < na; ++i)
                 idx[i] = R[argBase + i];
+            // classdef subsref → same-stack VM frame (pausable, P4e). Returns
+            // true on push; the caller then `goto enter_frame`. Without this
+            // the body runs through the engine call below — outside any VM
+            // frame, so breakpoints inside subsref never fire.
+            if (tryObjectSubsrefFrameObj(target, dstReg, Span<const Value>(idx.data(), na), frame, ip))
+                return true;
             Value out;
             if (engine_.tryObjectSubsref(const_cast<Value&>(target), Span<const Value>(idx.data(), na), 1,
                                          out, currentCallEnv())) {

@@ -419,6 +419,11 @@ private:
     // builtin-indexing slow path.
     bool tryObjectSubsrefFrame(uint8_t dst, uint8_t selfReg, Span<const Value> idx,
                                CallFrame &frame, const Instruction *ip);
+    // Same push for a receiver held by value (a temporary — e.g. a struct
+    // field or property result inside execCallIndirectTarget), which does
+    // not live in any register.
+    bool tryObjectSubsrefFrameObj(const Value &self, uint8_t dst, Span<const Value> idx,
+                                  CallFrame &frame, const Instruction *ip);
     bool tryObjectSubsasgnFrame(uint8_t objReg, Span<const Value> idxAndVal,
                                 CallFrame &frame, const Instruction *ip);
     void execCallBuiltin(const Instruction &I, Value *R);
