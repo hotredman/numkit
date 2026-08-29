@@ -69,19 +69,27 @@ namespace numkit {
 
 void StackGuard::check(const char *stage)
 {
-    pthread_attr_t attr;
-    if (pthread_getattr_np(pthread_self(), &attr) == 0) {
-        void *stackAddr = nullptr;
-        size_t stackSize = 0;
-        pthread_attr_getstack(&attr, &stackAddr, &stackSize);
-        pthread_attr_destroy(&attr);
-        uintptr_t lowLimit = reinterpret_cast<uintptr_t>(stackAddr);
-        volatile char dummy = 0;
-        uintptr_t currentStack = reinterpret_cast<uintptr_t>(&dummy);
-        if (lowLimit != 0 && currentStack < lowLimit + SAFETY_MARGIN_BYTES) {
-            throw std::runtime_error("Stack exhaustion limit reached during " +
-                                     std::string(stage ? stage : "operation"));
+    // The stack bound never moves within a thread, and pthread_getattr_np is
+    // too expensive for a per-node hot path (glibc: locks + rlimit reads) —
+    // resolve it once per thread and cache the low limit.
+    static thread_local uintptr_t cachedLow = 0;
+    static thread_local bool resolved = false;
+    if (!resolved) {
+        pthread_attr_t attr;
+        if (pthread_getattr_np(pthread_self(), &attr) == 0) {
+            void *stackAddr = nullptr;
+            size_t stackSize = 0;
+            pthread_attr_getstack(&attr, &stackAddr, &stackSize);
+            pthread_attr_destroy(&attr);
+            cachedLow = stackAddr ? reinterpret_cast<uintptr_t>(stackAddr) : 0;
         }
+        resolved = true;
+    }
+    volatile char dummy = 0;
+    uintptr_t currentStack = reinterpret_cast<uintptr_t>(&dummy);
+    if (cachedLow != 0 && currentStack < cachedLow + SAFETY_MARGIN_BYTES) {
+        throw std::runtime_error("Stack exhaustion limit reached during " +
+                                 std::string(stage ? stage : "operation"));
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include <numkit/core/ast.hpp>
 #include <numkit/core/lexer.hpp>
+#include <numkit/core/stack_guard.hpp>
 #include <initializer_list>
 #include <stdexcept>
 #include <string>
@@ -27,6 +28,10 @@ private:
         explicit NestingGuard(Parser &parser)
             : p(parser)
         {
+            // Watermark before the depth limit: on small-stack hosts (WASM
+            // workers) the descent can exhaust the stack before the fixed
+            // 200-level limit fires — refuse with a diagnostic either way.
+            StackGuard::check("parser");
             if (++p.nestingDepth_ > MAX_NESTING_DEPTH) {
                 throw std::runtime_error("Parse error at line " + std::to_string(p.current().line)
                                          + " col " + std::to_string(p.current().col)
