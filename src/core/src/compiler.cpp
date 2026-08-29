@@ -1,6 +1,7 @@
 // src/compiler.cpp
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/engine.hpp>
+#include <numkit/core/stack_guard.hpp>
 
 #include <stdexcept>
 #include <unordered_set>
@@ -475,6 +476,8 @@ uint8_t Compiler::compileNodeExpand(const ASTNode *node)
 {
     if (!node)
         return 0;
+
+    StackGuard::check("bytecode compilation");
 
     // Update current source location from AST node (if it has valid line info)
     if (node->line > 0) {

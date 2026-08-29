@@ -2,6 +2,7 @@
 // Parameterized: runs on both TreeWalker and VM backends
 
 #include "dual_engine_fixture.hpp"
+#include <numkit/core/stack_guard.hpp>
 
 using namespace m_test;
 using namespace numkit;
@@ -228,6 +229,44 @@ TEST_P(ErrorDiagnosticsTest, DebugStopIsNotError)
     auto r = engine.evalSafe("x = 1;");
     EXPECT_TRUE(r.ok);
     EXPECT_FALSE(r.debugStop);
+}
+
+// ============================================================
+// 7. Stack safety and nesting depth limits
+// ============================================================
+
+TEST_P(ErrorDiagnosticsTest, DeepExpressionNestingReturnsCleanError)
+{
+    std::string code = "y = ";
+    for (int i = 0; i < 500; ++i) code += "sin(";
+    code += "1";
+    for (int i = 0; i < 500; ++i) code += ")";
+    code += ";";
+
+    auto r = engine.evalSafe(code);
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.errorMessage.find("nesting exceeds maximum supported depth"), std::string::npos)
+        << "Error message was: " << r.errorMessage;
+}
+
+TEST_P(ErrorDiagnosticsTest, DeepIfBlockNestingReturnsCleanError)
+{
+    std::string code = "y = 1;\n";
+    for (int i = 0; i < 500; ++i) code += "if 1\n";
+    code += "y = y + 1;\n";
+    for (int i = 0; i < 500; ++i) code += "end\n";
+
+    auto r = engine.evalSafe(code);
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.errorMessage.find("nesting exceeds maximum supported depth"), std::string::npos)
+        << "Error message was: " << r.errorMessage;
+}
+
+TEST_P(ErrorDiagnosticsTest, StackGuardWatermarkApiCheck)
+{
+    EXPECT_NO_THROW({
+        numkit::StackGuard::check("unit test");
+    });
 }
 
 INSTANTIATE_DUAL(ErrorDiagnosticsTest);

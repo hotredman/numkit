@@ -3,6 +3,8 @@
 #include <numkit/core/ast.hpp>
 #include <numkit/core/lexer.hpp>
 #include <initializer_list>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace numkit {
@@ -16,6 +18,24 @@ public:
 private:
     std::vector<Token> tokens_;
     size_t pos_ = 0;
+    size_t nestingDepth_ = 0;
+    static constexpr size_t MAX_NESTING_DEPTH = 200;
+
+    struct NestingGuard
+    {
+        Parser &p;
+        explicit NestingGuard(Parser &parser)
+            : p(parser)
+        {
+            if (++p.nestingDepth_ > MAX_NESTING_DEPTH) {
+                throw std::runtime_error("Parse error at line " + std::to_string(p.current().line)
+                                         + " col " + std::to_string(p.current().col)
+                                         + ": Expression or block nesting exceeds maximum supported depth ("
+                                         + std::to_string(MAX_NESTING_DEPTH) + ")");
+            }
+        }
+        ~NestingGuard() { --p.nestingDepth_; }
+    };
 
     // — Позиция в исходнике —
     struct SourceLoc

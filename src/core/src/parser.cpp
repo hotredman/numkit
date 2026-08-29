@@ -237,6 +237,7 @@ ASTNodePtr Parser::parse()
 
 ASTNodePtr Parser::parseStatement()
 {
+    NestingGuard guard(*this);
     switch (current().type) {
     case TokenType::KW_FUNCTION:
         return parseFunctionDef();
@@ -610,6 +611,7 @@ ASTNodePtr Parser::tryMultiAssign()
 
 ASTNodePtr Parser::parseIf()
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
     auto node = makeNode(NodeType::IF_STMT, ln, cl);
     consume(TokenType::KW_IF, "if");
@@ -640,6 +642,7 @@ ASTNodePtr Parser::parseIf()
 
 ASTNodePtr Parser::parseFor()
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
     auto node = makeNode(NodeType::FOR_STMT, ln, cl);
     consume(TokenType::KW_FOR, "for");
@@ -658,6 +661,7 @@ ASTNodePtr Parser::parseFor()
 
 ASTNodePtr Parser::parseWhile()
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
     auto node = makeNode(NodeType::WHILE_STMT, ln, cl);
     consume(TokenType::KW_WHILE, "while");
@@ -674,6 +678,7 @@ ASTNodePtr Parser::parseWhile()
 
 ASTNodePtr Parser::parseSwitch()
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
     auto node = makeNode(NodeType::SWITCH_STMT, ln, cl);
     consume(TokenType::KW_SWITCH, "switch");
@@ -702,6 +707,7 @@ ASTNodePtr Parser::parseSwitch()
 
 ASTNodePtr Parser::parseTryCatch()
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
     auto node = makeNode(NodeType::TRY_STMT, ln, cl);
     consume(TokenType::KW_TRY, "try");
@@ -982,6 +988,7 @@ ASTNodePtr Parser::parseClassDef()
 
 ASTNodePtr Parser::parseBlock(std::initializer_list<TokenType> terminators)
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
     auto block = makeNode(NodeType::BLOCK, ln, cl);
     while (!isAtEnd()) {
@@ -1010,6 +1017,7 @@ ASTNodePtr Parser::parseBlock(std::initializer_list<TokenType> terminators)
 
 ASTNodePtr Parser::parseExpression()
 {
+    NestingGuard guard(*this);
     return parseShortCircuitOr();
 }
 
@@ -1282,6 +1290,7 @@ ASTNodePtr Parser::parsePostfix()
 
 ASTNodePtr Parser::parsePrimary()
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
 
     switch (current().type) {
@@ -1440,6 +1449,7 @@ std::string Parser::reconstructAnonSource(size_t from, size_t to) const
 
 ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType nodeType)
 {
+    NestingGuard guard(*this);
     auto [ln, cl] = loc();
     const char *openStr = (open == TokenType::LBRACKET) ? "[" : "{";
     const char *closeStr = (close == TokenType::RBRACKET) ? "]" : "}";
@@ -1489,11 +1499,13 @@ ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType n
 
 ASTNodePtr Parser::parseMatrixLiteral()
 {
+    NestingGuard guard(*this);
     return parseArrayLiteral(TokenType::LBRACKET, TokenType::RBRACKET, NodeType::MATRIX_LITERAL);
 }
 
 ASTNodePtr Parser::parseCellLiteral()
 {
+    NestingGuard guard(*this);
     return parseArrayLiteral(TokenType::LBRACE, TokenType::RBRACE, NodeType::CELL_LITERAL);
 }
 

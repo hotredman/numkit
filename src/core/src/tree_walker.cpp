@@ -2,6 +2,7 @@
 #include <numkit/core/tree_walker.hpp>
 #include <numkit/core/compiler.hpp>
 #include <numkit/core/engine.hpp>
+#include <numkit/core/stack_guard.hpp>
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
@@ -346,6 +347,8 @@ Value TreeWalker::execNodeExpand(const ASTNode *node, Environment *env)
 {
     if (!node)
         return Value();
+
+    StackGuard::check("tree walker execution");
 
     try {
         return execNodeInner(node, env);
@@ -835,6 +838,7 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
 
 Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
 {
+    StackGuard::check("tree walker execution");
     Value last = Value();
     for (auto &child : node->children) {
         // ── Debug hook: check for line change, breakpoints ──

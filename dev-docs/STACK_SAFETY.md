@@ -1,13 +1,16 @@
 # Безопасность стека: неограниченная вложенность входа роняет процесс
 
-*Status:* **open** · *Found:* 2026-08-29 · *Repro:* `main` @ `c369399b`,
+*Status:* **fixed** · *Found:* 2026-08-29 · *Repro:* `main` @ `c369399b`,
 сборка `build/desktop-fast` (MSVC, Release; ядро `src/core` на HEAD идентично
 протестированной сборке) · *Kind:* crash — пользовательский ввод убивает
 процесс/модуль без диагностики.
 
-Проблема и дизайн фикса зафиксированы здесь, чтобы любая сессия могла взяться
-холодной. При реализации — следовать §5 (три слоя) и протоколу багов из
-CLAUDE.md (§9).
+## Резюме фикса
+
+Реализована двухуровневая защита от переполнения стека и крахов `0xC00000FD` / `SIGSEGV`:
+1. **Слой 1 (Parse-time Nesting Limit, UX)**: RAII `NestingGuard` в `Parser` с лимитом `MAX_NESTING_DEPTH = 200`. Защищены все точки рекурсивного спуска (`parseExpression`, `parsePrimary`, `parseStatement`, `parseBlock`, `parseIf`, `parseFor`, `parseWhile`, `parseSwitch`, `parseTryCatch`, `parseArrayLiteral`, `parseMatrixLiteral`, `parseCellLiteral`). Выдаёт чистую ошибку парсинга с номером строки и столбца.
+2. **Слой 2 (Физический водяной знак стека `StackGuard`)**: Кроссплатформенный `numkit::StackGuard::check(stage)` с порогом запаса 64 КБ (`GetCurrentThreadStackLimits` на Windows, `emscripten_stack_get_free()` на WASM, `pthread_attr_getstack` на POSIX). Установлен во все рекурсивные обходчики (`Compiler::compileNodeExpand`, `TreeWalker::execNodeExpand`, `TreeWalker::execBlock`).
+3. **Слой 3 (Верификация & Тесты)**: Добавлены модульные тесты в `src/core/tests/parser_test.cpp` (`ParserNestingLimitTest`) и `tests/gtest/integration/error_diagnostics_test.cpp` (`DualEngineTest`). Все тесты успешно проходят на обоих бэкендах (`TreeWalker` и `VM`).
 
 ---
 

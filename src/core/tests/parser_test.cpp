@@ -2569,3 +2569,108 @@ TEST_F(ParserImportTest, AsIsPlainIdentifier)
     EXPECT_EQ(stmt(*ast, 0).type, NodeType::ASSIGN);
     EXPECT_EQ(stmt(*ast, 1).type, NodeType::ASSIGN);
 }
+
+// ============================================================
+// Тесты: Ограничение глубины вложенности (Stack Safety Layer 1)
+// ============================================================
+class ParserNestingLimitTest : public ::testing::Test
+{};
+
+TEST_F(ParserNestingLimitTest, ModerateNestingSucceeds)
+{
+    // 50 levels of parentheses is well within MAX_NESTING_DEPTH (200)
+    std::string src = "y = ";
+    for (int i = 0; i < 50; ++i) src += "(";
+    src += "42";
+    for (int i = 0; i < 50; ++i) src += ")";
+    src += ";";
+    EXPECT_NO_THROW({
+        auto ast = parseSource(src);
+        EXPECT_NE(ast, nullptr);
+    });
+}
+
+TEST_F(ParserNestingLimitTest, DeepExpressionThrowsCleanError)
+{
+    // 300 levels of nested sin(...) calls exceeds MAX_NESTING_DEPTH (200)
+    std::string src = "y = ";
+    for (int i = 0; i < 300; ++i) src += "sin(";
+    src += "1";
+    for (int i = 0; i < 300; ++i) src += ")";
+    src += ";";
+    try {
+        parseSource(src);
+        FAIL() << "Expected parseSource to throw for depth > 200";
+    } catch (const std::runtime_error &e) {
+        std::string msg = e.what();
+        EXPECT_NE(msg.find("nesting exceeds maximum supported depth"), std::string::npos)
+            << "Error message was: " << msg;
+    }
+}
+
+TEST_F(ParserNestingLimitTest, DeepParenthesesThrowsCleanError)
+{
+    std::string src = "y = ";
+    for (int i = 0; i < 300; ++i) src += "(";
+    src += "1";
+    for (int i = 0; i < 300; ++i) src += ")";
+    src += ";";
+    try {
+        parseSource(src);
+        FAIL() << "Expected parseSource to throw for depth > 200";
+    } catch (const std::runtime_error &e) {
+        std::string msg = e.what();
+        EXPECT_NE(msg.find("nesting exceeds maximum supported depth"), std::string::npos)
+            << "Error message was: " << msg;
+    }
+}
+
+TEST_F(ParserNestingLimitTest, DeepIfBlocksThrowsCleanError)
+{
+    std::string src = "y = 1;\n";
+    for (int i = 0; i < 300; ++i) src += "if 1\n";
+    src += "y = y + 1;\n";
+    for (int i = 0; i < 300; ++i) src += "end\n";
+    try {
+        parseSource(src);
+        FAIL() << "Expected parseSource to throw for depth > 200";
+    } catch (const std::runtime_error &e) {
+        std::string msg = e.what();
+        EXPECT_NE(msg.find("nesting exceeds maximum supported depth"), std::string::npos)
+            << "Error message was: " << msg;
+    }
+}
+
+TEST_F(ParserNestingLimitTest, DeepMatrixLiteralThrowsCleanError)
+{
+    std::string src = "y = ";
+    for (int i = 0; i < 300; ++i) src += "[";
+    src += "1";
+    for (int i = 0; i < 300; ++i) src += "]";
+    src += ";";
+    try {
+        parseSource(src);
+        FAIL() << "Expected parseSource to throw for depth > 200";
+    } catch (const std::runtime_error &e) {
+        std::string msg = e.what();
+        EXPECT_NE(msg.find("nesting exceeds maximum supported depth"), std::string::npos)
+            << "Error message was: " << msg;
+    }
+}
+
+TEST_F(ParserNestingLimitTest, DeepCellLiteralThrowsCleanError)
+{
+    std::string src = "y = ";
+    for (int i = 0; i < 300; ++i) src += "{";
+    src += "1";
+    for (int i = 0; i < 300; ++i) src += "}";
+    src += ";";
+    try {
+        parseSource(src);
+        FAIL() << "Expected parseSource to throw for depth > 200";
+    } catch (const std::runtime_error &e) {
+        std::string msg = e.what();
+        EXPECT_NE(msg.find("nesting exceeds maximum supported depth"), std::string::npos)
+            << "Error message was: " << msg;
+    }
+}

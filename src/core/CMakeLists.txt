@@ -19,6 +19,7 @@ set(NUMKIT_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/parser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/stack_guard.cpp
     # execution backends
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tree_walker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/vm.cpp
@@ -44,6 +45,7 @@ set(NUMKIT_CORE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/environment.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/lexer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/parser.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/stack_guard.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/tree_walker.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/types.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/core/vm.hpp
