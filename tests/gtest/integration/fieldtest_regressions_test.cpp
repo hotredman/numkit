@@ -1,0 +1,55 @@
+// tests/gtest/integration/fieldtest_regressions_test.cpp
+//
+// Regression guards for bugs found by the REAL-WORLD differential corpus
+// (fieldtest/ — GitHub MATLAB code run through MATLAB R2025b vs numkit).
+// Each test asserts the MATLAB-observed behaviour; DISABLED_ per the bug
+// protocol until its bug is fixed (then the prefix is removed and the test
+// goes live). Companion bug files: bugs/lang/complex-relational-ops.md,
+// bugs/lang/command-syntax-url-args.md.
+
+#include "dual_engine_fixture.hpp"
+
+using namespace m_test;
+using namespace numkit;
+
+class FieldTestRegression : public DualEngineTest {};
+
+// ── bugs/lang/complex-relational-ops ─────────────────────────────────────
+// MATLAB R2025b: `< > <= >=` on complex compare REAL parts and return a
+// logical — (0+1i) < 2 is 1. numkit currently throws "Operator '<' is not
+// supported for complex operands" (found via the AHP.m corpus script).
+TEST_P(FieldTestRegression, DISABLED_ComplexRelationalComparesRealPart)
+{
+    EXPECT_TRUE(engine.evalSafe("w = (complex(1,0) < 2);").ok)
+        << "complex(1,0) < 2 must compare real parts (MATLAB returns 1)";
+    EXPECT_DOUBLE_EQ(engine.eval("w").toScalar(), 1.0);
+
+    EXPECT_TRUE(engine.evalSafe("w2 = ((0+1i) < 2);").ok)
+        << "even a nonzero imaginary part is ignored by MATLAB orderings";
+    EXPECT_DOUBLE_EQ(engine.eval("w2").toScalar(), 1.0);
+
+    EXPECT_TRUE(engine.evalSafe("w3 = ((3+1i) < 2);").ok);
+    EXPECT_DOUBLE_EQ(engine.eval("w3").toScalar(), 0.0);
+}
+
+// ── bugs/lang/command-syntax-url-args ────────────────────────────────────
+// Command syntax takes everything after the head as whitespace-split char
+// literals — ':' '/' '.' are NOT operators there. MATLAB `disp a//b:c`
+// prints "a//b:c"; `foo -bar http://x.y/z` may fail at the FUNCTION level
+// but never with a parse/token error.
+TEST_P(FieldTestRegression, DISABLED_CommandSyntaxUrlArgs)
+{
+    // Silent truncation is the worse half: numkit today prints "a//b".
+    EXPECT_TRUE(engine.evalSafe("s = 'a//b:c'; disp2 = s;").ok); // sanity
+
+    auto r1 = engine.evalSafe("disp a//b:c");
+    EXPECT_TRUE(r1.ok) << "command args must not be token-lexed";
+
+    // Parse-level failure on a URL argument.
+    auto r2 = engine.evalSafe("foo -bar http://x.y/z");
+    EXPECT_FALSE(r2.ok); // foo is undefined — an error is correct…
+    EXPECT_EQ(r2.errorMessage.find("Unexpected token"), std::string::npos)
+        << "…but a FUNCTION-level error, never a token-level parse error";
+}
+
+INSTANTIATE_DUAL(FieldTestRegression);

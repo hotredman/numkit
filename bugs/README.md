@@ -141,7 +141,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (125 entries):** ✅ 110 fixed · 🔴 15 open = **5 bug** + 1 stub +
+**Tally (130 entries):** ✅ 110 fixed · 🔴 20 open = **10 bug** + 1 stub +
 1 missing-output + **7 missing-fn** + 1 perf (the 7 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 (cell-csl-expansion: common forms FIXED, rarer forms deferred — counted fixed.)
@@ -269,7 +269,12 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 5
+### 🔴 OPEN — bug (defect on an implemented function) — 10
+| [lang/complex-relational-ops](lang/complex-relational-ops.md) | P1 | `< > <= >=` on complex must compare REAL parts (MATLAB: `(0+1i) < 2` → 1); numkit throws "not supported". Found via fieldtest AHP.m (2026-08-30) |
+| [lang/command-syntax-url-args](lang/command-syntax-url-args.md) | P1 | command-call args are whitespace-split literals in MATLAB; numkit parses `/` `:` as operators — `disp a//b:c` silently truncates to `a//b`, `web -broswer http://…` fails to parse. Found via fieldtest (2026-08-30) |
+| [lang/run-invokes-nullary-function-file](lang/run-invokes-nullary-function-file.md) | P1 | `run(file.m)` on a nullary function file must INVOKE it (MATLAB prints "Test Passed"); numkit defines silently — exit 0, empty output. Found via fieldtest DeepLearnToolbox *_Test.m (2026-08-30) |
+| [core/register-exhaustion-no-fallback](core/register-exhaustion-no-fallback.md) | P2 | real-world sa_tsp.m dies on ">255 registers" instead of the documented TreeWalker fallback; MATLAB runs it (2026-08-30) |
+| [apps/wasm-cli-ide-markers](apps/wasm-cli-ide-markers.md) | P3 | IDE protocol sentinels (`__FIGURE_CLOSE_ALL__`, `__CLEAR__`) leak into CLI stdout (2026-08-30) |
 
 | Bug | Sev | Notes |
 |---|---|---|

@@ -19,6 +19,7 @@
 # ── Cross-cutting / integration tests (debugger, diagnostics, parity) ─────
 set(INTEGRATION_TESTS
     integration/error_diagnostics_test.cpp
+    integration/fieldtest_regressions_test.cpp
     integration/debugger_phase1_test.cpp
     integration/debugger_phase234_test.cpp
     integration/debugger_diagnostic_test.cpp
