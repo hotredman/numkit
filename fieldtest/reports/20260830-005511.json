@@ -1,0 +1,382 @@
+[
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\AHP层次分析法\\ahp_common.m",
+  "verdict": "both-error",
+  "detail": "{\bFile: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\Algorithms_MathModels\\AHP\\ahp_common.m Line: 3",
+  "wasm_ms": 240,
+  "matlab_ms": 7443,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:13\nError (line 13): Operator '<' is not supported for complex operands\n    at ahp_common.m\n",
+  "matlab_out": "{\bFile: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\Algorithms_MathModels\\AHP\\ahp_common.m Line: 30 Column: 15\r\nInvalid expression. Check for missing multiplication operator, missing or unbalanced delimiters, or other syntax error. To construct matrices, use brackets instead of parentheses.\r\n\r\nError in run (line 112)\r\nevalin('caller', strcat(scriptStem, ';'));\r\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n}\b \r\nERROR: MATLAB error Exit Status: 0x00000001\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《基于MATLAB的高等数学问题求解》 随书附带源程序\\CH02\\example02_05.m",
+  "verdict": "runtime-error",
+  "detail": "Error: Unexpected token '/' at line 1 col 19\n    at example02_05.m",
+  "wasm_ms": 166,
+  "matlab_ms": 15732,
+  "native_ms": 17,
+  "numkit_out": "Error: Unexpected token '/' at line 1 col 19\n    at example02_05.m\n",
+  "matlab_out": "====================================================================\r\n11= 1  \r\n12= 2  22= 4  \r\n13= 3  23= 6  33= 9  \r\n14= 4  24= 8  34=12  44=16  \r\n15= 5  25=10  35=15  45=20  55=25  \r\n16= 6  26=12  36=18  46=24  56=30  66=36  \r\n17= 7  27=14  37=21  47=28  57=35  67=42  77=49  \r\n18= 8  28=16  38=24  48=32  58=40  68=48  78=56  88=64  \r\n19= 9  29=18  39=27  49=36  59=45  69=54  79=63  89=72  99=81  \r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《基于MATLAB的高等数学问题求解》 随书附带源程序\\CH02\\example02_10.m",
+  "verdict": "runtime-error",
+  "detail": "Error: Unexpected token '/' at line 1 col 19\n    at example02_10.m",
+  "wasm_ms": 185,
+  "matlab_ms": 15942,
+  "native_ms": 17,
+  "numkit_out": "Error: Unexpected token '/' at line 1 col 19\n    at example02_10.m\n",
+  "matlab_out": "====\r\nA vs Z\r\nB vs X\r\nC vs Y\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB神经网络原理与实例精解》随书附带源程序\\第7章 径向基函数网络\\pnn_test.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:48\nError (line 48): VM: undefined function 'vec2ind' (in call to 'vec2ind')\n    at pnn_test.m",
+  "wasm_ms": 283,
+  "matlab_ms": 8547,
+  "native_ms": 16,
+  "numkit_out": "__ERROR_LINE__:48\nError (line 48): VM: undefined function 'vec2ind' (in call to 'vec2ind')\n    at pnn_test.m\n",
+  "matlab_out": "\r\n     3     1     1     2     1     3     2     3     2     3     3     2     2     3\r\n\r\n\r\n     3     1     1     2     1     3     2     3     2     3     3     2     2     3\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB神经网络原理与实例精解》随书附带源程序\\第9章 反馈神经网络\\hopfield_hand.m",
+  "verdict": "pass",
+  "detail": "",
+  "wasm_ms": 236,
+  "matlab_ms": 8383,
+  "native_ms": 17,
+  "numkit_out": "__FIGURE_CLOSE_ALL__\n__CLEAR__\n吸引子坐标为:\nc1 =\n    -1 1\n\nc2 =\n    1 -1\n\n权值矩阵为\nw =\n     0 -1\n    -1  0\n\n阈值向量为\nb =\n    0 0\n\n开始迭代\n网络状态值:\ntmp =\n    1 1\n\n第一个神经元由 1 更新为 -1 \n第二个神经元由 1 更新为 1 \n网络状态值:\ntmp =\n    -1 1\n\n第一个神经元由 -1 更新为 -1 \n第二个神经元由 1 更新为 1\n",
+  "matlab_out": ":\r\n\r\nc1 =\r\n\r\n    -1     1\r\n\r\n\r\nc2 =\r\n\r\n     1    -1\r\n\r\n\r\n\r\nw =\r\n\r\n     0    -1\r\n    -1     0\r\n\r\n\r\n\r\nb =\r\n\r\n     0     0\r\n\r\n\r\n:\r\n\r\ntmp =\r\n\r\n     1     1\r\n\r\n 1  -1 \r\n 1  1 \r\n:\r\n\r\ntmp =\r\n\r\n    -1     1\r\n\r\n -1  -1 \r\n 1  1 \r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB神经网络原理与实例精解》随书附带源程序\\第2章 MATLAB快速入门\\code\\chapter2_3_4\\for_test.m",
+  "verdict": "pass",
+  "detail": "",
+  "wasm_ms": 235,
+  "matlab_ms": 8436,
+  "native_ms": 16,
+  "numkit_out": "从1到1的整数和为 1\n从1到2的整数和为 3\n从1到3的整数和为 6\n从1到4的整数和为 10\n从1到5的整数和为 15\n",
+  "matlab_out": "11      1\r\n\r\n12      3\r\n\r\n13      6\r\n\r\n14     10\r\n\r\n15     15\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB神经网络原理与实例精解》随书附带源程序\\第13章 神经网络应用实例\\基于BP网络的个人信贷信用评估\\credit_class.m",
+  "verdict": "both-error",
+  "detail": "{\bIndex exceeds the number of array elements. Index must not exceed 1.\r\n\r\nError in credit_class (line 32)\r\n             ",
+  "wasm_ms": 163,
+  "matlab_ms": 8419,
+  "native_ms": 18,
+  "numkit_out": "Error: Unexpected token '/' at line 95 col 19\n    at credit_class.m\n",
+  "matlab_out": "{\bIndex exceeds the number of array elements. Index must not exceed 1.\r\n\r\nError in credit_class (line 32)\r\n                d = textscan(C{i}{j}, '%c%c%d');\r\n                             ^^^^^^^\r\nError in run (line 112)\r\nevalin('caller', strcat(scriptStem, ';'));\r\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n}\b \r\nERROR: MATLAB error Exit Status: 0x00000001\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB图像处理》源文件\\本书源文件\\chap10\\chap10_10.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'A'.\r\n\r\nError in chap10_10 (line 29)\r\n[x y]=size(A);\r\n           ^\r\nError in run (li",
+  "wasm_ms": 161,
+  "matlab_ms": 14007,
+  "native_ms": 16,
+  "numkit_out": "__ERROR_LINE__:7\nError (line 7): VM: undefined function 'blkproc' (in call to 'blkproc')\n    at chap10_10.m\n",
+  "matlab_out": "{\bUnrecognized function or variable 'A'.\r\n\r\nError in chap10_10 (line 29)\r\n[x y]=size(A);\r\n           ^\r\nError in run (line 112)\r\nevalin('caller', strcat(scriptStem, ';'));\r\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n}\b \r\nERROR: MATLAB error Exit Status: 0x00000001\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB图像处理》源文件\\本书源文件\\chap10\\chap10_7.m",
+  "verdict": "output-mismatch",
+  "detail": "line 1 text differs: '# 0.248453061949268 # 0.248453126740064 # : # 0 0 1 1 0 0 1 ' vs '# 0<DIR>248453061949268 # 0<DIR>248453126740064 # : # 0 0 1 '",
+  "wasm_ms": 231,
+  "matlab_ms": 8682,
+  "native_ms": 16,
+  "numkit_out": "__FIGURE_CLOSE_ALL__\n__CLEAR__\n算术编码范围下限为0.248453061949268\n\n算术编码范围上限为0.248453126740064\n\n原矩阵为:\n    0 0 1 1 0 0 1 1\n    1 0 0 1 0 0 1 1\n    1 1 0 0 0 0 1 0\n\n解码矩阵:\n    0 0 0 0 0 0 0 0\n    0 0 0 0 0 0 0 0\n    0 0 0 0 0 0 0 0\n",
+  "matlab_out": "0.248453061949268\r\n\r\n0.248453126740064\r\n\r\n:\r\n     0     0     1     1     0     0     1     1\r\n     1     0     0     1     0     0     1     1\r\n     1     1     0     0     0     0     1     0\r\n\r\n\r\n:\r\n     0     0     0     0     0     0     0     0\r\n     0     0     0     0     0     0     0     0\r\n     0     0     0     0     0     0     0     0\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB图像处理》源文件\\本书源文件\\chap13\\chap13_4.m",
+  "verdict": "matlab-only-error",
+  "detail": "{\bError using wmaxlev\r\nExpected S to be a vector.\r\n\r\nError in wmaxlev (line 26)\r\nvalidateattributes(sizeX, {'numeric'}, ",
+  "wasm_ms": 235,
+  "matlab_ms": 8475,
+  "native_ms": 17,
+  "numkit_out": "__FIGURE_CLOSE_ALL__\n__CLEAR__\n一维信号s1采用db1的最大分解层数L1\nL1 =\n   8\n\n数值向量s2采用db1的最大分解层数L2\nL2 =\n   7\n\n数值矩阵s3采用db1的最大分解层数L3\nL3 =\n   7\n\n数值矩阵s3采用db7的最大分解层数L4\nL4 =\n   5\n",
+  "matlab_out": "s1db1L1\r\n\r\nL1 =\r\n\r\n     8\r\n\r\ns2db1L2\r\n\r\nL2 =\r\n\r\n     7\r\n\r\ns3db1L3\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB图像处理》源文件\\本书源文件\\chap13\\chap13_8.m",
+  "verdict": "runtime-error",
+  "detail": "numkit: Error: ENOENT: no such file or directory, open 'C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\Algorithms_MathModels\\《MATLAB图像处理》源文件\\本书源文件",
+  "wasm_ms": 160,
+  "matlab_ms": 8578,
+  "native_ms": 16,
+  "numkit_out": "numkit: Error: ENOENT: no such file or directory, open 'C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\Algorithms_MathModels\\《MATLAB图像处理》源文件\\本书源文件\\chap13\\woman'\n    at Object.readFileSync (node:fs:442:20)\n    at Object.readFile (C:\\Users\\User\\Projects\\megahard\\numkit\\packages\\numkit\\bin\\cli.js:123:25)\n    at methodCaller<(std::string) => std::string> (eval at __emval_create_invoker (C:\\Users\\User\\Projects\\megahard\\numkit\\packages\\numkit\\dist\\numkit_ide.js:1:78715), <anonymous>:4:102)\n    at __emval_invoke (C:\\Users\\User\\Projects\\megahard\\numkit\\packages\\numkit\\dist\\numkit_ide.js:1:79390)\n    at wasm://wasm/03c9c7f2:wasm-function[342]:0x2a860\n    at wasm://wasm/03c9c7f2:wasm-function[341]:0x2a7be\n    at wasm://wasm/03c9c7f2:wasm-function[363]:0x2b0b0\n    at invoke_viii (C:\\Use",
+  "matlab_out": "\r\n \r\n      ca2ca2_1\r\n \r\n      chd2chd2_1\r\n \r\n      cvd2cvd2_1\r\n \r\n      cdd2cdd2_1\r\n \r\n      chd1chd1_1\r\n \r\n      cvd1cvd1_1\r\n \r\n      cdd1cdd1_1\r\n \r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\《MATLAB图像处理》源文件\\本书源文件\\chap15\\chap15_11.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:9\nError (line 9): VM: undefined function 'rands' (in call to 'rands')\n    at chap15_11.m",
+  "wasm_ms": 232,
+  "matlab_ms": 8564,
+  "native_ms": 16,
+  "numkit_out": "__ERROR_LINE__:9\nError (line 9): VM: undefined function 'rands' (in call to 'rands')\n    at chap15_11.m\n",
+  "matlab_out": "X1\r\n\r\nc1 =\r\n\r\n    0.9403    0.0278    0.0488\r\n\r\nX2\r\n\r\nc2 =\r\n\r\n    0.0333    0.9614    0.0355\r\n\r\nX3\r\n\r\nc3 =\r\n\r\n    0.0641    0.0409    0.9402\r\n\r\nX4\r\n\r\nc4 =\r\n\r\n    0.8771    0.0207    0.1865\r\n\r\nX1~X4\r\n\r\nc =\r\n\r\n     1     0     0\r\n     0     1     0\r\n     0     0     1\r\n     1     0     0\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\MATLAB智能算法30个案例分析\\chapter4 基于遗传算法的TSP算法\\test.m",
+  "verdict": "both-error",
+  "detail": "{\bExecution of script GA_TSP as a function is not supported:\r\nC:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\wo",
+  "wasm_ms": 161,
+  "matlab_ms": 8068,
+  "native_ms": 17,
+  "numkit_out": "Error: Compiler: too many output arguments for single-valued right-hand side\n    at test.m\n",
+  "matlab_out": "\r\ni =\r\n\r\n     1\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\doa-tools\\test\\test_run_for_parameters.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'run_for_parameters'.\r\n\r\nError in test_run_for_parameters (line 14)\r\nval_actual = ru",
+  "wasm_ms": 233,
+  "matlab_ms": 9136,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:14\nError (line 14): VM: undefined function 'run_for_parameters' (in call to 'run_for_parameters')\n    at test_run_for_parameters.m\n",
+  "matlab_out": "{\bUnrecognized function or variable 'run_for_parameters'.\r\n\r\nError in test_run_for_parameters (line 14)\r\nval_actual = run_for_parameters(f_number, params, 'Repeat', r);\r\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\nError in run (line 112)\r\nevalin('caller', strcat(scriptStem, ';'));\r\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n}\b \r\nERROR: MATLAB error Exit Status: 0x00000001\r\n"
+ },
+ {
+  "script": "corpus\\work\\doa-tools\\test\\test_sdpt3_hpsd_nnd.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'sdpt3_hpsd_nnd'.\r\n\r\nError in test_sdpt3_hpsd_nnd (line 25)\r\n    R = sdpt3_hpsd_nnd(",
+  "wasm_ms": 235,
+  "matlab_ms": 9759,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:25\nError (line 25): VM: undefined function 'sdpt3_hpsd_nnd' (in call to 'sdpt3_hpsd_nnd')\n    at test_sdpt3_hpsd_nnd.m\n",
+  "matlab_out": "Detecting CVX... CVX not available. Skipping tests using CVX.\r\nTesting using identity matrices...\r\n"
+ },
+ {
+  "script": "corpus\\work\\emg\\process.m",
+  "verdict": "both-error",
+  "detail": "{\bError using csvread (line 12)\r\nFile not found.\r\n\r\nError in importemg (line 9)\r\nM = csvread(filename,1,0); % import who",
+  "wasm_ms": 231,
+  "matlab_ms": 8024,
+  "native_ms": 18,
+  "numkit_out": "numkit: Error: ENOENT: no such file or directory, open 'C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\data\\dumbbellpress.sub1.csv'\n    at Object.readFileSync (node:fs:442:20)\n    at Object.readFile (C:\\Users\\User\\Projects\\megahard\\numkit\\packages\\numkit\\bin\\cli.js:123:25)\n    at methodCaller<(std::string) => std::string> (eval at __emval_create_invoker (C:\\Users\\User\\Projects\\megahard\\numkit\\packages\\numkit\\dist\\numkit_ide.js:1:78715), <anonymous>:4:102)\n    at __emval_invoke (C:\\Users\\User\\Projects\\megahard\\numkit\\packages\\numkit\\dist\\numkit_ide.js:1:79390)\n    at wasm://wasm/03c9c7f2:wasm-function[342]:0x2a860\n    at wasm://wasm/03c9c7f2:wasm-function[341]:0x2a7be\n    at wasm://wasm/03c9c7f2:wasm-function[363]:0x2b0b0\n    at invoke_viii (C:\\Users\\User\\Projects\\megahard\\num",
+  "matlab_out": "{\bError using csvread (line 12)\r\nFile not found.\r\n\r\nError in importemg (line 9)\r\nM = csvread(filename,1,0); % import whole csv\r\n    ^^^^^^^^^^^^^^^^^^^^^\r\nError in process (line 11)\r\n        [muscles(1),muscles(2)] = importemg(filename,fs);\r\n                                  ^^^^^^^^^^^^^^^^^^^^^^\r\nError in run (line 112)\r\nevalin('caller', strcat(scriptStem, ';'));\r\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n}\b \r\nERROR: MATLAB error Exit Status: 0x00000001\r\n"
+ },
+ {
+  "script": "corpus\\work\\ffcc\\scripts\\ChengGenerateTable.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:5\nError (line 5): Undefined function or variable 'ChengBaselines'\n    at ChengGenerateTable.m",
+  "wasm_ms": 161,
+  "matlab_ms": 8506,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:5\nError (line 5): Undefined function or variable 'ChengBaselines'\n    at ChengGenerateTable.m\n",
+  "matlab_out": ""
+ },
+ {
+  "script": "corpus\\work\\ffcc\\scripts\\GehlerShiGenerateTable.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:3\nError (line 3): Undefined function or variable 'GehlerShiBaselines'\n    at GehlerShiGenerateTable.m",
+  "wasm_ms": 163,
+  "matlab_ms": 8121,
+  "native_ms": 18,
+  "numkit_out": "__ERROR_LINE__:3\nError (line 3): Undefined function or variable 'GehlerShiBaselines'\n    at GehlerShiGenerateTable.m\n",
+  "matlab_out": ""
+ },
+ {
+  "script": "corpus\\work\\jsonlab\\examples\\demo_jsonlab_basic.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'savejson'.\r\n\r\nError in demo_jsonlab_basic (line 18)\r\nsavejson('', data2json);\r\n^^^^",
+  "wasm_ms": 163,
+  "matlab_ms": 8754,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:5\nError (line 5): Not a double array (in call to 'rand')\n    at demo_jsonlab_basic.m\n",
+  "matlab_out": "\r\n%=================================================\r\n%  a simple scalar value \r\n%=================================================\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\jsonlab\\examples\\demo_msgpack_basic.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'savemsgpack'.\r\n\r\nError in demo_msgpack_basic (line 14)\r\nsavemsgpack('', data2json);",
+  "wasm_ms": 162,
+  "matlab_ms": 9122,
+  "native_ms": 18,
+  "numkit_out": "__ERROR_LINE__:5\nError (line 5): Not a double array (in call to 'rand')\n    at demo_msgpack_basic.m\n",
+  "matlab_out": "\r\n%=================================================\r\n%  a simple scalar value \r\n%=================================================\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\jsonlab\\examples\\demo_ubjson_basic.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'savebj'.\r\n\r\nError in demo_ubjson_basic (line 14)\r\nsavebj('', data2json);\r\n^^^^^^^^^",
+  "wasm_ms": 161,
+  "matlab_ms": 9806,
+  "native_ms": 18,
+  "numkit_out": "__ERROR_LINE__:5\nError (line 5): Not a double array (in call to 'rand')\n    at demo_ubjson_basic.m\n",
+  "matlab_out": "\r\n%=================================================\r\n%  a simple scalar value \r\n%=================================================\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\jsonlab\\examples\\jsonlab_selftest.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'loadjson'.\r\n\r\nError in jsonlab_selftest (line 11)\r\n    json = savejson('data', load",
+  "wasm_ms": 162,
+  "matlab_ms": 9236,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:11\nError (line 11): VM: undefined function 'loadjson' (in call to 'loadjson')\n    at jsonlab_selftest.m\n",
+  "matlab_out": "===============================================\r\n>> example1.json\r\n"
+ },
+ {
+  "script": "corpus\\work\\machine-learning-octave\\neural-network\\demo.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:57\nError (line 57): Undefined function or variable 'y'\n    at demo.m",
+  "wasm_ms": 690,
+  "matlab_ms": 26896,
+  "native_ms": 165,
+  "numkit_out": "__ERROR_LINE__:57\nError (line 57): Undefined function or variable 'y'\n    at demo.m\n",
+  "matlab_out": "Loading data...\r\nVisualizing data...\r\nInitializing neural network parameters...\r\nTraining neural network...\r\nIteration     1 | Cost: 3.289171e+00\rIteration     2 | Cost: 3.241608e+00\rIteration     3 | Cost: 3.210236e+00\rIteration     4 | Cost: 2.751136e+00\rIteration     5 | Cost: 2.446397e+00\rIteration     6 | Cost: 2.134641e+00\rIteration     7 | Cost: 1.872136e+00\rIteration     8 | Cost: 1.688222e+00\rIteration     9 | Cost: 1.507498e+00\rIteration    10 | Cost: 1.377035e+00\rIteration    11 | Cost: 1.299568e+00\rIteration    12 | Cost: 1.212809e+00\rIteration    13 | Cost: 1.111584e+00\rIteration    14 | Cost: 1.075070e+00\rIteration    15 | Cost: 1.068108e+00\rIteration    16 | Cost: 9.772899e-01\rIteration    17 | Cost: 9.378305e-01\rIteration    18 | Cost: 9.151624e-01\rIteration    19 | Cost: 8"
+ },
+ {
+  "script": "corpus\\work\\Mathematical-Modeling\\蓝皮书学习\\CiclingCompetition.m",
+  "verdict": "both-error",
+  "detail": "{\bUnrecognized function or variable 'binvar'.\r\n\r\nError in CiclingCompetition (line 15)\r\nx = binvar(n,n,'full');\r\n^^^^^^^",
+  "wasm_ms": 254,
+  "matlab_ms": 8351,
+  "native_ms": 39,
+  "numkit_out": "__ERROR_LINE__:15\nError (line 15): VM: undefined function 'binvar' (in call to 'binvar')\n    at CiclingCompetition.m\n",
+  "matlab_out": "{\bUnrecognized function or variable 'binvar'.\r\n\r\nError in CiclingCompetition (line 15)\r\nx = binvar(n,n,'full');\r\n^^^^^^^^^^^^^^^^^^^^^^^\r\nError in run (line 112)\r\nevalin('caller', strcat(scriptStem, ';'));\r\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n}\b \r\nERROR: MATLAB error Exit Status: 0x00000001\r\n"
+ },
+ {
+  "script": "corpus\\work\\Mathematical-Modeling\\红皮书学习\\simulated_annealing\\sa_01knapsack.m",
+  "verdict": "output-mismatch",
+  "detail": "line 1 text differs: '# [1 1 0 0 1 1 1 1 1 1 0 0] # 76 # 46 #' vs '# 1 1 0 0 1 1 1 1 1 1 0 0 # 76 # 46 #'",
+  "wasm_ms": 628,
+  "matlab_ms": 7510,
+  "native_ms": 26,
+  "numkit_out": "__CLEAR__\n最优解为：\n[1 1 0 0 1 1 1 1 1 1 0 0]\n物品总价值等于：\n76\n背包中物品重量是：\n46\n",
+  "matlab_out": "\r\n     1     1     0     0     1     1     1     1     1     1     0     0\r\n\r\n\r\n    76\r\n\r\n\r\n    46\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\Mathematical-Modeling\\红皮书学习\\simulated_annealing\\sa_tsp.m",
+  "verdict": "runtime-error",
+  "detail": "Error: Compiler: register exhaustion (>255 registers needed in chunk)\n    at sa_tsp.m",
+  "wasm_ms": 163,
+  "matlab_ms": 8828,
+  "native_ms": 16,
+  "numkit_out": "Error: Compiler: register exhaustion (>255 registers needed in chunk)\n    at sa_tsp.m\n",
+  "matlab_out": "\r\n  Columns 1 through 29\r\n\r\n    33    10     9     8    41    19    45     3    17     7     2    42    21    31    18    22     1    32    49    36    35    34    39    40    38    37    25    12    51\r\n\r\n  Columns 30 through 52\r\n\r\n    11    52    14    13    27    28    26    47    29    30    23    20    50    16    44    46    48    24     5    15     6     4    43\r\n\r\n\r\n   8.0454e+03\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\Mathematical-Modeling\\模型与算法集合\\weights\\AHP.m",
+  "verdict": "unsupported",
+  "detail": "__ERROR_LINE__:13\nError (line 13): Operator '<' is not supported for complex operands\n    at AHP.m",
+  "wasm_ms": 253,
+  "matlab_ms": 7479,
+  "native_ms": 15,
+  "numkit_out": "__ERROR_LINE__:13\nError (line 13): Operator '<' is not supported for complex operands\n    at AHP.m\n",
+  "matlab_out": "\r\n:0.0046014\r\n:0.0079334\r\n:\r\n:3.0092\r\n:0.58763     0.32339    0.088983\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssPath.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:52\nError (line 52): VM: undefined function 'genpath' (in call to 'genpath')\n    at mssPath.m",
+  "wasm_ms": 250,
+  "matlab_ms": 7841,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:52\nError (line 52): VM: undefined function 'genpath' (in call to 'genpath')\n    at mssPath.m\n",
+  "matlab_out": "MSS directory found at: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\MSS\r\nMATLAB path updated and saved successfully in MATLAB.\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssExamples\\exINS_AHRS.m",
+  "verdict": "output-mismatch",
+  "detail": "line 1 text differs: 'exINS_AHRS.m has been replaced by SIMaidedINSeuler #' vs 'exINS_AHRS<DIR>m has been replaced by SIMaidedINSeuler #'",
+  "wasm_ms": 164,
+  "matlab_ms": 7472,
+  "native_ms": 16,
+  "numkit_out": "exINS_AHRS.m has been replaced by SIMaidedINSeuler\n",
+  "matlab_out": "exINS_AHRS.m has been replaced by SIMaidedINSeuler\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssExamples\\exINS_Euler.m",
+  "verdict": "output-mismatch",
+  "detail": "line 1 text differs: 'exINS_Euler.m has been replaced by SIMaidedINSeuler #' vs 'exINS_Euler<DIR>m has been replaced by SIMaidedINSeuler #'",
+  "wasm_ms": 163,
+  "matlab_ms": 7402,
+  "native_ms": 17,
+  "numkit_out": "exINS_Euler.m has been replaced by SIMaidedINSeuler\n",
+  "matlab_out": "exINS_Euler.m has been replaced by SIMaidedINSeuler\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssExamples\\exINS_MEKF.m",
+  "verdict": "output-mismatch",
+  "detail": "line 1 text differs: 'exINS_MEKF.m has been replaced by SIMaidedINSquat.m #' vs 'exINS_MEKF<DIR>m has been replaced by SIMaidedINSquat<DIR>m '",
+  "wasm_ms": 164,
+  "matlab_ms": 7459,
+  "native_ms": 15,
+  "numkit_out": "exINS_MEKF.m has been replaced by SIMaidedINSquat.m\n",
+  "matlab_out": "exINS_MEKF.m has been replaced by SIMaidedINSquat.m\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssExamples\\exObsCtr.m",
+  "verdict": "output-mismatch",
+  "detail": "line 1 text differs: 'Controllability and observability of offShore supply vessel ' vs 'Controllability and observability of offShore supply vessel '",
+  "wasm_ms": 243,
+  "matlab_ms": 7860,
+  "native_ms": 16,
+  "numkit_out": "Controllability and observability of offShore supply vessel length 76 m\nM =\n    6764400        0        0\n          0 11341200 -5858.27\n          0 -5858.27   132.06\n\nD =\n    77031.8        0       0\n          0   254549 -350.15\n          0 -115.775 11.4137\n\nn =\n   9\n\nn =\n   9\n\nn =\n   12\n",
+  "matlab_out": "Controllability and observability of offShore supply vessel length 76 m\r\nM =\r\n   1.0e+07 *\r\n    0.6764         0         0\r\n         0    1.1341   -0.0006\r\n         0   -0.0006    0.0000\r\nD =\r\n   1.0e+05 *\r\n    0.7703         0         0\r\n         0    2.5455   -0.0035\r\n         0   -0.0012    0.0001\r\nn =\r\n     9\r\nn =\r\n     9\r\nn =\r\n    12\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssExamples\\exPullout.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:17\nError (line 17): VM: undefined function 'pullout' (in call to 'pullout')\n    at exPullout.m",
+  "wasm_ms": 163,
+  "matlab_ms": 29796,
+  "native_ms": 30,
+  "numkit_out": "__ERROR_LINE__:17\nError (line 17): VM: undefined function 'pullout' (in call to 'pullout')\n    at exPullout.m\n",
+  "matlab_out": "Pullout maneuver for the Mariner-class cargo vessel (stable ship)\r\nSimulating...\r\n \r\nPress a key to simulate: The Esso Osaka tanker (unstable ship)\r\n[\bWarning: Pause with no arguments is not supported in non-interactive contexts.]\b \r\n[\b> In exPullout (line 22)\r\nIn run (line 112)]\b \r\nSimulating...\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssExamples\\exTurnCircle.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:19\nError (line 19): VM: undefined function 'turncircle' (in call to 'turncircle')\n    at exTurnCircle.m",
+  "wasm_ms": 242,
+  "matlab_ms": 31897,
+  "native_ms": 17,
+  "numkit_out": "__ERROR_LINE__:19\nError (line 19): VM: undefined function 'turncircle' (in call to 'turncircle')\n    at exTurnCircle.m\n",
+  "matlab_out": "Turning cirlce for the Mariner-class cargo vessel\r\nSimulating...\r\n \r\nRudder execute (x-coordinate)          :  769 m\r\nSteady turning radius                  :  576 m\r\nMaximum transfer                       : 1032 m\r\nMaximum advance                        :  684 m\r\nTransfer at 90 (deg) heading           :  389 m\r\nAdvance at 90 (deg) heading            :  679 m\r\nTactical diameter at 180 (deg) heading : 1027 m\r\n \r\nPress a key to simulate: Container Ship\r\n[\bWarning: Pause with no arguments is not supported in non-interactive contexts.]\b \r\n[\b> In exTurnCircle (line 22)\r\nIn run (line 112)]\b \r\nSimulating...\r\n \r\nRudder execute (x-coordinate)          :  810 m\r\nSteady turning radius                  :  695 m\r\nMaximum transfer                       : 1438 m\r\nMaximum advance                        : "
+ },
+ {
+  "script": "corpus\\work\\MSS\\mssExamples\\exZigZag.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:20\nError (line 20): VM: undefined function 'zigzag' (in call to 'zigzag')\n    at exZigZag.m",
+  "wasm_ms": 241,
+  "matlab_ms": 31638,
+  "native_ms": 16,
+  "numkit_out": "__ERROR_LINE__:20\nError (line 20): VM: undefined function 'zigzag' (in call to 'zigzag')\n    at exZigZag.m\n",
+  "matlab_out": "20-20 zigzag maneuver for the Mariner class vessel\r\nSimulating...\r\n \r\nPress a key to simulate: 20-10 zigzag manuver for a container ship\r\n[\bWarning: Pause with no arguments is not supported in non-interactive contexts.]\b \r\n[\b> In exZigZag (line 26)\r\nIn run (line 112)]\b \r\nSimulating...\r\n \r\nPress a key to simulate: 20-20 zigzag manuver for the Remus100 AUV\r\n[\bWarning: Pause with no arguments is not supported in non-interactive contexts.]\b \r\n[\b> In exZigZag (line 38)\r\nIn run (line 112)]\b \r\nSimulating...\r\n"
+ },
+ {
+  "script": "corpus\\work\\MSS\\HYDRO\\vessels_wamit\\fpso\\config_parameters.m",
+  "verdict": "output-mismatch",
+  "detail": "line 1 text differs: 'xg = # 0 # yg = # 0 # zg = # -1 # rho = # 1025 # g = # 9.81 ' vs '# xg = # 0 # yg = # 0 # zg = # -1 # rho = # 1025 # g = # 9<D'",
+  "wasm_ms": 240,
+  "matlab_ms": 7579,
+  "native_ms": 16,
+  "numkit_out": "xg =\n   0\n\nyg =\n   0\n\nzg =\n   -1\n\nrho =\n   1025\n\ng =\n   9.81\n\nLpp =\n   200\n\nB =\n   44\n\nC33 =\n   8.36265e+07\n\nC44 =\n   7.83475e+09\n\nC55 =\n   247660807500\n\nm =\n   1.0041e+08\n\nGM =\n   8\n\nR44 =\n   16.28\n\nR55 =\n   54\n\nR66 =\n   54\n\nT_p =\n   10\n\nw_p =\n   0.628319\n\nMRB =\n   '100409922.50 0.00 0.00 0.00 -100409922.50   0.00\n0.00 100409922.50 0.00 100409922.50 0.00   0.00\n0.00 0.00 100409922.50 0.00 -0.00   0.00\n0.00 100409922.50 0.00 26612485203.52 0.00   0.00\n-100409922.50 0.00 -0.00 0.00 292795334010.00   0.00\n0.00 0.00 0.00 0.00 0.00 292795334010.00\n'\n",
+  "matlab_out": "\r\nxg =\r\n\r\n     0\r\n\r\n\r\nyg =\r\n\r\n     0\r\n\r\n\r\nzg =\r\n\r\n    -1\r\n\r\n\r\nrho =\r\n\r\n        1025\r\n\r\n\r\ng =\r\n\r\n    9.8100\r\n\r\n\r\nLpp =\r\n\r\n   200\r\n\r\n\r\nB =\r\n\r\n    44\r\n\r\n\r\nC33 =\r\n\r\n   8.3626e+07\r\n\r\n\r\nC44 =\r\n\r\n   7.8347e+09\r\n\r\n\r\nC55 =\r\n\r\n   2.4766e+11\r\n\r\n\r\nm =\r\n\r\n   1.0041e+08\r\n\r\n\r\nGM =\r\n\r\n     8\r\n\r\n\r\nR44 =\r\n\r\n   16.2800\r\n\r\n\r\nR55 =\r\n\r\n    54\r\n\r\n\r\nR66 =\r\n\r\n    54\r\n\r\n\r\nT_p =\r\n\r\n    10\r\n\r\n\r\nw_p =\r\n\r\n    0.6283\r\n\r\n\r\nMRB =\r\n\r\n    '100409922.50 0.00 0.00 0.00 -100409922.50   0.00\r\n     0.00 100409922.50 0.00 100409922.50 0.00   0.00\r\n     0.00 0.00 100409922.50 0.00 -0.00   0.00\r\n     0.00 100409922.50 0.00 26612485203.52 0.00   0.00\r\n     -100409922.50 0.00 -0.00 0.00 292795334010.00   0.00\r\n     0.00 0.00 0.00 0.00 0.00 292795334010.00\r\n     '\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\OpenOCL\\+ocl\\+acados\\Solver.m",
+  "verdict": "matlab-only-error",
+  "detail": "{\bError using run (line 76)\r\nRUN cannot execute the file 'C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\O",
+  "wasm_ms": 163,
+  "matlab_ms": 7433,
+  "native_ms": 17,
+  "numkit_out": "",
+  "matlab_out": "{\bError using run (line 76)\r\nRUN cannot execute the file 'C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\OpenOCL\\+ocl\\+acados\\Solver.m'. RUN requires a valid MATLAB script\r\n}\b \r\nERROR: MATLAB error Exit Status: 0x00000001\r\n"
+ },
+ {
+  "script": "corpus\\work\\sound-source-localization-algorithm_DOA_estimation\\ssl_tools\\example\\example.m",
+  "verdict": "both-error",
+  "detail": "{\bError using audioread>readaudio (line 160)\r\nThe filename specified was not found in the MATLAB path.\r\n\r\nError in audio",
+  "wasm_ms": 165,
+  "matlab_ms": 8107,
+  "native_ms": 16,
+  "numkit_out": "__ERROR_LINE__:3\nError (line 3): VM: undefined function 'genpath' (in call to 'genpath')\n    at example.m\n",
+  "matlab_out": "[\bWarning: Name is nonexistent or not a directory:\r\nC:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\sound-source-localization-algorithm_DOA_estimation\\ssl_tools\\example\\.\\wav files]\b \r\n[\b> In path (line 109)\r\nIn addpath (line 96)\r\nIn example (line 4)\r\nIn run (line 112)]\b \r\n"
+ }
+]
