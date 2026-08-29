@@ -141,7 +141,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (122 entries):** ✅ 109 fixed · 🔴 13 open = **3 bug** + 1 stub +
+**Tally (125 entries):** ✅ 110 fixed · 🔴 15 open = **5 bug** + 1 stub +
 1 missing-output + **7 missing-fn** + 1 perf (the 7 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 (cell-csl-expansion: common forms FIXED, rarer forms deferred — counted fixed.)
@@ -152,10 +152,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (102)
+### ✅ FIXED (103)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [io/mat-io-text-channel](io/mat-io-text-channel.md) | P1 | ✅ FIXED: MAT save/load crossed the JS↔WASM boundary on the text channel → bytes ≥ 0x80 mangled (corrupted files, `pi` → `-0.979036` on reload). Switched all four channel calls in `saveload_mat.cpp` to `writeFileBytes`/`readFileBytes` (binary channel existed for imread/audioread already). Native unaffected. Found via the npm-CLI corpus: IO 9/13 → 13/13 (2026-08-29) |
 | bug | [core/parser-deep-nesting](core/parser-deep-nesting.md) | P0 | ✅ FIXED: deep nesting (sin×≥450, nested if-blocks) killed the process with `0xC00000FD`, no diagnostic — unguarded recursion in `compileNode`/TreeWalker died before the register check could fire. Fix = 3 layers per STACK_SAFETY.md: parse-time nesting limit 200 (justified by the `uint8_t` register file) + `StackGuard` watermark (64 KB margin, cross-platform, POSIX cached per-thread) in parser/compiler/TreeWalker + regression on both engines. Verified Release AND Debug: all crash vectors → clean diagnostic (2026-08-29) |
 | bug | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | ✅ FIXED: full complex matrix support across linalg (eig, svd, qr, lu, chol, det, inv, rank, pinv, mldivide, norm) (2026-08-05) |
 | missing-fn | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | ✅ FIXED: qz (generalized Schur) and gsvd (generalized SVD) implemented (2026-08-05) |
@@ -268,13 +269,15 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | missing-output | [signal/spectrogram-ps](signal/spectrogram-ps.md) | P2 | missing 4th output PSD (1128db65) |
 | bug | [io/writelines](io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
-### 🔴 OPEN — bug (defect on an implemented function) — 3
+### 🔴 OPEN — bug (defect on an implemented function) — 5
 
 | Bug | Sev | Notes |
 |---|---|---|
 | [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
 | [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
 | [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
+| [core/assignin-caller-write-through](core/assignin-caller-write-through.md) | P1 | `assignin('caller', …)` names invisible to the compiled frame ("Undefined … 'cfg_one'"); engine-level — native + WASM; 3/184 corpus examples (2026-08-29) |
+| [apps/numkit-repl-exit-code](apps/numkit-repl-exit-code.md) | P3 | native CLI exits 0 after a script error — invisible to shells/CI/agents (WASM CLI in packages/numkit already returns 1) |
 
 ### 🔴 OPEN — stub (option/branch throws "not supported") — 1
 
