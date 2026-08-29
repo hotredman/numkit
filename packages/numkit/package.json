@@ -1,0 +1,42 @@
+{
+  "name": "numkit",
+  "version": "0.1.0",
+  "description": "MATLAB/Octave-compatible numerical scripting engine (WebAssembly). Run .m scripts and linear algebra / DSP / statistics / ODE code with no install, no license, no native toolchain.",
+  "keywords": [
+    "matlab",
+    "octave",
+    "interpreter",
+    "numerical",
+    "matrix",
+    "linear-algebra",
+    "dsp",
+    "signal-processing",
+    "statistics",
+    "wasm",
+    "cli"
+  ],
+  "bin": {
+    "numkit": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "refresh-dist": "node scripts/refresh-dist.js",
+    "prepublishOnly": "node scripts/refresh-dist.js",
+    "test": "node bin/cli.js -e \"disp([1 2; 3 4] * [5; 6])\""
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "0BSD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hotredman/numkit.git"
+  },
+  "homepage": "https://hotredman.github.io/numkit-demo/",
+  "bugs": "https://github.com/hotredman/numkit/issues"
+}

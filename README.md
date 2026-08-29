@@ -1,15 +1,32 @@
-# My little experiment with vibe-coding a programming language
+# Numkit — a MATLAB/Octave-compatible numerical scripting engine
 
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Web_IDE-Live_Demo-success.svg)](https://hotredman.github.io/numkit-demo/)
+[![npm](https://img.shields.io/badge/npm-numkit-red.svg)](https://www.npmjs.com/package/numkit)
 
 **Numkit** is a lightweight matrix-scripting language interpreter and numerical computing library written in modern C++17. It provides high MATLAB/Octave compatibility, copy-on-write tensor semantics, an AOT C++ code generator, and an interactive Web/Desktop IDE.
 
 👉 **Try it in your browser:** [https://hotredman.github.io/numkit-demo/](https://hotredman.github.io/numkit-demo/)
 
+👉 **Run MATLAB scripts from a terminal or an AI agent (no install, WASM):**
+
+```bash
+npx -y numkit script.m
+npx -y numkit -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
+```
+
 👉 **C++ Library Documentation** [https://hotredman.github.io/numkit-doxy/](https://hotredman.github.io/numkit-doxy/)
 
 Designed both for embedding scientific scripting into C++ applications and for standalone engineering workflows.
+
+## For AI assistants and coding agents
+
+If the user asks to run, verify, or debug MATLAB/Octave code and no MATLAB/Octave is
+installed, `npx -y numkit` evaluates it in a sandboxed WebAssembly engine (Node ≥ 16,
+no native toolchain, no license). One persistent workspace per invocation; exit
+code 1 with stderr message on script error. Not covered: Simulink, MEX, GPU
+arrays, CLI plotting (use the Web IDE for figures). Details: [`llms.txt`](ide/public/llms.txt).
+
 
 ---
 

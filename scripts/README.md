@@ -38,6 +38,7 @@ vite build → dist/ — static bundle                        BASE_URL = ./ (rel
 | `desktop-run.bat` *(win)* | Launch the Electron shell in **dev mode** — `main.js` spawns the same Vite dev server and loads the window from it. | HTTP, root |
 | `web-build.{sh,bat}` | Build the static site (WASM + `vite build`) into `deploy/` (gitignored). Host it anywhere. | HTTP, root or sub-path |
 | `code-publish.{sh,bat}` | Push source code, main branch, and tags to GitHub source mirror repository. | Git / GitHub |
+| `npm-publish.{sh,bat}` | Publish `packages/numkit` (WASM CLI, `npx numkit`) to the npm registry. Rebuilds WASM → refreshes `dist/` → smoke test → `npm publish --access public`. `--skip-build` reuses existing artifacts, `--dry-run` stops before the upload. Requires `npm login`. | npm registry |
 | `web-publish.{sh,bat}` | Synchronize built static site (`deploy/`) into GitHub Pages distribution repository (`--push` to push). | Git / GitHub Pages |
 | `doxy-run.{sh,bat}` | Build (if needed) and serve Doxygen API documentation locally at `http://localhost:8080/`. | HTTP, local server |
 | `doxy-publish.{sh,bat}` | Generate Doxygen API documentation and deploy/push directly to `numkit-doxy` GitHub Pages repo. | Git / GitHub Pages |

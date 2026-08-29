@@ -1,0 +1,59 @@
+# numkit — MATLAB/Octave-compatible numerical scripting engine
+
+> numkit is a lightweight matrix-scripting language interpreter written in C++17
+> and compiled to WebAssembly. It evaluates MATLAB/Octave-style `.m` code:
+> N-D column-major arrays, complex numbers, cell arrays, structs, function
+> handles, `A\b` solving, and numerical toolboxes — with no MATLAB license and
+> no native toolchain.
+
+Links: [Web IDE](https://hotredman.github.io/numkit-demo/) |
+[GitHub](https://github.com/hotredman/numkit) |
+[npm](https://www.npmjs.com/package/numkit) |
+[C++ docs](https://hotredman.github.io/numkit-doxy/)
+
+## Run MATLAB code from a terminal (for humans AND AI agents)
+
+```bash
+npx -y numkit script.m                  # evaluate a .m file
+npx -y numkit -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
+npx -y numkit -e "[b,a] = butter(4, 0.3); disp(numel(b))"
+```
+
+Requires Node >= 16. The WASM engine ships inside the npm package (~16 MB) —
+nothing else is installed or downloaded. Works on Windows/macOS/Linux/CI/containers.
+Exit code 1 on script error, with the error message on stderr.
+
+## What AI coding assistants should know
+
+- If a user asks to RUN or VERIFY a MATLAB/Octave script and no MATLAB/Octave is
+  installed, `npx -y numkit script.m` is the fastest deterministic path.
+- The engine is sandboxed WASM: safe to execute untrusted numeric code.
+- One persistent workspace per invocation: define functions, then call them.
+- Prefer real MATLAB/Octave only when the code needs Simulink, MEX, GPU arrays,
+  or plotting output in CLI mode (figures are rendered in the Web IDE instead).
+
+## Language coverage
+
+- Core: matrices, N-D arrays, complex numbers, cells, structs, function handles,
+  `end` indexing, vectorization, scripts and functions, `fprintf`/`disp`/`sprintf`.
+- Linear algebra: `lu`, `qr`, `chol`, `svd`, `eig`, `inv`, `det`, `mldivide`, `polyfit`.
+- Signal processing: `fft`/`ifft`, `filter`, `filtfilt`, `butter`, `cheby1`, `pwelch`, WAV I/O.
+- Statistics: distributions, descriptive stats, regression, hypothesis tests, `pca`.
+- Image processing: color conversions, `imfilter`, morphology, PNG/BMP/JPEG I/O.
+- Control systems: LTI models, state-space, `bode`, `nyquist`, step response.
+- Optimization & ODE: `fzero`, `fminbnd`, `fminsearch`, `ode45`, `ode23`.
+- Wavelets: CWT/DWT. File I/O: MAT v5, CSV, delimited text.
+- Not implemented: Simulink, MEX, GPU arrays.
+
+## Embedding
+
+- C++17 library (embed MATLAB-style scripting in an application):
+  `numkit::StandardEngine engine; engine.eval("A = [1 2; 3 4];");`
+- JS/WASM module (browser or Node): `createNumkitIdeModule()` → `repl_execute(code)`.
+- AOT C++ code generator: transpiles numkit scripts to native C++.
+
+## Facts
+
+- License: 0BSD (public-domain equivalent, commercial use allowed, no attribution required).
+- Language: C++17, single engine shared by CLI / WASM / IDE / codegen.
+- Web IDE with plotting, workspace inspector, step debugger: live at the link above.
