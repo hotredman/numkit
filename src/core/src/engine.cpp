@@ -1945,22 +1945,9 @@ void Engine::rehashMFiles()
 
     // An INLINE subclass of a just-unregistered file base survives rehash still
     // holding the old base snapshot (it is not in mFileCache_, so the loop above
-    // didn't touch it). Reload each such base now; registerClassDef's cascade
-    // then re-merges every surviving class that derives from it. File subclasses
-    // need no help — they were unregistered too and reload lazily on next use.
-    for (const auto &base : unregisteredClasses) {
-        if (findClass(base))
-            continue; // already pulled back in by an earlier base's reload
-        bool hasLiveDependent = false;
-        for (const auto &[cn, desc] : classDefs_)
-            if (std::find(desc->superclasses.begin(), desc->superclasses.end(), base)
-                != desc->superclasses.end()) {
-                hasLiveDependent = true;
-                break;
-            }
-        if (hasLiveDependent)
-            resolveMFile_(base); // reload from the edited file + cascade to subclasses
-    }
+    // didn't touch it). File subclasses need no help — they were unregistered
+    // too and reload lazily on next use.
+    reloadEvictedClassBases_(unregisteredClasses);
 }
 
 void Engine::refreshStaleMFiles()
@@ -1968,6 +1955,7 @@ void Engine::refreshStaleMFiles()
     if (mFileCache_.empty())
         return;
     std::vector<std::string> stale;
+    std::vector<std::string> evictedClasses;
     for (const auto &[name, entry] : mFileCache_) {
         ResolvedPath rp;
         try {
@@ -2003,9 +1991,31 @@ void Engine::refreshStaleMFiles()
             if (classDefs_.count(name)) {
                 dropFileClassCtorExternal_(name);
                 unregisterClassDef(name);
+                evictedClasses.push_back(name);
             }
             mFileCache_.erase(it);
         }
+    }
+    // Without this cascade an inline subclass of an evicted base keeps its
+    // stale base snapshot (d9ab393f regression: the manual `rehash` that
+    // follows this refresh found nothing left to reload).
+    reloadEvictedClassBases_(evictedClasses);
+}
+
+void Engine::reloadEvictedClassBases_(const std::vector<std::string> &bases)
+{
+    for (const auto &base : bases) {
+        if (findClass(base))
+            continue; // already pulled back in by an earlier base's reload
+        bool hasLiveDependent = false;
+        for (const auto &[cn, desc] : classDefs_)
+            if (std::find(desc->superclasses.begin(), desc->superclasses.end(), base)
+                != desc->superclasses.end()) {
+                hasLiveDependent = true;
+                break;
+            }
+        if (hasLiveDependent)
+            resolveMFile_(base); // reload from the edited file + cascade to subclasses
     }
 }
 

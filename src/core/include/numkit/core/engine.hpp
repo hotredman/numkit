@@ -445,7 +445,14 @@ public:
 
     // Check all cached m-files against disk/VFS and evict any that have been
     // modified or deleted, so subsequent calls re-parse the latest source.
+    // Evicted file CLASS bases with live dependents are reloaded through the
+    // same cascade as rehashMFiles (an inline subclass must re-merge the
+    // edited base, not keep the stale snapshot).
     void refreshStaleMFiles();
+
+    // Reload each evicted file-class base that a surviving (inline) subclass
+    // still derives from; registerClassDef's cascade re-merges the dependents.
+    void reloadEvictedClassBases_(const std::vector<std::string> &bases);
 
     // Mark the entry/exit of a top-level script or function
     // evaluation. While a script is active, any FUNCTION_DEF it
