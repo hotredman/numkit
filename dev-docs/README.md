@@ -19,6 +19,7 @@ Two groups, by when you reach for them:
 | File | What it is |
 |------|------------|
 | [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) | Point-in-time health check + **risk register** (2026-06-13): layer-DAG invariants, metrics, resolved tech-debt risks, and the dual-backend duplication decision. |
+| [STACK_SAFETY.md](STACK_SAFETY.md) | **Open crash problem + fix design**: unbounded input nesting (deep expressions / deep blocks) overflows the C++ stack in the bytecode compiler & TreeWalker and kills the process / WASM module with no diagnostic (repro + measured thresholds inside). Three-layer proper fix: parse-time nesting contract (≤255, justified by the `uint8_t` register file), watermark `StackGuard` in every recursive walker, regression + fuzzing — plus the anti-kludge list (what NOT to do). |
 | [LAYERING_TARGET_ARCHITECTURE.md](LAYERING_TARGET_ARCHITECTURE.md) | The 11-layer dependency DAG, per-layer ownership, and the Phase-3-A layering-refactor spec + status. |
 | [NAMESPACE_DESIGN.md](NAMESPACE_DESIGN.md) | `toolboxes/` namespace layout + conventions; how the MATLAB documentation taxonomy maps onto the source tree. |
 | [OBJECT_MODEL.md](OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
