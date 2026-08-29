@@ -31,6 +31,8 @@ source layers it became:
   diff, cumsum/cumprod/cummax/cummin, sprintf, str2double, integer casts…
 - **`runtime/`** — `src/runtime/` (language-runtime builtins): accumarray,
   cellfun, func2str.
+- **`core/`** — `src/core/` (interpreter: lexer, parser, compiler, VM,
+  TreeWalker): parser crashes, stack-safety defects…
 
 Each base layer keeps its gtests in its own module tree --
 `src/math/tests/`, `src/lang/tests/`, `src/runtime/tests/`. The cross-cutting
@@ -139,7 +141,7 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Index
 
-**Tally (121 entries):** ✅ 108 fixed · 🔴 13 open = **3 bug** + 1 stub +
+**Tally (122 entries):** ✅ 109 fixed · 🔴 13 open = **3 bug** + 1 stub +
 1 missing-output + **7 missing-fn** + 1 perf (the 7 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 (cell-csl-expansion: common forms FIXED, rarer forms deferred — counted fixed.)
@@ -150,10 +152,11 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
-### ✅ FIXED (101)
+### ✅ FIXED (102)
 
 | Kind | Bug | Sev | Notes |
 |---|---|---|---|
+| bug | [core/parser-deep-nesting](core/parser-deep-nesting.md) | P0 | ✅ FIXED: deep nesting (sin×≥450, nested if-blocks) killed the process with `0xC00000FD`, no diagnostic — unguarded recursion in `compileNode`/TreeWalker died before the register check could fire. Fix = 3 layers per STACK_SAFETY.md: parse-time nesting limit 200 (justified by the `uint8_t` register file) + `StackGuard` watermark (64 KB margin, cross-platform, POSIX cached per-thread) in parser/compiler/TreeWalker + regression on both engines. Verified Release AND Debug: all crash vectors → clean diagnostic (2026-08-29) |
 | bug | [linalg/complex-matrix-unsupported](linalg/complex-matrix-unsupported.md) | P2 | ✅ FIXED: full complex matrix support across linalg (eig, svd, qr, lu, chol, det, inv, rank, pinv, mldivide, norm) (2026-08-05) |
 | missing-fn | [linalg/qz-gsvd](linalg/qz-gsvd.md) | P2 | ✅ FIXED: qz (generalized Schur) and gsvd (generalized SVD) implemented (2026-08-05) |
 | bug | [lang/cell-csl-expansion](lang/cell-csl-expansion.md) | P2 | ✅ FIXED (common forms): `c{:}` comma-separated-list now expands -- `[c{:}]` concat + `f(c{:})` sole-arg call, on BOTH backends (TreeWalker `cellBraceContents`; VM `HORZCAT_APPEND_CELL_CSL` + `CALL_VARARGS`). DEFERRED (documented v1 limits): mixed `f(a,c{:})`, `[a,b]=c{:}`, `{c{:}}` cell literal. Found via the codegen CSL audit (2026-06-26) |
