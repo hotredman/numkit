@@ -627,7 +627,9 @@ void saveMat4(const std::string &osPath,
             mw.writeBytes(v.rawData(), v.rawBytes());
         }
     }
-    fs.writeFile(osPath, std::string(reinterpret_cast<const char*>(mw.bytes.data()), mw.bytes.size()));
+    // Binary channel: MAT bytes contain values ≥ 0x80 that the text
+    // writeFile path would UTF-8-mangle crossing the JS↔WASM boundary.
+    fs.writeFileBytes(osPath, std::string(reinterpret_cast<const char*>(mw.bytes.data()), mw.bytes.size()));
 }
 
 void loadMat4(const std::string &osPath,
@@ -637,7 +639,7 @@ void loadMat4(const std::string &osPath,
               Span<Value> outs,
               std::pmr::memory_resource *mr)
 {
-    std::string bytes = fs.readFile(osPath);
+    std::string bytes = fs.readFileBytes(osPath);
     const auto *p = reinterpret_cast<const std::uint8_t*>(bytes.data());
     std::size_t len = bytes.size();
     std::size_t pos = 0;
@@ -775,7 +777,8 @@ void saveMat(Engine &engine, Environment &env,
         }
     }
 
-    resolved.fs->writeFile(resolved.path, std::string(reinterpret_cast<const char*>(mw.bytes.data()), mw.bytes.size()));
+    // Binary channel — see the writeFileBytes note in saveMat4 above.
+    resolved.fs->writeFileBytes(resolved.path, std::string(reinterpret_cast<const char*>(mw.bytes.data()), mw.bytes.size()));
 }
 
 void loadMat(Engine &engine, Environment &env,
@@ -789,7 +792,7 @@ void loadMat(Engine &engine, Environment &env,
 
     std::string bytes;
     try {
-        bytes = resolved.fs->readFile(resolved.path);
+        bytes = resolved.fs->readFileBytes(resolved.path);
     } catch (const std::exception &e) {
         throw Error(std::string("load: ") + e.what());
     }
