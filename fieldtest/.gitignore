@@ -1,0 +1,5 @@
+# Third-party code never enters git — cloned by fetch.py on demand.
+corpus/
+# Transient harness state.
+candidates.json
+__pycache__/

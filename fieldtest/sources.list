@@ -1,0 +1,8 @@
+# fieldtest sources — real-world MATLAB projects, one per line:
+#   <git-url>  |  <license>  |  <what it exercises>
+# Policy: permissive licenses only (MIT/BSD/Apache-2.0). Cloned into the
+# gitignored corpus/ by fetch.py — never committed.
+
+https://github.com/HuangCongQing/Algorithms_MathModels.git | MIT | math-modeling algorithms: AHP, TSP, GA/PSO, classic NN textbook code (Chinese comments, GBK encoding — exercises the transcode path)
+https://github.com/rasmusbergpalm/DeepLearnToolbox.git       | BSD-2-Clause | classic deep-learning (NN/CNN/DBN/SAE): matrix math, .mat data round-trips
+https://github.com/PRML/PRMLT.git                            | MIT | Bishop PRML algorithms: linear models, SVM, EM, graphical models
