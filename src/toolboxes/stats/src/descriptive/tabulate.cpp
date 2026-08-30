@@ -63,11 +63,16 @@ Value tabulate(const Value &x, std::pmr::memory_resource *mr)
         }
         Value T = Value::matrix(K, 3, ValueType::DOUBLE, mr);
         double *o = T.doubleDataMut();
-        const double inv_N = 100.0 / static_cast<double>(N);
         for (size_t k = 0; k < K; ++k) {
             o[k]            = static_cast<double>(k + 1);   // value
             o[k + K]        = static_cast<double>(count[k]); // count
-            o[k + 2 * K]    = static_cast<double>(count[k]) * inv_N;
+            // count * (100/N) precomputed reciprocal is 1 ulp off MATLAB's
+            // count*100/N; arithmetic-coding-style loops amplify that ulp
+            // into 1e-7 output divergence (bugs/closed/math/
+            // numeric-divergence-chap10-7.md) — multiply-then-divide, no
+            // hoisted reciprocal.
+            o[k + 2 * K]    = static_cast<double>(count[k]) * 100.0
+                              / static_cast<double>(N);
         }
         return T;
     }
@@ -90,11 +95,11 @@ Value tabulate(const Value &x, std::pmr::memory_resource *mr)
     const size_t K = uniq.size();
     Value T = Value::matrix(K, 3, ValueType::DOUBLE, mr);
     double *o = T.doubleDataMut();
-    const double inv_N = 100.0 / static_cast<double>(N);
     for (size_t k = 0; k < K; ++k) {
         o[k]            = uniq[k];
         o[k + K]        = static_cast<double>(cnt[k]);
-        o[k + 2 * K]    = static_cast<double>(cnt[k]) * inv_N;
+        o[k + 2 * K]    = static_cast<double>(cnt[k]) * 100.0
+                          / static_cast<double>(N);
     }
     return T;
 }
