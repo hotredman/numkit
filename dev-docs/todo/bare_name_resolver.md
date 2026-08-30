@@ -61,80 +61,34 @@ Key invariants:
 - User-defined functions **always win** over namespace functions (step 1)
 - Explicit imports **win** over bare-name fallback (step 2 > step 3)
 - Fully qualified names **always resolve directly**: `signal.fft(x)` and `stats.mean(x)` continue to work as explicit disambiguation without going through bare-name search
-- **Deterministic Priority Chain**: Namespaces are registered in a fixed priority order:
-  `builtin` → `linalg` → `signal` → `stats` → `io` → `image` → `audio` → `control` → `wavelet` → `optim` → `geometry`
-- **$O(1)$ Resolver Memoization Cache**: Resolved bare names are cached in `bareNameCache_` (`std::unordered_map<std::string, const FunctionBinding*>`) and invalidated only on new dynamic registrations or user function definitions. This ensures 0 ns overhead on hot loop iterations.
-- Name collisions across namespaces: first registered in the priority chain wins; `which fn`
-  tells the user where it came from.
+- **Deterministic Priority Chain**: derived from the actual registration
+  order in `installStandardLibrary()` (already deterministic — libraries
+  install in a fixed sequence), NOT hardcoded as a separate constant.
+  The resolver iterates namespaces in the order they were registered;
+  the first namespace containing the name wins. This means:
+  - No priority-list constant to maintain
+  - Adding a new toolbox automatically participates
+  - The order is visible in `installStandardLibrary()` source code
+- **O(1) Resolver Memoization Cache**: Resolved bare names are cached in
+  `bareNameCache_` (`std::unordered_map<std::string, const FunctionBinding*>`).
+  **Cache invalidation** — the cache entry for name `N` is cleared when:
+  - a user defines a function named `N` (`userFuncs_[N] = ...`)
+  - a user deletes a function named `N`
+  - a new namespace is registered (full cache clear — rare, startup-only)
+  This ensures 0 ns overhead on hot loop iterations while preserving
+  correctness when the binding changes.
+- Name collisions across namespaces: first namespace in the registration
+  order that contains the name wins; `which fn` tells the user where it
+  came from. Users can disambiguate with `import ns.*` or qualified calls.
 
-**Estimated scope**: ~40-60 lines in engine.cpp (resolver + cache) + `Engine::registeredNamespaces()`.
+**Estimated scope**: ~40-60 lines in engine.cpp (resolver + cache +
+invalidation hooks) + `Engine::registeredNamespaces()` enumeration method.
 
-### Phase 2: Remove compat.* infrastructure
+### Phases 2-4: See companion todo
 
-**2a. Remove compat registration from the `reg()` helper**
-
-Every `*_library.cpp` has a lambda like:
-```cpp
-auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
-    engine.registerFunction(std::string("signal.") + sub, name, fn);
-    engine.registerFunction("compat", name, fn);      // ← DELETE THIS LINE
-};
-```
-
-Files affected (5 libraries, ~5 one-line deletions):
-- `src/bundle/src/register/signal/signal_library.cpp`
-- `src/bundle/src/register/stats/stats_library.cpp`
-- `src/bundle/src/register/linalg/linalg_library.cpp`
-- `src/bundle/src/register/io/io_library.cpp`
-- `src/bundle/src/register/control/` (if it uses the same pattern)
-
-**2b. Remove existing bare-name overrides**
-
-- 13 `engine.registerFunction("", "fft", ...)` calls in signal_library.cpp
-- 1 `engine.registerFunction("genpath", ...)` in io_library.cpp (my hack)
-
-**2c. Remove the compat namespace from the engine**
-
-If the engine has a special-cased "compat" namespace in its import
-resolution, remove it. The bare-name resolver makes it redundant.
-
-### Phase 3: Remove --compat flag
-
-**File**: `apps/numkit/main.cpp`
-
-The `--compat` flag does `engine.addImplicitImport({{"compat"}, true, ""})`.
-After Phase 2, the compat namespace doesn't exist — the flag becomes a no-op.
-
-Options:
-- **Remove the flag entirely** (breaking change for anyone using it)
-- **Keep as no-op** with a deprecation warning
-
-Recommendation: remove it. The `compat.*` namespace is gone; keeping a
-flag that references it is confusing. Anyone who was using `--compat`
-was doing so to get bare-name access — which now works by default.
-
-### Phase 4: Clean up scripts and docs
-
-**4a. Synthetic corpus** (`examples/`)
-
-Remove `import compat.*;` from all example scripts (it was boilerplate).
-Scripts should work identically without it.
-
-**4b. Smoke tests** (`src/**/tests/smoke/`)
-
-Same — remove any `import compat.*` lines. The 710-smoke sweep should
-pass identically (they already run without compat since the builtin
-consolidation).
-
-**4c. WASM bindings** (`wasm/src/repl_bindings.cpp`)
-
-If `repl_init()` or `setenv('NUMKIT_FS', ...)` reference compat, clean up.
-
-**4d. Documentation**
-
-- AGENTS.md: remove `--compat` references; document the bare-name resolver
-- dev-docs/handbook/: update any compat references
-- packages/numkit/README.md: remove `--compat` from CLI usage
+The compat.* elimination, --compat removal, and script cleanup are
+detailed in `eliminate_compat_namespace_and_legacy.md` — that todo
+owns Phases 2-4. This file owns Phase 1 (the resolver) only.
 
 ### Phase 5: Verification
 
@@ -179,23 +133,19 @@ toolbox functions without any compat mechanism.
 - Namespace **existence** — `signal.fft` still a valid qualified name
 - Explicit `import signal.*` — still works, still useful for clarity/conflicts
 
-## What this eliminates
+## What this eliminates (combined with the companion todo)
 
-| Removed | Why |
-|---|---|
-| `compat.*` namespace (entire) | duplicate flat registration — resolver makes it redundant |
-| `--compat` CLI flag | was enabling compat.*; compat.* is gone |
-| `import compat.*` in scripts | namespace doesn't exist; becomes no-op (import of nonexistent ns) |
-| 13 bare-name overrides in signal | were patches for the same problem |
-| 1 genpath bare-name hack in io | my patch for the same problem |
-| `addImplicitImport({{"compat"}, ...})` | the mechanism --compat used |
+See `eliminate_compat_namespace_and_legacy.md` for the full removal
+inventory. The resolver makes all of these possible; the companion
+todo executes the cleanup.
 
 ## Risk assessment
 
 | Risk | Mitigation |
 |---|---|
 | Name collision across namespaces | first-registered wins; `which` reports source; user can `import ns.*` to disambiguate |
-| Resolver performance (searching all ns) | ~14 namespaces, each a hash map lookup — nanoseconds; memoize if needed |
+| Resolver performance (searching all ns) | memoization cache (O(1) after first lookup); ~14 namespaces only on cold miss |
+| Cache staleness after user defines a function | invalidation hooks on userFuncs_ changes and new namespace registrations |
 | Breaking change for `--compat` users | flag was transitional; bare-name now works by default (better outcome) |
 | Hidden dependency on compat.* | full test suite + 710 smokes + 182 corpus + fieldtest will catch any |
 
