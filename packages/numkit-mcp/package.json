@@ -1,0 +1,40 @@
+{
+  "name": "numkit-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for the numkit numerical computing engine — MATLAB-compatible code execution for AI agents with a persistent workspace.",
+  "keywords": [
+    "mcp",
+    "matlab",
+    "octave",
+    "numerical",
+    "matrix",
+    "linear-algebra",
+    "dsp",
+    "signal-processing",
+    "ai",
+    "llm",
+    "model-context-protocol"
+  ],
+  "bin": {
+    "numkit-mcp": "bin/mcp.js"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/mcp_test.js"
+  },
+  "dependencies": {
+    "numkit": "file:../numkit"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "0BSD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hotredman/numkit.git"
+  }
+}
