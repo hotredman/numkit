@@ -72,6 +72,10 @@ void setxor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void splitapply_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sum_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void symrcm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void web_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void genpath_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void vec2ind_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void rands_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void union_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void unique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void uniquetol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -382,6 +386,10 @@ void register_datafun(Engine &engine) {
     engine.registerFunction("groupfilter",&::numkit::builtin::detail::groupfilter_reg);
     engine.registerFunction("colperm",    &::numkit::builtin::detail::colperm_reg);
     engine.registerFunction("symrcm",     &::numkit::builtin::detail::symrcm_reg);
+    engine.registerFunction("web",       &::numkit::builtin::detail::web_reg);
+    engine.registerFunction("genpath",   &::numkit::builtin::detail::genpath_reg);
+    engine.registerFunction("vec2ind",   &::numkit::builtin::detail::vec2ind_reg);
+    engine.registerFunction("rands",     &::numkit::builtin::detail::rands_reg);
 
     engine.registerFunction("full",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &) {

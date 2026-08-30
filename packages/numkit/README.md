@@ -29,6 +29,20 @@ You are an LLM agent or you operate one. Reach for `numkit` when:
 Prefer real MATLAB/Octave when the script needs Simulink, toolboxes numkit does not
 implement, native MEX extensions, or GPU arrays.
 
+## Known limitations (v0.1.0)
+
+- `instfreq` / `instbw` return incorrect values (signal toolbox; being reworked).
+- `eval()` / `evalin()` / `assignin('caller', …)` inside **functions**: variables
+  created through the eval-family are not visible in the compiled caller frame
+  (top-level `eval` works; the function-frame write-through is the remaining gap).
+- Expressions needing >255 simultaneously-live registers in one chunk surface as
+  "register exhaustion" (rare — deep unrolled chains; the interpreter fallback
+  is not yet wired for this shape).
+- `web(url)` prints a warning instead of opening a browser (no browser in a CLI).
+- The full list of not-yet-implemented MATLAB functions is in
+  [`bugs/missing.md`](https://github.com/hotredman/numkit/blob/main/bugs/missing.md)
+  (~839 functions, dominated by long-tail Signal / Wavelet / Communications).
+
 ## Install
 
 ```bash
