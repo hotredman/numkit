@@ -29,6 +29,15 @@ Remove the redundant `engine.registerFunction("compat", name, fn);` line from th
 - `src/bundle/src/register/optim/optim_library.cpp`
 - `src/bundle/src/register/geometry/geometry_library.cpp`
 
+### 1b. Remove existing bare-name override patches
+These were ad-hoc patches for the same problem (function invisible without
+import) — redundant after the bare-name resolver:
+- **13 bare-name calls** in `signal_library.cpp`:
+  `engine.registerFunction("", "fft", ...)` etc. for fft/ifft/fft2/ifft2/
+  fftshift/ifftshift/conv/conv2/filter2 and ~4 more
+- **1 bare-name hack** in `io_library.cpp`:
+  `engine.registerFunction("genpath", ...)` (the fieldtest-era patch)
+
 ### 2. CLI and REPL Legacy
 - **`apps/numkit/main.cpp` & `apps/numkit/numkit_repl.cpp`**:
   - Remove `--compat` CLI flag and `addImplicitImport({{"compat"}, true, ""})`.
@@ -36,13 +45,15 @@ Remove the redundant `engine.registerFunction("compat", name, fn);` line from th
 - **WASM Bridge (`wasm/src/repl_bindings.cpp`)**:
   - Clean up `repl_set_compat_mode()` (make it a no-op or remove).
 
-### 3. Test Suites & Fixtures (`tests/gtest/` & `src/**/tests/`)
-- Remove `void SetUp() override { engine.eval("import compat.*;"); }` boilerplate from Google Test fixtures where bare functions now resolve directly.
+### 3. Test Suites & Fixtures
+- Remove `void SetUp() override { engine.eval("import compat.*;"); }` from **496** test fixture files
+  across `src/**/tests/` and `tests/gtest/` (one-line deletion per file,
+  mechanical batch edit).
 
 ### 4. Corpus Examples & Smoke Scripts
-- Remove `import compat.*;` from:
-  - `examples/**/*.m`
-  - `src/**/tests/smoke/*_smoke.m`
+- Remove `import compat.*;` from **685** smoke files (`src/**/tests/smoke/*_smoke.m`)
+- Remove `import compat.*;` from **8** example scripts (`examples/**/*.m`)
+- **Total mechanical cleanup: ~1,189 files** (each a one-line deletion)
 
 ### 5. Documentation & Guidelines
 - Update `AGENTS.md` and `README.md` (remove instructions requiring `import compat.*` or `--compat`).
@@ -50,7 +61,13 @@ Remove the redundant `engine.registerFunction("compat", name, fn);` line from th
 
 ## Acceptance Criteria
 - [ ] No `engine.registerFunction("compat", ...)` remains anywhere in the C++ codebase.
+- [ ] No `engine.registerFunction("", "fft", ...)` bare-name overrides remain.
+- [ ] No `engine.registerFunction("genpath", ...)` bare-name hack remains.
 - [ ] Memory footprint reduced (elimination of ~655 duplicate function entry pointers).
 - [ ] `numkit_repl` and `npx numkit` execute all toolbox functions bare without `--compat`.
 - [ ] All 13,153+ gtest unit tests and 710 smoke tests pass cleanly with zero `import compat.*;` calls.
 - [ ] Documentation updated to reflect true zero-boilerplate MATLAB parity.
+
+## Dependency
+**Requires the bare-name resolver to be completed first** (`bare_name_resolver.md`).
+Removing compat.* before the resolver works would make ~655 functions invisible.
