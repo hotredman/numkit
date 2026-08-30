@@ -34,7 +34,7 @@ published `numkit` from npm instead of rebuilding the WASM).
 
    | tool | params | returns |
    |---|---|---|
-   | `run_matlab` | `code` (string) | stdout, stderr (diagnostic line), duration_ms, error flag |
+   | `numkit_eval` | `code` (string) | stdout, stderr (diagnostic line), duration_ms, error flag |
    | `reset_workspace` | — | confirmation |
    | `numkit_help` | `fn` (string) | the existing help catalog entry |
 
@@ -51,7 +51,7 @@ published `numkit` from npm instead of rebuilding the WASM).
 ## Explicitly deferred
 
 - SSE/HTTP transport (remote hosting) — every local agent speaks stdio.
-- Specialized tools (matrix_solve, filter_design) — `run_matlab` covers
+- Specialized tools (matrix_solve, filter_design) — `numkit_eval` covers
   them; revisit only if routing stats show agents failing to find syntax.
 - `@modelcontextprotocol/sdk` — reconsider only if the protocol subset
   grows beyond the hand-rolled ~200 lines.
@@ -60,7 +60,7 @@ published `numkit` from npm instead of rebuilding the WASM).
 
 - [ ] stdio handshake + tools/list + tools/call pass against a real
       agent client (ZCode or Claude Desktop config).
-- [ ] `run_matlab` roundtrip < 5 ms in-process (excl. first engine load).
+- [ ] `numkit_eval` roundtrip < 5 ms in-process (excl. first engine load).
 - [ ] Persistence proven: define a function in call 1, use it in call 2.
 - [ ] Watchdog: an infinite loop returns a timeout error, server survives.
 - [ ] `numkit-mcp` published; registered in >= 1 MCP directory.
