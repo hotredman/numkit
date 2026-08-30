@@ -35,7 +35,7 @@ published `numkit` from npm instead of rebuilding the WASM).
    | tool | params | returns |
    |---|---|---|
    | `numkit_eval` | `code` (string) | stdout, stderr (diagnostic line), duration_ms, error flag |
-   | `reset_workspace` | — | confirmation |
+   | `numkit_reset` | — | confirmation |
    | `numkit_help` | `fn` (string) | the existing help catalog entry |
 
 5. **Watchdog**: per-call timeout (default 3000 ms, configurable via env
