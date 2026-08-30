@@ -1735,7 +1735,7 @@ const ExternalFunc *Engine::findExternal(const std::string &name,
 
     // 2. Walk active imports across env→parent → workspaceEnv fallback.
     //    The workspace fallback is a pragmatic relaxation so that REPL /
-    //    test code that does `import compat.*` at the top can flatten
+    //    test code with imports at the top can flatten
     //    those names inside nested function bodies too. MATLAB-strict
     //    mode would scope imports to the declaring function only.
     const ExternalFunc *hit = nullptr;

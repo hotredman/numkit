@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Cell+struct + number-theory batch — spec closure 2026-05-09. 18 funcs.
 
 c = cell(2,3); fprintf('cell(2,3) numel=%d, iscell=%d\n', numel(c), iscell(c));

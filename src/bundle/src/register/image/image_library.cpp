@@ -309,7 +309,7 @@ void ImageLibrary::install(Engine &engine)
 {
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("image.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
 
     reg("arith", "imadd",         &image::detail::imadd_reg);

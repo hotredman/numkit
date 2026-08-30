@@ -8,7 +8,7 @@
 // (save / load moved to runtime — they are workspace runtime,
 //  not data import/export, and register bare via registerWorkspaceRuntime.)
 // Each function is also aliased into `compat.<fn>` so MATLAB-style
-// scripts can call them flat after `import compat.*`.
+// scripts call them flat via the bare-name resolver.
 
 #include <numkit/io/library.hpp>
 
@@ -58,7 +58,7 @@ void IoLibrary::install(Engine &engine)
     // (io.<sub>.<name> + compat.<name>).
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("io.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
 
     reg("file_io", "fopen",   &io::detail::fopen_reg);
@@ -88,9 +88,6 @@ void IoLibrary::install(Engine &engine)
     reg("paths", "tempdir",   &io::detail::tempdir_reg);
     reg("paths", "tempname",  &io::detail::tempname_reg);
     reg("paths", "genpath",   &io::detail::genpath_reg);
-    // Also register genpath by bare name (the io dual-registration puts it
-    // behind compat.*, but corpus scripts call it without import).
-    engine.registerFunction("genpath", &io::detail::genpath_reg);
 }
 
 } // namespace numkit

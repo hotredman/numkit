@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Misc batch 5 — poly + string-extras2 + math2 + error-handling. spec closure 2026-05-09.
 
 p = polyfit([1 2 3 4], [1 4 9 16], 2);

@@ -113,7 +113,7 @@ void register_lang(Engine &engine) {
             std::vector<Value> rs;
             // Resolve the callee the SAME way a direct call does — `findExternal`
             // is import/namespace-aware, so toolbox functions (e.g. compat.median
-            // via `import compat.*`) resolve here exactly as `median(...)` would.
+            // resolve here exactly as `median(...)` would.
             // Only fall back to the handle path for user / anonymous functions.
             bool done = false;
             if (args[1].isChar() || args[1].isString()) {

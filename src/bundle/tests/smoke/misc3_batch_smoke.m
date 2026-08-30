@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Misc batch 3 — interp + ind2sub + predicates3 + helpers.
 
 fprintf('interp1([1 2 3],[10 20 30],1.5) = %g\n', interp1([1 2 3],[10 20 30],1.5));

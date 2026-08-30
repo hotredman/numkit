@@ -31,7 +31,7 @@ void OdeLibrary::install(Engine &engine)
 {
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("ode.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
 
     // ode45 is an embedded `.m` wrapper (vm_callbacks_plan.md): the RHS f(t,y)

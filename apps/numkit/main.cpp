@@ -146,8 +146,8 @@ void reportError(const Engine::EvalResult &r, const std::string &prefix)
 int runScript(const std::string &path, bool compatMode)
 {
     StandardEngine engine;
-    if (compatMode)
-        engine.addImplicitImport({{"compat"}, true, ""});
+    // --compat removed: the bare-name resolver makes all toolbox
+    // functions globally available without any implicit import.
     std::ifstream f(path, std::ios::binary);
     if (!f) {
         std::cerr << "numkit_repl: cannot open '" << path << "'\n";
@@ -178,8 +178,8 @@ int runScript(const std::string &path, bool compatMode)
 int runRepl(bool compatMode)
 {
     StandardEngine engine;
-    if (compatMode)
-        engine.addImplicitImport({{"compat"}, true, ""});
+    // --compat removed: the bare-name resolver makes all toolbox
+    // functions globally available without any implicit import.
 
     std::cout << "numkit REPL  (type 'quit' or 'exit' to leave)\n\n";
 
@@ -443,8 +443,8 @@ int runIdeSession(bool compatMode)
 {
     StandardEngine engine;
 
-    if (compatMode)
-        engine.addImplicitImport({{"compat"}, true, ""});
+    // --compat removed: the bare-name resolver makes all toolbox
+    // functions globally available without any implicit import.
 
     std::string accum;
     std::string line;
@@ -594,7 +594,7 @@ void printUsage(const char *prog)
 
 int main(int argc, char **argv)
 {
-    bool compatMode = false;
+    bool compatMode = false; // no-op: bare-name resolver replaced compat
     std::string target;
     bool isIdeSession = false;
 

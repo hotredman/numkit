@@ -100,7 +100,7 @@ BENCHMARK(BM_Biquad_NumkitLoop_TreeWalker);
 void BM_Biquad_NumkitFilter(benchmark::State &state)
 {
     numkit::StandardEngine e;
-    e.eval("import compat.*;");  // filter() lives in the signal namespace
+    // filter() available via bare-name resolver
     e.eval(kSetup);
     e.eval("b=[0.0675 0.1349 0.0675]; a=[1 -1.1430 0.4128];");
     for (auto _ : state)

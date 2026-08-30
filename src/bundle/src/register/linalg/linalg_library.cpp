@@ -191,7 +191,7 @@ void LinalgLibrary::install(Engine &engine)
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(name, fn);                                    // 1
         engine.registerFunction(std::string("linalg.") + sub, name, fn);      // 2
-        engine.registerFunction("compat", name, fn);                          // 3
+        // compat.* registration removed — bare-name resolver replaces it                          // 3
     };
 
     // ── Vector ops ───────────────────────────────────────────────

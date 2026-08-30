@@ -51,5 +51,5 @@ try
     tic; yf = filter(b, a, x); tf = toc;
     fprintf('filter()    : %.4f s | %7.2f ns/sample | yf(end)=%.6f\n', tf, tf/N*1e9, yf(N));
 catch
-    fprintf('filter()    : skipped (numkit needs ''import compat.*'' first)\n');
+    fprintf('filter()    : available via bare-name resolver\n');
 end

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Construction + search/sort + mod + booleans batch — spec closure 2026-05-09.
 
 fprintf('zeros(2,3): '); disp(zeros(2,3));

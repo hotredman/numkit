@@ -5,7 +5,7 @@
 //   moments/   → stats.descriptive.<fn>  (skewness, kurtosis, ...)
 //   nan_aware/ → stats.nan.<fn>          (nansum, nanmean, ...)
 // Each function is also aliased into `compat.<fn>` so MATLAB-style
-// scripts can call them flat after `import compat.*`.
+// scripts call them flat via the bare-name resolver.
 
 #include <numkit/stats/library.hpp>
 
@@ -446,7 +446,7 @@ void StatsLibrary::install(Engine &engine)
     // gets registered under stats.<sub>.<name> AND aliased into compat.<name>.
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("stats.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
 
     reg("descriptive", "var",       &stats::detail::var_reg);

@@ -79,7 +79,7 @@ void WaveletLibrary::install(Engine &engine)
 {
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("wavelet.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
 
     reg("filt", "wfilters", &wavelet::detail::wfilters_reg);

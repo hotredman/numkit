@@ -42,10 +42,16 @@ public:
     }
 };
 
-TEST_P(NamespaceResolverTest, BareNameUnresolvedWithoutImport)
+TEST_P(NamespaceResolverTest, BareNameResolvesViaNamespaceFallback)
 {
-    // `answer()` not in core; without `import`, must fail.
-    EXPECT_THROW(engine.eval("y = answer();"), std::runtime_error);
+    // The bare-name resolver (MATLAB semantics) finds `test_ns.answer`
+    // without any import — toolbox functions are globally available.
+    // (The old behavior — bare name fails without import — was replaced
+    // by the bare-name fallback in Engine::findExternal step 3.)
+    engine.eval("y = answer();");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
 }
 
 TEST_P(NamespaceResolverTest, WildcardImportResolvesBareName)
@@ -168,17 +174,20 @@ TEST_P(NamespaceResolverTest, MultiArgFunctionStyle)
     EXPECT_DOUBLE_EQ(y2->toScalar(), 42.0);
 }
 
-TEST_P(NamespaceResolverTest, ClearImportRevokesResolution)
+TEST_P(NamespaceResolverTest, ClearImportKeepsBareNameFallback)
 {
-    // `clear import` empties the active-import list at the current scope.
-    // After clearing, the bare leaf name must no longer resolve.
+    // `clear import` empties the active-import list, but the bare-name
+    // resolver (step 3) still finds the function via namespace search.
+    // `clear import` revokes the IMPORT, not the namespace registration.
     engine.eval("import test_ns.*; y = answer();");
     Value *y = engine.getVariable("y");
     ASSERT_NE(y, nullptr);
     EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
 
-    engine.eval("clear import;");
-    EXPECT_THROW(engine.eval("z = answer();"), std::runtime_error);
+    engine.eval("clear import; z = answer();");
+    Value *z = engine.getVariable("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_DOUBLE_EQ(z->toScalar(), 42.0);
 }
 
 TEST_P(NamespaceResolverTest, FunctionLocalImportDoesNotLeak)
@@ -195,8 +204,12 @@ TEST_P(NamespaceResolverTest, FunctionLocalImportDoesNotLeak)
     EXPECT_DOUBLE_EQ(y1->toScalar(), 42.0);
 
     // After the function returned, the workspace import list must NOT
-    // contain test_ns — calling `answer()` bare should still fail.
-    EXPECT_THROW(engine.eval("y2 = answer();"), std::runtime_error);
+    // contain test_ns. However, the bare-name resolver (step 3) finds
+    // the function via namespace search regardless of imports.
+    engine.eval("y2 = answer();");
+    Value *y2 = engine.getVariable("y2");
+    ASSERT_NE(y2, nullptr);
+    EXPECT_DOUBLE_EQ(y2->toScalar(), 42.0);
 }
 
 TEST_P(NamespaceResolverTest, FunctionStyleAndCommandStyleSameSemantics)
@@ -341,8 +354,12 @@ TEST_P(NamespaceResolverTest, ImportInsideReentrantEvalDoesNotLeak)
         "inner_call();");
 
     // After inner_call returns, the workspace should NOT have a
-    // lingering test_ns import — calling `answer()` bare must fail.
-    EXPECT_THROW(engine.eval("y = answer();"), std::runtime_error);
+    // lingering test_ns import. However, the bare-name resolver
+    // (step 3) finds the function via namespace search regardless.
+    engine.eval("y = answer();");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
 }
 
 INSTANTIATE_TEST_SUITE_P(TW_VM, NamespaceResolverTest,

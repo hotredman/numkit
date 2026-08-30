@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Predicates2 + set ops + format/transpose batch — spec closure 2026-05-09.
 
 fprintf('isempty([])  = %d, isempty([1]) = %d\n', isempty([]), isempty([1]));

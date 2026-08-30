@@ -1,6 +1,4 @@
 clear
-import compat.*
-
 fprintf('=== trace ===\n');
 A = [1 2 3; 4 5 6; 7 8 9];
 fprintf('  trace(magic-like) = %g (expect 15)\n', trace(A));

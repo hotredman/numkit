@@ -1,6 +1,4 @@
 clear
-import compat.*
-
 fprintf('=== matrix-structure predicates ===\n');
 
 % --- issymmetric ---

@@ -57,7 +57,7 @@ void AudioLibrary::install(Engine &engine)
 {
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("audio.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
 
     reg("scale", "hz2mel",     &audio::detail::hz2mel_reg);

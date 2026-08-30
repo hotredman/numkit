@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Misc batch — predicates + airy + coord conversion. spec closure 2026-05-09.
 
 fprintf('allfinite([1 NaN 3]) = %d  (expect 0)\n',  allfinite([1 NaN 3]));

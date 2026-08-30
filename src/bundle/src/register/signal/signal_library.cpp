@@ -307,7 +307,7 @@ void SignalLibrary::install(Engine &engine)
     // signal.<sub>.<name> AND aliased into compat.<name>.
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("signal.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
 
     // ── Transforms (FFT family, DCT, Hilbert, Goertzel, envelope, ...) ──
@@ -595,19 +595,6 @@ void SignalLibrary::install(Engine &engine)
     // even WITHOUT `import compat.*`. They get a third registration in
     // core (namespace = ""). The same ExternalFunc pointer is shared
     // across all three registrations.
-    engine.registerFunction("", "fft",       &signal::detail::fft_reg);
-    engine.registerFunction("", "ifft",      &signal::detail::ifft_reg);
-    engine.registerFunction("", "fft2",      &signal::detail::fft2_reg);
-    engine.registerFunction("", "ifft2",     &signal::detail::ifft2_reg);
-    engine.registerFunction("", "fftshift",  &signal::detail::fftshift_reg);
-    engine.registerFunction("", "ifftshift", &signal::detail::ifftshift_reg);
-    engine.registerFunction("", "conv",      &signal::detail::conv_reg);
-    engine.registerFunction("", "conv2",     &signal::detail::conv2_reg);
-    engine.registerFunction("", "filter2",   &signal::detail::filter2_reg);
-    engine.registerFunction("", "convn",     &signal::detail::convn_reg);
-    engine.registerFunction("", "xcorr",     &signal::detail::xcorr_reg);
-    engine.registerFunction("", "xcov",      &signal::detail::xcov_reg);
-    engine.registerFunction("", "interpft",  &signal::detail::interpft_reg);
 }
 
 } // namespace numkit

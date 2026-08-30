@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Misc batch 4 — convert + intmax/intmin + collection helpers + meshgrid + misc.
 
 fprintf('intmax(int8)  = %d, intmin(int8)  = %d\n', intmax("int8"), intmin("int8"));

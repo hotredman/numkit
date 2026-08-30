@@ -89,7 +89,7 @@ void ControlLibrary::install(Engine &engine)
 {
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("control.") + sub, name, fn);
-        engine.registerFunction("compat", name, fn);
+        // compat.* registration removed — bare-name resolver replaces it
     };
     auto regOnly = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("control.") + sub, name, fn);

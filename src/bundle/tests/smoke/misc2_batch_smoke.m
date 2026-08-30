@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Misc batch 2 — string extras + special-fn + helpers. spec closure 2026-05-09.
 
 fprintf('append("ab","cd") = "%s"\n', append("ab","cd"));
