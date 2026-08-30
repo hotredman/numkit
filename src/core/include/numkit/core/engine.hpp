@@ -693,13 +693,6 @@ private:
     std::vector<std::string> namespaceOrder_;
     std::unordered_set<std::string> namespaceSet_;
 
-    // Bare-name resolver memoization cache (bare_name_resolver.md): maps
-    // a bare leaf name to its resolved full qualified name (e.g. "fft" →
-    // "signal.transforms.fft"). Populated on first resolution; cleared
-    // when a new namespace is registered or a user function with the
-    // same name is defined/deleted (the binding changes).
-    mutable std::unordered_map<std::string, std::string> bareNameCache_;
-
     // Internal helper used by both registerFunction overloads.
     // Throws std::runtime_error if `fullName` already registered.
     void registerFunctionImpl_(const std::string &fullName,
