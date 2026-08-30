@@ -1,6 +1,6 @@
 # linalg.complex — chol (and the complex linalg family) rejects complex input again — regression of the closed complex-matrix support
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (chol root; see below — the smoke cluster dissolved into separate issues)
 - **Severity:** P1 wrong result (errors where MATLAB returns a value)
 - **Kind:** bug
 - **Found:** 2026-08-30 via the full smoke sweep during the import-compat cleanup (6 linalg smokes red; nobody had run the smoke corpus since the builtin consolidation)
@@ -23,7 +23,23 @@ disp(R(1,1))
 % MATLAB: 1.4142 (complex Cholesky works)
 ```
 
-## Affected smoke set (same suspected root — complex routing lost in the builtin consolidation)
+## Resolution (2026-08-30)
+
+The reg-layer `chol_reg` reimplemented the factor with `A.doubleData()`
+(double-only) instead of instantiating the already complex-aware kernels
+(`cholUpperFactor<T>` / `transposeSquare<T>` in decompositions_detail.hpp).
+Fixed by making the reg type-generic (real + complex instantiation); the
+guard `CholAcceptsComplexHermitian` is live and green; `chol_complex_smoke`
+passes; full Release suite green.
+
+The remaining four red linalg smokes are NOT this root — each is its own
+issue, tracked under `opened/apps/smoke-drift-batch.md`:
+- `schur_complex` — no complex Schur KERNEL exists (complex QR iteration unimplemented; eig has complex paths, schur does not);
+- `funm_parlett` — "Array indices must be positive integers" (indexing, not dtype);
+- `decomposition` — the `decomposition()` builtin is unregistered (missing-fn regression);
+- `matrix_functions_general` — `eig` claims "only symmetric / Phase 2b deferred" though the real non-symmetric Schur (Francis QR) was implemented — a wiring gap.
+
+## Affected smoke set (at filing — suspected shared root)
 
 `chol_complex_smoke.m`, `schur_complex_smoke.m`, `funm_parlett_smoke.m`,
 `decomposition_smoke.m`, `matrix_functions_general_smoke.m` — all fail with

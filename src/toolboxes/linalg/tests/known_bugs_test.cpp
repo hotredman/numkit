@@ -130,7 +130,7 @@ TEST_F(LinalgKnownBug, SchurNonsymmetric)
 // linalg family) rejects complex input again: the closed complex-matrix
 // support (closed/linalg/complex-matrix-unsupported.md) regressed. MATLAB:
 // R = chol(A) on a Hermitian complex matrix works.
-TEST_F(LinalgKnownBug, DISABLED_CholAcceptsComplexHermitian)
+TEST_F(LinalgKnownBug, CholAcceptsComplexHermitian)
 {
     eval("A = [2, 1i; -1i, 2]; R = chol(A);");
     EXPECT_NEAR(evalScalar("real(R(1,1))"), 1.4142135623730951, 1e-12);

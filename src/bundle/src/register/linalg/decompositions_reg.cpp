@@ -31,6 +31,7 @@
 #include <cstddef>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 namespace numkit::linalg {
@@ -75,34 +76,49 @@ void chol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         return;
     }
 
-    auto R = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    const std::size_t fail = cholUpperFactor(A.doubleData(), R.doubleDataMut(), n);
-
-    if (fail != 0) {
-        // Not positive-definite. With <2 outputs MATLAB errors; with the
-        // [R,p] form it returns p = failure column and R = the leading
-        // (p-1)×(p-1) factor (no error).
-        if (nargout < 2)
-            throw Error("chol: matrix is not positive-definite",
-                        0, 0, "chol", "", "numkit:chol:notPosDef");
-        const std::size_t k = fail - 1;
-        Value sub = Value::matrix(k, k, ValueType::DOUBLE, mr);
-        if (k > 0) {
-            const double *rf = R.doubleData();
-            double *rs = sub.doubleDataMut();
-            for (std::size_t col = 0; col < k; ++col)
-                for (std::size_t row = 0; row < k; ++row)
-                    rs[row + col * k] = rf[row + col * n];
-            if (lower) sub = transposeSquare(sub.doubleData(), k, mr);
+    // Type-generic factor + emit. The raw-buffer kernels in
+    // decompositions_detail.hpp are complex-aware (Hermitian checks and
+    // conjugates inside), so instantiating them for complex here is the whole
+    // complex-linalg fix (bugs/opened/linalg/complex-linalg-regression.md).
+    const auto emit = [&](auto tag, auto roData, auto rwData, auto makeR) {
+        using T = std::remove_const_t<std::remove_pointer_t<decltype(tag)>>;
+        auto R = makeR();
+        const std::size_t fail = cholUpperFactor(roData(A), rwData(R), n);
+        if (fail != 0) {
+            // Not positive-definite. With <2 outputs MATLAB errors; with the
+            // [R,p] form it returns p = failure column and R = the leading
+            // (p-1)×(p-1) factor (no error).
+            if (nargout < 2)
+                throw Error("chol: matrix is not positive-definite",
+                            0, 0, "chol", "", "numkit:chol:notPosDef");
+            const std::size_t k = fail - 1;
+            Value sub = make_matrix<T>(k, k, mr);
+            if (k > 0) {
+                const T *rf = roData(R);
+                T *rs = rwData(sub);
+                for (std::size_t col = 0; col < k; ++col)
+                    for (std::size_t row = 0; row < k; ++row)
+                        rs[row + col * k] = rf[row + col * n];
+                if (lower) sub = transposeSquare(roData(sub), k, mr);
+            }
+            outs[0] = std::move(sub);
+            outs[1] = Value::scalar(static_cast<double>(fail));
+            return;
         }
-        outs[0] = std::move(sub);
-        outs[1] = Value::scalar(static_cast<double>(fail));
-        return;
-    }
-
-    if (lower) R = transposeSquare(R.doubleData(), n, mr);
-    outs[0] = std::move(R);
-    if (nargout > 1) outs[1] = Value::scalar(0.0);
+        if (lower) R = transposeSquare(roData(R), n, mr);
+        outs[0] = std::move(R);
+        if (nargout > 1) outs[1] = Value::scalar(0.0);
+    };
+    if (A.isComplex())
+        emit(static_cast<const std::complex<double> *>(nullptr),
+             [](const Value &v) { return v.complexData(); },
+             [](Value &v) { return v.complexDataMut(); },
+             [&]() -> Value { return Value::complexMatrix(n, n, mr); });
+    else
+        emit(static_cast<const double *>(nullptr),
+             [](const Value &v) { return v.doubleData(); },
+             [](Value &v) { return v.doubleDataMut(); },
+             [&]() -> Value { return Value::matrix(n, n, ValueType::DOUBLE, mr); });
 }
 
 namespace {
