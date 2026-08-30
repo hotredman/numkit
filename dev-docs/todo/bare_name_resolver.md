@@ -60,12 +60,14 @@ new fallback (step 3):
 Key invariants:
 - User-defined functions **always win** over namespace functions (step 1)
 - Explicit imports **win** over bare-name fallback (step 2 > step 3)
-- Registration order is deterministic: signal registers before stats, etc.
-- Name collisions across namespaces: first registered wins; `which fn`
-  tells the user where it came from
+- Fully qualified names **always resolve directly**: `signal.fft(x)` and `stats.mean(x)` continue to work as explicit disambiguation without going through bare-name search
+- **Deterministic Priority Chain**: Namespaces are registered in a fixed priority order:
+  `builtin` → `linalg` → `signal` → `stats` → `io` → `image` → `audio` → `control` → `wavelet` → `optim` → `geometry`
+- **$O(1)$ Resolver Memoization Cache**: Resolved bare names are cached in `bareNameCache_` (`std::unordered_map<std::string, const FunctionBinding*>`) and invalidated only on new dynamic registrations or user function definitions. This ensures 0 ns overhead on hot loop iterations.
+- Name collisions across namespaces: first registered in the priority chain wins; `which fn`
+  tells the user where it came from.
 
-**Estimated scope**: ~30-50 lines in engine.cpp (the resolver) + a method
-to enumerate registered namespaces (`Engine::registeredNamespaces()`).
+**Estimated scope**: ~40-60 lines in engine.cpp (resolver + cache) + `Engine::registeredNamespaces()`.
 
 ### Phase 2: Remove compat.* infrastructure
 
@@ -200,10 +202,13 @@ toolbox functions without any compat mechanism.
 ## Acceptance criteria
 
 - [ ] `fft([1 2 3 4])` works in REPL with zero imports, zero flags
+- [ ] `signal.fft([1 2 3 4])` continues to work as an explicit qualified call
 - [ ] `mean(x)` works (stats namespace, same)
+- [ ] `stats.mean(x)` continues to work as an explicit qualified call
 - [ ] User-defined `fft` overrides `signal.fft`
 - [ ] `import signal.*; filter(x)` uses signal.filter explicitly
 - [ ] `which fft` reports `signal.fft`
+- [ ] `bareNameCache_` memoizes lookups: subsequent calls in loops execute in $O(1)$ without namespace scanning
 - [ ] `compat.*` namespace does not exist in the engine
 - [ ] `--compat` flag removed
 - [ ] 13,153 gtest cases pass
