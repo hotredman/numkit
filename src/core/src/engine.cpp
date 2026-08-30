@@ -1748,7 +1748,32 @@ const ExternalFunc *Engine::findExternal(const std::string &name,
             }
             return false;
         });
-    return hit;
+    if (hit) return hit;
+
+    // 3. Bare-name fallback (MATLAB semantics): search all registered
+    //    namespaces in registration order — toolbox functions are
+    //    globally available without import. First namespace containing
+    //    the name wins (deterministic via namespaceOrder_).
+    if (name.find('.') == std::string::npos) {
+        for (const auto &ns : namespaceOrder_) {
+            auto fit = externalFuncs_.find(ns + "." + name);
+            if (fit != externalFuncs_.end()) {
+                return &fit->second;
+            }
+        }
+        // Sub-namespace fallback: the function may live in a
+        // sub-namespace (e.g. signal.transforms.fft for bare "fft").
+        // shortNameIndex_ maps leaf → full name for exactly this case.
+        auto range = shortNameIndex_.equal_range(name);
+        for (auto sit = range.first; sit != range.second; ++sit) {
+            auto fit = externalFuncs_.find(sit->second);
+            if (fit != externalFuncs_.end()) {
+                return &fit->second;
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 void Engine::setVariable(const std::string &name, Value val)
