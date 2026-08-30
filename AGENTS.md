@@ -118,6 +118,17 @@ Three real bugs in cycles 65-75 were caught only by parity cross-check —
 hand-written smokes had passed all three. Don't trust your own
 expected values: trust the reference engine.
 
+## Project memory (`dev-docs/memory/`)
+
+Decentralised memory files persist architectural decisions, gotchas and
+performance logs across sessions. Before a major task, scan
+`dev-docs/memory/` for files touching your components. After completing a
+major task, making a significant architectural decision, or discovering a
+non-obvious gotcha — document it there (new file per logical domain, e.g.
+`linalg_lu_performance.md`; or append to an existing one). Content: the
+problem/context, the chosen solution, the rationale, and any measured
+numbers.
+
 ## Bug catalog (`bugs/`)
 
 Structured one-file-per-bug catalog.

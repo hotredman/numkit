@@ -650,3 +650,26 @@ public function added or changed:
 - [ ] Build green; full gtest + smoke suites pass (pre-existing
           failures only).
 ```
+
+
+## Doxygen & layering standards for public headers (merged from .agents/rules)
+
+Every public C++ function carries a complete Doxygen comment: `@brief`
+(algebraic formula where applicable), a detailed description covering
+broadcasting/shape behaviour, type promotion and dimensionality
+constraints, one `@param` per parameter (including
+`mr Memory resource for allocations (nullptr for default)`), an explicit
+`@return` with output shape, `@throws` for invalid inputs, and `@see`
+cross-references to related functions.
+
+- **L2 compute headers** (`src/builtin/include/numkit/builtin/*.hpp`,
+  `src/toolboxes/*/include/...`) are 100% engine-free: no
+  `<numkit/core/engine.hpp>` / `<numkit/core/types.hpp>` includes, no
+  `Engine&` / `CallContext&` parameters, no `register_*` declarations —
+  they depend only on L0 (`value`), L0.5 (`ops`) and the standard library.
+- **L3 registration** (`register_<category>(Engine&)`, `*_reg(...)` wrappers,
+  `BuiltinLibrary::install`) lives exclusively in `src/bundle/`.
+- Functions returning `Value` or allocating take
+  `std::pmr::memory_resource *mr = nullptr` as the final parameter.
+- MATLAB names colliding with C++ keywords get descriptive names
+  (`logical_and`, `logical_or`, …) plus concise aliases (`and_op`, …).
