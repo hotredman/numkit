@@ -208,3 +208,17 @@ TEST_F(SignalKnownBug, DISABLED_SpectrogramFcTc)
               static_cast<int>(evalScalar("numel(t)")));
     EXPECT_NEAR(evalScalar("tc(1)"), 8.0, 1e-6);
 }
+
+// bugs/signal/butter-bandpass-vector-wn.md — butter accepts 2-element [W1 W2] for bandpass/stop.
+TEST_F(SignalKnownBug, DISABLED_ButterBandpassVectorWn)
+{
+    eval("[b, a] = butter(2, [0.2, 0.5], 'bandpass');");
+    EXPECT_EQ(eval("b").numel(), 5u);
+    EXPECT_EQ(eval("a").numel(), 5u);
+    EXPECT_NEAR(evalScalar("b(1)"),  0.097631072937817, 1e-6);
+    EXPECT_NEAR(evalScalar("b(3)"), -0.195262145875635, 1e-6);
+    EXPECT_NEAR(evalScalar("b(5)"),  0.097631072937817, 1e-6);
+    EXPECT_NEAR(evalScalar("a(1)"),  1.0,               1e-9);
+    EXPECT_NEAR(evalScalar("a(2)"), -0.942809041582063, 1e-6);
+}
+
