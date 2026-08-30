@@ -292,6 +292,11 @@ public:
     const ExternalFunc *findExternal(const std::string &name,
                                       const Environment *env) const;
 
+    // Returns the full qualified name for a bare leaf name (e.g. "fft" →
+    // "signal.transforms.fft") — the namespace source that the bare-name
+    // resolver found. Empty when the name doesn't resolve. Used by `which`.
+    std::string bareNameSource(const std::string &name) const;
+
     // Compile-time check: is `name` a leaf name registered anywhere in the
     // namespace tree? Used by the compiler to decide whether an identifier
     // is a callable. Does NOT consider imports — that's a runtime concept.
@@ -687,6 +692,13 @@ private:
     std::unordered_multimap<std::string, std::string> shortNameIndex_;
     std::vector<std::string> namespaceOrder_;
     std::unordered_set<std::string> namespaceSet_;
+
+    // Bare-name resolver memoization cache (bare_name_resolver.md): maps
+    // a bare leaf name to its resolved full qualified name (e.g. "fft" →
+    // "signal.transforms.fft"). Populated on first resolution; cleared
+    // when a new namespace is registered or a user function with the
+    // same name is defined/deleted (the binding changes).
+    mutable std::unordered_map<std::string, std::string> bareNameCache_;
 
     // Internal helper used by both registerFunction overloads.
     // Throws std::runtime_error if `fullName` already registered.

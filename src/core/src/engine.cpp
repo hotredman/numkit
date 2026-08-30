@@ -180,8 +180,14 @@ void Engine::registerFunctionImpl_(const std::string &fullName,
         std::string topNs = fullName.substr(0, dot);
         if (namespaceSet_.insert(topNs).second) {
             namespaceOrder_.push_back(topNs);
+            // New namespace changes the resolution order — clear the
+            // bare-name cache so lookups pick it up.
+            bareNameCache_.clear();
         }
     }
+    // A new function registration with the same leaf name could change
+    // which namespace wins the bare-name fallback — evict that entry.
+    bareNameCache_.erase(leafName);
 }
 
 void Engine::registerFunction(const std::string &name, ExternalFunc func)
@@ -1754,10 +1760,24 @@ const ExternalFunc *Engine::findExternal(const std::string &name,
     //    namespaces in registration order — toolbox functions are
     //    globally available without import. First namespace containing
     //    the name wins (deterministic via namespaceOrder_).
+    //    Memoized: after the first resolution the bare → full mapping is
+    //    cached (bareNameCache_), making hot-loop lookups O(1).
     if (name.find('.') == std::string::npos) {
+        // Cache hit — skip the namespace scan entirely.
+        auto cit = bareNameCache_.find(name);
+        if (cit != bareNameCache_.end()) {
+            auto fit = externalFuncs_.find(cit->second);
+            if (fit != externalFuncs_.end()) {
+                return &fit->second;
+            }
+            bareNameCache_.erase(cit); // stale: function unregistered
+        }
+
+        // Primary path: top-level namespace root (e.g. "signal.fft").
         for (const auto &ns : namespaceOrder_) {
             auto fit = externalFuncs_.find(ns + "." + name);
             if (fit != externalFuncs_.end()) {
+                bareNameCache_[name] = ns + "." + name;
                 return &fit->second;
             }
         }
@@ -1768,12 +1788,32 @@ const ExternalFunc *Engine::findExternal(const std::string &name,
         for (auto sit = range.first; sit != range.second; ++sit) {
             auto fit = externalFuncs_.find(sit->second);
             if (fit != externalFuncs_.end()) {
+                bareNameCache_[name] = sit->second;
                 return &fit->second;
             }
         }
     }
 
     return nullptr;
+}
+
+std::string Engine::bareNameSource(const std::string &name) const
+{
+    auto cit = bareNameCache_.find(name);
+    if (cit != bareNameCache_.end())
+        return cit->second;
+    if (name.find('.') == std::string::npos) {
+        for (const auto &ns : namespaceOrder_) {
+            if (externalFuncs_.count(ns + "." + name))
+                return ns + "." + name;
+        }
+        auto range = shortNameIndex_.equal_range(name);
+        for (auto sit = range.first; sit != range.second; ++sit) {
+            if (externalFuncs_.count(sit->second))
+                return sit->second;
+        }
+    }
+    return {};
 }
 
 void Engine::setVariable(const std::string &name, Value val)

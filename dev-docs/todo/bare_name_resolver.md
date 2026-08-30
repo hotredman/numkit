@@ -28,6 +28,15 @@ cannot find bare names across registered namespaces.
 - `--compat` CLI flag (implicit compat import)
 - `import compat.*` boilerplate in synthetic corpus scripts
 
+## Locked decision: hierarchical registration
+
+Registration stays hierarchical () — sub-namespaces
+mirror the source structure and MATLAB documentation taxonomy. The bare-name
+resolver is the user-facing access mechanism (step 3 finds  →
+ via shortNameIndex). The primary namespaceOrder_
+path handles future root-level registrations; the fallback handles the
+hierarchical case; the memoization cache makes both O(1) after first lookup.
+
 ## Design principle
 
 > **Every function registers in its namespace — this is the law.**

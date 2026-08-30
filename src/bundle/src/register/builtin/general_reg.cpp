@@ -91,23 +91,34 @@ void register_general(Engine &engine) {
                                 else if (ctx.engine->hasExternalFunction(qname))
                                     os << "built-in (" << qname << ")\n";
                                 else {
-                                    // M-file lookup via Engine path registry.
-                                    bool found = false;
-                                    for (const auto &dir : ctx.engine->path()) {
-                                        std::string p = dir;
-                                        if (!p.empty() && p.back() != '/' && p.back() != '\\') p += '/';
-                                        p += qname + ".m";
-                                        try {
-                                            auto rp = ctx.engine->resolvePath(p);
-                                            if (rp.fs && rp.fs->exists(rp.path)) {
-                                                os << p << "\n";
-                                                found = true;
-                                                break;
-                                            }
-                                        } catch (...) {}
+                                    // Bare-name resolver: find the qualified
+                                    // namespace path (e.g. signal.transforms.fft).
+                                    auto *ext = ctx.engine->findExternal(qname, env);
+                                    if (ext) {
+                                        auto qualified = ctx.engine->bareNameSource(qname);
+                                        os << (qualified.empty()
+                                                  ? "built-in (" + qname + ")"
+                                                  : qualified)
+                                           << "\n";
+                                    } else {
+                                        // M-file lookup via Engine path registry.
+                                        bool found = false;
+                                        for (const auto &dir : ctx.engine->path()) {
+                                            std::string p = dir;
+                                            if (!p.empty() && p.back() != '/' && p.back() != '\\') p += '/';
+                                            p += qname + ".m";
+                                            try {
+                                                auto rp = ctx.engine->resolvePath(p);
+                                                if (rp.fs && rp.fs->exists(rp.path)) {
+                                                    os << p << "\n";
+                                                    found = true;
+                                                    break;
+                                                }
+                                            } catch (...) {}
+                                        }
+                                        if (!found)
+                                            os << "'" << qname << "' not found.\n";
                                     }
-                                    if (!found)
-                                        os << "'" << qname << "' not found.\n";
                                 }
 
                                 ctx.engine->outputText(os.str());
