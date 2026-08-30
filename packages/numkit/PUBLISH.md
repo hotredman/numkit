@@ -46,11 +46,13 @@ the tarball. Verify at https://www.npmjs.com/package/numkit and test
 
 ## MCP server (follow-up)
 
-Small `numkit-mcp` npm package exposing one tool:
-`run_matlab(code | file) -> stdout/stderr/exit`. Wraps this same package
-(`child_process.spawn("numkit", ...)` — no extra WASM copy needed). Register in
-MCP directories (glama.ai/mcp/servers, smithery.ai, pulseMCP) — that is where
-agents discover tools today.
+Design locked in `dev-docs/todo/mcp_server_for_ai_agents.md` (reconciled
+2026-08-30): a `numkit-mcp` package, zero-dep stdio server, IN-PROCESS
+engine (persistent workspace across agent turns — the killer feature),
+three tools (run_matlab / reset_workspace / numkit_help), watchdog
+timeout. Fast-follow AFTER this publish — it pins the published `numkit`
+rather than rebuilding the WASM. Register in the MCP directories
+(glama.ai, smithery.ai, pulseMCP) — that is where agents discover tools.
 
 ## Measuring adoption
 

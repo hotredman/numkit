@@ -1,57 +1,73 @@
-# todo: Numkit Model Context Protocol (MCP) Server for AI Agents
+# todo: numkit-mcp — MCP server for AI agents
 
-*Kind:* feature / ecosystem · *Status:* open · *Surfaced:* 2026-08-30
+*Kind:* feature / ecosystem · *Status:* open · *Surfaced:* 2026-08-30 (reconciled from two conflicting drafts: the original todo + the PUBLISH.md follow-up note)
 
-> Lifecycle: open → done. On completion, record the outcome in
+> Lifecycle: open -> done. On completion, record the outcome in
 > `dev-docs/memory/` (per the AGENTS.md project-memory protocol) and
-> delete this file — the todo list holds open work only.
+> delete this file.
 
 ## Goal
-Build the official, zero-dependency, ultra-fast **Numkit MCP Server** implementing the Model Context Protocol (MCP). This enables any modern AI agent (Claude Desktop, Cursor, Claude Code, Antigravity, Continue.dev, LangChain, AutoGen) to invoke NumKit as a native mathematical and numerical computing sandbox.
 
-## Problem & Rationale
-1. **LLM Mathematical Limitations**: LLMs frequently make arithmetic errors, struggle with eigenvalue decompositions, DSP filter design, matrix inversions, and high-order ODE simulations when doing mental calculations.
-2. **Python Sandbox Overhead**: Current AI agent workflows rely on heavy Python/Jupyter Docker containers (500 MB+ footprint, 300–800 ms cold start, environment dependency drift).
-3. **Numkit Advantage**: NumKit runs in-process via WebAssembly / C++ with < 1 ms startup, 5 MB footprint, memory safety (StackGuard, COW), and a 2–3× more token-efficient matrix DSL than Python.
+An MCP server that makes numkit a first-class TOOL for AI agents (Claude
+Desktop, Cursor, Claude Code, ZCode, Continue, …) instead of something
+they shell out to. NOT a 0.1.0 blocker: publish the CLI first; this is
+the 0.2.0 fast-follow (two announcement beats; the mcp package pins the
+published `numkit` from npm instead of rebuilding the WASM).
 
-## Architecture & Implementation Plan
+## Design (locked, reconciled)
 
-### 1. Package Structure
-- **Location:** `packages/numkit-mcp/`
-- **Runtime:** TypeScript / Node.js leveraging `@modelcontextprotocol/sdk` on top of the bundled Numkit WASM engine (`packages/numkit`).
-- **Transport:** Stdio (standard input/output for local agents) and SSE (for remote agent services).
+1. **Package**: `packages/numkit-mcp/`, published as `numkit-mcp` (no @scope
+   org — registration is an extra step for zero value at this size).
+   Depends on `numkit` (the published CLI package) — no second WASM copy.
+2. **Zero dependencies**: hand-rolled stdio JSON-RPC (initialize /
+   tools/list / tools/call) — the needed protocol subset is ~200 lines,
+   and the zero-dep identity applies to this package too.
+3. **In-process engine, NOT spawn**: reuse the engine loader — extract
+   cli.js's `loadEngine()` into a shared `bin/engine.js` used by both the
+   CLI and the MCP server. ONE engine instance per server = the killer
+   feature: a PERSISTENT MATLAB workspace across conversation turns
+   (agents define functions and iterate). Spawn-per-call would cost
+   ~250 ms of engine init and destroy statefulness — rejected.
+4. **Tools — three, no sprawl** (agents know MATLAB syntax; specialized
+   tools cost prompt tokens and routing accuracy while adding zero
+   capability):
 
-### 2. Exposed MCP Tools
+   | tool | params | returns |
+   |---|---|---|
+   | `run_matlab` | `code` (string) | stdout, stderr (diagnostic line), duration_ms, error flag |
+   | `reset_workspace` | — | confirmation |
+   | `numkit_help` | `fn` (string) | the existing help catalog entry |
 
-| Tool | Purpose | Parameters | Output |
-|---|---|---|---|
-| `numkit_eval` | Execute MATLAB/NumKit scripts | `code` (string), `reset_workspace` (bool, optional) | Formatted stdout, return values, variable metadata (dimensions, type), execution time (ms) |
-| `numkit_matrix_solve` | Fast linear system solver ($A x = b$, eigen, SVD, inverse) | `operation` (string), `A` (2D array), `b` (1D/2D array, optional) | Solution matrix/vector, eigenvalues, condition number |
-| `numkit_filter_design` | DSP digital filter design & response | `type` (`butter`/`cheby`/`fir`), `order`, `cutoff`, `sample_rate` | Filter coefficients (`b`, `a`), pole-zero summary, frequency response |
-| `numkit_help` | In-context function documentation | `fn_name` (string) | MATLAB-compatible signature, options, and usage examples |
+5. **Watchdog**: per-call timeout (default 3000 ms, configurable via env
+   `NUMKIT_MCP_TIMEOUT`) — agents WILL write infinite loops; the engine's
+   StackGuard covers recursion, the watchdog covers time. On timeout:
+   kill the eval, return a structured timeout error, KEEP the server
+   alive (the workspace may be dirty — the agent decides to reset).
+6. **Honesty**: same wording as llms.txt — not a filesystem sandbox; the
+   tool description says scripts read/write the working directory.
+7. **Registration**: MCP directories (glama.ai/mcp/servers, smithery.ai,
+   pulseMCP) — where agents discover tools today.
 
-### 3. Execution Safety & Workspace Management
-- **Stateful vs Stateless:** Support persistent workspace sessions (preserving variables like `x`, `A`, `model` across sequential conversation turns) with explicit `clear` / reset triggers.
-- **Resource Limits:** Configurable execution timeout (default 3000 ms) and memory budget to protect agent runtimes against infinite loops.
-- **Structured Error Diagnostics:** Transform runtime errors and syntax errors into actionable guidance for the LLM without crashing the MCP connection.
+## Explicitly deferred
 
-### 4. Agent Configuration & Distribution
-- **NPM Package:** `@numkit/mcp-server` published to npmjs.com.
-- **Zero-Install Invocation:**
-  ```json
-  {
-    "mcpServers": {
-      "numkit": {
-        "command": "npx",
-        "args": ["-y", "@numkit/mcp-server"]
-      }
-    }
-  }
-  ```
-- **Local Antigravity Integration:** Register as a local workspace server in `.agents/` and create `.agents/skills/numkit-math/SKILL.md` to guide prompt routing.
+- SSE/HTTP transport (remote hosting) — every local agent speaks stdio.
+- Specialized tools (matrix_solve, filter_design) — `run_matlab` covers
+  them; revisit only if routing stats show agents failing to find syntax.
+- `@modelcontextprotocol/sdk` — reconsider only if the protocol subset
+  grows beyond the hand-rolled ~200 lines.
 
-## Acceptance Criteria
-- [ ] Working MCP server with `stdio` transport passing official MCP validation tests.
-- [ ] `numkit_eval` tool executes matrix math, linear algebra, DSP, and statistics with < 5 ms roundtrip latency.
-- [ ] Verified live integration in Claude Desktop, Cursor, and Antigravity.
-- [ ] Published to npm under `@numkit/mcp-server` (or `numkit-mcp`).
+## Acceptance criteria
+
+- [ ] stdio handshake + tools/list + tools/call pass against a real
+      agent client (ZCode or Claude Desktop config).
+- [ ] `run_matlab` roundtrip < 5 ms in-process (excl. first engine load).
+- [ ] Persistence proven: define a function in call 1, use it in call 2.
+- [ ] Watchdog: an infinite loop returns a timeout error, server survives.
+- [ ] `numkit-mcp` published; registered in >= 1 MCP directory.
+
+## References
+
+- Engine loader to extract: `packages/numkit/bin/cli.js` (`loadEngine`).
+- Protocol subset reference: modelcontextprotocol.io (stdio transport).
+- Distribution note (replaces the PUBLISH.md mini-section):
+  `packages/numkit/PUBLISH.md` "MCP server (follow-up)".
