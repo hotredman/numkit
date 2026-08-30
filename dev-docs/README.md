@@ -22,7 +22,9 @@ The map lives here; the content lives in two wings:
 | [coordination.md](handbook/coordination.md) | Multi-session worker-territory protocol. **Dormant** — single-session mode. |
 | [parity_agent_prompt.md](handbook/parity_agent_prompt.md) | Cold-start runbook for the autonomous MATLAB-parity cron agent. **Reference only.** |
 
-Open tech-debt is tracked in [TODO.md](TODO.md) (kept beside this map).
+Open non-defect work (tech-debt / deferred design) is tracked one file per
+item in [`todo/`](todo/) — lifecycle: open → done (record the outcome in
+`memory/`, delete the file).
 
 ## memory/ — notable entries
 
