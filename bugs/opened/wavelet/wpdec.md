@@ -26,7 +26,7 @@ filters to BOTH the approximation and detail at each node (full binary
 tree), unlike `wavedec` (only the approximation). numkit has the DWT
 primitives (`dwt`, `wfilters`). The blocker is the **tree representation**:
 MATLAB returns a packet-tree object — needs the engine's object model (see
-dev-docs/OBJECT_MODEL.md) or a struct-based tree encoding. Medium-large; decide the
+dev-docs/handbook/OBJECT_MODEL.md) or a struct-based tree encoding. Medium-large; decide the
 representation first. Defer until a tree container is chosen.
 
 ## References

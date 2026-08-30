@@ -1896,7 +1896,7 @@ void Engine::registerBuiltinMSource(const std::string &src)
                 // function" on the VM. Fail loudly at registration instead.
                 throw Error("registerBuiltinMSource: embedded function '" + func.name
                     + "' needs more than the 255-register VM limit in one chunk — "
-                    "split it into helper functions (see dev-docs/CALLBACK_PAUSABILITY.md)",
+                    "split it into helper functions (see dev-docs/handbook/CALLBACK_PAUSABILITY.md)",
                     0, 0, "registerBuiltinMSource", "",
                     "numkit:compiler:registerExhaustion");
             } catch (const std::exception &) {

@@ -106,7 +106,7 @@ wrong-formula iterations — the docs come first.
 ## 3. Test every documented branch against MATLAB
 
 A gtest unit test **and** a smoke `.m` are both mandatory (see
-[AGENTS.md](../AGENTS.md) for the full four-artefact rule). Together they
+[AGENTS.md](../../AGENTS.md) for the full four-artefact rule). Together they
 must cover **one case per documented branch** — where a "documented
 branch" is a distinct entry in `help` / `doc`: a separate calling
 signature, a distinct value of an option, or a distinct edge-case

@@ -1,7 +1,7 @@
 # Memory: Public C++ API Architectural Standards & Documentation Guidelines
 
 > Living rules distilled from this record live in
-> `dev-docs/LIBRARY_API.md` (the authoritative ruleset). This file is the
+> `dev-docs/handbook/LIBRARY_API.md` (the authoritative ruleset). This file is the
 > historical decision record.
 
 ## Context & Objectives

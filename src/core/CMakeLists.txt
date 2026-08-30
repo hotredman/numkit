@@ -1,7 +1,7 @@
 # core/CMakeLists.txt
 #
 # Engine + frontend + backend + debugger. Self-contained: no toolbox-lib
-# dependency. Owned by the CORE worker per dev-docs/COORDINATION.md.
+# dependency. Owned by the CORE worker per dev-docs/handbook/COORDINATION.md.
 #
 # Exports via PARENT_SCOPE for the top-level CMakeLists.txt to assemble:
 #   NUMKIT_CORE_SOURCES      — .cpp source list

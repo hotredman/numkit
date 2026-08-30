@@ -71,7 +71,7 @@ endif()
 # toolboxes/CMakeLists.txt   exports NUMKIT_LIBS_SOURCES / NUMKIT_LIBS_HEADERS
 #                              / NUMKIT_LIBS_INCLUDE_DIRS
 # Each lib has its own toolboxes/<name>/CMakeLists.txt for per-lib worker
-# ownership (see dev-docs/COORDINATION.md).
+# ownership (see dev-docs/handbook/COORDINATION.md).
 
 # ── Coverage (NUMKIT_COVERAGE) — arch-review #6 ─────────────────────
 # Source-based coverage via llvm-cov (clang / clang-cl only). Declared HERE,
@@ -476,7 +476,7 @@ include(cmake/Doxygen.cmake)
 
 # ── API lint ─────────────────────────────────────────────────────────
 # `lint` target — checks toolboxes/* public headers against the mechanically
-# checkable subset of dev-docs/LIBRARY_API.md (no Engine in signatures, mr
+# checkable subset of dev-docs/handbook/LIBRARY_API.md (no Engine in signatures, mr
 # by pointer, no const Value*). Not wired into the default build; run
 # explicitly or from CI. Safe no-op if Python 3 is not found.
 find_package(Python3 COMPONENTS Interpreter QUIET)
@@ -485,6 +485,6 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/lint/check_api.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Linting toolboxes/* public API headers (dev-docs/LIBRARY_API.md)"
+        COMMENT "Linting toolboxes/* public API headers (dev-docs/handbook/LIBRARY_API.md)"
         VERBATIM)
 endif()

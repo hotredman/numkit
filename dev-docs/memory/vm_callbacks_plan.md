@@ -10,7 +10,7 @@ C++-initiated paths listed under "On the VM but not suspendable". On
 
 > **Adding a pausable callback?** The decision rule (frame-push vs state machine
 > vs `.m` wrapper), the mechanisms, and step-by-step recipes live in the guide
-> [`dev-docs/CALLBACK_PAUSABILITY.md`](CALLBACK_PAUSABILITY.md). This file is the
+> [`dev-docs/handbook/CALLBACK_PAUSABILITY.md`](CALLBACK_PAUSABILITY.md). This file is the
 > chronological build log + rationale.
 
 ## Problem

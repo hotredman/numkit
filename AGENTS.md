@@ -5,7 +5,7 @@
 This repo **can** be split across parallel AI-agent sessions (core / ide / lib
 territories), but that model is **currently dormant — normally you are the
 single session working on `main`**. The territory / worktree protocol is kept
-in [COORDINATION.md](dev-docs/COORDINATION.md) as reference for if it is
+in [COORDINATION.md](dev-docs/handbook/COORDINATION.md) as reference for if it is
 revived (territory ownership, shared-surface test rules, build isolation,
 commit/branch protocol).
 
@@ -31,17 +31,17 @@ surface to the user**. Do not silently work on top of someone else's work.
 
 ## Documentation map
 
-`dev-docs/README.md` indexes the living docs; reasoning (campaign logs,
-design rationale, reviews) lives in `dev-docs/memory/` — scan it for files
-touching your components before major work. Situational must-reads:
-LIBRARY_API (public API), CALLBACK_PAUSABILITY (VM callbacks),
-OBJECT_MODEL (classdef/object model), CORE_ARCHITECTURE (engine design),
-plus `src/codegen/DESIGN.md` for the transpiler.
+`dev-docs/README.md` is the map: living docs in `dev-docs/handbook/`,
+reasoning archive in `dev-docs/memory/` (scan it for files touching your
+components before major work). Situational must-reads: handbook/LIBRARY_API
+(public API), handbook/CALLBACK_PAUSABILITY (VM callbacks),
+handbook/OBJECT_MODEL (classdef/object model), handbook/CORE_ARCHITECTURE
+(engine design), plus `src/codegen/DESIGN.md` for the transpiler.
 
 ## Public API conventions
 
 Every public function in `src/toolboxes/<ns>/include/numkit/<ns>/**` follows
-[dev-docs/LIBRARY_API.md](dev-docs/LIBRARY_API.md) — the authoritative API
+[dev-docs/handbook/LIBRARY_API.md](dev-docs/handbook/LIBRARY_API.md) — the authoritative API
 ruleset (argument order, native scalar types vs `const Value &` vs
 `Span<const double>`, `FnHandle` callbacks, no `Engine *` in public
 signatures, magic-polymorphism → typed overloads, multi-output return

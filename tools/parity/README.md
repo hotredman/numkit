@@ -44,5 +44,5 @@ a new MATLAB release) — the per-function loop above is the day-to-day path.
 
 ---
 
-See also [`../../dev-docs/PARITY_AGENT_PROMPT.md`](../../dev-docs/PARITY_AGENT_PROMPT.md)
+See also [`../../dev-docs/handbook/PARITY_AGENT_PROMPT.md`](../../dev-docs/handbook/PARITY_AGENT_PROMPT.md)
 (autonomous-cycle runbook) and `AGENTS.md` (the 4-artefact rule).

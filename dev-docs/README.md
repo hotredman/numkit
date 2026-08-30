@@ -1,30 +1,31 @@
-# dev-docs/ — living developer documentation
+# dev-docs/ — documentation hub
 
-Only **living documents** live in this directory: rules, references and
-protocols an agent or developer consults *while working on the current
-system*. Reasoning — campaign logs, completed specs, point-in-time reviews,
-design rationale — lives in [`memory/`](memory/) per the project-memory
-protocol (see AGENTS.md "Project memory").
+The map lives here; the content lives in two wings:
+
+- **[`handbook/`](handbook/)** — the living docs: rules, references,
+  how-tos and protocols consulted while working on the current system.
+- **[`memory/`](memory/)** — the reasoning archive: campaign logs,
+  completed specs, design rationale, reviews (written per the AGENTS.md
+  "Project memory" protocol; entries are history, never edited into
+  current state).
+
+## handbook/ contents
 
 | Document | What it is |
 |------|------------|
-| [LIBRARY_API.md](LIBRARY_API.md) | **Authoritative public-API ruleset** (argument order, types, overloads, Doxygen + layering standards). Read before adding/refactoring any public `toolboxes/` function. |
-| [CALLBACK_PAUSABILITY.md](CALLBACK_PAUSABILITY.md) | How-to for making a VM callback pausable (debugger-visible): decision rule + per-mechanism recipes. |
-| [CORE_ARCHITECTURE.md](CORE_ARCHITECTURE.md) | The core architecture article (RU): Value substrate (16-byte tagged, COW/PMR), layer DAG, dual engine, pausable VM. |
-| [OBJECT_MODEL.md](OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
-| [NAMESPACE_DESIGN.md](NAMESPACE_DESIGN.md) | `toolboxes/` namespace layout + conventions; MATLAB taxonomy → source tree. |
-| [FORMAT_HOMES.md](FORMAT_HOMES.md) | Number-display / `format` reference. |
-| [COORDINATION.md](COORDINATION.md) | Multi-session worker-territory protocol. **Dormant** — single-session mode. |
-| [PARITY_AGENT_PROMPT.md](PARITY_AGENT_PROMPT.md) | Cold-start runbook for the autonomous MATLAB-parity cron agent. **Reference only.** |
-| [TODO.md](TODO.md) | Tracked tech-debt (e.g. per-Engine RNG streams). |
+| [LIBRARY_API.md](handbook/LIBRARY_API.md) | **Authoritative public-API ruleset** (argument order, types, overloads, Doxygen + layering standards). Read before adding/refactoring any public `toolboxes/` function. |
+| [CALLBACK_PAUSABILITY.md](handbook/CALLBACK_PAUSABILITY.md) | How-to for making a VM callback pausable (debugger-visible): decision rule + per-mechanism recipes. |
+| [CORE_ARCHITECTURE.md](handbook/CORE_ARCHITECTURE.md) | The core architecture article (RU): Value substrate (16-byte tagged, COW/PMR), layer DAG, dual engine, pausable VM. |
+| [OBJECT_MODEL.md](handbook/OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
+| [NAMESPACE_DESIGN.md](handbook/NAMESPACE_DESIGN.md) | `toolboxes/` namespace layout + conventions; MATLAB taxonomy → source tree. |
+| [FORMAT_HOMES.md](handbook/FORMAT_HOMES.md) | Number-display / `format` reference. |
+| [COORDINATION.md](handbook/COORDINATION.md) | Multi-session worker-territory protocol. **Dormant** — single-session mode. |
+| [PARITY_AGENT_PROMPT.md](handbook/PARITY_AGENT_PROMPT.md) | Cold-start runbook for the autonomous MATLAB-parity cron agent. **Reference only.** |
 
-## memory/ — the reasoning archive
+Open tech-debt is tracked in [TODO.md](TODO.md) (kept beside this map).
 
-[`memory/`](memory/) holds the project reasoning record: architectural
-decision logs, completed campaign specs (CSL, linalg parity, layering
-refactor, stack safety), point-in-time reviews, gotchas and performance
-measurements. Written per the AGENTS.md protocol; entries never edited
-into "current state" — they are history. Notable entries:
+## memory/ — notable entries
+
 [vm_callbacks_plan.md](memory/vm_callbacks_plan.md) (the pausable-callback
 build log behind CALLBACK_PAUSABILITY.md),
 [linalg_roadmap.md](memory/linalg_roadmap.md) (the closed linalg parity
