@@ -147,9 +147,34 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
    the ✅ row pointing at the `closed/` path. The repro stays useful in the
    archive.
 
+## Bug Discovery Playbook
+
+When probing or fuzzing functions, systematically test these 5 dimensions:
+
+1. **Shape & Domain Edge-Cases**:
+   - Empty matrices `[]` (0×0, 0×1, 1×0, 0×3), singletons `1x1`, row vs column vectors.
+   - N-D arrays ($3\text{D}+$ tensors), non-square matrices, negative or zero dimensions.
+   - Special floating-point values: `0`, `-0.0`, `eps`, `Inf`, `-Inf`, `NaN`.
+2. **Type Polymorphism & Saturation**:
+   - Pass integer types (`int8`, `uint8`, `int32`, `uint64`), `logical`, `char`, `string`, and `complex` to functions expecting numeric arguments.
+   - Check if integer classes are preserved or correctly promoted according to MATLAB conventions.
+3. **Dual-Engine Consistency (TreeWalker vs Bytecode VM)**:
+   - Run expressions through `DualEngineTest`. Any divergence in values, error codes, or `nargout` handling between TreeWalker and VM is an immediate bug.
+4. **Multiple Outputs (`nargout`)**:
+   - Verify 1, 2, 3+ return values (e.g. `[y, idx] = min(...)`, `[b, a] = butter(...)`, `[u, s, v] = svd(...)`).
+5. **Numerical Tolerance vs Bug**:
+   - Floating-point differences $< 10^{-12}$ (for double) due to SIMD/FMA contraction or summation order are normal numerical variance, **NOT bugs**.
+   - Flag as a bug only when results diverge algorithmically ($> 10^{-9}$), outputs have wrong shape/type, or an unexpected error/crash occurs.
+
+## Self-Contained Repro Rule
+Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste runnable**:
+- Start with `clear; import compat.*;`
+- Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
+- Include the exact function call and comment the expected MATLAB vs NumKit output.
+
 ## Index
 
-**Tally (130 entries):** ✅ 110 fixed · 🔴 20 open = **10 bug** + 1 stub +
+**Tally (134 entries):** ✅ 114 fixed · 🔴 20 open = **10 bug** + 1 stub +
 1 missing-output + **7 missing-fn** + 1 perf (the 7 missing-fns are parity
 feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 (cell-csl-expansion: common forms FIXED, rarer forms deferred — counted fixed.)

@@ -148,3 +148,28 @@ to ✅ FIXED with the commit hash, update the index row, and `git mv` the md fro
 `bugs/opened/<namespace>/` to `bugs/closed/<namespace>/` (structure
 preserved).
 
+### Bug Discovery Playbook for Agents
+
+When hunting for bugs or fuzzing a function, systematically test these 5 vectors:
+
+1. **Shape & Domain Edge-Cases**:
+   - Empty inputs `[]` (0×0, 0×1, 1×0, 0×3), singletons `1x1`, scalars vs row vs column vectors.
+   - N-D arrays ($3\text{D}+$ tensors), non-square matrices, negative/zero dimensions.
+   - Special values: `0`, `-0.0`, `eps`, `Inf`, `-Inf`, `NaN`.
+2. **Type Polymorphism & Saturation**:
+   - Pass integer types (`int8`, `uint8`, `int32`, `uint64`), `logical`, `char`, and `complex` to functions expecting double.
+   - Check if integer classes are preserved or correctly promoted according to MATLAB conventions.
+3. **Dual-Engine Consistency (TreeWalker vs Bytecode VM)**:
+   - Run expressions through `DualEngineTest`. Any divergence in values, error codes, or `nargout` handling between TreeWalker and VM is an immediate bug.
+4. **Multiple Outputs (`nargout`)**:
+   - Verify 1, 2, 3+ return values (e.g. `[y, idx] = min(...)`, `[b, a] = butter(...)`, `[u, s, v] = svd(...)`).
+5. **Numerical Tolerance vs Bug**:
+   - Floating-point differences $< 10^{-12}$ (for double) due to SIMD/FMA contraction or summation order are normal numerical variance, **NOT bugs**.
+   - Flag as a bug only when results diverge algorithmically ($> 10^{-9}$), outputs have wrong shape/type, or an unexpected error/crash occurs.
+
+### Self-Contained Repro Rule
+Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste runnable**:
+- Start with `clear; import compat.*;`
+- Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
+- Include the exact function call and comment the expected MATLAB vs NumKit output.
+
