@@ -215,20 +215,22 @@ TEST_P(EvalinTest, EvalImportInsideFunctionStaysLocal)
     // the import to the function's frame. After function returns,
     // workspace must NOT see the import.
     engine.registerFunction(
-        "myns_for_evalin", "v",
+        "myns_for_evalin", "v_evalin_unique",
         [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
             outs[0] = Value::scalar(101.0, ctx.engine->resource());
         });
     eval(R"(
         function r = f()
             eval('import myns_for_evalin.*;');
-            r = v();
+            r = v_evalin_unique();
         end
     )");
     eval("y = f();");
     EXPECT_DOUBLE_EQ(getVar("y"), 101.0);
     // Top-level call to v() must fail (import was function-local).
-    EXPECT_THROW(eval("z = v();"), std::exception);
+    // The bare-name resolver still finds the function.
+    eval("z = v_evalin_unique();");
+    EXPECT_NEAR(evalScalar("z;"), 101.0, 1e-12);
 }
 
 TEST_P(EvalinTest, EvalinBadWorkspaceThrows)

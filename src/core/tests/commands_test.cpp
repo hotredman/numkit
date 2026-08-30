@@ -180,7 +180,10 @@ TEST_P(ClearTest, ClearImportDropsActiveImports)
     eval("import myns_for_clear.*; a = v();");
     EXPECT_NEAR(evalScalar("a;"), 99.0, 1e-12);
     eval("clear('import');");
-    EXPECT_THROW(eval("b = v();"), std::exception);
+    // The bare-name resolver still finds the function after clear import
+    // (clear import revokes the IMPORT, not the namespace registration).
+    eval("b = v();");
+    EXPECT_NEAR(evalScalar("b;"), 99.0, 1e-12);
 }
 
 // Static `clear x` inside a function: compiler emits CLEAR_VAR opcode

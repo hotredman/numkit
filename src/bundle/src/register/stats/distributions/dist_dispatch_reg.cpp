@@ -78,7 +78,9 @@ void dispatchDist(const char *fnName, const char *suffix,
         throw Error(fn + ": unsupported distribution '" + args[0].toString() + "'",
                     0, 0, fnName, "", "numkit:" + fn + ":dist");
 
-    const std::string target = "compat." + it->second + suffix;
+    // The bare-name resolver finds the function (e.g. "normcdf" →
+    // stats.distributions.normcdf) without the removed compat.* prefix.
+    const std::string target = it->second + suffix;
     const ExternalFunc *target_fn = ctx.engine->findExternal(target, ctx.env);
     if (!target_fn)
         throw Error(fn + ": '" + it->second + suffix + "' is not available",

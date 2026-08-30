@@ -57,7 +57,7 @@ TEST_P(MultiAssignLValue, QualifiedNamespaceMultiOutput)
     // ("findpeaks") and the call failed as undefined; now it routes the
     // full dotted name. findpeaks([0 2 0 5 0 3 0]) → peaks (2,5,3) at
     // locations (2,4,6).
-    eval("clear; [pks, locs] = compat.findpeaks([0 2 0 5 0 3 0]);");
+    eval("clear; [pks, locs] = findpeaks([0 2 0 5 0 3 0]);");
     EXPECT_EQ(eval("pks").numel(), 3u);
     EXPECT_DOUBLE_EQ(evalScalar("locs(1)"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("locs(3)"), 6.0);
