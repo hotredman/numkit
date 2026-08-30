@@ -88,7 +88,7 @@ TEST_F(BuiltinKnownBug, AnonymousMultiOutput)
 // bugs/builtin/unique-last.md — sorted-order 'last' FIXED; live tests in
 // toolboxes/builtin/tests/unique_last_test.cpp. Remaining sub-gap: 'stable'+'last'
 // ORDERING (MATLAB orders unique values by their last occurrence).
-TEST_F(BuiltinKnownBug, DISABLED_UniqueStableLast)
+TEST_F(BuiltinKnownBug, UniqueStableLast)
 {
     // MATLAB: unique([3 1 2 1 3],'stable','last') -> C=[2 1 3], ia=[3 4 5].
     eval("[c, ia] = unique([3 1 2 1 3], 'stable', 'last');");

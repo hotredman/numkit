@@ -81,7 +81,10 @@ uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable,
         return uniqueComplexFull(x, mr, stable, last);
 
     if (stable) {
-        // First-occurrence order. C = X(ia); X = C(ic). Each NaN distinct.
+        // Stable order. C = X(ia); X = C(ic). Each NaN distinct.
+        // 'stable' alone: first-occurrence order (values in the order they
+        // first appear). 'stable'+'last': MATLAB orders by LAST occurrence
+        // (values in the order their last appearance appears in X).
         ScratchArena scratch(mr);
         std::pmr::unordered_map<double, size_t, DoubleHashEq0> posByVal(&scratch);
         posByVal.reserve(n / 2 + 1);
@@ -89,20 +92,60 @@ uniqueWithIndices(const Value &x, std::pmr::memory_resource *mr, bool stable,
         auto iaVec = ScratchVec<double>(&scratch);
         auto ic    = ScratchVec<double>(n, &scratch);
         const double *p = x.doubleData();
-        for (size_t i = 0; i < n; ++i) {
-            if (std::isnan(p[i])) {
-                uVals.push_back(std::nan(""));
-                iaVec.push_back(static_cast<double>(i + 1));
-                ic[i] = static_cast<double>(uVals.size());      // own position
-            } else {
-                auto it = posByVal.find(p[i]);
-                if (it == posByVal.end()) {
-                    posByVal.emplace(p[i], uVals.size());        // 0-based pos
-                    uVals.push_back(p[i]);
+        if (last) {
+            // 'stable'+'last': two passes — find each value's LAST index,
+            // then emit in the order those last appearances occur in X.
+            std::pmr::unordered_map<double, size_t, DoubleHashEq0> lastIdx(&scratch);
+            lastIdx.reserve(n / 2 + 1);
+            for (size_t i = 0; i < n; ++i)
+                if (!std::isnan(p[i]))
+                    lastIdx[p[i]] = i;              // keep the LAST index
+            // Second pass: emit values in the order of their last appearance
+            std::pmr::unordered_map<double, bool, DoubleHashEq0> seen(&scratch);
+            seen.reserve(lastIdx.size() + n / 2);
+            for (size_t i = 0; i < n; ++i) {
+                if (std::isnan(p[i])) {
+                    uVals.push_back(std::nan(""));
                     iaVec.push_back(static_cast<double>(i + 1));
-                    ic[i] = static_cast<double>(uVals.size());   // 1-based
-                } else {
+                    ic[i] = static_cast<double>(uVals.size());
+                    continue;
+                }
+                auto it = lastIdx.find(p[i]);
+                if (it != lastIdx.end() && it->second == i) {
+                    // This is the value's LAST occurrence — emit it here.
+                    // But only once (multiple values could share the same pos).
+                    if (!seen.count(p[i])) {
+                        seen[p[i]] = true;
+                        posByVal[p[i]] = uVals.size();
+                        uVals.push_back(p[i]);
+                        iaVec.push_back(static_cast<double>(i + 1));
+                    }
+                }
+            }
+            // Fill ic: each element points at its value's position in uVals.
+            for (size_t i = 0; i < n; ++i) {
+                if (std::isnan(p[i])) continue;    // already filled above
+                auto it = posByVal.find(p[i]);
+                if (it != posByVal.end())
                     ic[i] = static_cast<double>(it->second + 1);
+            }
+        } else {
+            // 'stable' (default): first-occurrence order.
+            for (size_t i = 0; i < n; ++i) {
+                if (std::isnan(p[i])) {
+                    uVals.push_back(std::nan(""));
+                    iaVec.push_back(static_cast<double>(i + 1));
+                    ic[i] = static_cast<double>(uVals.size());
+                } else {
+                    auto it = posByVal.find(p[i]);
+                    if (it == posByVal.end()) {
+                        posByVal.emplace(p[i], uVals.size());
+                        uVals.push_back(p[i]);
+                        iaVec.push_back(static_cast<double>(i + 1));
+                        ic[i] = static_cast<double>(uVals.size());
+                    } else {
+                        ic[i] = static_cast<double>(it->second + 1);
+                    }
                 }
             }
         }

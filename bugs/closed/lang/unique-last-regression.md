@@ -1,6 +1,6 @@
 # lang.unique — `'last'` option lost: ia/ib point to FIRST occurrences again — regression of the closed fix
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-30, stable+last sub-gap)
 - **Severity:** P1 wrong result
 - **Kind:** bug
 - **Found:** 2026-08-30 via the orphaned-DISABLED_-test audit (the guard was never enabled after the fix; force-run catches the regression)
@@ -39,3 +39,18 @@ Restore `'last'` routing in the unique/iscore set; then enable the guard
 `closed/math/unique-last.md` (the original fix); failing guard:
 `src/bundle/tests/known_bugs_test.cpp` `DISABLED_UniqueStableLast` (keep
 DISABLED_ until fixed — it is the reproducer).
+
+## Resolution (2026-08-30)
+
+The basic 'last' option was already working (verified by probe —
+unique('cbabc','last') gives ia=[3 4 5] in both engines). The remaining
+sub-gap was 'stable'+'last': MATLAB orders the unique values by their
+LAST appearance in X, while numkit's stable path always used
+first-occurrence order and ignored 'last'.
+
+Fix: two-pass algorithm in the stable+'last' branch of
+uniqueWithIndices — first pass finds each value's last index; second
+pass emits values at their last-occurrence positions (each emitted once).
+Verified: unique([3 1 2 1 3],'stable','last') -> C=[2 1 3], ia=[3 4 5]
+(matches MATLAB); all 79 unique-family tests green; guard
+UniqueStableLast enabled live; full Release suite exit 0.
