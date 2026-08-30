@@ -25,10 +25,10 @@ in the spec `comment`).
 ## Coverage / gap analysis — the outer loop
 
 Answers "what does MATLAB ship that numkit doesn't yet?" and feeds
-[`../../bugs/MISSING.md`](../../bugs/MISSING.md):
+[`../../bugs/missing.md`](../../bugs/missing.md):
 
 ```
-extract_local_ref.py    →    diff_local_ref.py    →    bugs/MISSING.md
+extract_local_ref.py    →    diff_local_ref.py    →    bugs/missing.md
 (MATLAB helpfuncbycat.xml     (diff that inventory       (missing / partial
  TOC  →  function list)        vs PROGRESS.md  →          functions, grouped
                                HAVE / MISS / SKIP)        by namespace)

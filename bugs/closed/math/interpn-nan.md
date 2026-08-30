@@ -28,7 +28,7 @@ interpn([1 2 3], [1 4 9], 2.5)
   2.5)` returns a 1×9 refined grid in MATLAB, not 6.5), so it is deliberately not
   routed to interp1. Separate parity gap.
 - **4+-D** generic tensor-product linear interp over 2^N corners per query —
-  **not implemented** (backlog; a parity gap, see MISSING.md).
+  **not implemented** (backlog; a parity gap, see missing.md).
 
 ## Where
 `src/math/src/interp/interp.cpp` `interpn_reg` (registered in
