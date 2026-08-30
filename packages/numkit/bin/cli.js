@@ -196,7 +196,10 @@ async function main() {
   const mod = await loadEngine();
 
   if (args.version) {
-    process.stdout.write(mod.repl_version() + "\n");
+    // Package version (from package.json) + engine build stamp — a bug
+    // report must map to both the npm release and the engine build.
+    const pkg = require(path.join(__dirname, "..", "package.json"));
+    process.stdout.write(`numkit ${pkg.version} (engine build ${mod.repl_version()})\n`);
     return;
   }
   if (args.eval !== null) runCode(mod, args.eval, "command line");

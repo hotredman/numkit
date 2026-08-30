@@ -22,7 +22,9 @@ for arg in "$@"; do
     if [ "$arg" == "--skip-wasm" ]; then SKIP_WASM=1; fi
 done
 
-# Build WASM if emcc available; otherwise reuse pre-built if present.
+# Build the WASM engine. FAIL-CLOSED: a silent fallback to a pre-built
+# wasm once shipped a stale engine into a publish run — reusing an
+# existing artifact is allowed ONLY with an explicit --skip-wasm.
 if command -v emcc &>/dev/null; then
     if [ "$SKIP_WASM" -eq 1 ]; then
         echo "Skipping WASM rebuild (--skip-wasm)..."
@@ -33,12 +35,11 @@ if command -v emcc &>/dev/null; then
     echo "Copying freshly-built WASM into ide/public/..."
     cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
     cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
-elif [ -f "${WASM_DIST}/numkit_ide.wasm" ]; then
-    echo "emcc not on PATH but ${WASM_DIST}/numkit_ide.wasm exists — copying it."
-    cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
-    cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
 else
-    echo "emcc not found and no pre-built WASM in ${WASM_DIST} — falling back."
+    echo "ERROR: emcc not on PATH — refusing to silently reuse a possibly-stale WASM." >&2
+    echo "       Source the emsdk environment, or pass --skip-wasm to reuse the" >&2
+    echo "       existing ${WASM_DIST} artifacts explicitly." >&2
+    exit 1
 fi
 
 # Generate examples manifest

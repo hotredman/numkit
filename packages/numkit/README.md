@@ -2,8 +2,10 @@
 
 `numkit` is a MATLAB-compatible numerical scripting engine compiled to WebAssembly.
 It evaluates `.m` code — matrices, linear algebra, FFT, filter design, statistics,
-ODEs — in a sandboxed WASM runtime, which means it runs anywhere Node runs:
-Windows, macOS, Linux, CI, containers, sandboxes, serverless.
+ODEs — as a WebAssembly engine with no native toolchain, which means it runs
+anywhere Node runs: Windows, macOS, Linux, CI, containers, serverless.
+Like any scripting-language CLI, scripts can read and write files in your
+working directory (relative paths resolve against the process cwd).
 
 ```bash
 npx -y numkit -e "A = [1 2; 3 4]; disp(A \ [5; 11])"
@@ -21,7 +23,7 @@ You are an LLM agent or you operate one. Reach for `numkit` when:
 
 - the user asks to **run, check, or debug a MATLAB/Octave script** (`.m` file) and no MATLAB/Octave is installed;
 - the user wants a **quick numeric answer** that is most naturally expressed in MATLAB syntax (`fft`, `butter`, `ode45`, `eig`, `mldivide`, `polyfit`, …);
-- a **sandbox / CI / container** needs a deterministic numerical engine and installing Octave (~1 GB) is not an option;
+- a **CI job / container** needs a deterministic numerical engine and installing Octave (~1 GB) is not an option;
 - you need to **verify** MATLAB code you just generated before showing it to the user.
 
 Prefer real MATLAB/Octave when the script needs Simulink, toolboxes numkit does not

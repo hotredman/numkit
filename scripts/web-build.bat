@@ -29,10 +29,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Build WASM if emsdk available
+:: Build the WASM engine. FAIL-CLOSED: a silent fallback to a pre-built
+:: wasm once shipped a stale engine into a publish run — reuse requires
+:: an explicit --skip-wasm.
 if not exist "%EMCC_DIR%\emcc.bat" (
-    echo emsdk not found -- building without WASM (fallback mode only)
-    goto after_wasm
+    echo ERROR: emsdk not found -- refusing to silently reuse a possibly-stale WASM.
+    echo        Install emsdk or pass --skip-wasm to reuse explicitly.
+    exit /b 1
 )
 
 if "%SKIP_WASM%"=="1" (

@@ -43,7 +43,24 @@ function listScripts(dir) {
       else if (e.name.endsWith(".m")) out.push(path.join(d, e.name));
     }
   })(dir);
-  return out.sort();
+  return out.sort().filter((f) => {
+    // FUNCTION files are helpers, not standalone scripts — running one
+    // bare (correctly, since the CLI now invokes a function file's
+    // primary function) fails with "not enough input arguments" exactly
+    // like MATLAB. They are not corpus cases; skip them.
+    const src = fs.readFileSync(f, "utf8");
+    const NL = String.fromCharCode(10);
+    const CR = String.fromCharCode(13);
+    for (const raw of src.split(NL)) {
+      let line = raw.split(CR).join("");
+      const pct = line.indexOf("%");
+      if (pct !== -1) line = line.slice(0, pct);
+      line = line.trim();
+      if (!line) continue;
+      return !/^function\s/.test(line);
+    }
+    return true;
+  });
 }
 
 function runOne(file) {

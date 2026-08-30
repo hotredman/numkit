@@ -17,7 +17,10 @@ The npm package is the main distribution channel for AI agents (they run
 ```bash
 npm login                                # once per machine
 cd packages\numkit
-node test\run-examples.js --timeout 180000   # corpus: all 184 examples must pass (3 known OPEN bugs → 181/184)
+node test\run-examples.js --timeout 180000   # corpus gate: 182 runnable scripts (function-file helpers are
+                                               # skipped — they cannot run bare); expect 179 PASS + 3 FAIL =
+                                               # the known OPEN Frame_Introspection bugs. A 4th FAIL is a
+                                               # regression: STOP the publish.
 cd ..\..
 scripts\npm-publish.bat --dry-run        # rehearse: build + refresh + test + pack preview
 scripts\npm-publish.bat                  # for real: uploads to the registry

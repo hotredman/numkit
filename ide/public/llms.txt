@@ -27,7 +27,9 @@ Exit code 1 on script error, with the error message on stderr.
 
 - If a user asks to RUN or VERIFY a MATLAB/Octave script and no MATLAB/Octave is
   installed, `npx -y numkit script.m` is the fastest deterministic path.
-- The engine is sandboxed WASM: safe to execute untrusted numeric code.
+- The engine is WebAssembly with no native toolchain; like any scripting CLI,
+  scripts read and write files in the working directory — do not treat it as a
+  filesystem sandbox.
 - One persistent workspace per invocation: define functions, then call them.
 - Prefer real MATLAB/Octave only when the code needs Simulink, MEX, GPU arrays,
   or plotting output in CLI mode (figures are rendered in the Web IDE instead).
