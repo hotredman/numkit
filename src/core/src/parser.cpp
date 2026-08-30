@@ -313,6 +313,20 @@ bool Parser::isCommandStyleCall() const
 
     const Token &next = peekToken(1);
 
+    // Command args may START with a glued '-' or '/': `which -all sin`,
+    // `cd /path`, `web -broswer http://…` (the fieldtest corpus idiom).
+    // Distinguished from binary expressions (`x - 1`, `a / b`) by the
+    // absence of a space after the operator — the operand is glued to it.
+    if (next.type == TokenType::MINUS || next.type == TokenType::SLASH) {
+        const Token &operand = peekToken(2);
+        return operand.line == next.line
+            && operand.col == next.col + static_cast<int>(next.value.size())
+            && (operand.type == TokenType::IDENTIFIER
+                || operand.type == TokenType::NUMBER
+                || operand.type == TokenType::STRING
+                || operand.type == TokenType::DQSTRING);
+    }
+
     // Если следующий токен — оператор, скобка, присваивание, терминатор
     // или конец файла — это НЕ command-style.
     switch (next.type) {
@@ -326,9 +340,7 @@ bool Parser::isCommandStyleCall() const
     case TokenType::DOT_APOSTROPHE:
     // Арифметические и логические операторы
     case TokenType::PLUS:
-    case TokenType::MINUS:
     case TokenType::STAR:
-    case TokenType::SLASH:
     case TokenType::BACKSLASH:
     case TokenType::CARET:
     case TokenType::DOT_STAR:
@@ -393,42 +405,51 @@ ASTNodePtr Parser::parseCommandStyleCall()
     node->strValue = std::move(funcName);
 
     // Собираем аргументы до конца statement (NEWLINE, SEMICOLON, EOF).
-    // Каждый токен/группа токенов через DOT/SLASH склеиваются в один
-    // строковый аргумент (для путей: data.mat, ../dir, +pkg/file).
+    // MATLAB semantics: everything after the command head up to the
+    // statement terminator is split on WHITESPACE into char-literal
+    // arguments — no operator interpretation of ':' '/' '.' '-' inside.
+    // Tokens don't carry whitespace, but they carry (line, col, value),
+    // so a gap between the previous token's end column and the next
+    // token's start column reconstructs the space that splits arguments.
     int cmdLine = ln;
-    while (!isAtEnd() && !check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON)
-           && current().line == cmdLine) {
-        auto [aln, acl] = loc();
-        std::string argStr = current().value;
-        advance();
+    bool haveArg = false;
+    std::string argStr;
+    int argLine = 0, argCol = 0;
+    int prevEnd = -1; // col just past the source text of the previous token
 
-        // Склейка: data.mat, ../dir, path/to/file, signal.*
-        while (
-            !isAtEnd() && current().line == cmdLine
-            && (check(TokenType::DOT) || check(TokenType::SLASH) || check(TokenType::BACKSLASH)
-                || check(TokenType::DOT_STAR))) {
-            // DOT_STAR (".*") is a wildcard suffix used by `import a.b.*`
-            // — append it and stop gluing further fragments to this arg.
-            if (check(TokenType::DOT_STAR)) {
-                argStr += current().value;
-                advance();
-                break;
-            }
-            argStr += current().value;
-            advance();
-            // После разделителя — следующий фрагмент
-            if (!isAtEnd() && current().line == cmdLine
-                && (check(TokenType::IDENTIFIER) || check(TokenType::NUMBER)
-                    || check(TokenType::STRING) || check(TokenType::DQSTRING) || check(TokenType::DOT))) {
-                argStr += current().value;
-                advance();
-            }
-        }
-
-        auto arg = makeNode(NodeType::STRING_LITERAL, aln, acl);
+    auto tokenEndCol = [](const Token &t) {
+        // Quoted strings store the UNQUOTED value but span the quotes in
+        // the source (opening quote at t.col, closing after the value).
+        if (t.type == TokenType::STRING || t.type == TokenType::DQSTRING)
+            return t.col + static_cast<int>(t.value.size()) + 1;
+        return t.col + static_cast<int>(t.value.size()) - 1;
+    };
+    auto flushArg = [&]() {
+        if (!haveArg)
+            return;
+        auto arg = makeNode(NodeType::STRING_LITERAL, argLine, argCol);
         arg->strValue = std::move(argStr);
         node->children.push_back(std::move(arg));
+        haveArg = false;
+        argStr.clear();
+    };
+
+    while (!isAtEnd() && !check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON)
+           && current().line == cmdLine) {
+        const Token &tok = current();
+        // A whitespace gap before this token starts a new argument.
+        if (haveArg && tok.col > prevEnd)
+            flushArg();
+        if (!haveArg) {
+            argLine = tok.line;
+            argCol = tok.col;
+            haveArg = true;
+        }
+        argStr += tok.value;
+        prevEnd = tokenEndCol(tok) + 1;
+        advance();
     }
+    flushArg();
 
     node->suppressOutput = consumeStmtTerminator(*node);
     skipNewlines();

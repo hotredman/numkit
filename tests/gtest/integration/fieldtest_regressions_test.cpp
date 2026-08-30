@@ -9,6 +9,8 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <filesystem>
+
 using namespace m_test;
 using namespace numkit;
 
@@ -37,7 +39,7 @@ TEST_P(FieldTestRegression, ComplexRelationalComparesRealPart)
 // literals — ':' '/' '.' are NOT operators there. MATLAB `disp a//b:c`
 // prints "a//b:c"; `foo -bar http://x.y/z` may fail at the FUNCTION level
 // but never with a parse/token error.
-TEST_P(FieldTestRegression, DISABLED_CommandSyntaxUrlArgs)
+TEST_P(FieldTestRegression, CommandSyntaxUrlArgs)
 {
     // Silent truncation is the worse half: numkit today prints "a//b".
     EXPECT_TRUE(engine.evalSafe("s = 'a//b:c'; disp2 = s;").ok); // sanity
@@ -50,6 +52,28 @@ TEST_P(FieldTestRegression, DISABLED_CommandSyntaxUrlArgs)
     EXPECT_FALSE(r2.ok); // foo is undefined — an error is correct…
     EXPECT_EQ(r2.errorMessage.find("Unexpected token"), std::string::npos)
         << "…but a FUNCTION-level error, never a token-level parse error";
+}
+
+// ── bugs/opened/lang/command-syntax-quoted-arg ────────────────────────────
+// A quoted string as the command argument is silently dropped (numkit prints
+// nothing; MATLAB prints the string). Engine-observable guard: a QUOTED
+// filename passed to `load` in command form must load the file.
+TEST_P(FieldTestRegression, DISABLED_CommandSyntaxQuotedArg)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_cmd_quoted_arg";
+    fs::create_directories(dir);
+    fs::path mat = dir / "qtest.mat";
+    {
+        StandardEngine se;
+        se.eval("qv = 42; save('" + mat.generic_string() + "', 'qv');");
+    }
+    engine.eval("clearvars;");
+    engine.eval("load '" + mat.generic_string() + "'");   // command form, QUOTED arg
+    Value *v = engine.getVariable("qv");
+    ASSERT_NE(v, nullptr) << "quoted command arg must reach load";
+    EXPECT_DOUBLE_EQ(v->toScalar(), 42.0);
+    fs::remove_all(dir);
 }
 
 INSTANTIATE_DUAL(FieldTestRegression);

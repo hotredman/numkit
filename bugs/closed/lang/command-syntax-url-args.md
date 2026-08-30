@@ -1,6 +1,6 @@
 # lang.command-syntax — command-call args mangle/parse-fail on `:` `/` (URLs), MATLAB takes them literally
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-30)
 - **Severity:** P1 wrong result (silent arg truncation) + parse failure
 - **Kind:** bug
 - **Found:** 2026-08-30 via fieldtest (Chinese textbook corpus — `web -broswer http://…` is a common first-line idiom; batch 20260830-003212, `example02_05.m` / `example02_10.m`)
@@ -54,3 +54,33 @@ fieldtest batches `reports/20260829-smoke1-15scripts.json`,
 `reports/20260830-003212.json`; regression test:
 `tests/gtest/integration/fieldtest_regressions_test.cpp`
 (`DISABLED_CommandSyntaxUrlArgs`).
+
+## Resolution (2026-08-30)
+
+Two changes in the parser, both following MATLAB's character-level rule
+(command args are the raw source text split on whitespace — never operator
+tokens):
+
+1. `parseCommandStyleCall` now reconstructs arguments from the SOURCE via
+   token column arithmetic (tokens carry line/col; a gap between the
+   previous token's end column and the next token's start column = the
+   space that splits arguments). `disp a//b:c` → ONE arg `a//b:c`;
+   `http://x.y/z` glues exactly as written.
+2. `isCommandStyleCall` accepts a glued leading `-`/`/` (`which -all sin`,
+   `cd /path`, `web -broswer http://…`): distinguished from the binary
+   expressions `x - 1` / `a / b` by the absence of a space after the
+   operator. `y = x - 1` verified unaffected (= 4).
+
+Verified: `disp a//b:c` prints `a//b:c`; `web -broswer http://…` now fails
+at the FUNCTION level (undefined 'web') exactly like MATLAB, never at the
+token level; all 46 existing CommandStyleTest tests green; guard
+CommandSyntaxUrlArgs enabled, green on both engines; full Release suite
+green.
+
+Known divergence, documented: `x -1` (glued minus, x a defined variable) —
+MATLAB resolves via name lookup (subtraction), the heuristic sees a
+command call. Rare style; accepted and noted here.
+
+Found during the fix and filed separately (pre-existing, other root):
+`bugs/opened/lang/command-syntax-quoted-arg.md` — quoted-string command
+args are silently dropped.
