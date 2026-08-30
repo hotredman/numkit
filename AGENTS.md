@@ -148,8 +148,3 @@ to ✅ FIXED with the commit hash, update the index row, and `git mv` the md fro
 `bugs/opened/<namespace>/` to `bugs/closed/<namespace>/` (structure
 preserved).
 
-## Memory
-
-Auto-memory at
-`C:/Users/User/.claude/projects/C--Users-User-Projects-megahard-numkit/memory/`.
-Always check `MEMORY.md` index for context before non-trivial work.
