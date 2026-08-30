@@ -3,7 +3,7 @@
 Cross-engine validation for numkit: every public function is checked against
 **MATLAB R2025b** (and **Octave 11.1.0** when it ships the function) for
 correctness, and timed for performance. This is **artefact #2 of the mandatory
-4-artefact rule** (see `CLAUDE.md`).
+4-artefact rule** (see `AGENTS.md`).
 
 ## Per-function validation — the inner loop
 
@@ -45,4 +45,4 @@ a new MATLAB release) — the per-function loop above is the day-to-day path.
 ---
 
 See also [`../../dev-docs/PARITY_AGENT_PROMPT.md`](../../dev-docs/PARITY_AGENT_PROMPT.md)
-(autonomous-cycle runbook) and `CLAUDE.md` (the 4-artefact rule).
+(autonomous-cycle runbook) and `AGENTS.md` (the 4-artefact rule).

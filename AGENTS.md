@@ -1,8 +1,8 @@
-# numkit repo notes for Claude
+# numkit repo notes for AI coding agents (AGENTS.md)
 
 ## STOP — read first
 
-This repo **can** be split across parallel Claude sessions (core / ide / lib
+This repo **can** be split across parallel AI-agent sessions (core / ide / lib
 territories), but that model is **currently dormant — normally you are the
 single session working on `main`**. The territory / worktree protocol is kept
 in [COORDINATION.md](dev-docs/COORDINATION.md) as reference for if it is

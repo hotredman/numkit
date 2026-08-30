@@ -3473,7 +3473,7 @@ TEST(CodegenE2E, RuntimeDim2DCompositionMatchesInterpreter)
 // matrices, accumulating C(1,1)) in the codegen-compiled binary vs the numkit interpreter
 // over the SAME .m. Asserts correctness (codegen result == interpreter == K*19, the real
 // guard) and LOGS the speedup (informational -- machine-dependent, never asserted, per the
-// CLAUDE.md perf rule). First matrix-tier perf evidence (Brick 7 was scalar biquad).
+// AGENTS.md perf rule). First matrix-tier perf evidence (Brick 7 was scalar biquad).
 TEST(CodegenE2E, RuntimeDim2DKernelVsInterpreter)
 {
     if (!aot::available())

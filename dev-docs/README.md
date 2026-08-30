@@ -29,6 +29,6 @@ Two groups, by when you reach for them:
 
 ---
 
-Entry points elsewhere: [`../CLAUDE.md`](../CLAUDE.md) (per-session repo notes),
+Entry points elsewhere: [`../AGENTS.md`](../AGENTS.md) (per-session repo notes),
 [`../CONTRIBUTING.md`](../CONTRIBUTING.md), and [`../docs/`](../docs/) (Doxygen
 API-reference source).

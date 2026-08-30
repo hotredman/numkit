@@ -10,7 +10,7 @@ By submitting a pull request or contributing code to this repository, you agree 
  
 ## Working on the code
 
-See [CLAUDE.md](CLAUDE.md) for build presets, test runners, and
+See [AGENTS.md](AGENTS.md) for build presets, test runners, and
 repository conventions.
 
 ## Public API conventions

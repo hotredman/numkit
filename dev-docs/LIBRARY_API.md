@@ -106,7 +106,7 @@ wrong-formula iterations — the docs come first.
 ## 3. Test every documented branch against MATLAB
 
 A gtest unit test **and** a smoke `.m` are both mandatory (see
-[CLAUDE.md](../CLAUDE.md) for the full four-artefact rule). Together they
+[AGENTS.md](../AGENTS.md) for the full four-artefact rule). Together they
 must cover **one case per documented branch** — where a "documented
 branch" is a distinct entry in `help` / `doc`: a separate calling
 signature, a distinct value of an option, or a distinct edge-case
@@ -471,7 +471,7 @@ treat trademark use in *published* docs with care.
   one-line compatibility note on a specific quirk — a factual mention
   is fine. The rule bans *narration*, not *facts*.
 - **Internal text is unrestricted.** `.cpp` comments, `PROGRESS.md`,
-  parity specs, `CLAUDE.md`, `CONTRIBUTING.md`, and this document name
+  parity specs, `AGENTS.md`, `CONTRIBUTING.md`, and this document name
   MATLAB freely — it is the reference engine and must be named there.
 - Clean-room files cite *original papers and standards* as their source
   ([§5](#5-cite-original-references-in-the-implementation)), never

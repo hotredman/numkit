@@ -11,7 +11,7 @@
 
 ## Сначала прочти в этом порядке
 
-1. `CLAUDE.md` — project rules (стоп-и-сверься, если `git status` грязный).
+1. `AGENTS.md` — project rules (стоп-и-сверься, если `git status` грязный).
 2. `C:/Users/User/.claude/projects/C--Users-User-Projects-megahard-numkit/memory/MEMORY.md`
 3. `…/memory/project_parity_cycle_progress.md` ← **главный документ: что сделано,
    текущая цель, правила.**
@@ -112,7 +112,7 @@ Honest per-signature bulk-bench. **НЕ** реализовывать новые 
   разрешения пользователя.
 - Если spec не работает с auto-параметрами — **НЕ** закрывать «OK по
   ассоциации». Честно пометить `MISSING` / `auto-spec: signature unknown`.
-- Commit body на английском (CLAUDE.md repo norm). Conversational — можно в
+- Commit body на английском (AGENTS.md repo norm). Conversational — можно в
   комментариях задач, не в commit.
 - Не коммитить, если test suite упал. Не коммитить пустых изменений.
 

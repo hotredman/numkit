@@ -212,6 +212,6 @@ Python (`RecursionError` на parse), clang/V8 (stack guards).
 
 ## 9. Связь с конвенциями репозитория
 
-При фиксе — по протоколу CLAUDE.md: `bugs/opened/lang/` запись + gtest (DISABLED_
+При фиксе — по протоколу AGENTS.md: `bugs/opened/lang/` запись + gtest (DISABLED_
 не нужен: чиним сразу, тест живой с первого дня). Этот документ остаётся
 design-rationale и закрывается переводом статуса в **fixed** с хэшем коммита.
