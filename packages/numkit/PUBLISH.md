@@ -22,6 +22,9 @@ node test\run-examples.js --timeout 180000   # corpus gate: 182 runnable scripts
                                                # the known OPEN Frame_Introspection bugs. A 4th FAIL is a
                                                # regression: STOP the publish.
 cd ..\..
+:: BEFORE the real publish (cannot be done from this Windows box):
+::   one manual smoke on Linux/macOS (or WSL): npx -y numkit -e "disp(2+2)"
+::   plus one file run — cli.js path handling has only been exercised on Windows.
 scripts\npm-publish.bat --dry-run        # rehearse: build + refresh + test + pack preview
 scripts\npm-publish.bat                  # for real: uploads to the registry
 ```
