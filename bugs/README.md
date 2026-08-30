@@ -142,10 +142,8 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
    AND add a `DISABLED_` test in `src/toolboxes/<ns>/tests/known_bugs_test.cpp`.
 2. Fix it (4 artefacts) → remove `DISABLED_` (or promote the assertion into
    the function's own test file), flip the md status to ✅ FIXED with the
-   commit hash, update the index row, and **`git mv` the md from
-   `opened/<ns>/` to `closed/<ns>/`** (structure preserved). The index keeps
-   the ✅ row pointing at the `closed/` path. The repro stays useful in the
-   archive.
+   commit hash, and **`git mv` the md from `opened/<ns>/` to `closed/<ns>/`**
+   (structure preserved). The repro stays useful in the archive.
 
 ## Bug Discovery Playbook
 
