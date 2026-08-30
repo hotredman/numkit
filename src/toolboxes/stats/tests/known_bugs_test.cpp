@@ -58,7 +58,7 @@ TEST_F(StatsKnownBug, MleConfidenceIntervals)
 }
 
 // bugs/stats/distribution-dispatchers.md — cdf/pdf/icdf/random.
-TEST_F(StatsKnownBug, DISABLED_DistributionDispatchers)
+TEST_F(StatsKnownBug, DistributionDispatchers)
 {
     EXPECT_NEAR(evalScalar("cdf('Normal', 1, 0, 1)"),       0.841344746, 1e-7);
     EXPECT_NEAR(evalScalar("pdf('Poisson', 2, 3)"),         0.224041808, 1e-7);
@@ -116,7 +116,7 @@ TEST_F(StatsKnownBug, KstestPValue)
 }
 
 // bugs/stats/friedman.md — Friedman's nonparametric two-way ANOVA missing.
-TEST_F(StatsKnownBug, DISABLED_Friedman)
+TEST_F(StatsKnownBug, Friedman)
 {
     eval("p = friedman([1 2 3; 2 3 4; 3 4 5; 1 3 5], 1);");
     EXPECT_NEAR(evalScalar("p"), 0.018315639, 1e-6);
@@ -184,7 +184,7 @@ TEST_F(StatsKnownBug, DistributionArrayParams)
 }
 
 // bugs/stats/autocorr.md — autocorr/parcorr/crosscorr (Econometrics) missing.
-TEST_F(StatsKnownBug, DISABLED_Autocorr)
+TEST_F(StatsKnownBug, Autocorr)
 {
     eval("ac = autocorr([1 2 3 2 1 2 3 2 1]);");   // default NumLags=min(20,N-1)=8
     EXPECT_EQ(static_cast<int>(evalScalar("numel(ac)")), 9);

@@ -73,7 +73,7 @@ TEST_F(SignalKnownBug, CcepsPhaseAndNd)
 }
 
 // bugs/signal/risetime-falltime-outputs.md — [R,LT,UT] multi-output.
-TEST_F(SignalKnownBug, DISABLED_RisetimeMultiOutput)
+TEST_F(SignalKnownBug, RisetimeMultiOutput)
 {
     eval("[R, LT, UT] = risetime([0 0 0 1 1 1 1], 4);");
     EXPECT_NEAR(evalScalar("R"),     0.1980, 1e-3);
@@ -97,7 +97,7 @@ TEST_F(SignalKnownBug, DISABLED_Fillgaps)
 
 // bugs/signal/pmusic-peig.md — pseudospectrum estimators exist + return a
 // positive-power column. (Verify exact values vs MATLAB when enabling.)
-TEST_F(SignalKnownBug, DISABLED_PmusicExists)
+TEST_F(SignalKnownBug, PmusicExists)
 {
     eval("[p,f] = pmusic([1 2 1 3 2 4 1 2 1 3], 4);");
     EXPECT_GT(evalScalar("numel(p)"), 0.0);
@@ -125,7 +125,7 @@ TEST_F(SignalKnownBug, ImpinvarRepeatedPoles)
 }
 
 // bugs/signal/stmcb.md — Steiglitz-McBride IIR identification missing.
-TEST_F(SignalKnownBug, DISABLED_Stmcb)
+TEST_F(SignalKnownBug, Stmcb)
 {
     eval("[b, a] = stmcb([1 0.5 0.25 0.125 0.0625], 1, 1);");
     EXPECT_NEAR(evalScalar("a(2)"), -0.5, 1e-4);
@@ -191,7 +191,7 @@ TEST_F(SignalKnownBug, PeriodogramNonPow2Nfft)
 }
 
 // bugs/builtin/complex-input-unsupported.md — conv/filter on complex input.
-TEST_F(SignalKnownBug, DISABLED_ConvFilterComplex)
+TEST_F(SignalKnownBug, ConvFilterComplex)
 {
     eval("y = conv([1 1i],[1 1]);");             // MATLAB: [1, 1+1i, 1i]
     EXPECT_NEAR(evalScalar("imag(y(2))"), 1.0, 1e-12);

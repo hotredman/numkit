@@ -21,22 +21,22 @@ public:
 // bugs/comm/analog-demodulators.md — every *mod exists but no *demod does.
 // Each demod must exist and return a signal of the message length.
 // (Verify roundtrip recovery vs MATLAB when enabling.)
-TEST_F(CommKnownBug, DISABLED_AmDemodExists)
+TEST_F(CommKnownBug, AmDemodExists)
 {
     eval("m=[0.2 0.5 -0.3 0.1]; y=amdemod(ammod(m,30,100),30,100);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
 }
-TEST_F(CommKnownBug, DISABLED_FmDemodExists)
+TEST_F(CommKnownBug, FmDemodExists)
 {
     eval("m=[0.2 0.5 -0.3 0.1]; y=fmdemod(fmmod(m,30,100,5),30,100,5);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
 }
-TEST_F(CommKnownBug, DISABLED_PmDemodExists)
+TEST_F(CommKnownBug, PmDemodExists)
 {
     eval("m=[0.2 0.5 -0.3 0.1]; y=pmdemod(pmmod(m,30,100,1),30,100,1);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
 }
-TEST_F(CommKnownBug, DISABLED_SsbDemodExists)
+TEST_F(CommKnownBug, SsbDemodExists)
 {
     eval("m=[0.2 0.5 -0.3 0.1]; y=ssbdemod(ssbmod(m,30,100),30,100);");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(y)")), 4);
