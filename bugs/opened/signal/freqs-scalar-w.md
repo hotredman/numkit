@@ -13,6 +13,7 @@ point). The vector-`w` form matches MATLAB exactly.
 
 ## Repro
 ```matlab
+clear; import compat.*;
 h = freqs([1 0], [1 1 1], 2);
 % numkit: numel(h) = 1, |h| = 0.5547   (evaluated at w = 2)
 % MATLAB: numel(h) = 2  (2 auto-spaced frequency points: |h| = [0.0100 0.1005])

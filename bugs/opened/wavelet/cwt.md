@@ -15,6 +15,7 @@ itself.
 
 ## Repro
 ```matlab
+clear; import compat.*;
 x = [1 2 3 4 5 6 7 8 7 6 5 4 3 2 1 0];
 cfs = cwt(x);
 % MATLAB: complex, size = [11 16]  (11 scales x 16 time samples)

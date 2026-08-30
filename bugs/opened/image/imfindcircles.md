@@ -10,6 +10,7 @@
 
 ## Repro
 ```matlab
+clear; import compat.*;
 [centers, radii, metric] = imfindcircles(img, [2 6])
 % numkit: Error — VM: undefined function 'imfindcircles'
 % MATLAB: detected circle centers / radii / strength, sorted by metric

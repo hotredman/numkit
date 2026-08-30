@@ -12,6 +12,7 @@ similarly off.
 
 ## Repro
 ```matlab
+clear; import compat.*;
 fs = 1000; t = (0:1/fs:1-1/fs)';
 x = chirp(t, 10, 1, 40);          % frequency sweeps 10 -> 40 Hz
 ifr = instfreq(x, fs);

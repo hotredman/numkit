@@ -14,6 +14,7 @@ the **real parts** and returns a logical — even for a nonzero imaginary part.
 ## Repro
 
 ```matlab
+clear; import compat.*;
 x = complex(1,0); disp(x < 2)
 % numkit: Error: Operator '<' is not supported for complex operands
 % MATLAB: 1

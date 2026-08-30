@@ -12,6 +12,7 @@ always measures the width `w` at the half-prominence reference; the
 
 ## Repro
 ```matlab
+clear; import compat.*;
 findpeaks([1 3 2 5 1 6 1], 'WidthReference', 'halfheight')
 % numkit: Error — findpeaks: option 'WidthReference' not supported
 % MATLAB: (returns peaks; width measured at half the absolute peak height)

@@ -11,6 +11,7 @@ registered.
 
 ## Repro
 ```matlab
+clear; import compat.*;
 fillgaps([1 2 NaN 4 5])
 % numkit: Error — VM: undefined function 'fillgaps'
 % MATLAB: 1 2 3 4 5  (AR-model interpolation of the gap)
