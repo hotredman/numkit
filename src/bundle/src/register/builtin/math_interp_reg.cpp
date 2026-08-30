@@ -365,7 +365,7 @@ void makima_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 // be misread as 2-D and return NaN, so peel 1-D off first and reuse interp1
 // (which already does the linear/method interpolation and whose (x, v, xq)
 // spelling matches Form B verbatim). 4+-D remains a parity gap
-// (bugs/math/interpn-nan.md / PARITY_GAPS.md).
+// (bugs/math/interpn-nan.md / MISSING.md).
 void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())

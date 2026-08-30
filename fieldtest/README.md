@@ -44,14 +44,14 @@ fieldtest/
    | `pass` | outputs match numerically | record timings (speed stats) |
    | `runtime-error` / `output-mismatch` | numkit fails or diverges where MATLAB succeeds | **file a bug** (see below) |
    | `parse-error` | numkit's parser rejects valid MATLAB | **file a bug** |
-   | `absent-fn` | function not implemented | add to `bugs/PARITY_GAPS.md` (a parity gap, NOT a defect per the Kind legend) |
+   | `absent-fn` | function not implemented | add to `bugs/MISSING.md` (a parity gap, NOT a defect per the Kind legend) |
    | `both-error` | both engines error | eyeball: same construct → error-parity PASS; different → bug on the diverging side |
    | `numkit-hang` / `matlab-timeout` | hang | bug (hang) |
    | `nondeterministic` | double-run differs | exclude, note in report |
 
 3. **File every finding.** Runtime/parse divergence → `bugs/opened/<ns>/<fn>.md`
    (Kind: bug) **+ a reproducing gtest** per the repo protocol (`DISABLED_`
-   until fixed, live after). Absent function → a row in `PARITY_GAPS.md`.
+   until fixed, live after). Absent function → a row in `MISSING.md`.
    Signature divergence → `bugs/opened/<ns>/<fn>-signature.md` (Kind: bug).
 
 4. **Signature audit** — `python signprobe.py <fn> [<fn>…]` captures MATLAB's

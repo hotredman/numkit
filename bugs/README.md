@@ -4,7 +4,7 @@ Structured bug catalog. **Every bug gets its own `.md` file** here, with a
 self-contained repro (numkit output vs MATLAB R2025b) so any session can
 pick it up cold. This is the sole bug tracker (the old flat BUGS.md was retired —
 its open items migrated here). The full MATLAB parity-gap inventory (missing / partial
-functions) lives in [PARITY_GAPS.md](PARITY_GAPS.md).
+functions) lives in [MISSING.md](MISSING.md).
 
 ## Layout
 
@@ -157,7 +157,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 > **Full parity-gap inventory:** the 30 missing-fn rows below are the *curated /
 > notable* gaps. The complete list of **839 missing + 25 partial** MATLAB
 > functions (migrated out of PROGRESS.md, grouped by namespace) lives in
-> [PARITY_GAPS.md](PARITY_GAPS.md). Those are parity gaps, **not defects** —
+> [MISSING.md](MISSING.md). Those are parity gaps, **not defects** —
 > they are NOT counted in the tally above.
 
 ### ✅ FIXED (103)
@@ -307,7 +307,7 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 ### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 11
 
 *(Curated/notable subset — the full 839-missing + 25-partial inventory is in
-[PARITY_GAPS.md](PARITY_GAPS.md).)*
+[MISSING.md](MISSING.md).)*
 
 | Bug | Sev | Notes |
 |---|---|---|

@@ -26,7 +26,7 @@
     `lsqnonneg` throw explicit `NoComplex` errors (`solvers.cpp:62/84`).
   - `qz-gsvd.md`: generalized Schur (`qz`) and generalized SVD (`gsvd`)
     missing. `schur_general` now provides the kernel `qz` builds on.
-- **Parity gaps** (`bugs/PARITY_GAPS.md` → Linear Algebra): missing
+- **Parity gaps** (`bugs/MISSING.md` → Linear Algebra): missing
   `decomposition`, `eigs`, `gsvd`, `ordqz`, `ordschur`, `qz`, `svdappend`,
   `svds`, `svdsketch` (NOTE: `funm` listed but is FIXED — stale row). Partial:
   `balance` (scaling phase only, no permutation), `logm`/`sqrtm`/`sylvester`
@@ -189,7 +189,7 @@ Now mechanical:
   already does `V*diag(fun(diag(D)))/V` — it starts working once `eig`
   returns complex `[V,D]`. Verify `funm([0 -1;1 0], @exp)` = rotation
   matrix, update `funm.md` deferred note (defective case → 2.6).
-- Update the three stale "deferred to Phase 2b" rows in `PARITY_GAPS.md`
+- Update the three stale "deferred to Phase 2b" rows in `MISSING.md`
   partial table (`logm`, `sqrtm`, `sylvester`) and the `schur` row.
 
 ---
@@ -305,7 +305,7 @@ gets a `perf` bug entry per the S1–S3 scale. No regressions on small-n
 
 ## 8. Phase 5 — Closure & hygiene
 
-1. `bugs/PARITY_GAPS.md`: delete stale `funm` missing row; refresh
+1. `bugs/MISSING.md`: delete stale `funm` missing row; refresh
    `schur`/`logm`/`sqrtm`/`sylvester`/`balance` partial rows; move
    implemented functions out of the Linear Algebra missing list as they
    land (`qz`, `gsvd`, `ordschur`, `ordqz`, `eigs`, `svds`, `svdsketch`,

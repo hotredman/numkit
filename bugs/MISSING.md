@@ -1,4 +1,4 @@
-# Parity gaps — consolidated inventory (migrated from PROGRESS.md)
+# Missing & partial — consolidated inventory (migrated from PROGRESS.md)
 
 > **What this is.** The full list of MATLAB R2025b functions numkit does **not
 > yet** fully match, migrated out of `PROGRESS.md` so `bugs/` is the single

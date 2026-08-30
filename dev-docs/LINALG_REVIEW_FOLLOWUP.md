@@ -81,7 +81,7 @@ while `bugs/closed/linalg/complex-matrix-unsupported.md` and
 tests and make sure they pass. A FIXED bug with a disabled guard is worse
 than no guard: it silently documents distrust in the fix.
 
-## R5. `bugs/PARITY_GAPS.md` is self-contradictory  [S, MEDIUM]
+## R5. `bugs/MISSING.md` is self-contradictory  [S, MEDIUM]
 
 Commit 6f7813ca claims the file was updated for "completed Phase 2 and 3",
 but the Linear Algebra missing list still reads:
@@ -187,7 +187,7 @@ validation playbook.
 
 ## R5-b PARITY_GAPS ordqz row is stale again  [XS, LOW]
 
-`bugs/PARITY_GAPS.md` Linear Algebra still lists `ordqz` as missing, but
+`bugs/MISSING.md` Linear Algebra still lists `ordqz` as missing, but
 36f5a499 implemented it (the R4/R5 hygiene commit predates the R2 land and
 the final closure commit didn't refresh the row). Remove it; the Linear
 Algebra missing list should then be empty. One-line fix.

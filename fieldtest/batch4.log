@@ -1,0 +1,48 @@
+[1/38] ahp_common.m                             both-error         wasm=240ms matlab=7443ms native=17ms
+[2/38] example02_05.m                           runtime-error      wasm=166ms matlab=15732ms native=17ms
+[3/38] example02_10.m                           runtime-error      wasm=185ms matlab=15942ms native=17ms
+[4/38] pnn_test.m                               absent-fn          wasm=283ms matlab=8547ms native=16ms
+[5/38] hopfield_hand.m                          pass               wasm=236ms matlab=8383ms native=17ms
+[6/38] for_test.m                               pass               wasm=235ms matlab=8436ms native=16ms
+[7/38] credit_class.m                           both-error         wasm=163ms matlab=8419ms native=18ms
+[8/38] chap10_10.m                              both-error         wasm=161ms matlab=14007ms native=16ms
+[9/38] chap10_7.m                               output-mismatch    wasm=231ms matlab=8682ms native=16ms
+[10/38] chap13_4.m                               matlab-only-error  wasm=235ms matlab=8475ms native=17ms
+[11/38] chap13_8.m                               runtime-error      wasm=160ms matlab=8578ms native=16ms
+[12/38] chap15_11.m                              absent-fn          wasm=232ms matlab=8564ms native=16ms
+[13/38] test.m                                   both-error         wasm=161ms matlab=8068ms native=17ms
+[14/38] test_run_for_parameters.m                both-error         wasm=233ms matlab=9136ms native=17ms
+[15/38] test_sdpt3_hpsd_nnd.m                    both-error         wasm=235ms matlab=9759ms native=17ms
+[16/38] process.m                                both-error         wasm=231ms matlab=8024ms native=18ms
+[17/38] ChengGenerateTable.m                     absent-fn          wasm=161ms matlab=8506ms native=17ms
+[18/38] GehlerShiGenerateTable.m                 absent-fn          wasm=163ms matlab=8121ms native=18ms
+[19/38] demo_jsonlab_basic.m                     both-error         wasm=163ms matlab=8754ms native=17ms
+[20/38] demo_msgpack_basic.m                     both-error         wasm=162ms matlab=9122ms native=18ms
+[21/38] demo_ubjson_basic.m                      both-error         wasm=161ms matlab=9806ms native=18ms
+[22/38] jsonlab_selftest.m                       both-error         wasm=162ms matlab=9236ms native=17ms
+[23/38] demo.m                                   absent-fn          wasm=690ms matlab=26896ms native=165ms
+[24/38] CiclingCompetition.m                     both-error         wasm=254ms matlab=8351ms native=39ms
+[25/38] sa_01knapsack.m                          output-mismatch    wasm=628ms matlab=7510ms native=26ms
+[26/38] sa_tsp.m                                 runtime-error      wasm=163ms matlab=8828ms native=16ms
+[27/38] AHP.m                                    unsupported        wasm=253ms matlab=7479ms native=15ms
+[28/38] mssPath.m                                absent-fn          wasm=250ms matlab=7841ms native=17ms
+[29/38] exINS_AHRS.m                             output-mismatch    wasm=164ms matlab=7472ms native=16ms
+[30/38] exINS_Euler.m                            output-mismatch    wasm=163ms matlab=7402ms native=17ms
+[31/38] exINS_MEKF.m                             output-mismatch    wasm=164ms matlab=7459ms native=15ms
+[32/38] exObsCtr.m                               output-mismatch    wasm=243ms matlab=7860ms native=16ms
+[33/38] exPullout.m                              absent-fn          wasm=163ms matlab=29796ms native=30ms
+[34/38] exTurnCircle.m                           absent-fn          wasm=242ms matlab=31897ms native=17ms
+[35/38] exZigZag.m                               absent-fn          wasm=241ms matlab=31638ms native=16ms
+[36/38] config_parameters.m                      output-mismatch    wasm=240ms matlab=7579ms native=16ms
+[37/38] Solver.m                                 matlab-only-error  wasm=163ms matlab=7433ms native=17ms
+[38/38] example.m                                both-error         wasm=165ms matlab=8107ms native=16ms
+
+report: C:\Users\User\Projects\megahard\numkit\fieldtest\reports\20260830-005511.json
+=== SUMMARY ===
+  13  both-error
+   9  absent-fn
+   7  output-mismatch
+   4  runtime-error
+   2  pass
+   2  matlab-only-error
+   1  unsupported
