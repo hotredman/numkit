@@ -16,7 +16,7 @@
 %   filter()    : MATLAB ~7.8      |  numkit ~5.5  (numkit beats MATLAB here)
 %   native C++ ~1.6  (numkit_bench BM_Biquad_NativeCpp)
 % No `import` here so the file stays MATLAB/Octave-portable; filter() is guarded
-% by try/catch (numkit resolves it only after `import compat.*`).
+% by try/catch (historically needed `import compat.*`; builtins are global now).
 
 clear
 N = 5000000;
@@ -45,7 +45,7 @@ t = toc;
 fprintf('biquad loop : %.4f s | %7.2f ns/sample | y(end)=%.6f\n', t, t/N*1e9, y(N));
 
 % filter() builtin -- the C++ kernel doing the same recursion. Built in to
-% MATLAB / Octave; in numkit it needs `import compat.*`, so guard it.
+% MATLAB / Octave; guarded for older numkit builds that lacked the builtin.
 try
     b = [b0 b1 b2]; a = [1 a1 a2];
     tic; yf = filter(b, a, x); tf = toc;

@@ -44,9 +44,11 @@ function.
 - Hand-runnable `.m` smokes live in `src/toolboxes/<name>/tests/smoke/*_smoke.m`
   (one per public function or related cluster). Run via
   `build/desktop-fast/apps/numkit/Release/numkit_repl.exe <path>`.
-- **Every smoke MUST start with `clear` on the very first line**, then
-  the usual `import compat.*` and the body. This ensures no leftover
-  workspace state from a prior run leaks into the test.
+- **Every smoke MUST start with `clear` on the very first line**, then the
+  body. This ensures no leftover workspace state from a prior run leaks
+  into the test. No `import compat.*` — builtins are globally registered
+  since the builtin consolidation (verified by the full 710-smoke sweep
+  2026-08-30: 699 pass bare, the 11 failures are unrelated and filed).
 
 ## Each /loop cycle ships FOUR artefacts (mandatory)
 

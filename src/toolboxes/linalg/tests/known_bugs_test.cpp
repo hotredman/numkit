@@ -125,3 +125,16 @@ TEST_F(LinalgKnownBug, SchurNonsymmetric)
     EXPECT_LT(evalScalar("max(max(abs(V*S*V' - B)))"),    1e-9);
     EXPECT_LT(evalScalar("max(max(abs(V'*V - eye(4))))"), 1e-9);
 }
+
+// bugs/opened/linalg/complex-linalg-regression.md — chol (and the complex
+// linalg family) rejects complex input again: the closed complex-matrix
+// support (closed/linalg/complex-matrix-unsupported.md) regressed. MATLAB:
+// R = chol(A) on a Hermitian complex matrix works.
+TEST_F(LinalgKnownBug, DISABLED_CholAcceptsComplexHermitian)
+{
+    eval("A = [2, 1i; -1i, 2]; R = chol(A);");
+    EXPECT_NEAR(evalScalar("real(R(1,1))"), 1.4142135623730951, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(R(1,1))"), 0.0, 1e-12);
+    eval("err = norm(R'*R - A, 'fro');");
+    EXPECT_NEAR(evalScalar("err"), 0.0, 1e-12);
+}
