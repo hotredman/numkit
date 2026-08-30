@@ -29,14 +29,25 @@ surface to the user**. Do not silently work on top of someone else's work.
 - Co-authored trailer required (see prior commits for style).
 - `main` is the integration branch. Never force-push.
 
-## Documentation map
+## Documentation map (`dev-docs/`)
 
-`dev-docs/README.md` is the map: living docs in `dev-docs/handbook/`,
-reasoning archive in `dev-docs/memory/` (scan it for files touching your
-components before major work). Situational must-reads: handbook/LIBRARY_API
-(public API), handbook/CALLBACK_PAUSABILITY (VM callbacks),
-handbook/OBJECT_MODEL (classdef/object model), handbook/CORE_ARCHITECTURE
-(engine design), plus `src/codegen/DESIGN.md` for the transpiler.
+Structure and the rules for using it:
+
+| Directory | Holds | Read when | Write when |
+|---|---|---|---|
+| `dev-docs/handbook/` | living docs: rules, references, how-tos, protocols | situational must-reads below | a NEW living rule/reference earns a file here + a row in `dev-docs/README.md` |
+| `dev-docs/memory/` | reasoning archive: decisions, campaign logs, rationale | **before any major task** — scan for files touching your components | after a major task / significant decision / non-obvious gotcha (see "Project memory" below) |
+| `dev-docs/todo/` | open non-defect work (tech-debt, deferred design) — one file per task | when picking up deferred work | when work is deliberately deferred (not a bug → not `bugs/`; not done → not `memory/`); on completion record the outcome in `memory/` and delete the file |
+
+Situational must-reads (in `handbook/`): `library_api.md` (any public
+`toolboxes/` function), `callback_pausability.md` (VM callbacks),
+`object_model.md` (classdef/object model), `core_architecture.md` (engine
+design), plus `src/codegen/DESIGN.md` for the transpiler. `dev-docs/README.md`
+is the full map.
+
+Naming: content documents are `lowercase_snake.md` everywhere (`handbook/`,
+`memory/`, `todo/`, `bugs/missing.md`); CAPS is reserved for tool-discovered
+entry points (`README.md`, `AGENTS.md`, `LICENSE`).
 
 ## Public API conventions
 
