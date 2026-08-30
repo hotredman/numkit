@@ -311,7 +311,7 @@ TEST_P(NamespaceResolverTest, DISABLED_AliasChainTransitive)
     EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
 }
 
-// DISABLED: closures don't carry the active-import scope from their
+// BY-DESIGN DISABLED: closures don't carry the active-import scope from their
 // definition site. When the closure runs, resolution walks the
 // invocation-time env chain; the function-local import is long gone.
 // MATLAB itself doesn't really do this (anonymous functions capture

@@ -77,5 +77,6 @@ crossing case alone is matchable but a partial (crossing-only) implementation
 would diverge on any high-pedestal peak, so not shipped.
 
 ## References
+- **Guard:** `DISABLED_FindpeaksHalfHeightWidth`
 - `src/toolboxes/signal/src/measurements/findpeaks.cpp`
 - MATLAB `doc findpeaks` (WidthReference)

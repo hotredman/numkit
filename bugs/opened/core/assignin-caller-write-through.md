@@ -44,3 +44,6 @@ names directly, yet the write-through still does not land.
 ## Notes
 - Corpus impact: 3 of 184 examples; all other Frame_Introspection cases pass.
 - Native repro: `build/.../numkit_repl.exe examples/Frame_Introspection/assignin_setter.m` → same error (and see `apps` exit-code bug: the native CLI still exits 0 on it).
+
+## References
+- **Guard:** deferred — engine-level; guard pending a compiled-frame fixture.

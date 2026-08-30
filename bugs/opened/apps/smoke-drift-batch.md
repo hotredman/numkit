@@ -43,6 +43,7 @@ diverges from MATLAB, that is an engine bug, not smoke drift — split it out
 then). Add the smoke corpus to a CI/scheduled sweep so drift is caught same-day.
 
 ## References
+- **Guard:** deferred — umbrella triage; guards land per diagnosed class.
 
 Sweep logs: this session (710 files, with/without `--compat`); related
 consolidation commits `41c0f328`, `e95e6054`.

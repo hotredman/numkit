@@ -42,5 +42,6 @@ real work here — deferred until someone reads `freqint`'s point-placement
 loop. Endpoints alone (`logspace(lo,hi,n)`) would NOT match the interior.
 
 ## References
+- **Guard:** `DISABLED_FreqsScalarIsNPoints`
 - `src/toolboxes/signal/src/.../freqs*`
 - MATLAB `doc freqs`

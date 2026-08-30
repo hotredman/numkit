@@ -30,6 +30,7 @@ dev-docs/OBJECT_MODEL.md) or a struct-based tree encoding. Medium-large; decide 
 representation first. Defer until a tree container is chosen.
 
 ## References
+- **Guard:** `DISABLED_WpdecExists`
 - new file under `src/toolboxes/wavelet/src/...`
 - shipped: `dwt`, `wavedec`, `wfilters`
 - MATLAB `doc wpdec`

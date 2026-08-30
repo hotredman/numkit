@@ -37,6 +37,7 @@ add the chain case next to the existing alias tests in
 `DISABLED_AliasChainTransitive`.
 
 ## References
+- **Guard:** `DISABLED_AliasChainTransitive`
 
 Guard: `src/core/tests/namespace_resolver_test.cpp` (kept DISABLED_ — it is
 the reproducer). Neighbour `DISABLED_ClosureCapturesFunctionLocalImport`

@@ -48,8 +48,9 @@ mode triggered by the parser's command-call detection. Guard: the `disp`
 truncation is the worse half (wrong result, no error).
 
 ## References
+- **Guard:** `DISABLED_CommandSyntaxUrlArgs`
 
 fieldtest batches `reports/20260829-smoke1-15scripts.json`,
 `reports/20260830-003212.json`; regression test:
 `tests/gtest/integration/fieldtest_regressions_test.cpp`
-(`DISABLED_FieldTest_CommandSyntaxUrlArgs`).
+(`DISABLED_CommandSyntaxUrlArgs`).

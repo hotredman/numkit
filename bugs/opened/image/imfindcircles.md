@@ -28,6 +28,7 @@ Larger; needs the gradient-based accumulator + peak detection. Outputs:
 MATLAB on a synthetic image with known circles.
 
 ## References
+- **Guard:** `DISABLED_ImfindcirclesExists`
 - new file under `src/toolboxes/image/src/...`
 - shipped: `imgradient`, `edge`, `hough` (line Hough — different accumulator)
 - MATLAB `doc imfindcircles`

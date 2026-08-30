@@ -44,6 +44,7 @@ gtest suite passed while the smokes fail, so a gtest coverage gap likely
 exists too (chol complex path may be gtest-untested).
 
 ## References
+- **Guard:** `DISABLED_CholAcceptsComplexHermitian`
 
 `closed/linalg/complex-matrix-unsupported.md` (the original fix);
 smoke sweep evidence: this file; DISABLED_ regression test:

@@ -21,3 +21,6 @@ output.
   `__ERROR_LINE__` / trailing-`Error:` output — use that contract when fixing
   the native app (`apps/numkit/main.cpp`): batch mode should map a failed
   `evalSafe` to a nonzero exit.
+
+## References
+- **Guard:** deferred — CLI exit-code semantics; checked by fieldtest corpus scripts.

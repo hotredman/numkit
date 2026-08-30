@@ -51,6 +51,7 @@ validate basin COUNT + topology only). Pairs with the distance-transform
 workflow (`bwdist` + `imhmin`, both shipped).
 
 ## References
+- **Guard:** `DISABLED_Watershed`
 - new file under `src/toolboxes/image/src/...`
 - shipped: `bwdist`, `imhmin`, `bwlabel`, `imreconstruct`
 - MATLAB `doc watershed`

@@ -43,7 +43,8 @@ result is logical, shape-preserving/broadcast — same as the real path.
 Parity spec: `lt_complex` (`(0+1i)<2 → 1`, `(3+1i)<2 → 0`, matrices).
 
 ## References
+- **Guard:** `DISABLED_ComplexRelationalComparesRealPart`
 
 fieldtest batch `reports/20260830-003212.json` (AHP.m → "unsupported");
 regression test: `tests/gtest/integration/fieldtest_regressions_test.cpp`
-(`DISABLED_FieldTest_ComplexRelationalComparesRealPart`).
+(`DISABLED_ComplexRelationalComparesRealPart`).

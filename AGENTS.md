@@ -144,7 +144,9 @@ function is not a bug. **`perf` threshold:** numkit is single-threaded vs
 MATLAB's multithreaded MKL/FFTW, so flag only ≥3× (or 1.5–3× with a FIXABLE
 cause, or ANY ratio if worse big-O); <1.5× is noise. See bugs/README.md.
 
-See [bugs/README.md](bugs/README.md) for the template + Kind legend.
+See [bugs/README.md](bugs/README.md) for the template + Kind legend. Before closing
+a session run `python tools/bugs_audit.py` (protocol: guards ↔ bugs linkage);
+before a release add `--guards <numkit_gtest.exe>` (every DISABLED_ guard must fail).
 When you fix a bug, remove the test's `DISABLED_` prefix, flip the md status
 to ✅ FIXED with the commit hash, and `git mv` the md from
 `bugs/opened/<namespace>/` to `bugs/closed/<namespace>/` (structure

@@ -40,5 +40,6 @@ size + a couple of magnitudes vs MATLAB, mindful that the exact default
 wavelet parameters must match.
 
 ## References
+- **Guard:** `DISABLED_Cwt`
 - new file under `src/toolboxes/wavelet/src/...`; reuse FFT + the wavelet shape fns
 - MATLAB `doc cwt`

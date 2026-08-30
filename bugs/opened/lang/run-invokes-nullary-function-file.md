@@ -44,6 +44,7 @@ definition. (MATLAB errors for function files WITH required args — numkit
 should match that too rather than silently doing nothing.)
 
 ## References
+- **Guard:** deferred — CLI/file-run path; guard needs a temp-file fixture.
 
 fieldtest batch `reports/20260830-003212.json`; test deferred (needs the
 file-run path — CLI-level; tracked here, engine-level gtest to follow with

@@ -39,6 +39,7 @@ lines from repl_execute's return. The engine-side flag is cleaner (the
 protocol shouldn't leave the IDE path at all).
 
 ## References
+- **Guard:** deferred — CLI stdout level; checked by fieldtest harness normalisation.
 
 fieldtest harness normalises around it (`fieldtest/harness.py`, noted);
 affected corpus scripts: hopfield_hand.m, chap10_7.m, sa_01knapsack.m

@@ -183,3 +183,19 @@ To view the live status and full list of open bugs at any time, run:
 ```bash
 python tools/bugs_tally.py
 ```
+
+To mechanically verify the protocol (every open bug guarded or explicitly
+deferred, every DISABLED_ guard owned, no closed bug with a still-disabled
+guard), run before closing a session:
+
+```bash
+python tools/bugs_audit.py
+```
+
+Before a release (or periodically), also force-run every guard — each must
+FAIL (it reproduces its open bug); a passing guard means a silently-fixed
+bug or a stale guard:
+
+```bash
+python tools/bugs_audit.py --guards build/<preset>/tests/gtest/Release/numkit_gtest.exe
+```

@@ -49,6 +49,7 @@ External FFTW/pocketfft and output-MValue caching were rejected by the user.
 before any change; the bottleneck split may have moved.
 
 ## References
+- **Guard:** deferred — perf entry — benchmark (fft_bench.cpp) instead of a gtest, per the Kind legend.
 - `src/toolboxes/signal/src/transforms/fft.cpp` + `backends/`
 - memory: `feedback_fft_optimization_dead_ends.md`,
   `feedback_fft_msvc_limits.md`, `project_fft_native_cliff.md`

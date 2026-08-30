@@ -45,6 +45,7 @@ windows + exact MATLAB reassignment normalization, not the one-liner first
 assumed.
 
 ## References
+- **Guard:** `DISABLED_SpectrogramFcTc`
 - `src/toolboxes/signal/src/time_frequency/spectrogram.cpp` (spectrogram_reg)
 - bugs/signal/spectrogram-ps.md (the ps 4th-output fix)
 - MATLAB `doc spectrogram` (fc, tc)

@@ -34,6 +34,7 @@ Restore `'last'` routing in the unique/iscore set; then enable the guard
 — it passes today, so it evidently does not cover the option; extend it.
 
 ## References
+- **Guard:** `DISABLED_UniqueStableLast`
 
 `closed/math/unique-last.md` (the original fix); failing guard:
 `src/bundle/tests/known_bugs_test.cpp` `DISABLED_UniqueStableLast` (keep

@@ -56,5 +56,6 @@ fix the sign/scaling, validate against a linear chirp (should rise linearly
 from f0 to f1). Same TFD underlies `instbw` (2nd central moment). Medium.
 
 ## References
+- **Guard:** `DISABLED_InstfreqTracksChirp`
 - `src/toolboxes/signal/src/.../instfreq*`, `instbw*`
 - MATLAB `doc instfreq` (note: default is the spectral-moment method)

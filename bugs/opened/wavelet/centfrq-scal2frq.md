@@ -48,6 +48,7 @@ filters) first, then `centfrq = (peak_bin−1)/T` (with FFT-fold),
 (IP) — reconstruct from behavior + wavelet theory.
 
 ## References
+- **Guard:** `DISABLED_CentfrqScal2frq`
 - new file under `src/toolboxes/wavelet/src/...`; reuse the wavelet shape functions
 - blocked on: a `wavefun` cascade (orthogonal `psi` from `wfilters`)
 - MATLAB `doc centfrq`, `doc scal2frq`
