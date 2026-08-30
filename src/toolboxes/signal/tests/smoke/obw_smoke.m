@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % occupied bandwidth + [bw, flo, fhi, power] -- bugs/signal/obw-value-outputs.
 % 99% occupied bandwidth via a rectangular-windowed periodogram (nfft = N, no

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Reconstruct one connected component from a single seed ---
 % Mask has two disconnected blobs; marker only seeds one of them.
 % Result should equal the seeded blob (filled), other blob = 0.

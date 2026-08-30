@@ -16,7 +16,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "BW = true(5,5);"
             "BW(3, 1:3) = false;");
     }

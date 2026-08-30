@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % hampel multi-output [y, i, xmedian, xsigma] — DEEP-PROBE 2026-05-31.
 % Only the filtered signal y was implemented; the documented outlier
 % mask (i), local median (xmedian), and local sigma (xsigma = 1.4826*MAD)

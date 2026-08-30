@@ -13,8 +13,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("x = [1 2 3 4 5 6 7 8 9 10]';");
+                engine.eval("x = [1 2 3 4 5 6 7 8 9 10]';");
         engine.eval("cens = [0 0 0 0 0 0 0 1 1 1]';");
         engine.eval("freq = [2 2 2 1 1 1 1 1 1 1]';");
     }

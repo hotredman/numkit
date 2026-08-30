@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % geomean / harmmean 'omitnan' nanflag (2026-05-30): MATLAB geomean and
 % harmmean accept a trailing 'omitnan' (or default 'includenan') nanflag
 % that removes NaN per slice. numkit previously ignored it (geomean) or

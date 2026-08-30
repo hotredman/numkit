@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % bugs/stats/corr-pvalue.md — [r, p] = corr(...) 2nd output (p-value).
 % Reference values from MATLAB R2025b.

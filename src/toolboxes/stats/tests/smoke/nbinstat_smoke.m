@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== nbinstat ===\n');
 [m, v] = nbinstat(5, 0.3);
 fprintf('  NB(5,0.3) : m=%.4f v=%.4f (expect 11.6667 / 38.8889)\n', m, v);

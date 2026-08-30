@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== comm/dpcmopt — DPCM parameter optimiser ===\n');
 fprintf('Clean-room: Makhoul 1975; Proakis & Manolakis; Jayant & Noll.\n');

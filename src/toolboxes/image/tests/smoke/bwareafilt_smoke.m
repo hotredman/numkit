@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bwareafilt — keep components by area.
 
 a2d = [1   0   0   0   0   0   1   0   0   1

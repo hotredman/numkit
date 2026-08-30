@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- imoverlay on grayscale: paint a yellow square ---
 I = uint8(128 * ones(5, 5));
 BW = false(5, 5);

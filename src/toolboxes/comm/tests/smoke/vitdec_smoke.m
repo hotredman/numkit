@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % vitdec — hard-decision Viterbi decoder (Error Correction Codes).
 % Round-trips with convenc and corrects isolated bit errors.

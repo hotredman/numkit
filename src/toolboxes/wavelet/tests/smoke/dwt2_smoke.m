@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Shape and band semantics ---
 rng(7);
 X = round(100 * rand(8, 8));

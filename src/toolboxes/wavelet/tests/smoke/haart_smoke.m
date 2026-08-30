@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== haart level=1 ===\n');
 [a, d] = haart([1 2 3 4 5 6 7 8], 1);
 fprintf('  a = '); disp(a');

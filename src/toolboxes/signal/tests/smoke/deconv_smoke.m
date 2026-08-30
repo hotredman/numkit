@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % deconv: polynomial long division [Q, R] = deconv(B, A), B = conv(A,Q) + R.
 [q, r] = deconv([1 2 3 4], [1 1]);
 fprintf('deconv([1 2 3 4],[1 1]): Q='); fprintf('%g ', q);

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== nakastat ===\n');
 [m, v] = nakastat(1, 1);
 fprintf('  Naka(1,1) : m=%.4f v=%.4f (Naka(1,1)≡Rayleigh)\n', m, v);

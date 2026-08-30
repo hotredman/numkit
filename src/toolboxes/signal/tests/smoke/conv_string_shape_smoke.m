@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % conv shape arg as string ("...") vs char ('...') (DEEP-PROBE 2026-05-31).
 % MATLAB R2025b accepts BOTH 'same' and "same" for the shape arg. numkit's
 % conv_reg checked only isChar(), so a double-quoted shape was SILENTLY

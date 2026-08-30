@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- tfestimate(x, x) = 1 across all freqs (auto-tf) ---
 rng(42);
 x = randn(1024, 1);

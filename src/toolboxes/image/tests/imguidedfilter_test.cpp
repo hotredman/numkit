@@ -14,7 +14,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "I = double(reshape(1:25, 5, 5)) / 25;");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

@@ -14,7 +14,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "A = uint8(reshape(linspace(20, 240, 48), [4 4 3]));");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

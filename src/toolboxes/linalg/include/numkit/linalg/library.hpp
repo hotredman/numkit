@@ -38,6 +38,5 @@ public:
     static void install(Engine &engine);
 };
 
-
 /// @}
 } // namespace numkit

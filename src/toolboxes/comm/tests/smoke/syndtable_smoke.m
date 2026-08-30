@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % syndtable: coset-leader lookup table from a parity-check matrix H.
 % bugs/comm/syndtable. Row s+1 = min-weight error with syndrome s

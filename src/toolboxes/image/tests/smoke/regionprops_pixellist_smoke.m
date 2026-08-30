@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % regionprops now reports the per-pixel list fields, matching MATLAB R2025b
 % (both previously threw 'non-existent field'):

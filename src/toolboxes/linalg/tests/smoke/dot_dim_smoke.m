@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % dot(A, B, dim) — the dimension argument (DEEP-PROBE 2026-05-31). numkit
 % IGNORED the dim arg and always reduced along dim 1; MATLAB reduces along
 % the requested dim: dim 2 across rows (Hx1), dim 1 down columns (1xW). A

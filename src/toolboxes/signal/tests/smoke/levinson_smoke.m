@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % levinson — Levinson-Durbin recursion (MATLAB R2025b parity).
 % Branch 1: valid PSD autocorrelation -> standard AR fit.
 [a, e, k] = levinson([1 0.6 0.3 0.1], 3);

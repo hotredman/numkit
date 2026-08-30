@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== eig (symmetric only, this revision) ===\n');
 A = [4 1 2; 1 3 0; 2 0 5];

@@ -13,8 +13,7 @@ class StftTest : public ::testing::Test
 public:
     numkit::StandardEngine engine;
     void   SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("x = sin(2*pi*0.05*(0:511));");
+                engine.eval("x = sin(2*pi*0.05*(0:511));");
         engine.eval("w = 0.5*(1 - cos(2*pi*(0:63)/64));");  // hann(64,'periodic')
     }
     double eval_scalar(const std::string &c) { return engine.eval(c).toScalar(); }

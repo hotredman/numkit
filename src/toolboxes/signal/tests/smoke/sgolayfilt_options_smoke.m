@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % sgolayfilt matrix + weights + dim (DEEP-PROBE 2026-05-31). MATLAB's
 % sgolayfilt filters each 1-D slice of a matrix along dim (default = first
 % non-singleton: columns for a matrix), and supports a weighted

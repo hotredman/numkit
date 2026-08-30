@@ -18,8 +18,7 @@ public:
     StandardEngine engine;
 
     void SetUp() override {
-        engine.eval("import compat.*;");
-    }
+            }
 
     void TearDown() override {
         std::error_code ec;

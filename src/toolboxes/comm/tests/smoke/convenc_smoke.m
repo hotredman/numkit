@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % convenc — convolutional encoder driven by a poly2trellis trellis.
 % Error Correction Codes section of the Communications Toolbox.

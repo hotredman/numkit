@@ -22,7 +22,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "I = uint8([10 20 30 40 50 60 70 80;"
             "          20 80 80 80 80 80 80 70;"
             "          30 80 200 200 200 200 80 60;"

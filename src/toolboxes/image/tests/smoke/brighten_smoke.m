@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % brighten — gamma-adjust an N×3 colormap.
 
 M = [0 0.25 0.5 0.75 1; 0 0.25 0.5 0.75 1; 0 0.25 0.5 0.75 1]';

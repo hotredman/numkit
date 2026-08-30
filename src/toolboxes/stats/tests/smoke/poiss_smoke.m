@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % poisspdf(0, 2) = exp(-2) = 0.1353
 % poisspdf(2, 2) = 4·exp(-2)/2 = 2·exp(-2) = 0.2707
 % poisspdf(5, 4) = 1024·exp(-4)/120 = 0.156293

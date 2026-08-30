@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % ─── ode23 smoke (Bogacki-Shampine 3(2) with cubic Hermite dense) ──
 

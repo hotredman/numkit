@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== randerr (random binary error matrix) ===\n');
 

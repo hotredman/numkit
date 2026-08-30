@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % isoutlier(x,'gesd') — generalized ESD test. Fixed 2026-06-05
 % (bugs/stats/isoutlier-gesd.md). Reference: MATLAB R2025b.

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % regionprops now supports the grayscale intensity-image form
 % regionprops(BW, I, props), matching MATLAB R2025b (a numeric 2nd arg

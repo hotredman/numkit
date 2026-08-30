@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % labelmatrix + cc2bw — CC struct conversions.
 BW = logical([1 1 0 0 0;

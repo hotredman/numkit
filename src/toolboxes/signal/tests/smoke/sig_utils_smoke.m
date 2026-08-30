@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== seqperiod ===\n');
 [p, n] = seqperiod([1 2 3 1 2 3 1 2 3]);

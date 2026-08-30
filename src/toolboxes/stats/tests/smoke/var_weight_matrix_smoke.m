@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % var/std with a weight VECTOR on a MATRIX — DEEP-PROBE 2026-05-31.
 % Previously numkit threw: with a default dim it required the weight
 % length to equal numel ("weight vector length must match number of

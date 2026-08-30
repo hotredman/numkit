@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 A = magic(5);
 fprintf('Input A = magic(5):\n');

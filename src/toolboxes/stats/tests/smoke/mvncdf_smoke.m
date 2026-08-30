@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== mvncdf — multivariate normal CDF ===\n');
 

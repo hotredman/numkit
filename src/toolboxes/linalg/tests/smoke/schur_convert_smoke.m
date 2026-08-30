@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== cdf2rdf / rsf2csf ===\n');
 

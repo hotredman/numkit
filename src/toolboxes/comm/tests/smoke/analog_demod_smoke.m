@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Analog phase/frequency demodulators (inverses of pmmod/fmmod).
 % bugs/comm/analog-demodulators. Depend on the length-N hilbert fix.

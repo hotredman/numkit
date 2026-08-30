@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Trivial scalar: A=0, B=1, want pole at -3 ⇒ K = 3 ---
 K = acker(0, 1, [-3]);
 fprintf('--- acker(0, 1, [-3]) ---\n');

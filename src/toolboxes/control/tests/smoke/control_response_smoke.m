@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- step on G(s) = 1/(s+1): final value should approach 1 ---
 G = tf(1, [1 1]);
 [y, t] = step(G, 6);

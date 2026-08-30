@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/modulate (Phase 4.12 — analog modulation) ===\n');
 

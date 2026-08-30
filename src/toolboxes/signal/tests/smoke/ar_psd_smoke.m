@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Synthesise an AR(2) process and try to recover its peak ---
 % AR(2) with poles at 0.95·exp(±j·π/4) → resonant peak at ω = π/4 ≈ 0.785
 rng(42);

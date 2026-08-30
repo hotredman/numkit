@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== unifstat ===\n');
 [m, v] = unifstat(0, 1);
 fprintf('  U(0,1) : m=%g v=%g (expect 0.5 / 0.0833)\n', m, v);

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % intfilt(R, L, freqmult) designs a bandlimited interpolation FIR filter of
 % length 2*R*L-1. MATLAB R2025b builds it by LEAST SQUARES: it is exactly

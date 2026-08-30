@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % SWT / MODWT batch smoke — spec closure 2026-05-09.
 %
 % Real fixes this cycle:

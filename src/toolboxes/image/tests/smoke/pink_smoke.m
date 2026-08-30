@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % pink — pastel pink colormap.
 
 fprintf('--- size(pink()) ---\n');

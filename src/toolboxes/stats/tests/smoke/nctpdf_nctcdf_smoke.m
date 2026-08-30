@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Reference MATLAB R2025b values for nctpdf(x, 10, 2) and nctcdf(x, 10, 2):
 fprintf('nctpdf(1.5, 10, 2)         = %.10f  (expect ~0.3349931548)\n', nctpdf(1.5, 10, 2));

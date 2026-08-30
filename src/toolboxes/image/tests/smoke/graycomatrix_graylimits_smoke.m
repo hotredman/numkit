@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % graycomatrix now accepts the MATLAB-documented 'GrayLimits', [] (empty) form,
 % which means "auto limits = [min(I(:)) max(I(:))] over the actual data" for any

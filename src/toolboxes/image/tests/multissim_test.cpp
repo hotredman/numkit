@@ -20,7 +20,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "[X, Y] = meshgrid(1:32, 1:32);"
             "A = uint8(min(255, X + Y));"
             "B = uint8(min(255, X + 2*Y));");

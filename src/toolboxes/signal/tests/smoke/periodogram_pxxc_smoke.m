@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % periodogram confidence interval (3rd output pxxc) -- bugs/signal/periodogram-pxxc.
 % pxxc is nf x 2 = [lower upper]; a chi-square CI with v degrees of freedom per

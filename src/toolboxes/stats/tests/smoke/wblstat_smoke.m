@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== wblstat ===\n');
 [m, v] = wblstat(1, 2);
 fprintf('  Wbl(1,2) : m=%.4f v=%.4f\n', m, v);

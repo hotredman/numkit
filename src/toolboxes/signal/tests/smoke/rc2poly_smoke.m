@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % rc2poly — reflection coefficients -> AR poly (step-up), + efinal output.
 a = rc2poly([-0.5 0.4 0.2]);
 fprintf('a = [%.3f %.3f %.3f %.3f] (expect 1 -0.62 0.26 0.2)\n', a(1), a(2), a(3), a(4));

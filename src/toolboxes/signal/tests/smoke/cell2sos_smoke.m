@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/cell2sos (Phase 4.10 — cell array → SOS matrix) ===\n');
 

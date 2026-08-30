@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % convmtx2 — 2-D convolution matrix.
 
 h = [1 2; 3 4];

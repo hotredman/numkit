@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== grpstats (per-group statistics) ===\n');
 

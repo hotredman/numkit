@@ -33,8 +33,7 @@ protected:
         std::filesystem::create_directories(workDir);
 
         engine.setBackend(GetParam());
-        engine.eval("import compat.*;");
-    }
+            }
 
     void TearDown() override
     {

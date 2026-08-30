@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== taylorwin ===\n');
 fprintf('  Bug fix 2026-05-08: previous impl was inverted (peak at\n');
 fprintf('  edges, dip at center) and wrongly normalised peak to 1.\n');

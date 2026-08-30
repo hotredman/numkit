@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== crosstab (contingency table + chi-square) ===\n');
 

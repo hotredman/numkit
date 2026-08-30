@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/demod (Phase 4.13 — analog demodulation) ===\n');
 

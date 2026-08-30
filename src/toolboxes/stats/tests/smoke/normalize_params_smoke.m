@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % normalize method PARAMETER (range bounds / norm-p / scale ref / center
 % ref) — was parsed-and-ignored, so each method used its default. vs MATLAB.
 function pr(tag, v)

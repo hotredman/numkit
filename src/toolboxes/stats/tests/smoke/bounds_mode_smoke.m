@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11];
 
 fprintf('=== bounds ===\n');

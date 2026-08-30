@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % entropyfilt — local Shannon entropy filter.
 
 fprintf('--- uniform (all entropy 0) ---\n');

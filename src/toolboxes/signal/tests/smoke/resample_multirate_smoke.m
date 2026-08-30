@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % resample(x, p, q) — rational-factor (multirate) resampling. Designs a
 % Kaiser-windowed least-squares anti-alias FIR (firls + kaiser), applies it

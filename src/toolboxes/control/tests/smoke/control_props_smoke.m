@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Stable continuous: G(s) = 1/(s+1), pole at s = -1
 G = tf([1], [1 1]);
 fprintf('--- G = 1/(s+1) ---\n');

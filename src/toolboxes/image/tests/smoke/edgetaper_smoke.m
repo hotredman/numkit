@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 I = double(reshape(1:64, 8, 8));
 PSF = fspecial('gaussian', 3, 1);

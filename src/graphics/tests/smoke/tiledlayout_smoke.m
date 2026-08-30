@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % tiledlayout / nexttile — modern subplot API.
 

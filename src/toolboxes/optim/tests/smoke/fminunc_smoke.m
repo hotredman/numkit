@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fminunc(fun, x0) — unconstrained minimization via embedded-.m BFGS
 % quasi-Newton (central-difference gradient, Armijo line search). Like

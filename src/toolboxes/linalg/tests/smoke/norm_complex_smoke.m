@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % norm() of a COMPLEX array — by element magnitude (fixed 2026-06-05).
 % Previously threw "Not a double array".

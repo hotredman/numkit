@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % covar: steady-state output (P) + state (Q) covariance under white noise W.
 % bugs/control/covar. Q solves the gramian Lyapunov eqn (B*W*B'); P=C*Q*C'.

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % cceps non-power-of-two phase + 2nd output nd (bugs/signal/cceps-nd-phase).
 % Pre-fix the phase-dependent samples past DC were garbage and nd was missing.

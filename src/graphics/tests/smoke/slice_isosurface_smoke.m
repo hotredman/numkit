@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % slice / isosurface — 3-D scalar volume visualisations.
 

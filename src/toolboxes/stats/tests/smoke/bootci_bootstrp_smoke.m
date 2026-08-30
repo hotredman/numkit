@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 rng(42);
 x = randn(100, 1);

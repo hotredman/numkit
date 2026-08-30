@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % pdist2 — pairwise distance between two row sets, with optional
 % N-V 'Smallest'/'Largest' k-mode and Mahalanobis cov override.

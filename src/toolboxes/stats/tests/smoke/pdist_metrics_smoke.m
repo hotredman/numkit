@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % pdist 'seuclidean' / 'spearman' metrics + cosine/correlation NaN edge.
 % Fixed 2026-06-05 (bugs/stats/pdist-metrics.md). Reference: MATLAB R2025b.

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % gradientweight — DoG-gradient pixel weights for FMM segmentation.
 % Reference values from MATLAB R2025b on magic(8)/100.

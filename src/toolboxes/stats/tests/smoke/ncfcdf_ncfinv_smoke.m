@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('ncfcdf(1.5, 5, 10, 3)         = %.12f  (MATLAB: 0.491323141971)\n', ncfcdf(1.5, 5, 10, 3));
 fprintf('ncfcdf(1.5, 5, 10, 3, upper)  = %.12f  (MATLAB: 0.508676858029)\n', ncfcdf(1.5, 5, 10, 3, 'upper'));

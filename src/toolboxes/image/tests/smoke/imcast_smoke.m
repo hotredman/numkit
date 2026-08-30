@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imcast — class-string image conversion (dispatches to im2*).
 
 A = uint8([0 64 128 192 255]);

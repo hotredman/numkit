@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bestblk — best block size for block-processing.
 
 fprintf('--- Octave-source reference vectors ---\n');

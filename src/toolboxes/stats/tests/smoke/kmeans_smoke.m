@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Two well-separated clusters around (0,0) and (10,10)
 rng(42);
 n = 30;

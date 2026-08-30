@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bugs/stats/movfun-typeclass.md — movsum/movprod/movmean on integer/logical.
 % MATLAB PROMOTES integer/logical to double for these arithmetic moving
 % functions (class NOT preserved). Window 3, endpoints 'shrink'.

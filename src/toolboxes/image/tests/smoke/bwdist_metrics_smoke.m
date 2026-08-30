@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % bwdist distance-metric option (was silently ignored -> always Euclidean).
 BW = logical([0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1]);
 

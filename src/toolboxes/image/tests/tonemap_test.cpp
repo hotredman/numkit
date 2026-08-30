@@ -16,7 +16,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "HDR = zeros(8, 8, 3);"
             "for c = 1:3, for r = 1:8, for cc = 1:8, "
             "  HDR(r, cc, c) = 0.001 + (r * cc * c) / 100;"

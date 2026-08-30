@@ -13,8 +13,7 @@ class UquantTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("u = [-1.2 -1 -0.5 0 0.5 1 1.2];");
+                engine.eval("u = [-1.2 -1 -0.5 0 0.5 1 1.2];");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

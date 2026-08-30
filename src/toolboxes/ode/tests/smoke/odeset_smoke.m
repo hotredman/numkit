@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % odeset — build/merge options struct.
 

@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % poly2rc — AR poly -> reflection coefficients + zero-lag autocorr R0.
 % [k, R0] = poly2rc(a, efinal), R0 = efinal / prod(1 - k.^2).
 [k, r0] = poly2rc([1 0.6 0.2 -0.1], 4);

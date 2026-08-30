@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== lognstat ===\n');
 [m, v] = lognstat(0, 1);
 fprintf('  LN(0,1) : m=%.4f v=%.4f (expect 1.6487 / 4.6708)\n', m, v);

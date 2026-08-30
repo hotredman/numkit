@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imadjust treats an EXPLICITLY-passed empty [] for the in/out range as
 % MATLAB's default [0 1] -> identity mapping (NO contrast stretch). This is

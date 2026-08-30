@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== normstat ===\n');
 
 [m, v] = normstat(0, 1);

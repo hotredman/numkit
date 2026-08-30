@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Scalar threshold (existing path, regression check) ---
 I = uint8([10 50 90 130 170; 200 230 240 250 255]);
 BW = imbinarize(I, 0.5);   % normalised threshold

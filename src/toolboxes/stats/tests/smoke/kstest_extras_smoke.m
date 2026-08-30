@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % kstest / kstest2 — Tail aliases + Name-Value parsing.
 
 x = [1.2 2.4 3.1 4.5 5.0 6.2 7.1]';

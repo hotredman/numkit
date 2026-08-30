@@ -167,8 +167,7 @@ TEST(CodegenE2E, BiquadMatchesRuntimeFilter)
 
     // 5A. Reference: the numkit runtime's filter() over the same input.
     numkit::StandardEngine engine;
-    engine.eval("import compat.*;");
-    engine.eval("xs = sin(0.01*(1:64));");
+        engine.eval("xs = sin(0.01*(1:64));");
     numkit::Value yv =
         engine.eval("filter([0.0675 0.1349 0.0675],[1 -1.1430 0.4128], xs);");
     ASSERT_EQ(yv.numel(), N);
@@ -8665,8 +8664,7 @@ TEST(CodegenBridge, ReductionSumBridgedMatchesInterpreter)
     ASSERT_EQ(got.size(), 1u);
 
     numkit::StandardEngine engine;
-    engine.eval("import compat.*;");
-    const double ref = engine.eval("sum([1.5 2.5 3.5 4.5 5.5]);").toScalar();
+        const double ref = engine.eval("sum([1.5 2.5 3.5 4.5 5.5]);").toScalar();
     EXPECT_NEAR(got[0], ref, 1e-12);  // == runtime sum (here 17.5)
 }
 
@@ -9001,8 +8999,7 @@ TEST(CodegenOpsKernel, TranscendentalViaOpsKernelMatchesInterpreter)
     ASSERT_EQ(got.size(), 4u);
 
     numkit::StandardEngine engine;
-    engine.eval("import compat.*;");
-    numkit::Value yv = engine.eval("sin([0.5 1.0 1.5 2.0]);");
+        numkit::Value yv = engine.eval("sin([0.5 1.0 1.5 2.0]);");
     ASSERT_EQ(yv.numel(), 4u);
     for (int i = 0; i < 4; ++i)
         EXPECT_NEAR(got[i], yv.doubleData()[i], 1e-12) << "at " << i;
@@ -9075,8 +9072,7 @@ TEST(CodegenBridge, ComplexFftBridgedMatchesInterpreter)
     ASSERT_EQ(got.size(), 8u);  // re,im per element
 
     numkit::StandardEngine engine;
-    engine.eval("import compat.*;");
-    numkit::Value yv = engine.eval("fft([1 2 3 4]);");
+        numkit::Value yv = engine.eval("fft([1 2 3 4]);");
     ASSERT_EQ(yv.numel(), 4u);
     for (int i = 0; i < 4; ++i) {
         const std::complex<double> ref =

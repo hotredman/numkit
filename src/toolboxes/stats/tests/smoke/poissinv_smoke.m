@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== poissinv ===\n');
 fprintf('  median Pois(2) : %g (expect 2)\n', poissinv(0.5, 2));
 x = poissinv([0.05 0.5 0.95], 2);

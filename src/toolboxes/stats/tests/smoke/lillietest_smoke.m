@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== lillietest (Lilliefors normality test) ===\n');
 

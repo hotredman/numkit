@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== svd singular values ===\n');
 fprintf('  svd(diag([3 1 2])) = '); disp(svd(diag([3 1 2]))');

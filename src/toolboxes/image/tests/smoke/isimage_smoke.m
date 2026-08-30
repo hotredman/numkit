@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % isbw / isgray / isind / isrgb — image-type predicates.
 
 fprintf('--- isbw ---\n');

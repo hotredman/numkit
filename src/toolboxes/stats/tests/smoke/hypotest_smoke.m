@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % ttest — sample mean vs known μ=0
 x = [1 2 3 4 5 6 7 8 9 10];   % mean = 5.5
 [h, p, ci, t] = ttest(x);

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % phantom — Shepp-Logan computational head phantom.
 
 fprintf('--- phantom() default 256x256 ---\n');

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== binofit ===\n');
 
 [ph, pci] = binofit(7, 10);

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % raylpdf(2, 1) = 2 * exp(-2) = 0.2707
 fprintf('raylpdf(2, 1)       = %.6f  (expect 0.270671)\n', raylpdf(2, 1));
 

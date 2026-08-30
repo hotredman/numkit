@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fzero / fminbnd / fminsearch [x, fval, exitflag] multi-output.
 

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- imsharpen on a step-edge: amplify the edge contrast ---
 % Smooth ramp followed by a step. Sharpening should make the step
 % steeper (overshoot/undershoot near the edge).

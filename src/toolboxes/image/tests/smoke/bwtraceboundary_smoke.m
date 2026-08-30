@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % bwtraceboundary — Moore-Neighbor boundary tracing.
 % Bit-exact MATLAB R2025b.

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== lognpdf ===\n');
 fprintf('  default LN(0,1) at 2 : %.6f (expect 0.156874)\n', lognpdf(2));
 y = lognpdf([0 1 2 5], 0, 1);

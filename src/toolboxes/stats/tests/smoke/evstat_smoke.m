@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== evstat ===\n');
 [m, v] = evstat(0, 1);
 fprintf('  EV(0,1) : m=%.4f v=%.4f (expect -0.5772 / 1.6449)\n', m, v);

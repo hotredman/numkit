@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % impyramid — Burt-Adelson pyramid step (5-tap separable kernel).
 
 % --- reduce: 8x8 → 4x4 ---

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % intlut — table lookup for integer images.
 
 % --- uint8 → uint8: invert via LUT ---

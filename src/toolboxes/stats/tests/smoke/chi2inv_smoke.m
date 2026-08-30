@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 ps = [0.05 0.5 0.95];
 
 fprintf('=== chi2inv ===\n');

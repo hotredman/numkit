@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Discrete uniform on {1..N}
 fprintf('--- unid ---\n');
 fprintf('unidpdf(3, 6)       = %.6f  (expect 0.166667)\n', unidpdf(3, 6));

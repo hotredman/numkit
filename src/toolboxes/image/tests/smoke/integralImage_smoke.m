@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % integralImage / integralImage3 — summed-area / summed-volume tables.
 
 % --- 2-D ---

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== fftshift / ifftshift ===\n');
 
 % Vector even N

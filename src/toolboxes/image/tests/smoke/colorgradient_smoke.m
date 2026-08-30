@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % colorgradient — smooth interpolated colormap.
 
 % --- doc example: blue -> yellow -> red, n=64 default ---

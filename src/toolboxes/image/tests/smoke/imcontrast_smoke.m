@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Tiny synthetic image
 I = uint8([0 50 100 150 200 250]);
 

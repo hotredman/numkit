@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % normfit — normal MLE with optional censoring + frequency weights.
 %

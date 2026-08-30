@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== quantiz (scalar quantizer) ===\n');
 

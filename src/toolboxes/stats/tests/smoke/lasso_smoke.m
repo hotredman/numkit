@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 rng(0);
 
 fprintf('=== lasso — sparse signal recovery ===\n');
@@ -24,7 +24,6 @@ fprintf('\n=== Elastic net (α = 0.5) ===\n');
 [B2, ~, ~] = lasso(X, y, 0.1, 0.5);
 fprintf('coefs:  '); disp(B2');
 fprintf('(L2 component → no exact zeros, all coefs shrunk)\n');
-
 
 fprintf('\n=== lassoglm — logistic ===\n');
 n2 = 500;

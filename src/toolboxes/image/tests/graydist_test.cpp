@@ -14,7 +14,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "A = [1 2 3 4; 2 11 12 2; 3 13 14 3; 4 15 16 4];"
             "seed = false(4,4); seed(1,1) = true;");
     }

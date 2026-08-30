@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % chol 'lower'/'upper' option + [R,p] second output (MATLAB R2025b).
 
 A = [4 2 2; 2 5 1; 2 1 6];

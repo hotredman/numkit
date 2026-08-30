@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== makelut + bwlookup (neighbourhood lookup tables) ===\n');
 

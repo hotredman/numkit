@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % applylut — apply n×n LUT to a binary image.
 
 % --- 2x2 LUT (length 16) — Pratt bit-quad style ---

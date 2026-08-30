@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % zscore second/third outputs [Z, MU, SIGMA]. Bug fixed 2026-05-30: zscore
 % returned only Z; requesting MU/SIGMA errored. SIGMA is the N-1 sample std
 % by default (population std for flag==1). vs MATLAB R2025b.

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== Audio Cycle I — spectralCrest/Entropy/Flatness/Kurtosis/Skewness ===\n');
 

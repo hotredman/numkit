@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Minimal realization: cancel pole/zero pairs. bugs/control/minreal.
 % tf/zpk -> root cancellation; SISO ss -> ss2tf -> cancel -> tf2ss.

@@ -14,8 +14,7 @@ class DemodTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("fs = 200; t = (0:1/fs:0.1)'; x = sin(2*pi*5*t);");
+                engine.eval("fs = 200; t = (0:1/fs:0.1)'; x = sin(2*pi*5*t);");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

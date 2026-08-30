@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % flag — cyclic red/white/blue/black colormap.
 
 fprintf('--- size(flag()) ---\n');

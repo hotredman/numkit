@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Continuous Lyapunov on a stable scalar: A·X + X·A + Q = 0 ---
 % A = -2, Q = 4 → X = -Q/(2A) = -4/-4 = 1.
 A = -2;

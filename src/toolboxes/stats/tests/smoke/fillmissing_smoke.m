@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fillmissing — 'nearest' and 'linear' methods (added cycle 74) plus
 % per-column matrix processing.

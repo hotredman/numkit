@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wcodemat — quantize/scale matrix into integer codes [1, NB].
 
 X = [-2 -1 0 1 2];

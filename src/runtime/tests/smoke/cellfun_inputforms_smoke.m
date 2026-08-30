@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % cellfun multi-cell + legacy string-name forms. Fixed 2026-06-05
 % (bugs/builtin/cellfun-inputforms.md). Reference: MATLAB R2025b.

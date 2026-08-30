@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== raylinv ===\n');
 fprintf('  median Rayl(b=1) : %.6f (expect 1.177410)\n', raylinv(0.5, 1));
 x = raylinv([0.05 0.5 0.95], 1);

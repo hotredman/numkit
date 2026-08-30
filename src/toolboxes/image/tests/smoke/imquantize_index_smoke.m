@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imquantize now returns the second output (the quantization INDEX) and
 % accepts the third 'values' argument. The index is the 1-based bin number

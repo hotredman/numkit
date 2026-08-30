@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % stdfilt + rangefilt — sliding-window local statistics.
 
 fprintf('--- stdfilt(ones(5)) (uniform → all zeros) ---\n');

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % randsample without replacement
 rng(42);
 fprintf('--- randsample(10, 5) (no replacement) ---\n');

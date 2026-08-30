@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % freqz sample-rate form freqz(b,a,n,fs) (DEEP-PROBE 2026-05-31). When a
 % sample rate fs is given, MATLAB returns the frequency vector in Hz over
 % [0, fs/2) (or [0, fs) with 'whole'), i.e. f = w*fs/(2*pi). The response H

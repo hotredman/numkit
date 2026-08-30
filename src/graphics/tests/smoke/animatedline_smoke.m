@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % animatedline — incremental line plot.
 

@@ -15,7 +15,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "I = checkerboard(8);"
             "PSF = fspecial('gaussian', 7, 10);"
             "B = imfilter(I, PSF, 'circular');");

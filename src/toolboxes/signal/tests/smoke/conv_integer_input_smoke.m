@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bugs/signal/conv-integer-input.md — conv accepts integer/logical input.
 % MATLAB R2025b promotes to double; the convolution result is ALWAYS double
 % (never the integer class, unlike kron/cross). Previously numkit threw

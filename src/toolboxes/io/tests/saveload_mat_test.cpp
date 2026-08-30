@@ -28,8 +28,7 @@ public:
 
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        auto td = std::filesystem::temp_directory_path();
+                auto td = std::filesystem::temp_directory_path();
         matPath = td / ("numkit_savemat_"
                         + std::to_string(std::hash<std::string>()(
                               ::testing::UnitTest::GetInstance()

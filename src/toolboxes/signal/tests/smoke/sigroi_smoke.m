@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal ROI utils ===\n');
 

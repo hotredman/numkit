@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % ksdensity now supports 'Function','icdf' (the inverse of the smoothed CDF).
 % When Function='icdf' the SECOND argument is a vector of PROBABILITIES in

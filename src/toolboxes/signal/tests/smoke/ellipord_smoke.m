@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/ellipord (Phase 4.6 — elliptic filter order) ===\n');
 

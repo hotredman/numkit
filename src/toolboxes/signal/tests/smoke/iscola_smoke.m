@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % signal/iscola — Constant OverLap-Add compliance check.
 % Reference: MATLAB R2025b.

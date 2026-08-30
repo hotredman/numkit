@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Gamma distribution smoke checks (MATLAB convention: a=shape, b=scale).
 
 % pdf(2; a=2, b=1) — Erlang-like

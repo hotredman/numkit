@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== image/graycomatrix + graycoprops — texture analysis ===\n');
 

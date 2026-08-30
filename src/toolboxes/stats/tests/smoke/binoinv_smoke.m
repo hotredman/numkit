@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== binoinv ===\n');
 fprintf('  median (10, 0.3) : %g (expect 3)\n', binoinv(0.5, 10, 0.3));
 x = binoinv([0.05 0.5 0.95], 10, 0.3);

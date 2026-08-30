@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % rceps — real cepstrum + minimum-phase reconstruction.
 % DEEP-PROBE 2026-06: non-power-of-two lengths used to return garbage

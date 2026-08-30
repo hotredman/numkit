@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== corrcov (correlation matrix from covariance) ===\n');
 

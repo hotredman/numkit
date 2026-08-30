@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % labeloverlay — overlay label / mask / colormap on a 2-D image.
 % MATLAB reference values were captured in tmp/lo_probe.m and lo_probe3.m.

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== arithenco / arithdeco (arithmetic codec round-trip) ===\n');
 

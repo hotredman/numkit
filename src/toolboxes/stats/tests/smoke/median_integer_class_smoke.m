@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % median preserves the integer class (round half-away-from-zero + saturate).
 % Integer class preservation added 2026-05-30 (DEEP-PROBE). vs MATLAB R2025b.
 

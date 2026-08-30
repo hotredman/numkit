@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Build a tiny 2x3 RGB image, write to PNG, read back ---
 A = uint8(zeros(2, 3, 3));
 % Pixel layout (row, col) → R G B:

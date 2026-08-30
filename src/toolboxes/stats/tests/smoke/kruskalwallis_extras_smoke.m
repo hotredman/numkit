@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 xg = [3 5 4 7 8 6 9 10 11]';
 g  = [1 1 1 2 2 2 3 3 3]';
 [p, tbl, st] = kruskalwallis(xg, g, 'off');

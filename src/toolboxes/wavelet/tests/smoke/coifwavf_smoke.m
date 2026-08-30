@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % coifwavf — Coiflet scaling filter (Lo_R / sqrt(2), sum = 1).
 
 fprintf('=== coifwavf("coif1") ===\n');

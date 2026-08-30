@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('unifpdf(0.5)        = %.6f  (expect 1.000000)\n', unifpdf(0.5));
 fprintf('unifpdf(2, 0, 5)    = %.6f  (expect 0.200000)\n', unifpdf(2, 0, 5));
 fprintf('unifpdf(-1)         = %.6f  (expect 0.000000)\n', unifpdf(-1));

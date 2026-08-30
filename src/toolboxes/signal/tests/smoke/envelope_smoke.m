@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % envelope: full MATLAB R2025b parity across all four documented modes.
 %
 %   [yu, yl] = envelope(x)                  — FFT |hilbert(x-mean)| + mean

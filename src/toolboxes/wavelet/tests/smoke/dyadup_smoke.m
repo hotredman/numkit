@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % dyadup — zero-insertion (dyadic upsampling).
 % default ODD = 1: [0 x(1) 0 x(2) 0 ... x(N) 0]   length 2N+1
 % ODD = 0:        [x(1) 0 x(2) 0 ... x(N)]        length 2N-1

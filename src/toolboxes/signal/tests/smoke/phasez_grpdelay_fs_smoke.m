@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % phasez / grpdelay sample-rate form fn(b,a,n,fs) (DEEP-PROBE 2026-05-31).
 % Like freqz, when a sample rate fs is given the returned frequency vector
 % is in Hz over [0, fs/2) = w*fs/(2*pi). The phase (phasez) and group delay

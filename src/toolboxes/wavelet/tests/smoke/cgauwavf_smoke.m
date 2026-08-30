@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % cgauwavf — complex Gaussian wavelet (trapezoidal L^2 normalisation).
 
 [psi, x] = cgauwavf(-5, 5, 11);

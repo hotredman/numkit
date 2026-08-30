@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Batch closure: every cdf_reg adapter now strips the trailing 'upper'
 % string flag (case-insensitive) and returns 1 - F(x).  Probed below
 % across the nine spec-touched distributions; expected lines hand-computed.

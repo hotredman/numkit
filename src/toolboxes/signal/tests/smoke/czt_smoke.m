@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/czt — Chirp Z-transform (Bluestein) ===\n');
 

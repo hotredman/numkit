@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % label2rgb — colorize a labelled image with an explicit colormap.
 
 % --- basic: 3 labels + zero background ---

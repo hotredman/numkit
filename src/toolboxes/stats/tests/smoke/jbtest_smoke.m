@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % jbtest — Jarque-Bera normality test. Closes
 %

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Single peak: only that pixel is a regional max ---
 I = uint8([
     10 10 10 10 10;

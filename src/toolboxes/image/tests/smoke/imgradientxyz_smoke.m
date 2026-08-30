@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imgradientxyz / imgradient3 — 3-D directional gradients.
 % Reference values from MATLAB R2025b on a 3x4x5 ramp.

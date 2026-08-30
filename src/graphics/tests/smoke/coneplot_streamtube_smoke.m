@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % coneplot / streamtube — 3-D vector-field visualisations.
 

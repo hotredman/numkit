@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== Audio spectral shape descriptors (cycle B) ===\n');
 fprintf('NOTE: input form (X, F) — direct power-spectrum mode\n');

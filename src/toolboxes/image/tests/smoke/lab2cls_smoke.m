@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % lab2double / lab2single / lab2uint8 / lab2uint16 — class converters.
 
 % Octave-source reference: uint8 cm rotates through L=[0..255], a=b=cm.

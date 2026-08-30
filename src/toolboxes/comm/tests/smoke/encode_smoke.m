@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % encode — linear block encoder (Error Correction Codes, GF(2)).
 

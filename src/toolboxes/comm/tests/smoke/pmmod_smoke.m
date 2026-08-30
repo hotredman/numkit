@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== pmmod (phase modulator) ===\n');
 

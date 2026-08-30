@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % generic distribution dispatchers cdf/pdf/icdf/random -- bugs/stats/distribution-dispatchers.
 % Map a distribution NAME (case-insensitive + aliases) to the per-family builtin

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % corrcoef 3rd/4th outputs [R,P,RL,RU] — DEEP-PROBE 2026-05-31.
 % RL/RU are the lower/upper confidence bounds for each correlation
 % coefficient (95% by default, or via the 'Alpha' name-value). These

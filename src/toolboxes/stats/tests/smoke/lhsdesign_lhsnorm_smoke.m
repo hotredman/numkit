@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 rng(0);
 X = lhsdesign(5, 3);

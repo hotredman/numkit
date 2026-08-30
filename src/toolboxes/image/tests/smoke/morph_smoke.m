@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Build a 3x3 square SE. strel(...) returns a structuring-element struct;
 % its mask is the .Neighborhood field (double(SE) is not defined on a struct).
 SE = strel('square', 3);

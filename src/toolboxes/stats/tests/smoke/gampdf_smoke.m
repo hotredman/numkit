@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== gampdf ===\n');
 fprintf('  Gam(2,1) at 2 : %.6f (expect 0.270671)\n', gampdf(2, 2, 1));
 y = gampdf([0 1 2 5], 2, 1);

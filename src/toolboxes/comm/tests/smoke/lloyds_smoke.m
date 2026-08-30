@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== lloyds (Lloyd-Max scalar quantizer designer) ===\n');
 

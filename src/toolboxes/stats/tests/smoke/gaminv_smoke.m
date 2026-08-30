@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== gaminv ===\n');
 fprintf('  median Gam(2,1)  : %.4f (expect 1.6783)\n', gaminv(0.5, 2, 1));
 x = gaminv([0.05 0.5 0.95], 2, 1);

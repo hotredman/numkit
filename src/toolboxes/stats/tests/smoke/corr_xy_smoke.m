@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % corr two-arg form (closes ⚠️ gap from cycle 84).
 % Reference: MATLAB R2025b.

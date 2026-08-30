@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 rng(0);
 x = evrnd(1.0, 2.0, 3000, 1);

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fminsearch (Nelder-Mead) now enforces BOTH the function-value spread
 % (TolFun) AND the simplex size (TolX) — so it reaches the true minimum

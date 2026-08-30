@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== apskmod / apskdemod (multi-ring constellation) ===\n');
 

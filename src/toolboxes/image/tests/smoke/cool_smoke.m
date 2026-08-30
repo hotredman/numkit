@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % cool — cyan-to-magenta colormap.
 
 fprintf('--- size(cool()) ---\n');

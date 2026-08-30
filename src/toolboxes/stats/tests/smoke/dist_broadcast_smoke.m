@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % bugs/stats/distribution-array-params.md — *pdf/*cdf/*inv broadcast ARRAY
 % distribution parameters (not just the data x). Reference: MATLAB R2025b.

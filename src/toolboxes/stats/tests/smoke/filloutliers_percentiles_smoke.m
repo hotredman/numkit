@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % filloutliers(A, fillmethod, 'percentiles', [lo hi]) — DEEP-PROBE
 % 2026-05-31. The 'percentiles' detection method was unsupported
 % (filloutliers threw "findmethod must be 'median', 'mean', or

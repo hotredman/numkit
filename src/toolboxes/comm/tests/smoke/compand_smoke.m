@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== compand (mu-law / A-law compander) ===\n');
 

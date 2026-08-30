@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('mvtcdf(0.5, 1, 5)                          = %.10f  (MATLAB: 0.6808505642)\n', mvtcdf(0.5, 1, 5));
 fprintf('mvtcdf([0.5 0.3], [1 0.5; 0.5 1], 5)       = %.10f  (MATLAB: 0.4909888137)\n', mvtcdf([0.5 0.3], [1 0.5; 0.5 1], 5));

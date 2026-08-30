@@ -20,7 +20,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "[f1, f2] = freqspace(5, 'meshgrid');"
             "Hd = ones(5);"
             "Hd(abs(f1) > 0.5 | abs(f2) > 0.5) = 0;"

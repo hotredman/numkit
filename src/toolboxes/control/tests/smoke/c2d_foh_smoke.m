@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % c2d 'foh' — first-order (triangle) hold, vs MATLAB R2025b.
 sys = tf(1, [1 2 1]);

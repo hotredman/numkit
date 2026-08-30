@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== interpft ===\n');
 
 % Vector: 8-pt to 16-pt

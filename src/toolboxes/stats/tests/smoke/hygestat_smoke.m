@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== hygestat ===\n');
 [m, v] = hygestat(50, 20, 10);
 fprintf('  Hyge(50,20,10): m=%g v=%.4f (expect 4 / 1.9592)\n', m, v);

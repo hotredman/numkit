@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % isoutlier(A, method [,'ThresholdFactor',tf]) — DEEP-PROBE 2026-05-31.
 % Bug: the method arg was parsed but IGNORED, so isoutlier(x,'mean')
 % wrongly used the default median/MAD rule. Now each documented method

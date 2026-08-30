@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bwselect — keep CC that contain seed pixels.
 
 fprintf('--- 5x5 with two components ---\n');

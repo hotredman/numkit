@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== gpstat ===\n');
 [m, v] = gpstat(0.3, 1, 0);
 fprintf('  GP(0.3,1,0): m=%.4f v=%.4f\n', m, v);

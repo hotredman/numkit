@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % multissim3 — volumetric multi-scale SSIM (Wang/Simoncelli/Bovik 2003).
 

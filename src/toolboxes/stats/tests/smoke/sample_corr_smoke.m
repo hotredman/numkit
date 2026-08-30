@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Econometrics sample-correlation trio piece: autocorr (ACF) + crosscorr (CCF).
 % bugs/stats/autocorr. Biased estimator c(k)=(1/N) sum (y-ybar)(y_{+k}-ybar),

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % cheby1(4, 0.5, 0.4) — digital lowpass, normalised cutoff 0.4 (× Nyquist).
 % MATLAB R2025b reference:
 %   b = [0.0186  0.0744  0.1115  0.0744  0.0186]

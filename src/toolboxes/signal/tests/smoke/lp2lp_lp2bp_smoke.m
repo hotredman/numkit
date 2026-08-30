@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % lp2lp / lp2bp numerator length + tf2zp gain (DEEP-PROBE 2026-05-31).
 % MATLAB's lp2* TF form returns the numerator at its TRUE degree
 % (#zeros + 1), not zero-padded to the denominator length. The root cause

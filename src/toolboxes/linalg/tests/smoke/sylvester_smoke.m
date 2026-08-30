@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== sylvester (symmetric A and B) ===\n');
 A = [4 1; 1 3];

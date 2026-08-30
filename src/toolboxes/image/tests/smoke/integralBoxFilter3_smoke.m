@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== integralBoxFilter3 (3-D box filter on summed-volume table) ===\n');
 

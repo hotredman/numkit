@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % chromadapt — Bradford / von Kries / Simple chromatic adaptation.
 A = uint8(reshape(linspace(20, 240, 48), [4 4 3]));

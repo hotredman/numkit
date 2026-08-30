@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Step image — vertical edge in the middle column
 A = [0 0 0 9 9 9;
      0 0 0 9 9 9;

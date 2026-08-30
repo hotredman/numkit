@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % normalize's 'scale','iqr' and 'medianiqr' methods compute the interquartile
 % range. They previously used the R-type-7 (n-1)*p linear-interpolation

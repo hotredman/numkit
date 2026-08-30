@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 x = [2 5 3 7 4 6 8 1 9 5]';
 
 fprintf('=== unifit ===\n');

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % mldivide / mrdivide — matrix left/right division.
 %   A\B  ↔ solve A·X = B
 %   A/B  ↔ solve X·B = A   (equivalent to (B'\A')')

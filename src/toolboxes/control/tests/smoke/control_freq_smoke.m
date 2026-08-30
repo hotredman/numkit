@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- evalfr on G(s) = 1/(s+1) at s = j ---
 G = tf(1, [1 1]);
 H = evalfr(G, 1);     % H(j1) = 1/(1+j) = 0.5 - 0.5j, |H| = 1/sqrt(2)

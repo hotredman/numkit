@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % dbwavf — Daubechies scaling filter (Lo_R / sqrt(2), sum = 1).
 
 fprintf('=== dbwavf("db1") ===\n');

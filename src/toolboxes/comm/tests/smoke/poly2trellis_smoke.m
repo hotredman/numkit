@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % poly2trellis — convolutional-code trellis from octal generator polynomials.
 % Error Correction Codes section of the Communications Toolbox.

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Round-trip: scramble + descramble recovers the input bit sequence ---
 % Use V.34-like polynomial 1 + z^-18 + z^-23 (small example: simpler 5-bit poly)
 % Polynomial 1 + z^-2 + z^-5 → poly = [1 0 1 0 0 1]

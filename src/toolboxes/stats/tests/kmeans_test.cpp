@@ -12,8 +12,7 @@ class KmeansTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("X = [0 0; 0.1 0; 0 0.1; 0.1 0.1; "
+                engine.eval("X = [0 0; 0.1 0; 0 0.1; 0.1 0.1; "
                     "5 5; 5.1 5; 5 5.1; 5.1 5.1; "
                     "10 0; 10.1 0; 10 0.1; 10.1 0.1];");
     }

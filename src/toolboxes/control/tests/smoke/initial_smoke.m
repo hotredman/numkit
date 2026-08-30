@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Initial-condition response: zero-input simulation from x0, y = C*x.
 % bugs/control/initial. Same integrator as step/impulse with u==0, x(0)=x0.

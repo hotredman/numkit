@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bugs/signal/deconv-integer-input.md — deconv accepts integer/logical input.
 % MATLAB R2025b promotes to double; the quotient AND remainder are ALWAYS
 % double (never the integer class, like conv). Previously numkit threw

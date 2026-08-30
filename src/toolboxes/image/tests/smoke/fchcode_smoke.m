@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % fchcode — Freeman 8-direction chain code for a closed boundary.
 
 % Square traced clockwise from (1,1)→(1,3)→(3,3)→(3,1)→(1,1).

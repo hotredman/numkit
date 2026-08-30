@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imgaborfilt — single-filter Gabor magnitude + phase.
 

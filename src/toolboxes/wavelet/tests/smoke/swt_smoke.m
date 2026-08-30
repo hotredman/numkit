@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Shape and dimensions ---
 rng(42);
 x = randn(1, 64);

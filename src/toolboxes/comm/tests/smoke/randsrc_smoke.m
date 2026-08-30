@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== randsrc (random matrix from finite alphabet) ===\n');
 

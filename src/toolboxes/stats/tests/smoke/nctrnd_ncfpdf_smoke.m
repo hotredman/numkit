@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 rng(0);
 S = nctrnd(10, 2, 5000, 1);

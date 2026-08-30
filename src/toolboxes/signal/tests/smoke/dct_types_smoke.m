@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % dct / idct Type 1, 3, 4 (orthonormal). Type 2 is the default.
 fprintf('dct Type1: '); fprintf('%.6f ', dct([1 2 3 4], 4, 'Type', 1));
 fprintf(' (expect 4.927993 -2.140299 0.845510 -0.647395)\n');

@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 fprintf('--- (1) (X, MAP) form — magic(4) with duplicated gray(8) cmap ---\n');
 X = magic(4);

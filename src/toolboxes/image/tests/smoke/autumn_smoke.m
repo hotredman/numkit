@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % autumn — red-to-yellow colormap.
 
 fprintf('--- size(autumn()) ---\n');

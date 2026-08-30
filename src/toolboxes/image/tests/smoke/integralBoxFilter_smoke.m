@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % image/integralBoxFilter — O(1) box filter via integral image.
 % Reference: MATLAB R2025b.

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % step / impulse / lsim third output x = state trajectory (time x states).
 % Use an explicit ss() system so the realization (hence x) is fixed.

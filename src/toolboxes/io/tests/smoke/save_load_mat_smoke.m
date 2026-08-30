@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % save/load .mat round-trip — exercises every supported encoding path.
 % Writes to a tempdir-derived path, reads back, prints diffs.

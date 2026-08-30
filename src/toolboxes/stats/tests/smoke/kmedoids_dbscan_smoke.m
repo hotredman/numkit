@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 rng(123);
 n = 25;
 X = [randn(n, 2); randn(n, 2) + 8; randn(n, 2) + [0 8]];   % 3 clusters

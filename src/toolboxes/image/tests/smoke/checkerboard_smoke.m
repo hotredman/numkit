@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % checkerboard — synthetic checkerboard image generator.
 
 % --- side=1, default 4x4 tiles → 8x8 image ---

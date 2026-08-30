@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imguidedfilter — edge-preserving Guided Image Filter (He et al. 2013).
 % Bit-equal MATLAB R2025b at 1e-10 tolerance.

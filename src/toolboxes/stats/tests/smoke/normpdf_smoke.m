@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== normpdf ===\n');
 fprintf('  N(0,1) at 0  = %.6f (expect 0.398942 = 1/sqrt(2*pi))\n', normpdf(0));
 fprintf('  N(0,1) at 1  = %.6f (expect 0.241971)\n', normpdf(1));

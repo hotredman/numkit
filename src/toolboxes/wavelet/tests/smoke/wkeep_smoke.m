@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wkeep — central / left / right / numeric-FIRST window extractor.
 
 x = 1:10;

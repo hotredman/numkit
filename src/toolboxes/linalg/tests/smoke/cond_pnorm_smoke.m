@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== cond(A, p) — all p ===\n');
 

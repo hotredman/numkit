@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % svd 'econ', qr 'econ', lu 'vector'.
 A = [1 2; 3 4; 5 6];   % 3x2 tall

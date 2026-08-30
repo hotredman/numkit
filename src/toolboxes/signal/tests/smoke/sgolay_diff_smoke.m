@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % [B,G] = sgolay(order, framelen) — the SECOND output G (DEEP-PROBE
 % 2026-05-31). G is the framelen x (order+1) differentiation-filter matrix
 % G = V*(V'V)^-1. Previously numkit returned only B, so [b,g]=sgolay(...)

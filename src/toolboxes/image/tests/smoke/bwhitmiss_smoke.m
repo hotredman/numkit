@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bwhitmiss — binary hit-or-miss morphological transform.
 
 % --- Octave-source reference ---

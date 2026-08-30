@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % colorangle — angle in degrees between two RGB colours.
 
 fprintf('--- Octave-source reference vectors ---\n');

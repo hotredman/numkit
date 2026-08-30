@@ -12,8 +12,7 @@ class ClassifyTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("training = [1 1; 1 2; 2 1; 2 2; "
+                engine.eval("training = [1 1; 1 2; 2 1; 2 2; "
                     "5 5; 5 6; 6 5; 6 6; "
                     "9 0; 10 0; 10 1; 9 1];");
         engine.eval("group = [1 1 1 1 2 2 2 2 3 3 3 3]';");

@@ -14,8 +14,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        // 3x3x3 solid cube with the centre voxel removed (26 voxels set).
+                // 3x3x3 solid cube with the centre voxel removed (26 voxels set).
         engine.eval("V = false(5,5,5); V(2:4,2:4,2:4) = true; V(3,3,3) = false;");
         // A straight line of 5 voxels along the page (z) axis.
         engine.eval("L = false(5,5,7); L(3,3,2:6) = true;");

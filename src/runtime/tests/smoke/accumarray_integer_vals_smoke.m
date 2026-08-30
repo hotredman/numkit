@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bugs/builtin/accumarray-integer-vals.md — accumarray accepts integer/logical
 % vals. MATLAB R2025b output class follows the reducer: sum/prod/mean -> double,
 % but max/min PRESERVE the integer class. Previously numkit threw

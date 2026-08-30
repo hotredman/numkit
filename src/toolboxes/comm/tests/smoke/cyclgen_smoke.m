@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % cyclgen — parity-check / generator matrices for a cyclic code.
 % Error Correction Codes / block linear codes, GF(2).

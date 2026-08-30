@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % corr 'Type' Spearman/Kendall (was silently ignored -> always Pearson).
 x = [1;2;3;4]; y = [1;4;9;16];   % monotonic but nonlinear
 fprintf('Pearson  = %.6f (expect 0.984374)\n', corr(x, y));

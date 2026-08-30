@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imflatfield — flat-field correction by Gaussian-blur normalization.
 
 % --- 2-D: synthetic shading on uniform image ---

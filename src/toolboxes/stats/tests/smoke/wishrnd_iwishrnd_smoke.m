@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 Sigma = [2 0.3; 0.3 1];
 df = 8;

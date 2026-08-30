@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % lines — MATLAB's default colororder cycle.
 
 fprintf('--- size(lines()) ---\n');

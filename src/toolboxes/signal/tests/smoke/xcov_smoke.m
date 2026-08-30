@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % xcov — cross-covariance with scaleopt + maxlag (MATLAB R2025b parity).
 x = [1 3 -2 4 0];
 y = [2 -1 0 3 1];

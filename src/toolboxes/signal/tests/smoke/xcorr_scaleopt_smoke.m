@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % xcorr scaleopt (was accepted-and-ignored -> raw correlation) + maxlag.
 function pr(tag, v)
   fprintf('%s = [', tag);

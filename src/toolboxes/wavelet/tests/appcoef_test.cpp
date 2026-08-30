@@ -12,8 +12,7 @@ class AppcoefTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("x = (1:16)';");
+                engine.eval("x = (1:16)';");
         engine.eval("[c, l] = wavedec(x, 3, 'db2');");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

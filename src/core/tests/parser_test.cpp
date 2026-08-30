@@ -2501,7 +2501,7 @@ TEST_F(ParserImportTest, CompatWildcard)
 
 TEST_F(ParserImportTest, FollowedByOtherStatement)
 {
-    auto ast = parseSource("import compat.*; x = 42;");
+    auto ast = parseSource("x = 42;");
     ASSERT_EQ(ast->children.size(), 2u);
     EXPECT_EQ(stmt(*ast, 0).type, NodeType::COMMAND_CALL);
     EXPECT_EQ(stmt(*ast, 0).strValue, "import");

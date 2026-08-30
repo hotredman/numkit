@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/fftn / ifftn — N-D Fast Fourier Transform ===\n');
 

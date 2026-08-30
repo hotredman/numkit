@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % cornermetric — Harris & Shi-Tomasi corner detector.
 % Reference values from MATLAB R2025b at 1e-7 tolerance.

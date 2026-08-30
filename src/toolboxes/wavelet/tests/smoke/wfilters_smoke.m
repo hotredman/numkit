@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % wfilters — wavelet filter quadruple. Closes
 %

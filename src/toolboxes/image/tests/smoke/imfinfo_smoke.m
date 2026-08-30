@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Build a known PNG, then probe via imfinfo ---
 A = uint8(zeros(7, 11, 3));
 imwrite(A, 'tests/fixtures/_finfo_rgb.png');

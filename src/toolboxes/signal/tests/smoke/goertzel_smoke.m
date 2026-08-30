@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % goertzel — single-bin DFT via 2nd-order IIR.
 %
 % spec closure 2026-05-09:

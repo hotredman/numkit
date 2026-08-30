@@ -13,8 +13,7 @@ class KsdensityTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("x = [1 2 2.5 3 3.5 4 5 6 7 9]';");
+                engine.eval("x = [1 2 2.5 3 3.5 4 5 6 7 9]';");
         engine.eval("pts = (0:0.5:10)';");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

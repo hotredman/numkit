@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imbinarize now accepts the method-string forms imbinarize(I,'global') and
 % imbinarize(I,'adaptive', ...). 'global' is the default Otsu threshold;

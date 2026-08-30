@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== audio frequency-scale + loudness conversions ===\n');
 

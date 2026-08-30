@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % locallapfilt — fast local Laplacian filtering (Aubry/Paris 2014).
 % Reference values from MATLAB R2025b probe at tmp/llf_probe.m.

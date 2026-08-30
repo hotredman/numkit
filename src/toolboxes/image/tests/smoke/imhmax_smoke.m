@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Two peaks of different heights: shallow one suppressed by h ---
 %       40           — peak A (height 30 above plateau 10)
 %        |

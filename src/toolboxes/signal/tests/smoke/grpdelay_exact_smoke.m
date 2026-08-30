@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % grpdelay exact group delay (DEEP-PROBE 2026-05-31). numkit computed the
 % group delay by finite-differencing the unwrapped phase, which is wildly
 % inaccurate at small npts (and can't represent negative group delay). It

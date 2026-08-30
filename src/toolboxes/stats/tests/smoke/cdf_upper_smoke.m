@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % MATLAB R2025b 'upper' flag — survival functions for the CDF family.
 %.dist.
 

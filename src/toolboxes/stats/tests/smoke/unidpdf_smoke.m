@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== unidpdf ===\n');
 fprintf('  unidpdf(3, 6)   : %.6f (expect 0.166667 = 1/6)\n', unidpdf(3, 6));
 y = unidpdf([1 2 3 4 5 6 7], 6);

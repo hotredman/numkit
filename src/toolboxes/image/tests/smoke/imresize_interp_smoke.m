@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imresize bilinear/bicubic interpolation -- bugs/image/imresize-interp.
 % MATLAB convention: pixel-centre coordinate map + mirror boundary + antialiasing

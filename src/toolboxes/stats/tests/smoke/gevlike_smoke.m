@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 x = [1 2 3 4 5]';
 
 fprintf('=== gevlike ===\n');

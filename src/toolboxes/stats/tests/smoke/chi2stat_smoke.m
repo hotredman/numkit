@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== chi2stat ===\n');
 
 [m, v] = chi2stat(5);

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % conv of COMPLEX sequences — genuine complex multiply-accumulate (BILINEAR).
 % Fixed 2026-06-05: previously "Not a double array".

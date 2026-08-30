@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % vartestn — k-sample variance equality test (5 variants).
 %

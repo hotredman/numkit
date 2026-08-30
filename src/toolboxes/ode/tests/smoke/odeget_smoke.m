@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % odeget — retrieve a named option from a struct.
 

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== meyeraux ===\n');
 % On-support (MATLAB polynomial)
 fprintf('  vector: '); fprintf('%.4f ', meyeraux([0 0.25 0.5 0.75 1])); fprintf('\n');

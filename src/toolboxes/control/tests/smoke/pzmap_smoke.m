@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- pzmap on G(s) = (s+2)/((s+1)(s+3)) ---
 G = zpk([-2], [-1; -3], 1);
 [p, z] = pzmap(G);

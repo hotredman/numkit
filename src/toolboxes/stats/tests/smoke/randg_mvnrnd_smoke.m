@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== randg — raw gamma(shape, 1) RNG ===\n');
 rng(0);
@@ -16,7 +15,6 @@ fprintf('   sample var  = %.4f  (theoretical: 3.0)\n', var(R));
 % Per-element shape.
 fprintf('\nrandg([1; 2; 5; 10]) (per-element shape):\n');
 disp(randg([1; 2; 5; 10]));
-
 
 fprintf('\n=== mvnrnd — multivariate normal RNG ===\n');
 

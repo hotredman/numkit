@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== enbw ===\n');
 fprintf('  hamming(8)             : %.4f (expect 1.4971)\n', enbw(hamming(8)));
 fprintf('  hann(64)               : %.4f (expect 1.5238)\n', enbw(hann(64)));

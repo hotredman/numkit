@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % randsample population-vector + weighted forms (row-vector weighted used
 % to error "weights length must equal sample-axis size"). Weights with all
 % mass on one element make the output deterministic regardless of RNG.

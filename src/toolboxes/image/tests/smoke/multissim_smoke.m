@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % multissim — multi-scale SSIM (Wang/Simoncelli/Bovik 2003).
 % Reference values from MATLAB R2025b on deterministic gradient.

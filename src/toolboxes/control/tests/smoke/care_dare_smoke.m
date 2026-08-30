@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Algebraic Riccati solvers via the matrix sign-function method.
 % bugs/control/care-dare. Outputs match MATLAB's [X, L, G]:

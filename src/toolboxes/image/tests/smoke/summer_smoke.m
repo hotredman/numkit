@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % summer — green-to-yellow colormap.
 
 fprintf('--- size(summer()) ---\n');

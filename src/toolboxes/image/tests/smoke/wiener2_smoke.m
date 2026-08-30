@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wiener2 — adaptive Wiener noise reduction.
 
 fprintf('--- wiener2(ones(5)) — Octave reference vector ---\n');

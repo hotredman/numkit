@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/fir2 — frequency-sampling FIR filter design ===\n');
 fprintf('Clean-room: Oppenheim & Schafer; Rabiner & Gold; Parks & Burrus.\n');

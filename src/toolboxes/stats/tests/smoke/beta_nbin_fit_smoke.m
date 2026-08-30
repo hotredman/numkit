@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 rng(0);
 
 fprintf('=== betafit ===\n');

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % wenergy: percent of energy in the approximation (Ea) + each detail (Ed).
 % bugs/wavelet/wenergy. Ed is finest-first (level 1 ... level N).

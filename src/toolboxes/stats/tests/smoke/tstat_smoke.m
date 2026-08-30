@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== tstat ===\n');
 [m, v] = tstat(5);
 fprintf('  nu=5  : m=%g v=%g (expect 0, 1.6667)\n', m, v);

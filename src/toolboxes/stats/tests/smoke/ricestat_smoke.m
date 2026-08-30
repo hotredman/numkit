@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== ricestat ===\n');
 [m, v] = ricestat(2, 1);
 fprintf('  Rice(2,1) : m=%.4f v=%.4f\n', m, v);

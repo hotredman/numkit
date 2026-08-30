@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Three disjoint blobs
 A = [1 1 0 0 1 1;
      1 1 0 0 1 1;

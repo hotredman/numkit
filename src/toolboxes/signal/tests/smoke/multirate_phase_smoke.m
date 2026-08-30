@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % downsample/upsample phase argument (was silently ignored).
 function pr(tag, v)
   fprintf('%s = [', tag);

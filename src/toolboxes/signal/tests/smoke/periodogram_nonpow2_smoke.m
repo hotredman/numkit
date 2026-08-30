@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % periodogram with a non-power-of-two nfft -- bugs/signal/periodogram-nonpow2-nfft.
 % Previously fftRadix2 (power-of-two only) produced a garbage spectrum for a

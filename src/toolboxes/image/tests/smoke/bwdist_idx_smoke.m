@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % bwdist now returns the 2nd output IDX (the "feature transform"): for each
 % pixel, the column-major 1-based LINEAR INDEX of the nearest foreground

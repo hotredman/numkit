@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/polyscale + polystab ===\n');
 fprintf('Clean-room: Oppenheim & Schafer; Markel & Gray; Hayes.\n');

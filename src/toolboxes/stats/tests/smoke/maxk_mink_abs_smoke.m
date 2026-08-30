@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % maxk / mink now support 'ComparisonMethod','abs', which ranks elements by
 % MAGNITUDE |x| (returning the ORIGINAL signed values, not their absolute

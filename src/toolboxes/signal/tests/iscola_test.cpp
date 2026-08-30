@@ -12,8 +12,7 @@ public:
     numkit::StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("w  = hann(64, 'periodic');");
+                engine.eval("w  = hann(64, 'periodic');");
         engine.eval("w2 = hamming(64, 'periodic');");
         engine.eval("wr = ones(1, 64);");
     }

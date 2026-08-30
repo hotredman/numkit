@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % 2-D multilevel wavelet decomposition: wavedec2 / detcoef2 / appcoef2 /
 % waverec2. Iterates the single-level dwt2 on the LL band; [C,S] is the

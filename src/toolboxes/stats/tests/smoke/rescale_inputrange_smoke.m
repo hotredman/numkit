@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % rescale 'InputMin'/'InputMax' Name-Value (was unsupported -> "Cannot
 % convert char to scalar"). Values clamp to the input range. vs MATLAB.
 function pr(tag, v)

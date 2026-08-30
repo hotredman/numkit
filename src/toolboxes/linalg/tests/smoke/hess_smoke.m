@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 A = [4 1 2; 1 3 7; 2 8 5];
 [P, H] = hess(A);

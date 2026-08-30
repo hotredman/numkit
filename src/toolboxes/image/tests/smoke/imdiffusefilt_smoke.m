@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imdiffusefilt — Perona-Malik anisotropic diffusion (1990).
 

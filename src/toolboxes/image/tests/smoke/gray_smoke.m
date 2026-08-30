@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % gray — N×3 grayscale colormap (Octave compat).
 
 fprintf('--- size(gray()) ---\n');

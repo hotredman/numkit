@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % freqz 'whole': frequency grid spans [0, 2*pi) instead of [0, pi). vs MATLAB.
 [h, w] = freqz([1 1], 1, 4, 'whole');
 fprintf('whole w = [%g %g %g %g] (expect 0 1.5708 3.1416 4.7124)\n', w(1),w(2),w(3),w(4));

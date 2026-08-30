@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 rng(0);
 
 fprintf('=== robustfit — IRLS regression with outliers ===\n');
@@ -34,7 +34,6 @@ fprintf('   slope     = %.4f\n', b_h(2));
 xe = (1:10)'; ye = 2*xe + 1; ye(5) = 100;
 be = robustfit(xe, ye);
 fprintf('\nExact recovery (one outlier): b = [%.4f %.4f]  (expect 1, 2)\n', be(1), be(2));
-
 
 fprintf('\n=== robustcov — trimmed-MCD covariance ===\n');
 

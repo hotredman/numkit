@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % spring — magenta-to-yellow colormap.
 
 fprintf('--- size(spring()) ---\n');

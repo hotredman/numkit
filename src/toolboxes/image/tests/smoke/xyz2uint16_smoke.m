@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % xyz2uint16 — XYZ double → uint16 (ICC encoding).
 
 fprintf('--- double XYZ ---\n');

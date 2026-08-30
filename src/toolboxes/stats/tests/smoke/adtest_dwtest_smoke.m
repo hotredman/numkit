@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== adtest — Anderson-Darling normality test ===\n');
 
@@ -24,7 +23,6 @@ xu = rand(200, 1);
 [h3, p3, A2_3, ~] = adtest(xu);
 fprintf('\nUniform data (n=200):\n');
 fprintf('   h = %d,  p = %.4f,  A² = %.4f\n', h3, p3, A2_3);
-
 
 fprintf('\n=== dwtest — Durbin-Watson autocorrelation test ===\n');
 

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % ind2rgb — indexed image → RGB lookup.
 
 img = [2 4 5; 3 2 5; 1 2 4];

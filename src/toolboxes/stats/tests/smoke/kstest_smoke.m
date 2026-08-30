@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Standard normal sample → kstest should accept H0 (normal)
 rng(42);
 x = randn(200, 1);

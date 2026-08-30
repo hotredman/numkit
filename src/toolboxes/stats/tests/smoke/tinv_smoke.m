@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== tinv ===\n');
 fprintf('  tinv(0.975, 5)   : %.6f (expect 2.570582)\n', tinv(0.975, 5));
 v = tinv([0.05 0.5 0.975], 10);

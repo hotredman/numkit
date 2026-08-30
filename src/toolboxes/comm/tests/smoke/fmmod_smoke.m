@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== fmmod (frequency modulator) ===\n');
 

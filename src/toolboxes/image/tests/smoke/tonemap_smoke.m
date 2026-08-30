@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % tonemap — Ward HDR → LDR for display.
 

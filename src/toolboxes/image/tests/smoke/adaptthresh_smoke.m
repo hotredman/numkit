@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Constant image: T = constant intensity (the local mean is the image itself) ---
 I = uint8(100 * ones(20, 20));
 T = adaptthresh(I, 0.5);   % default neighborhood

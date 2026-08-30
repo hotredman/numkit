@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % combnk — enumerate combinations of a SET taken K at a time.
 % A scalar argument is the 1-element set {v}, NOT 1:v (MATLAB semantics).
 C = combnk(1:4, 2);

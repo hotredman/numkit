@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % Deterministic 10×10×3 RGB image: R = ramp by row+col, G = ramp by
 % col+row, B = 1 - R. All values exactly representable in binary.

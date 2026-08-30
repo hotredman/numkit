@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== roifilt2 (filter a region of interest) ===\n');
 

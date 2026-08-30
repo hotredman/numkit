@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imhistmatch(I, ref, nbins) == histeq(I, imhist(ref, nbins)), matching
 % MATLAB R2025b:

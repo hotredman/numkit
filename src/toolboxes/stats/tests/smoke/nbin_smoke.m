@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Negative binomial: failures before r-th success.
 % pmf(2; r=3, p=0.5) = C(4,2) * 0.5³ * 0.5² = 6 * 0.03125 = 0.1875
 fprintf('nbinpdf(2, 3, 0.5)  = %.6f  (expect 0.187500)\n', nbinpdf(2, 3, 0.5));

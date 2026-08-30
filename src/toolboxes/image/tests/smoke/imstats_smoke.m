@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % mean2 / std2 / corr2 — image statistics.
 
 A = [1 2 3; 4 5 6; 7 8 9];

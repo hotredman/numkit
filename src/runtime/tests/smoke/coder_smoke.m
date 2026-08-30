@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % coder / coder_run / system / runNative smoke — AOT codegen + process builtins.
 % Run: build/desktop-fast/apps/numkit/Release/numkit.exe \
 %      src/runtime/tests/smoke/coder_smoke.m

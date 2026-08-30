@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Same 3-blob layout as imclearborder smoke; imkeepborder should
 % return the COMPLEMENT result: rim-touching components survive,
 % interior components vanish.

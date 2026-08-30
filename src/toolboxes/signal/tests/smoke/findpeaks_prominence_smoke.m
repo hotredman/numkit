@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % findpeaks MinPeakProminence + width / prominence outputs.
 y = [1 3 2 5 1 6 1 4 2];   % peaks at idx 2,4,6,8 (heights 3,5,6,4)

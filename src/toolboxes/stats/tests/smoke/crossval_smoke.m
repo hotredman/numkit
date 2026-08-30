@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== crossval (k-fold cross-validation) ===\n');
 

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % mad / iqr NaN omission (2026-05-30): MATLAB mad and iqr treat NaN as
 % missing and remove it per column before computing. numkit previously
 % NaN-poisoned. range already omits; geomean/harmmean propagate (correct).

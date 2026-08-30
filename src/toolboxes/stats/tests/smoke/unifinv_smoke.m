@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== unifinv ===\n');
 fprintf('  median U(0,1)    : %g (expect 0.5)\n', unifinv(0.5));
 fprintf('  unif(1,5) at 0.25 : %g (expect 2)\n', unifinv(0.25, 1, 5));

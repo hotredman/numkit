@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Two peaks of different heights against a plateau:
 %   peak A height 30, peak B height 10.
 % imextendedmax(I, h) keeps regional maxima of imhmax(I, h),

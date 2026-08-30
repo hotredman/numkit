@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== Audio Cycle D — cepstral coefficients ===\n');
 

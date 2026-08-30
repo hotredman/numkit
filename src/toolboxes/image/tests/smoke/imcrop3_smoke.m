@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 V = reshape(1:60, 3, 4, 5);
 fprintf('--- (1) basic [1 1 1 2 1 2] crop ---\n');

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % quadprog(H, f, A, b, Aeq, beq, lb, ub) — minimise 0.5*x'Hx + f'x subject to
 % A*x<=b, Aeq*x=beq, lb<=x<=ub. Embedded-.m primal active-set for a strictly

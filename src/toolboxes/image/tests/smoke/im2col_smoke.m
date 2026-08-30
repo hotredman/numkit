@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Sliding mode on a small lattice ---
 % A is 4x4 column-major:
 %    1  5  9 13

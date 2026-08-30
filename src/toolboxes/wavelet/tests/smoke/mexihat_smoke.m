@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== mexihat ===\n');
 [psi, x] = mexihat(-5, 5, 8);
 fprintf('  mexihat(-5, 5, 8):\n');

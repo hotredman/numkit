@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % mskdemod(y, nSamp) — coherent (differential) MSK demodulator, the inverse
 % of mskmod. Each bit is the sign of the symbol's accumulated phase

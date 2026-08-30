@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % deconvreg — Tikhonov-regularized FFT-based deconvolution.
 % Reference values from MATLAB R2025b on the no-noise checkerboard.

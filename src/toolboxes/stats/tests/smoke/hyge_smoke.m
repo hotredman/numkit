@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Hypergeometric: M = pop, K = successes in pop, N = sample size
 % C(K, k) C(M-K, N-k) / C(M, N)
 % hygepdf(2, 50, 20, 5) — draw 5 from {20 successes, 30 failures}, get 2:

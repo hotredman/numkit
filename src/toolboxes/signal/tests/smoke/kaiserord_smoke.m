@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/kaiserord (Phase 4.5 — Kaiser FIR order estimator) ===\n');
 

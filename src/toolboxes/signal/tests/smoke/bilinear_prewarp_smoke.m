@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bilinear prewarp bilinear(b,a,fs,fp) (DEEP-PROBE 2026-05-31). With a
 % prewarp frequency fp, the bilinear scale is K = 2*pi*fp/tan(pi*fp/fs) so
 % the analog response at fp maps exactly onto the digital response at fp.

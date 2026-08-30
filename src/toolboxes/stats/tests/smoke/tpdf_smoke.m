@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== tpdf ===\n');
 fprintf('  tpdf(0, 5)       : %.6f (expect 0.379607)\n', tpdf(0, 5));
 fprintf('  tpdf(1, 5)       : %.6f (expect 0.219680)\n', tpdf(1, 5));

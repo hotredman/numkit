@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- invfreqs: round-trip a known analog filter ---
 % True system: H(s) = 1 / (s² + 0.6s + 1)
 % Sample its response on a grid, then refit:

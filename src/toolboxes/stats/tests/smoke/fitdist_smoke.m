@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== fitdist (probability-distribution struct) ===\n');
 

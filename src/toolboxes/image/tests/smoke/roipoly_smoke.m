@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % roipoly — programmatic polygon ROI mask.
 % Reference values from MATLAB R2025b.

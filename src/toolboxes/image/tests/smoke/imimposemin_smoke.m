@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Image with two basins on a plateau:
 %   plateau = 10, basin A at (2,2) value 3, basin B at (2,5) value 6.
 % Without imposition, regional minima are {(2,2), (2,5)}.

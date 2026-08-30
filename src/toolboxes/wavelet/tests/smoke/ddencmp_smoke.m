@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % ddencmp: default denoise/compress thresholds from a 1-level db1 DWT
 % noise estimate (sigma = median(|cD1|)/0.6745). bugs/wavelet/ddencmp.

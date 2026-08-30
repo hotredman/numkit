@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== cholcov (Cholesky-like factor of covariance) ===\n');
 

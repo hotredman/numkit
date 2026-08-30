@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- c2d ZOH on G(s) = 1/(s+2) at Ts=0.1 ---
 % Analytic: A_d = exp(-2*0.1) = exp(-0.2) ≈ 0.8187
 %           B_d = (1 - exp(-0.2))/2 ≈ 0.0906

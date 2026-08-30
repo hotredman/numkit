@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Test 1: equal dispersion, interleaved (asymptotic, no ties).
 a = [1 3 5 7 9 11 13 15 17 19]';

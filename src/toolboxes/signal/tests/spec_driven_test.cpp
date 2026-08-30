@@ -19,8 +19,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        // Build a test signal: sum of two tones (low 50 Hz + high 800 Hz),
+                // Build a test signal: sum of two tones (low 50 Hz + high 800 Hz),
         // sample rate 4000 Hz, 1024 samples. The exact constants are used
         // in every test so they live in SetUp.
         engine.eval("fs = 4000;");

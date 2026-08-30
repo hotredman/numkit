@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Round-trip: idct2(dct2(A)) == A
 rng(42);
 A = round(100 * rand(8, 8));

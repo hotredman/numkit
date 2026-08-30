@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== fplot3 — parametric 3-D curve from function handles ===\n');
 

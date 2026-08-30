@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % medfilt1 windowing + padding (2026-05-30): MATLAB's window for sample i
 % is [i-floor(k/2) .. i+ceil(k/2)-1] (even k leans LEFT) and the DEFAULT
 % zero-pads the ends; 'truncate' clips the window instead. numkit

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== reducepoly (Ramer-Douglas-Peucker) ===\n');
 

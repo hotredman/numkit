@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % linprog(f, A, b, Aeq, beq, lb, ub) — minimise f'x subject to A*x<=b,
 % Aeq*x=beq, lb<=x<=ub. Solved by proximal regularization over quadprog

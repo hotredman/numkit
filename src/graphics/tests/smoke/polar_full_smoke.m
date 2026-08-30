@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Polar plot parity smoke — exercises every polar function the
 % engine now exposes after the May 2026 polar parity sweep. Each
 % block calls a builtin; correctness is observed by inspecting the

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wblpdf(2, 3, 2): a=3 (scale), b=2 (shape)
 % f = (b/a) (x/a)^(b-1) exp(-(x/a)^b)
 %   = (2/3) (2/3)^1 exp(-(2/3)^2)

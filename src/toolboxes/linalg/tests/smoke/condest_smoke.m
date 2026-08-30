@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== condest ===\n');
 

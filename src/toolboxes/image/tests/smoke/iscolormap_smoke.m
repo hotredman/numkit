@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % iscolormap — validate N×3 float colormap.
 
 fprintf('--- valid 4x3 double ---\n');

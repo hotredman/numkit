@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imfuse — composite two images for visual comparison.
 % Bit-exact MATLAB R2025b parity across all 5 methods.

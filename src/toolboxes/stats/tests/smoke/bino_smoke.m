@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % binopdf: C(n,k) p^k (1-p)^(n-k)
 % binopdf(2, 5, 0.4) = C(5,2) * 0.16 * 0.216 = 10 * 0.034560 = 0.34560
 fprintf('binopdf(2, 5, 0.4)  = %.6f  (expect 0.345600)\n', binopdf(2, 5, 0.4));

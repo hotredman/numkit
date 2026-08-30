@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== ammod (amplitude modulator) ===\n');
 

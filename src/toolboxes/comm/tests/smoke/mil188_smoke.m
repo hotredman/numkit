@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== mil188qammod / mil188qamdemod (MIL-STD-188 16-QAM) ===\n');
 

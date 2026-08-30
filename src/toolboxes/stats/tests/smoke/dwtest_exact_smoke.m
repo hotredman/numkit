@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Exact Durbin-Watson p-value (Imhof). Fixed 2026-06-05
 % (bugs/stats/dwtest-pvalue.md). Reference: MATLAB R2025b.

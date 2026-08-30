@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % allmargin: all gain/phase/delay margins + closed-loop stability struct.
 % bugs/control/allmargin. Exact crossovers via G(jw) scan + bisection.

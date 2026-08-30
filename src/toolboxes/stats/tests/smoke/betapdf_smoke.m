@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== betapdf ===\n');
 fprintf('  scalar (0.5, 2, 3)     = %.4f (expect 1.5000)\n', betapdf(0.5, 2, 3));
 

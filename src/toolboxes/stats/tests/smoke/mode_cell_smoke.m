@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % mode 3rd output C (2026-05-30): [M,F,C] = mode(X). C is a cell array of
 % the modal values -- each cell holds a sorted column vector of all values
 % tied for the modal frequency in that slice. numkit previously returned

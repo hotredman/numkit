@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 A = [1 3 2 5 4 6 NaN 8 7 10]';
 
 fprintf('=== cummax ===\n');

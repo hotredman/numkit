@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== binostat ===\n');
 [m, v] = binostat(10, 0.3);
 fprintf('  Bin(10,0.3) : m=%g v=%g (expect 3 / 2.1)\n', m, v);

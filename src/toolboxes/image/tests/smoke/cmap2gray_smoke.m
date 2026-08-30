@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % cmap2gray — N×3 colormap → N×1 grayscale (Octave weights).
 
 fprintf('--- pure RGB primaries ---\n');

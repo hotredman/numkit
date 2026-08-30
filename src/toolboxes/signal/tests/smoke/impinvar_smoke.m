@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Single real pole: H(s) = 1 / (s + 1)
 % Sample at fs = 10. T = 0.1.
 %   α = exp(-T) = 0.9048

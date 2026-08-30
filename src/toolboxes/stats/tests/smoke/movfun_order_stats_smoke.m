@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bugs/stats/movfun-order-stats.md — movmax/movmin/movmedian on integer/logical.
 % MATLAB PRESERVES the class for these order statistics: movmax/movmin int->int
 % & logical->logical; movmedian int->int (round half away), logical->double.

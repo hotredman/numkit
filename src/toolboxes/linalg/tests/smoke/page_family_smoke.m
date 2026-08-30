@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== page family (pageinv, pageeig, pagesvd, pagepinv, pagenorm, pagemldivide, pagemrdivide, pagelsqminnorm) ===\n');
 

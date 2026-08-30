@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 xs = [-1 1 -1 1 -1 1 -1 1]';
 fprintf('=== runstest default (median-based) ===\n');
 [h, p, st] = runstest(xs);

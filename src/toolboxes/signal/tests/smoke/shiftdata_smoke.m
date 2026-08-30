@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/shiftdata + unshiftdata (Phase 4.4) ===\n');
 

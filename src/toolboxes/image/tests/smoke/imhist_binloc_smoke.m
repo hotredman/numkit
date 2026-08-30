@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % imhist 2nd output x (bin locations) spans the input CLASS display range
 % (was always [0,1]). Counts are unchanged. vs MATLAB R2025b.
 function pr(tag, v)

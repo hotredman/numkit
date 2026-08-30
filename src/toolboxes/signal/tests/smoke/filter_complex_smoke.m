@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % filter of COMPLEX signals/taps — genuine complex IIR/FIR recurrence (BILINEAR).
 % Fixed 2026-06-05: previously "Not a double array". Closes the complex-input

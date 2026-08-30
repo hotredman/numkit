@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== gevstat ===\n');
 [m, v] = gevstat(0.3, 1, 0);
 fprintf('  GEV(0.3,1,0) : m=%.4f v=%.4f\n', m, v);

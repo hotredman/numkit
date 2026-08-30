@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fspecial('disk',r) builds the circular averaging filter. MATLAB R2025b
 % uses the EXACT sub-pixel area-coverage integral: each cell's weight is

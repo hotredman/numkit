@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % medfilt3 — 3-D median filter, default 3x3x3, symmetric pad.
 
 fprintf('--- ones(3,3,3) → all 1 ---\n');

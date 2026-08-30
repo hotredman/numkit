@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 ps = [0.025 0.5 0.975];
 
 fprintf('=== norminv ===\n');

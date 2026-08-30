@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== nlinfit family — nonlinear LS + confidence intervals ===\n');
 rng(0);
@@ -31,7 +30,6 @@ fprintf('\nPredictions ± 95%% delta:\n');
 for i = 1:numel(xq)
     fprintf('  x = %.2f:  %.4f ± %.4f\n', xq(i), yp(i), delta(i));
 end
-
 
 fprintf('\n--- Linear model (sanity check) ---\n');
 x2 = linspace(0, 1, 100)';

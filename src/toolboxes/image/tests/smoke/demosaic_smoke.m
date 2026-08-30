@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % demosaic — Bayer → RGB via Malvar-He-Cutler 2004.
 % Reference engine: MATLAB R2025b Image Processing Toolbox.

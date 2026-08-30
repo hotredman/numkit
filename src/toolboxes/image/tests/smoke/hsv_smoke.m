@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % hsv — hue-rotation colormap.
 
 fprintf('--- size(hsv()) ---\n');

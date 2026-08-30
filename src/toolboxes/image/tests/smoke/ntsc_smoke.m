@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % rgb2ntsc / ntsc2rgb — RGB ↔ YIQ (NTSC) linear color space.
 
 fprintf('--- rgb2ntsc primaries ---\n');

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== biterr (Hamming distance metrics) ===\n');
 [n1, r1] = biterr([1 2 3], [1 2 3]);

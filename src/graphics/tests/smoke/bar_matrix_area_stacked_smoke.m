@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % bar(matrix) + area(matrix) — stacked / grouped multi-series.
 

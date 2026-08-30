@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Test image: pure red, pure green, pure blue, white, black, gray
 % as a 6×3 colormap (cleaner than 3D for testing)
 RGB = [1 0 0; 0 1 0; 0 0 1; 1 1 1; 0 0 0; 0.5 0.5 0.5];

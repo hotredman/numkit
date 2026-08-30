@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== unidinv ===\n');
 fprintf('  median (N=6)    : %g (expect 3)\n', unidinv(0.5, 6));
 fprintf('  tails (N=6)     : low=%g, hi=%g (expect 1, 6)\n', unidinv(0.1, 6), unidinv(0.99, 6));

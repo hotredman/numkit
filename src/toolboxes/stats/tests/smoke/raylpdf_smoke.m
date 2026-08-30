@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== raylpdf ===\n');
 fprintf('  Rayl(b=1) at 2 : %.6f (expect 0.270671)\n', raylpdf(2, 1));
 y = raylpdf([0 1 2 5], 1);

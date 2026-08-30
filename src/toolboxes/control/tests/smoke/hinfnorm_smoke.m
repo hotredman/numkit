@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % H-infinity norm via the Bruinsma-Steinbuch Hamiltonian bisection.
 % bugs/control/hinfnorm. ||G||inf = sup_w sigma_max(G(jw)); Inf if a pole

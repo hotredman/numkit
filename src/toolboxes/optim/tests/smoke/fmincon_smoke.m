@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fmincon(fun, x0, A, b, Aeq, beq, lb, ub) — constrained minimization via an
 % embedded-.m SQP that reuses quadprog as the QP subproblem (FD gradient,

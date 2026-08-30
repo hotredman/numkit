@@ -12,8 +12,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("xg = [3 5 4 7 8 6 9 10 11]'; g = [1 1 1 2 2 2 3 3 3]';");
+                engine.eval("xg = [3 5 4 7 8 6 9 10 11]'; g = [1 1 1 2 2 2 3 3 3]';");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

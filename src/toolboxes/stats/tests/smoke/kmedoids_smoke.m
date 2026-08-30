@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % kmedoids — k-medoids clustering. Closes
 %

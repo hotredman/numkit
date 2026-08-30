@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % The 4th output of the parametric hypothesis tests is now MATLAB's stats
 % struct (was a bare scalar test statistic):

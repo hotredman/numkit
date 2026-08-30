@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== kaiser ===\n');
 
 % beta=0 -> rectangular

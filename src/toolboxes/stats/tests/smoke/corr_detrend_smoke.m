@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== corr (Pearson alias) ===\n');
 X = [1 2; 2 4; 3 6; 4 8];   % perfectly correlated columns

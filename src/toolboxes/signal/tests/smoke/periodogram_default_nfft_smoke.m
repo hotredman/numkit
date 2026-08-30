@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % periodogram default NFFT is max(256, 2^nextpow2(N)) (MATLAB R2025b), so a
 % short signal is zero-padded to at least a 256-point FFT (129 one-sided

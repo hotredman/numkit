@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imreducehaze — dark-channel-prior dehazing (He/Sun/Tang 2011).
 % Reference values captured from MATLAB R2025b in tmp/reducehaze_probe.m.

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % prism — cyclic 6-row rainbow palette.
 
 fprintf('--- size(prism()) ---\n');

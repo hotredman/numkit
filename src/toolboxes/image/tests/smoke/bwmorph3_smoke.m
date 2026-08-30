@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== bwmorph3 (3-D binary morphology) ===\n');
 

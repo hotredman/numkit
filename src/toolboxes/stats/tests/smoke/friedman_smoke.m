@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Friedman nonparametric two-way ANOVA by ranks -- bugs/stats/friedman.
 % Rank the k treatments (columns) within each of the n blocks (rows); the

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % whitepoint — CIE reference illuminant XYZ tristimulus.
 
 fprintf('--- default (icc) ---\n');

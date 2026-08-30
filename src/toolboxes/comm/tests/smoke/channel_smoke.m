@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % awgn — measure SNR
 rng(42);
 s = randn(1000, 1);

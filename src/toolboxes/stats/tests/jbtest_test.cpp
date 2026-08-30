@@ -12,8 +12,7 @@ class JbtestTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        // Reference dataset from
+                // Reference dataset from
         engine.eval("xn = [-0.5 0.3 0.7 1.1 -0.2 0.1 -0.4 0.8 -0.1 0.5]';");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

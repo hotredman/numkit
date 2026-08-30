@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % rgb2lin — sRGB → linear RGB.
 
 fprintf('--- pure 0.5 (above d=0.04045 → gamma branch) ---\n');

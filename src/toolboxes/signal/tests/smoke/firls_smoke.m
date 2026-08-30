@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % --- Lowpass length 21 ---
 b1 = firls(20, [0 0.4 0.5 1], [1 1 0 0]);

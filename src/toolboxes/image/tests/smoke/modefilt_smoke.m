@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % image/modefilt — 2-D mode filter.
 % Reference: MATLAB R2025b (smallest-on-tie semantics matching base `mode`).

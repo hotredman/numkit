@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fibermetric — Frangi 1998 vesselness filter.
 % Reference values from MATLAB R2025b probe at tmp/fm_probe.m.

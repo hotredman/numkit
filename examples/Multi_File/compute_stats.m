@@ -7,7 +7,6 @@
 
 function s = compute_stats(x)
 
-
     s = struct();
     s.mean   = mean(x);
     s.median = median(x);

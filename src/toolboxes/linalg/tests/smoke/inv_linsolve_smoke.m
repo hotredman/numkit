@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== inv ===\n');
 A = [4 7; 2 6];

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % houghlines — line-segment extraction from Hough-transform peaks.
 % Bit-exact MATLAB R2025b.

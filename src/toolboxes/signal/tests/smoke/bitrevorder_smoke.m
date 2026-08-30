@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== bitrevorder ===\n');
 
 % 1-output form

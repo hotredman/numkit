@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imgradientxy / imgradient now use MATLAB's sobel/prewitt sign convention:
 %   Gx > 0 where intensity increases left->right

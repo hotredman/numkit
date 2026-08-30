@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % mle 2nd output pci (parameter confidence intervals). Fixed 2026-06-05
 % (bugs/stats/mle-output.md). Reference: MATLAB R2025b.

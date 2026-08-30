@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % winter — blue→cyan-ish colormap.
 
 fprintf('--- size(winter()) ---\n');

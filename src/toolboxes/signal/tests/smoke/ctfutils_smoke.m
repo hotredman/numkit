@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/ctf2zp + scaleFilterSections (Phase 4.11) ===\n');
 

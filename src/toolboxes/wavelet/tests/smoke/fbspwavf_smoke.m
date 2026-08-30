@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== fbspwavf ===\n');
 [psi, x] = fbspwavf(-5, 5, 8, 2, 1, 1);
 fprintf('  m=2 fb=1 fc=1, N=8 real psi: '); fprintf('%.4f ', real(psi)); fprintf('\n');

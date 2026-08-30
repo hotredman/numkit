@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== huffmanenco / huffmandeco (Huffman codec round-trip) ===\n');
 

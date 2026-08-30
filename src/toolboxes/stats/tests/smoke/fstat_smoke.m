@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== fstat ===\n');
 
 [m, v] = fstat(5, 10);

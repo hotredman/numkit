@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Smooths flat regions, preserves a strong step edge ---
 % 16-pixel vertical step: left half = 0.2, right half = 0.8.
 % Bilateral (with dos < step²) should keep the edge sharp while

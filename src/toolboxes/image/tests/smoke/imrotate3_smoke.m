@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imrotate3 — 3-D volumetric rotation smoke.
 % Reference engine: MATLAB R2025b Image Processing Toolbox.

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fsamp2 / ftrans2 / fwind1 / fwind2 — 2-D FIR filter design.
 

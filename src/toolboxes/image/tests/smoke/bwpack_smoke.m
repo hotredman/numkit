@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bwpack / bwunpack — pack 32 binary rows into uint32 columns.
 
 % --- bwpack(eye(5)) → uint32([1 2 4 8 16]) ---

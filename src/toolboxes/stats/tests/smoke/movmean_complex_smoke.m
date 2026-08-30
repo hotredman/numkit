@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % movmean of a COMPLEX array — moving-mean real + imaginary parts separately.
 % Fixed 2026-06-05: previously "Not a double array".

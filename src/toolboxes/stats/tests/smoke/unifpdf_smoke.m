@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== unifpdf ===\n');
 fprintf('  default (a=0,b=1) at 0.5 : %g (expect 1)\n', unifpdf(0.5));
 fprintf('  default at -0.1, 1.1     : %g %g (expect 0 0)\n', unifpdf(-0.1), unifpdf(1.1));

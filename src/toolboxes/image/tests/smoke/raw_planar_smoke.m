@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % raw2planar / planar2raw — Bayer CFA deinterleave smoke.
 % Reference: MATLAB R2025b Image Processing Toolbox.

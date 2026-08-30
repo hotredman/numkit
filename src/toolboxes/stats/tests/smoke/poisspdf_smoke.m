@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== poisspdf ===\n');
 fprintf('  Pois(2) at 3      : %.6f (expect 0.180447)\n', poisspdf(3, 2));
 y = poisspdf([0 1 3 10], 2);

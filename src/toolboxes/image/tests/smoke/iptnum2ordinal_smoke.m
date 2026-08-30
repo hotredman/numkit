@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % iptnum2ordinal — convert positive integer to ordinal-form string.
 
 fprintf('1   = %s (expect first)\n',     iptnum2ordinal(1));

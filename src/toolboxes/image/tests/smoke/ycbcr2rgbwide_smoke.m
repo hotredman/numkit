@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 fprintf('--- ycbcr2rgbwide BT.2020 10-bit ---\n');
 % YCbCr-encoded outputs from cycle 28 probes; should round-trip back to the

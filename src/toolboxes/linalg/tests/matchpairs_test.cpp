@@ -15,7 +15,7 @@ class MatchpairsTest : public ::testing::Test
 {
 public:
     StandardEngine engine;
-    void SetUp() override { engine.eval("import compat.*;"); }
+    void SetUp() override {}
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };

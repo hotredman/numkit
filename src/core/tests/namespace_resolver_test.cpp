@@ -91,7 +91,7 @@ TEST_P(NamespaceResolverTest, CompatNamespaceWorks)
     // Manually populate compat (mirroring what Phase 7 will do for
     // mirror libs).
     engine.registerFunction("compat", "answer", &answer_reg);
-    auto result = engine.eval("import compat.*; y = answer();");
+    auto result = engine.eval("y = answer();");
     Value *y = engine.getVariable("y");
     ASSERT_NE(y, nullptr);
     EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);

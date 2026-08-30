@@ -16,8 +16,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        // Common test inputs.
+                // Common test inputs.
         engine.eval("A  = [1 3 2 5 4 6 NaN 8 7 10]';");
         engine.eval("A2 = (1:9)';");
     }

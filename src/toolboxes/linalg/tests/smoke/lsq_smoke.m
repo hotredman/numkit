@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== lsqminnorm ===\n');
 

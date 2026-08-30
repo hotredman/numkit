@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % corrcoef second output P (two-sided p-values for rho == 0). Bug fixed
 % 2026-05-30: corrcoef returned only R. P(i,j)=2*tcdf(-|t|,n-2) with
 % t=r*sqrt((n-2)/(1-r^2)); diagonal=1. vs MATLAB R2025b.

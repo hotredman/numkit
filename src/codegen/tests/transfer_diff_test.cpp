@@ -30,8 +30,7 @@ public:
 
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        registerStandardTransfers(reg);
+                registerStandardTransfers(reg);
     }
 
     numkit::Value eval(const std::string &c) { return engine.eval(c); }

@@ -16,7 +16,7 @@ class AdaptHistEqTest : public ::testing::Test
 {
 public:
     numkit::StandardEngine engine;
-    void   SetUp() override { engine.eval("import compat.*;"); }
+    void   SetUp() override {  }
     double eval_scalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };
 

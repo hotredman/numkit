@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % PSK round-trip with M=4 (QPSK)
 M = 4;
 data = [0 1 2 3 0 2 1 3];

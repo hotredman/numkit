@@ -15,7 +15,7 @@ class AdDwTest : public ::testing::Test
 {
 public:
     StandardEngine engine;
-    void SetUp() override { engine.eval("import compat.*; rng(0);"); }
+    void SetUp() override { engine.eval("rng(0);"); }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };

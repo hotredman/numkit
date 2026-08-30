@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % wentropy: closed-form additive entropy ("cost") of a coefficient vector.
 % bugs/wavelet/wentropy.

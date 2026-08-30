@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % trimmean(X, percent[, flag][, dim]) — DEEP-PROBE 2026-05-31.
 % Two MATLAB-parity fixes:
 %  (a) the DEFAULT rounding of the per-end trim count was floor, but

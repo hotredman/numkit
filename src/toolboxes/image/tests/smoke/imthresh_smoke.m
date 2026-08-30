@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Bimodal image: half dark, half bright
 I = uint8([10 20 30 200 210 220; 15 25 35 205 215 225]);
 

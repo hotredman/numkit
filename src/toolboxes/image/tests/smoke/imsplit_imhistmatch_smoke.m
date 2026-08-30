@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- imsplit on a small RGB volume ---
 % Build I (3x4x3) where each plane has a distinct constant added to the
 % pixel index, so we can verify the planes are returned in order.

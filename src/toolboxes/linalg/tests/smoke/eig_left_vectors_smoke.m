@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Left eigenvectors W — [V,D,W] = eig(A). Fixed 2026-06-05
 % (bugs/linalg/eig-left-vectors.md). Reference: MATLAB R2025b.

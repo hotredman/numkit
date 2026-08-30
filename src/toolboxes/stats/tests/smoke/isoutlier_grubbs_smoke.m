@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % isoutlier now supports the 'grubbs' method: an ITERATIVE Grubbs's test. The
 % ThresholdFactor for 'grubbs' is the SIGNIFICANCE LEVEL alpha (default 0.05),

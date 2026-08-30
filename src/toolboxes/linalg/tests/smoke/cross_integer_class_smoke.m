@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bugs/linalg/cross-integer-class.md — cross preserves the integer class of
 % integer operands, with MATLAB R2025b's PER-OPERATION saturating integer
 % arithmetic (each product saturates before the subtraction). Previously

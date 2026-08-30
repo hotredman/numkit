@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Steiglitz-McBride IIR identification -- bugs/signal/stmcb.
 % Recover B(z)/A(z) (nb zeros, na poles) from an approximate impulse response h.

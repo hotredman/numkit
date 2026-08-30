@@ -21,7 +21,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "rng(0);"
             "A = uint8(255 * rand(32, 32, 3));"
             "A = uint8(min(255, double(A) + 80));");

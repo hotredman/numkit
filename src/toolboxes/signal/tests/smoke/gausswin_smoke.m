@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== gausswin ===\n');
 fprintf('  default α=2.5, N=8 : '); fprintf('%.4f ', gausswin(8)); fprintf('\n');
 fprintf('  expect: 0.0439 0.2030 0.5633 0.9382 0.9382 0.5633 0.2030 0.0439\n');

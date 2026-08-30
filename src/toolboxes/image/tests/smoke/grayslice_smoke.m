@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % grayslice — multilevel thresholding into an indexed image.
 
 % --- default n=10 on float ---

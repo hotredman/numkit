@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % multithresh — multi-level Otsu thresholds. DEEP-PROBE c181 REWRITE.
 % numkit previously binned floating-point data over [0,1] (via imhist) and

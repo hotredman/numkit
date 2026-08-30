@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imresize3 — 3-D volumetric resampling smoke.
 % Reference engine: MATLAB R2025b Image Processing Toolbox.

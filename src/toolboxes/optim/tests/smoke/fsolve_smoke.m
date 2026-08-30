@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fsolve(fun, x0) — solve a system of nonlinear equations F(x)=0 via an
 % embedded-.m Levenberg-Marquardt iteration (forward-difference Jacobian).

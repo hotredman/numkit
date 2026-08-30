@@ -15,8 +15,7 @@ class SpectralShapeTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("X = [4; 3; 2; 1]; F = [100; 200; 300; 400];");
+                engine.eval("X = [4; 3; 2; 1]; F = [100; 200; 300; 400];");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

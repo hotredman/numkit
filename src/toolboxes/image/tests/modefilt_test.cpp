@@ -11,8 +11,7 @@ public:
     numkit::StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("A = uint8([1 1 2 2; 1 3 2 4; 5 5 6 6; 5 7 6 8]);");
+                engine.eval("A = uint8([1 1 2 2; 1 3 2 4; 5 5 6 6; 5 7 6 8]);");
     }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
 };

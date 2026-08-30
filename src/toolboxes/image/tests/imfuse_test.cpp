@@ -14,7 +14,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "A = uint8([10 20 30; 40 50 60; 70 80 90]);"
             "B = uint8([90 80 70; 60 50 40; 30 20 10]);");
     }

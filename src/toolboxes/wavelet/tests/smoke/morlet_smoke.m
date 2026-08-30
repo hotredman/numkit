@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== morlet ===\n');
 [psi, x] = morlet(-5, 5, 8);
 fprintf('  morlet(-5, 5, 8):\n');

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Two simple square blobs, well separated ---
 BW = false(7, 12);
 % Square 1: rows 2-3, cols 2-4 (3x2 = 6 px), bbox = [1.5, 1.5, 3, 2]

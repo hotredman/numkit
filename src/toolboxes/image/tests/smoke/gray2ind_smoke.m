@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % gray2ind / ind2gray — grayscale ↔ indexed image.
 
 % --- Octave-source reference vectors ---

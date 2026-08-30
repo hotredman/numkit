@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== norm (vector forms) ===\n');
 v = [3 4];

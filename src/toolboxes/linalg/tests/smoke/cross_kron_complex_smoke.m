@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % cross / kron on COMPLEX inputs: ordinary complex arithmetic, NO conjugation
 % (unlike dot). numkit previously threw / rejected complex. MATLAB R2025b.
 

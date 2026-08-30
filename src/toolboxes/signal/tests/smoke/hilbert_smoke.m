@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % hilbert: analytic signal with MATLAB-matching sign convention.
 % real(h) = x, imag(h) = +H{x} (positive frequencies multiplied by +i).
 

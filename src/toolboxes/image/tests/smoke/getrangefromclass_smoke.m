@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % getrangefromclass — display range for image's class.
 
 fprintf('double         : %s (expect [0  1])\n',     mat2str(getrangefromclass(ones(5))));

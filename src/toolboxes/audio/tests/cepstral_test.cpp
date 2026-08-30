@@ -13,8 +13,7 @@ class CepstralTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("S = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05];");
+                engine.eval("S = [10; 5; 2; 1; 0.5; 0.25; 0.1; 0.05];");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

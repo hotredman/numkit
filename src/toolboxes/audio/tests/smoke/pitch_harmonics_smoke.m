@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== Audio Cycle E — pitch + harmonicRatio (FINAL audio cycle) ===\n');
 

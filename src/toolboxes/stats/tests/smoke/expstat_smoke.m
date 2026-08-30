@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== expstat ===\n');
 
 [m, v] = expstat(2);

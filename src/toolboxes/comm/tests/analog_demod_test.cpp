@@ -17,8 +17,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("fs=100; fc=10; t=(0:fs-1)'/fs; m=cos(2*pi*1*t);");
+                engine.eval("fs=100; fc=10; t=(0:fs-1)'/fs; m=cos(2*pi*1*t);");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

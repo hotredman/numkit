@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== shanwavf ===\n');
 [psi, x] = shanwavf(-5, 5, 8, 1, 1);
 fprintf('  shanwavf(-5,5,8,1,1) real psi: '); fprintf('%.4f ', real(psi)); fprintf('\n');

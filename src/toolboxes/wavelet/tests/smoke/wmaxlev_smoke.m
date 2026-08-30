@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wmaxlev: maximum decomposition level for a signal/wavelet pair.
 % L = floor(log2(N / (Lf - 1))) where Lf = filter length.
 

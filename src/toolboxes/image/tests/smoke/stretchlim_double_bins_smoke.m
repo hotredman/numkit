@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % stretchlim uses a class-dependent histogram bin count (MATLAB R2025b):
 %   uint8                       -> 256 bins

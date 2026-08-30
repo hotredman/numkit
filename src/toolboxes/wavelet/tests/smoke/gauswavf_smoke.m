@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % gauswavf — real Gaussian wavelet (analytical L^2 normalisation).
 
 [psi1, x] = gauswavf(-5, 5, 11);

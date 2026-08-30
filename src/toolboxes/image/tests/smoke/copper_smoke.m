@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % copper — black-to-copper colormap.
 
 fprintf('--- size(copper()) ---\n');

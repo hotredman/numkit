@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % detcoef now supports MATLAB's multi-level forms. Previously only a SCALAR
 % level (and the explicit [levels],'cells' form) worked; a bare vector of

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % psf2otf / otf2psf — Point Spread Function ↔ Optical Transfer Function.
 
 fprintf('--- 2-D round-trip ---\n');

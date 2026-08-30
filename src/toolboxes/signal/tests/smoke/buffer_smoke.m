@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/buffer (Phase 4.1 — frame partitioning) ===\n');
 

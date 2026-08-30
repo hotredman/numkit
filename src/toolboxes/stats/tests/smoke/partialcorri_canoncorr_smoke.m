@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== partialcorri — semi-partial correlation ===\n');
 
@@ -21,7 +20,6 @@ Z = randn(n, 2);
 Rz = partialcorri(Y, X, Z);
 fprintf('\npartialcorri(Y, X, Z):\n');
 disp(Rz);
-
 
 fprintf('\n=== canoncorr — canonical correlation analysis ===\n');
 

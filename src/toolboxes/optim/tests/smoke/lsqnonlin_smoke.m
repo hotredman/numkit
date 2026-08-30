@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % lsqnonlin(fun, p0) — minimise ‖F(p)‖² via embedded-.m Levenberg-Marquardt.
 % lsqcurvefit(fun, p0, x, y) = lsqnonlin(@(p) fun(p,x)-y, p0). Parity with

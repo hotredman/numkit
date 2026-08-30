@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % lognfit — lognormal MLE with optional censoring + frequency weights.
 %

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % hot — N×3 black-red-yellow-white colormap.
 
 fprintf('--- size(hot()) ---\n');

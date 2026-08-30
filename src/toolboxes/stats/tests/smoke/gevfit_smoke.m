@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 n = 2000;
 u = ((1:n)' - 0.5) / n;

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== chi2pdf ===\n');
 fprintf('  scalar (2, 3)    = %.6f (expect 0.207554)\n', chi2pdf(2, 3));
 fprintf('  density-at-0 k=2 = %.4f (expect 0.5; Chi2(2) ≡ Exp(1/2))\n', chi2pdf(0, 2));

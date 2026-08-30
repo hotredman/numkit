@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Identity case: A == B
 A = [1 2 3; 4 5 6; 7 8 9];
 fprintf('--- immse(A, A) = %.4f (expect 0) ---\n', immse(A, A));

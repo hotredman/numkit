@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fspecial('motion',len,theta) builds an anti-aliased motion-blur PSF: a
 % line of `len` pixels at `theta` degrees (counter-clockwise from

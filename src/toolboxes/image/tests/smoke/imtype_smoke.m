@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % im2double: uint8 → [0, 1] double
 fprintf('--- im2double(uint8([0 128 255])) ---\n');
 disp(im2double(uint8([0 128 255])));

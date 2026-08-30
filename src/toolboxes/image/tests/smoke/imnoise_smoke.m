@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 rng(42);  % deterministic — exact stats match across runs
 
 % Constant gray image; we measure the noise statistics of (J - I).

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imadd: saturating uint8 addition
 a = uint8([200 100 50; 0 255 128]);
 b = uint8([100 50 30; 50 0 200]);

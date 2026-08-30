@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % regionprops now reports the moment/area/bbox scalar shape descriptors,
 % matching MATLAB R2025b (previously only Area/Centroid/BoundingBox shipped):

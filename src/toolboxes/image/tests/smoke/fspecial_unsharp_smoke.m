@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % fspecial('unsharp',alpha) is the 3x3 unsharp contrast-enhancement filter
 % (a sharpening Laplacian). MATLAB R2025b:

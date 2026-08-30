@@ -235,8 +235,7 @@ public:
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
         // MATLAB-compat: flatten mirror-library functions (graphics.*, signal.*, …)
         // into the workspace so tests can call `plot`, `bar`, `figure`, … flat.
-        engine.eval("import compat.*;");
-    }
+            }
 
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
@@ -1112,7 +1111,7 @@ TEST_F(FigureIntegrationTest, ClearAllThenPlot)
     eval(R"(
         figure(1); plot([1 2],[1 2]);
         clear all;
-        import compat.*;
+
         figure(1); plot([3 4],[3 4]);
     )");
     EXPECT_EQ(fm().figures().size(), 1u);
@@ -1620,7 +1619,6 @@ TEST_F(ImshowTest, AxisOffOnFlipsAxisVisible)
     eval("axis on;");
     EXPECT_TRUE(ax().axisVisible);
 }
-
 
 // ============================================================
 // Cycle-2026-05-10 builtins: contourf / slice / isosurface / coneplot

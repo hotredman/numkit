@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== geostat ===\n');
 [m, v] = geostat(0.3);
 fprintf('  p=0.3 : m=%.4f v=%.4f (expect 2.3333 / 7.7778)\n', m, v);

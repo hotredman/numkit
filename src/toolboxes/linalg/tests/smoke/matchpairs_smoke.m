@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== matchpairs — Hungarian linear assignment ===\n');
 

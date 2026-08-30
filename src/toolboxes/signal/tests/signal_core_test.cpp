@@ -21,8 +21,7 @@ public:
     {
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
-        engine.eval("import compat.*;");
-    }
+            }
 
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }

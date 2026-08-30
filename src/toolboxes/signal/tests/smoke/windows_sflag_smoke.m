@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % MATLAB R2025b: 6 windows accept 'periodic' / 'symmetric' (default).
 %                6 others accept only typeName ('double' / 'single').
 

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % entropy — Shannon entropy in bits.
 
 fprintf('--- Octave-source test vectors ---\n');

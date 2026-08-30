@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % buttord(0.2, 0.3, 1, 30) — typical lowpass spec.
 % MATLAB R2025b: N = 11, Wn = 0.2125
 [N, Wn] = buttord(0.2, 0.3, 1, 30);

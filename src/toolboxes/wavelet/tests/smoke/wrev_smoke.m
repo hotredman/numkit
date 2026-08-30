@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wrev: reverse a vector (Wavelet Toolbox helper).
 % Same as fliplr/flipud on a vector but kept for MATLAB-style code.
 

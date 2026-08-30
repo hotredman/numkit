@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % ordfilt2 — 2-D order-statistic filter.
 
 b = [ 0  1  2  3

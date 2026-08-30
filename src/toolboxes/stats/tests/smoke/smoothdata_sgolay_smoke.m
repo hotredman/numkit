@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % smoothdata 'sgolay' -- bugs/stats/smoothdata-methods.
 % Degree-2 Savitzky-Golay smoothing. Matches MATLAB exactly for an explicit odd

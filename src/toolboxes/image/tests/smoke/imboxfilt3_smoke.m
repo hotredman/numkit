@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imboxfilt3 — separable 3-D mean filter, replicate boundary, default 3.
 
 % --- 3x3x3 ones volume → mean is 1 everywhere ---

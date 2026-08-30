@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % stepinfo now returns MATLAB R2025b's full 9-field struct. numkit previously
 % returned only 8 fields -- the TransientTime field (the 2nd field, between

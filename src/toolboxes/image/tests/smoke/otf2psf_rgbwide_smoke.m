@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % ─── otf2psf round-trip + outsize-crop verification ────────────────
 

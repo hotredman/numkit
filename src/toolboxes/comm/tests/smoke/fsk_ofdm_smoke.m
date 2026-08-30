@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % FSK round-trip
 % M=4, freq_sep=100 Hz, nsamp=10, fs=2000 Hz
 data = [0 1 2 3 0 2 1 3];

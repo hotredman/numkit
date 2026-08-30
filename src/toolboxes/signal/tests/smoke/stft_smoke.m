@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/stft + istft — short-time Fourier transform ===\n');
 

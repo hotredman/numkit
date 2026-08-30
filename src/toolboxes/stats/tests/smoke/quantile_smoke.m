@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % quantile / prctile / iqr — joint MATLAB R2025b compliance smoke
 %.
 

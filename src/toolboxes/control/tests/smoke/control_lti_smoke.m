@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- tf constructor ---
 G = tf([1 2], [1 3 5]);
 fprintf('--- tf([1 2], [1 3 5]) ---\n');

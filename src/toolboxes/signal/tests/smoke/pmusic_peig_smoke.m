@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % MUSIC / eigenvector pseudospectra -- bugs/signal/pmusic-peig.
 % Subspace frequency estimators: build R = X'X (order 2p), eigendecompose, use

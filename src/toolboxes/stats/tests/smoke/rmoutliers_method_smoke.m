@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % rmoutliers(A, method[, percentiles][,'ThresholdFactor',tf]) — DEEP-PROBE
 % 2026-05-31. The method/percentiles/ThresholdFactor args were parsed but
 % IGNORED (always the default median/MAD detector), and matrices were

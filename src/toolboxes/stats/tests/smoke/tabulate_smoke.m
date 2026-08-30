@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== tabulate (frequency table) ===\n');
 

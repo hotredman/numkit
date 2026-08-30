@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== ssbmod (single-sideband modulator) ===\n');
 

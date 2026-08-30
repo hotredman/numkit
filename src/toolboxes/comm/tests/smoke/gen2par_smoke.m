@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % gen2par — convert a generator matrix to its parity-check matrix (and back).
 % Error Correction Codes / block linear codes, GF(2).

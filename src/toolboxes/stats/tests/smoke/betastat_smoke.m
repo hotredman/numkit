@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== betastat ===\n');
 
 [m, v] = betastat(2, 3);

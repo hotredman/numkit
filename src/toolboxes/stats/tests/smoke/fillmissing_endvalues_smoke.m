@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % fillmissing(..., 'EndValues', ev) — DEEP-PROBE 2026-05-31.
 % numkit previously had no 'EndValues' option (threw "Cannot convert
 % char to scalar"). The option governs ONLY the endpoint missing

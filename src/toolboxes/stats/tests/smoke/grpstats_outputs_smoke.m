@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % grpstats now returns its default multi-output set when no 'whichstats'
 % argument is given: [means, sem, counts] = grpstats(X, group), matching

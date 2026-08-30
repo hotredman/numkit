@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % image/imread for TIFF — minimal baseline reader (cycle 90).
 % Reads MATLAB-generated uncompressed TIFFs and checks element parity.

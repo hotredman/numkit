@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Real Schur of a nonsymmetric matrix -- bugs/linalg/schur-nonsymmetric.
 % Hessenberg reduction + Francis double-shift QR + 2x2 block standardization.

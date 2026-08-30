@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % conv(A,B,'same') returns the central part the SAME SIZE AS A (length na),
 % starting at floor(nb/2) of the full convolution. Even-kernel offset + the
 % na<nb length were fixed 2026-05-30 (DEEP-PROBE). vs MATLAB R2025b.

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- RC: beta=0.25, span=6, sps=4 → length 25, peak at center ---
 h = rcosdesign(0.25, 6, 4);
 fprintf('--- rcosdesign(0.25, 6, 4) RC ---\n');

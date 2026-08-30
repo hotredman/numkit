@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- 1st-order: G(s) = 1/(s+a). Closed-loop pole moves from -a (k=0)
 %     toward -∞ along the real axis as k → ∞. ---
 G = tf(1, [1 2]);

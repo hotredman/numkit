@@ -14,8 +14,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11];");
+                engine.eval("A = [1 4 7; 2 5 8; 3 6 9; 4 7 10; 5 8 11];");
         engine.eval("v = [2 5 3 7 4 6 NaN 8 1 9]';");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

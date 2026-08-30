@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== ldl (block LDL'' factorization, v1 no pivoting) ===\n');
 

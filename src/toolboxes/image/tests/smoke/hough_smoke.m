@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % hough + houghpeaks — Standard Hough Transform for line detection.
 % Bit-exact MATLAB R2025b.

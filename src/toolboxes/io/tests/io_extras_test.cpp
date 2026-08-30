@@ -23,8 +23,7 @@ public:
     void SetUp() override
     {
         engine.setOutputFunc([this](const std::string &s) { capturedOut += s; });
-        engine.eval("import compat.*;");
-        // Per-test temp file — host filesystem (resolvePath → native).
+                // Per-test temp file — host filesystem (resolvePath → native).
         auto td = std::filesystem::temp_directory_path();
         tmpFile = td / ("numkit_io_extras_" +
                          std::to_string(std::hash<std::string>()(::testing::UnitTest::GetInstance()

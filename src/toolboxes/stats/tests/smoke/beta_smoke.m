@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Beta distribution smoke checks.
 % Expected values cross-checked against textbook formulas / MATLAB R2025b.
 

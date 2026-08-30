@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % axes2pix — convert world axis coords to pixel coords (1-based).
 
 fprintf('--- MATLAB doc examples ---\n');

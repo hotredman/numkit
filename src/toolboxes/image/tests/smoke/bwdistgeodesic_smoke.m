@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % bwdistgeodesic — binary geodesic distance transform.
 

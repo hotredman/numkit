@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== subspace (angle between subspaces) ===\n');
 

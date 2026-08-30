@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wavelength2rgb — visible-spectrum wavelength → RGB.
 
 fprintf('--- scalar 400 nm ---\n');

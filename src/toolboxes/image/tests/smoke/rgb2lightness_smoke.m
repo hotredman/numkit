@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 A = uint8(reshape(linspace(20, 240, 48), [4 4 3]));
 L = rgb2lightness(A);

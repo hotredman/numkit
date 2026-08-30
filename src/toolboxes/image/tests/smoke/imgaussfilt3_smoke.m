@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imgaussfilt3 — 3-D Gaussian filter, separable, replicate boundary.
 
 fprintf('--- ones(3,3,3) → all ~1 ---\n');

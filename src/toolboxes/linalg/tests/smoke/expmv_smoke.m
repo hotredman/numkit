@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== expmv = exp(t*A)*v via Krylov ===\n');
 

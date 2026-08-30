@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imhistmatchn — N-D variant of imhistmatch. Single histogram across
 % all elements (volume semantics). Aliased to imhistmatch in numkit.
 

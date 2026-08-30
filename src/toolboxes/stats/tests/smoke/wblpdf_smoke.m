@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== wblpdf ===\n');
 fprintf('  default a=b=1 (=exponential):\n');
 fprintf('    at 1   : %.6f (expect 0.367879 = e^-1)\n', wblpdf(1));

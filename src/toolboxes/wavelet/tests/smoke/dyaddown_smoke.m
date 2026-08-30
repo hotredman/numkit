@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % dyaddown — dyadic downsampling.
 % ODD = 0 (default) → x(2:2:end);  ODD = 1 → x(1:2:end)
 

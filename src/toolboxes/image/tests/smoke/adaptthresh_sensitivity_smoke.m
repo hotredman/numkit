@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % adaptthresh now matches MATLAB R2025b exactly:
 %   * sensitivity scale:  T = clip(localStat * (1.6 - sensitivity), 0, 1)

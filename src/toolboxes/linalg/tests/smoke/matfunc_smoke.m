@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== expm (matrix exponential, general) ===\n');
 A = [0 1; -1 0];

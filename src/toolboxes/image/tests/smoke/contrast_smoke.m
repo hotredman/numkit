@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % contrast — gray contrast-stretching colormap (MATLAB-compatible).
 
 X = reshape(1:16, 4, 4);  % uniform 1..16 (same value-set as magic(4))

@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % imshow grayscale + RGB end-to-end.
 % Expected output: figure markers per call; no errors.

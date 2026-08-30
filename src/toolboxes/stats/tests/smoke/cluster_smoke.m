@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % cluster — flatten a linkage tree into per-sample cluster labels.
 % gaps #1-#3:

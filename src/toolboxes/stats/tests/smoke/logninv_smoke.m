@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== logninv ===\n');
 fprintf('  median LN(0,1)  : %g (expect 1)\n', logninv(0.5));
 x = logninv([0.05 0.5 0.95], 0, 1);

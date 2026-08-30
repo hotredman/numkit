@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % regress's 4th output rint gives a confidence interval for each residual,
 % used to diagnose outliers: if rint(i,:) does NOT contain 0, observation i

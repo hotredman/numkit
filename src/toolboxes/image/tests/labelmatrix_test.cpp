@@ -17,7 +17,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "BW = logical([1 1 0 0 0;"
             "              1 1 0 1 1;"
             "              0 0 0 1 0;"

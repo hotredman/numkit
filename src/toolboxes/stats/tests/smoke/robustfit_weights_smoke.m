@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % robustfit now ships ALL 9 MATLAB weight functions (was only bisquare/huber)
 % and applies the DuMouchel-O'Brien leverage adjustment radj = r/sqrt(1-h),

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Biorthogonal (bior*) and reverse-biorthogonal (rbio*) wavelet families.
 % Unlike haar/db/sym/coif, these have DISTINCT analysis vs synthesis filter

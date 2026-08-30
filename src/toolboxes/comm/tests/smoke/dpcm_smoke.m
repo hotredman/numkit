@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== dpcmenco / dpcmdeco (DPCM codec round-trip) ===\n');
 

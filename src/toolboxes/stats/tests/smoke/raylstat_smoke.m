@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== raylstat ===\n');
 [m, v] = raylstat(2);
 fprintf('  b=2 : m=%.4f v=%.4f (expect 2.5066 / 1.7168)\n', m, v);

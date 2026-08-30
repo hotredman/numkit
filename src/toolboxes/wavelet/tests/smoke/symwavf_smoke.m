@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== symwavf("sym2") ===\n');
 disp(symwavf('sym2'));
 fprintf('  expect: [0.3415 0.5915 0.1585 -0.0915]\n\n');

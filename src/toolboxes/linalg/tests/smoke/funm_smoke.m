@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % funm(A, fun) — general matrix function: scalar `fun` OF a matrix (not
 % element-wise), via F = V*diag(fun(diag(D)))/V where [V,D] = eig(A).

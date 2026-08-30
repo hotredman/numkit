@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % fftconv2 — FFT-based 2-D convolution; matches conv2 within FP eps.
 
 % --- tiny ---

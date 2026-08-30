@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % clusterdata — convenience wrapper: pdist + linkage + cluster.
 %

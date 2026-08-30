@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % Same deterministic 10×10×3 RGB image used in cycle 26's illum_smoke.
 A = zeros(10, 10, 3);

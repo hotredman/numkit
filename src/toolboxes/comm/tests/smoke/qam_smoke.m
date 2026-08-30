@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % PAM round-trip
 data = [0 1 2 3];
 s = pammod(data, 4);

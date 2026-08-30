@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== image/bwmorph — binary morphological operations ===\n');
 

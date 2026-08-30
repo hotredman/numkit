@@ -16,7 +16,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "I = double([0 0 0 0 0; 0 1 1 0 0; 0 1 1 0 0; 0 0 0 0 0; 0 0 0 0 0]);");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % white — all-ones colormap.
 
 fprintf('--- size(white()) ---\n');

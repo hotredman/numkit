@@ -68,8 +68,7 @@ public:
 
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        auto fs = std::make_unique<MemFS>();
+                auto fs = std::make_unique<MemFS>();
         mem = fs.get();
         engine.registerVirtualFS(std::move(fs));
     }

@@ -16,8 +16,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("v10 = [1:16];");
+                engine.eval("v10 = [1:16];");
         engine.eval("[c, l] = wavedec(v10, 3, 'haar');");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

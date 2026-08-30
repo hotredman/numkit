@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % cyclpoly — generator polynomial(s) for an (n,k) cyclic code.
 % Error Correction Codes / block linear codes, GF(2).

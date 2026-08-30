@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % corrcoef 'Rows' NaN policy (2026-05-30): corrcoef(X, ..., 'Rows', R).
 % 'all' (default) NaN-poisons; 'complete' drops every row with a NaN
 % (listwise); 'pairwise' deletes pairwise, normalizing each (i,j) over

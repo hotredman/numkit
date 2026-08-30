@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % ── Grayscale-only colormap — identity-ish ────────────────────────
 fprintf('--- (1) grayscale colormap ---\n');

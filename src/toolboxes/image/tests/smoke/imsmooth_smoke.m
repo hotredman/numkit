@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imsmooth — only Gaussian mode supported.
 
 I = zeros(5, 5);

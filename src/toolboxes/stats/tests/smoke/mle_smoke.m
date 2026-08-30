@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== mle (closed-form max-likelihood) ===\n');
 

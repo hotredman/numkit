@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % deltaE — CIE76 colour difference (Euclidean in CIELAB).
 
 % Use isInputLab=true to bypass the rgb2lab conversion (which has a

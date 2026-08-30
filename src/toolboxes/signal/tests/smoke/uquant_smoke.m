@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/uencode + udecode (Phase 4.2 — uniform quantization) ===\n');
 

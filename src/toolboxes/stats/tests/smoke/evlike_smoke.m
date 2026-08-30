@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 data = [1 2 3 4 5]';
 cens = [0 0 0 1 1]';
 freq = [2 2 1 1 1]';

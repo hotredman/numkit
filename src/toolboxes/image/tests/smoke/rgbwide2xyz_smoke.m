@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % rgbwide2xyz / xyz2rgbwide — wide-gamut HDR colour smoke.
 % Reference engine: MATLAB R2025b Image Processing Toolbox.

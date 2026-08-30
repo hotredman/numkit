@@ -16,7 +16,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "[X, Y, Z] = ndgrid(1:16, 1:16, 1:16);"
             "A = uint8(min(255, X + Y + Z));"
             "B = uint8(min(255, X + Y + 2*Z));");

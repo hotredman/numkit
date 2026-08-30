@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % detrend of a COMPLEX array — remove the trend from real + imaginary parts.
 % Fixed 2026-06-05: previously "Not a double array".

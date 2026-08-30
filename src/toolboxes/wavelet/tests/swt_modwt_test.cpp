@@ -30,8 +30,7 @@ class SwtModwtTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');");
+                engine.eval("x = sin(2*pi*0.1*(0:31)') + 0.3*cos(2*pi*0.05*(0:31)');");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

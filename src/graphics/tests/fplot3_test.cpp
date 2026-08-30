@@ -22,7 +22,7 @@ class Fplot3Test : public ::testing::Test
 {
 public:
     StandardEngine engine;
-    void SetUp() override { engine.eval("import compat.*;"); }
+    void SetUp() override {}
 };
 
 TEST_F(Fplot3Test, DefaultRangeSpiralRuns)

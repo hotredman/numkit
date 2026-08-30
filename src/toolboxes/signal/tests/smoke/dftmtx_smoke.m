@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== dftmtx ===\n');
 
 F1 = dftmtx(1);

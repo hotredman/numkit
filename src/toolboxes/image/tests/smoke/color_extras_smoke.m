@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== rgb2lightness ===\n');
 RGB = uint8(reshape([10 20 30 100 150 200 50 80 110 200 220 240], 2, 2, 3));

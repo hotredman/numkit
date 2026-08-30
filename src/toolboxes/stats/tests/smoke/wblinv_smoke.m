@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== wblinv ===\n');
 fprintf('  default a=b=1 (=exponential):\n');
 fprintf('    median  : %.6f (expect 0.693147 = ln 2)\n', wblinv(0.5));

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % median of a COMPLEX array — order by abs, ties by angle (MATLAB).
 % Fixed 2026-06-05: previously "complex inputs are not supported".

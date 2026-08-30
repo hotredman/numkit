@@ -13,8 +13,7 @@ class ShiftDataTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("A = [1 2 3; 4 5 6; 7 8 9];");
+                engine.eval("A = [1 2 3; 4 5 6; 7 8 9];");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

@@ -17,8 +17,7 @@ public:
 
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        // __FILE__ points at this source file at compile time; fixtures/
+                // __FILE__ points at this source file at compile time; fixtures/
         // is a sibling directory. Robust across desktop and CI builds.
         fixtures = std::filesystem::path(__FILE__).parent_path() / "fixtures";
     }
@@ -195,7 +194,7 @@ class TiffWriterTest : public ::testing::Test
 {
 public:
     numkit::StandardEngine engine;
-    void SetUp() override { engine.eval("import compat.*;"); }
+    void SetUp() override {}
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
     void roundTrip(const std::string &mat, const std::string &comp) {
         engine.eval("p = [tempname '.tif']; "

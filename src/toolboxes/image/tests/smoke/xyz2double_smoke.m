@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % xyz2double — XYZ uint16/double → double, ICC encoding.
 
 fprintf('--- uint16 [0, 32768, 65535] ---\n');

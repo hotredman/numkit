@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % mmgradm — morphological gradient = imdilate − imerode.
 
 I = uint8([10 20 30 40 50; 15 25 35 45 55; 20 30 40 50 60]);

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bugs/linalg/kron-integer-class.md — kron preserves the integer class of
 % integer operands (MATLAB R2025b), with saturating round-half-away casts.
 % Previously numkit always returned a double from kron.

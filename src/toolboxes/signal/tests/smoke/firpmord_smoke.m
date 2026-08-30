@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/firpmord (Phase 4.7 — Parks-McClellan FIR order) ===\n');
 

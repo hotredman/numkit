@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- zscore on a vector: mean → 0, std → 1 (population stdev) ---
 x = [1 2 3 4 5];
 z = zscore(x);

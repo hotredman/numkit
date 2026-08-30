@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- wthresh hard / soft ---
 X = [-3 -2 -1 0 1 2 3];
 fprintf('--- wthresh hard, T=1.5 ---\n');

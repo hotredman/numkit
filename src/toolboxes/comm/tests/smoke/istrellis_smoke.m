@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % istrellis — validate a convolutional-code trellis structure.
 

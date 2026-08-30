@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % ─── ode45 smoke (Dormand-Prince 5(4) with Shampine dense output) ──
 

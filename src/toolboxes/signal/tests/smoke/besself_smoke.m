@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % besself — analog Bessel filter. DEEP-PROBE 2026-06: the default (no 's')
 % ran a bogus digital path and returned binomial (s+Wo)^n coefficients;

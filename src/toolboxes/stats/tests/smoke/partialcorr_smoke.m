@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % partialcorr smoke covering all 3 documented forms.
 % Reference: MATLAB R2025b.

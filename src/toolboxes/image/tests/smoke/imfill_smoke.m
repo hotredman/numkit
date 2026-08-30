@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Donut: hollow ring with one center hole ---
 BW = false(7, 7);
 BW(2:6, 2:6) = true;

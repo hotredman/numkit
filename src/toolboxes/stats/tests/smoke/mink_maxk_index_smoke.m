@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % mink/maxk second output (indices). Bug fixed 2026-05-30: [M,I] = mink/maxk
 % did not return the index of each returned element. vs MATLAB R2025b.
 

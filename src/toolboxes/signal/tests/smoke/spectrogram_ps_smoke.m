@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % spectrogram 4th output (ps = power spectral density). DEEP-PROBE 2026-06:
 % ps was missing ("Too many output arguments"). It is the one-sided PSD

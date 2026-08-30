@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % orthfilt — quadruple {Lo_D, Hi_D, Lo_R, Hi_R} from a unit-norm
 % scaling filter (sum(W) = 1).
 

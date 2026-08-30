@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Round-trip on randn (any length, no divisibility constraint) ---
 rng(42);
 x = randn(1, 65);    % deliberately not pow2 — MODWT works for any N

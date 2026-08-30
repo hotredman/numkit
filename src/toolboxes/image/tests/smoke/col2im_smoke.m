@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Round-trip distinct: col2im(im2col(A, 'distinct'), 'distinct') == A ---
 % Multiples-case (A's dims are exact multiples of block).
 A = reshape(1:16, [4 4]);

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== nancov — NaN-aware covariance ===\n');
 

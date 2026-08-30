@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % bwboundaries now returns the label-matrix L and object-count N as the
 % 2nd/3rd outputs, matching MATLAB R2025b (previously only B was returned;

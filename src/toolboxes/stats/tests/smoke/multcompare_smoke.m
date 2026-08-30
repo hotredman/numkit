@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 rng(0);
 
 fprintf('=== multcompare — post-hoc pairwise comparisons ===\n');

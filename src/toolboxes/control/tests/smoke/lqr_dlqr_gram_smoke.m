@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % LQR / DLQR optimal control gains + controllability/observability gramians.
 % bugs/control/lqr-hinfnorm. lqr/dlqr wrap care/dare; gram wraps lyap/dlyap.

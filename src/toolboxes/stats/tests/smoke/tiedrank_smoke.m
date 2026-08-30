@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== tiedrank (ranks adjusted for ties) ===\n');
 

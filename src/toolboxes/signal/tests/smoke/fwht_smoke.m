@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % signal/fwht + ifwht — fast Walsh-Hadamard transform.
 % Reference: MATLAB R2025b.

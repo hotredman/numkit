@@ -8,8 +8,7 @@ class IofunTest : public ::testing::Test {
 protected:
     void SetUp() override {
         engine = makeStandardEngine();
-        engine->eval("import compat.*;");
-    }
+            }
 
     std::unique_ptr<Engine> engine;
 };

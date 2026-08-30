@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % regionprops 'Perimeter' (bugs/image/regionprops-perimeter) — used to be
 % silently dropped; now traces the outer 8-connected boundary and applies

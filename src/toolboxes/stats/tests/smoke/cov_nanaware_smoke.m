@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % cov NaN-policy flag (2026-05-30): cov(X, ..., 'omitrows'|'partialrows').
 % 'omitrows' drops every row containing a NaN (listwise deletion);
 % 'partialrows' deletes pairwise (each cov(i,j) uses rows where both

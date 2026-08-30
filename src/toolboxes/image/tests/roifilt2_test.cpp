@@ -14,8 +14,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("I = magic(6);");
+                engine.eval("I = magic(6);");
         engine.eval("BW = false(6,6); BW(2:4,2:4) = true;");
         engine.eval("h = [0 1 0; 1 -4 1; 0 1 0];");
     }

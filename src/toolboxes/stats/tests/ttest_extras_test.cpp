@@ -13,8 +13,7 @@ public:
     StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("x = [1.2 2.4 3.1 4.5 5.0]';");
+                engine.eval("x = [1.2 2.4 3.1 4.5 5.0]';");
         engine.eval("y = [0.8 1.9 2.7 4.0 4.5]';");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

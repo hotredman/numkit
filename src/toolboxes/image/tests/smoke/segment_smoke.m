@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- dice / jaccard textbook examples ---
 A = false(4, 4);
 A(2:3, 2:3) = true;     % 4 pixels

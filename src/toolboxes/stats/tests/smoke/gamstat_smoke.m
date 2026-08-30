@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== gamstat ===\n');
 [m, v] = gamstat(2, 1);
 fprintf('  Gam(2,1) : m=%g v=%g (expect 2 / 2)\n', m, v);

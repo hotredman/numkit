@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 [m, v] = nctstat(10, 2);
 fprintf('nctstat(10, 2)  : m=%.10f  v=%.10f  (expect 2.1674446159, 1.5521838371)\n', m, v);

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % normalize [N, C, S]: the centering (C) and scaling (S) values, such that
 % N == (A - C) ./ S. One C/S value per operating slice — a scalar for a

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % grp2idx: turn a grouping variable into a 1-based index vector + names.
 % Implemented 2026-05-30 (was an undefined function). vs MATLAB R2025b.
 

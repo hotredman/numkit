@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Exact Kolmogorov-Smirnov p-value + critical value. Fixed 2026-06-05
 % (bugs/stats/kstest-pvalue.md). Reference: MATLAB R2025b.

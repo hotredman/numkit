@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== image/adapthisteq — Contrast Limited Adaptive HistEq (CLAHE) ===\n');
 fprintf('Clean-room CLAHE: Zuiderveld 1994; Pizer et al. 1990 / 1987.\n');

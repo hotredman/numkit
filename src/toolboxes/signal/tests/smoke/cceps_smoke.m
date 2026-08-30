@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % cceps — complex cepstrum: ifft(log(fft(x))) with phase unwrapping.
 %
 % numkit historically time-reversed

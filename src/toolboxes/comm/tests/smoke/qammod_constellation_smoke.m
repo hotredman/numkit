@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % qammod / qamdemod square-QAM constellation order (vs MATLAB R2025b).
 % (real/imag are used instead of mat2str — mat2str on complex is a known

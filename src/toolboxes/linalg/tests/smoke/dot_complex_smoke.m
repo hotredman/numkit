@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % dot on COMPLEX vectors: MATLAB conjugates the FIRST argument,
 % dot(a,b) = sum(conj(a).*b). numkit previously dropped the imaginary part
 % (returned a wrong real scalar). MATLAB R2025b.

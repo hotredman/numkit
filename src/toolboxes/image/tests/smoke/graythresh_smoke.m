@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % graythresh — global Otsu threshold, normalised to [0,1]. DEEP-PROBE c182.
 % numkit built the histogram with default_nbins (64 bins for floating-point,

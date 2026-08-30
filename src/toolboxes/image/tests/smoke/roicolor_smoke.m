@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % roicolor — region-of-interest mask by color (range or set).
 
 fprintf('--- range form: roicolor([1:10], 2, 4) ---\n');

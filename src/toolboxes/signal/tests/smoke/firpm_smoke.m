@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/firpm — Parks-McClellan optimal FIR (Type I) ===\n');
 

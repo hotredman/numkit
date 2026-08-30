@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== cmorwavf ===\n');
 % Bug fix 2026-05-08: 3-arg form was throwing
 [psi, x] = cmorwavf(-5, 5, 8);

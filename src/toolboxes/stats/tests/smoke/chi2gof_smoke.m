@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % chi2gof — chi-squared goodness-of-fit test.
 %

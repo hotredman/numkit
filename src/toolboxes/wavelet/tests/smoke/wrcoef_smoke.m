@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 v10 = 1:16;
 [c, l] = wavedec(v10, 3, 'haar');
 

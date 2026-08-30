@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % ifft(X, ..., 'symmetric') (DEEP-PROBE 2026-05-31). Previously numkit threw
 % "Cannot convert char to scalar" because it parsed 'symmetric' as the FFT
 % length N. MATLAB treats X as conjugate-symmetric (lower half authoritative,

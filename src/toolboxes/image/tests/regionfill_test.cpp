@@ -16,7 +16,7 @@ public:
     StandardEngine engine;
     void SetUp() override {
         engine.eval(
-            "import compat.*;"
+
             "I = double(reshape(1:25, 5, 5));"
             "m1 = false(5,5); m1(3,3) = true;"
             "m2 = false(5,5); m2(2:4, 2:4) = true;"

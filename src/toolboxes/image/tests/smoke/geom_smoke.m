@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- imresize 2× nearest on a 2×2 ramp ---
 A = uint8([10 20; 30 40]);
 B = imresize(A, 2, 'nearest');

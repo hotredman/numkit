@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== tukeywin ===\n');
 fprintf('  r=0 (rectwin)    : '); fprintf('%g ', tukeywin(8, 0)); fprintf('\n');
 fprintf('  r=0.25 (lite)    : '); fprintf('%.4f ', tukeywin(8, 0.25)); fprintf('\n');

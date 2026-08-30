@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== rref / rcond / planerot ===\n');
 

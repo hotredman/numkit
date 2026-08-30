@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== huffmandict (Huffman code-book builder) ===\n');
 

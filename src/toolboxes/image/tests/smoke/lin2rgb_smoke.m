@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % lin2rgb — linear → sRGB gamma forward.
 
 fprintf('--- 0.5 (above d=0.0031308 → power branch) ---\n');

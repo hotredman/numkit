@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % modwt per-coefficient alignment now matches MATLAB R2025b.
 % MODWT filters = wrev(Lo_D)/sqrt2, wrev(Hi_D)/sqrt2, look-back circular.

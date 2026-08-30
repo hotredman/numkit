@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- dcgain on G(s) = 5/(s+1) — DC gain = 5 ---
 G = tf(5, [1 1]);
 fprintf('--- dcgain(5/(s+1)) ---\n');

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- Single foreground pixel at center: D should be Euclidean dist ---
 BW = false(5, 5);
 BW(3, 3) = true;     % center

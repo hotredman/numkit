@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % Column-pivoting QR — [Q,R,P] = qr(A). Fixed 2026-06-05
 % (bugs/linalg/qr-pivoting.md). Reference: MATLAB R2025b.

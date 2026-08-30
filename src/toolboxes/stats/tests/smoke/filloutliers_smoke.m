@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % filloutliers — detect + replace outliers.
 % Reference: MATLAB R2025b.

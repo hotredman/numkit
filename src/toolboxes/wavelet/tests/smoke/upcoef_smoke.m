@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % upcoef: direct single-branch reconstruction up N levels.
 % bugs/wavelet/upcoef. Per level: interleave zeros + conv with Lo_R

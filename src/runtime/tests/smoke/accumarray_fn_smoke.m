@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % accumarray with an ARBITRARY function handle (named or anonymous) applied to
 % each output cell's column of values — not just the built-in reducers.
 a = accumarray([1;1;2], [1;2;3], [], @(x) sum(x.^2));

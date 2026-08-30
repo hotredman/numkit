@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bone — grayscale-with-blue-tint colormap.
 
 fprintf('--- size(bone()) ---\n');

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== genqammod / genqamdemod (generic QAM constellation) ===\n');
 

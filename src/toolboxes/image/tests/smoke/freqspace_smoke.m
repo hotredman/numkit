@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % freqspace — 2-D frequency-domain coordinate vectors.
 
 fprintf('--- single-output, even N=8 ---\n');

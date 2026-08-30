@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== exppdf ===\n');
 fprintf('  default mu=1, x=2 : %.6f (expect 0.135335)\n', exppdf(2));
 fprintf('  exppdf(2, 3)      : %.6f (expect 0.171139)\n', exppdf(2, 3));

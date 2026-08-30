@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % anova1 — one-way ANOVA. Matrix form: each COLUMN of X is a group.
 p = anova1([1 2 3; 2 3 4; 3 4 5]);
 fprintf('anova1 matrix p = %.4f  (expect 0.1250)\n', p);

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % IIR designers 3-output [z,p,k] (DEEP-PROBE 2026-05-31). MATLAB lets you
 % request the digital zero/pole/gain form: [z,p,k] = butter/cheby1/cheby2/
 % ellip(...). numkit previously errored ("Undefined function or variable

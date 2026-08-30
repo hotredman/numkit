@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== binopdf ===\n');
 fprintf('  Bin(10, 0.3) at 3 = %.6f (expect 0.266828)\n', binopdf(3, 10, 0.3));
 y = binopdf([0 3 5 10], 10, 0.3);

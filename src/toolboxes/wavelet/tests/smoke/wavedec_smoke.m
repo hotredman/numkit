@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- 3-level wavedec/waverec round-trip on ramp ---
 x = 1:64;
 [C, L] = wavedec(x, 3, 'db2');

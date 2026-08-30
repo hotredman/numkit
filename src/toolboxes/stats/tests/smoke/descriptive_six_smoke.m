@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 v = [1 5 3 8 2 7 4 6];
 fprintf('=== range/mad/geomean/harmmean/moment/trimmean ===\n');

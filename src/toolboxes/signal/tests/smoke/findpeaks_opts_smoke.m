@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % findpeaks Name-Value options (MATLAB R2025b). Peaks: 1@2 2@4 3@6 2@8 1@10.
 x = [0 1 0 2 0 3 0 2 0 1 0];
 

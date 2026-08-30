@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % normxcorr2 — normalized cross-correlation for template matching.
 
 % --- perfect-match self-correlation: peak should be 1.0 ---

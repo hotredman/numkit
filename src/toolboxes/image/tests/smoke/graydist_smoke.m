@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % graydist — gray-weighted geodesic distance transform.
 

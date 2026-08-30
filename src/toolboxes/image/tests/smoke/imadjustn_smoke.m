@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % imadjustn — N-D variant of imadjust. In our build it's an alias since
 % imadjust already handles 2-D and 3-D arrays elementwise.
 

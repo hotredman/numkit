@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 rng(0);
 
 fprintf('=== glmfit / glmval — logistic regression ===\n');
@@ -23,7 +23,6 @@ for i = 1:numel(xq)
     fprintf('  x = %4.1f → p = %.4f\n', xq(i), yhat(i));
 end
 
-
 fprintf('\n=== Poisson regression ===\n');
 % Deterministic exact-mean Poisson surrogate (vector poissrnd not yet
 % available in numkit's stats library — KNOWN GAP in poissrnd).
@@ -34,7 +33,6 @@ y2 = round(lambda);
 fprintf('beta = '); disp(b2');
 fprintf('true [0.7; 0.5]\n');
 fprintf('deviance = %.4f\n', dev2);
-
 
 fprintf('\n=== Normal GLM ≡ OLS ===\n');
 x3 = randn(n, 1);

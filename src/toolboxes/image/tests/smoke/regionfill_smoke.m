@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % regionfill — discrete Laplacian inpainting.
 % Reference values from MATLAB R2025b (bit-equal via CG tol 1e-12).

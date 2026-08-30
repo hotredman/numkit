@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % zp2sos vs tf2sos surplus-zero placement (MATLAB R2025b conventions).
 % zp2sos: #zeros<#poles -> surplus zeros at the ORIGIN (empty section [0 0 g]).
 S = zp2sos([0.5; -0.3], [0.2; 0.1; -0.4; 0.6], 2);

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % hammgen — parity-check / generator matrices for a Hamming code.
 % Error Correction Codes / block linear codes, GF(2).

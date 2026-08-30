@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % decode — linear block syndrome decoder (Error Correction Codes, GF(2)).
 

@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % spectrogram's f and t output axes now honour fs (MATLAB R2025b):
 %   with fs:  f = k*fs/nfft  (Hz),       t = segment_centre/fs  (seconds)

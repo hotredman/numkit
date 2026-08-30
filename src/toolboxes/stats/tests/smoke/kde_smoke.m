@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== kde — MATLAB R2023b+ alias for ksdensity ===\n');
 

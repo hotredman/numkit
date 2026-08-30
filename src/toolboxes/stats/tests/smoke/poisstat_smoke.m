@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== poisstat ===\n');
 [m, v] = poisstat(2);
 fprintf('  lam=2 : m=%g v=%g (expect 2 / 2)\n', m, v);

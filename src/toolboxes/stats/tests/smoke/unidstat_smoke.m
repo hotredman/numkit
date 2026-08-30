@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== unidstat ===\n');
 [m, v] = unidstat(5);
 fprintf('  N=5  : m=%g v=%g (expect 3 / 2)\n', m, v);

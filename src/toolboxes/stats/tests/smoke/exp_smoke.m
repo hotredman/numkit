@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % exppdf(x, mu) = exp(-x/mu) / mu
 % pdf(0, 2) = 0.5
 fprintf('exppdf(0, 2) = %.6f  (expect 0.500000)\n', exppdf(0, 2));

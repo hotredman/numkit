@@ -12,8 +12,7 @@ public:
     numkit::StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("A = magic(8);");
+                engine.eval("A = magic(8);");
         engine.eval("I = integralImage(A);");
     }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }
@@ -110,8 +109,7 @@ public:
     numkit::StandardEngine engine;
     void SetUp() override
     {
-        engine.eval("import compat.*;");
-        engine.eval("V = reshape(1:125, 5, 5, 5);");
+                engine.eval("V = reshape(1:125, 5, 5, 5);");
         engine.eval("J = integralImage3(V);");
     }
     double evalScalar(const std::string &c) { return engine.eval(c).toScalar(); }

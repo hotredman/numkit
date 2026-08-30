@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 F = [1 2; 3 4];
 A = [1.1 1.9; 2.8 4.2];
 

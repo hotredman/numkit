@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % qmf: quadrature mirror filter — reverse + alternating sign flip.
 % y(k) = (-1)^(k-1+p) * x(N-k+1)
 

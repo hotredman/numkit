@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- series: 1/(s+1) cascaded with 1/(s+2) → 1/((s+1)(s+2)) = 1/(s^2+3s+2) ---
 G1 = tf(1, [1 1]);
 G2 = tf(1, [1 2]);

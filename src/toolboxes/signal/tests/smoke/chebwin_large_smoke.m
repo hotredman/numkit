@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== chebwin large N (BUG #35 regression guard) ===\n');
 fprintf('  BUG #35: chebwin(1024, 100) used to return all-ones\n');
 fprintf('  (FFT-based impl saturated). Direct cosine-IDFT must hold.\n\n');

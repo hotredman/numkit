@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % bweuler — Euler number (objects − holes) of a binary image.
 
 % --- Octave-source reference: rectangle with 2 holes → -1 ---

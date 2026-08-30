@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % pwelch(x,[],[],nfft): empty [] placeholders must select defaults
 % (used to error "Cannot convert double to scalar"). Same for cpsd /
 % mscohere / tfestimate.

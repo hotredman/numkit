@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== signal/vco (Phase 4.8 — voltage-controlled oscillator) ===\n');
 

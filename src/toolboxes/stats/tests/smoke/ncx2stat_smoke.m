@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== ncx2stat ===\n');
 [m, v] = ncx2stat(5, 2);
 fprintf('  NCX2(5,2)  : m=%g v=%g (expect 7 / 18)\n', m, v);

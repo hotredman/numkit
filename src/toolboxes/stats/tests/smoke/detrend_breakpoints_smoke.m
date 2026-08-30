@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % detrend breakpoints (2026-05-30): MATLAB detrend(x, 1, bp) does a
 % CONTINUOUS piecewise-linear detrend — the trend changes slope at each
 % breakpoint but stays continuous. numkit previously IGNORED the 3rd

@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % risetime / falltime: [R, LT, UT, LL, UL] — duration, lower(10%) and
 % upper(90%) crossing times, lower/upper reference levels.
 [R, LT, UT, LL, UL] = risetime([0 0 0 1 1 1 1], 4);

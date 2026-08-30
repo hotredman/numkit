@@ -13,8 +13,7 @@ class Imrotate3Test : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("A = reshape(double(1:27), 3, 3, 3);");
+                engine.eval("A = reshape(double(1:27), 3, 3, 3);");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

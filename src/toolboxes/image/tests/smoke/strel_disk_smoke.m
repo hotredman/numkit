@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % strel('disk',R,N) now matches MATLAB R2025b. MATLAB does NOT build a true
 % Euclidean disk by default: for R>=3 it uses the radial periodic-line

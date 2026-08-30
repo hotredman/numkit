@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % ifft2(X, 'symmetric') (DEEP-PROBE 2026-05-31). Previously numkit threw
 % "Cannot convert char to scalar" (the flag was parsed as a size arg). MATLAB
 % treats X as conjugate-symmetric so the 2-D inverse is EXACTLY REAL. This

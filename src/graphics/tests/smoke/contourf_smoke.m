@@ -1,5 +1,4 @@
 clear;
-import compat.*;
 
 % contourf — filled contour bands.
 [X, Y] = meshgrid(linspace(-3, 3, 30));

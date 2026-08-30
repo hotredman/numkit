@@ -19,7 +19,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "A = zeros(20, 20, 'uint8');"
             "A(:, 10:11) = 200;"
             "A(10:11, :) = 200;"

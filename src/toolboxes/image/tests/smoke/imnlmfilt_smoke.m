@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % imnlmfilt — Non-Local Means denoising (Buades-Coll-Morel 2005).
 

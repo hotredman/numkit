@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- wfilters round-trip QMF properties ---
 [Lo_D, Hi_D, Lo_R, Hi_R] = wfilters('haar');
 fprintf('--- wfilters(''haar'') ---\n');

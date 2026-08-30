@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== chebwin (Dolph-Chebyshev) ===\n');
 fprintf('  Bug fix 2026-05-08: previous FFT-based impl returned\n');
 fprintf('  all-ones for even N and a wrongly-shifted shape for odd N.\n\n');

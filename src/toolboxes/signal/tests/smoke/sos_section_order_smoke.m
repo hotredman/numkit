@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % SOS section ordering (DEEP-PROBE 2026-05-31). MATLAB's zp2sos/tf2sos
 % default 'up' ordering sorts sections by ASCENDING pole radius: poles
 % nearest the ORIGIN come first, poles nearest the unit circle come last,

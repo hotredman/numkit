@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== dct / idct ===\n');
 
 % Vector

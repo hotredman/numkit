@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== nearcorr (nearest correlation matrix) ===\n');
 

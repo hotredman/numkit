@@ -1,5 +1,5 @@
 clear
-import compat.*
+
 % filter — final state output [y,zf] + initial conditions filter(b,a,x,zi).
 [y, zf] = filter([1 1], [1 -0.5], [1 2 3 4]);
 fprintf('y: %g %g %g %g  zf=%g (expect 1 3.5 6.75 10.375 / 9.1875)\n', y(1),y(2),y(3),y(4), zf(1));

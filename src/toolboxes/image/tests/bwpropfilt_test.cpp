@@ -14,7 +14,7 @@ public:
     void SetUp() override
     {
         engine.eval(
-            "import compat.*;"
+
             "BW = false(10, 10);"
             "BW(2:4, 2:4) = true;"     // comp 1: 9 pixels
             "BW(6:8, 2:7) = true;"     // comp 2: 18 pixels (largest)

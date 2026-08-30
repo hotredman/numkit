@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== anova2 (two-way ANOVA without replication) ===\n');
 

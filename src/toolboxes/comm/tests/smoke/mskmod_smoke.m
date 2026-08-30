@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== mskmod (minimum-shift keying, differential variant) ===\n');
 

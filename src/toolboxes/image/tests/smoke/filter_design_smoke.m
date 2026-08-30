@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 fprintf('=== fspecial3 (3-D image filter kernels) ===\n');
 

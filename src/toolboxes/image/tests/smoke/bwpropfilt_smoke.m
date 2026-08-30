@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % bwpropfilt — filter components by region attribute.
 BW = false(10, 10);

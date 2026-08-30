@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % Three blobs:
 %   A — 2x2 in the corner (touches rim)         → should be removed
 %   B — 1x1 interior                              → should remain

@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % wextend — 1-D boundary extension.
 % Modes: sym | per | zpd | ppd; sides: b (default) | l | r.
 

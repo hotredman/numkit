@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % poly2mask — polygon scan-conversion to binary mask.
 % Bit-equal MATLAB R2025b via half-open ray-cast rule.

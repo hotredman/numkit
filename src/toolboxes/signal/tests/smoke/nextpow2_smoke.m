@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 fprintf('=== nextpow2 ===\n');
 fprintf('  vector       : '); disp(nextpow2([1 5 100 1024 1025]));
 fprintf('               (expect: 0  3  7 10 11)\n');

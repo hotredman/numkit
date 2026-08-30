@@ -14,7 +14,7 @@ class NlfilterTest : public ::testing::Test
 {
 public:
     StandardEngine engine;
-    void SetUp() override { engine.eval("import compat.*; A = magic(5);"); }
+    void SetUp() override { engine.eval("A = magic(5);"); }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };

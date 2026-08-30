@@ -1,5 +1,4 @@
 clear
-import compat.*
 
 % corner(I) — detect corner points by wrapping cornermetric: local maxima
 % above QualityLevel*max, strength-sorted, up to N [x y]=[col row] coords.

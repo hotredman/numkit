@@ -12,8 +12,7 @@ class CopulasTest : public ::testing::Test {
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;");
-        engine.eval("U = [0.3 0.4; 0.5 0.6; 0.7 0.2; 0.1 0.9];");
+                engine.eval("U = [0.3 0.4; 0.5 0.6; 0.7 0.2; 0.1 0.9];");
         engine.eval("R = [1 0.5; 0.5 1];");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

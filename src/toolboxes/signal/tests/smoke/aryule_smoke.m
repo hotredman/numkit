@@ -1,7 +1,5 @@
 clear
 
-import compat.*
-
 % --- aryule on AR(2) recovers coefficients ---
 % True AR(2): y[n] - a1·y[n-1] - a2·y[n-2] = e[n]
 % with a1 = 2*0.95*cos(pi/4), a2 = -0.95^2
