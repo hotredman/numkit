@@ -288,9 +288,14 @@ TEST_P(TypeOpsTest, ComplexScalarVsArray)
     EXPECT_EQ(r->logicalData()[2], 1);
 }
 
-TEST_P(TypeOpsTest, ComplexLtThrows)
+TEST_P(TypeOpsTest, ComplexLtComparesRealParts)
 {
-    EXPECT_THROW(eval("r = (1+2i) < (3+4i);"), std::runtime_error);
+    // MATLAB: orderings on complex compare REAL parts, imaginary ignored
+    // (bugs/closed/lang/complex-relational-ops.md).
+    eval("r = (1+2i) < (3+4i);");
+    EXPECT_TRUE(getVarPtr("r")->toBool());    // real 1 < 3
+    eval("r2 = 2 < (0+9i);");
+    EXPECT_FALSE(getVarPtr("r2")->toBool());  // real 2 < 0 is false
 }
 
 TEST_P(TypeOpsTest, ComplexDoubleEq)

@@ -18,7 +18,7 @@ class FieldTestRegression : public DualEngineTest {};
 // MATLAB R2025b: `< > <= >=` on complex compare REAL parts and return a
 // logical — (0+1i) < 2 is 1. numkit currently throws "Operator '<' is not
 // supported for complex operands" (found via the AHP.m corpus script).
-TEST_P(FieldTestRegression, DISABLED_ComplexRelationalComparesRealPart)
+TEST_P(FieldTestRegression, ComplexRelationalComparesRealPart)
 {
     EXPECT_TRUE(engine.evalSafe("w = (complex(1,0) < 2);").ok)
         << "complex(1,0) < 2 must compare real parts (MATLAB returns 1)";

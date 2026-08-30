@@ -213,13 +213,20 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
     }
 
     if (a.isComplex() || b.isComplex()) {
-        if (c != Cmp::EQ && c != Cmp::NE)
-            throw Error(std::string("Operator '") + cmpOpName(c)
-                             + "' is not supported for complex operands",
-                         0, 0, "compare", "", "numkit:compare:complexOrder");
-        const bool isEq = (c == Cmp::EQ);
-        auto ceq = [](Complex x, Complex y) {
-            return x.real() == y.real() && x.imag() == y.imag();
+        // MATLAB R2025b: EQ/NE use full complex equality; the orderings
+        // (< > <= >=) compare REAL parts only — the imaginary part is
+        // ignored entirely (verified: (0+1i) < 2 -> 1, 2 < (0+1i) -> 0,
+        // (3+4i) < (1+0i) -> 0, elementwise on arrays).
+        auto cmpC = [c](Complex x, Complex y) -> bool {
+            switch (c) {
+            case Cmp::EQ: return x.real() == y.real() && x.imag() == y.imag();
+            case Cmp::NE: return !(x.real() == y.real() && x.imag() == y.imag());
+            case Cmp::LT: return x.real() <  y.real();
+            case Cmp::GT: return x.real() >  y.real();
+            case Cmp::LE: return x.real() <= y.real();
+            case Cmp::GE: return x.real() >= y.real();
+            }
+            return false;
         };
         auto getC = [](const Value &v, size_t i) -> Complex {
             if (v.isComplex())
@@ -232,22 +239,20 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
         if (a.isScalar() && b.isScalar()) {
             Complex ca = a.isComplex() ? a.toComplex() : Complex(a.toScalar(), 0.0);
             Complex cb = b.isComplex() ? b.toComplex() : Complex(b.toScalar(), 0.0);
-            return Value::logicalScalar(isEq ? ceq(ca, cb) : !ceq(ca, cb), nullptr);
+            return Value::logicalScalar(cmpC(ca, cb), nullptr);
         }
         if (a.isScalar()) {
             Complex ca = a.isComplex() ? a.toComplex() : Complex(a.toScalar(), 0.0);
             auto r = createLike(b, ValueType::LOGICAL, nullptr);
             for (size_t i = 0; i < b.numel(); ++i)
-                r.logicalDataMut()[i] =
-                    (isEq ? ceq(ca, getC(b, i)) : !ceq(ca, getC(b, i))) ? 1 : 0;
+                r.logicalDataMut()[i] = cmpC(ca, getC(b, i)) ? 1 : 0;
             return r;
         }
         if (b.isScalar()) {
             Complex cb = b.isComplex() ? b.toComplex() : Complex(b.toScalar(), 0.0);
             auto r = createLike(a, ValueType::LOGICAL, nullptr);
             for (size_t i = 0; i < a.numel(); ++i)
-                r.logicalDataMut()[i] =
-                    (isEq ? ceq(getC(a, i), cb) : !ceq(getC(a, i), cb)) ? 1 : 0;
+                r.logicalDataMut()[i] = cmpC(getC(a, i), cb) ? 1 : 0;
             return r;
         }
         if (a.dims() != b.dims())
@@ -255,9 +260,7 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
                         0, 0, "compareImpl", "", "numkit:compare:dimMismatch");
         auto r = createLike(a, ValueType::LOGICAL, nullptr);
         for (size_t i = 0; i < a.numel(); ++i)
-            r.logicalDataMut()[i] =
-                (isEq ? ceq(getC(a, i), getC(b, i)) : !ceq(getC(a, i), getC(b, i)))
-                    ? 1 : 0;
+            r.logicalDataMut()[i] = cmpC(getC(a, i), getC(b, i)) ? 1 : 0;
         return r;
     }
 

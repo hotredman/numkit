@@ -1,0 +1,10 @@
+{
+  "name": "lt_complex",
+  "namespace": "builtin",
+  "setup": "A = [complex(1,0), 0+1i, 3+4i, 0+1i, 1+0i]; B = [2, 0+1i, 1+0i, 5, 1];",
+  "expr": "y = [ (complex(1,0) < 2), (2 < (0+1i)), ((3+4i) < (1+0i)), ((0+1i) > 5), ((1+0i) <= 1), ((1+2i) == (1+2i)), ((1+2i) ~= (1+3i)), A < B ];",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["y(1)", "y(2)", "y(3)", "y(4)", "y(5)", "y(6)", "y(7)", "y(8)", "y(9)", "y(10)", "y(11)", "y(12)"],
+  "comment": "Ordering operators (< > <= >=) on complex operands compare REAL parts only, imaginary ignored (MATLAB R2025b verified: (0+1i)<2=1, 2<(0+1i)=0, (3+4i)<(1+0i)=0); EQ/NE keep full complex equality. Covers scalar-scalar both orders, elementwise vectors, all four orderings + eq/ne. Found via fieldtest AHP.m (bugs/closed/lang/complex-relational-ops.md)."
+}

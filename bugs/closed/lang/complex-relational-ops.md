@@ -1,6 +1,6 @@
 # lang.< > <= >= — relational ops on complex must compare REAL parts (MATLAB semantics), numkit refuses
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-30)
 - **Severity:** P1 wrong result (errors where MATLAB returns a value)
 - **Kind:** bug
 - **Found:** 2026-08-30 via fieldtest (real-world corpus `AHP.m`, batch 20260830-003212)
@@ -48,3 +48,14 @@ Parity spec: `lt_complex` (`(0+1i)<2 → 1`, `(3+1i)<2 → 0`, matrices).
 fieldtest batch `reports/20260830-003212.json` (AHP.m → "unsupported");
 regression test: `tests/gtest/integration/fieldtest_regressions_test.cpp`
 (`DISABLED_ComplexRelationalComparesRealPart`).
+
+## Resolution (2026-08-30)
+
+`binary_ops_detail.hpp`: the complex branch allowed only EQ/NE and threw on
+the orderings. Replaced with a single `cmpC` comparator — EQ/NE keep full
+complex equality, LT/GT/LE/GE compare REAL parts (imaginary ignored), across
+all four shapes (scalar-scalar, scalar-array, array-scalar, array-array).
+Verified: the 7-case MATLAB R2025b probe matches exactly; guard
+`ComplexRelationalComparesRealPart` live and green on both engines; parity
+spec `lt_complex` OK vs MATLAB (also fixed the parity runner's stale
+numkit.exe path, broken since the binary rename).
