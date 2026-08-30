@@ -59,7 +59,7 @@ TEST_P(FieldTestRegression, CommandSyntaxUrlArgs)
 // A quoted string as the command argument is silently dropped (numkit prints
 // nothing; MATLAB prints the string). Engine-observable guard: a QUOTED
 // filename passed to `load` in command form must load the file.
-TEST_P(FieldTestRegression, DISABLED_CommandSyntaxQuotedArg)
+TEST_P(FieldTestRegression, CommandSyntaxQuotedArg)
 {
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "numkit_cmd_quoted_arg";

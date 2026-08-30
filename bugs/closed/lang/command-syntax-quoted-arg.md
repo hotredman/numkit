@@ -1,6 +1,6 @@
 # lang.command-syntax — quoted-string command arguments are silently dropped (`disp 'abc'` → prints nothing)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-30)
 - **Severity:** P1 wrong result (silent no-op)
 - **Kind:** bug
 - **Found:** 2026-08-30 while fixing command-syntax-url-args — verified PRE-EXISTING (identical behaviour with the fix stashed)
@@ -39,8 +39,25 @@ extend `tests/gtest/integration/fieldtest_regressions_test.cpp` or
 `CommandStyleTest` with the two repro lines.
 
 ## References
-- **Guard:** `DISABLED_CommandSyntaxQuotedArg`
+- **Guard:** `CommandSyntaxQuotedArg` (live, dual-engine)
 
 Sibling: `bugs/closed/lang/command-syntax-url-args.md` (same command-syntax
 family, different root — found during its fix). MATLAB probe 2026-08-30
 confirms both quoted forms print their content.
+
+## Resolution (2026-08-30)
+
+Root cause was exactly the suspected lexer ambiguity:
+`isTransposeContext()` treated ANY quote after a value token as
+transpose — including `disp<space>'abc'`, where the quote starts a
+STRING. MATLAB's contract (probed on R2025b): transpose operators are
+GLUED to their operand — `y = x '` is an Invalid-expression error in
+MATLAB itself, and a quote after whitespace starts a string (which is
+why `disp 'abc'` is command syntax). The fix adds the adjacency check to
+isTransposeContext (previous token's end column == the quote's column,
+same line).
+
+Verified: disp 'abc' -> abc; disp 'hello world' -> hello world (space
+inside the literal); glued x' and [1 2;3 4]' transposes unchanged; all
+46 CommandStyle + 19 quoted/URL regression tests green; guard live on
+both engines; full Release suite exit 0.

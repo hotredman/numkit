@@ -174,7 +174,16 @@ bool Lexer::isTransposeContext() const
 {
     if (tokens_.empty())
         return false;
-    return isValueToken(tokens_.back().type);
+    const Token &prev = tokens_.back();
+    if (!isValueToken(prev.type))
+        return false;
+    // MATLAB: the transpose operators are GLUED to their operand - x' is
+    // transpose, while "x '" (spaced) is a parse error in MATLAB and a
+    // quote after whitespace starts a STRING (command syntax: disp 'abc').
+    // Whitespace = a gap between the previous token's end column and this
+    // quote's column (verified on R2025b: y = x ' -> Invalid expression).
+    return line_ == prev.line
+        && col_ == prev.col + static_cast<int>(prev.value.size());
 }
 
 // ─── implicit comma inside [] and {} ────────────────────────────────────
