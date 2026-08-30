@@ -12,7 +12,8 @@
 //   node build/browser/apps/numkit/numkit_repl.js path/to/script.m
 
 #include <numkit/core/engine.hpp>
-#include <numkit/bundle/standard_engine.hpp>   // StandardEngine — Engine + standard library
+#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/runtime/function_file.hpp>   // StandardEngine — Engine + standard library
 #include <numkit/core/lexer.hpp>
 #include <numkit/core/parser.hpp>
 #include <numkit/core/debug_session.hpp>        // DebugSession / DebugAction / ExecStatus
@@ -154,10 +155,22 @@ int runScript(const std::string &path, bool compatMode)
     }
     std::ostringstream ss;
     ss << f.rdbuf();
-    auto r = engine.evalSafe(ss.str());
+    const std::string src = ss.str();
+    auto r = engine.evalSafe(src);
     if (!r.ok) {
         reportError(r, path + ": ");
         return 1;
+    }
+    // MATLAB run() semantics: a FUNCTION file executes its primary function
+    // (nullary runs; required inputs fail naturally). bugs/opened/lang/
+    // run-invokes-nullary-function-file.md
+    std::string primaryFn;
+    if (numkit::runtime::primaryFunctionOfFile(src, primaryFn)) {
+        auto r2 = engine.evalSafe(primaryFn + ";");
+        if (!r2.ok) {
+            reportError(r2, path + ": ");
+            return 1;
+        }
     }
     return 0;
 }

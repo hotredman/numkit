@@ -6,6 +6,7 @@
 // resolveEvalScope helper moved with them. Behaviour is unchanged; only the
 // owning translation unit / layer differs. registerEvalFamily is composed by
 // installRuntimeLibrary (runtime.cpp), which bundle/installStandardLibrary calls.
+#include <numkit/runtime/function_file.hpp>
 #include <numkit/runtime/runtime.hpp>
 
 #include <numkit/core/callback_builtin.hpp>
@@ -59,8 +60,16 @@ void registerEvalFamily(Engine &engine)
                     scriptDir = rp.path.substr(0, slash);
             }
             ctx.engine->pushScriptOrigin(rp.fs->name(), scriptDir);
+            // MATLAB run() semantics: a FUNCTION file executes its primary
+            // function — nullary runs; required inputs fail with the natural
+            // "not enough input arguments" (bugs/opened/lang/run-invokes-
+            // nullary-function-file.md; MATLAB-verified via the corpus).
+            std::string primaryFn;
+            bool isFunctionFile = numkit::runtime::primaryFunctionOfFile(content, primaryFn);
             try {
                 ctx.engine->eval(content, resolveEvalScope(ctx));
+                if (isFunctionFile)
+                    ctx.engine->eval(primaryFn + ";", resolveEvalScope(ctx));
             } catch (...) {
                 ctx.engine->popScriptOrigin();
                 throw;

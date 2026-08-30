@@ -138,6 +138,24 @@ function failedAt(out) {
   return m ? out.length - m[0].length + (m[1] ? 1 : 0) : -1;
 }
 
+// MATLAB run() semantics for FUNCTION files: a file whose first code
+// construct is a function definition EXECUTES its primary function when
+// run (nullary runs; required inputs fail with the natural argument
+// error) — mirrors numkit::runtime::primaryFunctionOfFile
+// (bugs/opened/lang/run-invokes-nullary-function-file.md).
+function primaryFunctionOfFile(src) {
+  for (const raw of src.split("\n")) {
+    let line = raw.replace("\r", "");
+    const pct = line.indexOf("%");
+    if (pct !== -1) line = line.slice(0, pct);
+    line = line.trim();
+    if (!line) continue;
+    const m = line.match(/^function\s+(?:\[[^\]]*\]\s*=\s*|[A-Za-z_]\w*\s*=\s*)?([A-Za-z_]\w*)\s*(?:\(|$)/);
+    return m ? m[1] : null;
+  }
+  return null;
+}
+
 function runCode(mod, code, label) {
   const out = mod.repl_execute(code);
   const idx = failedAt(out);
@@ -146,6 +164,18 @@ function runCode(mod, code, label) {
     process.exitCode = 1;
   } else if (out.length > 0) {
     process.stdout.write(out + "\n");
+  }
+  // A FUNCTION file runs its primary function after being defined.
+  const primaryFn = primaryFunctionOfFile(code);
+  if (primaryFn) {
+    const out2 = mod.repl_execute(primaryFn + ";");
+    const idx2 = failedAt(out2);
+    if (idx2 !== -1) {
+      process.stderr.write(out2.slice(idx2) + `\n    at ${label}\n`);
+      process.exitCode = 1;
+    } else if (out2.length > 0) {
+      process.stdout.write(out2 + "\n");
+    }
   }
 }
 

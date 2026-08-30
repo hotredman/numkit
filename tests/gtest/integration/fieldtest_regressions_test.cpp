@@ -10,6 +10,7 @@
 #include "dual_engine_fixture.hpp"
 
 #include <filesystem>
+#include <fstream>
 
 using namespace m_test;
 using namespace numkit;
@@ -72,6 +73,27 @@ TEST_P(FieldTestRegression, DISABLED_CommandSyntaxQuotedArg)
     engine.eval("load '" + mat.generic_string() + "'");   // command form, QUOTED arg
     Value *v = engine.getVariable("qv");
     ASSERT_NE(v, nullptr) << "quoted command arg must reach load";
+    EXPECT_DOUBLE_EQ(v->toScalar(), 42.0);
+    fs::remove_all(dir);
+}
+
+// ── bugs/closed/lang/run-invokes-nullary-function-file ─────────────────────
+// MATLAB run() semantics: a FUNCTION file EXECUTES its primary function.
+// Observable via a global set inside the function (round-trip verified).
+TEST_P(FieldTestRegression, FileRunInvokesNullaryFunction)
+{
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "numkit_run_nullary_ft";
+    fs::create_directories(dir);
+    fs::path m = dir / "ft_hello.m";
+    {
+        std::ofstream f(m);
+        f << "function ft_hello\nglobal FT_QV\nFT_QV = 42;\nend\n";
+    }
+    engine.eval("global FT_QV; FT_QV = -1;");
+    engine.eval("run('" + m.generic_string() + "');");
+    Value *v = engine.getVariable("FT_QV");
+    ASSERT_NE(v, nullptr);
     EXPECT_DOUBLE_EQ(v->toScalar(), 42.0);
     fs::remove_all(dir);
 }

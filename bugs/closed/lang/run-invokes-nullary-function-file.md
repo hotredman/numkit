@@ -1,6 +1,6 @@
 # lang.run — running a nullary function FILE must invoke it (MATLAB `run` semantics); numkit defines it silently
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-30)
 - **Severity:** P1 wrong result (silent no-op: empty output, exit 0)
 - **Kind:** bug
 - **Found:** 2026-08-30 via fieldtest (DeepLearnToolbox `Softmax_Test.m`,
@@ -44,8 +44,24 @@ definition. (MATLAB errors for function files WITH required args — numkit
 should match that too rather than silently doing nothing.)
 
 ## References
-- **Guard:** deferred — CLI/file-run path; guard needs a temp-file fixture.
+- **Guard:** `FileRunInvokesNullaryFunction` (live, dual-engine)
 
 fieldtest batch `reports/20260830-003212.json`; test deferred (needs the
 file-run path — CLI-level; tracked here, engine-level gtest to follow with
 the mfile-resolver fixture).
+
+## Resolution (2026-08-30)
+
+One semantic, three call sites, one shared helper:
+`numkit::runtime::primaryFunctionOfFile(src)` (header-only,
+runtime/function_file.hpp) detects a function file and extracts the
+PRIMARY function's name; the `run` builtin (runtime/eval.cpp), the native
+CLI runScript (apps/numkit/main.cpp) and the WASM CLI (cli.js — JS mirror
+of the same scan) now EXECUTE that function after the file evaluates.
+Required-inputs function files are also invoked and fail with the natural
+argument error — exactly MATLAB's class (corpus-verified:
+extract_firms_data.m errors "Not enough input arguments" in MATLAB).
+
+Verified: run('hello_ft.m') -> 42; CLI file arg -> 42/exit 0; required-
+args file -> exit 1 both CLIs; scripts unaffected; live dual-engine guard
+green; full Release suite exit 0.
