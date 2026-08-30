@@ -13,6 +13,9 @@ bugs/
   README.md              ← this file (index + conventions)
   <namespace>/<fn>.md    ← one OPEN bug (e.g. signal/dct-types.md)
   closed/<namespace>/<fn>.md  ← FIXED bugs, same structure, archived
+
+A namespace directory exists only while it has an OPEN bug — when the last
+one moves to `closed/`, remove the empty directory (recreate it on demand).
 ```
 
 Use `<fn>.md` when a function has one open bug; `<fn>-<aspect>.md` when it
