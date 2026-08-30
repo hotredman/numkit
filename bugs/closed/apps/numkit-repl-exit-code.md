@@ -1,6 +1,6 @@
 # apps.numkit_repl — script error still exits with code 0
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (verified 2026-08-30)
 - **Severity:** P3 minor/style (P1 for scripting/CI consumers — see below)
 - **Found:** 2026-08-29 via npm CLI corpus run (comparing native vs WASM CLI behaviour)
 
@@ -24,3 +24,13 @@ output.
 
 ## References
 - **Guard:** deferred — CLI exit-code semantics; checked by fieldtest corpus scripts.
+
+## Resolution (2026-08-30)
+
+Unreproducible on current main across every probed shape: runtime error,
+parse error, index-out-of-bounds, nested run() error, function-file
+argument error, --compat mode, and the WASM CLI — all exit 1 with the
+error on stderr. The return-1 structure in apps/numkit/main.cpp
+runScript/reportError landed with the parallel REPL work after this bug
+was filed. Closed as already-fixed; the fieldtest corpus exercises exit
+codes on every script, so a regression will be caught by the harness.

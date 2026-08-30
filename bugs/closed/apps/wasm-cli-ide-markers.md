@@ -1,6 +1,6 @@
 # apps.wasm-cli — IDE protocol markers (`__FIGURE_CLOSE_ALL__`, `__CLEAR__`, …) leak into CLI stdout
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-30)
 - **Severity:** P3 (product polish; corrupts scripted consumers)
 - **Kind:** bug
 - **Found:** 2026-08-30 via fieldtest (3 output mismatches in batch
@@ -39,8 +39,18 @@ lines from repl_execute's return. The engine-side flag is cleaner (the
 protocol shouldn't leave the IDE path at all).
 
 ## References
-- **Guard:** deferred — CLI stdout level; checked by fieldtest harness normalisation.
+- **Guard:** proof by removal — the fieldtest harness deleted its marker-filter workaround; a regressed leak now surfaces as an output mismatch in the batch.
 
 fieldtest harness normalises around it (`fieldtest/harness.py`, noted);
 affected corpus scripts: hopfield_hand.m, chap10_7.m, sa_01knapsack.m
 (all pass after marker filtering — the numbers match).
+
+## Resolution (2026-08-30)
+
+stripIdeMarkers() in cli.js filters the IDE-protocol sentinel lines
+(/^__[A-Z_]+__$/) from every repl_execute result before stdout — all
+paths (-e, file argument, function-file invocation) verified clean.
+Proof by removal: fieldtest/harness.py deleted its marker normalisation;
+a leak regressing would now FAIL the batch comparison instead of being
+hidden. (Engine-side repl_init flag remains the cleaner long-term home
+if the IDE protocol ever grows non-line-shaped messages.)

@@ -156,8 +156,18 @@ function primaryFunctionOfFile(src) {
   return null;
 }
 
+// The REPL emits IDE-protocol sentinels (__FIGURE_CLOSE_ALL__, __CLEAR__,
+// …) meant for the browser IDE; a plain CLI consumer must not print them
+// (bugs/opened/apps/wasm-cli-ide-markers.md).
+function stripIdeMarkers(out) {
+  return out
+    .split("\n")
+    .filter((l) => !/^__[A-Z_]+__$/.test(l.trim()))
+    .join("\n");
+}
+
 function runCode(mod, code, label) {
-  const out = mod.repl_execute(code);
+  const out = stripIdeMarkers(mod.repl_execute(code));
   const idx = failedAt(out);
   if (idx !== -1) {
     process.stderr.write(out.slice(idx) + `\n    at ${label}\n`);
@@ -168,7 +178,7 @@ function runCode(mod, code, label) {
   // A FUNCTION file runs its primary function after being defined.
   const primaryFn = primaryFunctionOfFile(code);
   if (primaryFn) {
-    const out2 = mod.repl_execute(primaryFn + ";");
+    const out2 = stripIdeMarkers(mod.repl_execute(primaryFn + ";"));
     const idx2 = failedAt(out2);
     if (idx2 !== -1) {
       process.stderr.write(out2.slice(idx2) + `\n    at ${label}\n`);

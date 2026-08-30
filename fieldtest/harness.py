@@ -101,9 +101,6 @@ def normalise(text, script):
     t = t.replace(str(Path(script).parent), "<DIR>").replace(Path(script).parent.as_posix(), "<DIR>")
     t = re.sub(r"[ \t]+\n", "\n", t)
     t = re.sub(r"\n{2,}", "\n", t)
-    # numkit CLI leaks IDE protocol sentinels (bugs/apps/wasm-cli-ide-markers)
-    # — filter before comparison so they cannot mask real mismatches.
-    t = re.sub(r"__(?:FIGURE_CLOSE_ALL|CLEAR|CLC)__\n?", "", t)
     # Console codepages make CJK prose incomparable across engines (MATLAB on
     # a non-matching locale garbles UTF-8 on OUTPUT); fold non-ASCII runs to a
     # single marker so numbers and structure stay strictly compared.
