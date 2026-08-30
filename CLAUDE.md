@@ -121,7 +121,7 @@ expected values: trust the reference engine.
 Structured one-file-per-bug catalog.
 **Every bug you find gets TWO things:**
 
-1. its own `bugs/<namespace>/<fn>.md` with a self-contained repro (numkit
+1. its own `bugs/opened/<namespace>/<fn>.md` with a self-contained repro (numkit
    output vs MATLAB R2025b) so any session can act on it cold; and
 2. a matching **`DISABLED_` gtest** in that namespace's `known_bugs_test.cpp`
    (`src/toolboxes/<ns>/tests/` for a toolbox; `src/bundle/tests/` for the
@@ -144,9 +144,9 @@ cause, or ANY ratio if worse big-O); <1.5× is noise. See bugs/README.md.
 
 See [bugs/README.md](bugs/README.md) for the template + Kind legend + index.
 When you fix a bug, remove the test's `DISABLED_` prefix, flip the md status
-to ✅ FIXED with the commit hash, update the index row, and `git mv` the md
-into `bugs/closed/<namespace>/` (structure preserved; `bugs/<ns>/` holds only
-OPEN bugs).
+to ✅ FIXED with the commit hash, update the index row, and `git mv` the md from
+`bugs/opened/<namespace>/` to `bugs/closed/<namespace>/` (structure
+preserved).
 
 ## Memory
 

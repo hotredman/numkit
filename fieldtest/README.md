@@ -49,10 +49,10 @@ fieldtest/
    | `numkit-hang` / `matlab-timeout` | hang | bug (hang) |
    | `nondeterministic` | double-run differs | exclude, note in report |
 
-3. **File every finding.** Runtime/parse divergence → `bugs/<ns>/<fn>.md`
+3. **File every finding.** Runtime/parse divergence → `bugs/opened/<ns>/<fn>.md`
    (Kind: bug) **+ a reproducing gtest** per the repo protocol (`DISABLED_`
    until fixed, live after). Absent function → a row in `PARITY_GAPS.md`.
-   Signature divergence → `bugs/<ns>/<fn>-signature.md` (Kind: bug).
+   Signature divergence → `bugs/opened/<ns>/<fn>-signature.md` (Kind: bug).
 
 4. **Signature audit** — `python signprobe.py <fn> [<fn>…]` captures MATLAB's
    documented signature (`help fn`) and numkit's, diffs them, and reports the

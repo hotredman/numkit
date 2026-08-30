@@ -10,7 +10,7 @@ WASM CLI, then reports the first divergent signature line. Doc-prose
 differences are ignored (we diff the CALL SYNTAX lines, which start with the
 function name); an arg-list mismatch (missing option, different default /
 nargout shape, different arg order) is a signature bug — file
-bugs/<ns>/<fn>-signature.md per README.md.
+bugs/opened/<ns>/<fn>-signature.md per README.md.
 """
 import re
 import subprocess

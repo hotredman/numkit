@@ -11,11 +11,12 @@ functions) lives in [PARITY_GAPS.md](PARITY_GAPS.md).
 ```
 bugs/
   README.md              ← this file (index + conventions)
-  <namespace>/<fn>.md    ← one OPEN bug (e.g. signal/dct-types.md)
+  opened/<namespace>/<fn>.md  ← OPEN bugs (active work)
   closed/<namespace>/<fn>.md  ← FIXED bugs, same structure, archived
 
-A namespace directory exists only while it has an OPEN bug — when the last
-one moves to `closed/`, remove the empty directory (recreate it on demand).
+Mirror trees: a bug lives its whole life under its namespace, moving
+`opened/ → closed/` when fixed. A namespace directory exists (in either
+tree) only while it has a bug — remove empties, recreate on demand.
 ```
 
 Use `<fn>.md` when a function has one open bug; `<fn>-<aspect>.md` when it
@@ -137,14 +138,14 @@ numkit_gtest.exe --gtest_also_run_disabled_tests --gtest_filter='*KnownBug*'
 
 ## Lifecycle
 
-1. Find a bug → create `bugs/<ns>/<fn>.md` (status OPEN) with full repro,
+1. Find a bug → create `bugs/opened/<ns>/<fn>.md` (status OPEN) with full repro,
    AND add a `DISABLED_` test in `src/toolboxes/<ns>/tests/known_bugs_test.cpp`.
 2. Fix it (4 artefacts) → remove `DISABLED_` (or promote the assertion into
    the function's own test file), flip the md status to ✅ FIXED with the
-   commit hash, update the index row, and **`git mv` the md into
-   `closed/<ns>/`** (structure preserved). The index keeps the ✅ row pointing
-   at the `closed/` path; `bugs/<ns>/` holds only OPEN bugs. The repro stays
-   useful in the archive.
+   commit hash, update the index row, and **`git mv` the md from
+   `opened/<ns>/` to `closed/<ns>/`** (structure preserved). The index keeps
+   the ✅ row pointing at the `closed/` path. The repro stays useful in the
+   archive.
 
 ## Index
 
@@ -277,31 +278,31 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 | bug | [io/writelines](closed/io/writelines.md) | P2 | writelines string-array writes one line per element (was: only first) (2026-06-08) |
 
 ### 🔴 OPEN — bug (defect on an implemented function) — 10
-| [lang/complex-relational-ops](lang/complex-relational-ops.md) | P1 | `< > <= >=` on complex must compare REAL parts (MATLAB: `(0+1i) < 2` → 1); numkit throws "not supported". Found via fieldtest AHP.m (2026-08-30) |
-| [lang/command-syntax-url-args](lang/command-syntax-url-args.md) | P1 | command-call args are whitespace-split literals in MATLAB; numkit parses `/` `:` as operators — `disp a//b:c` silently truncates to `a//b`, `web -broswer http://…` fails to parse. Found via fieldtest (2026-08-30) |
-| [lang/run-invokes-nullary-function-file](lang/run-invokes-nullary-function-file.md) | P1 | `run(file.m)` on a nullary function file must INVOKE it (MATLAB prints "Test Passed"); numkit defines silently — exit 0, empty output. Found via fieldtest DeepLearnToolbox *_Test.m (2026-08-30) |
-| [core/register-exhaustion-no-fallback](core/register-exhaustion-no-fallback.md) | P2 | real-world sa_tsp.m dies on ">255 registers" instead of the documented TreeWalker fallback; MATLAB runs it (2026-08-30) |
-| [apps/wasm-cli-ide-markers](apps/wasm-cli-ide-markers.md) | P3 | IDE protocol sentinels (`__FIGURE_CLOSE_ALL__`, `__CLEAR__`) leak into CLI stdout (2026-08-30) |
+| [lang/complex-relational-ops](opened/lang/complex-relational-ops.md) | P1 | `< > <= >=` on complex must compare REAL parts (MATLAB: `(0+1i) < 2` → 1); numkit throws "not supported". Found via fieldtest AHP.m (2026-08-30) |
+| [lang/command-syntax-url-args](opened/lang/command-syntax-url-args.md) | P1 | command-call args are whitespace-split literals in MATLAB; numkit parses `/` `:` as operators — `disp a//b:c` silently truncates to `a//b`, `web -broswer http://…` fails to parse. Found via fieldtest (2026-08-30) |
+| [lang/run-invokes-nullary-function-file](opened/lang/run-invokes-nullary-function-file.md) | P1 | `run(file.m)` on a nullary function file must INVOKE it (MATLAB prints "Test Passed"); numkit defines silently — exit 0, empty output. Found via fieldtest DeepLearnToolbox *_Test.m (2026-08-30) |
+| [core/register-exhaustion-no-fallback](opened/core/register-exhaustion-no-fallback.md) | P2 | real-world sa_tsp.m dies on ">255 registers" instead of the documented TreeWalker fallback; MATLAB runs it (2026-08-30) |
+| [apps/wasm-cli-ide-markers](opened/apps/wasm-cli-ide-markers.md) | P3 | IDE protocol sentinels (`__FIGURE_CLOSE_ALL__`, `__CLEAR__`) leak into CLI stdout (2026-08-30) |
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [signal/instfreq-instbw](signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
-| [signal/freqs-scalar-w](signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
-| [stats/mahal-singular](stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
-| [core/assignin-caller-write-through](core/assignin-caller-write-through.md) | P1 | `assignin('caller', …)` names invisible to the compiled frame ("Undefined … 'cfg_one'"); engine-level — native + WASM; 3/184 corpus examples (2026-08-29) |
-| [apps/numkit-repl-exit-code](apps/numkit-repl-exit-code.md) | P3 | native CLI exits 0 after a script error — invisible to shells/CI/agents (WASM CLI in packages/numkit already returns 1) |
+| [signal/instfreq-instbw](opened/signal/instfreq-instbw.md) | P1 | wrong values (negative on a chirp) |
+| [signal/freqs-scalar-w](opened/signal/freqs-scalar-w.md) | P3 | scalar w should be N points (needs freqint auto-range) |
+| [stats/mahal-singular](opened/stats/mahal-singular.md) | P2 | throws on rank-deficient reference |
+| [core/assignin-caller-write-through](opened/core/assignin-caller-write-through.md) | P1 | `assignin('caller', …)` names invisible to the compiled frame ("Undefined … 'cfg_one'"); engine-level — native + WASM; 3/184 corpus examples (2026-08-29) |
+| [apps/numkit-repl-exit-code](opened/apps/numkit-repl-exit-code.md) | P3 | native CLI exits 0 after a script error — invisible to shells/CI/agents (WASM CLI in packages/numkit already returns 1) |
 
 ### 🔴 OPEN — stub (option/branch throws "not supported") — 1
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [signal/findpeaks-widthreference](signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
+| [signal/findpeaks-widthreference](opened/signal/findpeaks-widthreference.md) | P2 | 'halfheight'/'halfprom' throw |
 
 ### 🔴 OPEN — missing-output (Nth output not emitted) — 1
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [signal/spectrogram-fc-tc](signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
+| [signal/spectrogram-fc-tc](opened/signal/spectrogram-fc-tc.md) | P2 | 5th/6th outputs fc, tc (reassignment matrices, deferred) |
 
 ### 🔴 OPEN — missing-fn (not implemented — PARITY GAP, not a defect) — 11
 
@@ -310,16 +311,16 @@ feature-gaps, not defects — also in PROGRESS.md; perf = correct-but-slow).
 
 | Bug | Sev | Notes |
 |---|---|---|
-| [signal/fillgaps](signal/fillgaps.md) | P2 | fillgaps |
-| [image/watershed](image/watershed.md) | P2 | watershed |
-| [image/imfindcircles](image/imfindcircles.md) | P2 | imfindcircles |
-| [wavelet/wpdec](wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
-| [wavelet/cwt](wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
-| [wavelet/centfrq-scal2frq](wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
-| [ode/ode-stiff](ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
+| [signal/fillgaps](opened/signal/fillgaps.md) | P2 | fillgaps |
+| [image/watershed](opened/image/watershed.md) | P2 | watershed |
+| [image/imfindcircles](opened/image/imfindcircles.md) | P2 | imfindcircles |
+| [wavelet/wpdec](opened/wavelet/wpdec.md) | P2 | wavelet packets (needs tree type) |
+| [wavelet/cwt](opened/wavelet/cwt.md) | P2 | continuous wavelet transform (Morse filter bank) — large |
+| [wavelet/centfrq-scal2frq](opened/wavelet/centfrq-scal2frq.md) | P2 | centfrq / scal2frq (scale↔frequency) |
+| [ode/ode-stiff](opened/ode/ode-stiff.md) | P2 | ode15s/ode23s/ode23t/ode23tb/ode113 (stiff/multistep) |
 
 ### 🔴 OPEN — perf (correct but slower than MATLAB) — 1
 
 | Entry | Slowdown | Notes |
 |---|---|---|
-| [signal/fft-speed](signal/fft-speed.md) | 1.2×–4.3× | single-threaded vs FFTW; Highway already present, gap is threading + MSVC codegen + wrapper |
+| [signal/fft-speed](opened/signal/fft-speed.md) | 1.2×–4.3× | single-threaded vs FFTW; Highway already present, gap is threading + MSVC codegen + wrapper |

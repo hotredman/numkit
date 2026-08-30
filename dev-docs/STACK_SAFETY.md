@@ -142,7 +142,7 @@ Python (`RecursionError` на parse), clang/V8 (stack guards).
 
 - gtest через `DualEngineTest`: глубокие выражения и глубокие блоки →
   `EXPECT_THROW` с диагностикой на **обоих** движках;
-- запись бага по протоколу (`bugs/lang/`, см. §9) + smoke;
+- запись бага по протоколу (`bugs/opened/lang/`, см. §9) + smoke;
 - фаззер парсера/конвейера (генеративный минимум) как храповик: любой вход
   либо диагностится, либо исполняется — третьего не дано.
 
@@ -212,6 +212,6 @@ Python (`RecursionError` на parse), clang/V8 (stack guards).
 
 ## 9. Связь с конвенциями репозитория
 
-При фиксе — по протоколу CLAUDE.md: `bugs/lang/` запись + gtest (DISABLED_
+При фиксе — по протоколу CLAUDE.md: `bugs/opened/lang/` запись + gtest (DISABLED_
 не нужен: чиним сразу, тест живой с первого дня). Этот документ остаётся
 design-rationale и закрывается переводом статуса в **fixed** с хэшем коммита.
