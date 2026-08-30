@@ -53,6 +53,22 @@ void register_general(Engine &engine) {
                                 outs[0] = Value();
                             });
 
+// ── web: no-op with a warning (no browser in a CLI) ─────────
+    engine.registerFunction("web",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (!args.empty() && !args[0].isChar() && !args[0].isString())
+                throw Error("web: requires a string URL", 0, 0, "web", "",
+                             "numkit:web:nargin");
+            if (!args.empty())
+                ctx.engine->outputText(
+                    "Warning: web: no browser in the numkit CLI — URL '"
+                    + args[0].toString() + "' not opened.\n");
+            else
+                ctx.engine->outputText(
+                    "Warning: web: no browser in the numkit CLI.\n");
+            outs[0] = Value::scalar(0.0);
+        });
+
     // who / whos extracted to the runtime language-runtime layer:
     //   runtime/src/workspace.cpp → numkit::runtime::registerWorkspaceRuntime
     // (composed by installRuntimeLibrary, called by bundle/installStandardLibrary).

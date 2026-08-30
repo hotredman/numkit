@@ -56,4 +56,40 @@ void tempname_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> ou
     outs[0] = tempname(ctx.engine->fsContext(), ctx.engine->resource());
 }
 
+// ── genpath: recursive path string from a directory tree ────────────
+// MATLAB: recursive DFS; skips @class folders, +package folders,
+// `private`, and hidden dot-directories (.git etc.). Returns
+// "root;root/sub1;root/sub1/sub2;..." as a semicolon-joined string.
+namespace {
+void genpathCollect(Engine &eng, const std::string &dir, std::string &out)
+{
+    out += (out.empty() ? "" : ";") + dir;
+    try {
+        auto rp = eng.resolvePath(dir);
+        if (!rp.fs) return;
+        auto entries = rp.fs->listDir(rp.path);
+        for (const auto &e : entries) {
+            if (!e.isDirectory) continue;
+            // MATLAB genpath filters: @class, +package, private, .hidden
+            if (e.name[0] == '@' || e.name[0] == '+' || e.name[0] == '.'
+                || e.name == "private")
+                continue;
+            genpathCollect(eng, dir + "/" + e.name, out);
+        }
+    } catch (...) {
+        // Path not listable — just include the root.
+    }
+}
+} // namespace
+
+void genpath_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty() || !args[0].isChar())
+        throw Error("genpath: requires a string directory name",
+                     0, 0, "genpath", "", "numkit:genpath:nargin");
+    std::string result;
+    genpathCollect(*ctx.engine, args[0].toString(), result);
+    outs[0] = Value::fromString(result, ctx.engine->resource());
+}
+
 } // namespace numkit::io::detail

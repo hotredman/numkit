@@ -47,6 +47,7 @@ void fullfile_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fileparts_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tempdir_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void tempname_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void genpath_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::io::detail
 
 namespace numkit {
@@ -86,6 +87,10 @@ void IoLibrary::install(Engine &engine)
     reg("paths", "fileparts", &io::detail::fileparts_reg);
     reg("paths", "tempdir",   &io::detail::tempdir_reg);
     reg("paths", "tempname",  &io::detail::tempname_reg);
+    reg("paths", "genpath",   &io::detail::genpath_reg);
+    // Also register genpath by bare name (the io dual-registration puts it
+    // behind compat.*, but corpus scripts call it without import).
+    engine.registerFunction("genpath", &io::detail::genpath_reg);
 }
 
 } // namespace numkit

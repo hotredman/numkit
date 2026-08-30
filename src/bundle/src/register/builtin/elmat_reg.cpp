@@ -172,6 +172,26 @@ void register_elmat(Engine &engine) {
     engine.registerFunction("true",       &::numkit::builtin::detail::true_reg);
     engine.registerFunction("vander",     &::numkit::builtin::detail::vander_reg);
     engine.registerFunction("wilkinson",  &::numkit::builtin::detail::wilkinson_reg);
+    engine.registerFunction("rands",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            auto *mr = ctx.engine->resource();
+            size_t m = 1, n = 1;
+            if (args.size() >= 2) {
+                m = static_cast<size_t>(args[0].toScalar());
+                n = static_cast<size_t>(args[1].toScalar());
+            } else if (args.size() == 1) {
+                // MATLAB NN toolbox: rands(S) -> S×1 column vector
+                m = static_cast<size_t>(args[0].toScalar());
+                n = 1;
+            }
+            auto out = Value::matrix(m, n, ValueType::DOUBLE, mr);
+            double *p = out.doubleDataMut();
+            auto &rng = ctx.engine->rng();
+            std::uniform_real_distribution<double> dist(-1.0, 1.0);
+            for (size_t i = 0; i < m * n; ++i) p[i] = dist(rng);
+            outs[0] = std::move(out);
+        });
+
     engine.registerFunction("zeros",      &::numkit::builtin::detail::zeros_reg);
 
     engine.registerFunction("paddata",

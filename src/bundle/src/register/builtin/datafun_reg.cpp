@@ -72,10 +72,6 @@ void setxor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void splitapply_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sum_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void symrcm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void web_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void genpath_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void vec2ind_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void rands_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void union_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void unique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void uniquetol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -386,10 +382,41 @@ void register_datafun(Engine &engine) {
     engine.registerFunction("groupfilter",&::numkit::builtin::detail::groupfilter_reg);
     engine.registerFunction("colperm",    &::numkit::builtin::detail::colperm_reg);
     engine.registerFunction("symrcm",     &::numkit::builtin::detail::symrcm_reg);
-    engine.registerFunction("web",       &::numkit::builtin::detail::web_reg);
-    engine.registerFunction("genpath",   &::numkit::builtin::detail::genpath_reg);
-    engine.registerFunction("vec2ind",   &::numkit::builtin::detail::vec2ind_reg);
-    engine.registerFunction("rands",     &::numkit::builtin::detail::rands_reg);
+        engine.registerFunction("vec2ind",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw Error("vec2ind: requires at least 1 argument",
+                             0, 0, "vec2ind", "", "numkit:vec2ind:nargin");
+            auto *mr = ctx.engine->resource();
+            const Value &v = args[0];
+            if (v.dims().rows() == 1 && v.numel() > 0) {
+                // Row vector: each element is its own column. If the value
+                // is closer to 1 than to 0, index = 1; else NaN (MATLAB).
+                auto out = Value::matrix(1, v.numel(), ValueType::DOUBLE, mr);
+                for (size_t i = 0; i < v.numel(); ++i)
+                    out.doubleDataMut()[i] =
+                        (v.doubleData()[i] > 0.5) ? 1.0 : std::nan("");
+                outs[0] = std::move(out);
+                return;
+            }
+            // Matrix: each column → row index of the value closest to 1;
+            // NaN if no positive element (MATLAB).
+            const size_t rows = v.dims().rows(), cols = v.dims().cols();
+            auto out = Value::matrix(1, cols, ValueType::DOUBLE, mr);
+            const double *p = v.doubleData();
+            for (size_t j = 0; j < cols; ++j) {
+                double best = std::nan(""), bestDist = 1.5;
+                for (size_t i = 0; i < rows; ++i) {
+                    double val = p[i + j * rows];
+                    if (val > 0.5) {
+                        best = static_cast<double>(i + 1);
+                        break;
+                    }
+                }
+                out.doubleDataMut()[j] = best;
+            }
+            outs[0] = std::move(out);
+        });
 
     engine.registerFunction("full",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &) {
