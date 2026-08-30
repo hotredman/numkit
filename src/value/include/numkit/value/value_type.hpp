@@ -33,7 +33,7 @@ enum class ValueType : uint8_t {
              // s.field expansion that splicing contexts (call args, [..], {..}, multi-
              // assign) flatten. Never stored in a variable; a single-value context must
              // collapse it (1 elem -> the elem; N -> "too many values"). Reuses
-             // HeapObject::cellData for storage. See dev-docs/CSL_FIRST_CLASS.md.
+             // HeapObject::cellData for storage. See dev-docs/memory/CSL_FIRST_CLASS.md.
 };
 
 const char *mtypeName(ValueType t);

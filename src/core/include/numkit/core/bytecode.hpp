@@ -20,7 +20,7 @@ enum class OpCode : uint8_t {
     // Collapse a comma-separated list reaching a single-value context: R[dst] =
     // collapseCsl(R[src]) (CSL of 1 -> the elem; 0/>1 -> error; non-CSL passes through).
     // Inserted by the compiler dataflow pass everywhere a CSL-tainted register feeds a
-    // single-value sink. See dev-docs/CSL_FIRST_CLASS.md.
+    // single-value sink. See dev-docs/memory/CSL_FIRST_CLASS.md.
     COLLAPSE,     // dst, src               R[dst] = collapseCsl(R[src])
     LOAD_END,     // dst, arrReg, dim       R[dst] = size(R[arrReg], dim)
     COLON_ALL,    // dst                    R[dst] = <colon-all marker>

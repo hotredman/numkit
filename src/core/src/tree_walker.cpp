@@ -336,7 +336,7 @@ Value TreeWalker::execNode(const ASTNode *node, Environment *env)
 {
     // Single-value sink: collapse any comma-separated list the expression produced.
     // The isCsl() guard keeps the hot path a single branch + move (collapseCsl, which
-    // takes the value by copy, only runs for an actual CSL). See dev-docs/CSL_FIRST_CLASS.md.
+    // takes the value by copy, only runs for an actual CSL). See dev-docs/memory/CSL_FIRST_CLASS.md.
     Value v = execNodeExpand(node, env);
     if (v.isCsl())
         return collapseCsl(std::move(v));
@@ -2255,7 +2255,7 @@ Value TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
     // / vector / range / 2-D slice, evaluating the base once). A single selected element
     // returns the bare element (the hot c{i} scalar path); a multi-select returns a CSL
     // transient that splice contexts flatten and single-value contexts collapse (via the
-    // execNode wrapper). See dev-docs/CSL_FIRST_CLASS.md.
+    // execNode wrapper). See dev-docs/memory/CSL_FIRST_CLASS.md.
     if (nidx == 1 || nidx == 2) {
         std::vector<Value> items = cellBraceContents(node, env);
         if (items.size() == 1)

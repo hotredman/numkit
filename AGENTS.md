@@ -29,6 +29,15 @@ surface to the user**. Do not silently work on top of someone else's work.
 - Co-authored trailer required (see prior commits for style).
 - `main` is the integration branch. Never force-push.
 
+## Documentation map
+
+`dev-docs/README.md` indexes the living docs; reasoning (campaign logs,
+design rationale, reviews) lives in `dev-docs/memory/` — scan it for files
+touching your components before major work. Situational must-reads:
+LIBRARY_API (public API), CALLBACK_PAUSABILITY (VM callbacks),
+OBJECT_MODEL (classdef/object model), CORE_ARCHITECTURE (engine design),
+plus `src/codegen/DESIGN.md` for the transpiler.
+
 ## Public API conventions
 
 Every public function in `src/toolboxes/<ns>/include/numkit/<ns>/**` follows

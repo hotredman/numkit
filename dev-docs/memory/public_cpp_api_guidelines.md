@@ -1,5 +1,9 @@
 # Memory: Public C++ API Architectural Standards & Documentation Guidelines
 
+> Living rules distilled from this record live in
+> `dev-docs/LIBRARY_API.md` (the authoritative ruleset). This file is the
+> historical decision record.
+
 ## Context & Objectives
 As part of the decomposition of the monolithic standard library into modular categories under `src/builtin/` (`elmat`, `elfun`, `matfun`, `datafun`, `specfun`, `polyfun`, `strfun`, `timefun`, `datatypes`, `iofun`, `general`, `ops`, `lang`), we provide clean, engine-free public C++ APIs in `numkit::builtin::...`.
 

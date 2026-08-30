@@ -973,7 +973,7 @@ enter_frame:
                 // a=dst (in/out), b=elem. First-class concat builder: if R[elem] is a
                 // comma-separated list, horzcat-append each item; else append the one
                 // value. Driven by the runtime value, so [a, c{idx}, b] flattens for any
-                // subscript. See dev-docs/CSL_FIRST_CLASS.md.
+                // subscript. See dev-docs/memory/CSL_FIRST_CLASS.md.
                 Value             &dst  = R[I.a];
                 const Value       &elem = R[I.b];
                 std::vector<Value> elems;
@@ -1749,7 +1749,7 @@ enter_frame:
                 // Multi-select c{:} / c{vec} / c{range}: one selected index is still a
                 // bare single value; N!=1 is a comma-separated list. In a single-value
                 // context the compiler-inserted COLLAPSE collapses it (brick 5a); splice
-                // consumers flatten it. See dev-docs/CSL_FIRST_CLASS.md.
+                // consumers flatten it. See dev-docs/memory/CSL_FIRST_CLASS.md.
                 auto ids = Value::resolveIndices(sub, cell.numel());
                 if (ids.size() == 1) {
                     R[I.a] = cell.cellAt(ids[0]);
@@ -2142,7 +2142,7 @@ enter_frame:
                 // dispatch as CALL (user fn / ctor / object method / m-file / callback /
                 // external) over AB/NF. Emitted only when an arg could be a CSL, so the
                 // hot no-CSL CALL is untouched. pushCallFrame copies args, so flatArgs may
-                // die after the goto. See dev-docs/CSL_FIRST_CLASS.md.
+                // die after the goto. See dev-docs/memory/CSL_FIRST_CLASS.md.
                 uint8_t argBase = I.b, na = I.c;
                 uint8_t nargout_val = I.e;
                 int16_t funcIdx = I.d;
