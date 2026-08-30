@@ -288,7 +288,7 @@ void registerFzeroM(Engine &engine)
 // seeding, kMaxIter=500). The point is always passed to `fn` as a 1×n row, like
 // the C++ `evalVecToScalar`. The C++ `Value fminsearch(...)` API is retained.
 // Split into fminsearch + nk_nelder_mead + nk_nm_eval so no chunk approaches the
-// 255-register VM limit (CALLBACK_PAUSABILITY.md gotcha).
+// 255-register VM limit (callback_pausability.md gotcha).
 static const char *kFminsearchMSource = R"NKM(
 function [x, fval, exitflag] = fminsearch(fn, x0, tol)
   if ~(strcmp(class(fn), 'function_handle') || iscell(fn))

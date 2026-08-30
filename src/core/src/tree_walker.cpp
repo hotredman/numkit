@@ -2376,7 +2376,7 @@ Value TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
         obj = execNode(rootNode, env);
     }
     // OBJECT: obj.Prop reads via the class property hook (object model,
-    // OBJECT_MODEL.md §3). No-arg method call form is wired in P3.
+    // object_model.md §3). No-arg method call form is wired in P3.
     if (obj.isObject())
         return objectPropGet(obj, node->strValue, env);
     if (!obj.isStruct())

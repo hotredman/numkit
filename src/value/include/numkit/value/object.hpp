@@ -1,6 +1,6 @@
 // include/numkit/value/object.hpp
 //
-// Engine object model — see OBJECT_MODEL.md. A class instance is a
+// Engine object model — see object_model.md. A class instance is a
 // ValueType::OBJECT heap value carrying a class name + shared
 // ObjectState. The class itself (methods, property hooks, attributes)
 // is registered once with the Engine as a BuiltinClass.
@@ -37,7 +37,7 @@ struct NativePayload
 // ============================================================
 // ObjectState — instance state, shared via shared_ptr. The handle/value
 // pivot lives in HeapObject::clone(): a handle object shares this state
-// across copies; a value object deep-copies it. See OBJECT_MODEL.md §1.
+// across copies; a value object deep-copies it. See object_model.md §1.
 // ============================================================
 struct ObjectState
 {
@@ -105,7 +105,7 @@ struct BuiltinClass
 
     // Property names (for properties(), disp). Access goes through the
     // hooks below — v1 ships hooks only (no default ObjectState.props
-    // backing until a class needs it; see OBJECT_MODEL.md §2).
+    // backing until a class needs it; see object_model.md §2).
     std::vector<std::string> propNames;
     std::function<bool(const Value &self, const std::string &name,
                        Value &out, CallContext &ctx)> propGet;

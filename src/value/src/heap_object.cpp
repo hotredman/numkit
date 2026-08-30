@@ -54,7 +54,7 @@ HeapObject *HeapObject::clone() const
         h->funcName = new std::string(*funcName);
     if (funcSource)
         h->funcSource = new std::string(*funcSource);
-    // ── OBJECT: the value/handle pivot (OBJECT_MODEL.md §1), per element ──
+    // ── OBJECT: the value/handle pivot (object_model.md §1), per element ──
     if (objClass) {
         h->objClass = new std::string(*objClass);
         h->objIsHandle = objIsHandle;

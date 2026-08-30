@@ -6,7 +6,7 @@
 // bundle-side installer (library.cpp) wraps each entry's core-free GraphicsFn
 // and registers it.
 //
-// One .cpp per plot family (NAMESPACE_DESIGN.md §5, §9.5):
+// One .cpp per plot family (namespace_design.md §5, §9.5):
 //   plots/layout.cpp   — figure / subplot / hold / axes / labels / limits / legend / ticks
 //   plots/line.cpp     — plot / plot3 / stem / stairs / area / errorbar / semilog* / fplot / xline
 //   plots/bar.cpp      — bar / barh / scatter / hist / histogram / pie / boxplot / patch / heatmap

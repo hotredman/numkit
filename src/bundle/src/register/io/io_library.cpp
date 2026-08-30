@@ -1,7 +1,7 @@
 // toolboxes/io/src/library.cpp
 //
 // Registration hub for the Data Import and Export library.
-// Namespace layout (NAMESPACE_DESIGN.md §5, §9.4):
+// Namespace layout (namespace_design.md §5, §9.4):
 //   file_io/   → io.file_io.<fn>   (fopen, fclose, fread, fwrite, ...)
 //   text/      → io.text.<fn>      (csvread, csvwrite, ...)
 //   paths/     → io.paths.<fn>     (filesep, fullfile, fileparts, ...)

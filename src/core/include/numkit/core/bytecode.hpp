@@ -126,13 +126,13 @@ enum class OpCode : uint8_t {
     // e=nargs. If R[objReg] is an OBJECT whose class has method `name`,
     // dispatch it (self + args); otherwise fall back to FIELD_GET + the
     // CALL_INDIRECT machinery (struct-field func handle / index). Object
-    // model — see OBJECT_MODEL.md §3.
+    // model — see object_model.md §3.
     CALL_METHOD,
     // [a,b] = obj.name(args): dotted multi-output method call. a=outBase,
     // b=objReg, c=argBase, d=nameIdx, e=(nargs<<4)|nout (each nibble ≤15 —
     // methods with >15 args/outputs are not supported via this path).
     // Dispatches the class method with nout result slots written to
-    // R[outBase..outBase+nout). Object model — see OBJECT_MODEL.md §3.
+    // R[outBase..outBase+nout). Object model — see object_model.md §3.
     CALL_METHOD_MULTI,
     // classdef superclass calls inside a method/ctor body (compiled into the
     // method chunk so the body runs on the VM). Both delegate to

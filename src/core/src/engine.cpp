@@ -336,7 +336,7 @@ bool Engine::tryObjectBinaryOp(const std::string &op, const Value &lhs, const Va
     if (!lhs.isObject() && !rhs.isObject())
         return false;
     // The dominant object decides the class (first object operand wins —
-    // v1 dispatch fidelity, see OBJECT_MODEL.md §3).
+    // v1 dispatch fidelity, see object_model.md §3).
     const Value &dom = lhs.isObject() ? lhs : rhs;
     const std::string &clsName = dom.objectClassName();
     const BuiltinClass *cls = findClass(clsName);
@@ -1626,7 +1626,7 @@ void Engine::registerFunction(const std::string &ns,
 // engine's workspace fallback, calling `tryQualified(qualified)` for each
 // candidate. Returns true the first time the callback returns true.
 //
-// Resolution rules (mirrors NAMESPACE_DESIGN.md §4):
+// Resolution rules (mirrors namespace_design.md §4):
 //   * `import a.b.*`     → tries "a.b.<name>" first, then "deep" candidates
 //                          via shortNameIndex_: any registered fullname that
 //                          starts with "a.b." and ends with ".<name>". This
@@ -1896,7 +1896,7 @@ void Engine::registerBuiltinMSource(const std::string &src)
                 // function" on the VM. Fail loudly at registration instead.
                 throw Error("registerBuiltinMSource: embedded function '" + func.name
                     + "' needs more than the 255-register VM limit in one chunk — "
-                    "split it into helper functions (see dev-docs/handbook/CALLBACK_PAUSABILITY.md)",
+                    "split it into helper functions (see dev-docs/handbook/callback_pausability.md)",
                     0, 0, "registerBuiltinMSource", "",
                     "numkit:compiler:registerExhaustion");
             } catch (const std::exception &) {

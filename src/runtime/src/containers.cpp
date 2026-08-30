@@ -1,7 +1,7 @@
 // toolboxes/builtin/src/language/datatypes/containers.cpp
 //
 // Key–value container classes on the engine object model
-// (OBJECT_MODEL.md): the modern value-semantics `dictionary` (R2022b+)
+// (object_model.md): the modern value-semantics `dictionary` (R2022b+)
 // and the legacy handle-semantics `containers.Map`. Both share one
 // opaque KVPayload; the value/handle difference is entirely the registry
 // isHandle flag + the engine's COW clone rule.

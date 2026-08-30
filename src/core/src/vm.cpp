@@ -1991,7 +1991,7 @@ enter_frame:
                 }
 
                 // OBJECT: ClassName(args) constructs an instance when the
-                // name is a registered class (object model, OBJECT_MODEL.md).
+                // name is a registered class (object model, object_model.md).
                 {
                     const std::string &ctorName = chunk.strings[funcIdx];
                     if (const BuiltinClass *cls = engine_.findClass(ctorName);

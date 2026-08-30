@@ -60,7 +60,7 @@ struct HeapObject
     // (which return their bare name) and all non-handle values.
     std::string *funcSource = nullptr;
 
-    // ── OBJECT (class instance / array) — object.hpp / OBJECT_MODEL.md ──
+    // ── OBJECT (class instance / array) — object.hpp / object_model.md ──
     // objClass: registry key (class name). objStates: per-element instance
     // state, length == numel() (a scalar object is a 1-element vector; the
     // shape lives in `dims`). objIsHandle: cached from the class — drives

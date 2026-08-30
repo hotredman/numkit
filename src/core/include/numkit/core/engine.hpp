@@ -59,7 +59,7 @@ public:
     //          registry equals "ns.name". `ns=""` is equivalent to the
     //          1-arg form.
     // Both forms throw std::runtime_error on duplicate full names.
-    // See NAMESPACE_DESIGN.md for the rules.
+    // See namespace_design.md for the rules.
     void registerFunction(const std::string &name, ExternalFunc func);
     void registerFunction(const std::string &ns,
                           const std::string &name,
@@ -70,7 +70,7 @@ public:
     void addImplicitImport(const Import &imp);
     void clearImplicitImports();
 
-    // ── Class registry (object model — see OBJECT_MODEL.md) ──────
+    // ── Class registry (object model — see object_model.md) ──────
     // Register a builtin (C++-backed) class. Later, user classdef
     // populates the same registry via an adapter. Throws on duplicate.
     void registerClass(BuiltinClass cls);
@@ -282,7 +282,7 @@ public:
     // if not resolvable. `env` may be nullptr — then only direct (core or
     // fully-qualified) lookup is performed.
     //
-    // Resolution order (per NAMESPACE_DESIGN.md Section 3):
+    // Resolution order (per namespace_design.md Section 3):
     //   1. Direct: externalFuncs_.find(name)  (core / already qualified)
     //   2. Walk env→parent chain, for each scope's active imports:
     //      - wildcard `import a.b.*`     → try "a.b.<name>"
@@ -646,7 +646,7 @@ private:
     std::unordered_map<std::string, UnaryOpFunc> unaryOps_;
     std::unordered_map<std::string, ExternalFunc> externalFuncs_;
 
-    // Object-model class registry (OBJECT_MODEL.md). Keyed by class name.
+    // Object-model class registry (object_model.md). Keyed by class name.
     std::unordered_map<std::string, BuiltinClass> classes_;
     // Parsed user classdef descriptors (property defaults, ctor + method
     // UserFunctions), kept for inheritance merges. Full type in engine.cpp.

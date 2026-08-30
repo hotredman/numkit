@@ -37,7 +37,7 @@ enum class NodeType {
     // superclass names (`< Base & ...`); children = a mix of
     // CLASSDEF_PROPERTY and FUNCTION_DEF (methods incl. the constructor).
     // CLASSDEF_PROPERTY: strValue = property name; children[0] = default
-    // expression (absent → default []). See OBJECT_MODEL.md.
+    // expression (absent → default []). See object_model.md.
     CLASSDEF_DEF,
     CLASSDEF_PROPERTY,
     // One `enumeration` member: strValue = member name; children = constructor

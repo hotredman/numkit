@@ -12,7 +12,7 @@
 namespace numkit {
 
 // A single `import` declaration active in the current scope. See
-// NAMESPACE_DESIGN.md Sections 3-4 for resolution semantics.
+// namespace_design.md Sections 3-4 for resolution semantics.
 struct Import
 {
     std::vector<std::string> path;  // ["signal", "transforms"] for `import signal.transforms.*`

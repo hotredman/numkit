@@ -3,7 +3,7 @@
 // Private (src-only) helpers shared between the engine-free compute in
 // findpeaks.cpp and its CallContext register half in findpeaks_reg.cpp. The
 // register wrapper parses the Name-Value options into a PeakOpts and calls
-// findpeaksImpl (a raw-buffer core LIBRARY_API.md keeps off the public
+// findpeaksImpl (a raw-buffer core library_api.md keeps off the public
 // surface — the public entry is findpeaks()). NOT part of the public API.
 //
 // Phase 2b compute/register split — see project_layering_refactor memory.

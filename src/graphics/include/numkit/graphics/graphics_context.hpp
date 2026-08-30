@@ -71,7 +71,7 @@ using GraphicsFn = std::function<void(Span<const Value> args,
 
 // One registration record. `sub` is the graphics sub-namespace (layout / line /
 // bar / surface / polar / contour / image); `core` requests the extra bare-name
-// registration into core (figure / close / hold etc., NAMESPACE_DESIGN.md §7).
+// registration into core (figure / close / hold etc., namespace_design.md §7).
 struct PlotEntry {
     const char *sub;
     const char *name;

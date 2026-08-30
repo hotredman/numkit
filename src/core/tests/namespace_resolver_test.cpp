@@ -12,7 +12,7 @@
 //   * `import compat.*` flattens compat-registered aliases.
 //   * Tests run against both TreeWalker and VM backends.
 //
-// See NAMESPACE_DESIGN.md Sections 3-5.
+// See namespace_design.md Sections 3-5.
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/engine.hpp>

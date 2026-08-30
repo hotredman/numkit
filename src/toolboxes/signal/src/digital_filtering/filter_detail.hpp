@@ -2,7 +2,7 @@
 //
 // Private (src-only) helpers shared between the engine-free compute in
 // filter.cpp and its CallContext register half in filter_reg.cpp. NOT part of
-// the public signal API (LIBRARY_API.md forbids raw double*/Complex* on the
+// the public signal API (library_api.md forbids raw double*/Complex* on the
 // public surface). The register wrapper reuses these to honour the zi/zf
 // initial-condition forms of filter().
 //

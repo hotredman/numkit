@@ -217,7 +217,7 @@ private:
     Value &resolveCellSlot(const ASTNode *node, Environment *env);
     Value &resolveFieldLValue(const ASTNode *node, Environment *env);
 
-    // Object model (OBJECT_MODEL.md): property access via class hooks.
+    // Object model (object_model.md): property access via class hooks.
     Value objectPropGet(const Value &obj, const std::string &name, Environment *env);
     void objectPropSet(Value &objSlot, const std::string &name, const Value &rhs,
                        Environment *env);

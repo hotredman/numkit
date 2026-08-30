@@ -13,21 +13,21 @@ The map lives here; the content lives in two wings:
 
 | Document | What it is |
 |------|------------|
-| [LIBRARY_API.md](handbook/LIBRARY_API.md) | **Authoritative public-API ruleset** (argument order, types, overloads, Doxygen + layering standards). Read before adding/refactoring any public `toolboxes/` function. |
-| [CALLBACK_PAUSABILITY.md](handbook/CALLBACK_PAUSABILITY.md) | How-to for making a VM callback pausable (debugger-visible): decision rule + per-mechanism recipes. |
-| [CORE_ARCHITECTURE.md](handbook/CORE_ARCHITECTURE.md) | The core architecture article (RU): Value substrate (16-byte tagged, COW/PMR), layer DAG, dual engine, pausable VM. |
-| [OBJECT_MODEL.md](handbook/OBJECT_MODEL.md) | Object-model design: type + registry + clone infrastructure. |
-| [NAMESPACE_DESIGN.md](handbook/NAMESPACE_DESIGN.md) | `toolboxes/` namespace layout + conventions; MATLAB taxonomy → source tree. |
-| [FORMAT_HOMES.md](handbook/FORMAT_HOMES.md) | Number-display / `format` reference. |
-| [COORDINATION.md](handbook/COORDINATION.md) | Multi-session worker-territory protocol. **Dormant** — single-session mode. |
-| [PARITY_AGENT_PROMPT.md](handbook/PARITY_AGENT_PROMPT.md) | Cold-start runbook for the autonomous MATLAB-parity cron agent. **Reference only.** |
+| [library_api.md](handbook/library_api.md) | **Authoritative public-API ruleset** (argument order, types, overloads, Doxygen + layering standards). Read before adding/refactoring any public `toolboxes/` function. |
+| [callback_pausability.md](handbook/callback_pausability.md) | How-to for making a VM callback pausable (debugger-visible): decision rule + per-mechanism recipes. |
+| [core_architecture.md](handbook/core_architecture.md) | The core architecture article (RU): Value substrate (16-byte tagged, COW/PMR), layer DAG, dual engine, pausable VM. |
+| [object_model.md](handbook/object_model.md) | Object-model design: type + registry + clone infrastructure. |
+| [namespace_design.md](handbook/namespace_design.md) | `toolboxes/` namespace layout + conventions; MATLAB taxonomy → source tree. |
+| [format_homes.md](handbook/format_homes.md) | Number-display / `format` reference. |
+| [coordination.md](handbook/coordination.md) | Multi-session worker-territory protocol. **Dormant** — single-session mode. |
+| [parity_agent_prompt.md](handbook/parity_agent_prompt.md) | Cold-start runbook for the autonomous MATLAB-parity cron agent. **Reference only.** |
 
 Open tech-debt is tracked in [TODO.md](TODO.md) (kept beside this map).
 
 ## memory/ — notable entries
 
 [vm_callbacks_plan.md](memory/vm_callbacks_plan.md) (the pausable-callback
-build log behind CALLBACK_PAUSABILITY.md),
+build log behind callback_pausability.md),
 [linalg_roadmap.md](memory/linalg_roadmap.md) (the closed linalg parity
 campaign), [stack_safety.md](memory/stack_safety.md) (the nesting/stack
 crash design), [opcode_fusion_catalog.md](memory/opcode_fusion_catalog.md)

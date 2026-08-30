@@ -1,6 +1,6 @@
 // core/tests/object_model_test.cpp
 //
-// P1 of the engine object model (OBJECT_MODEL.md): the OBJECT value
+// P1 of the engine object model (object_model.md): the OBJECT value
 // type, the class registry, and the value/handle COW clone rule. These
 // are unit tests of the core infrastructure via the C++ API — script-
 // level construct / dispatch arrives in P2/P3.
@@ -404,7 +404,7 @@ INSTANTIATE_TEST_SUITE_P(Backends, PointObjectTest,
                                            Engine::Backend::VM));
 
 // ============================================================
-// Object arrays (OBJECT_MODEL.md): builtin () indexing / indexed-assign
+// Object arrays (object_model.md): builtin () indexing / indexed-assign
 // with grow for a class that does NOT override subsref/subsasgn. Uses a
 // plain "Box" value class (and "HBox" handle variant for aliasing).
 // ============================================================

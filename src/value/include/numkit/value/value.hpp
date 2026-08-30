@@ -173,7 +173,7 @@ public:
     static Value structArray(size_t rows, size_t cols,
                               std::pmr::memory_resource *mr = nullptr);
     static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
-    // ── OBJECT (class instance) — see object.hpp / OBJECT_MODEL.md ──
+    // ── OBJECT (class instance) — see object.hpp / object_model.md ──
     // Wrap pre-built instance state as an instance of `className`.
     // `isHandle` is the class's handle flag and drives COW (clone shares
     // state for handle classes, deep-copies for value classes).

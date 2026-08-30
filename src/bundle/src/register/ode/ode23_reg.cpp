@@ -41,7 +41,7 @@ void ode23_reg(Span<const Value> args, size_t nargout,
 // are the natural `.m` algorithm, vectorised so the stage arithmetic still hits
 // the SIMD kernels and is bit-identical to the retained `Value ode23(...)` API.
 // Split into ode23 + nk_bs23_step + nk_bs23_hermite so no single chunk exceeds
-// the 255-register VM limit (see CALLBACK_PAUSABILITY.md gotchas).
+// the 255-register VM limit (see callback_pausability.md gotchas).
 static const char *kOde23MSource = R"NKM(
 function [t, y] = ode23(fn, tspan, y0, opts)
   rel_tol = 1e-3; abs_tol = 1e-6; max_step = inf; initial_step = 0; refine = 1;

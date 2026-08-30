@@ -5,7 +5,7 @@
 This repo **can** be split across parallel AI-agent sessions (core / ide / lib
 territories), but that model is **currently dormant — normally you are the
 single session working on `main`**. The territory / worktree protocol is kept
-in [COORDINATION.md](dev-docs/handbook/COORDINATION.md) as reference for if it is
+in [coordination.md](dev-docs/handbook/coordination.md) as reference for if it is
 revived (territory ownership, shared-surface test rules, build isolation,
 commit/branch protocol).
 
@@ -41,7 +41,7 @@ handbook/OBJECT_MODEL (classdef/object model), handbook/CORE_ARCHITECTURE
 ## Public API conventions
 
 Every public function in `src/toolboxes/<ns>/include/numkit/<ns>/**` follows
-[dev-docs/handbook/LIBRARY_API.md](dev-docs/handbook/LIBRARY_API.md) — the authoritative API
+[dev-docs/handbook/library_api.md](dev-docs/handbook/library_api.md) — the authoritative API
 ruleset (argument order, native scalar types vs `const Value &` vs
 `Span<const double>`, `FnHandle` callbacks, no `Engine *` in public
 signatures, magic-polymorphism → typed overloads, multi-output return

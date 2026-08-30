@@ -2,7 +2,7 @@
 //
 // Registration hub for the Signal Processing Toolbox builtins.
 // Namespace layout — sub-namespaces mirror toolboxes/signal/src/<sub>/
-// directories (NAMESPACE_DESIGN.md §5, §9.2).
+// directories (namespace_design.md §5, §9.2).
 //
 // Convention: every signal function gets a *dual* registration —
 //   1. signal.<sub>.<name>      (e.g. signal.transforms.fft)
@@ -590,7 +590,7 @@ void SignalLibrary::install(Engine &engine)
     reg("measurements", "peak2peak", &signal::detail::peak2peak_reg);
     reg("measurements", "peak2rms",  &signal::detail::peak2rms_reg);
 
-    // ── Core promotions (NAMESPACE_DESIGN.md §7, closed whitelist) ─────
+    // ── Core promotions (namespace_design.md §7, closed whitelist) ─────
     // These 6 functions are general-purpose and reachable by short name
     // even WITHOUT `import compat.*`. They get a third registration in
     // core (namespace = ""). The same ExternalFunc pointer is shared

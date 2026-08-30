@@ -16,7 +16,7 @@ repository conventions.
 ## Public API conventions
 
 Every public function in `toolboxes/<ns>/include/numkit/<ns>/**` must follow
-the signature rules in [dev-docs/handbook/LIBRARY_API.md](dev-docs/handbook/LIBRARY_API.md) —
+the signature rules in [dev-docs/handbook/library_api.md](dev-docs/handbook/library_api.md) —
 argument order, native scalar types, `const Value &` vs
 `Span<const double>`, `FnHandle` callbacks, no `Engine *` in the public
 API, multi-output return shape, and Doxygen requirements. Read it before

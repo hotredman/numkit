@@ -1,7 +1,7 @@
 // toolboxes/stats/src/library.cpp
 //
 // Registration hub for the Statistics Toolbox builtins.
-// Namespace layout (NAMESPACE_DESIGN.md §5, §9.3):
+// Namespace layout (namespace_design.md §5, §9.3):
 //   moments/   → stats.descriptive.<fn>  (skewness, kurtosis, ...)
 //   nan_aware/ → stats.nan.<fn>          (nansum, nanmean, ...)
 // Each function is also aliased into `compat.<fn>` so MATLAB-style

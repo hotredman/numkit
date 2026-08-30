@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-check_api.py — lint public toolboxes/ API headers against dev-docs/handbook/LIBRARY_API.md.
+check_api.py — lint public toolboxes/ API headers against dev-docs/handbook/library_api.md.
 
 Covers the *mechanically checkable* subset of the API ruleset. Human-
 judgement rules (§3 test coverage, §5 reference citations) are enforced
-by the PR checklist in dev-docs/handbook/LIBRARY_API.md, not here.
+by the PR checklist in dev-docs/handbook/library_api.md, not here.
 
 Checks, over every toolboxes/<ns>/include/**/*.hpp header:
   §13  no `Engine` / `CallContext` by-ref/by-ptr in a public signature
   §7   `memory_resource` is passed by pointer, never by reference
   §10  no `const Value *` in a public signature
 
-§13 exceptions (see dev-docs/handbook/LIBRARY_API.md §13):
+§13 exceptions (see dev-docs/handbook/library_api.md §13):
   * library.hpp        — the install(Engine&) registration hook.
   * toolboxes/io/**         — file I/O needs the engine's virtual filesystem.
   * a line marked      `// lint: engine-io` — an engine text-sink / fid

@@ -533,7 +533,7 @@ Parquet / Zarr) → `toolboxes/io/`. Raw byte-stream primitives (`fopen`,
 `fread`, …) live in `toolboxes/io/src/file_io/`.
 
 Decision tree, current layout, and the reasoning behind the per-domain
-split are in [`FORMAT_HOMES.md`](FORMAT_HOMES.md). Consult it before
+split are in [`format_homes.md`](format_homes.md). Consult it before
 adding a new format implementation.
 
 ---

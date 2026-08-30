@@ -7,7 +7,7 @@ decoupling all landed on `main`. The layering guard (`tools/check_layering.py`)
 now pins all 11 layers (value/fs/ops/core/figure/math/lang/graphics/scriptgraph/
 runtime/toolboxes) with **zero per-file exemptions**, and **no public toolbox
 header names `Engine`**. Remaining: bench API-rot + apple-m validation (both
-orthogonal/environmental — see §10). Read alongside COORDINATION.md (territories)
+orthogonal/environmental — see §10). Read alongside coordination.md (territories)
 and the layering memory note. The per-section notes below describe the converged
 end-state; §10 logs the post-merge execution history.
 
@@ -463,7 +463,7 @@ Order is adjustable; A and B are the safest first real steps.
 - **WASM `-fexceptions` (G):** THE technical risk — currently PRIVATE on the
   monolith; must migrate to the per-layer OBJECT libs without breaking the
   browser preset.
-- **Coordination (COORDINATION.md):** steps C and F edit shared surface that
+- **Coordination (coordination.md):** steps C and F edit shared surface that
   the parallel ide/lib sessions also touch. They cannot run concurrently with
   active ide/lib edits — sync the sessions (freeze others / land on main
   together). **Merge to main only on explicit user command.**
@@ -508,7 +508,7 @@ to keep its diff semantic + reviewable.
   `scripts/engine-build.sh|web-build.sh`, `.gitignore`. Per-layer CMakeLists are unchanged
   (all relative to `CMAKE_CURRENT_SOURCE_DIR`). **Its own coordinated branch** —
   9 top-level `git mv`s are a huge shared surface; freeze the ide/lib worktrees
-  and land together (COORDINATION.md). Build is the detector.
+  and land together (coordination.md). Build is the detector.
 - **`graphics` promoted to a service layer — ✅ DONE (`c866983d`, 2026-06-12).**
   `src/toolboxes/graphics` → `src/graphics`: graphics (figure/plot/imshow/…) is a
   plotting SERVICE, not a numerical peer — toolboxes MAY depend on it (to draw
