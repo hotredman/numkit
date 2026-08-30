@@ -11,7 +11,7 @@ it the packet family `wprec`, `wpcoef`, `wpsplt`, `besttree`).
 
 ## Repro
 ```matlab
-clear; import compat.*;
+clear;
 t = wpdec([1 2 3 4 5 6 7 8], 2, 'db1')
 % numkit: Error — VM: undefined function 'wpdec'
 % MATLAB: wavelet-packet tree object (2 levels, full binary tree)

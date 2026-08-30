@@ -13,7 +13,7 @@ does not observe dynamically injected workspace writes.
 ## Repro
 ```matlab
 % examples/Frame_Introspection/assignin_setter.m (trimmed)
-clear; import compat.*;
+clear;
 function setup_constants(prefix)
     assignin('caller', [prefix, '_one'],   1);
     assignin('caller', [prefix, '_two'],   2);

@@ -12,7 +12,7 @@ Full-rank `X` works and matches MATLAB exactly.
 
 ## Repro
 ```matlab
-clear; import compat.*;
+clear;
 mahal([1 1; 2 2], [0 0; 1 1; 2 2; 3 3])   % X collinear (rank 1)
 % numkit: Error — mahal: covariance matrix is not positive definite
 % MATLAB: [0.9505075; 0.9505075]

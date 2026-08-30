@@ -15,7 +15,7 @@ see bugs/signal/spectrogram-ps.md.)
 
 ## Repro
 ```matlab
-clear; import compat.*;
+clear;
 x = sin(2*pi*0.1*(0:99));
 [s, f, t, ps, fc, tc] = spectrogram(x, 16, 8, 16, 1);
 % numkit: Error — Too many output arguments

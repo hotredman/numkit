@@ -19,7 +19,7 @@ Two divergent shapes, both wrong vs MATLAB:
 ## Repro
 
 ```matlab
-clear; import compat.*;
+clear;
 disp a//b:c
 % numkit: a//b
 % MATLAB: a//b:c

@@ -12,7 +12,7 @@ mapping helpers a CWT (see wavelet/cwt.md) and scalogram plotting need.
 
 ## Repro
 ```matlab
-clear; import compat.*;
+clear;
 centfrq('db4')         % MATLAB: 0.714285714285714  (= 5/7)
 scal2frq(4, 'db4', 1)  % MATLAB: 0.178571428571429  (= centfrq/(a·Δ) = 0.7143/4)
 % numkit (each): Error — VM: undefined function 'centfrq'/'scal2frq'

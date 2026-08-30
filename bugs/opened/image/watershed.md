@@ -11,7 +11,7 @@
 
 ## Repro
 ```matlab
-clear; import compat.*;
+clear;
 L = watershed(magic(5))
 % numkit: Error — VM: undefined function 'watershed'
 % MATLAB: label matrix with 0 ridge lines separating catchment basins

@@ -169,7 +169,8 @@ When hunting for bugs or fuzzing a function, systematically test these 5 vectors
 
 ### Self-Contained Repro Rule
 Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste runnable**:
-- Start with `clear; import compat.*;`
+- Start with `clear;` — numkit runs the snippet with `--compat` (implicit
+  `import compat.*`), so the block stays copy-paste valid in MATLAB too.
 - Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
 - Include the exact function call and comment the expected MATLAB vs NumKit output.
 
