@@ -59,6 +59,23 @@ signatures, magic-polymorphism → typed overloads, multi-output return
 shape). Read it before adding or refactoring any public `src/toolboxes/`
 function.
 
+## Test-running policy
+
+**Full suite is expensive (~5 min) — run it ONLY when the user asks.**
+For every change, run the MINIMUM set that proves YOUR change is correct:
+
+| Change type | Minimum verification |
+|---|---|
+| Single function / builtin | `--gtest_filter` for the affected suite(s) only |
+| Parser / lexer / compiler | The specific syntax-family tests + any DISABLED guard |
+| Registration / bundle wiring | The domain's `*_test` + one CLI smoke (`-e "..."`) |
+| Bug fix | Enable the guard, verify IT passes; related suite only |
+| Refactor (no behavior change) | The suite(s) whose files you touched |
+
+A green targeted run is sufficient to commit. If the user asks for a
+full run (or before a publish), the command is:
+`build/desktop-fast/tests/gtest/Release/numkit_gtest.exe`
+
 ## Smoke tests
 
 - Hand-runnable `.m` smokes live in `src/toolboxes/<name>/tests/smoke/*_smoke.m`
