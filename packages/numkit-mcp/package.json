@@ -27,7 +27,7 @@
     "test": "node test/mcp_test.js"
   },
   "dependencies": {
-    "numkit": "file:../numkit"
+    "numkit": "^0.1.0"
   },
   "engines": {
     "node": ">=16"
