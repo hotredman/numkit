@@ -200,7 +200,7 @@ Now mechanical:
 Reorder Schur form: swap adjacent 1×1/2×2 diagonal blocks by orthogonal
 similarity (LAPACK `dtrexc`/`dlaexc` logic: Givens for 1×1↔1×1, small
 Sylvester solve + QR for blocks). Select-vector + cluster-index calling
-forms. Needed by `bugs/control/care-dare.md` follow-ups.
+forms. Needed by `bugs/closed/control/care-dare.md` follow-ups.
 
 ### 2.2 `qz` (generalized Schur) + `ordqz`  [L]
 - Hessenberg-triangular reduction of (A,B) (`dgghrd`: QR of B, then Givens

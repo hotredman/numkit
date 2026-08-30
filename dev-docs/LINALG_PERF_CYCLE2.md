@@ -32,7 +32,7 @@ Key facts driving this cycle:
   This one defect accounts for most of the 17× GEMM gap.
 - Complex/real GEMM ratio at n=512 is 4.7× (target ≤ 2.5×).
 - chol n=512 is 19.4× slower than MATLAB; `solve` n=1024 is ~404× slower
-  (3877.6 ms vs 9.59 ms) — see `bugs/linalg/perf-openblas-mkl-gap.md` (S2).
+  (3877.6 ms vs 9.59 ms) — see `bugs/closed/linalg/perf-openblas-mkl-gap.md` (S2).
 - MATLAB rows for n=64/128 in `benchmarks/README.md` are distorted by
   first-call warmup (non-monotonic 0.10 ms → 0.01 ms), because
   `bench_linalg.m` does not use `timeit`.

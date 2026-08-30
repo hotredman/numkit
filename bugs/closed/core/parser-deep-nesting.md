@@ -39,7 +39,7 @@ Recursive descent in `Compiler::compileNode`/`compileNodeExpand` recurses per
 nesting level with no depth/stack guard; the descent dies before the existing
 register-exhaustion check (which fires on the way *up*) can run. The TreeWalker
 and deep-block parsing have the same unbounded-recursion shape. Full analysis:
-[dev-docs/STACK_SAFETY.md](../../dev-docs/STACK_SAFETY.md).
+[dev-docs/STACK_SAFETY.md](../../../dev-docs/STACK_SAFETY.md).
 
 ## Fix (e8267458 + follow-up)
 

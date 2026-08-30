@@ -46,8 +46,8 @@ subproblem (`c + Jc·d ≤ 0`, `ceq + Jceq·d = 0`), with an **L1-merit**
 backtracking line search penalising the nonlinear-constraint violation. The
 `[c, ceq] = nonlcon(x)` multi-output handle call is enabled by the
 varargout / anonymous-multi-output support
-([bugs/lang/anonymous-multi-output](../lang/anonymous-multi-output.md),
-[multi-output-handle-call](../lang/multi-output-handle-call.md)). Verified vs
+([bugs/lang/anonymous-multi-output](../../closed/lang/anonymous-multi-output.md),
+[multi-output-handle-call](../../closed/lang/multi-output-handle-call.md)). Verified vs
 MATLAB R2025b: `min x1+x2 s.t. x1²+x2²≤1 → [−1/√2 −1/√2]`; `min x1²+x2² s.t.
 x1+x2−2=0 (ceq) → [1 1]`.
 
@@ -59,5 +59,5 @@ x1+x2−2=0 (ceq) → [1 1]`.
   `src/toolboxes/optim/tests/fmincon_test.cpp` (6 cases),
   `known_bugs_test.cpp` (`Fmincon`, promoted live),
   smoke `tests/smoke/fmincon_smoke.m`
-- blocked extension: [bugs/lang/multi-output-handle-call](../lang/multi-output-handle-call.md)
+- blocked extension: [bugs/lang/multi-output-handle-call](../../closed/lang/multi-output-handle-call.md)
 - MATLAB `doc fmincon`

@@ -75,8 +75,8 @@ eigs, svds, svdsketch, svdappend, decomposition.
 
 `src/toolboxes/linalg/tests/known_bugs_test.cpp` still has
 `DISABLED_ComplexMatrixOps` (line 82) and `DISABLED_QzGsvd` (line 103)
-while `bugs/linalg/complex-matrix-unsupported.md` and
-`bugs/linalg/qz-gsvd.md` are flipped to FIXED. Per the file's own header
+while `bugs/closed/linalg/complex-matrix-unsupported.md` and
+`bugs/closed/linalg/qz-gsvd.md` are flipped to FIXED. Per the file's own header
 ("remove DISABLED_ to turn into a live regression guard"), promote both
 tests and make sure they pass. A FIXED bug with a disabled guard is worse
 than no guard: it silently documents distrust in the fix.

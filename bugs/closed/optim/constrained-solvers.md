@@ -19,7 +19,7 @@ optimizers `fminunc` / `quadprog` / `linprog` / `fmincon`. All four landed
 parity, and any scope notes (notably: `linprog` returns the min-norm point on
 a degenerate optimal face rather than MATLAB's vertex; `fmincon` defers
 nonlinear constraints pending VM multi-output-handle support —
-[bugs/lang/multi-output-handle-call](../lang/multi-output-handle-call.md)).
+[bugs/lang/multi-output-handle-call](../../closed/lang/multi-output-handle-call.md)).
 
 ## Repro (all now resolved)
 ```matlab

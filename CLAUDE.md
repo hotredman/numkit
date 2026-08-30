@@ -144,7 +144,9 @@ cause, or ANY ratio if worse big-O); <1.5× is noise. See bugs/README.md.
 
 See [bugs/README.md](bugs/README.md) for the template + Kind legend + index.
 When you fix a bug, remove the test's `DISABLED_` prefix, flip the md status
-to ✅ FIXED with the commit hash, and update the index row (keep the md).
+to ✅ FIXED with the commit hash, update the index row, and `git mv` the md
+into `bugs/closed/<namespace>/` (structure preserved; `bugs/<ns>/` holds only
+OPEN bugs).
 
 ## Memory
 

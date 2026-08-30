@@ -86,12 +86,12 @@ Verified: `[a,b]=(@(x) deal(x+1,x-1))(5)` = 6,4; single `h(5)` = 6; captures
 (`k=100; [p,q]=(@(x) deal(x+k,x-k))(5)` = 105,−95); `arrayfun(@(x) max(x,2),
 …)` and anonymous composition unchanged. Full suite 12397/0 — no regressions.
 Unblocks `fmincon`'s nonlcon (`@(x) deal(c, ceq)`) — see
-[bugs/optim/fmincon.md](../optim/fmincon.md), now nonlcon-capable.
+[bugs/optim/fmincon.md](../../closed/optim/fmincon.md), now nonlcon-capable.
 
 ## References
 - `src/core/src/compiler.cpp` (`compileAnonFunc`, `compileFunction`,
   `compileMultiAssign`), `src/core/src/vm.cpp` (RET_MULTI / nargout)
 - enabled by: [multi-output-handle-call](multi-output-handle-call.md) (dispatch)
-- consumer: [bugs/optim/fmincon.md](../optim/fmincon.md) (nonlcon)
+- consumer: [bugs/optim/fmincon.md](../../closed/optim/fmincon.md) (nonlcon)
 - guard test: `src/bundle/tests/known_bugs_test.cpp`
   (`DISABLED_AnonymousMultiOutput`)

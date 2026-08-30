@@ -89,7 +89,7 @@ time. User chose this full path (2026-06-27) over a narrow 2-context fix.
    `CELL_APPEND_ELEM`, `CELL_APPEND_SLICE_2D`, `CALL_VARARGS[_MULTI]`,
    `CELL_GET_MULTI[_2D]` and their compiler emitters once both backends route through CSL.
 8. **Close the gap** — `f(c{idx})` / `{c{idx}}` with a vector-variable subscript work on
-   both backends; flip `bugs/lang/cell-csl-expansion.md` (gap closed), update this doc.
+   both backends; flip `bugs/closed/lang/cell-csl-expansion.md` (gap closed), update this doc.
 
 ## Risk
 Centre of gravity: the VM dataflow pass (5) + the call-ABI flatten (6), plus the
