@@ -44,4 +44,4 @@ reuse must cover it. Measure which hypothesis holds first.
 - **Guard:** deferred — minimal standalone repro pending (corpus-referenced).
 
 fieldtest batch `reports/20260830-003212.json` (`sa_tsp.m` — runtime-error).
-Related: STACK_SAFETY.md (the same >255 `uint8_t` register-file ceiling).
+Related: stack_safety.md (the same >255 `uint8_t` register-file ceiling).

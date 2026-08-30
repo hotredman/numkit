@@ -465,7 +465,7 @@ uint8_t Compiler::compileNode(const ASTNode *node)
     // once the producer emits one; collapse it in place so single-value contexts never
     // see a CSL. COLLAPSE is a runtime no-op on a non-CSL, so this is inert until the
     // CELL_GET producer is flipped (brick 5b). Splice contexts call compileNodeExpand
-    // directly and skip this. See dev-docs/memory/CSL_FIRST_CLASS.md.
+    // directly and skip this. See dev-docs/memory/csl_first_class.md.
     uint8_t reg = compileNodeExpand(node);
     if (node && node->type == NodeType::CELL_INDEX)
         emitAB(OpCode::COLLAPSE, reg, reg);
@@ -1022,7 +1022,7 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
     // compileNodeExpand (preserving a CSL) into consecutive registers and emit
     // CALL_FLATTEN_MULTI, which flattens any CSL arg into the runtime arg list and runs
     // the full CALL_MULTI target dispatch. A plain named-function callee only -- a
-    // handle/variable callee falls through to the normal path. See CSL_FIRST_CLASS.md.
+    // handle/variable callee falls through to the normal path. See csl_first_class.md.
     if (callNode->children[0]->type == NodeType::IDENTIFIER) {
         bool anyBraceArg = false;
         for (size_t i = 1; i < callNode->children.size(); ++i)
@@ -1999,7 +1999,7 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
                     // preserves a CSL (CELL_GET / CELL_GET_2D produce one for a
                     // multi-select, incl. a variable subscript); the `end` context is
                     // set up inside compileCellIndex. HORZCAT_APPEND_FLATTEN appends all
-                    // of a CSL or one of a non-CSL at runtime. See CSL_FIRST_CLASS.md.
+                    // of a CSL or one of a non-CSL at runtime. See csl_first_class.md.
                     uint8_t v = compileNodeExpand(elem.get());
                     emitAB(OpCode::HORZCAT_APPEND_FLATTEN, dst, v);
                 } else if (isCslCandidate(elem.get())) {
@@ -2403,7 +2403,7 @@ uint8_t Compiler::compileCellLiteral(const ASTNode *node)
         // including a variable subscript), then CELL_APPEND_FLATTEN, which appends all of
         // a CSL or one of a non-CSL at runtime. Handles {c{:}} / {c{vec}} / {c{idx}}
         // (variable) / {0, c{:}, 9} uniformly. A row with no brace index keeps the fast
-        // fixed-count path below. See dev-docs/memory/CSL_FIRST_CLASS.md.
+        // fixed-count path below. See dev-docs/memory/csl_first_class.md.
         bool hasBraceIndex = false;
         for (auto &elem : row->children)
             if (elem->type == NodeType::CELL_INDEX) { hasBraceIndex = true; break; }
@@ -3264,7 +3264,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     // CALL_FLATTEN, which flattens any CSL arg into the runtime arg list and runs the
     // full target dispatch (all call targets). A call with no brace-index arg uses the
     // hot normal CALL below, untouched. Single output here; multi-output is in
-    // compileCallMulti. See dev-docs/memory/CSL_FIRST_CLASS.md.
+    // compileCallMulti. See dev-docs/memory/csl_first_class.md.
     bool anyBraceArg = false;
     for (size_t i = 1; i < node->children.size(); ++i)
         if (node->children[i]->type == NodeType::CELL_INDEX) { anyBraceArg = true; break; }

@@ -77,7 +77,7 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-// ── nlinfit as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ────────────────
+// ── nlinfit as an embedded `.m` wrapper (vm_callbacks_plan.md) ────────────────
 // The model `fun(beta, X)` is always user code, so nlinfit takes the `.m` path:
 // every model evaluation (residual + central-difference Jacobian) runs as
 // bytecode → pausable under the debugger. Faithful transcription of the C++

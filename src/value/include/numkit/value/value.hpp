@@ -709,7 +709,7 @@ Value narrowComplex(Value v, std::pmr::memory_resource *mr);
 // one element yields that element; 0 or >1 elements throw (MATLAB "not enough" / "too
 // many" values). A non-CSL value passes through unchanged, so this is safe to apply at
 // any single-value sink (assignment RHS, operator operand, condition, index value). The
-// VM COLLAPSE opcode is a thin wrapper. See dev-docs/memory/CSL_FIRST_CLASS.md.
+// VM COLLAPSE opcode is a thin wrapper. See dev-docs/memory/csl_first_class.md.
 Value collapseCsl(Value v);
 
 // ── Inline template bodies ──────────────────────────────────────

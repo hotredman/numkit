@@ -71,7 +71,7 @@ feature.**
 ## Gap closed (2026-06-27) — first-class CSL
 The former deliberate gap — a **vector-VARIABLE** subscript in a call arg or cell
 literal (`idx=[1 3]; f(c{idx})` or `{c{idx}}`) — is now closed on **both backends** by
-the first-class CSL rework (dev-docs/CSL_FIRST_CLASS.md). A comma-separated list is a
+the first-class CSL rework (dev-docs/memory/csl_first_class.md). A comma-separated list is a
 transient `Value` (`ValueType::CSL`): the producer (`c{sub}`) emits one for a multi-
 select (any subscript, including a runtime variable); splicing contexts flatten it; a
 single-value context collapses it (1 → the element; 0 / >1 → "too many values"). The VM
@@ -95,7 +95,7 @@ a niche feature, tracked here, not blocking. All consuming-context forms (concat
 cell-literal / multi-assign) are first-class and correct.
 
 ## References
-- dev-docs/CSL_FIRST_CLASS.md (first-class CSL design + brick log)
+- dev-docs/memory/csl_first_class.md (first-class CSL design + brick log)
 - src/core/src/tree_walker.cpp (`execCellIndex`, `execNode` / `execNodeExpand`, splicers)
 - src/core/src/vm.cpp (`CELL_GET` producer, `CALL_FLATTEN` / `HORZCAT_APPEND_FLATTEN` / `CELL_APPEND_FLATTEN`)
 - MATLAB: comma-separated lists (`doc "comma-separated lists"`)

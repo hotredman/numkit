@@ -37,7 +37,7 @@ void ode45_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-// ── ode45 as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ──────────────────
+// ── ode45 as an embedded `.m` wrapper (vm_callbacks_plan.md) ──────────────────
 // The registered ode45 is implemented in `.m`: the RHS `f(t,y)` is evaluated
 // from bytecode (pausable), and the Dormand-Prince 5(4) step loop + adaptive
 // control + Shampine dense output are the natural `.m` algorithm. A faithful,

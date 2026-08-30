@@ -382,7 +382,7 @@ Value mat2cell(const Value &x, const Value &rowSizesV, const Value &colSizesV, s
 
 namespace detail {
 
-// ── State-machine cellfun (VM_CALLBACKS_PLAN.md) ─────────────────────────────
+// ── State-machine cellfun (vm_callbacks_plan.md) ─────────────────────────────
 // Drives cellfun(@userfunc, c [, 'UniformOutput', tf]) one element at a time via
 // the shared LoopContinuation, running each callback as a pausable VM frame
 // instead of the synchronous callReentrant path. Only the user-code-handle

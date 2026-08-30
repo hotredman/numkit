@@ -39,11 +39,11 @@ Recursive descent in `Compiler::compileNode`/`compileNodeExpand` recurses per
 nesting level with no depth/stack guard; the descent dies before the existing
 register-exhaustion check (which fires on the way *up*) can run. The TreeWalker
 and deep-block parsing have the same unbounded-recursion shape. Full analysis:
-[dev-docs/STACK_SAFETY.md](../../../dev-docs/STACK_SAFETY.md).
+[dev-docs/memory/stack_safety.md](../../../dev-docs/memory/stack_safety.md).
 
 ## Fix (e8267458 + follow-up)
 
-Three layers, per STACK_SAFETY.md §5:
+Three layers, per stack_safety.md §5:
 
 1. Parse-time nesting contract — `NestingGuard` in `Parser`, limit 200
    (justified by the `uint8_t` register file, not a magic number); clean
@@ -68,5 +68,5 @@ Debug**; depth ≤ 200 still executes.
 - `src/core/include/numkit/core/parser.hpp` (`NestingGuard`)
 - `src/core/tests/parser_test.cpp`, `src/core/tests/stack_guard_test.cpp`,
   `tests/gtest/integration/error_diagnostics_test.cpp`
-- `dev-docs/STACK_SAFETY.md` (design + anti-kludge rationale),
+- `dev-docs/memory/stack_safety.md` (design + anti-kludge rationale),
   `dev-docs/memory/stack_safety_architecture.md`

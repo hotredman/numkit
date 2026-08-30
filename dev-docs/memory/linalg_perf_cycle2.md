@@ -1,7 +1,7 @@
 # Linear Algebra Performance — Cycle 2 Plan
 
-Status: OPEN. Owner-approved follow-up to `LINALG_PERF_PLAN.md` (cycle 1) and
-the Round 5/6 review in `dev-docs/LINALG_REVIEW_FOLLOWUP.md`.
+Status: OPEN. Owner-approved follow-up to `linalg_perf_plan.md` (cycle 1) and
+the Round 5/6 review in `dev-docs/linalg_review_followup.md`.
 
 This document is self-contained: it can be executed without reading the chat
 history. All rules from cycle 1 remain in force, in particular:
@@ -10,7 +10,7 @@ history. All rules from cycle 1 remain in force, in particular:
   come from a raw output file committed under
   `src/toolboxes/linalg/benchmarks/results/`.
 - MATLAB is run headlessly by the agent itself using the profile-redirect
-  recipe embedded in `LINALG_PERF_PLAN.md` (P6). Provenance rules apply:
+  recipe embedded in `linalg_perf_plan.md` (P6). Provenance rules apply:
   runtime `version` + `datetime('now')` prints, unedited console redirect.
 - One commit per item, commit message names the item. The closing commit
   includes the full gtest summary line from a run whose binary build time

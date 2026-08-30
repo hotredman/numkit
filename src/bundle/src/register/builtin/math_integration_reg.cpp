@@ -166,7 +166,7 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 // C++ primitive for the embedded-.m integral: returns the Gauss-Kronrod-15
 // abscissae + weights (NO f-calls). The .m wrapper does the f-evaluations and
 // the adaptive recursion, so the integrand is pausable. xk/wk: 15-vectors,
-// wg: the 7 Gauss weights. (VM_CALLBACKS_PLAN.md)
+// wg: the 7 Gauss weights. (vm_callbacks_plan.md)
 void gk15_nodes_reg(Span<const Value> /*args*/, size_t /*nargout*/, Span<Value> outs,
                     CallContext &ctx)
 {
@@ -358,7 +358,7 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 
 } // namespace detail
 
-// ── integral as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ───────────────
+// ── integral as an embedded `.m` wrapper (vm_callbacks_plan.md) ───────────────
 // The registered integral is implemented in `.m`: the integrand is evaluated
 // from bytecode (pausable), and the adaptive Gauss-Kronrod recursion is the
 // natural `.m` recursion. The `__gk15_nodes` C++ primitive supplies the

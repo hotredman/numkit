@@ -302,7 +302,7 @@ void bwlookup_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = bwlookup(args[0], args[1], ctx.engine->resource());
 }
 
-// State-machine makelut (VM_CALLBACKS_PLAN.md): evaluate a user-code handle on
+// State-machine makelut (vm_callbacks_plan.md): evaluate a user-code handle on
 // every n×n binary neighbourhood as a pausable VM frame (mirrors makelut()).
 // Builtin handles / bad N fall back to the synchronous makelut_reg.
 struct MakelutCallbackBuiltin : CallbackBuiltin

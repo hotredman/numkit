@@ -1,5 +1,5 @@
 // fsolve_reg.cpp — fsolve (nonlinear system solver) as an embedded `.m`
-// wrapper, mirroring the fzero / fminsearch pattern (VM_CALLBACKS_PLAN.md):
+// wrapper, mirroring the fzero / fminsearch pattern (vm_callbacks_plan.md):
 // the objective F(x) is always user code, so the solver is written in `.m`
 // and every F(x) evaluation runs as bytecode → pausable under the debugger
 // for free, no C++ state machine.

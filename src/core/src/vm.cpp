@@ -973,7 +973,7 @@ enter_frame:
                 // a=dst (in/out), b=elem. First-class concat builder: if R[elem] is a
                 // comma-separated list, horzcat-append each item; else append the one
                 // value. Driven by the runtime value, so [a, c{idx}, b] flattens for any
-                // subscript. See dev-docs/memory/CSL_FIRST_CLASS.md.
+                // subscript. See dev-docs/memory/csl_first_class.md.
                 Value             &dst  = R[I.a];
                 const Value       &elem = R[I.b];
                 std::vector<Value> elems;
@@ -1493,7 +1493,7 @@ enter_frame:
                         // classdef `get.Prop` accessor → run its body as a
                         // same-stack VM frame (debuggable, no save/restore),
                         // enforcing the property's GetAccess first. P4,
-                        // VM_CALLBACKS_PLAN.md. Getters return exactly one value
+                        // vm_callbacks_plan.md. Getters return exactly one value
                         // so destReg = I.a is always the right write-back.
                         if (const UserFunction *g = engine_.classGetter(cn, fname)) {
                             if (const BytecodeChunk *gc = engine_.ensureClassMethodChunk(*g)) {
@@ -1749,7 +1749,7 @@ enter_frame:
                 // Multi-select c{:} / c{vec} / c{range}: one selected index is still a
                 // bare single value; N!=1 is a comma-separated list. In a single-value
                 // context the compiler-inserted COLLAPSE collapses it (brick 5a); splice
-                // consumers flatten it. See dev-docs/memory/CSL_FIRST_CLASS.md.
+                // consumers flatten it. See dev-docs/memory/csl_first_class.md.
                 auto ids = Value::resolveIndices(sub, cell.numel());
                 if (ids.size() == 1) {
                     R[I.a] = cell.cellAt(ids[0]);
@@ -2000,7 +2000,7 @@ enter_frame:
                         // classdef with a user constructor → run the ctor body as
                         // a VM frame (debuggable), seeding the output variable with
                         // a default instance. The super-ctor / property assigns in
-                        // the body then run on the VM too. P2, VM_CALLBACKS_PLAN.md.
+                        // the body then run on the VM too. P2, vm_callbacks_plan.md.
                         if (const UserFunction *cuf = engine_.classCtor(ctorName)) {
                             if (const BytecodeChunk *cc =
                                     engine_.ensureClassMethodChunk(*cuf)) {
@@ -2142,7 +2142,7 @@ enter_frame:
                 // dispatch as CALL (user fn / ctor / object method / m-file / callback /
                 // external) over AB/NF. Emitted only when an arg could be a CSL, so the
                 // hot no-CSL CALL is untouched. pushCallFrame copies args, so flatArgs may
-                // die after the goto. See dev-docs/memory/CSL_FIRST_CLASS.md.
+                // die after the goto. See dev-docs/memory/csl_first_class.md.
                 uint8_t argBase = I.b, na = I.c;
                 uint8_t nargout_val = I.e;
                 int16_t funcIdx = I.d;

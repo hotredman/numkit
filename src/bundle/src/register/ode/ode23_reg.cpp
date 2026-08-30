@@ -35,7 +35,7 @@ void ode23_reg(Span<const Value> args, size_t nargout,
 
 } // namespace detail
 
-// ── ode23 as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ──────────────────
+// ── ode23 as an embedded `.m` wrapper (vm_callbacks_plan.md) ──────────────────
 // Same pattern as ode45: the RHS `f(t,y)` runs as bytecode (pausable); the
 // Bogacki-Shampine 3(2) step + adaptive control + cubic-Hermite dense output
 // are the natural `.m` algorithm, vectorised so the stage arithmetic still hits

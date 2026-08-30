@@ -158,7 +158,7 @@ in the benchmarks README.
 ## P6 — Honest MATLAB gates on the same machine  [M, HIGH]
 
 Competing requires measuring the competitor — no invented baselines
-(see Round 2 history in `dev-docs/LINALG_REVIEW_FOLLOWUP.md`).
+(see Round 2 history in `dev-docs/linalg_review_followup.md`).
 
 - Add `src/toolboxes/linalg/benchmarks/matlab/bench_linalg.m`: same
   matrices, same sizes (n = 256/512/1024/2048), `timeit`-based, prints a

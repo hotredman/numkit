@@ -6,7 +6,7 @@ handle, `cellfun(@f,…)`, `fzero(@obj,…)`, …), that user code must run on t
 stepping) lives only on the VM — the TreeWalker has none. This document is the
 **decision guide** for making such callbacks run on the VM (and pause under the
 debugger). For the chronological build log + commit history see
-[`VM_CALLBACKS_PLAN.md`](VM_CALLBACKS_PLAN.md).
+[`vm_callbacks_plan.md`](vm_callbacks_plan.md).
 
 Everything here is **VM-backend** behaviour. Under the TreeWalker backend the
 callbacks still run correctly; there is simply no debugger to pause them. All
@@ -256,4 +256,4 @@ methods (all call forms), constructors, super-calls (calling body), `get.Prop` /
   `.m`-wrapper candidate, single-shot eval + query Jacobian; left here for now);
   `grouptransform`/`groupfilter`/`groupsummary`, `pulstran`,
   `fplot`/`fsurf`/`fcontour`/`fmesh` (bespoke per-function — see
-  VM_CALLBACKS_PLAN.md for why each is not a clean fit).
+  vm_callbacks_plan.md for why each is not a clean fit).

@@ -142,7 +142,7 @@ void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
 
 } // namespace detail
 
-// ── fzero as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ──────────────────
+// ── fzero as an embedded `.m` wrapper (vm_callbacks_plan.md) ──────────────────
 // The registered, user-facing fzero is implemented in `.m` so the objective `f`
 // is called from bytecode (CALL_INDIRECT) — pausable under the debugger for
 // free, no C++ state machine. A faithful port of findBracket + brent above; the
@@ -279,7 +279,7 @@ void registerFzeroM(Engine &engine)
     engine.registerBuiltinMSource(kFzeroMSource);
 }
 
-// ── fminsearch as an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) ─────────────
+// ── fminsearch as an embedded `.m` wrapper (vm_callbacks_plan.md) ─────────────
 // The objective is always user code, so fminsearch takes the `.m` path: the
 // Nelder-Mead simplex search is the natural `.m` algorithm and every objective
 // evaluation `fn(x)` runs as bytecode → pausable under the debugger. A faithful

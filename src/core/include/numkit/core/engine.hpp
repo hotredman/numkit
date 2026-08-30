@@ -78,7 +78,7 @@ public:
     // nullptr. Used by constructor / method / property dispatch.
     const BuiltinClass *findClass(const std::string &name) const;
 
-    // ── State-machine callbacks (callback_builtin.hpp, VM_CALLBACKS_PLAN.md) ──
+    // ── State-machine callbacks (callback_builtin.hpp, vm_callbacks_plan.md) ──
     // Register a higher-order builtin (cellfun/arrayfun/…) that can drive its
     // user-code callbacks as pausable VM frames. Registered alongside the
     // ordinary synchronous external registration; the VM consults this first and
@@ -95,7 +95,7 @@ public:
     // uses, so they survive `clear` and work on both backends. Used to install
     // `.m`-implemented builtins (e.g. fzero) whose callbacks must be pausable:
     // the `.m` body's f-calls compile to ordinary VM frames, debuggable for
-    // free, no fiber / state machine. See VM_CALLBACKS_PLAN.md.
+    // free, no fiber / state machine. See vm_callbacks_plan.md.
     void registerBuiltinMSource(const std::string &src);
 
     // Register a user `classdef` (parsed CLASSDEF_DEF node) as a BuiltinClass
@@ -122,7 +122,7 @@ public:
                           Span<const Value> args);
     // Compile a classdef method/constructor body into the VM's global compiled
     // table (idempotent), returning its chunk — so the VM can run the body as
-    // a native frame. See VM_CALLBACKS_PLAN.md.
+    // a native frame. See vm_callbacks_plan.md.
     const BytecodeChunk *ensureClassMethodChunk(const UserFunction &uf);
     // Enforce a classdef method's declared access from the current context
     // (no-op for a public method). Used by the VM frame-dispatch path, which
@@ -148,7 +148,7 @@ public:
     // synthetic non-UserFunction (enum eq/ne), or the body can't VM-compile. On
     // success sets ownerClassOut to the dominant object's class and enforces the
     // operator method's access. The method's parameters ARE the operands:
-    // binary args = [lhs, rhs], unary args = [operand]. P4, VM_CALLBACKS_PLAN.md.
+    // binary args = [lhs, rhs], unary args = [operand]. P4, vm_callbacks_plan.md.
     const BytecodeChunk *resolveBinaryOpChunk(const std::string &op, const Value &lhs,
                                               const Value &rhs, std::string &ownerClassOut);
     const BytecodeChunk *resolveUnaryOpChunk(const std::string &op, const Value &operand,
@@ -159,7 +159,7 @@ public:
     // subscript list; for subsasgn `idxAndVal` is [subscripts…, value] (value
     // last). Returns nullptr — caller uses the C++ slow path / builtin
     // indexing — when the class has no such overload or the body can't compile.
-    // On success sets ownerClassOut to the object's class. P4, VM_CALLBACKS_PLAN.md.
+    // On success sets ownerClassOut to the object's class. P4, vm_callbacks_plan.md.
     const BytecodeChunk *resolveSubsrefChunk(const Value &self, Span<const Value> idx,
                                              std::string &ownerClassOut,
                                              std::vector<Value> &argsOut);

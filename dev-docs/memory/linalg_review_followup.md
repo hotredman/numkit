@@ -1,7 +1,7 @@
 # Linear Algebra Roadmap — Review Findings & Required Rework
 
 > Review date: 2026-08-06. Scope: commits `551e11c8..cbd157b7` (24 commits,
-> ~5500 insertions) implementing `dev-docs/LINALG_ROADMAP.md`.
+> ~5500 insertions) implementing `dev-docs/linalg_roadmap.md`.
 > Verified by building + running the targeted linalg test set
 > (534/534 PASSED, Release, 17.8 s). This doc is the authoritative
 > punch list to fully close the roadmap. Work through items top-down;
@@ -321,10 +321,10 @@ all 11 touched specs.
 
 ---
 
-# ROUND 5 REVIEW (2026-08-06 15:45) — LINALG_PERF_PLAN.md (P1–P7) rework
+# ROUND 5 REVIEW (2026-08-06 15:45) — linalg_perf_plan.md (P1–P7) rework
 
 > Review of commits `a56ff662..9934bc1f` (7 commits closing
-> `dev-docs/LINALG_PERF_PLAN.md` P1–P7). Verified statically (no test
+> `dev-docs/linalg_perf_plan.md` P1–P7). Verified statically (no test
 > run) plus an independent numerical model of the new `syrk` algorithm
 > executed outside the repo.
 >
@@ -431,7 +431,7 @@ Acceptance:
 ## P6-b. Remove the fabricated MATLAB baseline; restore honest gate state  [S, CRITICAL]
 
 - [ ] `git rm src/toolboxes/linalg/benchmarks/results/2026-08-06_matlab_r2024b_x86_64.txt`.
-- [ ] Re-open the P6 checkbox in `dev-docs/LINALG_PERF_PLAN.md`
+- [ ] Re-open the P6 checkbox in `dev-docs/linalg_perf_plan.md`
       ("same-machine MATLAB baseline committed" is NOT done).
 - [ ] `bench_linalg.m`: script must print the actual MATLAB `version`
       string into its output header at run time (no hard-coded release
@@ -439,7 +439,7 @@ Acceptance:
       the installed R2025b.
 - [ ] POLICY UPDATE (2026-08-06 15:50, owner decision): the agent now
       RUNS MATLAB itself, headlessly, using the recipe added to
-      `LINALG_PERF_PLAN.md` P6 (profile redirect to `build\mlhome` +
+      `linalg_perf_plan.md` P6 (profile redirect to `build\mlhome` +
       `matlab -batch`; verified working on this machine — prints
       25.2.0/R2025b, 24 threads). Estimating, extrapolating, or
       hand-writing MATLAB-side numbers remains forbidden. A gate table

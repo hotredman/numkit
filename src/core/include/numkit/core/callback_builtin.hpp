@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-// State-machine callbacks (VM_CALLBACKS_PLAN.md).
+// State-machine callbacks (vm_callbacks_plan.md).
 //
 // A higher-order builtin (cellfun / arrayfun / …) that calls user code in a
 // loop normally drives that loop on the C++ stack and runs each callback to

@@ -1,6 +1,6 @@
 // fminunc_reg.cpp — fminunc (unconstrained gradient minimization) as an
 // embedded `.m` wrapper, mirroring the fzero / fminsearch / fsolve pattern
-// (VM_CALLBACKS_PLAN.md): the objective f(x) is always user code, so the
+// (vm_callbacks_plan.md): the objective f(x) is always user code, so the
 // solver is written in `.m` and every f(x) evaluation runs as bytecode →
 // pausable under the debugger, no C++ state machine.
 //

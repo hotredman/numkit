@@ -392,7 +392,7 @@ void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     outs[0] = rmfield(args[0], args[1], ctx.engine->resource());
 }
 
-// ── State-machine structfun (VM_CALLBACKS_PLAN.md) ───────────────────────────
+// ── State-machine structfun (vm_callbacks_plan.md) ───────────────────────────
 // Drives structfun(@userfunc, S [, 'UniformOutput', tf]) one field at a time
 // (field order = structFields() map order, matching the synchronous helper) via
 // the shared LoopContinuation, as pausable VM frames. Builtin handles,

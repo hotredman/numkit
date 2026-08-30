@@ -164,7 +164,7 @@ TEST_F(DebugSessionTest, BreakInsideClassdefConstructor)
 
 // A function-handle body runs as a VM frame and is debuggable: a breakpoint
 // inside the called function pauses when it is invoked through a handle.
-// (Handle bodies are VM-native — VM_CALLBACKS_PLAN.md; C++-initiated handle
+// (Handle bodies are VM-native — vm_callbacks_plan.md; C++-initiated handle
 // calls — cellfun/arrayfun — go through VM::callReentrant in P3.)
 TEST_F(DebugSessionTest, BreakInsideFunctionHandleCall)
 {
@@ -594,7 +594,7 @@ TEST_F(DebugSessionTest, BreakInsideMakelutCallback)
     EXPECT_DOUBLE_EQ(engine.eval("y(16)").toScalar(), 1.0); // all-ones neighbourhood
 }
 
-// Proof of the embedded-`.m`-wrapper approach (VM_CALLBACKS_PLAN.md): fzero is
+// Proof of the embedded-`.m`-wrapper approach (vm_callbacks_plan.md): fzero is
 // implemented in `.m`, so a breakpoint inside the OBJECTIVE pauses on each
 // evaluation and resumes — no C++ state machine, no fiber. This is the path for
 // the adaptive numerical solvers (objective/integrand/RHS always user code).
@@ -625,7 +625,7 @@ TEST_F(DebugSessionTest, BreakInsideFzeroObjective)
 
 // integral (embedded `.m` wrapper): a breakpoint inside the INTEGRAND pauses on
 // each Gauss-Kronrod node evaluation and resumes — the adaptive recursion runs
-// in `.m`, so the user's integrand is debuggable. (VM_CALLBACKS_PLAN.md)
+// in `.m`, so the user's integrand is debuggable. (vm_callbacks_plan.md)
 TEST_F(DebugSessionTest, BreakInsideIntegralIntegrand)
 {
     engine.eval(
@@ -654,7 +654,7 @@ TEST_F(DebugSessionTest, BreakInsideIntegralIntegrand)
 // ode45 (embedded `.m` wrapper): a breakpoint inside the RHS `f(t,y)` pauses on
 // every stage evaluation (DOPRI5 calls f 6–7× per step) and resumes — the
 // adaptive RK45 step loop + dense output run in `.m`, so the user's ODE
-// right-hand side is debuggable. (VM_CALLBACKS_PLAN.md)
+// right-hand side is debuggable. (vm_callbacks_plan.md)
 TEST_F(DebugSessionTest, BreakInsideOde45Rhs)
 {
     engine.eval(
@@ -681,7 +681,7 @@ TEST_F(DebugSessionTest, BreakInsideOde45Rhs)
 }
 
 // ode23 (embedded `.m` wrapper): same proof as ode45 — a breakpoint inside the
-// RHS pauses on each Bogacki-Shampine stage (4 f-calls per step). (VM_CALLBACKS_PLAN.md)
+// RHS pauses on each Bogacki-Shampine stage (4 f-calls per step). (vm_callbacks_plan.md)
 TEST_F(DebugSessionTest, BreakInsideOde23Rhs)
 {
     engine.eval(
@@ -709,7 +709,7 @@ TEST_F(DebugSessionTest, BreakInsideOde23Rhs)
 
 // fminsearch (embedded `.m` wrapper): a breakpoint inside the OBJECTIVE pauses
 // on every Nelder-Mead simplex evaluation and resumes — the simplex search runs
-// in `.m`, so the user's objective is debuggable. (VM_CALLBACKS_PLAN.md)
+// in `.m`, so the user's objective is debuggable. (vm_callbacks_plan.md)
 TEST_F(DebugSessionTest, BreakInsideFminsearchObjective)
 {
     engine.eval(
@@ -739,7 +739,7 @@ TEST_F(DebugSessionTest, BreakInsideFminsearchObjective)
 // nlinfit (embedded `.m` wrapper): a breakpoint inside the MODEL fun(beta,X)
 // pauses on every residual + central-difference Jacobian evaluation — the
 // Levenberg-Marquardt loop runs in `.m`, so the user's model is debuggable.
-// (VM_CALLBACKS_PLAN.md)
+// (vm_callbacks_plan.md)
 TEST_F(DebugSessionTest, BreakInsideNlinfitModel)
 {
     engine.eval(

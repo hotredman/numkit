@@ -1072,7 +1072,7 @@ void roifilt2_reg(Span<const Value> args, std::size_t /*nargout*/,
     outs[0] = roifilt2(args[0], args[1], args[2], mr);
 }
 
-// State-machine nlfilter (VM_CALLBACKS_PLAN.md): apply a user-code kernel to
+// State-machine nlfilter (vm_callbacks_plan.md): apply a user-code kernel to
 // each sliding window as a pausable VM frame. Mirrors nlfilter_reg's parsing and
 // nlfilter()'s padding / windowing / column-major output. Builtin handles,
 // 'indexed'/rank/arg errors fall back to the synchronous nlfilter_reg.

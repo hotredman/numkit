@@ -4,7 +4,7 @@ Point-in-time review taken right after the Phase-3-A layering refactor closed
 out (11 guarded layers, lock-free compute, no `Engine` in compute signatures).
 This document records the findings, the **risk register**, and how each risk was
 resolved. For the layer DAG and per-layer ownership see
-[LAYERING_TARGET_ARCHITECTURE.md](LAYERING_TARGET_ARCHITECTURE.md); this file is
+[layering_target_architecture.md](layering_target_architecture.md); this file is
 the higher-level health check and the home for the decisions that closed the
 review.
 

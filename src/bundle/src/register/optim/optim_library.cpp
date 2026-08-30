@@ -39,7 +39,7 @@ namespace numkit {
 void OptimLibrary::install(Engine &engine)
 {
     // MATLAB-base: available top-level (no namespace, no import needed).
-    // fzero is an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md) so the objective
+    // fzero is an embedded `.m` wrapper (vm_callbacks_plan.md) so the objective
     // is called from bytecode and is pausable under the debugger.
     optim::registerFzeroM(engine);
     engine.registerFunction("fminbnd",    &optim::detail::fminbnd_reg);

@@ -50,7 +50,7 @@ public:
     // frame's class context; ctorSeed (constructor case) pre-binds the output
     // variable. Breakpoints inside the callee fire; a debugger *pause* cannot
     // suspend across the C++ boundary and surfaces as DebugStopException (same
-    // contract as the legacy execute()). See VM_CALLBACKS_PLAN.md (P3).
+    // contract as the legacy execute()). See vm_callbacks_plan.md (P3).
     std::vector<Value> callReentrant(const BytecodeChunk &chunk, Span<const Value> args,
                                      size_t nargout,
                                      const std::string &ownerClass = std::string(),

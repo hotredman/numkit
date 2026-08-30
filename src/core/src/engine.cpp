@@ -2306,7 +2306,7 @@ std::vector<Value> Engine::callFunctionHandleMulti(const Value &handle,
     // 2) VM user-function path (active backend == VM). Run the handle's body
     // as a re-entrant VM frame so it executes on the same engine as the rest
     // of the program (debuggable; consistent with classdef methods/ctors which
-    // are VM-native — VM_CALLBACKS_PLAN.md P3). The handle's UserFunction is in
+    // are VM-native — vm_callbacks_plan.md P3). The handle's UserFunction is in
     // userFuncs_ (named funcs, and VM/TW anon-funcs mirror-registered by
     // Compiler::compileAnonFunc) with params == [user_params…, captures…];
     // captures already arrive as appended args from the closure-cell unwrap

@@ -123,7 +123,7 @@ static Value resampleRows(const Value &X, const int *idx, int N, std::pmr::memor
     return out;
 }
 
-// State-machine bootstrp (VM_CALLBACKS_PLAN.md): run each bootstrap replicate's
+// State-machine bootstrp (vm_callbacks_plan.md): run each bootstrap replicate's
 // statistic as a pausable VM frame. Each sample is drawn lazily in makeArgs (so
 // the RNG draw order is interleaved with the callbacks, matching the synchronous
 // bootstrp_reg). Builtin handles / multi-output / bad args fall back to sync.

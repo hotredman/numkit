@@ -1,6 +1,6 @@
 // src/core/tests/stack_guard_test.cpp
 //
-// Mechanism-level test for the StackGuard watermark (STACK_SAFETY.md layer 2).
+// Mechanism-level test for the StackGuard watermark (stack_safety.md layer 2).
 // The parse-depth limit (layer 1) makes the watermark unreachable through
 // normal user input on roomy stacks, so prove the mechanism directly: a
 // recursion that burns real stack frames while checking the guard must be

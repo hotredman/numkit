@@ -34,7 +34,7 @@ void OdeLibrary::install(Engine &engine)
         engine.registerFunction("compat", name, fn);
     };
 
-    // ode45 is an embedded `.m` wrapper (VM_CALLBACKS_PLAN.md): the RHS f(t,y)
+    // ode45 is an embedded `.m` wrapper (vm_callbacks_plan.md): the RHS f(t,y)
     // is called from bytecode and is pausable under the debugger. Registered as
     // a top-level user function (shadows externals on both backends), so no
     // ode.solvers/compat external alias is needed — the C++ `Value ode45(...)`

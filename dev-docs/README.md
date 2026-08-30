@@ -25,11 +25,11 @@ decision logs, completed campaign specs (CSL, linalg parity, layering
 refactor, stack safety), point-in-time reviews, gotchas and performance
 measurements. Written per the AGENTS.md protocol; entries never edited
 into "current state" — they are history. Notable entries:
-[VM_CALLBACKS_PLAN.md](memory/VM_CALLBACKS_PLAN.md) (the pausable-callback
+[vm_callbacks_plan.md](memory/vm_callbacks_plan.md) (the pausable-callback
 build log behind CALLBACK_PAUSABILITY.md),
-[LINALG_ROADMAP.md](memory/LINALG_ROADMAP.md) (the closed linalg parity
-campaign), [STACK_SAFETY.md](memory/STACK_SAFETY.md) (the nesting/stack
-crash design), [OPCODE_FUSION_CATALOG.md](memory/OPCODE_FUSION_CATALOG.md)
+[linalg_roadmap.md](memory/linalg_roadmap.md) (the closed linalg parity
+campaign), [stack_safety.md](memory/stack_safety.md) (the nesting/stack
+crash design), [opcode_fusion_catalog.md](memory/opcode_fusion_catalog.md)
 (future VM fusion design survey).
 
 ---

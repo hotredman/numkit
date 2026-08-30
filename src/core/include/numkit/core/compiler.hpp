@@ -60,7 +60,7 @@ public:
     // ("Class>member"), returning the chunk. Idempotent. Unlike
     // registerFunctionAs this never lands in the script-local bucket —
     // classdef bodies persist with the class across evals. Lets the VM run
-    // classdef method bodies as native frames (see VM_CALLBACKS_PLAN.md).
+    // classdef method bodies as native frames (see vm_callbacks_plan.md).
     const BytecodeChunk *ensureClassMethodCompiled(const UserFunction &uf);
 
     // Workspace-scope compiled functions. Populated by `function` at
@@ -244,7 +244,7 @@ private:
     // result register, so operands / conditions / index values / assignment RHS never
     // see a CSL. Splice contexts (call args, [..], {..}, multi-assign) call
     // compileNodeExpand instead, which leaves a CSL for the consumer to flatten.
-    // Mirrors the TreeWalker execNode / execNodeExpand split. See CSL_FIRST_CLASS.md.
+    // Mirrors the TreeWalker execNode / execNodeExpand split. See csl_first_class.md.
     uint8_t compileNode(const ASTNode *node);
     uint8_t compileNodeExpand(const ASTNode *node);
     uint8_t compileBlock(const ASTNode *node);

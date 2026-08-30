@@ -1,6 +1,6 @@
 // lsqnonlin_reg.cpp — lsqnonlin / lsqcurvefit (nonlinear least squares) as
 // embedded `.m` wrappers, mirroring the fzero / fminsearch / fsolve pattern
-// (VM_CALLBACKS_PLAN.md): the residual F(p) is always user code, so the
+// (vm_callbacks_plan.md): the residual F(p) is always user code, so the
 // solver is written in `.m` and every F(p) evaluation runs as bytecode →
 // pausable under the debugger, no C++ state machine.
 //
