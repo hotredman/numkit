@@ -101,3 +101,12 @@ benchmarks/simd/*.json
 # npm package build products (refresh via scripts/refresh-dist.js)
 packages/numkit/dist/
 packages/numkit/*.tgz
+
+# Corpus-gate run artifacts (examples/IO/*.m scripts write these on every run)
+examples/IO/*.mat
+examples/IO/*.wav
+examples/IO/*.png
+examples/IO/*.csv
+examples/IO/*.txt
+examples/IO/*.bin
+examples/IO/*.log
