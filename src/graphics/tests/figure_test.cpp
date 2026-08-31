@@ -1760,3 +1760,11 @@ TEST_F(CycleBuiltinsTest, LinkpropReturnsScalarHandle)
     // it's a finite scalar so the assignment didn't fail.
     EXPECT_TRUE(std::isfinite(evalScalar("h")));
 }
+
+// --- bugs/opened/graphics/legend-cell-and-name-value.md ---
+// Cell-array labels + 'Location' name-value must be accepted, not error.
+TEST_F(FigureEngineTest, DISABLED_LegendCellAndNameValue)
+{
+    eval("x = 0:pi/10:2*pi; plot(x, sin(x)); hold on; plot(x, cos(x));");
+    EXPECT_NO_THROW(eval("legend({'sine','cosine'}, 'Location', 'northeast');"));
+}

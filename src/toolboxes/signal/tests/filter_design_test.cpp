@@ -272,3 +272,19 @@ TEST_F(FilterDesignTest, PhasezGrpdelaySampleRate)
     eval("[~, w] = grpdelay([1 1], [1 -0.5], 4);");
     EXPECT_NEAR(evalScalar("w(2)"), 0.7853981633974483, 1e-12);  // pi/4
 }
+
+// --- bugs/opened/signal/butter-analog-flag-wn-domain.md ---
+// Analog 's' form: Wn is rad/s (any positive value), not the digital (0,1).
+TEST_F(FilterDesignTest, DISABLED_ButterAnalogFlagWnDomain)
+{
+    eval("[a, b] = butter(30, 2000, 's');");
+    EXPECT_EQ(eval("numel(a);").toScalar(), 31.0);
+}
+
+// --- bugs/opened/signal/freqs-two-arg-auto-w.md ---
+// Two-arg freqs returns the 200-point auto-grid response.
+TEST_F(FilterDesignTest, DISABLED_FreqsTwoArgAutoW)
+{
+    eval("h = freqs([1], [1 sqrt(2) 1]);");
+    EXPECT_EQ(eval("numel(h);").toScalar(), 200.0);
+}

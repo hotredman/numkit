@@ -108,3 +108,13 @@ TEST_F(RandgMvnrndTest, MvnrndNonPDThrows)
 {
     EXPECT_THROW(eval("mvnrnd([0 0], [1 2; 2 1], 1);"), std::exception);
 }
+
+// --- bugs/opened/stats/randn-legacy-seed-syntax.md ---
+// Legacy state syntax must seed, not error ("Cannot convert char to scalar").
+// Sequence parity with MATLAB's legacy generator is a stretch goal; the
+// bug is the error.
+TEST_F(RandgMvnrndTest, DISABLED_RandnLegacySeedSyntax)
+{
+    eval("randn('seed', 5);");
+    EXPECT_TRUE(std::isfinite(eval("x = randn();").toScalar()));
+}
