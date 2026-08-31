@@ -155,3 +155,16 @@ TEST_P(FunctionTest, UserFunctionShadowsImportedBuiltin)
 }
 
 INSTANTIATE_DUAL(FunctionTest);
+
+// --- bugs/opened/lang/anon-varargin-call-rejected.md ---
+// Anonymous function with varargin: ANY call arity is legal (varargin
+// absorbs everything, including zero args). numkit rejects both f(1,2)
+// and f() with "Too many input arguments".
+TEST_P(FunctionTest, DISABLED_AnonVararginCallArity)
+{
+    eval("f = @(varargin) numel(varargin);");
+    eval("r1 = f(1, 2);");
+    EXPECT_DOUBLE_EQ(getVar("r1"), 2.0);
+    eval("r2 = f();");
+    EXPECT_DOUBLE_EQ(getVar("r2"), 0.0);
+}
