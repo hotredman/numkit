@@ -9,16 +9,16 @@ corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/anonymous_functio
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/anonymous_function_square.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/break_statement_1.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/continue_statement_1.m
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/fahrenheit_to_celsius_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/fahrenheit_to_celsius_main.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/for_statement_1.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/for_statement_2.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/greet.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/logical_functions_2.m
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_factorial_main.m    # known: lang/run-abs-path-sibling-resolution
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_mean_main.m    # known: lang/run-abs-path-sibling-resolution
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_sqr_main.m    # known: lang/run-abs-path-sibling-resolution
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/mysum2_main.m    # known: lang/run-abs-path-sibling-resolution
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/mysum_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_factorial_main.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_mean_main.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_sqr_main.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/mysum2_main.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/mysum_main.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/usinc_anon.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/usinc_anon_2.m
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/while_statement_1.m
@@ -43,7 +43,7 @@ corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_8.m    
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_9.m    # known: graphics/legend-cell-and-name-value
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/freqs_example_1.m    # known: missing: print (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/freqz_example_1.m    # known: missing: print (bugs/missing.md)
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/my_freqs_example_1.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/my_freqs_example_1.m    # known: missing: print (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/differentiation_1.m    # known: missing: syms (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/ezplot_example_1.m    # known: missing: syms (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/integration_1.m    # known: missing: syms (bugs/missing.md)
