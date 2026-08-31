@@ -210,15 +210,19 @@ TEST_F(SignalKnownBug, DISABLED_SpectrogramFcTc)
 }
 
 // bugs/signal/butter-bandpass-vector-wn.md — butter accepts 2-element [W1 W2] for bandpass/stop.
-TEST_F(SignalKnownBug, DISABLED_ButterBandpassVectorWn)
+// LIVE (was DISABLED_ while bugs/closed/signal/butter-bandpass-vector-wn.md
+// was open). The original pinned values were WRONG (filed without MATLAB
+// verification); below is the true R2025b ground truth, probed 2026-08-31.
+TEST_F(SignalKnownBug, ButterBandpassVectorWn)
 {
     eval("[b, a] = butter(2, [0.2, 0.5], 'bandpass');");
     EXPECT_EQ(eval("b").numel(), 5u);
     EXPECT_EQ(eval("a").numel(), 5u);
-    EXPECT_NEAR(evalScalar("b(1)"),  0.097631072937817, 1e-6);
-    EXPECT_NEAR(evalScalar("b(3)"), -0.195262145875635, 1e-6);
-    EXPECT_NEAR(evalScalar("b(5)"),  0.097631072937817, 1e-6);
-    EXPECT_NEAR(evalScalar("a(1)"),  1.0,               1e-9);
-    EXPECT_NEAR(evalScalar("a(2)"), -0.942809041582063, 1e-6);
+    EXPECT_NEAR(evalScalar("b(1)"),  0.131106439916626,  1e-12);
+    EXPECT_NEAR(evalScalar("b(3)"), -0.262212879833252,  1e-12);
+    EXPECT_NEAR(evalScalar("b(5)"),  0.131106439916626,  1e-12);
+    EXPECT_NEAR(evalScalar("a(1)"),  1.0,                1e-12);
+    EXPECT_NEAR(evalScalar("a(2)"), -1.400068516168091,  1e-12);
+    EXPECT_NEAR(evalScalar("a(5)"),  0.2722149379250068, 1e-12);
 }
 
