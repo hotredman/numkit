@@ -1,0 +1,51 @@
+# group: mdadams — Signals and Systems (open-access textbook, mdadams/sigsysbook_companion)
+# source: portion 1 qualify 2026-08-31, 44/45 MATLAB-qualified
+# run: python fieldtest/compare.py mdadams
+#
+# trailing '# known: <bug>' marks a divergence already filed — the runner
+# prints those as KNOWN; anything else diverging is NEW (exit code 1).
+
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/anonymous_function_mysinc.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/anonymous_function_square.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/break_statement_1.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/continue_statement_1.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/fahrenheit_to_celsius_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/for_statement_1.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/for_statement_2.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/greet.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/logical_functions_2.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_factorial_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_mean_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/my_sqr_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/mysum2_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/mysum_main.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/usinc_anon.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/usinc_anon_2.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/basics/while_statement_1.m
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/annotated_plot.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/fplot_example.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/multiple_lines_plot.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/multiple_plots.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/multiple_plots_2.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/points_and_path_in_plane.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/stem_plot.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/trivial_plot.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_1.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_10.m    # known: graphics/plot-family-no-return-value
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_11.m    # known: stats/randn-legacy-seed-syntax
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_2.m    # known: missing: shading (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_3.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_4.m    # known: signal/butter-analog-flag-wn-domain
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_5.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_6.m    # known: missing: syms (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_7.m    # known: missing: syms (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_8.m    # known: missing: demo-datasets (peppers.png)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_9.m    # known: graphics/legend-cell-and-name-value
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/freqs_example_1.m    # known: signal/freqs-two-arg-auto-w
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/freqz_example_1.m    # known: missing: print (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/my_freqs_example_1.m    # known: lang/run-abs-path-sibling-resolution
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/differentiation_1.m    # known: missing: syms (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/ezplot_example_1.m    # known: missing: syms (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/integration_1.m    # known: missing: syms (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/iult_1.m    # known: missing: syms (bugs/missing.md)
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/ult_1.m    # known: missing: syms (bugs/missing.md)

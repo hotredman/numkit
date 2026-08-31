@@ -121,8 +121,11 @@ def run_engine(kind, script, mat_out=None):
         # restoredefaultpath: hermetic session — a polluted saved path
         # (stale addpath entries) prints warnings into stdout, corrupting
         # the stdout_match diagnostic. Session-scoped; savepath untouched.
+        # (It also drops a RESTOREDEFAULTPATH_EXECUTED marker variable into
+        # the base workspace — cleared so it never reaches the saved .mat.)
         argv = [str(MATLAB), "-batch",
-                "restoredefaultpath;" + f"run('{s.as_posix()}')" +
+                "restoredefaultpath; clear RESTOREDEFAULTPATH_EXECUTED; "
+                + f"run('{s.as_posix()}')" +
                 (f"; save('{Path(mat_out).as_posix()}')" if mat_out else "")]
     elif kind in ("wasm", "native"):
         if mat_out is None:

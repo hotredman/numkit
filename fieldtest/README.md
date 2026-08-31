@@ -22,6 +22,10 @@ fieldtest/
   reports/         committed run reports (JSON + summary per batch)
   runnable.json    COMMITTED — the run corpus: scripts verified to execute in
                    MATLAB (paths + verdicts only, no third-party source text)
+  compare.py       comparison groups (R5): a curated group dual-run with a
+                   human-readable PASS / KNOWN / NEW report
+  compare/groups/  COMMITTED — one group per file: script paths + optional
+                   `# known: <bug-id>` annotations
   corpus/          GITIGNORED — cloned repos (corpus/repos/), the prepared
                    work copy (corpus/work/), and the cached catalog.json.
                    Third-party code NEVER enters git.
@@ -121,6 +125,31 @@ Results are compared as **workspaces via .mat files**, not as printed text:
 - The .mat artifacts are transient (gitignored temp dirs) and never
   committed — they are derivatives of third-party code; reports carry
   variable-level verdicts only.
+
+## Comparison groups (R5)
+
+`compare.py` is the **user-facing** front-end to the same comparison
+machinery: a curated group of scripts, one dual-run, a human-readable
+report distinguishing filed divergences from new ones.
+
+```
+python compare.py --list          # available groups
+python compare.py mdadams         # dual-run the group
+python compare.py mdadams -v      # + per-variable diff lines
+```
+
+- A group is `compare/groups/<name>.txt`: one script path per line
+  (relative to `fieldtest/`), optional trailing `# known: <bug-id>`
+  marking an already-filed divergence.
+- Verdict per script: `PASS` (workspaces match) / `KNOWN (<bug>)`
+  (diverges as filed) / `NEW <what>` (divergence not in the catalog —
+  the actionable class). Exit code 1 iff any NEW.
+- Groups are committed and stable across corpus rebuilds (paths are
+  deterministic `owner--repo` names). Groups are cut from
+  MATLAB-qualified scripts — qualify first, then curate.
+- After a bug fix: remove its `# known:` annotation, re-run the group —
+  the fix must turn the script PASS (the group is the family-level
+  regression check; the gtest guard is the unit-level one).
 
 ## Sources policy
 
