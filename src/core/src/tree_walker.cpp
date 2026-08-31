@@ -3131,8 +3131,14 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
 
-    if (args.size() > func.params.size())
+    // varargin: the LAST declared parameter absorbs any extra arguments
+    // (packed into a 1xN cell; empty 0x0 cell when there are none).
+    const bool va = !func.params.empty() && func.params.back() == "varargin";
+    const size_t required = va ? func.params.size() - 1 : func.params.size();
+    if (!va && args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
+    if (va && args.size() < required)
+        throw std::runtime_error("Not enough input arguments for function '" + func.name + "'");
 
     // Regular functions: parent = constantsEnv (see pi/eps/inf but NOT global variables)
     // Closures: parent = captured scope (already contains correct chain)
@@ -3142,8 +3148,16 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
     FrameGuard frameGuard(activeFrames_, &localEnv,
                           extractCallerArgNames(callNode, engine_));
 
-    for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
+    for (size_t i = 0; i < required && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
+    if (va) {
+        Value vaCell = args.size() > required
+                           ? Value::cell(1, args.size() - required, engine_.mr_)
+                           : Value::cell(0, 0, engine_.mr_);
+        for (size_t i = required; i < args.size(); ++i)
+            vaCell.cellAt(i - required) = args[i];
+        localEnv.setLocal("varargin", std::move(vaCell));
+    }
 
     // Always set nargin/nargout — VM unconditionally reserves slots for
     // them (compiler.cpp:2986-2987), and TW's old astUsesIdentifier
@@ -3189,8 +3203,12 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
 
-    if (args.size() > func.params.size())
+    const bool va = !func.params.empty() && func.params.back() == "varargin";
+    const size_t required = va ? func.params.size() - 1 : func.params.size();
+    if (!va && args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
+    if (va && args.size() < required)
+        throw std::runtime_error("Not enough input arguments for function '" + func.name + "'");
 
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
                                              : &engine_.constantsEnv();
@@ -3198,8 +3216,16 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
     FrameGuard frameGuard(activeFrames_, &localEnv,
                           extractCallerArgNames(callNode, engine_));
 
-    for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
+    for (size_t i = 0; i < required && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
+    if (va) {
+        Value vaCell = args.size() > required
+                           ? Value::cell(1, args.size() - required, engine_.mr_)
+                           : Value::cell(0, 0, engine_.mr_);
+        for (size_t i = required; i < args.size(); ++i)
+            vaCell.cellAt(i - required) = args[i];
+        localEnv.setLocal("varargin", std::move(vaCell));
+    }
 
     if (func.usesNarginNargout == -1)
         func.usesNarginNargout = astUsesIdentifier(func.body.get(), "nargin", "nargout") ? 1 : 0;

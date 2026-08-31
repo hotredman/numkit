@@ -156,15 +156,28 @@ TEST_P(FunctionTest, UserFunctionShadowsImportedBuiltin)
 
 INSTANTIATE_DUAL(FunctionTest);
 
-// --- bugs/opened/lang/anon-varargin-call-rejected.md ---
-// Anonymous function with varargin: ANY call arity is legal (varargin
-// absorbs everything, including zero args). numkit rejects both f(1,2)
-// and f() with "Too many input arguments".
-TEST_P(FunctionTest, DISABLED_AnonVararginCallArity)
+// --- bugs/closed/lang/anon-varargin-call-rejected.md (FIXED) ---
+// varargin (last declared parameter) absorbs extra args into a 1xN cell —
+// for anonymous handles AND file functions, on both engines. Zero extras
+// gives the empty 0x0 cell.
+TEST_P(FunctionTest, AnonVararginCallArity)
 {
     eval("f = @(varargin) numel(varargin);");
     eval("r1 = f(1, 2);");
     EXPECT_DOUBLE_EQ(getVar("r1"), 2.0);
     eval("r2 = f();");
     EXPECT_DOUBLE_EQ(getVar("r2"), 0.0);
+
+    eval("g = @(x, varargin) x + numel(varargin);");
+    eval("r3 = g(1, 2, 3);");
+    EXPECT_DOUBLE_EQ(getVar("r3"), 3.0);
+    eval("r4 = g(1);");
+    EXPECT_DOUBLE_EQ(getVar("r4"), 1.0);
+
+    eval("function n = vfun(a, varargin)\n  n = a * 10 + numel(varargin);\nend");
+    eval("r5 = vfun(2, 'x', true);");
+    EXPECT_DOUBLE_EQ(getVar("r5"), 22.0);
+
+    // Too few for the explicit formals still errors (MATLAB message).
+    EXPECT_THROW(eval("g();"), std::exception);
 }
