@@ -44,17 +44,19 @@ catalog it was fetched with; `--refresh-catalog` pulls a newer one.
    locale garbles GBK just like numkit does, so the comparison stays fair).
 
 2. **Qualify** — `python harness.py qualify [N] [filter]` harvests heuristic
-   candidates (self-contained scripts, static token filter — interactive,
-   graphics, and nondeterministic constructs excluded; scripts do NOT need to
-   print anything: the workspace is the result) and then **verifies
-   runnability empirically**: each candidate is executed in MATLAB R2025b;
-   the ones that run to completion form the run corpus, committed as
-   `runnable.json`. This replaces trusting the static harvest: heuristic
-   filters both miss runnable scripts and admit scripts that error in MATLAB
-   (worthless for diffing — there is no ground truth to diverge from).
-   Runnable = MATLAB exit 0; determinism is still probed later by the
-   double numkit run at diff time. The catalog of runnable scripts is the
-   stable comparison set batches track progress against.
+   candidates (self-contained scripts, static token filter for interactive /
+   system / nondeterministic constructs) and then **verifies runnability
+   empirically**: each candidate is executed in MATLAB R2025b; the ones that
+   run to completion form the run corpus, committed as `runnable.json`.
+   Graphics calls are NOT excluded: both engines execute them headless
+   (numkit runs its graphics system, MATLAB -batch creates invisible
+   figures) and the R4 workspace verdict is blind to plots. This replaces
+   trusting the static harvest: heuristic filters both miss runnable
+   scripts and admit scripts that error in MATLAB (worthless for diffing —
+   there is no ground truth to diverge from). Runnable = MATLAB exit 0;
+   determinism is still probed later by the double numkit run at diff
+   time. The catalog of runnable scripts is the stable comparison set
+   batches track progress against.
 
 3. **Run** — `python harness.py run [N] [filter]` executes each `runnable.json`
    script through the three engines (timeout-protected, determinism-probed by

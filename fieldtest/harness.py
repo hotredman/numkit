@@ -47,14 +47,12 @@ REL_TOL = 1e-9
 BAD_TOKENS = ["input(", "urlread", "system(", "java.", "actxserver", "parfor",
               "gpuArray", "sym(", "sim(", "mex", "waitfor", "pause(", "tic",
               "clock", "now,", "datenum", "websave", "webread", "video",
-              "aviread", "VideoReader",
-              # Display/graphics phase is out of scope: any drawing call
-              # excludes the script (plots print nothing; a missing plot
-              # option must not fail an otherwise-computational script).
-              "figure", "plot(", "subplot", "surf", "mesh", "imagesc",
-              "contour", "scatter", "bar(", "hist(", "histogram", "gca",
-              "gcf", "axes(", "legend", "title(", "xlabel", "ylabel",
-              "annotation", "colorbar", "colormap", "savefig", "print("]
+              "aviread", "VideoReader"]
+# Graphics calls are NOT filtered: both engines execute them headless
+# (numkit runs its graphics system and emits __FIGURE_DATA__ for the IDE;
+# MATLAB -batch creates invisible figures) and the verdict comes from the
+# workspace .mat comparison (R4), to which plots are irrelevant. Excluding
+# plotting scripts was a stdout-comparison-era restriction.
 
 
 # ── Static harvest ──────────────────────────────────────────────────────────

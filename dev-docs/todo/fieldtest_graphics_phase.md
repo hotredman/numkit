@@ -1,25 +1,25 @@
-# todo: fieldtest graphics phase — add display/plotting repos back to the corpus
+# todo: fieldtest graphics — compare figure CONTENT (the token filter is gone)
 
-*Kind:* tech-debt · *Status:* open · *Surfaced:* 2026-08-30 (user decision: compute/processing only for the current phase)
+*Kind:* tech-debt · *Status:* open (narrowed 2026-08-31) · *Surfaced:* 2026-08-30
 
 > Lifecycle: open → done. On completion, record the outcome in
 > `dev-docs/memory/` (per the AGENTS.md project-memory protocol) and
 > delete this file — the todo list holds open work only.
 
-**Problem.** The fieldtest sources list deliberately excludes graphics/display
-repos (export_fig, matlab2tikz, ZoomPlot), and the harness harvest drops any
-script containing a drawing call. Real-world plotting code therefore exercises
-neither the parser surface nor the graphics API against MATLAB.
+**Problem (remaining).** Plotting scripts now RUN in the fieldtest corpus
+(2026-08-31, user decision): the harvest display-token filter was removed —
+both engines execute graphics headless and the R4 workspace verdict is blind
+to plots. What is still NOT compared: the figure CONTENT itself. numkit
+emits `__FIGURE_DATA__` JSON for the IDE; MATLAB has its graphics object
+model. A divergent `plot(x, y)` (wrong data, wrong options accepted/ignored)
+is invisible to the current verdicts.
 
-**Why deferred.** Phase focus: computation/processing correctness. Plot calls
-print nothing to stdout, and an absent plot option must not fail an otherwise
-computational script.
+**Fix (a later phase).** Diff the figure stream: capture numkit's
+`__FIGURE_DATA__` payloads, extract comparable structure (dataset x/y/z,
+axes config options) and check the script's plotted data against the
+workspace values MATLAB computed (the data plotted should equal the
+variables saved — a cross-check that needs no MATLAB graphics API).
 
-**Fix.** A later phase: add graphics/display companion repos to the catalog
-(awesome-matlab-books) — or a supplementary local list if they are not book
-companions — drop the display-token filter from `harness.py` harvest for a
-graphics batch, and compare what is comparable (exit status, non-plot stdout,
-figure COUNT via a headless figure-counter if one exists).
-
-**Affected.** `fieldtest/fetch.py` (catalog filters), `fieldtest/harness.py`
-(BAD_TOKENS display block).
+**Affected.** `fieldtest/harness.py` (capture + verdict hook), possibly a
+`figurediff` step. Related: the CLI `__FIGURE_DATA__` stdout leak
+(bugs/opened/apps/wasm-cli-figure-data-leak.md).
