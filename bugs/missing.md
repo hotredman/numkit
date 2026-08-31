@@ -59,6 +59,11 @@
 (figure-to-file, 12 uses in one 44-script book repo — the single most
 common absent fn in plotting code), `shading`
 
+**MATLAB demo datasets (portion 1):** the bundled sample images/data
+(`peppers.png`, `cameraman.tif`, `spine.mat`, …) referenced by textbook
+code (`imread('peppers.png')`) — numkit ships none; a distribution
+question, not a code gap. Revisit if/when the project wants a data pack.
+
 **Symbolic Math Toolbox:** `syms` (7 uses in the same portion; the whole
 symbolic stack is out of scope — tracked here as a gap, not planned)
 

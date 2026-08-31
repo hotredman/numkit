@@ -1768,3 +1768,13 @@ TEST_F(FigureEngineTest, DISABLED_LegendCellAndNameValue)
     eval("x = 0:pi/10:2*pi; plot(x, sin(x)); hold on; plot(x, cos(x));");
     EXPECT_NO_THROW(eval("legend({'sine','cosine'}, 'Location', 'northeast');"));
 }
+
+// --- bugs/opened/graphics/plot-family-no-return-value.md ---
+// h = plot(...) must bind a usable handle (exist != 0) and set(h(1), ...)
+// must not die with "undefined function 'h'".
+TEST_F(FigureEngineTest, DISABLED_PlotFamilyBindsReturnHandle)
+{
+    eval("n = 0:5; h = stem(n, sin(n), 'filled', 'b');");
+    EXPECT_NE(evalScalar("exist('h')"), 0.0);
+    EXPECT_NO_THROW(eval("set(h(1), 'MarkerSize', 3);"));
+}

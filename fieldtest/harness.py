@@ -118,8 +118,12 @@ def run_engine(kind, script, mat_out=None):
     cwd = str(s.parent)
     t0 = time.perf_counter()
     if kind == "matlab":
+        # restoredefaultpath: hermetic session — a polluted saved path
+        # (stale addpath entries) prints warnings into stdout, corrupting
+        # the stdout_match diagnostic. Session-scoped; savepath untouched.
         argv = [str(MATLAB), "-batch",
-                f"run('{s.as_posix()}')" + (f"; save('{Path(mat_out).as_posix()}')" if mat_out else "")]
+                "restoredefaultpath;" + f"run('{s.as_posix()}')" +
+                (f"; save('{Path(mat_out).as_posix()}')" if mat_out else "")]
     elif kind in ("wasm", "native"):
         if mat_out is None:
             argv = (["node", str(WASM_CLI), s.name] if kind == "wasm"
