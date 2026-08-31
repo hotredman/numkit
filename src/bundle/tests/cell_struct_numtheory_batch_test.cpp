@@ -114,3 +114,18 @@ TEST_F(CellStructNumtheoryBatchTest, NchoosekPerms)
     EXPECT_DOUBLE_EQ(evalScalar("size(P,1)"), 6.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(P,2)"), 3.0);
 }
+
+// --- bugs/opened/lang/cell-growth-loses-value.md ---
+// Growing a cell by indexed assignment must STORE the value, not just
+// resize: x{end+1,1} = v; read-back must give v (MATLAB semantics).
+TEST_F(CellStructNumtheoryBatchTest, DISABLED_CellGrowthKeepsValue)
+{
+    eval("x = {};");
+    eval("x{end+1, 1} = 42;");
+    eval("x{end+1, 1} = 'hi';");
+    EXPECT_EQ(eval("numel(x);").toScalar(), 2.0);
+    EXPECT_EQ(evalScalar("x{1,1}"), 42.0);
+    eval("c = class(x{2,1});");
+    // 'hi' stored as char; the grown cell keeps every appended value.
+    EXPECT_EQ(eval("strcmp(c, 'char');").toScalar(), 1.0);
+}
