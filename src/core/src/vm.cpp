@@ -3163,8 +3163,14 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
     if (callDepth() >= maxRecursion_)
         throw std::runtime_error("VM: maximum recursion depth exceeded");
 
-    if (nargs > funcChunk.numParams)
+    // varargin: the LAST declared parameter absorbs extras (1xN cell,
+    // empty 0x0 when none) — same MATLAB semantics as TreeWalker.
+    const bool va = !funcChunk.paramNames.empty()
+                    && funcChunk.paramNames.back() == "varargin";
+    if (!va && nargs > funcChunk.numParams)
         throw std::runtime_error("Too many input arguments for function '" + funcChunk.name + "'");
+    // Too-few stays lenient (toolbox shims use `if nargin < k` guards —
+    // see the TreeWalker note).
 
     uint8_t nregs = funcChunk.numRegisters;
     if (regStackTop_ + nregs > kRegStackSize)
@@ -3184,6 +3190,23 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
 
     for (uint8_t i = 0; i < pc; ++i)
         newR[i] = std::move(argsCopy[i]);
+
+    // Pack the varargin cell into its declared parameter register. All
+    // reads of `args` happen before any newR write below, so the aliasing
+    // concern that motivated argsCopy does not apply here.
+    if (va) {
+        const uint8_t required = funcChunk.numParams - 1;
+        Value vaCell = nargs > required
+                           ? Value::cell(1, nargs - required, engine_.mr_)
+                           : Value::cell(0, 0, engine_.mr_);
+        for (uint8_t i = required; i < nargs; ++i)
+            vaCell.cellAt(i - required) = args[i];
+        for (auto &[vname, reg] : funcChunk.varMap)
+            if (vname == "varargin" && reg < nregs) {
+                newR[reg] = std::move(vaCell);
+                break;
+            }
+    }
 
     // Inject nargin/nargout into function scope
     for (auto &[vname, reg] : funcChunk.varMap) {
