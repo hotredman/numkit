@@ -180,4 +180,22 @@ TEST_P(FunctionTest, AnonVararginCallArity)
 
     // Too few for the explicit formals still errors (MATLAB message).
     EXPECT_THROW(eval("g();"), std::exception);
+
+    // Surface coverage (probed vs R2025b): script-LOCAL functions,
+    // mid-list varargin = plain parameter, classdef methods.
+    eval("function n = lf(a, varargin)\n  n = a * 100 + numel(varargin);\nend");
+    eval("r6 = lf(2, true, 'x');");
+    EXPECT_DOUBLE_EQ(getVar("r6"), 202.0);
+    eval("r7 = lf(3);");
+    EXPECT_DOUBLE_EQ(getVar("r7"), 300.0);
+    // MATLAB accepts (varargin, x) — mid-list varargin is NOT special.
+    eval("gm = @(varargin, x) x;");
+    eval("r8 = gm(1, 2);");
+    EXPECT_DOUBLE_EQ(getVar("r8"), 2.0);
+    eval("classdef BoxVP\n  properties\n    b\n  end\n  methods\n"
+         "    function o = BoxVP(b)\n      o.b = b;\n    end\n"
+         "    function r = m(o, varargin)\n      r = o.b + numel(varargin);\n    end\n"
+         "  end\nend");
+    eval("r9 = BoxVP(10).m(1, 2, 3);");
+    EXPECT_DOUBLE_EQ(getVar("r9"), 13.0);
 }

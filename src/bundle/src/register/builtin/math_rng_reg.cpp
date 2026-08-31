@@ -70,6 +70,13 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // n. Sequence VALUES differ from MATLAB's legacy generators (numkit
     // has one MT19937 stream, `rng(n)` semantics) — but the call must
     // control the stream, not error (bugs/closed/stats/randn-legacy-seed-syntax.md).
+    // Legacy QUERY: rand('seed') / randn('seed') -> the last seed (double).
+    if (dimArgs.size() == 1 && (dimArgs[0].isChar() || dimArgs[0].isString())
+        && dimArgs[0].toString() == "seed") {
+        outs[0] = Value::scalar(static_cast<double>(ctx.engine->rng().legacySeed()),
+                                ctx.engine->resource());
+        return;
+    }
     if (dimArgs.size() == 2 && (dimArgs[0].isChar() || dimArgs[0].isString())
         && dimArgs[1].isScalar() && !dimArgs[1].isChar()) {
         const std::string flag = dimArgs[0].toString();
@@ -118,6 +125,13 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("randn: type must be 'double' or 'single'",
                     0, 0, "randn", "", "numkit:randn:badType");
     // Legacy state syntax — same as rand (see the comment above).
+    // Legacy QUERY: rand('seed') / randn('seed') -> the last seed (double).
+    if (dimArgs.size() == 1 && (dimArgs[0].isChar() || dimArgs[0].isString())
+        && dimArgs[0].toString() == "seed") {
+        outs[0] = Value::scalar(static_cast<double>(ctx.engine->rng().legacySeed()),
+                                ctx.engine->resource());
+        return;
+    }
     if (dimArgs.size() == 2 && (dimArgs[0].isChar() || dimArgs[0].isString())
         && dimArgs[1].isScalar() && !dimArgs[1].isChar()) {
         const std::string flag = dimArgs[0].toString();

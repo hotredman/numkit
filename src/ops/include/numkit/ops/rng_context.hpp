@@ -63,8 +63,11 @@ public:
     void setLegacyV4(std::uint64_t seed)
     {
         legacyV4_ = true;
+        v4seed_ = seed;
         v4state_ = seed ? seed * 65536ull : 1144108930ull;
     }
+    /// `rand('seed')` / `randn('seed')` — query the last legacy seed.
+    std::uint64_t legacySeed() const noexcept { return v4seed_; }
     bool legacyV4() const noexcept { return legacyV4_; }
     double v4Uniform()
     {
@@ -89,6 +92,7 @@ public:
 private:
     MatlabMT19937 gen_;   // default-constructed = rng('default')
     bool legacyV4_ = false;
+    std::uint64_t v4seed_ = 0;
     std::uint64_t v4state_ = 1;
 };
 

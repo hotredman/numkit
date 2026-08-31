@@ -140,4 +140,9 @@ TEST_F(RandgMvnrndTest, RandnLegacySeedSyntax)
     // rng(seed) exits legacy mode back to the modern default stream.
     eval("rand('seed', 5); rng(0); r = rand();");
     EXPECT_DOUBLE_EQ(eval("r;").toScalar(), 0.8147236863931789);
+    // Legacy QUERY form: rand/randn('seed') -> the last seed (double).
+    eval("randn('seed', 5); s = randn('seed');");
+    EXPECT_DOUBLE_EQ(eval("s;").toScalar(), 5.0);
+    eval("rand('seed', 7); s2 = rand('seed');");
+    EXPECT_DOUBLE_EQ(eval("s2;").toScalar(), 7.0);
 }
