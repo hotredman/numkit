@@ -1,0 +1,10 @@
+{
+  "name": "rand_legacy_v4",
+  "namespace": "stats",
+  "setup": "",
+  "expr": "randn('seed', 1); a = randn(1, 3); rand('seed', 5); b = rand(1, 4); rand('seed', 0); c = rand(1, 2); randn('seed', 0); d = randn(1, 2);",
+  "iters": 5,
+  "tol": 0,
+  "fingerprint": ["a(1)", "a(2)", "a(3)", "b(1)", "b(4)", "c(1)", "d(1)", "d(2)"],
+  "comment": "Sig: legacy v4 generator, BIT-EXACT vs MATLAB R2025b (tol=0). Derived empirically: Park-Miller x<-16807*x mod (2^31-1), u=x/m; seed S -> state S*2^16, S==0 -> constant 1144108930; randn = Marsaglia polar consuming pairs from the SAME stream, emitting only the FIRST of each accepted pair. Covered: randn seeds 0/1, rand seeds 0/5, multi-draw positions. NOT covered (documented divergence, still modern-seeded): 'state' (v5 MT + ziggurat) and 'twister' (init_by_array) — todo partial_fix_followups. Octave 11.1.0: rand('seed',..) exists but its v4 implementation differs from MATLAB's — compare only against MATLAB."
+}

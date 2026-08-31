@@ -73,7 +73,18 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (dimArgs.size() == 2 && (dimArgs[0].isChar() || dimArgs[0].isString())
         && dimArgs[1].isScalar() && !dimArgs[1].isChar()) {
         const std::string flag = dimArgs[0].toString();
-        if (flag == "seed" || flag == "state" || flag == "twister") {
+        if (flag == "seed") {
+            // True MATLAB v4 generator — bit-identical (Park-Miller +
+            // polar; bugs/closed/stats/randn-legacy-seed-syntax.md).
+            ctx.engine->rng().setLegacyV4(
+                static_cast<std::uint64_t>(dimArgs[1].toScalar()));
+            outs[0] = Value();
+            return;
+        }
+        if (flag == "state" || flag == "twister") {
+            // v5-MT / init_by-array seeding not yet replicated: seed the
+            // modern stream (documented divergence, todo
+            // partial_fix_followups) — the call must control, not error.
             ctx.engine->rng().seed(
                 static_cast<std::uint64_t>(dimArgs[1].toScalar()));
             outs[0] = Value();
@@ -110,7 +121,18 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (dimArgs.size() == 2 && (dimArgs[0].isChar() || dimArgs[0].isString())
         && dimArgs[1].isScalar() && !dimArgs[1].isChar()) {
         const std::string flag = dimArgs[0].toString();
-        if (flag == "seed" || flag == "state" || flag == "twister") {
+        if (flag == "seed") {
+            // True MATLAB v4 generator — bit-identical (Park-Miller +
+            // polar; bugs/closed/stats/randn-legacy-seed-syntax.md).
+            ctx.engine->rng().setLegacyV4(
+                static_cast<std::uint64_t>(dimArgs[1].toScalar()));
+            outs[0] = Value();
+            return;
+        }
+        if (flag == "state" || flag == "twister") {
+            // v5-MT / init_by-array seeding not yet replicated: seed the
+            // modern stream (documented divergence, todo
+            // partial_fix_followups) — the call must control, not error.
             ctx.engine->rng().seed(
                 static_cast<std::uint64_t>(dimArgs[1].toScalar()));
             outs[0] = Value();

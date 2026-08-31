@@ -116,11 +116,28 @@ TEST_F(RandgMvnrndTest, MvnrndNonPDThrows)
 // was: the call must control the stream, not error.
 TEST_F(RandgMvnrndTest, RandnLegacySeedSyntax)
 {
-    eval("randn('seed', 5);");
-    EXPECT_TRUE(std::isfinite(eval("x = randn();").toScalar()));
-    // Deterministic: same legacy seed -> same first draw.
-    eval("randn('seed', 5); a = randn(); randn('seed', 5); b = randn();");
-    EXPECT_DOUBLE_EQ(eval("a;").toScalar(), eval("b;").toScalar());
+    // ('seed', S): MATLAB v4 generator, bit-identical — Park-Miller
+    // x <- 16807*x mod (2^31-1), u = x/m, S -> S*2^16 (S==0 ->
+    // 1144108930); randn = Marsaglia polar, FIRST of each accepted pair
+    // emitted. Values probed from R2025b at 17 digits.
+    eval("randn('seed', 1);");
+    EXPECT_DOUBLE_EQ(eval("z1 = randn();").toScalar(), 0.97944887909532974);
+    EXPECT_DOUBLE_EQ(eval("z2 = randn();").toScalar(), -0.26561126812383568);
+    eval("randn('seed', 0); a = randn(1, 2);");
+    EXPECT_DOUBLE_EQ(eval("a(1);").toScalar(), 1.1649535105006568);
+    EXPECT_DOUBLE_EQ(eval("a(2);").toScalar(), 0.62683908263243138);
+    eval("rand('seed', 5); r = rand(1, 4);");
+    EXPECT_DOUBLE_EQ(eval("r(1);").toScalar(), 0.56454467892858418);
+    EXPECT_DOUBLE_EQ(eval("r(4);").toScalar(), 0.47522867586241507);
+    eval("rand('seed', 0);");
+    EXPECT_DOUBLE_EQ(eval("r0 = rand();").toScalar(), 0.21895918632809036);
+    eval("randn('seed', 7); x = randn(); randn('seed', 7); y = randn();");
+    EXPECT_DOUBLE_EQ(eval("x;").toScalar(), eval("y;").toScalar());
+    // ('state'/'twister'): modern-stream seeding (documented divergence);
+    // must still control the stream, not error.
     eval("rand('state', 3);");
-    EXPECT_TRUE(eval("c = rand();").toScalar() > 0.0 && eval("c2 = c;").toScalar() < 1.0);
+    EXPECT_TRUE(eval("c = rand();").toScalar() > 0.0);
+    // rng(seed) exits legacy mode back to the modern default stream.
+    eval("rand('seed', 5); rng(0); r = rand();");
+    EXPECT_DOUBLE_EQ(eval("r;").toScalar(), 0.8147236863931789);
 }

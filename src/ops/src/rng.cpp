@@ -96,13 +96,27 @@ void RngContext::restore(const Value &state)
 // Real-valued random (uniform / standard-normal)
 // ────────────────────────────────────────────────────────────────────
 
+// Normal draw: MATLAB v4 polar method in legacy mode (bit-identical,
+// see RngContext::v4Normal); std::normal_distribution otherwise (NOT
+// MATLAB-bit-identical in the modern mode — documented).
+namespace {
+double legacyNormal(RngContext &rng)
+{
+    if (rng.legacyV4())
+        return rng.v4Normal();
+    std::normal_distribution<double> dist(0.0, 1.0);
+    return dist(rng);
+}
+} // namespace
+
 Value rand(RngContext &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    // genRes53 -- MATLAB-canonical 53-bit double in [0, 1).
+    // genRes53 -- MATLAB-canonical 53-bit double in [0, 1); the legacy
+    // v4 mode ('seed') draws from the Park-Miller stream instead.
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = rng.genRes53();
+        m.doubleDataMut()[i] = rng.legacyV4() ? rng.v4Uniform() : rng.genRes53();
     return m;
 }
 
@@ -111,11 +125,10 @@ Value randn(RngContext &rng, size_t rows, size_t cols, size_t pages, std::pmr::m
     // NOTE: std::normal_distribution is NOT MATLAB-bit-identical (MATLAB
     // uses Marsaglia-Tsang Ziggurat with specific tables). Sequence is still
     // deterministic and seedable via the session RngContext.
-    std::normal_distribution<double> dist(0.0, 1.0);
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
+        m.doubleDataMut()[i] = legacyNormal(rng);
     return m;
 }
 
@@ -123,16 +136,15 @@ Value randND(RngContext &rng, Span<const size_t> dims, std::pmr::memory_resource
 {
     auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = rng.genRes53();
+        m.doubleDataMut()[i] = rng.legacyV4() ? rng.v4Uniform() : rng.genRes53();
     return m;
 }
 
 Value randnND(RngContext &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
     auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
-    std::normal_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
+        m.doubleDataMut()[i] = legacyNormal(rng);
     return m;
 }
 

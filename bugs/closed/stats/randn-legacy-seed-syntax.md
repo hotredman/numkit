@@ -46,3 +46,20 @@ not error. Exact legacy sequence parity is a separate, lower-priority gap.
   runs and returns a draw; exact value parity with the legacy generator
   is NOT asserted — sequence parity is a stretch goal, erroring is the
   bug).
+
+
+## Resolution addendum (2026-08-31, follow-up "идентично MATLAB"): v4 bit-exact
+
+`('seed', S)` now activates the TRUE MATLAB v4 generator, bit-identical
+(verified: 7 seed/position configurations, 17 digits, tol=0 parity spec):
+
+- uniform: Park–Miller `x <- 16807*x mod (2^31-1)`, `u = x/(2^31-1)`;
+  seed mapping `S -> S*2^16` (S==0 -> the constant 1144108930);
+- normal: Marsaglia polar on the SAME stream, emitting only the FIRST
+  of each accepted pair (the second is discarded — MATLAB's v4 waste);
+- ONE shared stream for rand+randn (v4 session semantics);
+- `rng(seed)` exits legacy mode back to the modern stream (as in MATLAB).
+
+Remaining (tracked in todo partial_fix_followups): 'state' (v5 MT19937
+seeding + ziggurat randn) and 'twister' (init_by_array seeding) still
+seed the modern stream — calls control the stream, values diverge.
