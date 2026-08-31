@@ -53,7 +53,8 @@ dir-existence check.
 
 ## References
 
-- **Guard:** `packages/numkit/test/cli_sibling_test.js` — deliberately RED
-  while this bug is open (exit 1, prints this file); turns green = live
-  regression guard the moment the fix lands. Not wired into any default
-  gate (same opt-in semantics as a DISABLED_ gtest).
+- **Guard:** deferred to a DISABLED_-grade gtest (the bug does not
+  reproduce in-engine — only through the CLI native-FS bridge). Interim
+  guard: `packages/numkit/test/cli_sibling_test.js`, deliberately RED
+  while open (exit 1, prints this file); turns green = live regression
+  guard the moment the fix lands.

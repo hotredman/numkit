@@ -61,8 +61,10 @@ selection semantics (MATLAB `max` on complex compares ABS values).
 
 ## References
 
-- **Guard:** `EigAHPConsistentPerronSelection` in
-  `src/toolboxes/linalg/tests/eig_test.cpp` (green — pins the
-  selection idiom that real code relies on).
+- **Guard:** deferred — the DISABLED_ guard needs the diverging 8×8
+  construction (awaits corpus re-encounter). Interim green pin:
+  `EigAHPConsistentPerronSelection` in
+  `src/toolboxes/linalg/tests/eig_test.cpp` (the selection idiom real
+  code relies on).
 - Evidence: `fieldtest/reports/20260831-151200.json` (mat_diff lines +
   both engines' stdout).
