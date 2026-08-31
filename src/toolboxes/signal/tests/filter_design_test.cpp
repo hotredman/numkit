@@ -281,10 +281,15 @@ TEST_F(FilterDesignTest, DISABLED_ButterAnalogFlagWnDomain)
     EXPECT_EQ(eval("numel(a);").toScalar(), 31.0);
 }
 
-// --- bugs/opened/signal/freqs-two-arg-auto-w.md ---
-// Two-arg freqs returns the 200-point auto-grid response.
-TEST_F(FilterDesignTest, DISABLED_FreqsTwoArgAutoW)
+// --- bugs/closed/signal/freqs-two-arg-auto-w.md (FIXED) ---
+// Two-arg freqs: 200 log-spaced rad/s points around the pole/zero corner
+// frequencies. Exact R2025b grid heuristic may differ (documented).
+TEST_F(FilterDesignTest, FreqsTwoArgAutoW)
 {
     eval("h = freqs([1], [1 sqrt(2) 1]);");
     EXPECT_EQ(eval("numel(h);").toScalar(), 200.0);
+    // 2nd-order Butterworth prototype: |H| ~ 1 well below the corner
+    // (grid starts at corner/100: |H| = 1 - O(1e-9)), monotone roll-off.
+    EXPECT_NEAR(evalScalar("abs(h(1))"), 1.0, 1e-7);
+    EXPECT_LT(evalScalar("abs(h(end))"), evalScalar("abs(h(100))"));
 }

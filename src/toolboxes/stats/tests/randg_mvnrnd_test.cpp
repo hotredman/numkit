@@ -109,12 +109,18 @@ TEST_F(RandgMvnrndTest, MvnrndNonPDThrows)
     EXPECT_THROW(eval("mvnrnd([0 0], [1 2; 2 1], 1);"), std::exception);
 }
 
-// --- bugs/opened/stats/randn-legacy-seed-syntax.md ---
-// Legacy state syntax must seed, not error ("Cannot convert char to scalar").
-// Sequence parity with MATLAB's legacy generator is a stretch goal; the
-// bug is the error.
-TEST_F(RandgMvnrndTest, DISABLED_RandnLegacySeedSyntax)
+// --- bugs/closed/stats/randn-legacy-seed-syntax.md (FIXED) ---
+// Legacy state syntax seeds the engine stream (rand/randn, 'seed'/'state'/
+// 'twister'). Sequence VALUES differ from MATLAB's legacy generators — one
+// MT19937 stream, rng(n) semantics — documented divergence; the contract
+// was: the call must control the stream, not error.
+TEST_F(RandgMvnrndTest, RandnLegacySeedSyntax)
 {
     eval("randn('seed', 5);");
     EXPECT_TRUE(std::isfinite(eval("x = randn();").toScalar()));
+    // Deterministic: same legacy seed -> same first draw.
+    eval("randn('seed', 5); a = randn(); randn('seed', 5); b = randn();");
+    EXPECT_DOUBLE_EQ(eval("a;").toScalar(), eval("b;").toScalar());
+    eval("rand('state', 3);");
+    EXPECT_TRUE(eval("c = rand();").toScalar() > 0.0 && eval("c2 = c;").toScalar() < 1.0);
 }

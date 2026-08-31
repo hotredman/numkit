@@ -1,6 +1,6 @@
 # signal.freqs — two-arg form `freqs(b, a)` (auto frequency grid) rejected: "requires (b, a, w)"
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-31)
 - **Severity:** P2 (works in MATLAB, refused in numkit; the quick-look form)
 - **Kind:** stub
 - **Found:** 2026-08-31 via fieldtest portion 1 (mdadams book, freqs_example_1.m)

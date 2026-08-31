@@ -1,0 +1,31 @@
+[
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\AHP层次分析法\\ahp_usage.m",
+  "verdict": "workspace-mismatch",
+  "detail": "DIFF eigenvalue: class r vs c; DIFF w1: values diverge (max rel 1.154e+00); DIFF x: class r vs c; DIFF y: class r vs c",
+  "wasm_ms": 245,
+  "matlab_ms": 8676,
+  "native_ms": 16,
+  "stdout_match": false,
+  "mat_diff": [
+   "DIFF eigenvalue: class r vs c",
+   "DIFF w1: values diverge (max rel 1.154e+00)",
+   "DIFF x: class r vs c",
+   "DIFF y: class r vs c"
+  ],
+  "numkit_out": "cr1 =\n   0.0250929\n\nw1 =\n     0.16254\n     0.16254\n     0.16254\n     0.16254\n     0.16254\n    0.032508\n    0.032508\n    0.122284\n\ncr1 =\n   0.101317\n\nw1 =\n    1\n    0\n    0\n    0\n    0\n    0\n    0\n    0\n\ncr1 =\n   0\n\nw1 =\n    1.25\n    1.25\n    -1.5\n",
+  "matlab_out": "\r\ncr1 =\r\n\r\n    0.0251\r\n\r\n\r\nw1 =\r\n\r\n    0.1625\r\n    0.1625\r\n    0.1625\r\n    0.1625\r\n    0.1625\r\n    0.0325\r\n    0.0325\r\n    0.1223\r\n\r\n\r\ncr1 =\r\n\r\n     0\r\n\r\n\r\nw1 =\r\n\r\n    2.1875\r\n   -0.1875\r\n   -0.1875\r\n   -0.1875\r\n   -0.1875\r\n   -0.0625\r\n   -0.0625\r\n   -0.3125\r\n\r\n\r\ncr1 =\r\n\r\n   1.2810e-15\r\n\r\n\r\nw1 =\r\n\r\n    0.3846\r\n    0.3846\r\n    0.2308\r\n\r\n"
+ },
+ {
+  "script": "corpus\\work\\Algorithms_MathModels\\AHP层次分析法\\main.m",
+  "verdict": "absent-fn",
+  "detail": "__ERROR_LINE__:25\nError (line 25): VM: undefined function 'ahp' (in call to 'ahp')\n    at __nk_wrap_wasm.m",
+  "wasm_ms": 236,
+  "matlab_ms": 9981,
+  "native_ms": 23,
+  "stdout_match": null,
+  "mat_diff": [],
+  "numkit_out": "__ERROR_LINE__:25\nError (line 25): VM: undefined function 'ahp' (in call to 'ahp')\n    at __nk_wrap_wasm.m\n",
+  "matlab_out": "\r\nrealeigval =\r\n\r\n   6.6178 + 0.0000i\r\n  -0.1557 - 1.2808i\r\n  -0.0603 + 0.0000i\r\n  -0.1230 - 0.5461i\r\n\r\n\r\nmaxeigval =\r\n\r\n    6.6178\r\n\r\n\r\nrealeigval =\r\n\r\n   3.0183 + 0.0000i\r\n  -0.0091 - 0.2348i\r\n\r\n\r\nmaxeigval =\r\n\r\n    3.0183\r\n\r\n\r\nmax =\r\n\r\n    6.6178    3.0183\r\n\r\n\r\nwb1 =\r\n\r\n    0.1365\r\n    0.6250\r\n    0.2385\r\n\r\n\r\nrealeigval =\r\n\r\n   3.0246 + 0.0000i\r\n  -0.0123 - 0.2725i\r\n\r\n\r\nmaxeigval =\r\n\r\n    3.0246\r\n\r\n\r\nmax =\r\n\r\n    6.6178    3.0183    3.0246\r\n\r\n\r\nwb2 =\r\n\r\n    0.0974\r\n    0.3331\r\n    0.5695\r\n\r\n\r\nrealeigval =\r\n\r\n   3.0070 + 0.0000i\r\n  -0.0035 - 0.1453i\r\n\r\n\r\nmaxeigval =\r\n\r\n    3.0070\r\n\r\n\r\nmax =\r\n\r\n    6.6178    3.0183    3.0246    3.0070\r\n\r\n\r\nwb3 =\r\n\r\n    0.2426\r\n    0.0879\r\n    0.6694\r\n\r\n\r\nrealeigval =\r\n\r\n   3.0649 + 0.0000i\r\n  -0.0324 - 0.4448i\r\n\r\n\r\nmaxeigval =\r\n\r\n    3.0649\r\n\r\n\r\nmax =\r\n\r\n"
+ }
+]

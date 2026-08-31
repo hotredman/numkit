@@ -65,6 +65,21 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("rand: type must be 'double' or 'single'",
                     0, 0, "rand", "", "numkit:rand:badType");
+    // Legacy state syntax (pre-`rng` MATLAB): rand('seed', n) /
+    // rand('state', n) / rand('twister', n). Seeds the engine stream with
+    // n. Sequence VALUES differ from MATLAB's legacy generators (numkit
+    // has one MT19937 stream, `rng(n)` semantics) — but the call must
+    // control the stream, not error (bugs/closed/stats/randn-legacy-seed-syntax.md).
+    if (dimArgs.size() == 2 && (dimArgs[0].isChar() || dimArgs[0].isString())
+        && dimArgs[1].isScalar() && !dimArgs[1].isChar()) {
+        const std::string flag = dimArgs[0].toString();
+        if (flag == "seed" || flag == "state" || flag == "twister") {
+            ctx.engine->rng().seed(
+                static_cast<std::uint64_t>(dimArgs[1].toScalar()));
+            outs[0] = Value();
+            return;
+        }
+    }
     ScratchArena scratch(mr);
     auto dims = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(dims);
@@ -91,6 +106,17 @@ void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
         throw Error("randn: type must be 'double' or 'single'",
                     0, 0, "randn", "", "numkit:randn:badType");
+    // Legacy state syntax — same as rand (see the comment above).
+    if (dimArgs.size() == 2 && (dimArgs[0].isChar() || dimArgs[0].isString())
+        && dimArgs[1].isScalar() && !dimArgs[1].isChar()) {
+        const std::string flag = dimArgs[0].toString();
+        if (flag == "seed" || flag == "state" || flag == "twister") {
+            ctx.engine->rng().seed(
+                static_cast<std::uint64_t>(dimArgs[1].toScalar()));
+            outs[0] = Value();
+            return;
+        }
+    }
     ScratchArena scratch(mr);
     auto dims = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(dims);

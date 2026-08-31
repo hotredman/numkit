@@ -32,7 +32,7 @@ corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/stem_
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/data_visualization/trivial_plot.m    # known: missing: print (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_1.m    # known: missing: print (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_10.m    # known: graphics/plot-family-no-return-value
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_11.m    # known: stats/randn-legacy-seed-syntax
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_11.m    # known: missing: histogram (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_2.m    # known: missing: shading (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_3.m    # known: missing: print (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_4.m    # known: signal/butter-analog-flag-wn-domain
@@ -41,7 +41,7 @@ corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_6.m    
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_7.m    # known: missing: syms (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_8.m    # known: missing: demo-datasets (peppers.png)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/examples/example_9.m    # known: graphics/legend-cell-and-name-value
-corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/freqs_example_1.m    # known: signal/freqs-two-arg-auto-w
+corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/freqs_example_1.m    # known: missing: print (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/freqz_example_1.m    # known: missing: print (bugs/missing.md)
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/signal_processing/my_freqs_example_1.m    # known: lang/run-abs-path-sibling-resolution
 corpus/work/mdadams--sigsysbook_companion/slides/matlab/symbolic_computation/differentiation_1.m    # known: missing: syms (bugs/missing.md)

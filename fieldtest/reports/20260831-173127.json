@@ -1,0 +1,16 @@
+[
+ {
+  "script": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\greet.m",
+  "verdict": "pass",
+  "detail": "only-in-matlab: RESTOREDEFAULTPATH_EXECUTED",
+  "wasm_ms": 167,
+  "matlab_ms": 20772,
+  "native_ms": 23,
+  "stdout_match": false,
+  "mat_diff": [
+   "only-in-matlab: RESTOREDEFAULTPATH_EXECUTED"
+  ],
+  "numkit_out": "Hello, World.\n",
+  "matlab_out": "[\bWarning: Name is nonexistent or not a directory: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\MSS]\b \r\n[\bWarning: Name is nonexistent or not a directory: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\MSS\\CRAFT]\b \r\n[\bWarning: Name is nonexistent or not a directory: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\MSS\\CRAFT\\AUV]\b \r\n[\bWarning: Name is nonexistent or not a directory: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\MSS\\CRAFT\\AUV\\models]\b \r\n[\bWarning: Name is nonexistent or not a directory: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\MSS\\CRAFT\\SHIP]\b \r\n[\bWarning: Name is nonexistent or not a directory: C:\\Users\\User\\Projects\\megahard\\numkit\\fieldtest\\corpus\\work\\MSS\\CRAFT\\SHIP\\models]\b \r\n[\bWarning: Name is"
+ }
+]

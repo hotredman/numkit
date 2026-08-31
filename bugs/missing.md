@@ -57,7 +57,9 @@
 
 **Graphics hard copy (fieldtest portion 1, mdadams book):** `print`
 (figure-to-file, 12 uses in one 44-script book repo — the single most
-common absent fn in plotting code), `shading`
+common absent fn in plotting code), `shading`; `histogram` (binning
+plot — reachable only after the graphics harvest filter was lifted,
+surfaced by example_11.m once randn('seed') was fixed)
 
 **MATLAB demo datasets (portion 1):** the bundled sample images/data
 (`peppers.png`, `cameraman.tif`, `spine.mat`, …) referenced by textbook

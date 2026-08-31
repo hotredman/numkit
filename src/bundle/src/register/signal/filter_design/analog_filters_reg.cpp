@@ -5,6 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <numkit/core/engine.hpp>
 #include <numkit/builtin/polyfun.hpp>
+#include <numkit/ops/poly_helpers.hpp>
 #include <numkit/signal/filter_design/analog_filters.hpp>
 #include <numkit/signal/filter_implementation/conversions_extras.hpp>
 #include <numkit/value/error.hpp>
@@ -194,8 +195,56 @@ void impinvar_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (nargout > 1) outs[1] = std::move(ad);
 }
 
+namespace {
+
+// freqs(b, a) — the documented quick-look form: response on an
+// automatically chosen grid of 200 log-spaced rad/s points around the
+// filter's corner frequencies (pole/zero magnitudes, Durand–Kerner).
+// The exact R2025b grid heuristic may differ; the count and the log
+// spacing follow the docs (bugs/closed/signal/freqs-two-arg-auto-w.md).
+Value freqsAutoGrid(const Value &b, const Value &a, std::pmr::memory_resource *mr)
+{
+    using numkit::ops::polyRootsDurandKerner;
+    ScratchArena scratch(mr);
+    auto cornersOf = [&](const Value &p) {
+        ScratchVec<double> out(&scratch);
+        if (!p.isComplex()) {
+            auto roots = polyRootsDurandKerner(&scratch, p.doubleData(), p.numel());
+            for (const auto &z : roots) {
+                const double m = std::abs(z);
+                if (m > 0.0 && std::isfinite(m))
+                    out.push_back(m);
+            }
+        }
+        return out;
+    };
+    ScratchVec<double> corners = cornersOf(b);
+    for (double c : cornersOf(a))
+        corners.push_back(c);
+    double lo = 1e-2, hi = 1e2; // no finite corners -> decade default
+    if (!corners.empty()) {
+        lo = std::max(*std::min_element(corners.begin(), corners.end()) / 100.0, 1e-9);
+        hi = *std::max_element(corners.begin(), corners.end()) * 100.0;
+    }
+    Value w = Value::matrix(1, 200, ValueType::DOUBLE, mr);
+    double *wd = w.doubleDataMut();
+    const double step = (std::log10(hi) - std::log10(lo)) / 199.0;
+    for (int i = 0; i < 200; ++i)
+        wd[i] = std::pow(10.0, std::log10(lo) + i * step);
+    return w;
+}
+
+} // namespace
+
 void freqs_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
+    if (args.size() == 2) {
+        // freqs(b, a): auto grid; the no-output PLOT form is a separate
+        // piece of the same filed gap.
+        auto w = freqsAutoGrid(args[0], args[1], ctx.engine->resource());
+        outs[0] = freqs(args[0], args[1], w, ctx.engine->resource());
+        return;
+    }
     if (args.size() < 3)
         throw Error("freqs: requires (b, a, w)",
                      0, 0, "freqs", "", "numkit:freqs:nargin");

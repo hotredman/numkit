@@ -1,0 +1,16 @@
+[
+ {
+  "script": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\greet.m",
+  "verdict": "pass",
+  "detail": "only-in-matlab: RESTOREDEFAULTPATH_EXECUTED",
+  "wasm_ms": 166,
+  "matlab_ms": 10719,
+  "native_ms": 21,
+  "stdout_match": true,
+  "mat_diff": [
+   "only-in-matlab: RESTOREDEFAULTPATH_EXECUTED"
+  ],
+  "numkit_out": "Hello, World.\n",
+  "matlab_out": "Hello, World.\r\n"
+ }
+]

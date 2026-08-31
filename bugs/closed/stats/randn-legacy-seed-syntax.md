@@ -1,6 +1,6 @@
 # stats.randn — legacy seed syntax `randn('seed', n)` rejected ("Cannot convert char to scalar")
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-31)
 - **Severity:** P2 (works in MATLAB, refused in numkit; classic textbook code depends on it)
 - **Kind:** stub (documented MATLAB option not supported)
 - **Found:** 2026-08-31 via fieldtest portion 1 (mdadams book, example_11.m)
