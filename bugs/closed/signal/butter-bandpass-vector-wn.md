@@ -1,6 +1,6 @@
 # signal.butter — butter(N, [W1, W2]) throws 'Cannot convert double to scalar'
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-31, butter pipeline re-routing)
 - **Severity:** P2 (missing feature)
 - **Kind:** bug
 - **Found:** 2026-08-30 via interactive DSP filter design session
@@ -38,3 +38,14 @@ The registration wrapper unconditionally expects `Wn` to be a 1x1 scalar, and `n
 - `src/bundle/src/register/signal/filter_design/filter_design_reg.cpp:35-60`
 - `src/toolboxes/signal/src/filter_design/butter.cpp`
 - `src/toolboxes/signal/tests/known_bugs_test.cpp`
+
+
+## Resolution (2026-08-31)
+
+Fixed as a side effect of routing butter through the shared iir_designs
+pipeline (see butter-analog-flag-wn-domain): vector Wn now dispatches to
+bandpass/bandstop via parseTrailing + defaultFtype. NOTE: the expected
+values quoted in the Repro above were WRONG (filed without MATLAB
+verification — b(1) is 0.131106439916626, not 0.097631). Verified vs
+R2025b: butter(2,[0.2 0.5],'bandpass') matches to 1 ulp (libm noise).
+Pinned in ButterAnalogFlagWnDomain's suite.

@@ -294,6 +294,11 @@ TEST_F(FilterDesignTest, ButterAnalogFlagWnDomain)
     eval("[bd, ad] = butter(4, 0.5);");
     EXPECT_NEAR(evalScalar("bd(5)"), 0.0939808514337944, 1e-15);
     EXPECT_NEAR(evalScalar("ad(5)"), 0.0176648008724419, 1e-15);
+    // Vector Wn bandpass — bugs/closed/signal/butter-bandpass-vector-wn.md
+    // (MATLAB-probed: b(1)=0.131106439916626, a(2)=-1.400068516168091).
+    eval("[bb, ab2] = butter(2, [0.2 0.5], 'bandpass');");
+    EXPECT_NEAR(evalScalar("bb(1)"), 0.131106439916626, 1e-13);
+    EXPECT_NEAR(evalScalar("ab2(2)"), -1.400068516168091, 1e-11);
 }
 
 // --- bugs/closed/signal/freqs-two-arg-auto-w.md (FIXED, freqint-exact) ---
