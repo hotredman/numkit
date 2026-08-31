@@ -55,6 +55,13 @@
 
 ### Builtin
 
+**Graphics hard copy (fieldtest portion 1, mdadams book):** `print`
+(figure-to-file, 12 uses in one 44-script book repo — the single most
+common absent fn in plotting code), `shading`
+
+**Symbolic Math Toolbox:** `syms` (7 uses in the same portion; the whole
+symbolic stack is out of scope — tracked here as a gap, not planned)
+
 **Entering Commands:** `commandhistory`, `commandwindow`, `diary`, `more`
 
 **Matrices and Arrays:** `combinations`

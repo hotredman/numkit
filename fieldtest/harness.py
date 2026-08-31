@@ -282,22 +282,38 @@ def classify(nk, ml):
 # ── Qualify (R3): MATLAB-verified run corpus ───────────────────────────────
 
 def qualify(limit=None, flt=None):
+    """MATLAB-verify candidates in PORTIONS; results merge into runnable.json.
+
+    Each run qualifies only the selected slice (path filter = repo dir, e.g.
+    `qualify 50 mdadams--`); verified paths replace their old entries, other
+    entries persist — portions accumulate instead of restarting the catalog.
+    """
     cands = harvest(limit, flt)
+    # Merge base: previous portions survive; entries for vanished scripts drop.
+    prev = {}
+    if RUNNABLE.exists():
+        for e in json.loads(RUNNABLE.read_text(encoding="utf-8"))["scripts"]:
+            if (HERE / e["path"]).exists():
+                prev[e["path"]] = e
     qualified = []
     for i, s in enumerate(cands):
         r = run_engine("matlab", s)  # no save: runnability check only
+        rel = str(Path(s).relative_to(HERE))
         if r["exit"] == 0:
-            qualified.append({"path": str(Path(s).relative_to(HERE)), "matlab_ms": r["ms"]})
+            qualified.append({"path": rel, "matlab_ms": r["ms"]})
+            prev.pop(rel, None)
         mark = "ok " if r["exit"] == 0 else f"exit={r['exit']}"
         print(f"[{i+1}/{len(cands)}] {Path(s).name:<44} {mark} {r['ms']}ms")
+    merged = sorted([{"path": p, **{"matlab_ms": e["matlab_ms"]}} for p, e in prev.items()] + qualified,
+                    key=lambda e: e["path"])
     doc = {"qualified": f"{datetime.now():%Y-%m-%dT%H:%M:%S}",
-           "scripts": qualified}
+           "scripts": merged}
     if CATALOG_CACHE.exists():
         meta = json.loads(CATALOG_CACHE.read_text(encoding="utf-8")).get("metadata", {})
         doc["catalog_compiled"] = meta.get("compiled_date")
     RUNNABLE.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(f"\nrunnable.json: {len(qualified)}/{len(cands)} scripts verified in MATLAB "
-          f"(catalog {doc.get('catalog_compiled', '?')})")
+    print(f"\nrunnable.json: +{len(qualified)}/{len(cands)} verified this portion, "
+          f"{len(merged)} total (catalog {doc.get('catalog_compiled', '?')})")
 
 
 # ── Dual run with .mat comparison (R4) ──────────────────────────────────────

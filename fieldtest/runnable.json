@@ -1,13 +1,181 @@
 {
- "qualified": "2026-08-31T15:11:01",
+ "qualified": "2026-08-31T17:01:13",
  "scripts": [
   {
-   "path": "corpus\\work\\Algorithms_MathModels\\AHP层次分析法\\ahp_usage.m",
-   "matlab_ms": 8860
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\anonymous_function_mysinc.m",
+   "matlab_ms": 31534
   },
   {
-   "path": "corpus\\work\\Algorithms_MathModels\\AHP层次分析法\\main.m",
-   "matlab_ms": 10888
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\anonymous_function_square.m",
+   "matlab_ms": 8701
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\break_statement_1.m",
+   "matlab_ms": 8803
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\continue_statement_1.m",
+   "matlab_ms": 9195
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\fahrenheit_to_celsius_main.m",
+   "matlab_ms": 9301
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\for_statement_1.m",
+   "matlab_ms": 8662
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\for_statement_2.m",
+   "matlab_ms": 8665
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\greet.m",
+   "matlab_ms": 8783
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\logical_functions_2.m",
+   "matlab_ms": 8532
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\my_factorial_main.m",
+   "matlab_ms": 7800
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\my_mean_main.m",
+   "matlab_ms": 8006
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\my_sqr_main.m",
+   "matlab_ms": 8786
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\mysum2_main.m",
+   "matlab_ms": 8509
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\mysum_main.m",
+   "matlab_ms": 8558
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\usinc_anon.m",
+   "matlab_ms": 7895
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\usinc_anon_2.m",
+   "matlab_ms": 9790
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\while_statement_1.m",
+   "matlab_ms": 8761
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\annotated_plot.m",
+   "matlab_ms": 29862
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\fplot_example.m",
+   "matlab_ms": 29607
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\multiple_lines_plot.m",
+   "matlab_ms": 35314
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\multiple_plots.m",
+   "matlab_ms": 27933
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\multiple_plots_2.m",
+   "matlab_ms": 26775
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\points_and_path_in_plane.m",
+   "matlab_ms": 28111
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\stem_plot.m",
+   "matlab_ms": 28442
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\data_visualization\\trivial_plot.m",
+   "matlab_ms": 28356
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_1.m",
+   "matlab_ms": 28683
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_10.m",
+   "matlab_ms": 28209
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_11.m",
+   "matlab_ms": 28044
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_2.m",
+   "matlab_ms": 28122
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_3.m",
+   "matlab_ms": 28632
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_4.m",
+   "matlab_ms": 28428
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_5.m",
+   "matlab_ms": 28484
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_6.m",
+   "matlab_ms": 10646
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_7.m",
+   "matlab_ms": 9146
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_8.m",
+   "matlab_ms": 28876
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\examples\\example_9.m",
+   "matlab_ms": 28555
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\signal_processing\\freqs_example_1.m",
+   "matlab_ms": 28147
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\signal_processing\\freqz_example_1.m",
+   "matlab_ms": 33652
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\signal_processing\\my_freqs_example_1.m",
+   "matlab_ms": 28392
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\symbolic_computation\\differentiation_1.m",
+   "matlab_ms": 9951
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\symbolic_computation\\ezplot_example_1.m",
+   "matlab_ms": 27927
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\symbolic_computation\\integration_1.m",
+   "matlab_ms": 10334
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\symbolic_computation\\iult_1.m",
+   "matlab_ms": 9844
+  },
+  {
+   "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\symbolic_computation\\ult_1.m",
+   "matlab_ms": 9531
   }
  ],
  "catalog_compiled": "2026-08-30"
