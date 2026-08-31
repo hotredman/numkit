@@ -29,3 +29,8 @@
 4. Related filed bugs open: `lang/handle-to-file-function-unresolved`,
    `lang/run-abs-path-sibling-resolution`, `lang/cell-growth-loses-value`
    (same resolution family).
+
+**Deferred by user decision (2026-08-31):**
+- `graphics/plot-family-no-return-value` — needs a graphics-handle design
+  (what Value represents a handle; set/get semantics). Not a quick fix;
+  revisit with the object-model work.
