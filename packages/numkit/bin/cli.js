@@ -101,7 +101,10 @@ function fsResolve(p, mode) {
       const rest = p.slice(norm.length);
       // MATLAB semantics: data files (csv/mat/wav/…) resolve against the
       // CALLER'S cwd; only sibling .m lookups belong to the script's dir.
-      if (/^([A-Za-z]:\/|\/)/.test(rest)) { p = rest; continue; } // doubled prefix
+      // The restored remainder is absolute — return it; re-testing the loop
+      // would strip the prefix a second time when the target lies inside
+      // scriptDir and relocate the write to the process cwd.
+      if (/^([A-Za-z]:\/|\/)/.test(rest)) return rest; // doubled prefix
       if (mode === "read" && rest.endsWith(".m")) return norm + rest; // sibling script
       p = rest; // data path → resolve from cwd below
       break;
