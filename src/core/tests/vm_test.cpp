@@ -1535,3 +1535,20 @@ TEST_F(VMTest, StressComplexArithmetic)
     EXPECT_DOUBLE_EQ(c.real(), 5.0);
     EXPECT_DOUBLE_EQ(c.imag(), 5.0);
 }
+
+// --- Register-file ceiling (bugs/opened/core/register-exhaustion-no-fallback.md) ---
+//
+// A 253-element matrix literal (252 works, 253 exceeds the 255-register
+// chunk ceiling together with chunk overhead) must evaluate like MATLAB
+// does — via register reuse or the TreeWalker fallback — not surface
+// "Compiler: register exhaustion" to the user.
+
+TEST_F(VMTest, DISABLED_RegisterExhaustionMatrixLiteralFallsBack)
+{
+    std::string literal;
+    for (int i = 0; i < 253; ++i) {
+        if (i) literal += " ";
+        literal += "1";
+    }
+    EXPECT_DOUBLE_EQ(runScalar("y = [" + literal + "]; numel(y)"), 253.0);
+}

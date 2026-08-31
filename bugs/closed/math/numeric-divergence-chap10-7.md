@@ -12,16 +12,27 @@ interval narrowing). numkit and MATLAB agree to ~7 significant digits, then
 diverge: `0.248453061949268` (numkit) vs `0.24845312674006` (MATLAB) —
 ≈2.6e-7 relative. Silent: no error, the result is just slightly wrong.
 
-## Repro
+## Repro (distilled 2026-08-31 from the corpus script — self-contained)
 
 ```matlab
 clear;
-% Fieldtest corpus: fieldtest/corpus/work/Algorithms_MathModels/…
-% 《基于MATLAB的高等数学问题求解》chap10_7.m (arithmetic coding)
-% Run via the fieldtest harness — line 1 of the output diverges at ~1e-7 rel.
+I = [0 0 1 1; 1 0 0 1];
+t = tabulate(I(:));
+cs = cumsum(t(:,3)');
+allLow = [0, cs(1:end-1)/100];
+allHigh = cs/100;
+lo = 0; hi = 1;
+for v = I(:)'
+    range = hi - lo; tmp = lo;
+    lo = tmp + range * allLow(v+1);
+    hi = tmp + range * allHigh(v+1);
+end
+fprintf('lo=%16.15f hi=%16.15f\n', lo, hi);
+% numkit before fix: lo/hi diverged from MATLAB at ~1e-7 rel (tabulate's
+%   hoisted inv_N reciprocal was 1 ulp off; 24 renormalizations amplified it).
+% numkit after fix: lo=0.292968750000000 hi=0.296875000000000 —
+%   bit-identical to MATLAB R2025b.
 ```
-(A standalone minimal repro is the first diagnosis step — see Suggested
-fix. The corpus script is the reliable reproducer until then.)
 
 ## Root cause (hypotheses to check, in order)
 
@@ -43,9 +54,10 @@ either fix the diverging builtin or close as documented numerical noise
 
 ## References
 
-- **Guard:** the corpus script itself (chap10_7.m) is the reproducer;
-  the fieldtest batch verifies it end-to-end vs MATLAB R2025b.
-- Fieldtest report: `fieldtest/reports/20260830-135536.json` (output-mismatch).
+- **Guard:** `src/toolboxes/stats/tests/tabulate_test.cpp` (values pinned to
+  MATLAB R2025b at 17 digits) + the distilled Repro above — both engines
+  print `lo=0.292968750000000 hi=0.296875000000000`.
+- Fieldtest report (historical, pre-fix): `fieldtest/reports/20260830-135536.json`.
 - Namespace may move (math→stats/builtin) once the diverging builtin is
   identified.
 
