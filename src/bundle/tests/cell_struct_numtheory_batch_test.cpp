@@ -118,7 +118,7 @@ TEST_F(CellStructNumtheoryBatchTest, NchoosekPerms)
 // --- bugs/opened/lang/cell-growth-loses-value.md ---
 // Growing a cell by indexed assignment must STORE the value, not just
 // resize: x{end+1,1} = v; read-back must give v (MATLAB semantics).
-TEST_F(CellStructNumtheoryBatchTest, DISABLED_CellGrowthKeepsValue)
+TEST_F(CellStructNumtheoryBatchTest, CellGrowthKeepsValue)
 {
     eval("x = {};");
     eval("x{end+1, 1} = 42;");

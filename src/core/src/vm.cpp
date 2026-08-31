@@ -1703,7 +1703,12 @@ enter_frame:
             // ── Cell operations ──────────────────────────────────
             case OpCode::CELL_LITERAL: {
                 uint8_t base = I.b, count = I.c;
-                auto cell = Value::cell(1, count);
+                // MATLAB: the empty literal {} is 0x0 (not 1x0) — with 1x0,
+                // `end` in a growth subscript (x{end+1,1}=v) sees 1 row and
+                // the value lands in a freshly grown EMPTY slot
+                // (bugs/opened/lang/cell-growth-loses-value.md; 1x0 also
+                // diverged from TreeWalker's execCellLiteral, which is 0x0).
+                auto cell = Value::cell(count == 0 ? 0 : 1, count);
                 for (uint8_t i = 0; i < count; ++i)
                     cell.cellAt(i) = R[base + i];
                 R[I.a] = std::move(cell);
