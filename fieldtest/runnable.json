@@ -1,0 +1,14 @@
+{
+ "qualified": "2026-08-31T15:11:01",
+ "scripts": [
+  {
+   "path": "corpus\\work\\Algorithms_MathModels\\AHP层次分析法\\ahp_usage.m",
+   "matlab_ms": 8860
+  },
+  {
+   "path": "corpus\\work\\Algorithms_MathModels\\AHP层次分析法\\main.m",
+   "matlab_ms": 10888
+  }
+ ],
+ "catalog_compiled": "2026-08-30"
+}

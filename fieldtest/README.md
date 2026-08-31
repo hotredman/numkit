@@ -99,11 +99,15 @@ Results are compared as **workspaces via .mat files**, not as printed text:
 - Both files are read by **scipy.io.loadmat** — an engine-neutral reader.
   Comparing numkit's output with numkit's own `load` would be circular.
 - Compared: **numeric variables present in both files** (intersection).
-  Per variable: class and shape must match exactly; values compared at
-  rel 1e-9 (the bug playbook's algorithmic threshold); NaN == NaN and ±Inf
-  compare equal to themselves. Non-numeric variables (char/struct/cell) are
-  listed in the report but not compared — MAT type fidelity beyond numeric
-  is out of scope for the diff verdict.
+  Per variable: class bucket (real / complex / logical) and shape must match
+  exactly; values compared at rel 1e-9 (the bug playbook's algorithmic
+  threshold); NaN == NaN and ±Inf compare equal to themselves. Non-numeric
+  variables (char/struct/cell) are listed in the report but not compared —
+  MAT type fidelity beyond numeric is out of scope for the diff verdict.
+  (Class is compared at bucket level, not dtype level, because MATLAB
+  R2025b packs integral-valued doubles into the smallest integer type when
+  saving — v6 and v7 alike — and promotes back on load; the stored dtype is
+  not a reliable comparison channel.)
 - Variables present on only one side are reported as info (a numkit error
   mid-script is already a `runtime-error` verdict regardless).
 - stdout and exit status are still captured — they drive the
