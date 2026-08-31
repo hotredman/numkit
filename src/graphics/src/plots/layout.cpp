@@ -351,6 +351,15 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
             bool sawLocation = false;
             std::string newLoc;
             for (size_t i = 0; i < args.size(); ++i) {
+                // Cell of labels — the canonical multi-legend form
+                // legend({'sine','cosine'}, 'Location', ...) — decompose
+                // into individual labels
+                // (bugs/closed/graphics/legend-cell-and-name-value.md).
+                if (args[i].isCell()) {
+                    for (size_t c = 0; c < args[i].numel(); ++c)
+                        ax.legendLabels.push_back(argStr(args[i].cellAt(c)));
+                    continue;
+                }
                 if (!args[i].isChar()) {
                     ax.legendLabels.push_back(argStr(args[i]));
                     continue;
