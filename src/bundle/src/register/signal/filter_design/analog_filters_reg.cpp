@@ -19,6 +19,8 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -197,58 +199,167 @@ void impinvar_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 namespace {
 
-// freqs(b, a) — the documented quick-look form: response on an
-// automatically chosen grid of 200 log-spaced rad/s points around the
-// filter's corner frequencies (pole/zero magnitudes, Durand–Kerner).
-// The exact R2025b grid heuristic may differ; the count and the log
-// spacing follow the docs (bugs/closed/signal/freqs-two-arg-auto-w.md).
-Value freqsAutoGrid(const Value &b, const Value &a, std::pmr::memory_resource *mr)
+// freqs(b, a) auto grid — the classic freqint auto-ranging algorithm
+// (Andy Grace 1990, rev 1996; still live inside MATLAB's freqs — every
+// endpoint AND interior point verified against R2025b, see
+// bugs/closed/signal/freqs-two-arg-auto-w.md):
+//
+//   ez    = poles (imag >= 0) ++ zeros (|z| < 1e5, imag >= 0)
+//           (upper half plane only; no poles -> single pole at -1000,
+//           which DERIVES the documented [100, 1e4] default).
+//   low   = round(log10(0.1 * min(|Re ez| + 2*Im ez)) - 0.5)   // round half away
+//   high  = round(log10(max(3*|Re ez| + 1.5*Im ez)) + 0.5)
+//   base  = logspace(low, high, 200 + (P - Z) + [10 if any zero has
+//           |Im| < |Re|])                                     // the LONG grid
+//   refine: for each oscillatory root (Im > |Re|, descending |Re|):
+//           window [max(0.8*Im - 3|Re|, 10^low), 1.2*Im + 4*Re|] —
+//           base points inside are REPLACED by a denser logspace
+//           (count + npts2 points, npts2 = 2 + 8/ceil(|P-Z+eps|/10)).
+//   final = the long grid linearly interpolated in log10 at 200
+//           equally spaced INDEX positions (caller-side resample).
+//
+// Roots at the origin count as "integrators" (|ez| < 1e-10) and are
+// shifted by 1 before the log so the extremes stay finite. All ops
+// mirror MATLAB doubles exactly (std::round is half-away-from-zero,
+// linspace/logspace constructed as 10.^(lo + i*d)).
+
+struct FreqsRoot {
+    double re, im;
+};
+
+std::vector<double> freqsAutoGridVec(const Value &b, const Value &a)
 {
     using numkit::ops::polyRootsDurandKerner;
+    constexpr double kEps = 2.220446049250313e-16;
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     ScratchArena scratch(mr);
-    auto cornersOf = [&](const Value &p) {
-        ScratchVec<double> out(&scratch);
-        if (!p.isComplex()) {
-            auto roots = polyRootsDurandKerner(&scratch, p.doubleData(), p.numel());
-            for (const auto &z : roots) {
-                const double m = std::abs(z);
-                if (m > 0.0 && std::isfinite(m))
-                    out.push_back(m);
-            }
+
+    auto rootsOf = [&](const Value &p) -> std::vector<FreqsRoot> {
+        std::vector<FreqsRoot> out;
+        if (!p.isComplex() && p.numel() >= 1) {
+            auto r = polyRootsDurandKerner(&scratch, p.doubleData(), p.numel());
+            for (const auto &z : r)
+                out.push_back({z.real(), z.imag()});
         }
         return out;
     };
-    ScratchVec<double> corners = cornersOf(b);
-    for (double c : cornersOf(a))
-        corners.push_back(c);
-    double lo = 1e-2, hi = 1e2; // no finite corners -> decade default
-    if (!corners.empty()) {
-        lo = std::max(*std::min_element(corners.begin(), corners.end()) / 100.0, 1e-9);
-        hi = *std::max_element(corners.begin(), corners.end()) * 100.0;
+    std::vector<FreqsRoot> ep = rootsOf(a); // poles (full set)
+    std::vector<FreqsRoot> tz = rootsOf(b); // zeros (full set)
+    if (ep.empty())
+        ep.push_back({-1000.0, 0.0});
+
+    // ez: upper-half roots; zeros filtered to |z| < 1e5.
+    std::vector<FreqsRoot> ez;
+    for (auto &r : ep)
+        if (r.im >= 0.0)
+            ez.push_back(r);
+    for (auto &r : tz)
+        if (std::abs(std::complex<double>(r.re, r.im)) < 1e5 && r.im >= 0.0)
+            ez.push_back(r);
+
+    auto log10v = [](double x) { return std::log10(x); };
+    double loNum = 1e300, hiNum = 0.0;
+    for (auto &r : ez) {
+        const bool integ = std::abs(std::complex<double>(r.re, r.im)) < 1e-10;
+        loNum = std::min(loNum, std::abs(r.re + (integ ? 1.0 : 0.0)) + 2.0 * r.im);
+        hiNum = std::max(hiNum, 3.0 * std::abs(r.re + (integ ? 1.0 : 0.0)) + 1.5 * r.im);
     }
+    const int low = static_cast<int>(std::round(log10v(0.1 * loNum) - 0.5));
+    const int high = static_cast<int>(std::round(log10v(hiNum) + 0.5));
+
+    const int diffzp = static_cast<int>(ep.size()) - static_cast<int>(tz.size());
+    bool anyRealDomZero = false;
+    for (auto &r : tz)
+        if (std::abs(r.im) < std::abs(r.re))
+            anyRealDomZero = true;
+    const int nLong = 200 + diffzp + (anyRealDomZero ? 10 : 0);
+
+    auto logspace = [](double l, double u, int n) {
+        std::vector<double> v(n);
+        const double d = (u - l) / (n - 1);
+        for (int i = 0; i < n; ++i)
+            v[i] = std::pow(10.0, l + i * d);
+        v[n - 1] = std::pow(10.0, u); // linspace forces the last point exactly
+        return v;
+    };
+    std::vector<double> w = logspace(low, high, nLong); // the base LONG grid
+
+    // Oscillatory refinement (Im > |Re|), descending |Re| (stable).
+    std::vector<int> osc;
+    for (size_t k = 0; k < ez.size(); ++k)
+        if (ez[k].im > std::abs(ez[k].re))
+            osc.push_back(static_cast<int>(k));
+    std::stable_sort(osc.begin(), osc.end(),
+                     [&](int x, int y) { return std::abs(ez[x].re) > std::abs(ez[y].re); });
+    const double npts2 = 2.0 + 8.0 / std::ceil(std::abs((diffzp + kEps) / 10.0));
+
+    std::vector<double> f = w, z;
+    for (int k : osc) {
+        const double r1 = std::max(0.8 * ez[k].im - 3.0 * std::abs(ez[k].re),
+                                   std::pow(10.0, static_cast<double>(low)));
+        const double r2 = 1.2 * ez[k].im + 4.0 * std::abs(ez[k].re);
+        auto outside = [&](double x) { return x > r2 || x < r1; };
+        z.erase(std::remove_if(z.begin(), z.end(), [&](double x) { return !outside(x); }), z.end());
+        f.erase(std::remove_if(f.begin(), f.end(), [&](double x) { return !outside(x); }), f.end());
+        long cnt = 0;
+        for (double x : w)
+            if (x >= r1 && x <= r2)
+                ++cnt;
+        auto seg = logspace(std::log10(r1), std::log10(r2), static_cast<int>(cnt + npts2));
+        z.insert(z.end(), seg.begin(), seg.end());
+    }
+    f.insert(f.end(), z.begin(), z.end());
+    std::sort(f.begin(), f.end()); // w_long
+
+    // Resample to exactly 200 points at evenly spaced INDEX positions,
+    // linear in log10 (the caller-side interp1 of the classic code).
+    std::vector<double> lw(f.size());
+    for (size_t i = 0; i < f.size(); ++i)
+        lw[i] = std::log10(f[i]);
+    const double dxi = static_cast<double>(f.size() - 1) / 199.0;
+    std::vector<double> out(200);
+    for (int i = 0; i < 200; ++i) {
+        // 1-based index into lw; the last sample is EXACTLY the last knot
+        // (linspace-forced), where interp1 returns log10(w_long(end)) as-is
+        // and the pow round-trip gives back the exact decade endpoint.
+        const double x = (i == 199) ? static_cast<double>(f.size()) : 1.0 + i * dxi;
+        const size_t j = static_cast<size_t>(x) - 1;
+        const double t = x - (j + 1);
+        const double lv = lw[j] + t * (lw[j + 1] - lw[j]);
+        out[i] = std::pow(10.0, lv);
+    }
+    return out;
+}
+
+Value freqsAutoGrid(const Value &b, const Value &a, std::pmr::memory_resource *mr)
+{
+    auto v = freqsAutoGridVec(b, a);
     Value w = Value::matrix(1, 200, ValueType::DOUBLE, mr);
     double *wd = w.doubleDataMut();
-    const double step = (std::log10(hi) - std::log10(lo)) / 199.0;
     for (int i = 0; i < 200; ++i)
-        wd[i] = std::pow(10.0, std::log10(lo) + i * step);
+        wd[i] = v[i];
     return w;
 }
 
 } // namespace
 
-void freqs_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void freqs_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() == 2) {
         // freqs(b, a): auto grid; the no-output PLOT form is a separate
         // piece of the same filed gap.
         auto w = freqsAutoGrid(args[0], args[1], ctx.engine->resource());
         outs[0] = freqs(args[0], args[1], w, ctx.engine->resource());
+        if (nargout > 1)
+            outs[1] = std::move(w);
         return;
     }
     if (args.size() < 3)
         throw Error("freqs: requires (b, a, w)",
                      0, 0, "freqs", "", "numkit:freqs:nargin");
     outs[0] = freqs(args[0], args[1], args[2], ctx.engine->resource());
+    if (nargout > 1)
+        outs[1] = args[2];
 }
 
 } // namespace detail

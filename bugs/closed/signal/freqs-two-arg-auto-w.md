@@ -41,3 +41,30 @@ is the bug.
 
 - **Guard:** `DISABLED_FreqsTwoArgAutoW` in
   `src/toolboxes/signal/tests/filter_design_test.cpp`.
+
+
+## Resolution addendum (2026-08-31, follow-up "идентично MATLAB")
+
+The grid was upgraded from our own heuristic to the CLASSIC freqint
+algorithm (Andy Grace 7-6-90, rev 1996 — the ancestor still live inside
+MATLAB's freqs; source preserved in the Marine Systems Simulator
+`HYDRO/utils/freqs.m`), reverse-verified against R2025b with 40+ probes:
+
+- extremes: `low = round(log10(0.1·min(|Re ez| + 2·Im ez)) − 0.5)`,
+  `high = round(log10(max(3·|Re ez| + 1.5·Im ez)) + 0.5)` over the
+  upper-half roots ez (poles ∪ zeros<1e5); round is half-away-from-zero —
+  which is what produces the "anomaly" c=100 → lower 10 (round(0.5)=1);
+  no poles → synthetic pole at −1000, which DERIVES the documented
+  [100, 1e4] default instead of hardcoding it;
+- long grid: logspace(low, high, 200 + (P−Z) + 10·[any real-dominant
+  zero]), with refinement windows [0.8·Im−3|Re|, 1.2·Im+4|Re|] replacing
+  base points around oscillatory roots (Im > |Re|), then resampled to
+  exactly 200 points by linear-in-log10 interpolation at evenly spaced
+  INDEX positions.
+
+Verified: 29-case endpoint sweep — 20/29 cases fully bit-identical, ALL
+endpoints bit-exact; the 9 remaining differ only in the 2nd grid point at
+1–2 ulp (MSVC pow/log10 vs MATLAB's libm through the log→interp→pow
+chain — the physical cross-libm limit, far below the R4 1e-9 comparison
+threshold). Guard: exact endpoint assertions across every rule branch.
+Parity spec: freqs_2arg (correctness=OK).

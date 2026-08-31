@@ -1,0 +1,10 @@
+{
+  "name": "freqs_2arg",
+  "namespace": "signal",
+  "setup": "b = [1]; a2 = [1 sqrt(2) 1]; a3 = [1 100]; bz = [1 0 100]; az = [1 10];",
+  "expr": "[h, w] = freqs(b, a2); r1 = [w(1) w(end)]; [h, w] = freqs(b, a3); r2 = [w(1) w(end)]; [h, w] = freqs(1, 1); r3 = [w(1) w(end)]; [h, w] = freqs(bz, az); r4 = [w(2) w(end)];",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["r1(1)", "r1(2)", "r2(1)", "r2(2)", "r3(1)", "r3(2)", "r4(1)", "r4(2)"],
+  "comment": "Sig: freqs(b,a) auto-grid, the classic freqint algorithm (Grace 1990, rev 1996). Covered: real pole (round-half-away decade extremes: c=100 -> lower 10 via round(0.5)=1), complex pole pair, no-roots default ([1e2 1e4] DERIVED via the synthetic pole at -1000), oscillatory refinement (imaginary zero at 10i; w(2)=0.10371385080926335). Endpoints bit-exact vs R2025b; interior points <=2 ulp (libm pow/log10 differ between MSVC and MATLAB runtime — documented in bugs/closed/signal/freqs-two-arg-auto-w.md). Full grid: 200 points always."
+}

@@ -281,15 +281,43 @@ TEST_F(FilterDesignTest, DISABLED_ButterAnalogFlagWnDomain)
     EXPECT_EQ(eval("numel(a);").toScalar(), 31.0);
 }
 
-// --- bugs/closed/signal/freqs-two-arg-auto-w.md (FIXED) ---
-// Two-arg freqs: 200 log-spaced rad/s points around the pole/zero corner
-// frequencies. Exact R2025b grid heuristic may differ (documented).
+// --- bugs/closed/signal/freqs-two-arg-auto-w.md (FIXED, freqint-exact) ---
+// The grid is the classic freqint algorithm (Grace 1990): decade-rounded
+// extremes from upper-half pole/zero roots, long base logspace + refinement
+// windows around oscillatory roots, resampled to 200 points. Endpoints are
+// bit-exact vs R2025b (probed); interior points match to <=2 ulp (libm
+// pow/log10 differ between MSVC and MATLAB's runtime).
 TEST_F(FilterDesignTest, FreqsTwoArgAutoW)
 {
+    // Endpoints bit-exact across every rule branch (probed vs R2025b).
+    eval("[~, w] = freqs([1], [1 sqrt(2) 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 0.1);
+    EXPECT_DOUBLE_EQ(evalScalar("w(end)"), 10.0);
+    eval("[~, w] = freqs([1], [1 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 0.01);
+    EXPECT_DOUBLE_EQ(evalScalar("w(end)"), 10.0);
+    eval("[~, w] = freqs([1], [1 100]);");   // round(0.5)=1 half-away
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("w(end)"), 1000.0);
+    eval("[~, w] = freqs([1], [1 1000]);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("w(end)"), 10000.0);
+    eval("[~, w] = freqs(1, 1);");           // no roots -> derived default
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("w(end)"), 10000.0);
+    eval("[~, w] = freqs([1 5], [1 50]);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 0.1);
+    EXPECT_DOUBLE_EQ(evalScalar("w(end)"), 1000.0);
+    // Oscillatory refinement (imaginary zero at 10i): interior densifies
+    // near 10; the whole grid resampled to exactly 200 log-spaced-ish points.
+    eval("[~, w] = freqs([1 0 100], [1 10]);");
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 0.1);
+    EXPECT_DOUBLE_EQ(evalScalar("w(end)"), 100.0);
+    EXPECT_NEAR(evalScalar("w(2)"), 0.10371385080926335, 1e-15);
+    EXPECT_EQ(eval("numel(w);").toScalar(), 200.0);
+    // 2nd-order Butterworth prototype response on the grid: |H(0.1)| =
+    // 1/sqrt(1 + 0.1^4) = 0.9999500037496877 (grid starts at 0.1).
     eval("h = freqs([1], [1 sqrt(2) 1]);");
-    EXPECT_EQ(eval("numel(h);").toScalar(), 200.0);
-    // 2nd-order Butterworth prototype: |H| ~ 1 well below the corner
-    // (grid starts at corner/100: |H| = 1 - O(1e-9)), monotone roll-off.
-    EXPECT_NEAR(evalScalar("abs(h(1))"), 1.0, 1e-7);
+    EXPECT_NEAR(evalScalar("abs(h(1))"), 0.9999500037496877, 1e-12);
     EXPECT_LT(evalScalar("abs(h(end))"), evalScalar("abs(h(100))"));
 }
