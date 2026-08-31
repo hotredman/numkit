@@ -154,3 +154,22 @@ TEST_F(EigTest, EigUnknownOptionThrows)
 {
     EXPECT_THROW(eval("eig([1 2; 3 4], 'bogus');"), std::exception);
 }
+
+// --- AHP Perron selection (bugs/opened/linalg/eig-vector-selection-ahp.md) ---
+//
+// Real-world AHP code selects the dominant eigenvector by
+// [~, idx] = max(diag(D)); w = V(:, idx). The engines return eig columns
+// in DIFFERENT orders (numkit idx=3, MATLAB idx=1 for this matrix — both
+// legal, MATLAB guarantees no order), so only the selection idiom may be
+// relied upon. Pins it for a perfectly consistent matrix (degenerate
+// zero-eigenvalue space): the selected vector must be the Perron weights.
+
+TEST_F(EigTest, EigAHPConsistentPerronSelection)
+{
+    eval("A = [1 1 5/3; 1 1 5/3; 3/5 3/5 1];");
+    eval("[V, D] = eig(A); [mm, idx] = max(diag(D)); w1 = V(:, idx); w1 = w1 / sum(w1);");
+    EXPECT_NEAR(evalScalar("mm"), 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("w1(1)"), 5.0 / 13.0, 1e-12);
+    EXPECT_NEAR(evalScalar("w1(2)"), 5.0 / 13.0, 1e-12);
+    EXPECT_NEAR(evalScalar("w1(3)"), 3.0 / 13.0, 1e-12);
+}
