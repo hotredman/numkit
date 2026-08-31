@@ -20,6 +20,7 @@
 #include <numkit/scriptgraph/ast_serialize.hpp>
 #include <numkit/scriptgraph/serialize.hpp>
 #include <numkit/scriptgraph/lowering.hpp>
+#include <filesystem>
 #include "ide_serializer.hpp"                  // Var serialisation for __INSPECT__ etc.
 #include "ide_debug_serializer.hpp"             // Debug state → pipe protocol markers
 
@@ -156,11 +157,25 @@ int runScript(const std::string &path, bool compatMode)
     std::ostringstream ss;
     ss << f.rdbuf();
     const std::string src = ss.str();
+
+    // Script origin: sibling .m files in the script's directory resolve
+    // without addpath (MATLAB file-run semantics) — same as the WASM
+    // CLI's repl_push_script_origin_with_dir. Without it the native REPL
+    // resolved NEITHER direct calls NOR handles to sibling functions
+    // (bugs/opened/lang/run-abs-path-sibling-resolution.md family).
+    {
+        std::error_code ec;
+        std::filesystem::path abs = std::filesystem::absolute(path, ec);
+        if (!ec)
+            engine.pushScriptOrigin("native", abs.parent_path().string());
+    }
+
     auto r = engine.evalSafe(src);
     if (!r.ok) {
         reportError(r, path + ": ");
         return 1;
     }
+    engine.popScriptOrigin();
     // MATLAB run() semantics: a FUNCTION file executes its primary function
     // (nullary runs; required inputs fail naturally). bugs/opened/lang/
     // run-invokes-nullary-function-file.md

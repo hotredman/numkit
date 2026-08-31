@@ -1,6 +1,6 @@
 # lang.run — `run('<absolute path>')` inside a script loses sibling-function resolution through the CLI native-FS bridge
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-08-31)
 - **Severity:** P2 (works in MATLAB and in-engine; breaks through the CLI)
 - **Kind:** bug
 - **Found:** 2026-08-31 via the fieldtest mat-comparison harness (wrapper
@@ -58,3 +58,17 @@ dir-existence check.
   guard: `packages/numkit/test/cli_sibling_test.js`, deliberately RED
   while open (exit 1, prints this file); turns green = live regression
   guard the moment the fix lands.
+
+
+## Resolution (2026-08-31)
+
+Root cause: `isAbsolutePath` in fs_context.cpp recognised Windows
+drive-letter paths only under `#ifdef _WIN32` — the WASM build (not
+_WIN32) treated 'C:/...' as RELATIVE, so resolvePath prepended the cwd
+and run() extracted a garbage scriptDir from the mangled path. Fix:
+drive-letter paths are absolute on EVERY platform. The CLI bridge's
+fsResolve also gained an early absolute pass-through (a clean absolute
+target inside scriptDir must not hit the scriptDir-strip heuristic —
+that variant relocated saves to the cwd, caught by cli_fs_test.js).
+Guard: cli_sibling_test.js — was RED-by-design while open, GREEN now
+(live regression guard).

@@ -3900,6 +3900,17 @@ bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t arg
         R[dstReg] = std::move(ob[0]);
         return false;
     }
+
+    // M-file fallback: a handle to a FILE function resolves exactly like
+    // a direct call (script-origin dirs included)
+    // (bugs/opened/lang/handle-to-file-function-unresolved.md).
+    if (auto *uf = engine_.lookupUserFunction(funcName, currentCallEnv())) {
+        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
+            frame.ip = ip + 1;
+            pushCallFrame(*found, argsBuf.data(), totalArgs, dstReg, 1);
+            return true;
+        }
+    }
     throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
 }
 
@@ -3961,6 +3972,17 @@ bool VM::execCallIndirectMulti(const Instruction &I, Value *R,
         for (size_t i = 0; i < nout; ++i)
             R[outBase + i] = std::move(outBuf[i]);
         return false;
+    }
+
+    // M-file fallback (see the single-output execCallIndirect note).
+    if (auto *uf = engine_.lookupUserFunction(funcName, currentCallEnv())) {
+        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
+            frame.ip = ip + 1;
+            returnCount_ = 0;
+            pushCallFrame(*found, argsBuf.data(), totalArgs,
+                          0, nout, true, outBase, nout);
+            return true;
+        }
     }
     throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
 }

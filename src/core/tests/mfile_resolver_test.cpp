@@ -525,3 +525,19 @@ INSTANTIATE_TEST_SUITE_P(TW_VM, MFileResolverTest,
                           });
 
 } // namespace
+
+// --- bugs/closed/lang/handle-to-file-function-unresolved.md (FIXED) ---
+// A handle to a sibling FILE function resolves exactly like a direct
+// call — the VM's indirect-call path falls back to lookupUserFunction
+// (script-origin dirs included), and the native runScript pushes the
+// script origin.
+TEST_P(MFileResolverTest, HandleToSiblingFunctionResolves)
+{
+    writeMFile("hfn.m", "function y = hfn(x)\n  y = 6 * x;\nend\n");
+    writeMFile("hcaller.m", "h = @hfn;\ng = h(7);\n");
+    auto p = (workDir / "hcaller.m").string();
+    engine.eval("run('" + p + "');");
+    auto *g = engine.getVariable("g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_DOUBLE_EQ(g->toScalar(), 42.0);
+}

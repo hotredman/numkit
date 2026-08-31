@@ -91,6 +91,13 @@ let scriptDir = null; // directory of the .m file being run, or null
 
 function fsResolve(p, mode) {
   p = String(p).replace(/\\/g, "/");
+  // An already-absolute path is never engine-prefixed: the engine's
+  // resolvePath treats drive-letter paths as absolute on every platform
+  // (fs_context.cpp) and passes them through untouched. Pass them through
+  // too — the scriptDir strip below must not fire for a clean absolute
+  // target that merely LIES INSIDE the script's directory (it used to
+  // relocate such saves to the process cwd).
+  if (/^([A-Za-z]:\/|\/|\\\\)/.test(p)) return p;
   // The engine prefixes unprefixed lookups with the pushed script-origin dir
   // itself ("<scriptDir>/<scriptDir>/name.m" when scriptDir is absolute) —
   // it expects the FS to be rooted elsewhere. Detect the doubled prefix and

@@ -87,10 +87,15 @@ bool isAbsolutePath(const std::string &p)
         return false;
     if (p[0] == '/' || p[0] == '\\')
         return true;
-#ifdef _WIN32
+    // Windows drive-letter paths are absolute on EVERY platform: the WASM
+    // build is not _WIN32, and treating 'C:/…' as relative there made
+    // resolvePath prepend the cwd, so run('<abs>') extracted a garbage
+    // scriptDir and sibling .m resolution died
+    // (bugs/opened/lang/run-abs-path-sibling-resolution.md). Such paths
+    // only arise from Windows hosts, so recognising them universally is
+    // safe.
     if (p.size() >= 2 && p[1] == ':' && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')))
         return true;
-#endif
     return false;
 }
 
