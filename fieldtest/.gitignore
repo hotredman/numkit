@@ -3,3 +3,5 @@ corpus/
 # Transient harness state.
 candidates.json
 __pycache__/
+# Transient console transcripts (shell redirections) — the durable record is reports/.
+*.log
