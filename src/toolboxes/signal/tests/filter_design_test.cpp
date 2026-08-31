@@ -273,12 +273,27 @@ TEST_F(FilterDesignTest, PhasezGrpdelaySampleRate)
     EXPECT_NEAR(evalScalar("w(2)"), 0.7853981633974483, 1e-12);  // pi/4
 }
 
-// --- bugs/opened/signal/butter-analog-flag-wn-domain.md ---
-// Analog 's' form: Wn is rad/s (any positive value), not the digital (0,1).
-TEST_F(FilterDesignTest, DISABLED_ButterAnalogFlagWnDomain)
+// --- bugs/closed/signal/butter-analog-flag-wn-domain.md (FIXED) ---
+// butter routes through the shared analog/digital pipeline: 's' keeps Wn
+// in rad/s. Values below are MATLAB R2025b ground truth (probed 2026-08-31;
+// lp coefficients exact to 15 digits, bp within libm noise).
+TEST_F(FilterDesignTest, ButterAnalogFlagWnDomain)
 {
-    eval("[a, b] = butter(30, 2000, 's');");
-    EXPECT_EQ(eval("numel(a);").toScalar(), 31.0);
+    eval("[B, A] = butter(4, 100, 's');");
+    EXPECT_NEAR(evalScalar("B(5)"), 1e8, 1e-6);
+    EXPECT_NEAR(evalScalar("A(2)"), 261.312592975275, 1e-9);
+    EXPECT_NEAR(evalScalar("A(5)"), 1e8, 1e-6);
+    eval("[B2, A2] = butter(2, [40 150], 's');");
+    EXPECT_NEAR(evalScalar("B2(3)"), 12100.0, 1e-9);       // BW^2 gain
+    EXPECT_NEAR(evalScalar("A2(2)"), 155.56349186104, 1e-9);
+    EXPECT_NEAR(evalScalar("A2(5)"), 3.6e7, 1e-4);
+    eval("[B3, A3] = butter(3, 2000, 'high', 's');");
+    EXPECT_NEAR(evalScalar("A3(2)"), 4000.0, 1e-9);         // 2*Wn
+    EXPECT_NEAR(evalScalar("A3(4)"), 8e9, 1e0);             // Wn^3
+    // Digital path unchanged through the new pipeline (MATLAB-probed pin).
+    eval("[bd, ad] = butter(4, 0.5);");
+    EXPECT_NEAR(evalScalar("bd(5)"), 0.0939808514337944, 1e-15);
+    EXPECT_NEAR(evalScalar("ad(5)"), 0.0176648008724419, 1e-15);
 }
 
 // --- bugs/closed/signal/freqs-two-arg-auto-w.md (FIXED, freqint-exact) ---

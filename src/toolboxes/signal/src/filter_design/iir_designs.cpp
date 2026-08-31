@@ -137,6 +137,21 @@ besself(int N, const Value &Wn, FilterType ftype, bool analog, std::pmr::memory_
 }
 
 std::tuple<Value, Value>
+butter(int N, const Value &Wn, FilterType ftype, bool analog, std::pmr::memory_resource *mr)
+{
+    // Same pipeline as cheby1/besself: Butterworth prototype, LP→X
+    // transform, bilinear only for digital. The analog flag keeps Wn in
+    // rad/s (any positive value) — the classic `butter(N, Wn, 's')` form
+    // (bugs/closed/signal/butter-analog-flag-wn-domain.md).
+    auto wn = readWn(Wn);
+    validateWn(ftype, wn);
+    auto [z, p, k_v] = buttap(N, mr);
+    auto Wo = wnToAnalog(wn, analog);
+    auto [z2, p2, k2] = applyLp2X(std::move(z), std::move(p), k_v.toScalar(), ftype, Wo, mr);
+    return finishDesign(std::move(z2), std::move(p2), std::move(k2), analog, mr);
+}
+
+std::tuple<Value, Value>
 ellip(int N, double Rp, double Rs, const Value &Wn, FilterType ftype, bool analog, std::pmr::memory_resource *mr)
 {
     auto wn = readWn(Wn);

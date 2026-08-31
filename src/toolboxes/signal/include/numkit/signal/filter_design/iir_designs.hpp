@@ -102,6 +102,21 @@ besself(int                          N,
         bool                         analog = false,
         std::pmr::memory_resource *  mr     = nullptr);
 
+/// Butterworth IIR filter — maximally flat passband, shared pipeline
+/// with cheby1/besself. `butter(N, Wn, 's')` designs in the s-domain
+/// (Wn in rad/s, any positive value); digital Wn stays normalised (0,1).
+///
+/// @param N      Filter order (band designs double it).
+/// @param Wn     Cutoff(s): scalar or 2-element vector.
+/// @param ftype  Response type (low/high/bandpass/stop).
+/// @param analog True for the s-domain ('s' flag).
+std::tuple<Value, Value>
+butter(int                          N,
+       const Value &                Wn,
+       FilterType                   ftype  = FilterType::Lowpass,
+       bool                         analog = false,
+       std::pmr::memory_resource *  mr     = nullptr);
+
 /// Elliptic (Cauer) IIR filter design.
 ///
 /// Equiripple in both passband (Rp dB) and stopband (Rs dB). The most

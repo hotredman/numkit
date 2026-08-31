@@ -1,0 +1,10 @@
+{
+  "name": "butter_analog",
+  "namespace": "signal",
+  "setup": "",
+  "expr": "[B1, A1] = butter(4, 100, 's'); [B2, A2] = butter(2, [40 150], 's'); [B3, A3] = butter(3, 2000, 'high', 's'); [B4, A4] = butter(4, 0.5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": ["A1(2)", "A1(5)", "B2(3)", "A2(2)", "A3(2)", "A3(4)", "B4(5)", "A4(5)"],
+  "comment": "Sig: butter through the shared analog/digital pipeline (cheby-style). Covered: analog lowpass Wn=100 rad/s (s-domain Butterworth polynomial, exact to 15 digits), analog bandpass [40 150] (BW^2=12100 numerator gain), analog highpass 'high'+'s' composed flags, and the DIGITAL path butter(4,0.5) which must stay bit-identical after the re-routing (MATLAB b(5)=0.09398085143379442). The 's' flag keeps Wn in rad/s (any positive value) — the old Wn-in-(0,1) rejection is the fixed bug."
+}

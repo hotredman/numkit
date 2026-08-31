@@ -254,6 +254,29 @@ void kaiserord_reg(Span<const Value> args, size_t nargout,
     }
 }
 
+
+void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    // butter(N, Wn[, ftype][, 's']) — routed through the shared analog/
+    // digital pipeline (bugs/closed/signal/butter-analog-flag-wn-domain.md).
+    if (args.size() < 2)
+        throw Error("butter: requires (N, Wn[, ftype][, 's'])",
+                     0, 0, "butter", "", "numkit:butter:nargin");
+    const int N = static_cast<int>(args[0].toScalar());
+    const Value &Wn = args[1];
+    auto t = parseTrailing(args, 2);
+    auto ftype = defaultFtype(Wn, t.ftype, t.ftype_set);
+    auto [b, a] = butter(N, Wn, ftype, t.analog, ctx.engine->resource());
+    if (nargout >= 3) {   // [z, p, k]: ZPK via tf2zpk (order may differ
+        auto [z, p, k] = tf2zpk(b, a, ctx.engine->resource()); // from MATLAB)
+        outs[0] = std::move(z); outs[1] = std::move(p);
+        outs[2] = Value::scalar(k, ctx.engine->resource());
+        return;
+    }
+    outs[0] = std::move(b);
+    if (nargout > 1) outs[1] = std::move(a);
+}
+
 } // namespace detail
 
 } // namespace numkit::signal
