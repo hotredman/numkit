@@ -225,4 +225,12 @@ Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste r
   `import compat.*`), so the block stays copy-paste valid in MATLAB too.
 - Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
 - Include the exact function call and comment the expected MATLAB vs NumKit output.
+- **No fieldtest/corpus references in the Repro.** A bug found in real-world
+  corpus code is distilled to a minimal inline snippet FIRST — the bug file
+  must survive `rm -rf fieldtest/corpus` (the corpus is disposable by design;
+  it is rebuilt from the external catalog). "Run the corpus script" is not a
+  repro.
+- A single `Found:` provenance line may mention fieldtest (real-world
+  discovery is a prioritization signal) — as metadata only, never as the
+  reproducer.
 

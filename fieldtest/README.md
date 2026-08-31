@@ -20,6 +20,8 @@ fieldtest/
   harness.py       dual-run (MATLAB vs numkit WASM vs native), classify, report
   signprobe.py     signature check: `help fn` (arg list) diff, MATLAB vs numkit
   reports/         committed run reports (JSON + summary per batch)
+  runnable.json    COMMITTED — the run corpus: scripts verified to execute in
+                   MATLAB (paths + verdicts only, no third-party source text)
   corpus/          GITIGNORED — cloned repos (corpus/repos/), the prepared
                    work copy (corpus/work/), and the cached catalog.json.
                    Third-party code NEVER enters git.
@@ -40,15 +42,22 @@ catalog it was fetched with; `--refresh-catalog` pulls a newer one.
    `corpus/work/`: a UTF-8-transcoded mirror (many real-world files are GBK;
    transcoding gives BOTH engines the same text — MATLAB on a non-Chinese
    locale garbles GBK just like numkit does, so the comparison stays fair).
-   Legacy internal picks cloned before the switch to the catalog (plain leaf
-   names in `corpus/repos/`) remain on disk and keep being prepared — they
-   anchor open bug repros; delete their dirs to prune them.
 
-2. **Run** — `python harness.py harvest [N]` selects deterministic
-   self-contained scripts that print output; `python harness.py run [N]
-   [filter]` executes each through the three engines (timeout-protected,
-   determinism-probed by a double numkit run), fuzzy-diffs output (numeric
-   tokens compared at rel 1e-6), and writes `reports/` + a verdict per script:
+2. **Qualify** — `python harness.py qualify [N] [filter]` harvests heuristic
+   candidates (self-contained scripts that print output, static token filter)
+   and then **verifies runnability empirically**: each candidate is executed
+   in MATLAB R2025b; the ones that run to completion form the run corpus,
+   committed as `runnable.json`. This replaces trusting the static harvest:
+   heuristic filters both miss runnable scripts and admit scripts that error
+   in MATLAB (worthless for diffing — there is no ground truth to diverge
+   from). Runnable = MATLAB exit 0; determinism is still probed later by the
+   double numkit run at diff time. The catalog of runnable scripts is the
+   stable comparison set batches track progress against.
+
+3. **Run** — `python harness.py run [N] [filter]` executes each `runnable.json`
+   script through the three engines (timeout-protected, determinism-probed by
+   a double numkit run), fuzzy-diffs output (numeric tokens compared at
+   rel 1e-6), and writes `reports/` + a verdict per script:
 
    | verdict | meaning | action |
    |---|---|---|
@@ -60,12 +69,16 @@ catalog it was fetched with; `--refresh-catalog` pulls a newer one.
    | `numkit-hang` / `matlab-timeout` | hang | bug (hang) |
    | `nondeterministic` | double-run differs | exclude, note in report |
 
-3. **File every finding.** Runtime/parse divergence → `bugs/opened/<ns>/<fn>.md`
-   (Kind: bug) **+ a reproducing gtest** per the repo protocol (`DISABLED_`
-   until fixed, live after). Absent function → a row in `missing.md`.
-   Signature divergence → `bugs/opened/<ns>/<fn>-signature.md` (Kind: bug).
+4. **File every finding — self-contained.** Runtime/parse divergence →
+   `bugs/opened/<ns>/<fn>.md` (Kind: bug) **+ a reproducing gtest** per the
+   repo protocol (`DISABLED_` until fixed, live after). The bug file's Repro
+   is a **minimal inline snippet** distilled from the corpus script — no
+   fieldtest/corpus references (the bug must survive the corpus being wiped;
+   see the Self-Contained Repro Rule in AGENTS.md). Absent function → a row
+   in `missing.md`. Signature divergence →
+   `bugs/opened/<ns>/<fn>-signature.md` (Kind: bug).
 
-4. **Signature audit** — `python signprobe.py <fn> [<fn>…]` captures MATLAB's
+5. **Signature audit** — `python signprobe.py <fn> [<fn>…]` captures MATLAB's
    documented signature (`help fn`) and numkit's, diffs them, and reports the
    first divergent line. Any arg-list mismatch (missing option, different
    default, different nargout shape) becomes a signature bug. Batch-audit the
@@ -74,6 +87,12 @@ catalog it was fetched with; `--refresh-catalog` pulls a newer one.
 
 ## Sources policy
 
+- **The catalog is the ONLY source of repositories.** No supplementary local
+  picks — new sources are added to awesome-matlab-books itself (it is a
+  curated project for exactly this), then picked up by `fetch.py
+  --refresh-catalog`. The local corpus is disposable: `rm -rf fieldtest/corpus`
+  must lose nothing that isn't rebuildable or already distilled into a bug
+  file.
 - Source of truth: the awesome-matlab-books catalog (CC BY-SA 4.0 as a
   compilation). Per-repo licenses vary — book companion code is often
   all-rights-reserved with no LICENSE file; that is acceptable here because:
