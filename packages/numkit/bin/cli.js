@@ -172,7 +172,11 @@ function primaryFunctionOfFile(src) {
 function stripIdeMarkers(out) {
   return out
     .split("\n")
-    .filter((l) => !/^__[A-Z_]+__$/.test(l.trim()))
+    // Bare IDE-protocol sentinels (__CLEAR__, …) and the figure payload
+    // channel (__FIGURE_DATA__:{…} — megabytes of JSON per figure) are
+    // for the IDE, not a plain CLI consumer's stdout
+    // (bugs/closed/apps/wasm-cli-figure-data-leak.md).
+    .filter((l) => !/^__[A-Z_]+__($|:)/.test(l.trim()))
     .join("\n");
 }
 

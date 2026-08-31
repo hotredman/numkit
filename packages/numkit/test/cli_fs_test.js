@@ -46,3 +46,19 @@ function run() {
 }
 
 run();
+
+// Figure payload must not leak into CLI stdout (wasm-cli-figure-data-leak).
+{
+  const out = execFileSync(process.execPath,
+    [CLI, "-e", "x = 1:10; plot(x, x.^2); disp('ok')"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  if (out.includes("__FIGURE_DATA__")) {
+    console.error("FAIL: __FIGURE_DATA__ payload leaked into CLI stdout");
+    process.exit(1);
+  }
+  if (!out.trim().endsWith("ok")) {
+    console.error("FAIL: expected script output missing, got: " + JSON.stringify(out));
+    process.exit(1);
+  }
+  console.log("PASS: figure payload stays off CLI stdout");
+}
