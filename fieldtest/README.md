@@ -44,25 +44,28 @@ catalog it was fetched with; `--refresh-catalog` pulls a newer one.
    locale garbles GBK just like numkit does, so the comparison stays fair).
 
 2. **Qualify** — `python harness.py qualify [N] [filter]` harvests heuristic
-   candidates (self-contained scripts that print output, static token filter)
-   and then **verifies runnability empirically**: each candidate is executed
-   in MATLAB R2025b; the ones that run to completion form the run corpus,
-   committed as `runnable.json`. This replaces trusting the static harvest:
-   heuristic filters both miss runnable scripts and admit scripts that error
-   in MATLAB (worthless for diffing — there is no ground truth to diverge
-   from). Runnable = MATLAB exit 0; determinism is still probed later by the
+   candidates (self-contained scripts, static token filter — interactive,
+   graphics, and nondeterministic constructs excluded; scripts do NOT need to
+   print anything: the workspace is the result) and then **verifies
+   runnability empirically**: each candidate is executed in MATLAB R2025b;
+   the ones that run to completion form the run corpus, committed as
+   `runnable.json`. This replaces trusting the static harvest: heuristic
+   filters both miss runnable scripts and admit scripts that error in MATLAB
+   (worthless for diffing — there is no ground truth to diverge from).
+   Runnable = MATLAB exit 0; determinism is still probed later by the
    double numkit run at diff time. The catalog of runnable scripts is the
    stable comparison set batches track progress against.
 
 3. **Run** — `python harness.py run [N] [filter]` executes each `runnable.json`
    script through the three engines (timeout-protected, determinism-probed by
-   a double numkit run), fuzzy-diffs output (numeric tokens compared at
-   rel 1e-6), and writes `reports/` + a verdict per script:
+   a double numkit run), then compares **workspaces via .mat files** (see
+   [Comparison semantics](#comparison-semantics)), and writes `reports/` + a
+   verdict per script:
 
    | verdict | meaning | action |
    |---|---|---|
    | `pass` | outputs match numerically | record timings (speed stats) |
-   | `runtime-error` / `output-mismatch` | numkit fails or diverges where MATLAB succeeds | **file a bug** (see below) |
+   | `runtime-error` / `workspace-mismatch` | numkit fails or a numeric variable diverges where MATLAB succeeds | **file a bug** (see below) |
    | `parse-error` | numkit's parser rejects valid MATLAB | **file a bug** |
    | `absent-fn` | function not implemented | add to `bugs/missing.md` (a parity gap, NOT a defect per the Kind legend) |
    | `both-error` | both engines error | eyeball: same construct → error-parity PASS; different → bug on the diverging side |
@@ -84,6 +87,34 @@ catalog it was fetched with; `--refresh-catalog` pulls a newer one.
    default, different nargout shape) becomes a signature bug. Batch-audit the
    functions a corpus batch actually used:
    `python signprobe.py $(python harness.py used-fns <report>)`.
+
+## Comparison semantics
+
+Results are compared as **workspaces via .mat files**, not as printed text:
+
+- The harness appends `save` to each run — `run('<script>');
+  save('out_<engine>.mat')` — in BOTH engines, with cwd set to a per-script
+  temp dir (scripts themselves are never modified; the corpus stays
+  untouched). A run therefore yields two .mat files: numkit's and MATLAB's.
+- Both files are read by **scipy.io.loadmat** — an engine-neutral reader.
+  Comparing numkit's output with numkit's own `load` would be circular.
+- Compared: **numeric variables present in both files** (intersection).
+  Per variable: class and shape must match exactly; values compared at
+  rel 1e-9 (the bug playbook's algorithmic threshold); NaN == NaN and ±Inf
+  compare equal to themselves. Non-numeric variables (char/struct/cell) are
+  listed in the report but not compared — MAT type fidelity beyond numeric
+  is out of scope for the diff verdict.
+- Variables present on only one side are reported as info (a numkit error
+  mid-script is already a `runtime-error` verdict regardless).
+- stdout and exit status are still captured — they drive the
+  `parse-error` / `runtime-error` classes and diagnostics — but the numeric
+  verdict comes from the workspace. **Print-format divergences (`fprintf`
+  formatting, `disp` precision) no longer count as mismatches.**
+- Determinism probe: the double numkit run is compared via its two .mat
+  files (previously: stdout).
+- The .mat artifacts are transient (gitignored temp dirs) and never
+  committed — they are derivatives of third-party code; reports carry
+  variable-level verdicts only.
 
 ## Sources policy
 
