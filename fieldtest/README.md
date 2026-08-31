@@ -16,22 +16,33 @@ complementary to:
 ```
 fieldtest/
   README.md        this file — the method + the workflow rules
-  sources.list     curated list of tested projects (URL + license + purpose)
-  fetch.py         clone/update sources.list into corpus/ + prepare work copy
+  fetch.py         clone/update catalog repos into corpus/ + prepare work copy
   harness.py       dual-run (MATLAB vs numkit WASM vs native), classify, report
   signprobe.py     signature check: `help fn` (arg list) diff, MATLAB vs numkit
   reports/         committed run reports (JSON + summary per batch)
-  corpus/          GITIGNORED — cloned repos (corpus/repos/) and the prepared
-                   work copy (corpus/work/). Third-party code NEVER enters git.
+  corpus/          GITIGNORED — cloned repos (corpus/repos/), the prepared
+                   work copy (corpus/work/), and the cached catalog.json.
+                   Third-party code NEVER enters git.
 ```
+
+Sources come from the external catalog
+[awesome-matlab-books](https://github.com/hotredman/awesome-matlab-books)
+(`catalog.json`: companion-code repositories for 75+ MATLAB books across 12
+categories). The catalog is cached at `corpus/catalog.json` on first fetch and
+reused from cache afterwards, so a batch stays reproducible against the
+catalog it was fetched with; `--refresh-catalog` pulls a newer one.
 
 ## Workflow
 
-1. **Fetch** — `python fetch.py` clones/updates everything in `sources.list`
-   into `corpus/repos/`, then prepares `corpus/work/`: a UTF-8-transcoded
-   mirror (many real-world files are GBK; transcoding gives BOTH engines the
-   same text — MATLAB on a non-Chinese locale garbles GBK just like numkit
-   does, so the comparison stays fair).
+1. **Fetch** — `python fetch.py` clones/updates every catalog repo into
+   `corpus/repos/<owner--repo>` (filters: `--category <id>[,<id>]`,
+   `--book <id>[,<id>]`; `--list` shows what's available), then prepares
+   `corpus/work/`: a UTF-8-transcoded mirror (many real-world files are GBK;
+   transcoding gives BOTH engines the same text — MATLAB on a non-Chinese
+   locale garbles GBK just like numkit does, so the comparison stays fair).
+   Legacy internal picks cloned before the switch to the catalog (plain leaf
+   names in `corpus/repos/`) remain on disk and keep being prepared — they
+   anchor open bug repros; delete their dirs to prune them.
 
 2. **Run** — `python harness.py harvest [N]` selects deterministic
    self-contained scripts that print output; `python harness.py run [N]
@@ -63,11 +74,15 @@ fieldtest/
 
 ## Sources policy
 
-- Permissive licenses only (MIT / BSD / Apache-2.0) — recorded per line in
-  `sources.list`.
+- Source of truth: the awesome-matlab-books catalog (CC BY-SA 4.0 as a
+  compilation). Per-repo licenses vary — book companion code is often
+  all-rights-reserved with no LICENSE file; that is acceptable here because:
 - `corpus/` is gitignored; third-party code is never committed, shipped, or
   redistributed — only executed for testing. Reports contain paths + verdicts,
-  not third-party source text.
+  not third-party source text. The cached `catalog.json` stays under
+  `corpus/` for the same reason.
+- `python_companions` (books whose companion code is Python) are deliberately
+  not fetched.
 
 ## Speed measurement rules
 

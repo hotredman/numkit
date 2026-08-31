@@ -15,10 +15,11 @@ neither the parser surface nor the graphics API against MATLAB.
 print nothing to stdout, and an absent plot option must not fail an otherwise
 computational script.
 
-**Fix.** A later phase: re-add the graphics repos to `fieldtest/sources.list`,
-drop the display-token filter from `harness.py` harvest for a graphics batch,
-and compare what is comparable (exit status, non-plot stdout, figure COUNT via
-a headless figure-counter if one exists).
+**Fix.** A later phase: add graphics/display companion repos to the catalog
+(awesome-matlab-books) — or a supplementary local list if they are not book
+companions — drop the display-token filter from `harness.py` harvest for a
+graphics batch, and compare what is comparable (exit status, non-plot stdout,
+figure COUNT via a headless figure-counter if one exists).
 
-**Affected.** `fieldtest/sources.list` (note at the end), `fieldtest/harness.py`
+**Affected.** `fieldtest/fetch.py` (catalog filters), `fieldtest/harness.py`
 (BAD_TOKENS display block).
