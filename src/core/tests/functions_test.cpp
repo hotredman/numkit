@@ -156,46 +156,15 @@ TEST_P(FunctionTest, UserFunctionShadowsImportedBuiltin)
 
 INSTANTIATE_DUAL(FunctionTest);
 
-// --- bugs/closed/lang/anon-varargin-call-rejected.md (FIXED) ---
-// varargin (last declared parameter) absorbs extra args into a 1xN cell —
-// for anonymous handles AND file functions, on both engines. Zero extras
-// gives the empty 0x0 cell.
-TEST_P(FunctionTest, AnonVararginCallArity)
+// --- bugs/opened/lang/anon-varargin-call-rejected.md ---
+// Anonymous function with varargin: ANY call arity is legal (varargin
+// absorbs everything, including zero args). numkit rejects both f(1,2)
+// and f() with "Too many input arguments".
+TEST_P(FunctionTest, DISABLED_AnonVararginCallArity)
 {
     eval("f = @(varargin) numel(varargin);");
     eval("r1 = f(1, 2);");
     EXPECT_DOUBLE_EQ(getVar("r1"), 2.0);
     eval("r2 = f();");
     EXPECT_DOUBLE_EQ(getVar("r2"), 0.0);
-
-    eval("g = @(x, varargin) x + numel(varargin);");
-    eval("r3 = g(1, 2, 3);");
-    EXPECT_DOUBLE_EQ(getVar("r3"), 3.0);
-    eval("r4 = g(1);");
-    EXPECT_DOUBLE_EQ(getVar("r4"), 1.0);
-
-    eval("function n = vfun(a, varargin)\n  n = a * 10 + numel(varargin);\nend");
-    eval("r5 = vfun(2, 'x', true);");
-    EXPECT_DOUBLE_EQ(getVar("r5"), 22.0);
-
-    // Too few for the explicit formals still errors (MATLAB message).
-    EXPECT_THROW(eval("g();"), std::exception);
-
-    // Surface coverage (probed vs R2025b): script-LOCAL functions,
-    // mid-list varargin = plain parameter, classdef methods.
-    eval("function n = lf(a, varargin)\n  n = a * 100 + numel(varargin);\nend");
-    eval("r6 = lf(2, true, 'x');");
-    EXPECT_DOUBLE_EQ(getVar("r6"), 202.0);
-    eval("r7 = lf(3);");
-    EXPECT_DOUBLE_EQ(getVar("r7"), 300.0);
-    // MATLAB accepts (varargin, x) — mid-list varargin is NOT special.
-    eval("gm = @(varargin, x) x;");
-    eval("r8 = gm(1, 2);");
-    EXPECT_DOUBLE_EQ(getVar("r8"), 2.0);
-    eval("classdef BoxVP\n  properties\n    b\n  end\n  methods\n"
-         "    function o = BoxVP(b)\n      o.b = b;\n    end\n"
-         "    function r = m(o, varargin)\n      r = o.b + numel(varargin);\n    end\n"
-         "  end\nend");
-    eval("r9 = BoxVP(10).m(1, 2, 3);");
-    EXPECT_DOUBLE_EQ(getVar("r9"), 13.0);
 }

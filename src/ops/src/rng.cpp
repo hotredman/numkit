@@ -96,19 +96,6 @@ void RngContext::restore(const Value &state)
 // Real-valued random (uniform / standard-normal)
 // ────────────────────────────────────────────────────────────────────
 
-// Normal draw: MATLAB v4 polar method in legacy mode (bit-identical,
-// see RngContext::v4Normal); std::normal_distribution otherwise (NOT
-// MATLAB-bit-identical in the modern mode — documented).
-namespace {
-double legacyNormal(RngContext &rng)
-{
-    if (rng.legacyV4())
-        return rng.v4Normal();
-    std::normal_distribution<double> dist(0.0, 1.0);
-    return dist(rng);
-}
-} // namespace
-
 Value rand(RngContext &rng, size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
@@ -124,11 +111,16 @@ Value randn(RngContext &rng, size_t rows, size_t cols, size_t pages, std::pmr::m
 {
     // NOTE: std::normal_distribution is NOT MATLAB-bit-identical (MATLAB
     // uses Marsaglia-Tsang Ziggurat with specific tables). Sequence is still
-    // deterministic and seedable via the session RngContext.
+    // deterministic and seedable via the session RngContext. ONE dist
+    // object per matrix — the object may cache the Box-Muller spare, so
+    // per-draw construction would change the modern stream (caught by
+    // TransformTest.EnvelopeNonnegative). Legacy v4 mode draws the
+    // bit-exact polar method instead (RngContext::v4Normal).
+    std::normal_distribution<double> dist(0.0, 1.0);
     auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
                          : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = legacyNormal(rng);
+        m.doubleDataMut()[i] = rng.legacyV4() ? rng.v4Normal() : dist(rng);
     return m;
 }
 
@@ -143,8 +135,9 @@ Value randND(RngContext &rng, Span<const size_t> dims, std::pmr::memory_resource
 Value randnND(RngContext &rng, Span<const size_t> dims, std::pmr::memory_resource *mr)
 {
     auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()), ValueType::DOUBLE, mr);
+    std::normal_distribution<double> dist(0.0, 1.0);  // one per matrix — see randn()
     for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = legacyNormal(rng);
+        m.doubleDataMut()[i] = rng.legacyV4() ? rng.v4Normal() : dist(rng);
     return m;
 }
 
