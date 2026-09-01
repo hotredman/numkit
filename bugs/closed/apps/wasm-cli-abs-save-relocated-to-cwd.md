@@ -1,6 +1,6 @@
 # apps.cli — `numkit /abs/path/script.m`: absolute-path `save` inside the script's own dir silently relocates the file to the process cwd
 
-- **Status:** ✅ FIXED (8cc4b5d82, 2026-08-31)
+- **Status:** ✅ FIXED (44d356e92, 2026-08-31)
 - **Severity:** P2 (silent wrong-location write; a same-named file in cwd gets clobbered)
 - **Kind:** bug
 - **Found:** 2026-08-31 while building the fieldtest .mat-comparison harness (R4)
