@@ -32,6 +32,10 @@ surface to the user**. Do not silently work on top of someone else's work.
   snippets stay as-is.
 - Co-authored trailer required (see prior commits for style).
 - `main` is the integration branch. Never force-push.
+- **Push policy** (user rule, 2026-09-01): the agent pushes ONLY to
+  `origin` (git.megahard.ru). The public GitHub mirror
+  (`github` remote, hotredman/numkit) is pushed manually by the user
+  via `scripts/push-mirror` — the agent never pushes to it.
 
 ## Documentation map (`dev-docs/`)
 
