@@ -110,3 +110,9 @@ examples/IO/*.csv
 examples/IO/*.txt
 examples/IO/*.bin
 examples/IO/*.log
+
+# Stray run artifacts in the repo root (renders/audio/probe outputs)
+/*.png
+/*.wav
+/*.mat
+packages/numkit/corpus_*.log
