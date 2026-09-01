@@ -11,6 +11,7 @@ only one flavour exists, that path is currently used on that platform only
 | Script | Does |
 |---|---|
 | `engine-build.{sh,bat}` | Configure + build the engine. `--fast` → `desktop-fast` preset (Highway SIMD), `--wasm` → `browser` preset (Emscripten; needs `EMSDK`), no arg → `portable`. |
+| `rebuild-all.{sh,bat}` | From-scratch rebuild: wipes the build dirs, engine `desktop-fast`, `--wasm` adds the browser stack + web bundle, runs the gtest suite, refreshes the npm dist. |
 | `test.sh` | Build `desktop-fast` + run the gtest suite via `ctest --preset=desktop-fast`. Args pass through, e.g. `test.sh -R Haart`. |
 | `coverage.ps1` | Ninja + clang-cl coverage build → `llvm-cov` report (enters a VS Dev Shell first). |
 
