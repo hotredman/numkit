@@ -35,7 +35,7 @@ surface to the user**. Do not silently work on top of someone else's work.
 - **Push policy** (user rule, 2026-09-01): the agent pushes ONLY to
   `origin` (git.megahard.ru). The public GitHub mirror
   (`github` remote, hotredman/numkit) is pushed manually by the user
-  via `scripts/push-mirror` — the agent never pushes to it.
+  via `scripts/github-push` — the agent never pushes to it.
 
 ## Documentation map (`dev-docs/`)
 

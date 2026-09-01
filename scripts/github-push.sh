@@ -3,7 +3,7 @@
 # Per AGENTS.md push policy: the agent pushes only to origin
 # (git.megahard.ru); this mirror is pushed manually by the user.
 #
-# Usage: scripts/push-mirror.sh [--force]
+# Usage: scripts/github-push.sh [--force]
 
 set -euo pipefail
 git push github main "$@"
