@@ -27,9 +27,9 @@ surface to the user**. Do not silently work on top of someone else's work.
 
 - Conversational Russian, code/commits/tests English.
 - **Commit messages — English only, subject AND body** (user rule,
-  2026-09-01). Russian is for conversation with the user; a commit is a
-  permanent, searchable artifact read by tools (`git log --grep`) and
-  strangers. Bug ids, file paths and code snippets stay as-is.
+  2026-09-01). A commit is a permanent, searchable artifact read by
+  tools (`git log --grep`) and strangers. Bug ids, file paths and code
+  snippets stay as-is.
 - Co-authored trailer required (see prior commits for style).
 - `main` is the integration branch. Never force-push.
 
