@@ -43,9 +43,15 @@ echo === gtest suite ===
 "%PROJECT_DIR%\build\desktop-fast\tests\gtest\Release\numkit_gtest.exe"
 if errorlevel 1 goto :fail
 
-echo === npm dist refresh ===
-node "%PROJECT_DIR%\packages\numkit\scripts\refresh-dist.js"
-if errorlevel 1 goto :fail
+rem The npm dist IS the wasm build — refresh it only when --wasm rebuilt it;
+rem without a fresh wasm, refresh-dist correctly fails closed on staleness.
+if "%WASM%"=="1" (
+    echo === npm dist refresh ===
+    node "%PROJECT_DIR%\packages\numkit\scripts\refresh-dist.js"
+    if errorlevel 1 goto :fail
+) else (
+    echo === npm dist refresh: skipped ^(no --wasm; dist mirrors the wasm build^)
+)
 
 echo.
 echo rebuild-all: OK
