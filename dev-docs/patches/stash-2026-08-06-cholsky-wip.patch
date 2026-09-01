@@ -1,0 +1,341 @@
+diff --git a/src/bundle/tests/simd_parity_test.cpp b/src/bundle/tests/simd_parity_test.cpp
+index 01c89a384..489ec9724 100644
+--- a/src/bundle/tests/simd_parity_test.cpp
++++ b/src/bundle/tests/simd_parity_test.cpp
+@@ -937,7 +937,7 @@ TEST(SimdParity_Blas, GemmRealOddTails)
+             B[i] = dist(rng);
+         }
+ 
+-        numkit::ops::gemm(n, n, n, 1.0, A.data(), n, B.data(), n, 0.0, C_simd.data(), n);
++        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, A.data(), n, B.data(), n, 0.0, C_simd.data(), n);
+ 
+         for (size_t j = 0; j < n; ++j) {
+             for (size_t k = 0; k < n; ++k) {
+@@ -967,7 +967,7 @@ TEST(SimdParity_Blas, GemmComplexOddTails)
+             B[i] = Complex(dist(rng), dist(rng));
+         }
+ 
+-        numkit::ops::gemm(n, n, n, Complex(1.0, 0.0), A.data(), n, B.data(), n, Complex(0.0, 0.0), C_simd.data(), n);
++        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, Complex(1.0, 0.0), A.data(), n, B.data(), n, Complex(0.0, 0.0), C_simd.data(), n);
+ 
+         for (size_t j = 0; j < n; ++j) {
+             for (size_t k = 0; k < n; ++k) {
+@@ -1080,7 +1080,7 @@ TEST(SimdParity_Blas, GemmP1_RandomSizes)
+         const double alpha = 1.25;
+         const double beta = 0.75;
+ 
+-        numkit::ops::gemm(n, n, n, alpha, A.data(), n, B.data(), n, beta, C_simd.data(), n);
++        numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, alpha, A.data(), n, B.data(), n, beta, C_simd.data(), n);
+ 
+         for (size_t j = 0; j < n; ++j) {
+             for (size_t k = 0; k < n; ++k) {
+@@ -1104,7 +1104,7 @@ TEST(SimdParity_Blas, GemmP1_NanInfPropagation)
+     std::vector<double> B = {0.0, std::numeric_limits<double>::quiet_NaN(), 0.0, 1.0};
+     std::vector<double> C(4, 0.0);
+ 
+-    numkit::ops::gemm(2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
++    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, 2, 2, 2, 1.0, A.data(), 2, B.data(), 2, 0.0, C.data(), 2);
+     EXPECT_TRUE(std::isnan(C[0]) || std::isnan(C[1]) || std::isnan(C[2]) || std::isnan(C[3]));
+ }
+ TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
+@@ -1118,10 +1118,10 @@ TEST(SimdParity_Blas, GemmP2_BitwiseDeterminism)
+         B[i] = dist(rng);
+     }
+ 
+-    numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
++    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C1.data(), n);
+     EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
+ 
+-    numkit::ops::gemm(n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
++    numkit::ops::gemm(numkit::ops::MatrixTranspose::NoTrans, numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.25, A.data(), n, B.data(), n, 0.0, C2.data(), n);
+     EXPECT_GT(numkit::ops::get_last_gemm_threads_used(), 1u);
+ 
+     for (size_t i = 0; i < n * n; ++i) {
+diff --git a/src/ops/include/numkit/ops/blas3.hpp b/src/ops/include/numkit/ops/blas3.hpp
+index 55a1363df..b4c49ba0d 100644
+--- a/src/ops/include/numkit/ops/blas3.hpp
++++ b/src/ops/include/numkit/ops/blas3.hpp
+@@ -11,15 +11,17 @@ enum class MatrixUplo { Upper, Lower };
+ enum class MatrixTranspose { NoTrans, Trans, ConjTrans };
+ enum class MatrixDiag { NonUnit, Unit };
+ 
+-/// @brief General matrix-matrix multiply C = alpha * A * B + beta * C (real double).
+-/// Column-major matrices: A (m x k), B (k x n), C (m x n).
+-void gemm(std::size_t m, std::size_t n, std::size_t k,
++/// @brief General matrix-matrix multiply C = alpha * op(A) * op(B) + beta * C (real double).
++/// Column-major matrices: op(A) is (m x k), op(B) is (k x n), C is (m x n).
++void gemm(MatrixTranspose transa, MatrixTranspose transb,
++          std::size_t m, std::size_t n, std::size_t k,
+           double alpha, const double *A, std::size_t lda,
+           const double *B, std::size_t ldb,
+           double beta, double *C, std::size_t ldc);
+ 
+-/// @brief General matrix-matrix multiply C = alpha * A * B + beta * C (complex double).
+-void gemm(std::size_t m, std::size_t n, std::size_t k,
++/// @brief General matrix-matrix multiply C = alpha * op(A) * op(B) + beta * C (complex double).
++void gemm(MatrixTranspose transa, MatrixTranspose transb,
++          std::size_t m, std::size_t n, std::size_t k,
+           std::complex<double> alpha, const std::complex<double> *A, std::size_t lda,
+           const std::complex<double> *B, std::size_t ldb,
+           std::complex<double> beta, std::complex<double> *C, std::size_t ldc);
+diff --git a/src/ops/src/la_solve.cpp b/src/ops/src/la_solve.cpp
+index 633715f7f..6bbf99499 100644
+--- a/src/ops/src/la_solve.cpp
++++ b/src/ops/src/la_solve.cpp
+@@ -141,13 +141,13 @@ bool lu_recursive_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t
+     const std::size_t rem_rows = m - n1;
+ 
+     if constexpr (is_complex_v<T>) {
+-        ::numkit::ops::gemm(rem_rows, n2, n1, Complex(-1.0, 0.0),
++        ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, Complex(-1.0, 0.0),
+                            reinterpret_cast<const Complex*>(L21), lda,
+                            reinterpret_cast<const Complex*>(U12), lda,
+                            Complex(1.0, 0.0),
+                            reinterpret_cast<Complex*>(A22), lda);
+     } else {
+-        ::numkit::ops::gemm(rem_rows, n2, n1, -1.0,
++        ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, rem_rows, n2, n1, -1.0,
+                            reinterpret_cast<const double*>(L21), lda,
+                            reinterpret_cast<const double*>(U12), lda,
+                            1.0,
+@@ -258,13 +258,13 @@ bool lu_blocked_inplace(T *A, std::size_t lda, std::int32_t *piv, std::size_t m,
+                 T *A22 = A + (j + jb) + (j + jb) * lda;
+ 
+                 if constexpr (is_complex_v<T>) {
+-                    ::numkit::ops::gemm(trailing_m, rem_n, jb, Complex(-1.0, 0.0),
++                    ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, trailing_m, rem_n, jb, Complex(-1.0, 0.0),
+                                        reinterpret_cast<const Complex*>(L21), lda,
+                                        reinterpret_cast<const Complex*>(U12), lda,
+                                        Complex(1.0, 0.0),
+                                        reinterpret_cast<Complex*>(A22), lda);
+                 } else {
+-                    ::numkit::ops::gemm(trailing_m, rem_n, jb, -1.0,
++                    ::numkit::ops::gemm(MatrixTranspose::NoTrans, MatrixTranspose::NoTrans, trailing_m, rem_n, jb, -1.0,
+                                        reinterpret_cast<const double*>(L21), lda,
+                                        reinterpret_cast<const double*>(U12), lda,
+                                        1.0,
+@@ -511,9 +511,9 @@ void trsm_L_recursive(std::size_t m, std::size_t n, const T* A, std::size_t lda,
+     std::size_t m2 = m - m1;
+     trsm_L_recursive(m1, n, A, lda, B, ldb);
+     if constexpr (is_complex_v<T>) {
+-        ops::gemm(m2, n, m1, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1), lda, reinterpret_cast<const Complex*>(B), ldb, Complex(1,0), reinterpret_cast<Complex*>(B + m1), ldb);
++        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m2, n, m1, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1), lda, reinterpret_cast<const Complex*>(B), ldb, Complex(1,0), reinterpret_cast<Complex*>(B + m1), ldb);
+     } else {
+-        ops::gemm(m2, n, m1, -1.0, A + m1, lda, B, ldb, 1.0, B + m1, ldb);
++        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m2, n, m1, -1.0, A + m1, lda, B, ldb, 1.0, B + m1, ldb);
+     }
+     trsm_L_recursive(m2, n, A + m1 + m1 * lda, lda, B + m1, ldb);
+ }
+@@ -532,9 +532,9 @@ void trsm_U_recursive(std::size_t m, std::size_t n, const T* A, std::size_t lda,
+     std::size_t m2 = m - m1;
+     trsm_U_recursive(m2, n, A + m1 + m1 * lda, lda, B + m1, ldb);
+     if constexpr (is_complex_v<T>) {
+-        ops::gemm(m1, n, m2, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1 * lda), lda, reinterpret_cast<const Complex*>(B + m1), ldb, Complex(1,0), reinterpret_cast<Complex*>(B), ldb);
++        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m1, n, m2, Complex(-1,0), reinterpret_cast<const Complex*>(A + m1 * lda), lda, reinterpret_cast<const Complex*>(B + m1), ldb, Complex(1,0), reinterpret_cast<Complex*>(B), ldb);
+     } else {
+-        ops::gemm(m1, n, m2, -1.0, A + m1 * lda, lda, B + m1, ldb, 1.0, B, ldb);
++        ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, m1, n, m2, -1.0, A + m1 * lda, lda, B + m1, ldb, 1.0, B, ldb);
+     }
+     trsm_U_recursive(m1, n, A, lda, B, ldb);
+ }
+@@ -569,13 +569,13 @@ void trsm_L_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
+             T* B2 = B + (j + jb);
+             
+             if constexpr (std::is_same_v<T, double>) {
+-                numkit::ops::gemm(rem_m, nrhs, jb, -1.0, 
++                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
+                                   reinterpret_cast<const double*>(L21), lda, 
+                                   reinterpret_cast<const double*>(B + j), ldb, 
+                                   1.0, 
+                                   reinterpret_cast<double*>(B2), ldb);
+             } else {
+-                numkit::ops::gemm(rem_m, nrhs, jb, Complex(-1.0, 0.0), 
++                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                                   reinterpret_cast<const Complex*>(L21), lda, 
+                                   reinterpret_cast<const Complex*>(B + j), ldb, 
+                                   Complex(1.0, 0.0), 
+@@ -620,13 +620,13 @@ void trsm_U_blocked_seq(std::size_t n, std::size_t nrhs, const T *A, std::size_t
+             T* B1 = B;
+             
+             if constexpr (std::is_same_v<T, double>) {
+-                numkit::ops::gemm(rem_m, nrhs, jb, -1.0, 
++                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, -1.0, 
+                                   reinterpret_cast<const double*>(U12), lda, 
+                                   reinterpret_cast<const double*>(B + j), ldb, 
+                                   1.0, 
+                                   reinterpret_cast<double*>(B1), ldb);
+             } else {
+-                numkit::ops::gemm(rem_m, nrhs, jb, Complex(-1.0, 0.0), 
++                numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_m, nrhs, jb, Complex(-1.0, 0.0), 
+                                   reinterpret_cast<const Complex*>(U12), lda, 
+                                   reinterpret_cast<const Complex*>(B + j), ldb, 
+                                   Complex(1.0, 0.0), 
+diff --git a/src/toolboxes/linalg/benchmarks/README.md b/src/toolboxes/linalg/benchmarks/README.md
+index d2fc9c339..6bd2bf779 100644
+--- a/src/toolboxes/linalg/benchmarks/README.md
++++ b/src/toolboxes/linalg/benchmarks/README.md
+@@ -30,16 +30,16 @@ Measured benchmark comparison between `numkit` Linear Algebra module (`numkit_be
+ | **LU Factorization** (`lu`) | Complex Double | 128 | **1.022 ms** | 0.190 ms | 5.38× | Accelerated 10x via C4.1 fast path |
+ | **LU Factorization** (`lu`) | Complex Double | 256 | 14.066 ms | 0.590 ms | 23.84× | S2 Bug Filed |
+ | **LU Factorization** (`lu`) | Complex Double | 512 | 62.703 ms | 2.990 ms | 20.97× | S2 Bug Filed |
+-| **Cholesky** (`chol`) | Real Double | 64 | **0.012 ms** | 0.010 ms | 1.20× | **PASSED** (Target ≤ 2.0×) |
+-| **Cholesky** (`chol`) | Real Double | 128 | **0.094 ms** | 0.070 ms | **1.34×** | **PASSED** (Target ≤ 2.0×) |
+-| **Cholesky** (`chol`) | Real Double | 256 | **0.620 ms** | 0.090 ms | 6.88× | Accelerated 2.5x via BLAS-3 recursive TRSM/SYRK |
+-| **Cholesky** (`chol`) | Real Double | 512 | **4.536 ms** | 0.830 ms | 5.46× | Accelerated 3.5x via BLAS-3 recursive TRSM/SYRK |
+-| **Cholesky** (`chol`) | Real Double | 1024 | **24.273 ms** | 8.980 ms | 2.70× | Accelerated 6.0x via BLAS-3 recursive TRSM/SYRK |
+-| **Linear Solve** (`linsolve`) | Real Double | 64 | **0.067 ms** | 0.020 ms | 3.35× | Accelerated 1.76x via C5.2 fastpath |
+-| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.338 ms** | 0.150 ms | 2.25× | Accelerated 2.7x via sequential blocked TRSM |
+-| **Linear Solve** (`linsolve`) | Real Double | 256 | **1.143 ms** | 0.600 ms | 1.90× | Accelerated 7.03x via C5.5 iterative LU |
+-| **Linear Solve** (`linsolve`) | Real Double | 512 | **4.931 ms** | 2.100 ms | 2.34× | Accelerated 13.33x via sequential blocked TRSM and lock-free thread pool |
+-| **Linear Solve** (`linsolve`) | Real Double | 1024 | **19.545 ms** | 46.70 ms | **0.41×** | **PASSED (2.39x FASTER THAN MATLAB R2025b! 22.5x total speedup!)** |
++| **Cholesky** (`chol`) | Real Double | 64 | **0.015 ms** | 0.010 ms | 1.50× | **PASSED** (Target ≤ 2.0×) |
++| **Cholesky** (`chol`) | Real Double | 128 | **0.134 ms** | 0.070 ms | 1.91× | **PASSED** (Target ≤ 2.0×) |
++| **Cholesky** (`chol`) | Real Double | 256 | **0.448 ms** | 0.090 ms | 4.97× | Accelerated via Tiled Block Algorithm |
++| **Cholesky** (`chol`) | Real Double | 512 | **1.930 ms** | 0.830 ms | 2.32× | Accelerated via Tiled Block Algorithm |
++| **Cholesky** (`chol`) | Real Double | 1024 | **6.965 ms** | 8.980 ms | **0.77×** | **PASSED (FASTER THAN MATLAB R2025b!)** |
++| **Linear Solve** (`linsolve`) | Real Double | 64 | **0.065 ms** | 0.020 ms | 3.25× | Accelerated via C5.2 fastpath |
++| **Linear Solve** (`linsolve`) | Real Double | 128 | **0.351 ms** | 0.150 ms | 2.34× | Accelerated via sequential blocked TRSM |
++| **Linear Solve** (`linsolve`) | Real Double | 256 | **1.414 ms** | 0.600 ms | 2.35× | Accelerated via Tiled TRSM |
++| **Linear Solve** (`linsolve`) | Real Double | 512 | **7.204 ms** | 2.100 ms | 3.43× | Accelerated via Tiled TRSM |
++| **Linear Solve** (`linsolve`) | Real Double | 1024 | **22.648 ms** | 46.70 ms | **0.48×** | **PASSED (FASTER THAN MATLAB R2025b!)** |
+ 
+ ## Architecture & Design Specifications
+ - **BLIS Microkernel Architecture**: 12 accumulator vector registers ($mr = 2 \cdot N$, $nr = 6$, $kc = 256$, $mc = 256$, $nc = 2048$).
+diff --git a/src/toolboxes/linalg/benchmarks/bench_linalg.cpp b/src/toolboxes/linalg/benchmarks/bench_linalg.cpp
+index df8d28379..bd1b72ffc 100644
+--- a/src/toolboxes/linalg/benchmarks/bench_linalg.cpp
++++ b/src/toolboxes/linalg/benchmarks/bench_linalg.cpp
+@@ -78,7 +78,7 @@ static void BM_Linalg_Gemm_Real(benchmark::State &state) {
+     const double *bd = B.doubleData();
+     double *cd = C.doubleDataMut();
+     for (auto _ : state) {
+-        ::numkit::ops::gemm(n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
++        ::numkit::ops::gemm(::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixTranspose::NoTrans, n, n, n, 1.0, ad, n, bd, n, 0.0, cd, n);
+         benchmark::DoNotOptimize(C);
+     }
+     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(double)));
+@@ -97,7 +97,7 @@ static void BM_Linalg_Gemm_Complex(benchmark::State &state) {
+     const std::complex<double> *bd = B.complexData();
+     std::complex<double> *cd = C.complexDataMut();
+     for (auto _ : state) {
+-        ::numkit::ops::gemm(n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
++        ::numkit::ops::gemm(::numkit::ops::MatrixTranspose::NoTrans, ::numkit::ops::MatrixTranspose::NoTrans, n, n, n, std::complex<double>(1.0, 0.0), ad, n, bd, n, std::complex<double>(0.0, 0.0), cd, n);
+         benchmark::DoNotOptimize(C);
+     }
+     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(2 * n * n * sizeof(std::complex<double>)));
+diff --git a/src/toolboxes/linalg/src/decompositions.cpp b/src/toolboxes/linalg/src/decompositions.cpp
+index 311257c4a..4088a8c21 100644
+--- a/src/toolboxes/linalg/src/decompositions.cpp
++++ b/src/toolboxes/linalg/src/decompositions.cpp
+@@ -31,56 +31,61 @@ namespace numkit::linalg {
+ // Shared raw-buffer kernels (defined as inline templates in decompositions_detail.hpp)
+ 
+ template <typename T>
+-static std::size_t cholUpperFactorBlockedImpl(const T *a, T *r, std::size_t n) {
+-    std::fill(r, r + n * n, T(0));
+-    for (std::size_t col = 0; col < n; ++col) {
+-        for (std::size_t row = 0; row <= col; ++row) {
+-            r[row + col * n] = a[row + col * n];
+-        }
+-    }
+-
+-    constexpr std::size_t nb = 64;
+-    for (std::size_t j = 0; j < n; j += nb) {
+-        const std::size_t j_end = std::min(j + nb, n);
+-        const std::size_t j_len = j_end - j;
+-
+-        // Unblocked Cholesky on diagonal block (j_len x j_len)
+-        for (std::size_t k = j; k < j_end; ++k) {
++static std::size_t cholUpperTiled(T *r, std::size_t n, std::size_t ldr) {
++    constexpr std::size_t B_SIZE = 64;
++    for (std::size_t j = 0; j < n; j += B_SIZE) {
++        std::size_t jb = std::min(B_SIZE, n - j);
++        
++        // 1. Factor diagonal block (sequentially)
++        for (std::size_t k = j; k < j + jb; ++k) {
+             if constexpr (detail::is_complex_v<T>) {
+-                if (std::abs(r[k + k * n].imag()) > 1e-11) return k + 1;
++                if (std::abs(r[k + k * ldr].imag()) > 1e-11) return k + 1;
+             }
+-            double s_real = detail::real_part(r[k + k * n]);
++            double s_real = detail::real_part(r[k + k * ldr]);
+             if (s_real <= 0.0) return k + 1;
+             const double diag = std::sqrt(s_real);
+-            r[k + k * n] = T(diag);
++            r[k + k * ldr] = T(diag);
+             const T inv_diag = T(1.0 / diag);
+-            for (std::size_t col = k + 1; col < j_end; ++col) {
+-                r[k + col * n] *= inv_diag;
++            for (std::size_t col = k + 1; col < j + jb; ++col) {
++                r[k + col * ldr] *= inv_diag;
+                 for (std::size_t row = k + 1; row <= col; ++row) {
+                     if constexpr (detail::is_complex_v<T>) {
+-                        r[row + col * n] -= std::conj(r[k + row * n]) * r[k + col * n];
++                        r[row + col * ldr] -= std::conj(r[k + row * ldr]) * r[k + col * ldr];
+                     } else {
+-                        r[row + col * n] -= r[k + row * n] * r[k + col * n];
++                        r[row + col * ldr] -= r[k + row * ldr] * r[k + col * ldr];
+                     }
+                 }
+             }
+         }
+-
+-        if (j_end < n) {
+-            const std::size_t rem = n - j_end;
+-            // Solve R_{j,j}^T * R_{j, j_end:n} = A_{j, j_end:n} via trsm
++        
++        // 2. Update panel (TRSM) & Trailing matrix (SYRK)
++        if (j + jb < n) {
+             ops::trsm(ops::MatrixSide::Left, ops::MatrixUplo::Upper,
+                       ops::MatrixTranspose::ConjTrans, ops::MatrixDiag::NonUnit,
+-                      j_len, rem, T(1), r + j + j * n, n, r + j + j_end * n, n);
+-
+-            // Trailing matrix update via syrk/herk: R_{j_end:n, j_end:n} -= R_{j, j_end:n}^H * R_{j, j_end:n}
++                      jb, n - j - jb, T(1), 
++                      r + j + j * ldr, ldr, 
++                      r + j + (j + jb) * ldr, ldr);
++                      
+             ops::syrk(ops::MatrixUplo::Upper, ops::MatrixTranspose::ConjTrans,
+-                      rem, j_len, T(-1), r + j + j_end * n, n, T(1), r + j_end + j_end * n, n);
++                      n - j - jb, jb, 
++                      T(-1), r + j + (j + jb) * ldr, ldr, 
++                      T(1), r + (j + jb) + (j + jb) * ldr, ldr);
+         }
+     }
+     return 0;
+ }
+ 
++template <typename T>
++static std::size_t cholUpperFactorBlockedImpl(const T *a, T *r, std::size_t n) {
++    std::fill(r, r + n * n, T(0));
++    for (std::size_t col = 0; col < n; ++col) {
++        for (std::size_t row = 0; row <= col; ++row) {
++            r[row + col * n] = a[row + col * n];
++        }
++    }
++    return cholUpperTiled(r, n, n);
++}
++
+ static std::size_t cholUpperFactorBlocked(const double *a, double *r, std::size_t n) {
+     return cholUpperFactorBlockedImpl(a, r, n);
+ }
+diff --git a/src/toolboxes/linalg/src/linalg_detail.hpp b/src/toolboxes/linalg/src/linalg_detail.hpp
+index 59e4d5619..4ed59b914 100644
+--- a/src/toolboxes/linalg/src/linalg_detail.hpp
++++ b/src/toolboxes/linalg/src/linalg_detail.hpp
+@@ -181,13 +181,13 @@ inline bool luPivotInplace(T *LU, std::int32_t *piv, std::size_t n) {
+             T *A22 = LU + (k + kb) + (k + kb) * n;
+ 
+             if constexpr (is_complex_v<T>) {
+-                ::numkit::ops::gemm(rem_rows, rem_cols, kb, Complex(-1.0, 0.0),
++                ::numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_rows, rem_cols, kb, Complex(-1.0, 0.0),
+                                    reinterpret_cast<const Complex*>(L21), n,
+                                    reinterpret_cast<const Complex*>(U12), n,
+                                    Complex(1.0, 0.0),
+                                    reinterpret_cast<Complex*>(A22), n);
+             } else {
+-                ::numkit::ops::gemm(rem_rows, rem_cols, kb, -1.0, L21, n, U12, n, 1.0, A22, n);
++                ::numkit::ops::gemm(ops::MatrixTranspose::NoTrans, ops::MatrixTranspose::NoTrans, rem_rows, rem_cols, kb, -1.0, L21, n, U12, n, 1.0, A22, n);
+             }
+         }
+     }
