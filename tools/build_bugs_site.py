@@ -79,15 +79,6 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       font-weight: 700;
       display: inline-block;
     }
-    .badge-partial {
-      background: #f59e0b;
-      color: #ffffff;
-      padding: 3px 9px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 700;
-      display: inline-block;
-    }
     .badge-missing {
       background: #ec4899;
       color: #ffffff;
@@ -205,7 +196,6 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
         '/.*/_sidebar.md': '/_sidebar.md',
         '/opened/.*/_sidebar.md': '/opened/_sidebar.md',
         '/closed/.*/_sidebar.md': '/closed/_sidebar.md',
-        '/partial/.*/_sidebar.md': '/partial/_sidebar.md',
         '/missing/.*/_sidebar.md': '/missing/_sidebar.md'
       },
       search: {
@@ -374,29 +364,21 @@ def build_site(out_dir):
 
     total_opened = len(opened_list)
     total_closed = len(closed_list)
+    total_bugs = total_opened + total_closed
+    fix_rate = (total_closed / total_bugs * 100) if total_bugs else 0.0
 
-    # 3. Parse missing.md into Partial and Missing
+    # 3. Parse missing.md
     missing_file = BUGS_SRC / 'missing.md'
     missing_raw = missing_file.read_text(encoding='utf-8', errors='replace') if missing_file.exists() else ''
-    
-    parts = missing_raw.split('## ❌ Missing — not implemented')
-    partial_content = parts[0]
-    missing_content = '## ❌ Missing — not implemented' + parts[1] if len(parts) > 1 else ''
-
-    # Count partial and missing
-    partial_count = len(re.findall(r'\|\s*`[a-zA-Z0-9_]+`\s*\|', partial_content))
     missing_count_m = re.search(r'Missing — not implemented\s*\((\d+)\)', missing_raw)
     missing_count = int(missing_count_m.group(1)) if missing_count_m else 839
 
-    total_catalogued = total_opened + total_closed + partial_count
-
-    # 4. Generate ROOT _sidebar.md (Top-level 4 sections)
+    # 4. Generate ROOT _sidebar.md (3 Clean Pillars)
     root_sidebar = [
         "* [🏠 **Overview & Dashboard**](README.md)",
         "",
         f"* [🔴 **Open Defects ({total_opened})**](opened/README.md)",
         f"* [✅ **Fixed Defects ({total_closed})**](closed/README.md)",
-        f"* [⚠️ **Partial Parity ({partial_count})**](partial/README.md)",
         f"* [❌ **Missing Functions ({missing_count})**](missing/README.md)",
         "",
         "---",
@@ -447,34 +429,7 @@ def build_site(out_dir):
         ns_dir.mkdir(parents=True, exist_ok=True)
         (ns_dir / '_sidebar.md').write_text(closed_sidebar_txt, encoding='utf-8')
 
-    # 7. Generate PARTIAL _sidebar.md and partial/README.md
-    (out_dir / 'partial').mkdir(parents=True, exist_ok=True)
-    partial_sidebar = [
-        "* [⬅️ **Back to Main Dashboard**](README.md)",
-        "",
-        f"* [⚠️ **Partial Functions ({partial_count})**](partial/README.md)",
-        "",
-        "* 🔍 [🔴 Open Defects](opened/README.md)",
-        "* 🔍 [✅ Fixed Defects](closed/README.md)",
-        "* 🔍 [❌ Missing Functions](missing/README.md)"
-    ]
-    (out_dir / 'partial' / '_sidebar.md').write_text('\n'.join(partial_sidebar), encoding='utf-8')
-
-    # Format partial/README.md
-    partial_readme = [
-        f"# ⚠️ Partial Functions — Implemented with Deferred Options ({partial_count})\n",
-        "> These functions are **implemented and working in NumKit**, but specific documented options, variants, or edge-case methods are deferred.\n"
-    ]
-    # Extract just the table from partial_content
-    table_m = re.search(r'(\| function \|.*)', partial_content, re.DOTALL)
-    if table_m:
-        partial_readme.append(table_m.group(1).strip())
-    else:
-        partial_readme.append(partial_content)
-    
-    (out_dir / 'partial' / 'README.md').write_text('\n'.join(partial_readme), encoding='utf-8')
-
-    # 8. Generate MISSING _sidebar.md and missing/README.md
+    # 7. Generate MISSING _sidebar.md and missing/README.md
     (out_dir / 'missing').mkdir(parents=True, exist_ok=True)
     missing_sidebar = [
         "* [⬅️ **Back to Main Dashboard**](README.md)",
@@ -482,30 +437,34 @@ def build_site(out_dir):
         f"* [❌ **Missing Functions ({missing_count})**](missing/README.md)",
         "",
         "* 🔍 [🔴 Open Defects](opened/README.md)",
-        "* 🔍 [✅ Fixed Defects](closed/README.md)",
-        "* 🔍 [⚠️ Partial Functions](partial/README.md)"
+        "* 🔍 [✅ Fixed Defects](closed/README.md)"
     ]
     (out_dir / 'missing' / '_sidebar.md').write_text('\n'.join(missing_sidebar), encoding='utf-8')
 
+    # Extract missing functions content (if split by ## ❌ Missing)
+    if '## ❌ Missing — not implemented' in missing_raw:
+        missing_body = '## ❌ Missing — not implemented' + missing_raw.split('## ❌ Missing — not implemented')[1]
+    else:
+        missing_body = missing_raw
+
     missing_readme = [
-        f"# ❌ Missing Functions Inventory ({missing_count})\n",
+        f"# ❌ Missing Functions Backlog ({missing_count})\n",
         "> The complete catalog of MATLAB R2025b functions and toolboxes not yet implemented in NumKit, categorized by domain.\n",
-        missing_content
+        missing_body
     ]
     (out_dir / 'missing' / 'README.md').write_text('\n'.join(missing_readme), encoding='utf-8')
 
-    # 9. Generate _navbar.md
+    # 8. Generate _navbar.md
     navbar = [
         f"* [🔴 Open ({total_opened})](opened/README.md)",
         f"* [✅ Closed ({total_closed})](closed/README.md)",
-        f"* [⚠️ Partial ({partial_count})](partial/README.md)",
         f"* [❌ Missing ({missing_count})](missing/README.md)",
         "* [🐙 GitHub](https://github.com/hotredman/numkit)",
         "* [📚 Doxygen](https://hotredman.github.io/numkit-doxy/)"
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
-    # 10. Generate MAIN README.md (Dashboard with 4 KPI cards and tables)
+    # 9. Generate MAIN README.md (Dashboard with 4 KPI cards and tables)
     main_readme = []
     main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Dashboard\n")
     main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
@@ -514,8 +473,8 @@ def build_site(out_dir):
     main_readme.append('<div class="metric-grid">')
     main_readme.append(f'<a href="#/opened/README" class="metric-card"><h3>Active Open Defects</h3><div class="value" style="color:#ef4444;">{total_opened}</div></a>')
     main_readme.append(f'<a href="#/closed/README" class="metric-card"><h3>Resolved &amp; Fixed</h3><div class="value" style="color:#10b981;">{total_closed}</div></a>')
-    main_readme.append(f'<a href="#/partial/README" class="metric-card"><h3>Partial Features</h3><div class="value" style="color:#f59e0b;">{partial_count}</div></a>')
-    main_readme.append(f'<a href="#/missing/README" class="metric-card"><h3>Missing Functions</h3><div class="value" style="color:#ec4899;">{missing_count}</div></a>')
+    main_readme.append(f'<a href="#/closed/README" class="metric-card"><h3>Resolution Rate</h3><div class="value" style="color:#38bdf8;">{fix_rate:.1f}%</div></a>')
+    main_readme.append(f'<a href="#/missing/README" class="metric-card"><h3>Missing Backlog</h3><div class="value" style="color:#ec4899;">{missing_count}</div></a>')
     main_readme.append('</div>\n')
 
     # Open Bugs Table
@@ -545,7 +504,7 @@ def build_site(out_dir):
 
     (out_dir / 'README.md').write_text('\n'.join(main_readme), encoding='utf-8')
 
-    # 11. Generate opened/README.md
+    # 10. Generate opened/README.md
     opened_readme = [
         f"# 🔴 Open Defects Registry ({total_opened})\n",
         "Complete register of all currently active defects and feature gaps.\n",
@@ -561,7 +520,7 @@ def build_site(out_dir):
     
     (out_dir / 'opened' / 'README.md').write_text('\n'.join(opened_readme), encoding='utf-8')
 
-    # 12. Generate closed/README.md
+    # 11. Generate closed/README.md
     closed_readme = [
         f"# ✅ Closed &amp; Resolved Defects Registry ({total_closed})\n",
         "Complete historical changelog of all resolved bugs and fixed regressions.\n",
@@ -577,11 +536,11 @@ def build_site(out_dir):
 
     (out_dir / 'closed' / 'README.md').write_text('\n'.join(closed_readme), encoding='utf-8')
 
-    # 13. Generate index.html and .nojekyll
+    # 12. Generate index.html and .nojekyll
     (out_dir / 'index.html').write_text(INDEX_HTML_TEMPLATE, encoding='utf-8')
     (out_dir / '.nojekyll').write_text('', encoding='utf-8')
 
-    print(f"[OK] Generated Docsify site: {total_opened} open, {total_closed} closed, {partial_count} partial, {missing_count} missing.")
+    print(f"[OK] Generated Docsify site: {total_opened} open, {total_closed} closed, {missing_count} missing.")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Build NumKit Bugs Docsify site.')
