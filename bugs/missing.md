@@ -1,29 +1,22 @@
-# Missing & partial — consolidated inventory (migrated from PROGRESS.md)
+# Missing & partial — consolidated parity inventory
 
-> **What this is.** The full list of MATLAB R2025b functions numkit does **not
-> yet** fully match, migrated out of `PROGRESS.md` so `bugs/` is the single
-> place to look for gaps. These are **parity gaps, NOT defects** — a missing or
-> partial function is a feature gap, not a bug in shipped code (see
-> `bugs/README.md` for the defect catalog: `bug` / `stub` / `missing-output`).
->
-> **`PROGRESS.md` stays** — it remains the parity harness's live coverage map
-> (`tools/parity/run_parity.py` appends to it; `tools/parity/diff_local_ref.py`
-> reads it as the canonical "what we have" list). This file is the human-facing
-> gap inventory derived from it.
+> **What this is.** The full list of MATLAB R2025b functions and options numkit does **not
+> yet** fully match. This catalog is the single canonical source of truth for parity gaps.
+> These are **parity gaps, NOT defects** — a missing or partial function is a feature gap,
+> not a bug in shipped code (see `bugs/README.md` for the defect catalog: `bug` / `stub` / `missing-output`).
 >
 > **Kinds here:**
-> - **⚠️ partial** — implemented, but a documented branch/option is deferred.
+> - **⚠️ partial** — implemented in NumKit, but a documented branch/option is deferred.
 > - **❌ missing** — not implemented at all.
 >
-> **Individually tracked.** The notable gaps below also have their own
-> `bugs/<ns>/<fn>.md` entries (and appear in the `bugs/README.md` OPEN tables):
+> **Individually tracked.** Notable gaps also have their own dedicated entries in `bugs/opened/<ns>/<fn>.md`:
 > friedman, distribution-dispatchers, autocorr (stats); pmusic-peig, fillgaps,
 > stmcb (signal); watershed, imfindcircles, corner (image); wpdec,
 > wentropy/ddencmp, wenergy/upcoef, cwt, wavedec2-family, centfrq/scal2frq
 > (wavelet); lqr/hinfnorm, care/dare, minreal, initial, allmargin, covar
 > (control); analog-demodulators, syndtable (comm); numerical-integration-nd,
 > ode-stiff (ode); funm, qz/gsvd (linalg); fsolve, nonlinear-lsq,
-> constrained-solvers (optim). The rest are captured only here.
+> constrained-solvers (optim). The rest are catalogued here.
 
 ## ⚠️ Partial — implemented with a deferred branch (25)
 
