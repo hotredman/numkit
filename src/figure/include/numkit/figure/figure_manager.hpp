@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <algorithm>
+#include <cstdint>
 
 #include <numkit/ops/decimate.hpp>
 

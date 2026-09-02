@@ -1,5 +1,6 @@
 #include <numkit/core/stack_guard.hpp>
 #include <stdexcept>
+#include <cstdint>
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN

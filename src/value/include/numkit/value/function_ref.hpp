@@ -49,7 +49,7 @@ public:
                   !std::is_same_v<std::decay_t<F>, function_ref> &&
                   std::is_invocable_r_v<R, F &, Args...>>>
     function_ref(F &&f) noexcept
-        : obj_(const_cast<void *>(static_cast<const void *>(&f))),
+        : obj_(const_cast<void *>(reinterpret_cast<const void *>(&f))),
           thunk_(&thunkFor<std::remove_reference_t<F>>)
     {}
 
@@ -68,7 +68,7 @@ private:
     template <class F>
     static R thunkFor(void *obj, Args... args)
     {
-        return (*static_cast<F *>(obj))(std::forward<Args>(args)...);
+        return (*reinterpret_cast<F *>(obj))(std::forward<Args>(args)...);
     }
 
     void *  obj_   = nullptr;

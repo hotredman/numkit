@@ -67,6 +67,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <climits>
 #include <cstring>
 #include <limits>
 #include <string>

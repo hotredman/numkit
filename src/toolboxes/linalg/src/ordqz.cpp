@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -170,7 +171,7 @@ std::tuple<Value, Value, Value, Value> ordqz(const Value &AA, const Value &BB,
         for (std::size_t i = 0; i < n * n; ++i) zd[i] = Complex(Z.doubleData()[i], 0.0);
     }
 
-    std::vector<bool> sel(n, false);
+    std::vector<uint8_t> sel(n, 0);
     for (std::size_t i = 0; i < n; ++i) {
         sel[i] = select.isLogical() ? select.logicalData()[i] : (select.elemAsDouble(i) != 0.0);
     }

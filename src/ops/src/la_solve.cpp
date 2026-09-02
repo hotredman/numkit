@@ -7,6 +7,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <cstring>
 
 #include <numkit/ops/blas.hpp>
 #include <numkit/ops/parallel_for.hpp>

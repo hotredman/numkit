@@ -11,6 +11,7 @@
 #include <numkit/core/tree_walker.hpp>
 #include <numkit/core/vm.hpp>
 #include <algorithm>
+#include <climits>
 #include <cmath>
 #include <iostream>
 #include <limits>
