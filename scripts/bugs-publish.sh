@@ -36,7 +36,7 @@ if [[ -z "${BUGS_REPO_DIR}" || ! -d "${BUGS_REPO_DIR}/.git" ]]; then
     exit 1
 fi
 
-echo "=== NumKit Bugs & Parity - Deploy to GitHub Pages Repository ==="
+echo "=== NumKit Bugs & Parity - Deploy Clean Mirror to GitHub Pages ==="
 echo "Source: ${PROJECT_DIR}"
 echo "Target: ${BUGS_REPO_DIR}"
 echo ""
@@ -49,21 +49,30 @@ fi
 SRC_REV=$(git -C "${PROJECT_DIR}" rev-parse --short HEAD 2>/dev/null || echo "manual")
 
 echo "Syncing bugs catalog files to ${BUGS_REPO_DIR}..."
+
+# Clean old files (except .git)
+find "${BUGS_REPO_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+# Copy fresh files
 cp -r "${BUGS_HTML_DIR}/." "${BUGS_REPO_DIR}/"
 touch "${BUGS_REPO_DIR}/.nojekyll"
 
 cd "${BUGS_REPO_DIR}"
-if [[ -z $(git status --porcelain) ]]; then
-    echo "No changes detected in target repository. Target is already up to date."
-    exit 0
-fi
-
-echo "Committing changes in Bugs repository..."
+echo ""
+echo "Creating clean 1-commit state in Bugs repository..."
+git checkout --orphan temp_deploy >/dev/null 2>&1 || git checkout -b temp_deploy
 git add -A
-git commit -m "docs(bugs): update parity and bug catalog (numkit@${SRC_REV})"
+git commit -m "docs(bugs): NumKit Defect & Parity Catalog (numkit@${SRC_REV})" >/dev/null 2>&1
+git branch -D main >/dev/null 2>&1 || true
+git branch -m main >/dev/null 2>&1 || true
 
 if [[ "${DO_PUSH}" -eq 1 ]]; then
-    echo "Pushing to GitHub origin main..."
-    git push origin main
-    echo "Successfully deployed and pushed Bugs catalog to GitHub Pages!"
+    echo ""
+    echo "Force-pushing single clean commit to GitHub origin main..."
+    git push -f origin main
+    echo ""
+    echo "Successfully published clean 1-commit mirror to GitHub Pages!"
+else
+    echo ""
+    echo "Clean commit created locally (push skipped due to --no-push)."
 fi

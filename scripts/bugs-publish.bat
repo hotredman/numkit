@@ -60,7 +60,7 @@ if not exist "%BUGS_REPO_DIR%\.git" (
     goto show_help_err
 )
 
-echo === NumKit Bugs ^& Parity - Deploy to GitHub Pages Repository ===
+echo === NumKit Bugs ^& Parity - Deploy Clean Mirror to GitHub Pages ===
 echo Source: %PROJECT_DIR%
 echo Target: %BUGS_REPO_DIR%
 echo.
@@ -89,7 +89,16 @@ if "%SRC_REV%"=="" set SRC_REV=manual
 echo.
 echo Syncing bugs catalog files to "%BUGS_REPO_DIR%"...
 
-:: Copy all files from build/bugs/ into target repo
+:: Clean existing files in target (except .git)
+cd /d "%BUGS_REPO_DIR%"
+for /f "delims=" %%F in ('dir /b /a-d 2^>nul') do (
+    if not "%%F"==".git" del /f /q "%%F" 2>nul
+)
+for /f "delims=" %%D in ('dir /b /ad 2^>nul') do (
+    if not "%%D"==".git" rd /s /q "%%D" 2>nul
+)
+
+:: Copy fresh files from build/bugs/ into target repo
 xcopy /e /i /y /q "%BUGS_HTML_DIR%\*" "%BUGS_REPO_DIR%\" >nul
 
 :: Ensure .nojekyll exists
@@ -99,32 +108,29 @@ if not exist "%BUGS_REPO_DIR%\.nojekyll" (
 
 echo Files synchronized.
 
-:: 3. Check git status in target repo
-cd /d "%BUGS_REPO_DIR%"
-git status --porcelain > "%TEMP%\bugs_status.txt"
-
-for %%A in ("%TEMP%\bugs_status.txt") do if %%~zA==0 (
-    echo.
-    echo No changes detected in target repository. Target is already up to date.
-    del "%TEMP%\bugs_status.txt" 2>nul
-    goto done
-)
-del "%TEMP%\bugs_status.txt" 2>nul
-
+:: 3. Clean single-commit history (Orphan Branch)
 echo.
-echo Committing changes in Bugs repository...
+echo Creating clean 1-commit state in Bugs repository...
+git checkout --orphan temp_deploy >nul 2>&1
 git add -A
-git commit -m "docs(bugs): update parity and bug catalog (numkit@%SRC_REV%)"
+git commit -m "docs(bugs): NumKit Defect & Parity Catalog (numkit@%SRC_REV%)" >nul 2>&1
+git branch -D main >nul 2>&1
+git branch -m main >nul 2>&1
 
 if "%DO_PUSH%"=="1" (
     echo.
-    echo Pushing to GitHub origin main...
-    git push origin main
+    echo Force-pushing single clean commit to GitHub origin main...
+    git push -f origin main
     if errorlevel 1 (
         echo ERROR: git push failed!
         exit /b 1
     )
-    echo Successfully deployed and pushed Bugs catalog to GitHub Pages!
+    echo.
+    echo Successfully published clean 1-commit mirror to GitHub Pages!
+    goto done
+) else (
+    echo.
+    echo Clean commit created locally (push skipped due to --no-push).
     goto done
 )
 
@@ -145,8 +151,8 @@ echo Usage: %~nx0 [options] [^<destination-dir^>]
 echo.
 echo Options:
 echo   --dest ^<dir^>     Explicit destination repository path
-echo   --push           Push committed changes to remote repository (default)
-echo   --no-push        Commit changes locally without pushing
+echo   --push           Force-push 1 clean commit to remote repository (default)
+echo   --no-push        Create 1 clean commit locally without pushing
 echo   --skip-build     Skip running build_bugs_site.py
 echo   -h, --help       Show this help message
 exit /b 0
