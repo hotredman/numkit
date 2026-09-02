@@ -16,6 +16,7 @@ if sys.platform == 'win32':
 
 ROOT = Path(__file__).resolve().parent.parent
 BUGS_SRC = ROOT / 'bugs'
+BRAND_SRC = ROOT / 'brand'
 
 INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -40,6 +41,20 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       --code-font-size: 13.5px;
     }
     
+    /* Sidebar Header & Brand Logo */
+    .app-name {
+      margin: 20px 16px 14px 18px !important;
+      text-align: left !important;
+    }
+    .app-name-link {
+      display: block !important;
+    }
+    .app-name-link img {
+      max-width: 175px !important;
+      height: auto !important;
+      display: block !important;
+    }
+
     /* Sidebar list item and icon alignment */
     .sidebar-nav ul {
       margin: 0;
@@ -382,6 +397,7 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
 
     window.$docsify = {
       name: 'NumKit Bugs &amp; Parity',
+      logo: 'assets/numkit-logo-dark.svg',
       repo: 'https://github.com/hotredman/numkit',
       loadSidebar: true,
       loadNavbar: true,
@@ -429,12 +445,15 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
 
     let currentTheme = localStorage.getItem('numkit_docs_theme') || 'dark';
     function applyTheme(theme) {
+      const logoImg = document.querySelector('.app-name-link img');
       if (theme === 'light') {
         darkLink.setAttribute('disabled', 'true');
         lightLink.removeAttribute('disabled');
+        if (logoImg) logoImg.src = 'assets/numkit-logo-light.svg';
       } else {
         lightLink.setAttribute('disabled', 'true');
         darkLink.removeAttribute('disabled');
+        if (logoImg) logoImg.src = 'assets/numkit-logo-dark.svg';
       }
       localStorage.setItem('numkit_docs_theme', theme);
     }
@@ -524,7 +543,15 @@ def build_site(out_dir):
             if f.endswith('.md'):
                 shutil.copy2(Path(root) / f, dest_sub / f)
 
-    # 2. Parse opened and closed bugs
+    # 2. Copy brand assets (logos)
+    assets_dir = out_dir / 'assets'
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    if (BRAND_SRC / 'numkit-logo-dark.svg').exists():
+        shutil.copy2(BRAND_SRC / 'numkit-logo-dark.svg', assets_dir / 'numkit-logo-dark.svg')
+    if (BRAND_SRC / 'numkit-logo-light.svg').exists():
+        shutil.copy2(BRAND_SRC / 'numkit-logo-light.svg', assets_dir / 'numkit-logo-light.svg')
+
+    # 3. Parse opened and closed bugs
     opened_list = []
     opened_by_ns = {}
     for md in sorted((BUGS_SRC / 'opened').glob('*/*.md')):
@@ -547,13 +574,13 @@ def build_site(out_dir):
     total_opened = len(opened_list)
     total_closed = len(closed_list)
 
-    # 3. Parse missing.md
+    # 4. Parse missing.md
     missing_file = BUGS_SRC / 'missing.md'
     missing_raw = missing_file.read_text(encoding='utf-8', errors='replace') if missing_file.exists() else ''
     missing_count_m = re.search(r'Missing — not implemented\s*\((\d+)\)', missing_raw)
     missing_count = int(missing_count_m.group(1)) if missing_count_m else 839
 
-    # 4. Generate ROOT _sidebar.md
+    # 5. Generate ROOT _sidebar.md
     root_sidebar = [
         "* [🏠 **Overview & Dashboard**](README.md)",
         "",
@@ -567,7 +594,7 @@ def build_site(out_dir):
     ]
     (out_dir / '_sidebar.md').write_text('\n'.join(root_sidebar), encoding='utf-8')
 
-    # 5. Generate OPENED _sidebar.md
+    # 6. Generate OPENED _sidebar.md
     opened_sidebar = [
         "* [⬅️ **Back to Main Dashboard**](README.md)",
         "",
@@ -588,7 +615,7 @@ def build_site(out_dir):
         ns_dir.mkdir(parents=True, exist_ok=True)
         (ns_dir / '_sidebar.md').write_text(opened_sidebar_txt, encoding='utf-8')
 
-    # 6. Generate CLOSED _sidebar.md
+    # 7. Generate CLOSED _sidebar.md
     closed_sidebar = [
         "* [⬅️ **Back to Main Dashboard**](README.md)",
         "",
@@ -609,7 +636,7 @@ def build_site(out_dir):
         ns_dir.mkdir(parents=True, exist_ok=True)
         (ns_dir / '_sidebar.md').write_text(closed_sidebar_txt, encoding='utf-8')
 
-    # 7. Generate MISSING _sidebar.md and missing/README.md
+    # 8. Generate MISSING _sidebar.md and missing/README.md
     (out_dir / 'missing').mkdir(parents=True, exist_ok=True)
     missing_sidebar = [
         "* [⬅️ **Back to Main Dashboard**](README.md)",
@@ -634,7 +661,7 @@ def build_site(out_dir):
     ]
     (out_dir / 'missing' / 'README.md').write_text('\n'.join(missing_readme), encoding='utf-8')
 
-    # 8. Generate _navbar.md
+    # 9. Generate _navbar.md
     navbar = [
         f"* [🔴 Open ({total_opened})](opened/README.md)",
         f"* [✅ Closed ({total_closed})](closed/README.md)",
@@ -644,7 +671,7 @@ def build_site(out_dir):
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
-    # 9. Generate MAIN README.md (Dashboard with Top-5 items & short clean headers)
+    # 10. Generate MAIN README.md (Dashboard with Top-5 items & short clean headers)
     main_readme = []
     main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Catalog\n")
     main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
@@ -680,7 +707,7 @@ def build_site(out_dir):
 
     (out_dir / 'README.md').write_text('\n'.join(main_readme), encoding='utf-8')
 
-    # 10. Generate opened/README.md (with interactive pagination & subsystem filter)
+    # 11. Generate opened/README.md (with interactive pagination & subsystem filter)
     opened_readme = [
         f"# 🔴 Open Defects Registry ({total_opened})\n",
         "Complete register of all currently active defects and feature gaps.\n",
@@ -697,7 +724,7 @@ def build_site(out_dir):
     
     (out_dir / 'opened' / 'README.md').write_text('\n'.join(opened_readme), encoding='utf-8')
 
-    # 11. Generate closed/README.md (with interactive pagination & subsystem filter for 135+ items)
+    # 12. Generate closed/README.md (with interactive pagination & subsystem filter for 135+ items)
     closed_readme = [
         f"# ✅ Closed &amp; Resolved Defects Registry ({total_closed})\n",
         "Complete historical changelog of all resolved bugs and fixed regressions.\n",
@@ -715,7 +742,7 @@ def build_site(out_dir):
 
     (out_dir / 'closed' / 'README.md').write_text('\n'.join(closed_readme), encoding='utf-8')
 
-    # 12. Generate index.html and .nojekyll
+    # 13. Generate index.html and .nojekyll
     (out_dir / 'index.html').write_text(INDEX_HTML_TEMPLATE, encoding='utf-8')
     (out_dir / '.nojekyll').write_text('', encoding='utf-8')
 
