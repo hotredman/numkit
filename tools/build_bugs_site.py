@@ -35,7 +35,7 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       --base-font-size: 15px;
       --theme-color: #38bdf8;
       --sidebar-width: 320px;
-      --content-max-width: 72em;
+      --content-max-width: 80em;
       --code-font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
       --code-font-size: 13.5px;
     }
@@ -128,25 +128,47 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       color: #f8fafc;
     }
 
-    /* Tables */
+    /* Professional Table Styling */
     table {
       width: 100% !important;
       display: table !important;
       border-collapse: collapse;
-      margin: 20px 0;
+      margin: 24px 0;
+      table-layout: auto;
     }
     th {
-      background: rgba(30, 41, 59, 0.9) !important;
-      color: #cbd5e1 !important;
+      background: rgba(30, 41, 59, 0.95) !important;
+      color: #e2e8f0 !important;
       font-weight: 600;
       text-align: left;
-      padding: 10px 14px;
-      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 14px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+      font-size: 13.5px;
+      letter-spacing: 0.02em;
     }
     td {
-      padding: 10px 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       vertical-align: middle;
+      font-size: 14px;
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Specific Table Column Width Rules */
+    .table-defects th:nth-child(1), .table-defects td:nth-child(1) { width: 105px; text-align: center; white-space: nowrap; }
+    .table-defects th:nth-child(2), .table-defects td:nth-child(2) { width: 95px; text-align: center; }
+    .table-defects th:nth-child(3), .table-defects td:nth-child(3) { width: auto; min-width: 360px; font-weight: 500; }
+    .table-defects th:nth-child(4), .table-defects td:nth-child(4) { width: 60px; text-align: center; }
+    .table-defects th:nth-child(5), .table-defects td:nth-child(5) { width: 80px; text-align: center; }
+    .table-defects th:nth-child(6), .table-defects td:nth-child(6) { width: 140px; text-align: center; }
+
+    td code {
+      word-break: break-word !important;
+      white-space: normal !important;
+      font-size: 12px !important;
+      padding: 2px 5px !important;
     }
 
     /* Theme Toggle */
@@ -477,8 +499,9 @@ def build_site(out_dir):
     main_readme.append(f'<a href="#/missing/README" class="metric-card"><h3>Missing Backlog</h3><div class="value" style="color:#ec4899;">{missing_count}</div></a>')
     main_readme.append('</div>\n')
 
-    # Open Bugs Table
+    # Open Bugs Table with .table-defects class
     main_readme.append(f"## 🔴 Active Open Defects ({total_opened})\n")
+    main_readme.append('<div class="table-defects">\n')
     main_readme.append("| Found Date | Subsystem | Defect / Function | Sev | Kind | Status |")
     main_readme.append("| :---: | :---: | :--- | :---: | :---: | :---: |")
     for b in opened_sorted:
@@ -486,11 +509,13 @@ def build_site(out_dir):
         link = f"[{clean_title}](opened/{b['namespace']}/{b['filename']})"
         f_date = f"`{b['found_date']}`" if b['found_date'] != '-' else '-'
         main_readme.append(f"| {f_date} | **{b['namespace']}** | {link} | {render_badge(b['severity'])} | `{b['kind']}` | {render_status(b['status'])} |")
+    main_readme.append('\n</div>\n')
 
     main_readme.append("\n---\n")
 
     # Recent Fixes Table (Top 20 recently fixed)
     main_readme.append(f"## ✅ Recently Resolved Defects\n")
+    main_readme.append('<div class="table-defects">\n')
     main_readme.append("| Fixed Date | Subsystem | Resolved Issue | Commit | Sev | Status |")
     main_readme.append("| :---: | :---: | :--- | :---: | :---: | :---: |")
     for b in closed_sorted[:20]:
@@ -499,24 +524,26 @@ def build_site(out_dir):
         fx_date = f"`{b['fixed_date']}`" if b['fixed_date'] != '-' else (f"`{b['found_date']}`" if b['found_date'] != '-' else '-')
         commit_str = f"`{b['commit'][:9]}`" if b['commit'] != '-' else '-'
         main_readme.append(f"| {fx_date} | **{b['namespace']}** | {link} | {commit_str} | {render_badge(b['severity'])} | {render_status(b['status'])} |")
+    main_readme.append('\n</div>\n')
 
     main_readme.append(f"\n👉 *[View all {total_closed} fixed issues in the complete Archive →](closed/README.md)*\n")
 
     (out_dir / 'README.md').write_text('\n'.join(main_readme), encoding='utf-8')
 
-    # 10. Generate opened/README.md
+    # 10. Generate opened/README.md (with balanced table column layout)
     opened_readme = [
         f"# 🔴 Open Defects Registry ({total_opened})\n",
         "Complete register of all currently active defects and feature gaps.\n",
-        "| Found Date | Subsystem | Defect / Function | Sev | Kind | Guard Test |",
-        "| :---: | :---: | :--- | :---: | :---: | :--- |"
+        '<div class="table-defects">\n',
+        "| Found Date | Subsystem | Defect / Function | Sev | Kind | Status |",
+        "| :---: | :---: | :--- | :---: | :---: | :---: |"
     ]
     for b in opened_sorted:
         clean_title = b['title'].replace('|', '/')
         link = f"[{clean_title}](opened/{b['namespace']}/{b['filename']})"
         f_date = f"`{b['found_date']}`" if b['found_date'] != '-' else '-'
-        guard_str = f"`{b['guard']}`" if b['guard'] != '-' else '-'
-        opened_readme.append(f"| {f_date} | **{b['namespace']}** | {link} | {render_badge(b['severity'])} | `{b['kind']}` | {guard_str} |")
+        opened_readme.append(f"| {f_date} | **{b['namespace']}** | {link} | {render_badge(b['severity'])} | `{b['kind']}` | {render_status(b['status'])} |")
+    opened_readme.append('\n</div>\n')
     
     (out_dir / 'opened' / 'README.md').write_text('\n'.join(opened_readme), encoding='utf-8')
 
@@ -524,7 +551,8 @@ def build_site(out_dir):
     closed_readme = [
         f"# ✅ Closed &amp; Resolved Defects Registry ({total_closed})\n",
         "Complete historical changelog of all resolved bugs and fixed regressions.\n",
-        "| Fixed Date | Subsystem | Resolved Issue | Commit | Sev | Kind |",
+        '<div class="table-defects">\n',
+        "| Fixed Date | Subsystem | Resolved Issue | Commit | Sev | Status |",
         "| :---: | :---: | :--- | :---: | :---: | :---: |"
     ]
     for b in closed_sorted:
@@ -532,7 +560,8 @@ def build_site(out_dir):
         link = f"[{clean_title}](closed/{b['namespace']}/{b['filename']})"
         fx_date = f"`{b['fixed_date']}`" if b['fixed_date'] != '-' else (f"`{b['found_date']}`" if b['found_date'] != '-' else '-')
         commit_str = f"`{b['commit'][:9]}`" if b['commit'] != '-' else '-'
-        closed_readme.append(f"| {fx_date} | **{b['namespace']}** | {link} | {commit_str} | {render_badge(b['severity'])} | `{b['kind']}` |")
+        closed_readme.append(f"| {fx_date} | **{b['namespace']}** | {link} | {commit_str} | {render_badge(b['severity'])} | {render_status(b['status'])} |")
+    closed_readme.append('\n</div>\n')
 
     (out_dir / 'closed' / 'README.md').write_text('\n'.join(closed_readme), encoding='utf-8')
 
