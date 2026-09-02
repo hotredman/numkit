@@ -8,7 +8,6 @@ import shutil
 import argparse
 from pathlib import Path
 
-# Ensure UTF-8 output on Windows console
 if sys.platform == 'win32':
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -22,9 +21,9 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NumKit Bugs &amp; Parity Catalog</title>
+  <title>NumKit Defect &amp; Parity Catalog</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-  <meta name="description" content="Catalog of known bugs, defect trackers, and MATLAB parity status for NumKit.">
+  <meta name="description" content="Structured defect catalog and MATLAB parity tracking for NumKit.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
   
   <!-- Modern Dark/Light Theme -->
@@ -35,37 +34,86 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
     :root {
       --base-font-size: 15px;
       --theme-color: #38bdf8;
-      --sidebar-width: 300px;
-      --content-max-width: 65em;
+      --sidebar-width: 320px;
+      --content-max-width: 72em;
       --code-font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
       --code-font-size: 13.5px;
     }
     
-    /* Custom NumKit Badges & Styling */
+    /* Custom Badges */
     .badge-open {
       background: #ef4444;
       color: #ffffff;
-      padding: 2px 8px;
+      padding: 3px 9px;
       border-radius: 9999px;
       font-size: 12px;
-      font-weight: bold;
+      font-weight: 700;
       display: inline-block;
     }
     .badge-fixed {
       background: #10b981;
       color: #ffffff;
-      padding: 2px 8px;
+      padding: 3px 9px;
       border-radius: 9999px;
       font-size: 12px;
-      font-weight: bold;
+      font-weight: 700;
       display: inline-block;
     }
-    .badge-p0 { background: #dc2626; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-    .badge-p1 { background: #ea580c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-    .badge-p2 { background: #d97706; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-    .badge-p3 { background: #2563eb; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+    .badge-p0 { background: #dc2626; color: white; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-p1 { background: #ea580c; color: white; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-p2 { background: #d97706; color: white; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-p3 { background: #2563eb; color: white; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-date { background: #334155; color: #94a3b8; padding: 2px 6px; border-radius: 4px; font-size: 11.5px; font-family: monospace; }
 
-    /* Theme toggle button */
+    /* Metric Cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 20px 0 30px 0;
+    }
+    .metric-card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .metric-card h3 {
+      margin: 0 0 6px 0;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+    }
+    .metric-card .value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    /* Tables */
+    table {
+      width: 100% !important;
+      display: table !important;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th {
+      background: rgba(30, 41, 59, 0.9) !important;
+      color: #cbd5e1 !important;
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      vertical-align: middle;
+    }
+
+    /* Theme Toggle */
     .theme-toggle-btn {
       position: fixed;
       bottom: 20px;
@@ -89,20 +137,14 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       background: #334155;
     }
     
-    /* Code block styling */
     pre[class*="language-"] {
       border-radius: 8px;
       border: 1px solid rgba(255,255,255,0.08);
     }
-    
-    /* Sidebar enhancements */
-    .sidebar-nav > ul > li > a {
-      font-weight: 600;
-    }
   </style>
 </head>
 <body>
-  <div id="app">Loading NumKit Bug Catalog...</div>
+  <div id="app">Loading NumKit Defect Catalog...</div>
   
   <button class="theme-toggle-btn" id="themeToggle" title="Toggle Dark/Light Mode">🌓</button>
 
@@ -117,8 +159,8 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       search: {
         maxAge: 86400000,
         paths: 'auto',
-        placeholder: 'Search bugs, functions, errors...',
-        noData: 'No bugs found',
+        placeholder: 'Search defects, functions, errors...',
+        noData: 'No defects found',
         depth: 3
       },
       copyCode: {
@@ -127,23 +169,19 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
         successText: 'Copied'
       },
       pagination: {
-        previousText: 'Previous Bug',
-        nextText: 'Next Bug',
+        previousText: 'Previous',
+        nextText: 'Next',
         crossChapter: true
       }
     };
   </script>
 
-  <!-- Docsify Core -->
   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
-  
-  <!-- Plugins -->
   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2/dist/docsify-copy-code.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
 
-  <!-- Prism.js Syntax Highlighting (MATLAB, C++, Bash, JSON) -->
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-matlab.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-c.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-cpp.min.js"></script>
@@ -151,7 +189,6 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
 
   <script>
-    // Theme toggle logic
     const darkLink = document.getElementById('theme-dark');
     const lightLink = document.getElementById('theme-light');
     const toggleBtn = document.getElementById('themeToggle');
@@ -178,12 +215,16 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
-def parse_bug_metadata(filepath):
-    txt = filepath.read_text(encoding='utf-8', errors='replace')
-    title = filepath.stem
+def parse_bug(md_path):
+    txt = md_path.read_text(encoding='utf-8', errors='replace')
+    title = md_path.stem
     severity = 'P2'
     kind = 'bug'
-    status = 'OPEN' if 'opened' in filepath.parts else 'FIXED'
+    status = 'OPEN' if 'opened' in md_path.parts else 'FIXED'
+    found_date = '-'
+    fixed_date = '-'
+    commit = '-'
+    guard = '-'
 
     lines = txt.splitlines()
     if lines and lines[0].startswith('#'):
@@ -191,27 +232,57 @@ def parse_bug_metadata(filepath):
 
     m_status = re.search(r'\*\*Status:\*\*\s*([^\n]+)', txt)
     if m_status:
-        status_raw = m_status.group(1).strip()
-        if 'FIXED' in status_raw:
+        st_raw = m_status.group(1).strip()
+        if 'FIXED' in st_raw:
             status = 'FIXED'
-        elif 'OPEN' in status_raw:
+            m_fix_info = re.search(r'FIXED\s*\(([^,]+),\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\)', st_raw)
+            if m_fix_info:
+                commit = m_fix_info.group(1).strip()
+                fixed_date = m_fix_info.group(2).strip()
+            else:
+                m_c = re.search(r'FIXED\s*\(([^)]+)\)', st_raw)
+                if m_c:
+                    commit = m_c.group(1).strip()
+        elif 'OPEN' in st_raw:
             status = 'OPEN'
+
+    m_found = re.search(r'\*\*Found:\*\*\s*([0-9]{4}-[0-9]{2}-[0-9]{2})', txt)
+    if m_found:
+        found_date = m_found.group(1)
 
     m_sev = re.search(r'\*\*Severity:\*\*\s*(P[0-3])', txt)
     if m_sev:
         severity = m_sev.group(1)
 
-    m_kind = re.search(r'\*\*Kind:\*\*\s*(\w+)', txt)
+    m_kind = re.search(r'\*\*Kind:\*\*\s*([\w-]+)', txt)
     if m_kind:
         kind = m_kind.group(1)
 
+    m_guard = re.search(r'\*\*Guard:\*\*\s*`?([A-Za-z0-9_]+)`?', txt)
+    if m_guard:
+        guard = m_guard.group(1)
+
     return {
         'title': title,
+        'namespace': md_path.parent.name,
+        'filename': md_path.name,
         'severity': severity,
         'kind': kind,
         'status': status,
-        'path': filepath
+        'found_date': found_date,
+        'fixed_date': fixed_date,
+        'commit': commit,
+        'guard': guard,
+        'path': md_path
     }
+
+def render_badge(sev):
+    return f'<span class="badge-{sev.lower()}">{sev}</span>'
+
+def render_status(st):
+    if st == 'OPEN':
+        return '<span class="badge-open">OPEN</span>'
+    return '<span class="badge-fixed">FIXED</span>'
 
 def build_site(out_dir):
     out_dir = Path(out_dir).resolve()
@@ -220,7 +291,7 @@ def build_site(out_dir):
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Copy markdown files
+    # 1. Copy raw markdown files
     for root, dirs, files in os.walk(BUGS_SRC):
         rel = Path(root).relative_to(BUGS_SRC)
         dest_sub = out_dir / rel
@@ -229,55 +300,161 @@ def build_site(out_dir):
             if f.endswith('.md'):
                 shutil.copy2(Path(root) / f, dest_sub / f)
 
-    # 2. Parse opened & closed bugs
-    opened_bugs = {}
+    # 2. Parse opened and closed bugs
+    opened_list = []
+    opened_by_ns = {}
     for md in sorted((BUGS_SRC / 'opened').glob('*/*.md')):
-        ns = md.parent.name
-        opened_bugs.setdefault(ns, []).append(parse_bug_metadata(md))
+        b = parse_bug(md)
+        opened_list.append(b)
+        opened_by_ns.setdefault(b['namespace'], []).append(b)
 
-    closed_bugs = {}
+    closed_list = []
+    closed_by_ns = {}
     for md in sorted((BUGS_SRC / 'closed').glob('*/*.md')):
-        ns = md.parent.name
-        closed_bugs.setdefault(ns, []).append(parse_bug_metadata(md))
+        b = parse_bug(md)
+        closed_list.append(b)
+        closed_by_ns.setdefault(b['namespace'], []).append(b)
 
-    total_opened = sum(len(v) for v in opened_bugs.values())
-    total_closed = sum(len(v) for v in closed_bugs.values())
+    # Sort opened by found_date descending (newest first)
+    opened_sorted = sorted(opened_list, key=lambda x: (x['found_date'] != '-', x['found_date']), reverse=True)
+    # Sort closed by fixed_date descending (newest first)
+    closed_sorted = sorted(closed_list, key=lambda x: (x['fixed_date'] != '-', x['fixed_date'], x['found_date']), reverse=True)
 
-    # 3. Generate _sidebar.md
-    sidebar = []
-    sidebar.append("* 🏠 [**Overview**](README.md)")
-    sidebar.append("* 📊 [**Missing Parity Inventory**](missing.md)")
-    sidebar.append("")
-    sidebar.append(f"* 🔴 **Open Defects ({total_opened})**")
-    for ns, bugs in sorted(opened_bugs.items()):
-        sidebar.append(f"  * **{ns}** ({len(bugs)})")
-        for b in bugs:
-            rel_link = f"opened/{ns}/{b['path'].name}"
-            clean_title = b['title'].replace('[', '(').replace(']', ')')
-            sidebar.append(f"    * [{clean_title}]({rel_link})")
+    total_opened = len(opened_list)
+    total_closed = len(closed_list)
+    total_all = total_opened + total_closed
+    fix_rate = (total_closed / total_all * 100) if total_all else 0.0
 
-    sidebar.append("")
-    sidebar.append(f"* ✅ **Closed & Fixed ({total_closed})**")
-    for ns, bugs in sorted(closed_bugs.items()):
-        sidebar.append(f"  * **{ns}** ({len(bugs)})")
-        for b in bugs:
-            rel_link = f"closed/{ns}/{b['path'].name}"
-            clean_title = b['title'].replace('[', '(').replace(']', ')')
-            sidebar.append(f"    * [{clean_title}]({rel_link})")
-
-    (out_dir / '_sidebar.md').write_text('\n'.join(sidebar), encoding='utf-8')
-
-    # 4. Generate _navbar.md
-    navbar = [
-        f"* 🔴 [Open ({total_opened})](opened/)",
-        f"* ✅ [Closed ({total_closed})](closed/)",
-        "* 📊 [Parity Gaps](missing.md)",
-        "* 🐙 [GitHub Repo](https://github.com/hotredman/numkit)",
+    # 3. Generate ROOT _sidebar.md (High-level clean navigation)
+    root_sidebar = [
+        "* 🏠 [**Overview & Dashboard**](README.md)",
+        "",
+        f"* 🔴 [**Open Defects ({total_opened})**](opened/README.md)",
+        f"* ✅ [**Fixed Defects ({total_closed})**](closed/README.md)",
+        "",
+        "* 📊 [**Missing Parity Gaps**](missing.md)",
+        "",
+        "---",
+        "* 🐙 [GitHub Repository](https://github.com/hotredman/numkit)",
         "* 📚 [Doxygen C++ Docs](https://hotredman.github.io/numkit-doxy/)"
+    ]
+    (out_dir / '_sidebar.md').write_text('\n'.join(root_sidebar), encoding='utf-8')
+
+    # 4. Generate OPENED _sidebar.md (Only open bugs)
+    opened_sidebar = [
+        "* ⬅️ [**← Back to Main Dashboard**](README.md)",
+        "",
+        f"* 📋 [**All Open Defects ({total_opened})**](opened/README.md)",
+        "",
+        "* 🔴 **By Subsystem / Namespace:**"
+    ]
+    for ns, bugs in sorted(opened_by_ns.items()):
+        opened_sidebar.append(f"  * **{ns}** ({len(bugs)})")
+        for b in bugs:
+            clean_title = b['title'].replace('[', '(').replace(']', ')')
+            opened_sidebar.append(f"    * [{clean_title}](opened/{ns}/{b['filename']})")
+    
+    (out_dir / 'opened' / '_sidebar.md').write_text('\n'.join(opened_sidebar), encoding='utf-8')
+
+    # 5. Generate CLOSED _sidebar.md (Only closed bugs)
+    closed_sidebar = [
+        "* ⬅️ [**← Back to Main Dashboard**](README.md)",
+        "",
+        f"* 📋 [**All Fixed Defects ({total_closed})**](closed/README.md)",
+        "",
+        "* ✅ **By Subsystem / Namespace:**"
+    ]
+    for ns, bugs in sorted(closed_by_ns.items()):
+        closed_sidebar.append(f"  * **{ns}** ({len(bugs)})")
+        for b in bugs:
+            clean_title = b['title'].replace('[', '(').replace(']', ')')
+            closed_sidebar.append(f"    * [{clean_title}](closed/{ns}/{b['filename']})")
+    
+    (out_dir / 'closed' / '_sidebar.md').write_text('\n'.join(closed_sidebar), encoding='utf-8')
+
+    # 6. Generate _navbar.md
+    navbar = [
+        f"* 🔴 [Open ({total_opened})](opened/README.md)",
+        f"* ✅ [Closed ({total_closed})](closed/README.md)",
+        "* 📊 [Parity Gaps](missing.md)",
+        "* 🐙 [GitHub](https://github.com/hotredman/numkit)",
+        "* 📚 [Doxygen](https://hotredman.github.io/numkit-doxy/)"
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
-    # 5. Generate index.html and .nojekyll
+    # 7. Generate MAIN README.md (Dashboard with tables and dates)
+    main_readme = []
+    main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Dashboard\n")
+    main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
+    
+    # KPI Grid
+    main_readme.append('<div class="metric-grid">')
+    main_readme.append(f'<div class="metric-card"><h3>Active Open Defects</h3><div class="value" style="color:#ef4444;">{total_opened}</div></div>')
+    main_readme.append(f'<div class="metric-card"><h3>Resolved &amp; Fixed</h3><div class="value" style="color:#10b981;">{total_closed}</div></div>')
+    main_readme.append(f'<div class="metric-card"><h3>Parity Resolution Rate</h3><div class="value" style="color:#38bdf8;">{fix_rate:.1f}%</div></div>')
+    main_readme.append(f'<div class="metric-card"><h3>Total Catalogued</h3><div class="value">{total_all}</div></div>')
+    main_readme.append('</div>\n')
+
+    # Open Bugs Table
+    main_readme.append(f"## 🔴 Active Open Defects ({total_opened})\n")
+    main_readme.append("| Found Date | Subsystem | Defect / Function | Sev | Kind | Status |")
+    main_readme.append("| :---: | :---: | :--- | :---: | :---: | :---: |")
+    for b in opened_sorted:
+        clean_title = b['title'].replace('|', '/')
+        link = f"[{clean_title}](opened/{b['namespace']}/{b['filename']})"
+        f_date = f"`{b['found_date']}`" if b['found_date'] != '-' else '-'
+        main_readme.append(f"| {f_date} | **{b['namespace']}** | {link} | {render_badge(b['severity'])} | `{b['kind']}` | {render_status(b['status'])} |")
+
+    main_readme.append("\n---\n")
+
+    # Recent Fixes Table (Top 15 recently fixed)
+    main_readme.append(f"## ✅ Recently Resolved Defects\n")
+    main_readme.append("| Fixed Date | Subsystem | Resolved Issue | Commit | Sev | Status |")
+    main_readme.append("| :---: | :---: | :--- | :---: | :---: | :---: |")
+    for b in closed_sorted[:20]:
+        clean_title = b['title'].replace('|', '/')
+        link = f"[{clean_title}](closed/{b['namespace']}/{b['filename']})"
+        fx_date = f"`{b['fixed_date']}`" if b['fixed_date'] != '-' else (f"`{b['found_date']}`" if b['found_date'] != '-' else '-')
+        commit_str = f"`{b['commit'][:9]}`" if b['commit'] != '-' else '-'
+        main_readme.append(f"| {fx_date} | **{b['namespace']}** | {link} | {commit_str} | {render_badge(b['severity'])} | {render_status(b['status'])} |")
+
+    main_readme.append(f"\n👉 *[View all {total_closed} fixed issues in the complete Archive →](closed/README.md)*\n")
+
+    (out_dir / 'README.md').write_text('\n'.join(main_readme), encoding='utf-8')
+
+    # 8. Generate opened/README.md
+    opened_readme = [
+        f"# 🔴 Open Defects Registry ({total_opened})\n",
+        "Complete register of all currently active defects and feature gaps.\n",
+        "| Found Date | Subsystem | Defect / Function | Sev | Kind | Guard Test |",
+        "| :---: | :---: | :--- | :---: | :---: | :--- |"
+    ]
+    for b in opened_sorted:
+        clean_title = b['title'].replace('|', '/')
+        link = f"[{clean_title}](opened/{b['namespace']}/{b['filename']})"
+        f_date = f"`{b['found_date']}`" if b['found_date'] != '-' else '-'
+        guard_str = f"`{b['guard']}`" if b['guard'] != '-' else '-'
+        opened_readme.append(f"| {f_date} | **{b['namespace']}** | {link} | {render_badge(b['severity'])} | `{b['kind']}` | {guard_str} |")
+    
+    (out_dir / 'opened' / 'README.md').write_text('\n'.join(opened_readme), encoding='utf-8')
+
+    # 9. Generate closed/README.md
+    closed_readme = [
+        f"# ✅ Closed &amp; Resolved Defects Registry ({total_closed})\n",
+        "Complete historical changelog of all resolved bugs and fixed regressions.\n",
+        "| Fixed Date | Subsystem | Resolved Issue | Commit | Sev | Kind |",
+        "| :---: | :---: | :--- | :---: | :---: | :---: |"
+    ]
+    for b in closed_sorted:
+        clean_title = b['title'].replace('|', '/')
+        link = f"[{clean_title}](closed/{b['namespace']}/{b['filename']})"
+        fx_date = f"`{b['fixed_date']}`" if b['fixed_date'] != '-' else (f"`{b['found_date']}`" if b['found_date'] != '-' else '-')
+        commit_str = f"`{b['commit'][:9]}`" if b['commit'] != '-' else '-'
+        closed_readme.append(f"| {fx_date} | **{b['namespace']}** | {link} | {commit_str} | {render_badge(b['severity'])} | `{b['kind']}` |")
+
+    (out_dir / 'closed' / 'README.md').write_text('\n'.join(closed_readme), encoding='utf-8')
+
+    # 10. Generate index.html and .nojekyll
     (out_dir / 'index.html').write_text(INDEX_HTML_TEMPLATE, encoding='utf-8')
     (out_dir / '.nojekyll').write_text('', encoding='utf-8')
 
