@@ -621,10 +621,12 @@ def build_site(out_dir):
     ]
     (out_dir / 'missing' / '_sidebar.md').write_text('\n'.join(missing_sidebar), encoding='utf-8')
 
+    # Extract missing functions content, cleanly stripping the duplicate H2 header
     if '## ❌ Missing — not implemented' in missing_raw:
-        missing_body = '## ❌ Missing — not implemented' + missing_raw.split('## ❌ Missing — not implemented')[1]
+        missing_body = missing_raw.split('## ❌ Missing — not implemented')[1]
+        missing_body = re.sub(r'^\s*\([0-9]+\)\s*\n+', '', missing_body).strip()
     else:
-        missing_body = missing_raw
+        missing_body = missing_raw.strip()
 
     missing_readme = [
         f"# ❌ Missing Functions Backlog ({missing_count})\n",
@@ -643,7 +645,7 @@ def build_site(out_dir):
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
-    # 9. Generate MAIN README.md (Dashboard without cards, just clean tables)
+    # 9. Generate MAIN README.md
     main_readme = []
     main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Catalog\n")
     main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
