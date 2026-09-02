@@ -40,6 +40,26 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       --code-font-size: 13.5px;
     }
     
+    /* Sidebar list item and icon alignment */
+    .sidebar-nav ul {
+      margin: 0;
+      padding-left: 14px;
+    }
+    .sidebar-nav li {
+      margin: 5px 0 !important;
+    }
+    .sidebar-nav li > a {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      font-weight: 500;
+      line-height: 1.4 !important;
+    }
+    .sidebar-nav > ul > li > a {
+      font-weight: 600 !important;
+      font-size: 14.5px;
+    }
+
     /* Custom Badges */
     .badge-open {
       background: #ef4444;
@@ -156,6 +176,11 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       loadNavbar: true,
       subMaxLevel: 2,
       auto2top: true,
+      alias: {
+        '/.*/_sidebar.md': '/_sidebar.md',
+        '/opened/.*/_sidebar.md': '/opened/_sidebar.md',
+        '/closed/.*/_sidebar.md': '/closed/_sidebar.md'
+      },
       search: {
         maxAge: 86400000,
         paths: 'auto',
@@ -325,26 +350,26 @@ def build_site(out_dir):
     total_all = total_opened + total_closed
     fix_rate = (total_closed / total_all * 100) if total_all else 0.0
 
-    # 3. Generate ROOT _sidebar.md (High-level clean navigation)
+    # 3. Generate ROOT _sidebar.md (Emojis inside link for seamless 1-line layout)
     root_sidebar = [
-        "* 🏠 [**Overview & Dashboard**](README.md)",
+        "* [🏠 **Overview & Dashboard**](README.md)",
         "",
-        f"* 🔴 [**Open Defects ({total_opened})**](opened/README.md)",
-        f"* ✅ [**Fixed Defects ({total_closed})**](closed/README.md)",
+        f"* [🔴 **Open Defects ({total_opened})**](opened/README.md)",
+        f"* [✅ **Fixed Defects ({total_closed})**](closed/README.md)",
         "",
-        "* 📊 [**Missing Parity Gaps**](missing.md)",
+        "* [📊 **Missing Parity Gaps**](missing.md)",
         "",
         "---",
-        "* 🐙 [GitHub Repository](https://github.com/hotredman/numkit)",
-        "* 📚 [Doxygen C++ Docs](https://hotredman.github.io/numkit-doxy/)"
+        "* [🐙 **GitHub Repository**](https://github.com/hotredman/numkit)",
+        "* [📚 **Doxygen C++ Docs**](https://hotredman.github.io/numkit-doxy/)"
     ]
     (out_dir / '_sidebar.md').write_text('\n'.join(root_sidebar), encoding='utf-8')
 
     # 4. Generate OPENED _sidebar.md (Only open bugs)
     opened_sidebar = [
-        "* ⬅️ [**← Back to Main Dashboard**](README.md)",
+        "* [⬅️ **Back to Main Dashboard**](README.md)",
         "",
-        f"* 📋 [**All Open Defects ({total_opened})**](opened/README.md)",
+        f"* [📋 **All Open Defects ({total_opened})**](opened/README.md)",
         "",
         "* 🔴 **By Subsystem / Namespace:**"
     ]
@@ -354,13 +379,20 @@ def build_site(out_dir):
             clean_title = b['title'].replace('[', '(').replace(']', ')')
             opened_sidebar.append(f"    * [{clean_title}](opened/{ns}/{b['filename']})")
     
-    (out_dir / 'opened' / '_sidebar.md').write_text('\n'.join(opened_sidebar), encoding='utf-8')
+    opened_sidebar_txt = '\n'.join(opened_sidebar)
+    (out_dir / 'opened' / '_sidebar.md').write_text(opened_sidebar_txt, encoding='utf-8')
+    
+    # Mirror opened _sidebar.md to each namespace subdirectory to prevent 404s
+    for ns in opened_by_ns.keys():
+        ns_dir = out_dir / 'opened' / ns
+        ns_dir.mkdir(parents=True, exist_ok=True)
+        (ns_dir / '_sidebar.md').write_text(opened_sidebar_txt, encoding='utf-8')
 
     # 5. Generate CLOSED _sidebar.md (Only closed bugs)
     closed_sidebar = [
-        "* ⬅️ [**← Back to Main Dashboard**](README.md)",
+        "* [⬅️ **Back to Main Dashboard**](README.md)",
         "",
-        f"* 📋 [**All Fixed Defects ({total_closed})**](closed/README.md)",
+        f"* [📋 **All Fixed Defects ({total_closed})**](closed/README.md)",
         "",
         "* ✅ **By Subsystem / Namespace:**"
     ]
@@ -370,15 +402,22 @@ def build_site(out_dir):
             clean_title = b['title'].replace('[', '(').replace(']', ')')
             closed_sidebar.append(f"    * [{clean_title}](closed/{ns}/{b['filename']})")
     
-    (out_dir / 'closed' / '_sidebar.md').write_text('\n'.join(closed_sidebar), encoding='utf-8')
+    closed_sidebar_txt = '\n'.join(closed_sidebar)
+    (out_dir / 'closed' / '_sidebar.md').write_text(closed_sidebar_txt, encoding='utf-8')
+    
+    # Mirror closed _sidebar.md to each namespace subdirectory to prevent 404s
+    for ns in closed_by_ns.keys():
+        ns_dir = out_dir / 'closed' / ns
+        ns_dir.mkdir(parents=True, exist_ok=True)
+        (ns_dir / '_sidebar.md').write_text(closed_sidebar_txt, encoding='utf-8')
 
     # 6. Generate _navbar.md
     navbar = [
-        f"* 🔴 [Open ({total_opened})](opened/README.md)",
-        f"* ✅ [Closed ({total_closed})](closed/README.md)",
-        "* 📊 [Parity Gaps](missing.md)",
-        "* 🐙 [GitHub](https://github.com/hotredman/numkit)",
-        "* 📚 [Doxygen](https://hotredman.github.io/numkit-doxy/)"
+        f"* [🔴 Open ({total_opened})](opened/README.md)",
+        f"* [✅ Closed ({total_closed})](closed/README.md)",
+        "* [📊 Parity Gaps](missing.md)",
+        "* [🐙 GitHub](https://github.com/hotredman/numkit)",
+        "* [📚 Doxygen](https://hotredman.github.io/numkit-doxy/)"
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
@@ -407,7 +446,7 @@ def build_site(out_dir):
 
     main_readme.append("\n---\n")
 
-    # Recent Fixes Table (Top 15 recently fixed)
+    # Recent Fixes Table (Top 20 recently fixed)
     main_readme.append(f"## ✅ Recently Resolved Defects\n")
     main_readme.append("| Fixed Date | Subsystem | Resolved Issue | Commit | Sev | Status |")
     main_readme.append("| :---: | :---: | :--- | :---: | :---: | :---: |")
