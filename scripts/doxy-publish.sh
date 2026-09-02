@@ -4,20 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DOCS_HTML_DIR="$PROJECT_DIR/build/docs/html"
+DEPLOY_GIT_DIR="$PROJECT_DIR/build/deploy-doxy"
 
-DOXY_DIR="${NUMKIT_DOXY_DIR:-}"
-if [[ -z "$DOXY_DIR" ]]; then
-    if [[ -d "$PROJECT_DIR/../../hotredman/numkit-doxy/.git" ]]; then
-        DOXY_DIR="$PROJECT_DIR/../../hotredman/numkit-doxy"
-    elif [[ -d "$PROJECT_DIR/../numkit-doxy/.git" ]]; then
-        DOXY_DIR="$PROJECT_DIR/../numkit-doxy"
-    elif [[ -d "/home/user/projects/hotredman/numkit-doxy/.git" ]]; then
-        DOXY_DIR="/home/user/projects/hotredman/numkit-doxy"
-    fi
-fi
-
+REPO_URL="${NUMKIT_DOXY_REPO:-git@github.com:hotredman/numkit-doxy.git}"
 DO_PUSH=1
 SKIP_BUILD=0
+DEST_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -33,29 +25,35 @@ while [[ $# -gt 0 ]]; do
             SKIP_BUILD=1
             shift
             ;;
+        --repo)
+            REPO_URL="$2"
+            shift 2
+            ;;
         --dest)
-            DOXY_DIR="$2"
+            DEST_DIR="$2"
             shift 2
             ;;
         -h|--help)
-            echo "Usage: $(basename "$0") [--push | --no-push] [--skip-build] [--dest <path>] [<path>]"
+            echo "Usage: $(basename "$0") [--push|--no-push] [--repo <url>] [--dest <dir>] [--skip-build]"
             exit 0
             ;;
         *)
-            DOXY_DIR="$1"
+            DEST_DIR="$1"
             shift
             ;;
     esac
 done
 
-if [[ -z "$DOXY_DIR" || ! -d "$DOXY_DIR/.git" ]]; then
-    echo "ERROR: Destination numkit-doxy git repository not found: $DOXY_DIR" >&2
-    exit 1
-fi
-
-echo "=== NumKit Doxygen - Deploy Clean Mirror to GitHub Pages ==="
+echo "=== NumKit Doxygen - Deploy to GitHub Pages ==="
 echo "Source: $PROJECT_DIR"
-echo "Target: $DOXY_DIR"
+if [[ -n "$DEST_DIR" ]]; then
+    echo "Target Local: $DEST_DIR"
+    TARGET_DIR="$DEST_DIR"
+else
+    echo "Target Remote: $REPO_URL"
+    echo "Workspace: $DEPLOY_GIT_DIR"
+    TARGET_DIR="$DEPLOY_GIT_DIR"
+fi
 echo
 
 if [[ "$SKIP_BUILD" -eq 0 || ! -f "$DOCS_HTML_DIR/index.html" ]]; then
@@ -66,20 +64,26 @@ fi
 
 SRC_REV="$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "manual")"
 
-echo
-echo "Syncing documentation files to $DOXY_DIR..."
+if [[ -z "$DEST_DIR" ]]; then
+    mkdir -p "$DEPLOY_GIT_DIR"
+    cd "$DEPLOY_GIT_DIR"
+    if [[ ! -d ".git" ]]; then
+        git init -b main >/dev/null 2>&1
+        git remote add origin "$REPO_URL" >/dev/null 2>&1
+    else
+        git remote set-url origin "$REPO_URL" >/dev/null 2>&1
+    fi
+fi
 
-# Clean old files (except .git)
-find "$DOXY_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+echo "Syncing documentation files to deploy workspace..."
+find "$TARGET_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+cp -r "$DOCS_HTML_DIR/." "$TARGET_DIR/"
+touch "$TARGET_DIR/.nojekyll"
 
-# Copy fresh files
-cp -r "$DOCS_HTML_DIR/." "$DOXY_DIR/"
-touch "$DOXY_DIR/.nojekyll"
-
-cd "$DOXY_DIR"
+cd "$TARGET_DIR"
 echo
 echo "Creating clean 1-commit state in Doxygen repository..."
-git checkout --orphan temp_deploy >/dev/null 2>&1 || git checkout -b temp_deploy
+git checkout --orphan temp_deploy >/dev/null 2>&1 || git checkout -b temp_deploy >/dev/null 2>&1
 git add -A
 git commit -m "docs: NumKit C++ API Documentation (numkit@$SRC_REV)" >/dev/null 2>&1
 git branch -D main >/dev/null 2>&1 || true
@@ -87,7 +91,7 @@ git branch -m main >/dev/null 2>&1 || true
 
 if [[ "$DO_PUSH" -eq 1 ]]; then
     echo
-    echo "Force-pushing single clean commit to GitHub origin main..."
+    echo "Force-pushing single clean commit to $REPO_URL..."
     git push -f origin main
     echo
     echo "Successfully published clean 1-commit Doxygen docs to GitHub Pages!"

@@ -4,20 +4,15 @@ setlocal enabledelayedexpansion
 set SCRIPT_DIR=%~dp0
 set PROJECT_DIR=%SCRIPT_DIR%..\
 set DEPLOY_DIR=%PROJECT_DIR%deploy
+set DEPLOY_GIT_DIR=%PROJECT_DIR%build\deploy-demo
 
-:: Determine default pages / demo directory
-set PAGES_DIR=%NUMKIT_PAGES_DIR%
-if "%PAGES_DIR%"=="" (
-    if exist "%PROJECT_DIR%..\..\hotredman\numkit-demo\.git" set "PAGES_DIR=%PROJECT_DIR%..\..\hotredman\numkit-demo"
-    if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-demo\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-demo"
-    if not defined PAGES_DIR if exist "C:\Users\User\Projects\hotredman\numkit-demo\.git" set "PAGES_DIR=C:\Users\User\Projects\hotredman\numkit-demo"
-    if not defined PAGES_DIR if exist "C:\Users\User\Projects\megahard\numkit-demo\.git" set "PAGES_DIR=C:\Users\User\Projects\megahard\numkit-demo"
-    if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-pages\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-pages"
-    if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-web\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-web"
-)
+:: Default remote repository URL
+set REPO_URL=git@github.com:hotredman/numkit-demo.git
+if not "%NUMKIT_DEMO_REPO%"=="" set REPO_URL=%NUMKIT_DEMO_REPO%
 
 set DO_PUSH=1
 set SKIP_BUILD=0
+set DEST_DIR=
 
 :parse_args
 if "%~1"=="" goto args_done
@@ -36,35 +31,34 @@ if /i "%~1"=="--skip-build" (
     shift
     goto parse_args
 )
-if /i "%~1"=="--dest" (
-    set PAGES_DIR=%~2
+if /i "%~1"=="--repo" (
+    set REPO_URL=%~2
     shift
     shift
     goto parse_args
 )
-if /i "%~1"=="--help" goto show_help_ok
-if /i "%~1"=="-h" goto show_help_ok
+if /i "%~1"=="--dest" (
+    set DEST_DIR=%~2
+    shift
+    shift
+    goto parse_args
+)
+if /i "%~1"=="--help" goto show_help
+if /i "%~1"=="-h" goto show_help
 
-set PAGES_DIR=%~1
+set DEST_DIR=%~1
 shift
 goto parse_args
 :args_done
 
-if "%PAGES_DIR%"=="" (
-    echo ERROR: GitHub Pages destination directory is not specified.
-    echo.
-    goto show_help_err
-)
-
-if not exist "%PAGES_DIR%\.git" (
-    echo ERROR: Destination directory is not a Git repository: "%PAGES_DIR%"
-    echo.
-    goto show_help_err
-)
-
-echo === NumKit Web IDE Demo - Deploy Clean Mirror to GitHub Pages ===
+echo === NumKit Web IDE Demo - Deploy to GitHub Pages ===
 echo Source: %PROJECT_DIR%
-echo Target: %PAGES_DIR%
+if not "%DEST_DIR%"=="" (
+    echo Target Local: %DEST_DIR%
+) else (
+    echo Target Remote: %REPO_URL%
+    echo Workspace: %DEPLOY_GIT_DIR%
+)
 echo.
 
 :: 1. Build web bundle if needed
@@ -88,11 +82,25 @@ cd /d "%PROJECT_DIR%"
 for /f %%i in ('git rev-parse --short HEAD 2^>nul') do set SRC_REV=%%i
 if "%SRC_REV%"=="" set SRC_REV=manual
 
-echo.
-echo Syncing deploy artifacts to "%PAGES_DIR%"...
+:: 3. Setup deploy workspace inside build/
+if "%DEST_DIR%"=="" (
+    set TARGET_DIR=%DEPLOY_GIT_DIR%
+    if not exist "%DEPLOY_GIT_DIR%" mkdir "%DEPLOY_GIT_DIR%"
+    cd /d "%DEPLOY_GIT_DIR%"
+    if not exist "%DEPLOY_GIT_DIR%\.git" (
+        git init -b main >nul 2>&1
+        git remote add origin %REPO_URL% >nul 2>&1
+    ) else (
+        git remote set-url origin %REPO_URL% >nul 2>&1
+    )
+) else (
+    set TARGET_DIR=%DEST_DIR%
+)
+
+echo Syncing deploy artifacts to deploy workspace...
 
 :: Clean existing files in target (except .git)
-cd /d "%PAGES_DIR%"
+cd /d "%TARGET_DIR%"
 for /f "delims=" %%F in ('dir /b /a-d 2^>nul') do (
     if not "%%F"==".git" del /f /q "%%F" 2>nul
 )
@@ -101,19 +109,15 @@ for /f "delims=" %%D in ('dir /b /ad 2^>nul') do (
 )
 
 :: Copy fresh files from deploy/ into target repo
-xcopy /e /i /y /q "%DEPLOY_DIR%\*" "%PAGES_DIR%\" >nul
-
-:: Ensure .nojekyll exists
-if not exist "%PAGES_DIR%\.nojekyll" (
-    type nul > "%PAGES_DIR%\.nojekyll"
-)
+xcopy /e /i /y /q "%DEPLOY_DIR%\*" "%TARGET_DIR%\" >nul
+type nul > "%TARGET_DIR%\.nojekyll"
 
 echo Files synchronized.
 
-:: 3. Clean single-commit history (Orphan Branch)
+:: 4. Clean single-commit history (Orphan Branch)
 echo.
 echo Creating clean 1-commit state in Demo repository...
-git checkout --orphan temp_deploy >nul 2>&1
+git checkout --orphan temp_deploy >nul 2>&1 || git checkout -b temp_deploy >nul 2>&1
 git add -A
 git commit -m "deploy(demo): NumKit Web IDE Demo (numkit@%SRC_REV%)" >nul 2>&1
 git branch -D main >nul 2>&1
@@ -121,10 +125,11 @@ git branch -m main >nul 2>&1
 
 if "%DO_PUSH%"=="1" (
     echo.
-    echo Force-pushing single clean commit to GitHub origin main...
+    echo Force-pushing single clean commit to %REPO_URL%...
     git push -f origin main
     if errorlevel 1 (
-        echo ERROR: git push failed!
+        echo.
+        echo ERROR: git push failed! Please verify remote repository existence and SSH access: %REPO_URL%
         exit /b 1
     )
     echo.
@@ -132,7 +137,7 @@ if "%DO_PUSH%"=="1" (
     goto done
 ) else (
     echo.
-    echo Clean commit created locally (push skipped due to --no-push).
+    echo Clean commit created locally in %TARGET_DIR% (push skipped due to --no-push).
     goto done
 )
 
@@ -140,21 +145,14 @@ if "%DO_PUSH%"=="1" (
 cd /d "%PROJECT_DIR%"
 exit /b 0
 
-:show_help_ok
-call :show_help
-exit /b 0
-
-:show_help_err
-call :show_help
-exit /b 1
-
 :show_help
-echo Usage: %~nx0 [options] [^<destination-dir^>]
+echo Usage: %~nx0 [options]
 echo.
 echo Options:
-echo   --dest ^<dir^>     Explicit destination repository path
-echo   --push           Force-push 1 clean commit to remote repository (default)
-echo   --no-push        Create 1 clean commit locally without pushing
+echo   --repo ^<url^>     Remote Git repository URL (default: git@github.com:hotredman/numkit-demo.git)
+echo   --dest ^<dir^>     Optional local destination directory
+echo   --push           Force-push 1 clean commit to remote repository (default: on)
+echo   --no-push        Create 1 clean commit locally in workspace without pushing
 echo   --skip-build     Skip re-running web-build.bat
 echo   -h, --help       Show this help message
 exit /b 0

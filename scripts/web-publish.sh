@@ -4,22 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEPLOY_DIR="$PROJECT_DIR/deploy"
+DEPLOY_GIT_DIR="$PROJECT_DIR/build/deploy-demo"
 
-PAGES_DIR="${NUMKIT_PAGES_DIR:-}"
-if [[ -z "$PAGES_DIR" ]]; then
-    if [[ -d "$PROJECT_DIR/../../hotredman/numkit-demo/.git" ]]; then
-        PAGES_DIR="$PROJECT_DIR/../../hotredman/numkit-demo"
-    elif [[ -d "$PROJECT_DIR/../numkit-demo/.git" ]]; then
-        PAGES_DIR="$PROJECT_DIR/../numkit-demo"
-    elif [[ -d "$PROJECT_DIR/../numkit-pages/.git" ]]; then
-        PAGES_DIR="$PROJECT_DIR/../numkit-pages"
-    elif [[ -d "$PROJECT_DIR/../numkit-web/.git" ]]; then
-        PAGES_DIR="$PROJECT_DIR/../numkit-web"
-    fi
-fi
-
+REPO_URL="${NUMKIT_DEMO_REPO:-git@github.com:hotredman/numkit-demo.git}"
 DO_PUSH=1
 SKIP_BUILD=0
+DEST_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -35,29 +25,35 @@ while [[ $# -gt 0 ]]; do
             SKIP_BUILD=1
             shift
             ;;
+        --repo)
+            REPO_URL="$2"
+            shift 2
+            ;;
         --dest)
-            PAGES_DIR="$2"
+            DEST_DIR="$2"
             shift 2
             ;;
         -h|--help)
-            echo "Usage: $(basename "$0") [--push | --no-push] [--skip-build] [--dest <path>] [<path>]"
+            echo "Usage: $(basename "$0") [--push|--no-push] [--repo <url>] [--dest <dir>] [--skip-build]"
             exit 0
             ;;
         *)
-            PAGES_DIR="$1"
+            DEST_DIR="$1"
             shift
             ;;
     esac
 done
 
-if [[ -z "$PAGES_DIR" || ! -d "$PAGES_DIR/.git" ]]; then
-    echo "ERROR: Destination numkit-demo git repository not found: $PAGES_DIR" >&2
-    exit 1
-fi
-
-echo "=== NumKit Web IDE Demo - Deploy Clean Mirror to GitHub Pages ==="
+echo "=== NumKit Web IDE Demo - Deploy to GitHub Pages ==="
 echo "Source: $PROJECT_DIR"
-echo "Target: $PAGES_DIR"
+if [[ -n "$DEST_DIR" ]]; then
+    echo "Target Local: $DEST_DIR"
+    TARGET_DIR="$DEST_DIR"
+else
+    echo "Target Remote: $REPO_URL"
+    echo "Workspace: $DEPLOY_GIT_DIR"
+    TARGET_DIR="$DEPLOY_GIT_DIR"
+fi
 echo
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
@@ -72,19 +68,26 @@ fi
 
 SRC_REV="$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "manual")"
 
-echo "Syncing deploy artifacts to $PAGES_DIR..."
+if [[ -z "$DEST_DIR" ]]; then
+    mkdir -p "$DEPLOY_GIT_DIR"
+    cd "$DEPLOY_GIT_DIR"
+    if [[ ! -d ".git" ]]; then
+        git init -b main >/dev/null 2>&1
+        git remote add origin "$REPO_URL" >/dev/null 2>&1
+    else
+        git remote set-url origin "$REPO_URL" >/dev/null 2>&1
+    fi
+fi
 
-# Clean old files (except .git)
-find "$PAGES_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+echo "Syncing deploy artifacts to deploy workspace..."
+find "$TARGET_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+cp -r "$DEPLOY_DIR/"* "$TARGET_DIR/"
+touch "$TARGET_DIR/.nojekyll"
 
-# Copy fresh files
-cp -r "$DEPLOY_DIR/"* "$PAGES_DIR/"
-touch "$PAGES_DIR/.nojekyll"
-
-cd "$PAGES_DIR"
+cd "$TARGET_DIR"
 echo
 echo "Creating clean 1-commit state in Demo repository..."
-git checkout --orphan temp_deploy >/dev/null 2>&1 || git checkout -b temp_deploy
+git checkout --orphan temp_deploy >/dev/null 2>&1 || git checkout -b temp_deploy >/dev/null 2>&1
 git add -A
 git commit -m "deploy(demo): NumKit Web IDE Demo (numkit@$SRC_REV)" >/dev/null 2>&1
 git branch -D main >/dev/null 2>&1 || true
@@ -92,7 +95,7 @@ git branch -m main >/dev/null 2>&1 || true
 
 if [[ "$DO_PUSH" -eq 1 ]]; then
     echo
-    echo "Force-pushing single clean commit to GitHub origin main..."
+    echo "Force-pushing single clean commit to $REPO_URL..."
     git push -f origin main
     echo
     echo "Successfully published clean 1-commit Web IDE Demo to GitHub Pages!"
