@@ -621,7 +621,6 @@ def build_site(out_dir):
     ]
     (out_dir / 'missing' / '_sidebar.md').write_text('\n'.join(missing_sidebar), encoding='utf-8')
 
-    # Extract missing functions content, cleanly stripping the duplicate H2 header
     if '## ❌ Missing — not implemented' in missing_raw:
         missing_body = missing_raw.split('## ❌ Missing — not implemented')[1]
         missing_body = re.sub(r'^\s*\([0-9]+\)\s*\n+', '', missing_body).strip()
@@ -645,39 +644,39 @@ def build_site(out_dir):
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
-    # 9. Generate MAIN README.md
+    # 9. Generate MAIN README.md (Dashboard with Top-5 items & short clean headers)
     main_readme = []
     main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Catalog\n")
     main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
 
-    # Open Bugs Table
-    main_readme.append(f"## 🔴 Active Open Defects ({total_opened})\n")
+    # Open Bugs Table (Latest 5)
+    main_readme.append("## 🔴 Open Defects\n")
     main_readme.append('<div class="table-open">\n')
     main_readme.append("| Found Date | Subsystem | Defect / Function | Sev | Kind |")
     main_readme.append("| :---: | :---: | :--- | :---: | :---: |")
-    for b in opened_sorted:
+    for b in opened_sorted[:5]:
         clean_title = b['title'].replace('|', '/')
         link = f"[{clean_title}](opened/{b['namespace']}/{b['filename']})"
         f_date = f"`{b['found_date']}`" if b['found_date'] != '-' else '-'
         main_readme.append(f"| {f_date} | **{b['namespace']}** | {link} | {render_badge(b['severity'])} | `{b['kind']}` |")
     main_readme.append('\n</div>\n')
+    main_readme.append(f"👉 *[View all {total_opened} open defects in the Registry →](opened/README.md)*\n")
 
     main_readme.append("\n---\n")
 
-    # Recent Fixes Table (Top 15 recently fixed on Dashboard)
-    main_readme.append(f"## ✅ Recently Resolved Defects (Latest 15)\n")
+    # Recent Fixes Table (Latest 5)
+    main_readme.append("## ✅ Recent Fixes\n")
     main_readme.append('<div class="table-closed">\n')
     main_readme.append("| Fixed Date | Subsystem | Resolved Issue | Commit | Sev |")
     main_readme.append("| :---: | :---: | :--- | :---: | :---: |")
-    for b in closed_sorted[:15]:
+    for b in closed_sorted[:5]:
         clean_title = b['title'].replace('|', '/')
         link = f"[{clean_title}](closed/{b['namespace']}/{b['filename']})"
         fx_date = f"`{b['fixed_date']}`" if b['fixed_date'] != '-' else (f"`{b['found_date']}`" if b['found_date'] != '-' else '-')
         commit_str = f"`{b['commit'][:9]}`" if b['commit'] != '-' else '-'
         main_readme.append(f"| {fx_date} | **{b['namespace']}** | {link} | {commit_str} | {render_badge(b['severity'])} |")
     main_readme.append('\n</div>\n')
-
-    main_readme.append(f"\n👉 *[View all {total_closed} fixed issues with search & pagination in the complete Archive →](closed/README.md)*\n")
+    main_readme.append(f"👉 *[View all {total_closed} fixed issues in the complete Archive →](closed/README.md)*\n")
 
     (out_dir / 'README.md').write_text('\n'.join(main_readme), encoding='utf-8')
 
