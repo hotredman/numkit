@@ -2,12 +2,14 @@
 
 [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Web_IDE-Live_Demo-success.svg)](https://hotredman.github.io/numkit-demo/)
+[![Bugs & Parity](https://img.shields.io/badge/Bugs_%26_Parity-Catalog-orange.svg)](https://hotredman.github.io/numkit-bugs/)
 [![npm](https://img.shields.io/badge/npm-numkit-red.svg)](https://www.npmjs.com/package/numkit)
 
 **Numkit** is an ultra-fast, lightweight numerical computing engine and matrix-scripting interpreter written in modern C++17. Designed from the ground up for **AI Agents, WebAssembly sandboxes, and embedded C++ applications**, it delivers MATLAB/Octave compatibility with instant startup and zero external dependencies.
 
 👉 **Try it in your browser:** [https://hotredman.github.io/numkit-demo/](https://hotredman.github.io/numkit-demo/)  
 👉 **C++ Library Documentation:** [https://hotredman.github.io/numkit-doxy/](https://hotredman.github.io/numkit-doxy/)  
+👉 **Defect & Parity Catalog:** [https://hotredman.github.io/numkit-bugs/](https://hotredman.github.io/numkit-bugs/)  
 👉 **LLM / Agent context spec:** [`llms.txt`](ide/public/llms.txt)
 
 ---
@@ -119,6 +121,7 @@ scripts/web-build.bat        # Windows
 - `examples/` — MATLAB-compatible demonstration scripts across all toolboxes.
 - `tests/` — Comprehensive C++ unit and integration test suite.
 - `tools/` — Parity testing harness, benchmarks, and validation utilities.
+- `bugs/` — Structured defect catalog and MATLAB parity tracking ([live catalog](https://hotredman.github.io/numkit-bugs/)).
 - `dev-docs/` — Architecture documentation, memory records, and API guidelines.
 
 ---
