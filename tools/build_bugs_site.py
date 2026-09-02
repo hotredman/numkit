@@ -67,40 +67,6 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
     .badge-p3 { background: #2563eb; color: white; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
     .badge-date { background: #334155; color: #94a3b8; padding: 2px 6px; border-radius: 4px; font-size: 11.5px; font-family: monospace; }
 
-    /* Metric Cards */
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 16px;
-      margin: 20px 0 30px 0;
-    }
-    .metric-card {
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 18px 20px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      text-decoration: none !important;
-      display: block;
-      transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    .metric-card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(56, 189, 248, 0.4);
-    }
-    .metric-card h3 {
-      margin: 0 0 6px 0;
-      font-size: 12.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #94a3b8;
-    }
-    .metric-card .value {
-      font-size: 28px;
-      font-weight: 800;
-      color: #f8fafc;
-    }
-
     /* Professional Table Styling */
     table {
       width: 100% !important;
@@ -580,8 +546,6 @@ def build_site(out_dir):
 
     total_opened = len(opened_list)
     total_closed = len(closed_list)
-    total_bugs = total_opened + total_closed
-    fix_rate = (total_closed / total_bugs * 100) if total_bugs else 0.0
 
     # 3. Parse missing.md
     missing_file = BUGS_SRC / 'missing.md'
@@ -679,20 +643,12 @@ def build_site(out_dir):
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
-    # 9. Generate MAIN README.md (Dashboard with Top-15 recent items)
+    # 9. Generate MAIN README.md (Dashboard without cards, just clean tables)
     main_readme = []
-    main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Dashboard\n")
+    main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Catalog\n")
     main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
-    
-    # 4 Metric Cards
-    main_readme.append('<div class="metric-grid">')
-    main_readme.append(f'<a href="#/opened/README" class="metric-card"><h3>Active Open Defects</h3><div class="value" style="color:#ef4444;">{total_opened}</div></a>')
-    main_readme.append(f'<a href="#/closed/README" class="metric-card"><h3>Resolved &amp; Fixed</h3><div class="value" style="color:#10b981;">{total_closed}</div></a>')
-    main_readme.append(f'<a href="#/closed/README" class="metric-card"><h3>Resolution Rate</h3><div class="value" style="color:#38bdf8;">{fix_rate:.1f}%</div></a>')
-    main_readme.append(f'<a href="#/missing/README" class="metric-card"><h3>Missing Backlog</h3><div class="value" style="color:#ec4899;">{missing_count}</div></a>')
-    main_readme.append('</div>\n')
 
-    # Open Bugs (All or Top 15 on Dashboard)
+    # Open Bugs Table
     main_readme.append(f"## 🔴 Active Open Defects ({total_opened})\n")
     main_readme.append('<div class="table-open">\n')
     main_readme.append("| Found Date | Subsystem | Defect / Function | Sev | Kind |")
