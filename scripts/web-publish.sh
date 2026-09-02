@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEPLOY_DIR="$PROJECT_DIR/deploy"
 
-# Determine default pages directory
 PAGES_DIR="${NUMKIT_PAGES_DIR:-}"
 if [[ -z "$PAGES_DIR" ]]; then
     if [[ -d "$PROJECT_DIR/../../hotredman/numkit-demo/.git" ]]; then
@@ -16,31 +15,20 @@ if [[ -z "$PAGES_DIR" ]]; then
         PAGES_DIR="$PROJECT_DIR/../numkit-pages"
     elif [[ -d "$PROJECT_DIR/../numkit-web/.git" ]]; then
         PAGES_DIR="$PROJECT_DIR/../numkit-web"
-    elif [[ -d "$PROJECT_DIR/../../czssgkavo/numkit/.git" ]]; then
-        PAGES_DIR="$PROJECT_DIR/../../czssgkavo/numkit"
     fi
 fi
 
-DO_PUSH=0
+DO_PUSH=1
 SKIP_BUILD=0
-
-show_help() {
-    echo "Usage: $(basename "$0") [--push] [--skip-build] [--dest <path>] [<path>]"
-    echo
-    echo "Synchronizes the static Web IDE bundle (deploy/) into a GitHub Pages repository."
-    echo
-    echo "Options:"
-    echo "  --push        Automatically push commit to origin main in the Pages repo."
-    echo "  --skip-build  Skip re-running web-build.sh if deploy/ is already fresh."
-    echo "  --dest <path> Destination directory (or set NUMKIT_PAGES_DIR environment variable)."
-    echo "  -h, --help    Show this help message."
-    exit 1
-}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --push)
             DO_PUSH=1
+            shift
+            ;;
+        --no-push)
+            DO_PUSH=0
             shift
             ;;
         --skip-build)
@@ -52,7 +40,8 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            show_help
+            echo "Usage: $(basename "$0") [--push | --no-push] [--skip-build] [--dest <path>] [<path>]"
+            exit 0
             ;;
         *)
             PAGES_DIR="$1"
@@ -61,19 +50,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$PAGES_DIR" ]]; then
-    echo "ERROR: GitHub Pages destination directory is not specified."
-    echo
-    show_help
+if [[ -z "$PAGES_DIR" || ! -d "$PAGES_DIR/.git" ]]; then
+    echo "ERROR: Destination numkit-demo git repository not found: $PAGES_DIR" >&2
+    exit 1
 fi
 
-if [[ ! -d "$PAGES_DIR/.git" ]]; then
-    echo "ERROR: Destination directory is not a Git repository: $PAGES_DIR"
-    echo
-    show_help
-fi
-
-echo "=== Numkit Web IDE - Deploy to GitHub Pages Repository ==="
+echo "=== NumKit Web IDE Demo - Deploy Clean Mirror to GitHub Pages ==="
 echo "Source: $PROJECT_DIR"
 echo "Target: $PAGES_DIR"
 echo
@@ -84,39 +66,37 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
 fi
 
 if [[ ! -f "$DEPLOY_DIR/index.html" ]]; then
-    echo "ERROR: deploy/index.html not found!"
+    echo "ERROR: deploy/index.html not found!" >&2
     exit 1
 fi
 
 SRC_REV="$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "manual")"
 
 echo "Syncing deploy artifacts to $PAGES_DIR..."
-rm -rf "$PAGES_DIR/assets" "$PAGES_DIR/examples"
+
+# Clean old files (except .git)
+find "$PAGES_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+# Copy fresh files
 cp -r "$DEPLOY_DIR/"* "$PAGES_DIR/"
 touch "$PAGES_DIR/.nojekyll"
 
 cd "$PAGES_DIR"
-if [[ -z "$(git status --porcelain)" ]]; then
-    echo "No changes detected in target repository. Target is already up to date."
-    echo
-    echo "=== Done ==="
-    exit 0
-fi
-
-echo "Committing changes in Pages repository..."
+echo
+echo "Creating clean 1-commit state in Demo repository..."
+git checkout --orphan temp_deploy >/dev/null 2>&1 || git checkout -b temp_deploy
 git add -A
-git commit -m "Update Web IDE build (numkit@$SRC_REV)"
+git commit -m "deploy(demo): NumKit Web IDE Demo (numkit@$SRC_REV)" >/dev/null 2>&1
+git branch -D main >/dev/null 2>&1 || true
+git branch -m main >/dev/null 2>&1 || true
 
 if [[ "$DO_PUSH" -eq 1 ]]; then
-    echo "Pushing to GitHub origin main..."
-    git push origin main
-    echo "Successfully deployed and pushed to GitHub Pages!"
+    echo
+    echo "Force-pushing single clean commit to GitHub origin main..."
+    git push -f origin main
+    echo
+    echo "Successfully published clean 1-commit Web IDE Demo to GitHub Pages!"
 else
     echo
-    echo "Changes committed locally in: $PAGES_DIR"
-    echo "To push to GitHub, run: cd '$PAGES_DIR' && git push origin main"
-    echo "Or pass --push next time: ./scripts/web-publish.sh --push"
+    echo "Clean commit created locally (push skipped due to --no-push)."
 fi
-
-echo
-echo "=== Done ==="

@@ -5,24 +5,29 @@ set SCRIPT_DIR=%~dp0
 set PROJECT_DIR=%SCRIPT_DIR%..\
 set DEPLOY_DIR=%PROJECT_DIR%deploy
 
-:: Determine default pages directory
+:: Determine default pages / demo directory
 set PAGES_DIR=%NUMKIT_PAGES_DIR%
 if "%PAGES_DIR%"=="" (
     if exist "%PROJECT_DIR%..\..\hotredman\numkit-demo\.git" set "PAGES_DIR=%PROJECT_DIR%..\..\hotredman\numkit-demo"
     if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-demo\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-demo"
     if not defined PAGES_DIR if exist "C:\Users\User\Projects\hotredman\numkit-demo\.git" set "PAGES_DIR=C:\Users\User\Projects\hotredman\numkit-demo"
+    if not defined PAGES_DIR if exist "C:\Users\User\Projects\megahard\numkit-demo\.git" set "PAGES_DIR=C:\Users\User\Projects\megahard\numkit-demo"
     if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-pages\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-pages"
     if not defined PAGES_DIR if exist "%PROJECT_DIR%..\numkit-web\.git" set "PAGES_DIR=%PROJECT_DIR%..\numkit-web"
-    if not defined PAGES_DIR if exist "%PROJECT_DIR%..\..\czssgkavo\numkit\.git" set "PAGES_DIR=%PROJECT_DIR%..\..\czssgkavo\numkit"
 )
 
-set DO_PUSH=0
+set DO_PUSH=1
 set SKIP_BUILD=0
 
 :parse_args
 if "%~1"=="" goto args_done
 if /i "%~1"=="--push" (
     set DO_PUSH=1
+    shift
+    goto parse_args
+)
+if /i "%~1"=="--no-push" (
+    set DO_PUSH=0
     shift
     goto parse_args
 )
@@ -57,7 +62,7 @@ if not exist "%PAGES_DIR%\.git" (
     goto show_help_err
 )
 
-echo === Numkit Web IDE - Deploy to GitHub Pages Repository ===
+echo === NumKit Web IDE Demo - Deploy Clean Mirror to GitHub Pages ===
 echo Source: %PROJECT_DIR%
 echo Target: %PAGES_DIR%
 echo.
@@ -79,17 +84,23 @@ if not exist "%DEPLOY_DIR%\index.html" (
 
 :: 2. Get source git commit hash
 set SRC_REV=
+cd /d "%PROJECT_DIR%"
 for /f %%i in ('git rev-parse --short HEAD 2^>nul') do set SRC_REV=%%i
 if "%SRC_REV%"=="" set SRC_REV=manual
 
 echo.
 echo Syncing deploy artifacts to "%PAGES_DIR%"...
 
-:: Clean stale assets and examples in target
-if exist "%PAGES_DIR%\assets" rmdir /s /q "%PAGES_DIR%\assets"
-if exist "%PAGES_DIR%\examples" rmdir /s /q "%PAGES_DIR%\examples"
+:: Clean existing files in target (except .git)
+cd /d "%PAGES_DIR%"
+for /f "delims=" %%F in ('dir /b /a-d 2^>nul') do (
+    if not "%%F"==".git" del /f /q "%%F" 2>nul
+)
+for /f "delims=" %%D in ('dir /b /ad 2^>nul') do (
+    if not "%%D"==".git" rd /s /q "%%D" 2>nul
+)
 
-:: Copy all files from deploy/ into target repo
+:: Copy fresh files from deploy/ into target repo
 xcopy /e /i /y /q "%DEPLOY_DIR%\*" "%PAGES_DIR%\" >nul
 
 :: Ensure .nojekyll exists
@@ -99,69 +110,51 @@ if not exist "%PAGES_DIR%\.nojekyll" (
 
 echo Files synchronized.
 
-:: 3. Check git status in target repo
-cd /d "%PAGES_DIR%"
-git status --porcelain > "%TEMP%\pages_status.txt"
-
-for %%A in ("%TEMP%\pages_status.txt") do if %%~zA==0 (
-    echo.
-    echo No changes detected in target repository. Target is already up to date.
-    del "%TEMP%\pages_status.txt" 2>nul
-    goto done
-)
-del "%TEMP%\pages_status.txt" 2>nul
-
+:: 3. Clean single-commit history (Orphan Branch)
 echo.
-echo Committing changes in Pages repository...
+echo Creating clean 1-commit state in Demo repository...
+git checkout --orphan temp_deploy >nul 2>&1
 git add -A
-git commit -m "Update Web IDE build (numkit@%SRC_REV%)"
+git commit -m "deploy(demo): NumKit Web IDE Demo (numkit@%SRC_REV%)" >nul 2>&1
+git branch -D main >nul 2>&1
+git branch -m main >nul 2>&1
 
 if "%DO_PUSH%"=="1" (
     echo.
-    echo Pushing to GitHub origin main...
-    git push origin main
+    echo Force-pushing single clean commit to GitHub origin main...
+    git push -f origin main
     if errorlevel 1 (
         echo ERROR: git push failed!
         exit /b 1
     )
-    echo Successfully deployed and pushed to GitHub Pages!
+    echo.
+    echo Successfully published clean 1-commit Web IDE Demo to GitHub Pages!
+    goto done
+) else (
+    echo.
+    echo Clean commit created locally (push skipped due to --no-push).
     goto done
 )
 
-echo.
-echo Changes committed locally in: %PAGES_DIR%
-echo To push to GitHub, run:
-echo   cd /d "%PAGES_DIR%"
-echo   git push origin main
-echo Or pass --push next time:
-echo   scripts\web-publish.bat --push
-
 :done
 cd /d "%PROJECT_DIR%"
-echo.
-echo === Done ===
 exit /b 0
 
 :show_help_ok
-echo Usage: %~nx0 [--push] [--skip-build] [--dest ^<path^>] [^<path^>]
-echo.
-echo Synchronizes the static Web IDE bundle (deploy\) into a GitHub Pages repository.
-echo.
-echo Options:
-echo   --push        Automatically push commit to origin main in the Pages repo.
-echo   --skip-build  Skip re-running web-build.bat if deploy\ is already fresh.
-echo   --dest ^<path^> Destination directory (or set NUMKIT_PAGES_DIR environment variable).
-echo   -h, --help    Show this help message.
+call :show_help
 exit /b 0
 
 :show_help_err
-echo Usage: %~nx0 [--push] [--skip-build] [--dest ^<path^>] [^<path^>]
-echo.
-echo Synchronizes the static Web IDE bundle (deploy\) into a GitHub Pages repository.
+call :show_help
+exit /b 1
+
+:show_help
+echo Usage: %~nx0 [options] [^<destination-dir^>]
 echo.
 echo Options:
-echo   --push        Automatically push commit to origin main in the Pages repo.
-echo   --skip-build  Skip re-running web-build.bat if deploy\ is already fresh.
-echo   --dest ^<path^> Destination directory (or set NUMKIT_PAGES_DIR environment variable).
-echo   -h, --help    Show this help message.
-exit /b 1
+echo   --dest ^<dir^>     Explicit destination repository path
+echo   --push           Force-push 1 clean commit to remote repository (default)
+echo   --no-push        Create 1 clean commit locally without pushing
+echo   --skip-build     Skip re-running web-build.bat
+echo   -h, --help       Show this help message
+exit /b 0
