@@ -59,7 +59,7 @@ if not exist "%DOXY_DIR%\.git" (
     goto show_help_err
 )
 
-echo === Numkit Doxygen - Deploy to GitHub Pages Repository ===
+echo === NumKit Doxygen - Deploy Clean Mirror to GitHub Pages ===
 echo Source: %PROJECT_DIR%
 echo Target: %DOXY_DIR%
 echo.
@@ -89,7 +89,16 @@ if "%SRC_REV%"=="" set SRC_REV=manual
 echo.
 echo Syncing documentation files to "%DOXY_DIR%"...
 
-:: Copy all files from build/docs/html/ into target repo
+:: Clean existing files in target (except .git)
+cd /d "%DOXY_DIR%"
+for /f "delims=" %%F in ('dir /b /a-d 2^>nul') do (
+    if not "%%F"==".git" del /f /q "%%F" 2>nul
+)
+for /f "delims=" %%D in ('dir /b /ad 2^>nul') do (
+    if not "%%D"==".git" rd /s /q "%%D" 2>nul
+)
+
+:: Copy fresh files from build/docs/html/ into target repo
 xcopy /e /i /y /q "%DOCS_HTML_DIR%\*" "%DOXY_DIR%\" >nul
 
 :: Ensure .nojekyll exists
@@ -99,69 +108,51 @@ if not exist "%DOXY_DIR%\.nojekyll" (
 
 echo Files synchronized.
 
-:: 3. Check git status in target repo
-cd /d "%DOXY_DIR%"
-git status --porcelain > "%TEMP%\doxy_status.txt"
-
-for %%A in ("%TEMP%\doxy_status.txt") do if %%~zA==0 (
-    echo.
-    echo No changes detected in target repository. Target is already up to date.
-    del "%TEMP%\doxy_status.txt" 2>nul
-    goto done
-)
-del "%TEMP%\doxy_status.txt" 2>nul
-
+:: 3. Clean single-commit history (Orphan Branch)
 echo.
-echo Committing changes in Doxygen repository...
+echo Creating clean 1-commit state in Doxygen repository...
+git checkout --orphan temp_deploy >nul 2>&1
 git add -A
-git commit -m "docs: update Doxygen API documentation (numkit@%SRC_REV%)"
+git commit -m "docs: NumKit C++ API Documentation (numkit@%SRC_REV%)" >nul 2>&1
+git branch -D main >nul 2>&1
+git branch -m main >nul 2>&1
 
 if "%DO_PUSH%"=="1" (
     echo.
-    echo Pushing to GitHub origin main...
-    git push origin main
+    echo Force-pushing single clean commit to GitHub origin main...
+    git push -f origin main
     if errorlevel 1 (
         echo ERROR: git push failed!
         exit /b 1
     )
-    echo Successfully deployed and pushed Doxygen docs to GitHub Pages!
+    echo.
+    echo Successfully published clean 1-commit Doxygen docs to GitHub Pages!
+    goto done
+) else (
+    echo.
+    echo Clean commit created locally (push skipped due to --no-push).
     goto done
 )
 
-echo.
-echo Changes committed locally in: %DOXY_DIR%
-echo To push to GitHub, run:
-echo   cd /d "%DOXY_DIR%"
-echo   git push origin main
-
 :done
 cd /d "%PROJECT_DIR%"
-echo.
-echo === Done ===
 exit /b 0
 
 :show_help_ok
-echo Usage: %~nx0 [--push ^| --no-push] [--skip-build] [--dest ^<path^>] [^<path^>]
-echo.
-echo Generates Doxygen API documentation and synchronizes it into a GitHub Pages repository.
-echo.
-echo Options:
-echo   --push        Automatically push commit to origin main (default: on).
-echo   --no-push     Commit locally without pushing to remote.
-echo   --skip-build  Skip re-running doxygen if build\docs\html\ is already fresh.
-echo   --dest ^<path^> Destination directory (or set NUMKIT_DOXY_DIR environment variable).
-echo   -h, --help    Show this help message.
+call :show_help
 exit /b 0
 
 :show_help_err
-echo Usage: %~nx0 [--push ^| --no-push] [--skip-build] [--dest ^<path^>] [^<path^>]
-echo.
-echo Generates Doxygen API documentation and synchronizes it into a GitHub Pages repository.
+call :show_help
+exit /b 1
+
+:show_help
+echo Usage: %~nx0 [options] [^<destination-dir^>]
 echo.
 echo Options:
-echo   --push        Automatically push commit to origin main (default: on).
-echo   --no-push     Commit locally without pushing to remote.
-echo   --skip-build  Skip re-running doxygen if build\docs\html\ is already fresh.
-echo   --dest ^<path^> Destination directory (or set NUMKIT_DOXY_DIR environment variable).
-echo   -h, --help    Show this help message.
-exit /b 1
+echo   --dest ^<dir^>     Explicit destination repository path
+echo   --push           Force-push 1 clean commit to remote repository (default)
+echo   --no-push        Create 1 clean commit locally without pushing
+echo   --skip-build     Skip re-running doxygen
+echo   -h, --help       Show this help message
+exit /b 0

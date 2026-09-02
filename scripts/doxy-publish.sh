@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DOCS_HTML_DIR="$PROJECT_DIR/build/docs/html"
 
-# Determine default doxygen repository directory
 DOXY_DIR="${NUMKIT_DOXY_DIR:-}"
 if [[ -z "$DOXY_DIR" ]]; then
     if [[ -d "$PROJECT_DIR/../../hotredman/numkit-doxy/.git" ]]; then
@@ -19,20 +18,6 @@ fi
 
 DO_PUSH=1
 SKIP_BUILD=0
-
-show_help() {
-    echo "Usage: $(basename "$0") [--push | --no-push] [--skip-build] [--dest <path>] [<path>]"
-    echo
-    echo "Generates Doxygen API documentation and synchronizes it into a GitHub Pages repository."
-    echo
-    echo "Options:"
-    echo "  --push        Automatically push commit to origin main (default: on)."
-    echo "  --no-push     Commit locally without pushing to remote."
-    echo "  --skip-build  Skip re-running doxygen if build/docs/html/ is already fresh."
-    echo "  --dest <path> Destination directory (or set NUMKIT_DOXY_DIR environment variable)."
-    echo "  -h, --help    Show this help message."
-    exit 1
-}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -53,7 +38,8 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            show_help
+            echo "Usage: $(basename "$0") [--push | --no-push] [--skip-build] [--dest <path>] [<path>]"
+            exit 0
             ;;
         *)
             DOXY_DIR="$1"
@@ -62,78 +48,50 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$DOXY_DIR" ]]; then
-    echo "ERROR: Doxygen destination directory is not specified." >&2
-    echo >&2
-    show_help
+if [[ -z "$DOXY_DIR" || ! -d "$DOXY_DIR/.git" ]]; then
+    echo "ERROR: Destination numkit-doxy git repository not found: $DOXY_DIR" >&2
+    exit 1
 fi
 
-if [[ ! -d "$DOXY_DIR/.git" ]]; then
-    echo "ERROR: Destination directory is not a Git repository: $DOXY_DIR" >&2
-    echo >&2
-    show_help
-fi
-
-echo "=== Numkit Doxygen - Deploy to GitHub Pages Repository ==="
+echo "=== NumKit Doxygen - Deploy Clean Mirror to GitHub Pages ==="
 echo "Source: $PROJECT_DIR"
 echo "Target: $DOXY_DIR"
 echo
 
-# 1. Run Doxygen if needed
-if [[ "$SKIP_BUILD" -eq 0 ]]; then
+if [[ "$SKIP_BUILD" -eq 0 || ! -f "$DOCS_HTML_DIR/index.html" ]]; then
     echo "Generating Doxygen documentation..."
     cd "$PROJECT_DIR"
     doxygen Doxyfile
 fi
 
-if [[ ! -f "$DOCS_HTML_DIR/index.html" ]]; then
-    echo "ERROR: build/docs/html/index.html not found after Doxygen build!" >&2
-    exit 1
-fi
-
-# 2. Get source git commit hash
 SRC_REV="$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "manual")"
 
 echo
 echo "Syncing documentation files to $DOXY_DIR..."
 
-# Copy files into target repo using rsync
-rsync -a --delete --exclude '.git' "$DOCS_HTML_DIR/" "$DOXY_DIR/"
+# Clean old files (except .git)
+find "$DOXY_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
-# Ensure .nojekyll exists
+# Copy fresh files
+cp -r "$DOCS_HTML_DIR/." "$DOXY_DIR/"
 touch "$DOXY_DIR/.nojekyll"
 
-echo "Files synchronized."
-
-# 3. Check git status in target repo
 cd "$DOXY_DIR"
-if [[ -z "$(git status --porcelain)" ]]; then
-    echo
-    echo "No changes detected in target repository. Target is already up to date."
-    echo
-    echo "=== Done ==="
-    exit 0
-fi
-
 echo
-echo "Committing changes in Doxygen repository..."
+echo "Creating clean 1-commit state in Doxygen repository..."
+git checkout --orphan temp_deploy >/dev/null 2>&1 || git checkout -b temp_deploy
 git add -A
-git commit -m "docs: update Doxygen API documentation (numkit@$SRC_REV)"
+git commit -m "docs: NumKit C++ API Documentation (numkit@$SRC_REV)" >/dev/null 2>&1
+git branch -D main >/dev/null 2>&1 || true
+git branch -m main >/dev/null 2>&1 || true
 
 if [[ "$DO_PUSH" -eq 1 ]]; then
     echo
-    echo "Pushing to GitHub origin main..."
-    git push origin main
-    echo "Successfully deployed and pushed Doxygen docs to GitHub Pages!"
+    echo "Force-pushing single clean commit to GitHub origin main..."
+    git push -f origin main
     echo
-    echo "=== Done ==="
-    exit 0
+    echo "Successfully published clean 1-commit Doxygen docs to GitHub Pages!"
+else
+    echo
+    echo "Clean commit created locally (push skipped due to --no-push)."
 fi
-
-echo
-echo "Changes committed locally in: $DOXY_DIR"
-echo "To push to GitHub, run:"
-echo "  cd $DOXY_DIR"
-echo "  git push origin main"
-echo
-echo "=== Done ==="
