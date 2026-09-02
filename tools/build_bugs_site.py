@@ -106,7 +106,7 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       width: 100% !important;
       display: table !important;
       border-collapse: collapse;
-      margin: 24px 0;
+      margin: 16px 0 20px 0;
       table-layout: auto;
     }
     th {
@@ -120,7 +120,7 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       letter-spacing: 0.02em;
     }
     td {
-      padding: 12px 14px;
+      padding: 11px 14px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       vertical-align: middle;
       font-size: 14px;
@@ -147,6 +147,77 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       white-space: normal !important;
       font-size: 12px !important;
       padding: 2px 5px !important;
+    }
+
+    /* Table Toolbar Controls (Filter / Search / Page size) */
+    .table-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 18px 0 10px 0;
+      padding: 10px 14px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+    }
+    .table-toolbar-left, .table-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .table-toolbar input, .table-toolbar select {
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13.5px;
+      outline: none;
+    }
+    .table-toolbar input:focus, .table-toolbar select:focus {
+      border-color: #38bdf8;
+    }
+    
+    /* Table Pagination Navigation */
+    .table-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 14px 0 24px 0;
+      font-size: 13.5px;
+      color: #94a3b8;
+    }
+    .pagination-buttons {
+      display: flex;
+      gap: 4px;
+    }
+    .pagination-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s ease;
+    }
+    .pagination-btn:hover:not(:disabled) {
+      background: #334155;
+      color: #f8fafc;
+    }
+    .pagination-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+      font-weight: 700;
+    }
+    .pagination-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     /* Theme Toggle */
@@ -185,6 +256,164 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
   <button class="theme-toggle-btn" id="themeToggle" title="Toggle Dark/Light Mode">🌓</button>
 
   <script>
+    // Custom Table Pagination Plugin
+    function tablePaginationPlugin(hook, vm) {
+      hook.doneEach(function() {
+        const tables = document.querySelectorAll('.table-paginated table');
+        tables.forEach((table, idx) => {
+          const tbody = table.querySelector('tbody');
+          if (!tbody) return;
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          if (rows.length === 0) return;
+
+          // Extract subsystems for filter dropdown
+          const subsystems = new Set();
+          rows.forEach(r => {
+            const subCell = r.querySelector('td:nth-child(2)');
+            if (subCell) {
+              const text = subCell.textContent.trim();
+              if (text) subsystems.add(text);
+            }
+          });
+
+          // State
+          let currentPage = 1;
+          let pageSize = rows.length > 25 ? 25 : 25;
+          let searchQuery = '';
+          let selectedSubsystem = '';
+
+          // Create toolbar container
+          const toolbar = document.createElement('div');
+          toolbar.className = 'table-toolbar';
+
+          // Left: Subsystem Filter & Search
+          const toolbarLeft = document.createElement('div');
+          toolbarLeft.className = 'table-toolbar-left';
+
+          const searchInput = document.createElement('input');
+          searchInput.type = 'text';
+          searchInput.placeholder = '🔍 Quick filter...';
+          searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            currentPage = 1;
+            render();
+          });
+          toolbarLeft.appendChild(searchInput);
+
+          if (subsystems.size > 1) {
+            const subSelect = document.createElement('select');
+            subSelect.innerHTML = '<option value="">All Subsystems (' + rows.length + ')</option>';
+            Array.from(subsystems).sort().forEach(s => {
+              const count = rows.filter(r => r.querySelector('td:nth-child(2)').textContent.trim() === s).length;
+              subSelect.innerHTML += `<option value="${s}">${s} (${count})</option>`;
+            });
+            subSelect.addEventListener('change', (e) => {
+              selectedSubsystem = e.target.value;
+              currentPage = 1;
+              render();
+            });
+            toolbarLeft.appendChild(subSelect);
+          }
+
+          // Right: Page Size Selector
+          const toolbarRight = document.createElement('div');
+          toolbarRight.className = 'table-toolbar-right';
+          const sizeSelect = document.createElement('select');
+          sizeSelect.innerHTML = `
+            <option value="25" selected>25 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+            <option value="all">Show All (${rows.length})</option>
+          `;
+          sizeSelect.addEventListener('change', (e) => {
+            pageSize = e.target.value === 'all' ? Infinity : parseInt(e.target.value, 10);
+            currentPage = 1;
+            render();
+          });
+          toolbarRight.appendChild(sizeSelect);
+
+          toolbar.appendChild(toolbarLeft);
+          toolbar.appendChild(toolbarRight);
+          table.parentNode.insertBefore(toolbar, table);
+
+          // Pagination footer
+          const paginationFooter = document.createElement('div');
+          paginationFooter.className = 'table-pagination';
+          table.parentNode.insertBefore(paginationFooter, table.nextSibling);
+
+          function render() {
+            // Filter rows
+            const filteredRows = rows.filter(r => {
+              const text = r.textContent.toLowerCase();
+              const matchesSearch = !searchQuery || text.includes(searchQuery);
+              const subCell = r.querySelector('td:nth-child(2)');
+              const matchesSub = !selectedSubsystem || (subCell && subCell.textContent.trim() === selectedSubsystem);
+              return matchesSearch && matchesSub;
+            });
+
+            const total = filteredRows.length;
+            const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(total / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIdx = (currentPage - 1) * (pageSize === Infinity ? total : pageSize);
+            const endIdx = pageSize === Infinity ? total : Math.min(startIdx + pageSize, total);
+
+            // Hide all, show current slice
+            rows.forEach(r => r.style.display = 'none');
+            for (let i = startIdx; i < endIdx; i++) {
+              if (filteredRows[i]) filteredRows[i].style.display = '';
+            }
+
+            // Update footer
+            paginationFooter.innerHTML = '';
+            const info = document.createElement('div');
+            info.textContent = total === 0 ? 'No matching defects found' : `Showing ${startIdx + 1}–${endIdx} of ${total} defects`;
+            paginationFooter.appendChild(info);
+
+            if (totalPages > 1) {
+              const btnGroup = document.createElement('div');
+              btnGroup.className = 'pagination-buttons';
+
+              const prevBtn = document.createElement('button');
+              prevBtn.className = 'pagination-btn';
+              prevBtn.textContent = '← Prev';
+              prevBtn.disabled = currentPage === 1;
+              prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); } });
+              btnGroup.appendChild(prevBtn);
+
+              for (let p = 1; p <= totalPages; p++) {
+                if (totalPages > 7 && Math.abs(p - currentPage) > 2 && p !== 1 && p !== totalPages) {
+                  if (p === 2 || p === totalPages - 1) {
+                    const span = document.createElement('span');
+                    span.style.padding = '4px 6px';
+                    span.textContent = '...';
+                    btnGroup.appendChild(span);
+                  }
+                  continue;
+                }
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'pagination-btn' + (p === currentPage ? ' active' : '');
+                pageBtn.textContent = p;
+                pageBtn.addEventListener('click', () => { currentPage = p; render(); });
+                btnGroup.appendChild(pageBtn);
+              }
+
+              const nextBtn = document.createElement('button');
+              nextBtn.className = 'pagination-btn';
+              nextBtn.textContent = 'Next →';
+              nextBtn.disabled = currentPage === totalPages;
+              nextBtn.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); } });
+              btnGroup.appendChild(nextBtn);
+
+              paginationFooter.appendChild(btnGroup);
+            }
+          }
+
+          render();
+        });
+      });
+    }
+
     window.$docsify = {
       name: 'NumKit Bugs &amp; Parity',
       repo: 'https://github.com/hotredman/numkit',
@@ -201,8 +430,8 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
       search: {
         maxAge: 86400000,
         paths: 'auto',
-        placeholder: 'Search defects, functions, errors...',
-        noData: 'No defects found',
+        placeholder: 'Search documentation...',
+        noData: 'No results found',
         depth: 3
       },
       copyCode: {
@@ -210,18 +439,15 @@ INDEX_HTML_TEMPLATE = """<!DOCTYPE html>
         errorText: 'Error',
         successText: 'Copied'
       },
-      pagination: {
-        previousText: 'Previous',
-        nextText: 'Next',
-        crossChapter: true
-      }
+      plugins: [
+        tablePaginationPlugin
+      ]
     };
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2/dist/docsify-copy-code.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-matlab.min.js"></script>
@@ -363,7 +589,7 @@ def build_site(out_dir):
     missing_count_m = re.search(r'Missing — not implemented\s*\((\d+)\)', missing_raw)
     missing_count = int(missing_count_m.group(1)) if missing_count_m else 839
 
-    # 4. Generate ROOT _sidebar.md (3 Clean Pillars)
+    # 4. Generate ROOT _sidebar.md
     root_sidebar = [
         "* [🏠 **Overview & Dashboard**](README.md)",
         "",
@@ -431,7 +657,6 @@ def build_site(out_dir):
     ]
     (out_dir / 'missing' / '_sidebar.md').write_text('\n'.join(missing_sidebar), encoding='utf-8')
 
-    # Extract missing functions content
     if '## ❌ Missing — not implemented' in missing_raw:
         missing_body = '## ❌ Missing — not implemented' + missing_raw.split('## ❌ Missing — not implemented')[1]
     else:
@@ -454,12 +679,12 @@ def build_site(out_dir):
     ]
     (out_dir / '_navbar.md').write_text('\n'.join(navbar), encoding='utf-8')
 
-    # 9. Generate MAIN README.md (Dashboard with 4 KPI cards and tables without Status column)
+    # 9. Generate MAIN README.md (Dashboard with Top-15 recent items)
     main_readme = []
     main_readme.append("# 🐞 NumKit Defect & MATLAB Parity Dashboard\n")
     main_readme.append("Welcome to the structured defect catalog and parity tracking system for **NumKit** (MATLAB/Octave-compatible C++ runtime).\n")
     
-    # 4 Metric Cards with links
+    # 4 Metric Cards
     main_readme.append('<div class="metric-grid">')
     main_readme.append(f'<a href="#/opened/README" class="metric-card"><h3>Active Open Defects</h3><div class="value" style="color:#ef4444;">{total_opened}</div></a>')
     main_readme.append(f'<a href="#/closed/README" class="metric-card"><h3>Resolved &amp; Fixed</h3><div class="value" style="color:#10b981;">{total_closed}</div></a>')
@@ -467,7 +692,7 @@ def build_site(out_dir):
     main_readme.append(f'<a href="#/missing/README" class="metric-card"><h3>Missing Backlog</h3><div class="value" style="color:#ec4899;">{missing_count}</div></a>')
     main_readme.append('</div>\n')
 
-    # Open Bugs Table
+    # Open Bugs (All or Top 15 on Dashboard)
     main_readme.append(f"## 🔴 Active Open Defects ({total_opened})\n")
     main_readme.append('<div class="table-open">\n')
     main_readme.append("| Found Date | Subsystem | Defect / Function | Sev | Kind |")
@@ -481,12 +706,12 @@ def build_site(out_dir):
 
     main_readme.append("\n---\n")
 
-    # Recent Fixes Table (Top 20 recently fixed)
-    main_readme.append(f"## ✅ Recently Resolved Defects\n")
+    # Recent Fixes Table (Top 15 recently fixed on Dashboard)
+    main_readme.append(f"## ✅ Recently Resolved Defects (Latest 15)\n")
     main_readme.append('<div class="table-closed">\n')
     main_readme.append("| Fixed Date | Subsystem | Resolved Issue | Commit | Sev |")
     main_readme.append("| :---: | :---: | :--- | :---: | :---: |")
-    for b in closed_sorted[:20]:
+    for b in closed_sorted[:15]:
         clean_title = b['title'].replace('|', '/')
         link = f"[{clean_title}](closed/{b['namespace']}/{b['filename']})"
         fx_date = f"`{b['fixed_date']}`" if b['fixed_date'] != '-' else (f"`{b['found_date']}`" if b['found_date'] != '-' else '-')
@@ -494,15 +719,15 @@ def build_site(out_dir):
         main_readme.append(f"| {fx_date} | **{b['namespace']}** | {link} | {commit_str} | {render_badge(b['severity'])} |")
     main_readme.append('\n</div>\n')
 
-    main_readme.append(f"\n👉 *[View all {total_closed} fixed issues in the complete Archive →](closed/README.md)*\n")
+    main_readme.append(f"\n👉 *[View all {total_closed} fixed issues with search & pagination in the complete Archive →](closed/README.md)*\n")
 
     (out_dir / 'README.md').write_text('\n'.join(main_readme), encoding='utf-8')
 
-    # 10. Generate opened/README.md
+    # 10. Generate opened/README.md (with interactive pagination & subsystem filter)
     opened_readme = [
         f"# 🔴 Open Defects Registry ({total_opened})\n",
         "Complete register of all currently active defects and feature gaps.\n",
-        '<div class="table-open">\n',
+        '<div class="table-open table-paginated">\n',
         "| Found Date | Subsystem | Defect / Function | Sev | Kind |",
         "| :---: | :---: | :--- | :---: | :---: |"
     ]
@@ -515,11 +740,11 @@ def build_site(out_dir):
     
     (out_dir / 'opened' / 'README.md').write_text('\n'.join(opened_readme), encoding='utf-8')
 
-    # 11. Generate closed/README.md
+    # 11. Generate closed/README.md (with interactive pagination & subsystem filter for 135+ items)
     closed_readme = [
         f"# ✅ Closed &amp; Resolved Defects Registry ({total_closed})\n",
         "Complete historical changelog of all resolved bugs and fixed regressions.\n",
-        '<div class="table-closed">\n',
+        '<div class="table-closed table-paginated">\n',
         "| Fixed Date | Subsystem | Resolved Issue | Commit | Sev |",
         "| :---: | :---: | :--- | :---: | :---: |"
     ]
