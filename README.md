@@ -86,33 +86,68 @@ int main() {
 
 ## Building
 
-### Requirements
+### Prerequisites
 
-- C++17 compatible compiler (GCC 9+, Clang 10+, MSVC 2019+)
-- CMake 3.21+
-- Node.js 18+ (for Web/Desktop IDE)
+- **C++ Engine**: C++17 compatible compiler (GCC 9+, Clang 10+, MSVC 2019+), CMake 3.21+, Ninja (recommended for Linux/macOS)
+- **Web & Desktop IDE**: Node.js 18+ and npm
+- **WebAssembly Engine** *(optional)*: [Emscripten SDK](https://emscripten.org/) (`EMSDK` environment variable)
 
-### Build & Test Native Engine
+---
 
-```bash
-# Windows
-scripts\windows\engine-build.cmd
-scripts\windows\tests-run.cmd
+### Native Engine & CLI
 
-# Linux / macOS
-./scripts/linux/engine-build.sh
-./scripts/linux/tests-run.sh
-```
+You can build either using automated helper scripts or standard CMake presets:
 
-### Build Web IDE (WebAssembly)
+#### Option A: Quick build via scripts
 
 ```bash
 # Windows
-scripts\windows\web-build.cmd
+scripts\windows\engine-build.cmd             # Release (Highway SIMD + Threads)
+scripts\windows\tests-run.cmd                # Build & run Google Test suite
+scripts\windows\tests-run.cmd --gtest_filter=*Matrix*  # Run specific tests
 
-# Linux / macOS
-./scripts/linux/web-build.sh
+# Linux / macOS / WSL
+./scripts/linux/engine-build.sh              # Release (Highway SIMD + Threads)
+./scripts/linux/tests-run.sh                 # Build & run Google Test suite
+./scripts/linux/tests-run.sh --gtest_filter=*Matrix*
 ```
+*Script flags:* `--debug` (debug symbols), `--portable` (scalar reference, no SIMD), `--wasm` (WebAssembly).
+
+#### Option B: Standard CMake Presets
+
+```bash
+# Configure & build
+cmake --preset windows-release               # On Linux: cmake --preset linux-release
+cmake --build --preset windows-release
+
+# Available presets: windows-release, windows-debug, windows-portable,
+#                    linux-release,   linux-debug,   linux-portable, wasm-release
+```
+
+#### Output Artifacts
+
+Binaries are located in `build/<os>/<config>/`:
+- `build/<os>/<config>/apps/numkit/numkit_repl` — Interactive MATLAB-compatible REPL and CLI runner (`numkit_repl script.m`).
+- `build/<os>/<config>/apps/numkit_codegen/numkit_codegen` — C++ AOT code generator.
+- `build/<os>/<config>/tests/gtest/numkit_gtest` — Google Test regression runner.
+
+---
+
+### Web & Desktop IDE
+
+#### Web IDE (WebAssembly + Vite)
+```bash
+scripts\windows\web-build.cmd    # Windows (outputs static bundle to deploy/web/)
+./scripts/linux/web-build.sh     # Linux / macOS
+```
+
+#### Desktop Application (Electron)
+```bash
+scripts\windows\desktop-build.cmd   # Packages Windows portable .exe
+./scripts/linux/desktop-build.sh    # Packages Linux AppImage and unpackaged dir
+```
+
+For development servers, documentation generators, and deployment workflows, see [`scripts/README.md`](scripts/README.md).
 
 ---
 
