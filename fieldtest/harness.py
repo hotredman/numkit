@@ -39,7 +39,19 @@ TMP = HERE / "corpus" / "tmp"
 CATALOG_CACHE = HERE / "corpus" / "catalog.json"
 NUMKIT = HERE.parent
 WASM_CLI = NUMKIT / "packages" / "numkit" / "bin" / "cli.js"
-NATIVE_CLI = NUMKIT / "build" / "desktop-fast" / "apps" / "numkit" / "Release" / "numkit_repl.exe"
+def _resolve_native_cli():
+    # OS-scoped presets first (build/<os>/<type>, the canonical layout
+    # since the scripts reorg), legacy desktop-fast as fallback — same
+    # pattern as tools/parity/run_parity.py and ide/desktop/main.js.
+    for c in (NUMKIT / "build" / "windows" / "release" / "apps" / "numkit" / "Release" / "numkit_repl.exe",
+              NUMKIT / "build" / "windows" / "release" / "apps" / "numkit" / "numkit_repl.exe",
+              NUMKIT / "build" / "linux" / "release" / "apps" / "numkit" / "numkit_repl",
+              NUMKIT / "build" / "desktop-fast" / "apps" / "numkit" / "Release" / "numkit_repl.exe"):
+        if c.exists():
+            return c
+    return NUMKIT / "build" / "windows" / "release" / "apps" / "numkit" / "Release" / "numkit_repl.exe"
+
+NATIVE_CLI = _resolve_native_cli()
 MATLAB = Path(r"C:\Program Files\MATLAB\R2025b\bin\matlab.exe")
 
 REL_TOL = 1e-9
