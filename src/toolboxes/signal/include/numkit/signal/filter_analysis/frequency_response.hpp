@@ -54,6 +54,14 @@ freqz(const Value &                b,
       bool                         whole = false,
       double                       fs    = 0.0);
 
+/// freqz(b, a, w): response at the GIVEN normalised radian frequencies
+/// (the vector-w form).
+std::tuple<Value, Value>
+freqz(const Value &                b,
+      const Value &                a,
+      const Value &                wvec,
+      std::pmr::memory_resource *  mr   = nullptr);
+
 /// Unwrapped phase response of a digital filter.
 ///
 /// Equivalent to `unwrap(angle(freqz(b, a, npts)))`.

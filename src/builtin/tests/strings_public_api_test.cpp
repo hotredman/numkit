@@ -151,11 +151,12 @@ TEST(BuiltinStringsPublicApi, Num2StrComplexScalar)
     EXPECT_EQ(numkit::builtin::num2str(z(1, 2), 3, mr).toString(), "1+2i");
     EXPECT_EQ(numkit::builtin::num2str(z(3.14159, -2.71828), std::string("%.3f"), mr).toString(),
               "3.142-2.718i");
-    // complex ARRAY remains a deferred gap -> clear throw, not a crash.
+    // complex ARRAY formats column-aligned (was a deferred throw; fixed
+    // 2026-09-05 — bugs/closed/lang/num2str-complex-array.md).
     Value arr = Value::matrix(1, 2, ValueType::COMPLEX, mr);
     arr.complexDataMut()[0] = {1, 2};
     arr.complexDataMut()[1] = {3, -4};
-    EXPECT_THROW(numkit::builtin::num2str(arr, mr), Error);
+    EXPECT_EQ(numkit::builtin::num2str(arr, mr).toString(), "1+2i 3-4i");
 }
 
 // num2str(X) / num2str(X,N) with VECTOR/MATRIX input and NO explicit format.

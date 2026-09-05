@@ -130,6 +130,10 @@ void ControlLibrary::install(Engine &engine)
 
     reg("response", "step",     &control::detail::step_reg);
     reg("response", "impulse",  &control::detail::impulse_reg);
+    // Internal alias so the m-source dispatcher (math_integration_reg.cpp)
+    // can delegate struct/LTI inputs to the C++ path — the m-source and
+    // the reg share the "impulse" name, the m-source wins.
+    reg("response", "impulse_lti",  &control::detail::impulse_reg);
     reg("response", "initial",  &control::detail::initial_reg);
     reg("response", "lsim",     &control::detail::lsim_reg);
     reg("response", "evalfr",   &control::detail::evalfr_reg);

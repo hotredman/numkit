@@ -53,6 +53,10 @@ Value conj(const Value &x, std::pmr::memory_resource *mr)
 Value complex(const Value &re, std::pmr::memory_resource *mr)
 {
     std::pmr::memory_resource *p = mr;
+    // complex(A) on already-complex A returns A UNCHANGED (MATLAB docs);
+    // elemAsDouble() would silently drop the imaginary parts.
+    if (re.isComplex())
+        return re;
     if (re.isScalar())
         return Value::complexScalar(re.toScalar(), 0.0, p);
     auto r = createLike(re, ValueType::COMPLEX, p);

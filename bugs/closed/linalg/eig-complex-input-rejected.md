@@ -1,6 +1,6 @@
 # linalg.eig — complex INPUT matrices rejected ("Not a double array")
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (2026-09-05)
 - **Severity:** P1 (a documented core API shape refused entirely; complex
   spectra code paths in the wild feed complex(A) directly)
 - **Kind:** bug
@@ -36,3 +36,14 @@ complexified real inputs.
 - **Guard:** `DISABLED_EigComplexInput` in
   `src/toolboxes/linalg/tests/eig_test.cpp` (diag = -0.372281, 5.37228) —
   built and verified RED under --gtest_also_run_disabled_tests.
+
+
+## Resolution (2026-09-05)
+
+Root cause was exactly the hypothesis: eigVDAuto/eigValuesAuto called
+isSymmetricApprox, which reads doubleData() and throws on complex
+storage before any path choice. Fix: complex input routes directly to
+the general path (its complex-Schur pipeline was already sound — the
+same one hardened by the same-day bulge-chase fix). Verified:
+eig(complex([1 2;3 4])) = {-0.372281, 5.372281} matching MATLAB;
+guard live (EigComplexInput).

@@ -191,8 +191,12 @@ def _values_close(a, b):
     a = np.asarray(a, dtype=np.complex128 if "c" in (a.dtype.kind, b.dtype.kind) else np.float64)
     b = np.asarray(b, dtype=a.dtype)
     both_nan = np.isnan(a) & np.isnan(b)
+    # ±Inf compares equal to itself (README semantics) — Inf-Inf = NaN
+    # otherwise flags identical workspaces as divergent (caught by
+    # Hornersrule_bisection_classic: -log(0) = +Inf on both sides).
+    same_inf = np.isinf(a) & (a == b)
     close = np.abs(a - b) <= 1e-9 + REL_TOL * np.maximum(np.abs(a), np.abs(b))
-    return bool(np.all(close | both_nan))
+    return bool(np.all(close | both_nan | same_inf))
 
 
 def matdiff(path_a, path_b):

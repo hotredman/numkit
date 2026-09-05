@@ -46,9 +46,7 @@ Value num2str(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX) {
         if (!x.isScalar())
-            throw Error("num2str: complex array formatting (column-aligned) is "
-                        "not supported in this revision; only scalar complex",
-                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+            return Value::fromString(num2strComplexArray(x, -1), mr);
         return Value::fromString(num2strComplexScalar(x.toComplex(), -1), mr);
     }
     if (x.isEmpty()) return Value::fromString("", mr);
@@ -78,10 +76,10 @@ Value num2str(const Value &x, std::pmr::memory_resource *mr)
 Value num2str(const Value &x, int N, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX) {
-        if (!x.isScalar())
-            throw Error("num2str: complex array formatting (column-aligned) is "
-                        "not supported in this revision; only scalar complex",
-                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        if (!x.isScalar()) {
+            int n = N; if (n < 1) n = 1;
+            return Value::fromString(num2strComplexArray(x, n), mr);
+        }
         int n = N; if (n < 1) n = 1;
         return Value::fromString(num2strComplexScalar(x.toComplex(), n), mr);
     }
@@ -128,10 +126,40 @@ Value num2str(const Value &x, const std::string &fmt,
     // independently and join them re±|im|i (MATLAB num2str(3.14159-2.71828i,
     // '%.3f') -> "3.142-2.718i"). Complex ARRAYS remain a deferred gap.
     if (x.type() == ValueType::COMPLEX) {
-        if (!x.isScalar())
-            throw Error("num2str: complex array formatting (column-aligned) is "
-                        "not supported in this revision; only scalar complex",
-                        0, 0, "num2str", "", "numkit:num2str:complexArray");
+        if (!x.isScalar()) {
+            // FMT form on a complex array: format both parts per element
+            // and reuse the same column-aligned layout via the scalar N-form
+            // approximation (apply fmt to both parts element-wise).
+            const std::size_t rows = x.dims().rows();
+            const std::size_t cols = x.dims().cols();
+            if (rows * cols == 0) return Value::fromString("", mr);
+            const Complex *d = x.complexData();
+            std::vector<std::vector<std::string>> cells(rows, std::vector<std::string>(cols));
+            std::vector<std::size_t> w(cols, 0);
+            for (std::size_t r = 0; r < rows; ++r)
+                for (std::size_t c = 0; c < cols; ++c) {
+                    const Complex z = d[r + c * rows];
+                    const std::string sr = num2str(Value::scalar(z.real(), mr), fmt, mr).toString();
+                    std::string s = sr;
+                    if (z.imag() != 0.0) {
+                        s += (z.imag() < 0.0 ? '-' : '+');
+                        s += num2str(Value::scalar(std::fabs(z.imag()), mr), fmt, mr).toString();
+                        s += 'i';
+                    }
+                    cells[r][c] = s;
+                    w[c] = std::max(w[c], s.size());
+                }
+            std::string out;
+            for (std::size_t r = 0; r < rows; ++r) {
+                if (r) out += '\n';
+                for (std::size_t c = 0; c < cols; ++c) {
+                    if (c) out += ' ';
+                    out.append(w[c] - cells[r][c].size(), ' ');
+                    out += cells[r][c];
+                }
+            }
+            return Value::fromString(out, mr);
+        }
         const Complex z = x.toComplex();
         const std::string sr = num2str(Value::scalar(z.real(), mr), fmt, mr).toString();
         if (z.imag() == 0.0) return Value::fromString(sr, mr);

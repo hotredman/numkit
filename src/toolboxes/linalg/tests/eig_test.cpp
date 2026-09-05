@@ -204,10 +204,10 @@ TEST_F(EigTest, EigAHPReciprocal3x3Spectrum)
     EXPECT_NEAR(evalScalar("wr(3)"), 0.080470316689016, 1e-9);
 }
 
-// --- bugs/opened/linalg/eig-complex-input-rejected.md ---
+// --- bugs/closed/linalg/eig-complex-input-rejected.md (FIXED) ---
 // Complex INPUT matrices must decompose like MATLAB does, not throw
 // "Not a double array".
-TEST_F(EigTest, DISABLED_EigComplexInput)
+TEST_F(EigTest, EigComplexInput)
 {
     eval("[V, D] = eig(complex([1 2; 3 4]));");
     eval("l = sort(real(diag(D)));");

@@ -47,7 +47,14 @@ function [x, mu] = nk_qp_kkt(H, f, Amat, cvec, n)
     x = -(H \ f); mu = zeros(0, 1); return;
   end
   At = transpose(Amat);
-  Z = zeros(k, k);
+  % Primal-dual KKT regularisation (the OSQP trick): a tiny -delta*I on
+  % the multiplier block makes the saddle system quasi-definite —
+  % nonsingular even when the active rows are linearly dependent (which
+  % a strict mldivide rejects; pinv instead returns min-norm garbage that
+  % violates the constraints — tried). delta is far below H's scale.
+  % (bugs/opened/optim/linprog-rank-deficient-error.md)
+  delta = 1e-12;
+  Z = -delta * eye(k);
   K = [H, At; Amat, Z];
   rhs = [-f; cvec];
   sol = K \ rhs;

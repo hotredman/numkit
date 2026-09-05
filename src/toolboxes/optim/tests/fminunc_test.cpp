@@ -51,8 +51,8 @@ TEST_F(FminuncTest, RejectsNonHandle) {
     EXPECT_THROW(eval("fminunc(5, 0);"), std::exception);
 }
 
-// --- bugs/opened/optim/linprog-rank-deficient-error.md ---
-TEST_F(FminuncTest, DISABLED_LinprogRankDeficientSolves)
+// --- bugs/closed/optim/linprog-rank-deficient-error.md (FIXED) ---
+TEST_F(FminuncTest, LinprogRankDeficientSolves)
 {
     eval("c=[-2;4;-2;2]; A=[-2 0 -3 0;-3 2 0 -4]; b=[-6;-8];");
     eval("Aeq=[4 -3 8 -1;1 0 0 1]; beq=[20;18]; lb=[1;0;2;0]; ub=[Inf;Inf;10;Inf];");

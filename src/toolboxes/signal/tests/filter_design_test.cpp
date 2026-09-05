@@ -341,3 +341,21 @@ TEST_F(FilterDesignTest, FreqsTwoArgAutoW)
     EXPECT_NEAR(evalScalar("abs(h(1))"), 0.9999500037496877, 1e-12);
     EXPECT_LT(evalScalar("abs(h(end))"), evalScalar("abs(h(100))"));
 }
+
+// --- freqz(b, a, w) vector form (fieldtest portion 10, pr7_2) ---
+TEST_F(FilterDesignTest, FreqzVectorW)
+{
+    eval("H = freqz([0.0534 -0.0009 -0.0009 0.0534], [1 -2.1291 1.7834 -0.5435], 0:pi/255:pi);");
+    EXPECT_EQ(eval("numel(H);").toScalar(), 256.0);
+    EXPECT_NEAR(evalScalar("abs(H(1))"), 0.947653, 1e-6);  // MATLAB-probed
+}
+
+// --- impulse(b, a, t) analog textbook form (fieldtest portion 10, pr2_4) ---
+TEST_F(FilterDesignTest, ImpulseBATAnalogForm)
+{
+    eval("h = impulse([1], [1 3 2], 0:.01:4);");
+    EXPECT_NEAR(evalScalar("h(1)"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h(end)"), 0.0179802, 1e-7);   // MATLAB-probed
+    // b=[1 3 2], a=[1 3 2] -> h = delta(t): residue degenerate; but the
+    // strictly-proper path above covers the book shape.
+}

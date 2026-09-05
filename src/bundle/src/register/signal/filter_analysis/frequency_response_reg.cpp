@@ -41,18 +41,28 @@ void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     double fs   = 0.0;
     bool   whole = false;
     int    numericSeen = 0;
+    const Value *wvec = nullptr;
     for (size_t i = 2; i < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             std::string s = args[i].toString();
             for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (s == "whole") whole = true;
         } else if (!args[i].isEmpty()) {
-            if (numericSeen == 0)      npts = static_cast<size_t>(args[i].toScalar());
+            if (numericSeen == 0 && args[i].numel() > 1)
+                wvec = &args[i];           // freqz(b,a,W): vector-w form
+            else if (numericSeen == 0) npts = static_cast<size_t>(args[i].toScalar());
             else if (numericSeen == 1) fs   = args[i].toScalar();
             ++numericSeen;
         }
     }
 
+    if (wvec) {
+        auto [Hv, Wv] = freqz(args[0], args[1], *wvec, ctx.engine->resource());
+        outs[0] = std::move(Hv);
+        if (nargout > 1)
+            outs[1] = std::move(Wv);
+        return;
+    }
     auto [H, W] = freqz(args[0], args[1], npts, ctx.engine->resource(), whole, fs);
     outs[0] = std::move(H);
     if (nargout > 1)

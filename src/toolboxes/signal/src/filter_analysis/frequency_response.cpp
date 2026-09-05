@@ -65,6 +65,39 @@ freqz(const Value &b, const Value &a, size_t npts, std::pmr::memory_resource *mr
     return std::make_tuple(std::move(H), std::move(W));
 }
 
+std::tuple<Value, Value>
+freqz(const Value &b, const Value &a, const Value &wvec, std::pmr::memory_resource *mr)
+{
+    // freqz(b, a, w): response at the GIVEN normalised radian frequencies
+    // (the vector-w form; MATLAB evaluates exactly these points).
+    const double *bd = b.doubleData();
+    const double *ad = a.doubleData();
+    const size_t nb = b.numel(), na = a.numel();
+    const size_t n = wvec.numel();
+    const double *wd = wvec.doubleData();
+
+    auto W = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    auto H = Value::complexMatrix(n, 1, mr);
+    for (size_t k = 0; k < n; ++k) {
+        const double w = wd[k];
+        W.doubleDataMut()[k] = w;
+        const Complex ejw(std::cos(w), -std::sin(w));
+        Complex num(0, 0), den(0, 0);
+        Complex ejwk(1, 0);
+        for (size_t i = 0; i < nb; ++i) {
+            num += bd[i] * ejwk;
+            ejwk *= ejw;
+        }
+        ejwk = Complex(1, 0);
+        for (size_t i = 0; i < na; ++i) {
+            den += ad[i] * ejwk;
+            ejwk *= ejw;
+        }
+        H.complexDataMut()[k] = num / den;
+    }
+    return std::make_tuple(std::move(H), std::move(W));
+}
+
 namespace {
 
 // Local unwrap (default tolerance π) — keeps phasez free of inter-file

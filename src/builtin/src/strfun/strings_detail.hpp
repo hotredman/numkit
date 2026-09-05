@@ -63,6 +63,38 @@ std::string num2strComplexScalar(Complex z, int precOverride)
     return s;
 }
 
+// Column-aligned layout for a COMPLEX, non-scalar array: each element
+// formatted by num2strComplexScalar (imag==0 prints as plain real — the
+// common complex-typed-storage-of-real-data case), columns padded to the
+// max element width of the column, rows joined with '\n'.
+// (bugs/opened/lang/num2str-complex-array.md)
+inline std::string num2strComplexArray(const Value &x, int precOverride)
+{
+    const std::size_t rows = x.dims().rows();
+    const std::size_t cols = x.dims().cols();
+    if (rows * cols == 0) return "";
+    const Complex *d = x.complexData();
+    std::vector<std::vector<std::string>> cells(rows, std::vector<std::string>(cols));
+    std::vector<std::size_t> w(cols, 0);
+    for (std::size_t r = 0; r < rows; ++r)
+        for (std::size_t c = 0; c < cols; ++c) {
+            cells[r][c] = num2strComplexScalar(d[r + c * rows], precOverride);
+            w[c] = std::max(w[c], cells[r][c].size());
+        }
+    std::string out;
+    for (std::size_t r = 0; r < rows; ++r) {
+        if (r) out += '\n';
+        for (std::size_t c = 0; c < cols; ++c) {
+            if (c) out += ' ';
+            const std::size_t pad = (c ? 1 : 0);  // single space separator
+            const std::string &s = cells[r][c];
+            out.append(w[c] - s.size() + (pad ? 0 : 0), ' ');
+            out += s;
+        }
+    }
+    return out;
+}
+
 // MATLAB's default num2str column format for a REAL, non-scalar array.
 // N >= 1 forces the precision (the num2str(X,N) form); N <= 0 selects the
 // default (auto): an all-integer array uses a fixed "%<W>.0f" field where

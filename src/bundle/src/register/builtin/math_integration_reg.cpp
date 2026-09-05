@@ -429,4 +429,65 @@ void registerIntegralM(Engine &engine)
     engine.registerBuiltinMSource(kIntegralMSource);
 }
 
+
+// Legacy textbook forms (fieldtest portion 10, springer-math books):
+//   inline(expr, arg1, ...) — the legacy anonymous-function constructor
+//   impulse(b, a, t)        — the analog impulse response of b(s)/a(s)
+//     evaluated on the t grid (partial fractions via residue; strictly
+//     proper transfers — direct-feedthrough terms error clearly).
+static const char *kInlineImpulseMSource = R"NKM(
+function f = inline(exprstr, varargin)
+  if ~ischar(exprstr)
+    error('inline: expression must be a char vector');
+  end
+  if isempty(varargin)
+    f = str2func(['@(x) ' exprstr]);
+  else
+    args = '';
+    for k = 1:numel(varargin)
+      args = [args ',' varargin{k}];
+    end
+    f = str2func(['@(' args(2:end) ') ' exprstr]);
+  end
+end
+
+function [h, tout, x] = impulse(b, a, t)
+  if isstruct(b)
+    % LTI struct form — delegate to the control-toolbox path (registered
+    % as impulse_lti; the bare name is shadowed by this dispatcher).
+    if nargin >= 2
+      [h, tout, x] = impulse_lti(b, a);
+    else
+      [h, tout, x] = impulse_lti(b);
+    end
+    return;
+  end
+  [rk, pk, kk] = residue(b, a);
+  if numel(kk) > 1 || (numel(kk) == 1 && kk ~= 0)
+    error('impulse: direct feedthrough terms are not supported');
+  end
+  h = zeros(size(t));
+  n = numel(pk);
+  k = 1;
+  while k <= n
+    if ~isreal(pk(k))
+      % complex pair: r*e^{pt} + conj -> 2*|r|*e^{sigma t}*cos(w t + angle(r))
+      rr = rk(k); pp = pk(k);
+      h = h + 2 * abs(rr) * exp(real(pp) * t) .* cos(imag(pp) * t + angle(rr));
+      k = k + 2;
+    else
+      h = h + rk(k) * exp(pk(k) * t);
+      k = k + 1;
+    end
+  end
+  tout = t;
+  x = [];
+end
+)NKM";
+
+void registerInlineImpulseM(Engine &engine)
+{
+    engine.registerBuiltinMSource(kInlineImpulseMSource);
+}
+
 } // namespace numkit::builtin

@@ -58,6 +58,12 @@ namespace {
 // general (char-poly + roots) path automatically.
 Value eigValuesAuto(const Value &M, std::pmr::memory_resource *mr)
 {
+    // Complex input never routes through the double-only symmetric path —
+    // isSymmetricApprox reads doubleData() and would reject it outright
+    // (bugs/opened/linalg/eig-complex-input-rejected.md). The general
+    // path's complex-Schur pipeline handles it.
+    if (M.isComplex())
+        return eig_general_values(M, mr);
     return isSymmetricApprox(M, 1e-10) ? eig_values(M, mr)
                                        : eig_general_values(M, mr);
 }
@@ -65,6 +71,8 @@ Value eigValuesAuto(const Value &M, std::pmr::memory_resource *mr)
 // [V, D] of M, choosing the symmetric or general path automatically.
 std::tuple<Value, Value> eigVDAuto(const Value &M, std::pmr::memory_resource *mr)
 {
+    if (M.isComplex())
+        return eig_general_VD(M, mr);
     return isSymmetricApprox(M, 1e-10) ? eig_symmetric(M, mr)
                                        : eig_general_VD(M, mr);
 }
