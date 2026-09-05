@@ -435,59 +435,105 @@ void registerIntegralM(Engine &engine)
 //   impulse(b, a, t)        — the analog impulse response of b(s)/a(s)
 //     evaluated on the t grid (partial fractions via residue; strictly
 //     proper transfers — direct-feedthrough terms error clearly).
-static const char *kInlineImpulseMSource = R"NKM(
-function f = inline(exprstr, varargin)
-  if ~ischar(exprstr)
-    error('inline: expression must be a char vector');
-  end
-  if isempty(varargin)
-    f = str2func(['@(x) ' exprstr]);
-  else
-    args = '';
-    for k = 1:numel(varargin)
-      args = [args ',' varargin{k}];
+static const char *kInlineClassSource = R"NKM(
+
+classdef inline
+    % inline(expr, arg1, ...) — the legacy anonymous-function constructor.
+    % MATLAB semantics (probed R2025b): class(f) == 'inline', formula(f)
+    % and char(f) return the expression source, f(x) evaluates. Callable
+    % via the subsref overload.
+    properties
+        expr
+        args
+        fh
     end
-    f = str2func(['@(' args(2:end) ') ' exprstr]);
-  end
+    methods
+        function obj = inline(exprstr, varargin)
+            if ~ischar(exprstr)
+                error('inline: expression must be a char vector');
+            end
+            obj.expr = exprstr;
+            obj.args = varargin;
+            if isempty(varargin)
+                obj.fh = str2func(['@(x) ' exprstr]);
+            else
+                args = '';
+                for k = 1:numel(varargin)
+                    args = [args ',' varargin{k}];
+                end
+                obj.fh = str2func(['@(' args(2:end) ') ' exprstr]);
+            end
+        end
+        function r = subsref(obj, s)
+            if strcmp(s(1).type, '()')
+                % feval + CSL-splat: a direct obj.fh(s(1).subs{:}) hits the
+                % handle-call CSL gap (f(c{:}) with a VARIABLE callee is not
+                % flattened by the compiler; feval is a named callee and is).
+                r = feval(obj.fh, s(1).subs{:});
+            else
+                r = builtin('subsref', obj, s);
+            end
+        end
+        function s = char(obj)
+            s = obj.expr;
+        end
+        function s = formula(obj)
+            s = obj.expr;
+        end
+        function disp(obj)
+            fprintf(['     Inline function:' char(10) '     %s(%s)' char(10)], ...
+                    strjoin(obj.args, ','), obj.expr);
+        end
+    end
 end
 
+)NKM";
+
+static const char *kImpulseMSource = R"NKM(
 function [h, tout, x] = impulse(b, a, t)
-  if isstruct(b)
-    % LTI struct form — delegate to the control-toolbox path (registered
-    % as impulse_lti; the bare name is shadowed by this dispatcher).
-    if nargin >= 2
-      [h, tout, x] = impulse_lti(b, a);
-    else
-      [h, tout, x] = impulse_lti(b);
+    % impulse(b, a, t): analog impulse response of b(s)/a(s) on the t
+    % grid — the legacy Signals & Systems textbook form (probed vs
+    % MATLAB R2025b). SIMPLE poles only for now: the residue builtin
+    % does not handle repeated poles (documented gap), and deconv —
+    % needed for a Heaviside recursion — has its own output-order bug
+    % (bugs/opened/lang/deconv-outputs-swapped.md). Direct-feedthrough
+    % k terms are not representable on a grid — MATLAB samples the
+    % strictly-proper part only (probed: impulse([1 0],[1 1]) at t=0
+    % gives -e^0, not delta).
+    if isstruct(b)
+        if nargin >= 2
+            [h, tout, x] = impulse_lti(b, a);
+        else
+            [h, tout, x] = impulse_lti(b);
+        end
+        return;
     end
-    return;
-  end
-  [rk, pk, kk] = residue(b, a);
-  if numel(kk) > 1 || (numel(kk) == 1 && kk ~= 0)
-    error('impulse: direct feedthrough terms are not supported');
-  end
-  h = zeros(size(t));
-  n = numel(pk);
-  k = 1;
-  while k <= n
-    if ~isreal(pk(k))
-      % complex pair: r*e^{pt} + conj -> 2*|r|*e^{sigma t}*cos(w t + angle(r))
-      rr = rk(k); pp = pk(k);
-      h = h + 2 * abs(rr) * exp(real(pp) * t) .* cos(imag(pp) * t + angle(rr));
-      k = k + 2;
-    else
-      h = h + rk(k) * exp(pk(k) * t);
-      k = k + 1;
+    [rk, pk, ~] = residue(b, a);
+    n = numel(pk);
+    h = zeros(size(t));
+    tol = 1e-8;
+    for k = 1:n
+        m = 1;
+        for j = k:-1:1
+            if abs(pk(j) - pk(k)) <= tol * (1 + abs(pk(k)))
+                m = k - j + 1;
+            end
+        end
+        h = h + rk(k) .* t.^(m-1) ./ factorial(m-1) .* exp(pk(k) .* t);
     end
-  end
-  tout = t;
-  x = [];
-end
+    if isreal(b) && isreal(a)
+        h = real(h);
+    end
+    tout = t;
+    x = [];
 )NKM";
 
 void registerInlineImpulseM(Engine &engine)
 {
-    engine.registerBuiltinMSource(kInlineImpulseMSource);
+    // The classdef needs the full eval path (class registration);
+    // registerBuiltinMSource only adopts FUNCTION_DEF nodes.
+    engine.evalSafe(kInlineClassSource);
+    engine.registerBuiltinMSource(kImpulseMSource);
 }
 
 } // namespace numkit::builtin

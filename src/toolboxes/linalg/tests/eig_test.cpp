@@ -214,3 +214,14 @@ TEST_F(EigTest, EigComplexInput)
     EXPECT_NEAR(evalScalar("l(1)"), -0.372281323269014, 1e-9);
     EXPECT_NEAR(evalScalar("l(2)"),  5.372281323269014, 1e-9);
 }
+
+// --- Hermitian complex input: D real, V complex (MATLAB-probed) ---
+TEST_F(EigTest, EigHermitianComplexRealD)
+{
+    eval("[V, D] = eig(complex([2 1i; -1i 2]));");
+    EXPECT_EQ(eval("isreal(D);").toScalar(), 1.0);
+    EXPECT_EQ(eval("isreal(V);").toScalar(), 0.0);
+    eval("l = sort(diag(D));");
+    EXPECT_NEAR(evalScalar("l(1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("l(2)"), 3.0, 1e-12);
+}

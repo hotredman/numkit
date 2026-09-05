@@ -359,3 +359,17 @@ TEST_F(FilterDesignTest, ImpulseBATAnalogForm)
     // b=[1 3 2], a=[1 3 2] -> h = delta(t): residue degenerate; but the
     // strictly-proper path above covers the book shape.
 }
+
+// --- impulse(b,a,t): simple poles + feedthrough (MATLAB-probed 2026-09-05).
+// Repeated poles (t^k*e^{pt}) are deferred: residue has no repeated-pole
+// support and deconv — needed for a Heaviside recursion — has an
+// output-order bug (bugs/opened/lang/deconv-outputs-swapped.md).
+TEST_F(FilterDesignTest, ImpulseBATSimpleAndFeedthrough)
+{
+    eval("h = impulse([1], [1 3 2], 0:.01:4);");
+    EXPECT_NEAR(evalScalar("h(1)"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h(end)"), 0.0179802, 1e-7);
+    eval("h2 = impulse([1 0],[1 1], 0:.5:2);");          // smooth part only
+    EXPECT_NEAR(evalScalar("h2(1)"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h2(2)"), -0.6065306597, 1e-9);
+}

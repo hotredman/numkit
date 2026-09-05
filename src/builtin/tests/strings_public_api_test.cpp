@@ -156,7 +156,7 @@ TEST(BuiltinStringsPublicApi, Num2StrComplexScalar)
     Value arr = Value::matrix(1, 2, ValueType::COMPLEX, mr);
     arr.complexDataMut()[0] = {1, 2};
     arr.complexDataMut()[1] = {3, -4};
-    EXPECT_EQ(numkit::builtin::num2str(arr, mr).toString(), "1+2i 3-4i");
+    EXPECT_EQ(numkit::builtin::num2str(arr, mr).toString(), "1+2i   3-4i");  // 3-space separator (MATLAB-probed spacing model)
 }
 
 // num2str(X) / num2str(X,N) with VECTOR/MATRIX input and NO explicit format.

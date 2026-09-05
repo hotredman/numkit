@@ -54,3 +54,19 @@ Bonus bug found by the guard: complex(A) on an ALREADY-COMPLEX A
 silently dropped the imaginary parts (elemAsDouble through a complex
 matrix); MATLAB returns A unchanged — fixed with a passthrough in
 src/builtin/src/elfun/complex.cpp.
+
+
+## Fidelity addendum (2026-09-05, follow-up "full MATLAB parity")
+
+Byte-exact vs MATLAB R2025b (probed, guarded):
+- complex([1.5 2.25 3.125]) -> '1.5        2.25       3.125'
+- complex([1 2; 3 4]) -> '1  2' / '3  4' as a 2x4 CHAR MATRIX
+  (return shape fixed: was a 1-row char with embedded newlines)
+- complex([1+2i 3-4i]) -> '1+2i   3-4i'
+- any nonzero imag -> EVERY element in a+bi form (imag==0 get '+0i')
+
+Known residual (cosmetic): the exact field-width model for mixed
+integer-magnitude complex arrays (complex([100 200 3000]) — MATLAB gives
+spacing 3/2, derivable neither from maxChars+2 nor P+7 consistently with
+the other probes) is not reproduced; spacing may differ by a column.
+Documented divergence; values and the a+bi forms are correct.

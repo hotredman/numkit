@@ -54,6 +54,24 @@ void polyeig_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
 namespace {
 
+// A == A' within tol (complex Hermitian: conj-transpose equality).
+bool isHermitianApprox(const Value &A, double tol)
+{
+    if (A.dims().ndim() != 2 || A.dims().rows() != A.dims().cols())
+        return false;
+    if (!A.isComplex()) return false;
+    const std::size_t n = static_cast<std::size_t>(A.dims().rows());
+    const Complex *d = A.complexData();
+    for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t j = i + 1; j < n; ++j) {
+            const Complex a = d[i + j * n], b = d[j + i * n];
+            const double scale = std::max(1.0, std::max(std::abs(a), std::abs(b)));
+            if (std::abs(a - std::conj(b)) > tol * scale)
+                return false;
+        }
+    return true;
+}
+
 // Eigenvalues of M as a column vector, choosing the symmetric (Jacobi) or
 // general (char-poly + roots) path automatically.
 Value eigValuesAuto(const Value &M, std::pmr::memory_resource *mr)
@@ -71,8 +89,21 @@ Value eigValuesAuto(const Value &M, std::pmr::memory_resource *mr)
 // [V, D] of M, choosing the symmetric or general path automatically.
 std::tuple<Value, Value> eigVDAuto(const Value &M, std::pmr::memory_resource *mr)
 {
-    if (M.isComplex())
-        return eig_general_VD(M, mr);
+    if (M.isComplex()) {
+        auto [V, D] = eig_general_VD(M, mr);
+        // MATLAB semantics (probed R2025b): a complex HERMITIAN input
+        // returns REAL D (the spectrum is real by theory; the complex-Schur
+        // pipeline leaves ~1e-16 dust) while V stays complex.
+        if (isHermitianApprox(M, 1e-10) && D.isComplex()) {
+            const Complex *dd = D.complexData();
+            const std::size_t n = D.numel();
+            auto Dr = Value::matrix(D.dims().rows(), D.dims().cols(), ValueType::DOUBLE, mr);
+            for (std::size_t i = 0; i < n; ++i)
+                Dr.doubleDataMut()[i] = dd[i].real();
+            return std::make_tuple(std::move(V), std::move(Dr));
+        }
+        return std::make_tuple(std::move(V), std::move(D));
+    }
     return isSymmetricApprox(M, 1e-10) ? eig_symmetric(M, mr)
                                        : eig_general_VD(M, mr);
 }

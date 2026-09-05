@@ -42,11 +42,35 @@ namespace numkit::builtin {
 // See BUGS.md #26.
 
 
+// A newline-joined layout string -> a char MATRIX with one row per line
+// (right-padded to max width), matching MATLAB's num2str return shape.
+static Value charMatrixFromLines(const std::string &s, std::pmr::memory_resource *mr)
+{
+    std::vector<std::string> lines;
+    std::size_t pos = 0;
+    for (;;) {
+        std::size_t nl = s.find('\n', pos);
+        lines.push_back(s.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos));
+        if (nl == std::string::npos) break;
+        pos = nl + 1;
+    }
+    if (lines.size() <= 1)
+        return Value::fromString(s, mr);
+    std::size_t maxW = 0;
+    for (auto &L : lines) maxW = std::max(maxW, L.size());
+    auto m = Value::matrix(lines.size(), maxW, ValueType::CHAR, mr);
+    char *dst = static_cast<char *>(m.rawDataMut());
+    for (std::size_t r = 0; r < lines.size(); ++r)
+        for (std::size_t c = 0; c < maxW; ++c)
+            dst[c * lines.size() + r] = (c < lines[r].size()) ? lines[r][c] : ' ';
+    return m;
+}
+
 Value num2str(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::COMPLEX) {
         if (!x.isScalar())
-            return Value::fromString(num2strComplexArray(x, -1), mr);
+            return charMatrixFromLines(num2strComplexArray(x, -1), mr);
         return Value::fromString(num2strComplexScalar(x.toComplex(), -1), mr);
     }
     if (x.isEmpty()) return Value::fromString("", mr);
@@ -78,7 +102,7 @@ Value num2str(const Value &x, int N, std::pmr::memory_resource *mr)
     if (x.type() == ValueType::COMPLEX) {
         if (!x.isScalar()) {
             int n = N; if (n < 1) n = 1;
-            return Value::fromString(num2strComplexArray(x, n), mr);
+            return charMatrixFromLines(num2strComplexArray(x, n), mr);
         }
         int n = N; if (n < 1) n = 1;
         return Value::fromString(num2strComplexScalar(x.toComplex(), n), mr);

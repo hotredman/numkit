@@ -61,3 +61,25 @@ TEST_F(StrfunTest, InlineConstructor)
     EXPECT_NEAR(engine->eval("f3 = inline('5*sin(2*pi*1*t).*exp(-.4*t)','t'); f3(0.5);").toScalar(),
                 5.01328e-16, 1e-20);
 }
+
+// --- inline object semantics (MATLAB-probed 2026-09-05) ---
+TEST_F(StrfunTest, InlineObjectSemantics)
+{
+    Value g = engine->eval("g = inline('a+b','a','b');");
+    EXPECT_EQ(engine->eval("class(g);").toString(), "inline");
+    EXPECT_EQ(engine->eval("formula(g);").toString(), "a+b");
+    EXPECT_EQ(engine->eval("char(g);").toString(), "a+b");
+    EXPECT_NEAR(engine->eval("g(2,3);").toScalar(), 5.0, 1e-12);
+}
+
+// --- num2str complex-array exact spacing (MATLAB-probed 2026-09-05) ---
+TEST_F(StrfunTest, Num2strComplexArraySpacing)
+{
+    EXPECT_EQ(engine->eval("num2str(complex([1.5 2.25 3.125]));").toString(),
+              "1.5        2.25       3.125");
+    // toString() on a char MATRIX concatenates columns — compare per row.
+    EXPECT_EQ(engine->eval("b = num2str(complex([1 2; 3 4])); b(1,:);").toString(), "1  2");
+    EXPECT_EQ(engine->eval("b = num2str(complex([1 2; 3 4])); b(2,:);").toString(), "3  4");
+    EXPECT_EQ(engine->eval("num2str(complex([1+2i 3-4i]));").toString(), "1+2i   3-4i");
+    EXPECT_EQ(engine->eval("size(num2str(complex([1 2; 3 4])), 1);").toScalar(), 2.0);
+}

@@ -74,22 +74,84 @@ inline std::string num2strComplexArray(const Value &x, int precOverride)
     const std::size_t cols = x.dims().cols();
     if (rows * cols == 0) return "";
     const Complex *d = x.complexData();
-    std::vector<std::vector<std::string>> cells(rows, std::vector<std::string>(cols));
-    std::vector<std::size_t> w(cols, 0);
-    for (std::size_t r = 0; r < rows; ++r)
-        for (std::size_t c = 0; c < cols; ++c) {
-            cells[r][c] = num2strComplexScalar(d[r + c * rows], precOverride);
-            w[c] = std::max(w[c], cells[r][c].size());
+
+    // Split into two probed regimes (MATLAB R2025b):
+    // 1) ALL imaginary parts == 0 (complex-typed storage of real data):
+    //    MATLAB formats EXACTLY like the real path — all-integer arrays
+    //    use "%<maxchars+2>" left-justified fields; fractional arrays use
+    //    "%<P+7>.<P>g" right-aligned fields; common blank columns stripped.
+    // 2) Any nonzero imaginary part: EVERY element prints in a+bi form
+    //    (imag==0 elements get "+0i"); per-element scalar formatting.
+    //    (Exact field-width model for this regime is a documented
+    //    divergence — see the bug file.)
+    bool anyImag = false, allInt = true;
+    double maxAbs = 0.0;
+    for (std::size_t i = 0; i < rows * cols; ++i) {
+        if (d[i].imag() != 0.0) anyImag = true;
+        if (d[i].real() != std::floor(d[i].real())) allInt = false;
+        maxAbs = std::max(maxAbs, std::max(std::abs(d[i].real()), std::abs(d[i].imag())));
+    }
+    if (!anyImag) {
+        std::vector<std::string> cells;
+        std::size_t wmax = 0;
+        for (std::size_t i = 0; i < rows * cols; ++i) {
+            std::string s = num2strComplexScalar(d[i], precOverride);
+            wmax = std::max(wmax, s.size());
+            cells.push_back(std::move(s));
         }
+        const std::size_t W = allInt ? wmax + 2
+                                     : (static_cast<std::size_t>(std::max(0, static_cast<int>(std::floor(std::log10(maxAbs > 0 ? maxAbs : 1.0))))) + 5 + 7);
+        std::string out;
+        for (std::size_t r = 0; r < rows; ++r) {
+            if (r) out += '\n';
+            for (std::size_t c = 0; c < cols; ++c) {
+                const std::string &s = cells[r + c * rows];
+                const std::size_t pad = W > s.size() ? W - s.size() : 0;
+                if (allInt) { out += s; out.append(pad, ' '); }
+                else { out.append(pad, ' '); out += s; }
+            }
+        }
+        // strip common leading/trailing blank columns (row-preserving)
+        std::vector<std::string> lines;
+        std::size_t pos = 0;
+        while (pos <= out.size()) {
+            std::size_t nl = out.find('\n', pos);
+            lines.push_back(out.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos));
+            if (nl == std::string::npos) break;
+            pos = nl + 1;
+        }
+        std::size_t commonLead = lines.empty() ? 0 : lines[0].size();
+        std::size_t commonTrail = lines.empty() ? 0 : lines[0].size();
+        for (auto &L : lines) {
+            std::size_t a = L.find_first_not_of(' ');
+            if (a == std::string::npos) a = L.size();
+            commonLead = std::min(commonLead, a);
+            std::size_t b = L.find_last_not_of(' ');
+            if (b == std::string::npos) b = 0; else b = L.size() - 1 - b;
+            commonTrail = std::min(commonTrail, b);
+        }
+        std::string stripped;
+        for (std::size_t i = 0; i < lines.size(); ++i) {
+            if (i) stripped += '\n';
+            std::size_t e = lines[i].size() > commonTrail ? lines[i].size() - commonTrail : 0;
+            stripped += lines[i].substr(commonLead, e > commonLead ? e - commonLead : 0);
+        }
+        return stripped;
+    }
+    // regime 2: any nonzero imag — a+bi for every element
     std::string out;
     for (std::size_t r = 0; r < rows; ++r) {
         if (r) out += '\n';
         for (std::size_t c = 0; c < cols; ++c) {
-            if (c) out += ' ';
-            const std::size_t pad = (c ? 1 : 0);  // single space separator
-            const std::string &s = cells[r][c];
-            out.append(w[c] - s.size() + (pad ? 0 : 0), ' ');
-            out += s;
+            if (c) out += "   ";
+            const Complex z = d[r + c * rows];
+            char buf[64], buf2[64];
+            snprintf(buf, sizeof buf, "%g", z.real());
+            snprintf(buf2, sizeof buf2, "%g", std::abs(z.imag()));
+            out += buf;
+            out += (z.imag() < 0.0) ? "-" : "+";
+            out += buf2;
+            out += "i";
         }
     }
     return out;
