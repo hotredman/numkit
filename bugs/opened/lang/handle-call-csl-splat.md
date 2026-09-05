@@ -40,5 +40,6 @@ execCallIndirect boundary. TreeWalker needs the symmetric fix.
 
 ## References
 
-- **Guard:** deferred — engine feature; `DISABLED_HandleCallCslSplat` to
-  land with the fix (pattern known: f=@(a,b)a+b; f({2,3}{:}) == 5).
+- **Guard:** deferred — engine feature landing in the compiler + VM +
+  TreeWalker simultaneously; the repro above is the guard pattern
+  (f=@(a,b)a+b; f({2,3}{:}) == 5).
