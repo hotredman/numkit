@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <cstdio>
 #include <limits>
 #include <string>
 #include <tuple>
@@ -273,6 +274,33 @@ eig_general_VD(const Value &A, std::pmr::memory_resource *mr)
         if (norm > 0.0) {
             for (std::size_t i = 0; i < n; ++i)
                 Vd[i + k * n] /= norm;
+        }
+    }
+
+    // MATLAB semantics: a real eigenproblem with a real spectrum returns
+    // REAL V/D. The complex-Schur pipeline leaves ~1e-16 imaginary dust;
+    // narrow to double when the spectrum and the (unit-norm) vectors are
+    // real to tolerance (bugs: linalg/eig-vector-selection-ahp).
+    {
+        double aMax = 0.0;
+        for (std::size_t i = 0; i < n * n; ++i)
+            aMax = std::max(aMax, std::abs(A_c.complexData()[i].real()));
+        const double tol = static_cast<double>(n) *
+                           std::numeric_limits<double>::epsilon() * (1.0 + aMax);
+        bool real_spectrum = true;
+        for (std::size_t k = 0; k < n && real_spectrum; ++k)
+            real_spectrum = std::abs(Dd[k + k * n].imag()) <= tol;
+        double vImax = 0.0;
+        for (std::size_t i = 0; i < n * n; ++i)
+            vImax = std::max(vImax, std::abs(Vd[i].imag()));
+        if (real_spectrum && vImax <= 1e3 * tol) {
+            auto Vr = Value::matrix(n, n, ValueType::DOUBLE, mr);
+            auto Dr = Value::matrix(n, n, ValueType::DOUBLE, mr);
+            for (std::size_t i = 0; i < n * n; ++i) {
+                Vr.doubleDataMut()[i] = Vd[i].real();
+                Dr.doubleDataMut()[i] = Dd[i].real();
+            }
+            return std::make_tuple(std::move(Vr), std::move(Dr));
         }
     }
 
@@ -546,7 +574,9 @@ void complexSchurQR(Complex *H, Complex *Z, std::size_t n)
             --l;
         }
         if (l == p) { p -= 1; iter = 0; continue; }
-        if (++iter > 300) break;
+        if (++iter > 60 * (N + 1))  // LAPACK-style budget; unreachable when converged
+            throw Error("eig: QR iteration failed to converge",
+                        0, 0, "eig", "", "numkit:eig:qrNoConverge");
 
         // Wilkinson shift from trailing 2x2 block: H[p-1..p, p-1..p]
         Complex a = h(p - 1, p - 1);
@@ -569,7 +599,12 @@ void complexSchurQR(Complex *H, Complex *Z, std::size_t n)
 
         for (int k = l; k < p; ++k) {
             Complex f = (k == l) ? (h(k, k) - shift) : h(k, k - 1);
-            Complex g = h(k + 1, k);
+            // k > l chases the BULGE created by the previous right rotation:
+            // it sits at h(k+1, k-1), NOT at h(k+1, k). Reading the wrong
+            // column built a Givens that never annihilated the bulge — the
+            // iteration budget ran out and the forced triangularisation
+            // emitted garbage eigenvalues (bugs: linalg/eig-vector-selection-ahp).
+            Complex g = (k == l) ? h(k + 1, k) : h(k + 1, k - 1);
 
             double norm = std::sqrt(detail::abs_sq(f) + detail::abs_sq(g));
             if (norm == 0.0) continue;

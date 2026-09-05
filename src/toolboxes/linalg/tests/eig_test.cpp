@@ -173,3 +173,33 @@ TEST_F(EigTest, EigAHPConsistentPerronSelection)
     EXPECT_NEAR(evalScalar("w1(2)"), 5.0 / 13.0, 1e-12);
     EXPECT_NEAR(evalScalar("w1(3)"), 3.0 / 13.0, 1e-12);
 }
+
+// --- bugs/closed/linalg/eig-vector-selection-ahp.md (FIXED: bulge-chase column) ---
+// Real 3x3 reciprocal matrix whose complex-Schur QR used to hit the
+// iteration budget and return a garbage spectrum ({1.54+3.66i, ...}).
+// The bulge-chasing Givens read h(k+1, k) instead of the bulge position
+// h(k+1, k-1); after the fix the [V,D] path matches MATLAB R2025b:
+// spectrum {4.23118, -0.61559, -0.61559+/-2.19782i}, Perron weight of the
+// dominant eigenvalue = [0.730911 0.588371 0.346858] (17-digit probed).
+TEST_F(EigTest, EigAHPReciprocal3x3Spectrum)
+{
+    eval("A = [1 9 3; 0.1111111111111111 1 8; 0.3333333333333333 0.125 1];");
+    eval("[V, D] = eig(A);");
+    // Spectrum as a SET (column order is engine-defined).
+    eval("lams = sortrows([real(diag(D)), imag(diag(D))], [1 2]);");
+    EXPECT_NEAR(evalScalar("lams(1,1)"), -0.615589888895067, 1e-9);
+    EXPECT_NEAR(evalScalar("lams(1,2)"), -2.197815294172810, 1e-9);
+    EXPECT_NEAR(evalScalar("lams(2,1)"), -0.615589888895067, 1e-9);
+    EXPECT_NEAR(evalScalar("lams(2,2)"),  2.197815294172810, 1e-9);
+    EXPECT_NEAR(evalScalar("lams(3,1)"),  4.231179777790134, 1e-9);
+    EXPECT_NEAR(evalScalar("lams(3,2)"),  0.0, 1e-9);
+    // A·V == V·D (eigenvector residual — the AHP symptom was a basis-vector
+    // "eigenvector" that satisfied nothing).
+    EXPECT_NEAR(evalScalar("max(max(abs(A*V - V*D)))"), 0.0, 1e-9);
+    // The Perron weight via the real-code selection idiom.
+    eval("[~, i] = max(real(diag(D))); w = V(:, i); w = w / sum(w);");
+    eval("wr = real(w);");
+    EXPECT_NEAR(evalScalar("wr(1)"), 0.696349678003404, 1e-9);
+    EXPECT_NEAR(evalScalar("wr(2)"), 0.223180005307580, 1e-9);
+    EXPECT_NEAR(evalScalar("wr(3)"), 0.080470316689016, 1e-9);
+}
