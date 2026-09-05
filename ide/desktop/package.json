@@ -34,6 +34,14 @@
     },
     "portable": {
       "artifactName": "numkit_ide.exe"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "dir"
+      ],
+      "category": "Development",
+      "artifactName": "numkit_ide.AppImage"
     }
   },
   "devDependencies": {

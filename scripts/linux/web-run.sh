@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 IDE_DIR="${PROJECT_DIR}/ide"
-WASM_DIST="${PROJECT_DIR}/build/browser/wasm/dist"
+WASM_DIST="${PROJECT_DIR}/build/wasm/release/wasm/dist"
 
 if [ ! -d "${IDE_DIR}" ]; then
     echo "ide/ not found"
@@ -15,13 +16,12 @@ if ! command -v node &>/dev/null; then
     exit 1
 fi
 
-# Copy WASM artifacts if available
 if [ -f "${WASM_DIST}/numkit_ide.wasm" ]; then
     cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
     cp "${WASM_DIST}/numkit_ide.wasm" "${IDE_DIR}/public/"
     echo "WASM engine found"
 else
-    echo "WASM not built — fallback mode (build with: ./engine-build.sh --wasm)"
+    echo "WASM not built — fallback mode (build with: ./scripts/linux/engine-build.sh --wasm)"
 fi
 
 cd "${IDE_DIR}"
@@ -31,8 +31,8 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-echo ""
+echo
 echo "Starting dev server at http://localhost:3000"
-echo ""
+echo
 
 npm run dev

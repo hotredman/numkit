@@ -92,23 +92,26 @@ int main() {
 - CMake 3.21+
 - Node.js 18+ (for Web/Desktop IDE)
 
-### Build Native Engine
+### Build & Test Native Engine
 
 ```bash
-# Configure and build
-cmake --preset=portable
-cmake --build --preset=portable
+# Windows
+scripts\windows\engine-build.cmd
+scripts\windows\tests-run.cmd
 
-# Run tests
-ctest --preset=portable
+# Linux / macOS
+./scripts/linux/engine-build.sh
+./scripts/linux/tests-run.sh
 ```
 
 ### Build Web IDE (WebAssembly)
 
 ```bash
-# Build WASM backend and frontend bundle
-scripts/web-build.bat        # Windows
-# or ./scripts/web-build.sh   # Linux/macOS
+# Windows
+scripts\windows\web-build.cmd
+
+# Linux / macOS
+./scripts/linux/web-build.sh
 ```
 
 ---

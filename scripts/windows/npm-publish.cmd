@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
-set PROJECT_DIR=%SCRIPT_DIR%..\
+set PROJECT_DIR=%SCRIPT_DIR%..\..\
 
 set SKIP_BUILD=0
 set DRY_RUN=0
@@ -43,7 +43,7 @@ if errorlevel 1 (
 
 if "%SKIP_BUILD%"=="0" (
     echo === Step 1/4: Rebuilding the WASM engine ===
-    call "%SCRIPT_DIR%web-build.bat"
+    call "%SCRIPT_DIR%web-build.cmd"
     if errorlevel 1 (
         echo ERROR: web-build failed - aborting publish.
         exit /b 1
@@ -116,10 +116,11 @@ echo Steps: rebuild WASM (web-build^) - refresh dist/ - npm test - npm publish.
 echo Requires: Node 16+, npm login, EMSDK installed (unless --skip-build^).
 echo.
 echo Options:
-echo   --skip-build   Reuse the existing build\browser\wasm artifacts.
+echo   --skip-build   Reuse existing build artifacts.
 echo   --dry-run      Do everything except the actual npm upload.
 echo   -h, --help     Show this help message.
 exit /b 0
+
 :show_help
 echo Usage: %~nx0 [--skip-build] [--dry-run]
 echo Run with -h for details.

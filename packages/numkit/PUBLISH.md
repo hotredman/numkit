@@ -25,18 +25,18 @@ cd ..\..
 :: BEFORE the real publish (cannot be done from this Windows box):
 ::   one manual smoke on Linux/macOS (or WSL): npx -y numkit -e "disp(2+2)"
 ::   plus one file run — cli.js path handling has only been exercised on Windows.
-scripts\npm-publish.bat --dry-run        # rehearse: build + refresh + test + pack preview
-scripts\npm-publish.bat                  # for real: uploads to the registry
+scripts\windows\npm-publish.cmd --dry-run        # rehearse: build + refresh + test + pack preview
+scripts\windows\npm-publish.cmd                  # for real: uploads to the registry
 ```
 
-(`scripts/npm-publish.sh` on Linux/macOS; `--skip-build` reuses an existing
-`build/browser` WASM.) The WASM engine (~16 MB, ~4 MB compressed) ships inside
+(`scripts/linux/npm-publish.sh` on Linux/macOS; `--skip-build` reuses an existing
+`build/wasm/release` WASM.) The WASM engine (~16 MB, ~4 MB compressed) ships inside
 the tarball. Verify at https://www.npmjs.com/package/numkit and test
 `npx numkit -e "disp(1+1)"`.
 
 ## After first publish — make agents find it
 
-1. **Demo site**: `scripts\web-publish.bat --push` — deploys `llms.txt` to
+1. **Demo site**: `scripts\windows\web-publish.cmd --push` — deploys `llms.txt` to
    https://hotredman.github.io/numkit-demo/llms.txt (agents and LLM crawlers read it).
 2. **README badge** (already added) links to npm.
 3. **GitHub Release** with the native CLI binaries per platform (optional but

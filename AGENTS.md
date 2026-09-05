@@ -16,12 +16,13 @@ surface to the user**. Do not silently work on top of someone else's work.
 
 - C++ MATLAB-compatible runtime: parser → AST → (TreeWalker | Bytecode VM).
 - Two backends, dual-engine tests via `DualEngineTest` fixture.
-- Build presets: `desktop-fast` (default, x86_64 + Highway SIMD),
-  `portable`, `apple-m`, `browser` (WASM via emsdk).
-- Build dir = `build-<preset>/` per source root; runs of cmake never share
-  binaryDir between worktrees.
-- Test runner: `build-<preset>/tests/gtest/Release/numkit_gtest.exe`.
-- WASM: `scripts/engine-build.sh --wasm` with emsdk env sourced; rebuild the IDE web bundle via `scripts/web-build.sh` (see `scripts/README.md`).
+- Build presets: `windows-release` / `linux-release` (default, x86_64 + Highway SIMD),
+  `windows-debug` / `linux-debug`, `windows-portable` / `linux-portable`, `wasm-release` (WASM via emsdk).
+  (Legacy aliases `desktop-fast` and `browser` remain supported).
+- Build dir = `build/<os>/<type>/` per source root (e.g. `build/windows/release`, `build/linux/release`, `build/wasm/release`).
+- Test runner: `scripts/windows/tests-run.cmd` (Windows) or `scripts/linux/tests-run.sh` (Linux),
+  which automatically build incrementally and run `numkit_gtest`.
+- WASM: `scripts/windows/engine-build.cmd --wasm` or `scripts/linux/engine-build.sh --wasm` with emsdk env sourced; rebuild the IDE web bundle via `scripts/windows/web-build.cmd` or `scripts/linux/web-build.sh` (see `scripts/README.md`).
 
 ## Commits
 
@@ -35,7 +36,7 @@ surface to the user**. Do not silently work on top of someone else's work.
 - **Push policy** (user rule, 2026-09-01): the agent pushes ONLY to
   `origin` (git.megahard.ru). The public GitHub mirror
   (`github` remote, hotredman/numkit) is pushed manually by the user
-  via `scripts/github-push` — the agent never pushes to it.
+  via `scripts/windows/code-publish.cmd` (or `scripts/linux/code-publish.sh`) — the agent never pushes to it.
 
 ## Documentation map (`dev-docs/`)
 
@@ -82,13 +83,14 @@ For every change, run the MINIMUM set that proves YOUR change is correct:
 
 A green targeted run is sufficient to commit. If the user asks for a
 full run (or before a publish), the command is:
-`build/desktop-fast/tests/gtest/Release/numkit_gtest.exe`
+`scripts/windows/tests-run.cmd` (or `scripts/linux/tests-run.sh`)
 
 ## Smoke tests
 
 - Hand-runnable `.m` smokes live in `src/toolboxes/<name>/tests/smoke/*_smoke.m`
   (one per public function or related cluster). Run via
-  `build/desktop-fast/apps/numkit/Release/numkit_repl.exe <path>`.
+  `build/windows/release/apps/numkit/Release/numkit_repl.exe <path>`
+  (or on Linux `build/linux/release/apps/numkit/numkit_repl <path>`).
 - **Every smoke MUST start with `clear` on the very first line**, then the
   body. This ensures no leftover workspace state from a prior run leaks
   into the test. No `import compat.*` — builtins are globally registered

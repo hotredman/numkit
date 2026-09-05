@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Publish packages/numkit (the WASM CLI) to npm — manual flow.
 #
-#   scripts/npm-publish.sh [--skip-build] [--dry-run]
+#   scripts/linux/npm-publish.sh [--skip-build] [--dry-run]
 #
 # Steps: rebuild WASM (web-build.sh) → refresh dist/ → npm test → npm publish.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$SCRIPT_DIR/.."
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PKG_DIR="$PROJECT_DIR/packages/numkit"
 
 SKIP_BUILD=0
@@ -61,13 +61,16 @@ if [ "$DRY_RUN" = 1 ]; then
 fi
 
 echo
-npm whoami >/dev/null 2>&1 || { echo "ERROR: Not logged in to npm. Run: npm login" >&2; exit 1; }
+npm whoami >/dev/null 2>&1 || {
+    echo "ERROR: Not logged in to npm. Run:  npm login" >&2
+    exit 1
+}
 
 echo "Publishing to the npm registry..."
 npm publish --access public
 
-PKG_VERSION="$(node -p "require('./package.json').version")"
 echo
-echo "=== Published numkit@$PKG_VERSION ==="
+PKG_VERSION=$(node -p "require('./package.json').version")
+echo "=== Published numkit@${PKG_VERSION} ==="
 echo "Verify: https://www.npmjs.com/package/numkit"
 echo "Test:   npx numkit -e \"disp(1+1)\""

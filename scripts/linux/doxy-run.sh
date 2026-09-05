@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOCS_HTML_DIR="$PROJECT_DIR/build/docs/html"
 PORT=8080
 SKIP_BUILD=0
@@ -57,11 +57,8 @@ echo "========================================================"
 echo "Press Ctrl+C to stop the server."
 echo
 
-# Try to open in default browser
-if command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "http://localhost:$PORT/" >/dev/null 2>&1 &
-elif command -v open >/dev/null 2>&1; then
-    open "http://localhost:$PORT/" >/dev/null 2>&1 &
+if command -v xdg-open &>/dev/null; then
+    xdg-open "http://localhost:$PORT/" &>/dev/null &
 fi
 
 python3 -m http.server "$PORT" --directory "$DOCS_HTML_DIR"

@@ -18,6 +18,9 @@ const REPO_ROOT = path.resolve(import.meta.dirname, '../..');
 
 function findBinary() {
   const candidates = [
+    path.join(REPO_ROOT, 'build/windows/release/apps/numkit/Release/numkit_repl.exe'),
+    path.join(REPO_ROOT, 'build/windows/release/apps/numkit/numkit_repl.exe'),
+    path.join(REPO_ROOT, 'build/linux/release/apps/numkit/numkit_repl'),
     path.join(REPO_ROOT, 'build/desktop-fast/apps/numkit/Release/numkit_repl.exe'),
     path.join(REPO_ROOT, 'build/desktop-fast/apps/numkit/numkit_repl'),
     path.join(REPO_ROOT, 'build/desktop/apps/numkit/Release/numkit_repl.exe'),

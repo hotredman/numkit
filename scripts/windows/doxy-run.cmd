@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
-set PROJECT_DIR=%SCRIPT_DIR%..\
+set PROJECT_DIR=%SCRIPT_DIR%..\..\
 set DOCS_HTML_DIR=%PROJECT_DIR%build\docs\html
 set PORT=8080
 
@@ -28,7 +28,6 @@ shift
 goto parse_args
 :args_done
 
-:: Build docs if needed or if index.html is missing
 if not exist "%DOCS_HTML_DIR%\index.html" set SKIP_BUILD=0
 if "%SKIP_BUILD%"=="0" (
     echo Building Doxygen documentation...
@@ -49,20 +48,12 @@ echo ========================================================
 echo Press Ctrl+C to stop the server.
 echo.
 
-:: Open browser automatically
 start http://localhost:%PORT%/
-
-:: Start Python HTTP Server
 python -m http.server %PORT% --directory "%DOCS_HTML_DIR%"
 exit /b 0
 
 :show_help
 echo Usage: %~nx0 [--skip-build] [--port ^<number^>]
 echo.
-echo Builds (if needed) and serves Doxygen documentation locally via HTTP server.
-echo.
-echo Options:
-echo   --skip-build  Do not rebuild documentation, serve existing build\docs\html.
-echo   --port ^<num^>  HTTP port to listen on (default: 8080).
-echo   -h, --help    Show this help message.
+echo Builds (if needed) and serves Doxygen documentation locally.
 exit /b 0

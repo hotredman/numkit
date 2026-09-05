@@ -1,10 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set PROJECT_DIR=%~dp0..\
+set SCRIPT_DIR=%~dp0
+set PROJECT_DIR=%SCRIPT_DIR%..\..\
 set IDE_DIR=%PROJECT_DIR%ide
-set WASM_DIST=%PROJECT_DIR%build\browser\wasm\dist
+set WASM_DIST=%PROJECT_DIR%build\wasm\release\wasm\dist
 set DEPLOY_DIR=%PROJECT_DIR%deploy
+
 if not defined EMSDK (
     if exist "C:\Users\User\Repo\emsdk" set "EMSDK=C:\Users\User\Repo\emsdk"
     if exist "%USERPROFILE%\Repo\emsdk" set "EMSDK=%USERPROFILE%\Repo\emsdk"
@@ -22,16 +24,12 @@ set SKIP_WASM=0
 if "%1"=="--skip-wasm" set SKIP_WASM=1
 if "%2"=="--skip-wasm" set SKIP_WASM=1
 
-:: Check Node.js
 where node >nul 2>&1
 if errorlevel 1 (
     echo Node.js not found. Install from https://nodejs.org/
     exit /b 1
 )
 
-:: Build the WASM engine. FAIL-CLOSED: a silent fallback to a pre-built
-:: wasm once shipped a stale engine into a publish run — reuse requires
-:: an explicit --skip-wasm.
 if not exist "%EMCC_DIR%\emcc.bat" (
     echo ERROR: emsdk not found -- refusing to silently reuse a possibly-stale WASM.
     echo        Install emsdk or pass --skip-wasm to reuse explicitly.
@@ -41,8 +39,8 @@ if not exist "%EMCC_DIR%\emcc.bat" (
 if "%SKIP_WASM%"=="1" (
     echo [WASM] Skipping rebuild (--skip-wasm)
 ) else (
-    echo Building WASM...
-    call "%~dp0engine-build.bat" --wasm
+    echo Building WASM (wasm-release)...
+    call "%SCRIPT_DIR%engine-build.cmd" --wasm
     if errorlevel 1 exit /b 1
 )
 
@@ -50,22 +48,17 @@ echo Copying WASM files into ide\public\...
 copy /y "%WASM_DIST%\numkit_ide.js"   "%IDE_DIR%\public\" >nul
 copy /y "%WASM_DIST%\numkit_ide.wasm" "%IDE_DIR%\public\" >nul
 
-:after_wasm
-
-:: Generate examples manifest
 if exist "%IDE_DIR%\scripts\generate-manifest.js" (
     echo Generating examples manifest...
     node "%IDE_DIR%\scripts\generate-manifest.js"
 )
 
-:: Install deps if needed
 if not exist "%IDE_DIR%\node_modules" (
     echo Installing dependencies...
     cd /d "%IDE_DIR%"
     call npm install
 )
 
-:: Build Vite production bundle
 echo Building Vite production bundle...
 cd /d "%IDE_DIR%"
 call npx vite build
@@ -74,7 +67,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Copy the built site into deploy\ (local output dir; gitignored)
 if exist "%DEPLOY_DIR%" rmdir /s /q "%DEPLOY_DIR%"
 mkdir "%DEPLOY_DIR%"
 xcopy /e /i /q "%IDE_DIR%\dist\*" "%DEPLOY_DIR%\" >nul
@@ -82,7 +74,4 @@ echo.> "%DEPLOY_DIR%\.nojekyll"
 
 echo.
 echo === Build complete! Static IDE site in deploy\ ===
-echo.
-echo deploy\ is gitignored. Serve it from any static host -- the base is
-echo relative, so it works at the web root or a sub-path. Preview locally
-echo with "npm run preview" from the ide\ folder.
+exit /b 0

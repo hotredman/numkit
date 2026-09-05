@@ -35,7 +35,25 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-NUMKIT_EXE = ROOT / "build" / "desktop-fast" / "apps" / "numkit" / "Release" / "numkit_repl.exe"
+
+
+def _find_numkit_exe() -> Path:
+    candidates = [
+        ROOT / "build" / "windows" / "release" / "apps" / "numkit" / "Release" / "numkit_repl.exe",
+        ROOT / "build" / "windows" / "release" / "apps" / "numkit" / "numkit_repl.exe",
+        ROOT / "build" / "linux" / "release" / "apps" / "numkit" / "numkit_repl",
+        ROOT / "build" / "desktop-fast" / "apps" / "numkit" / "Release" / "numkit_repl.exe",
+        ROOT / "build" / "desktop-fast" / "apps" / "numkit" / "numkit_repl",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    if sys.platform == "win32":
+        return candidates[0]
+    return candidates[2]
+
+
+NUMKIT_EXE = _find_numkit_exe()
 MATLAB_EXE = "matlab"  # on PATH
 OCTAVE_EXE = r"C:\Program Files\GNU Octave\Octave-11.1.0\mingw64\bin\octave-cli.exe"
 PROGRESS_MD = ROOT / "tools" / "parity" / "PROGRESS.md"
@@ -97,7 +115,7 @@ def _warn_if_numkit_stale() -> None:
         f"    binary : {exe_rel}  (built  {fmt(exe_m)})\n"
         f"    newest : {src_rel}  (edited {fmt(src_m)})\n"
         f"  Rebuild, then re-run parity:\n"
-        f"    cmake --build build/desktop-fast --target numkit_cli --config Release\n"
+        f"    scripts/windows/engine-build.cmd  (or scripts/linux/engine-build.sh)\n"
         f"{bar}\n",
         file=sys.stderr, flush=True)
 

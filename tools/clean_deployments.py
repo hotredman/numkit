@@ -71,9 +71,9 @@ def clean_repo_deployments(repo, token, keep_latest=1):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Использование: python scripts/clean-deployments.py <GITHUB_TOKEN> [repo1] [repo2] ...")
+        print("Использование: python tools/clean_deployments.py <GITHUB_TOKEN> [repo1] [repo2] ...")
         print("\nПример:")
-        print("  python scripts/clean-deployments.py ghp_xxxxxxxxxxxx hotredman/numkit-demo hotredman/numkit-doxy")
+        print("  python tools/clean_deployments.py ghp_xxxxxxxxxxxx hotredman/numkit-demo hotredman/numkit-doxy")
         sys.exit(1)
 
     token = sys.argv[1].strip()

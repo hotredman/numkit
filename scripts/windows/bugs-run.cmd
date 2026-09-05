@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
-set PROJECT_DIR=%SCRIPT_DIR%..\
+set PROJECT_DIR=%SCRIPT_DIR%..\..\
 set BUGS_HTML_DIR=%PROJECT_DIR%build\bugs
 set PORT=8081
 
@@ -28,7 +28,6 @@ shift
 goto parse_args
 :args_done
 
-:: Build docs if needed or if index.html is missing
 if not exist "%BUGS_HTML_DIR%\index.html" set SKIP_BUILD=0
 if "%SKIP_BUILD%"=="0" (
     echo Building NumKit Bugs ^& Parity site...
@@ -48,15 +47,12 @@ echo ========================================================
 echo Press Ctrl+C to stop the server.
 echo.
 
-:: Open browser automatically
 start http://localhost:%PORT%/
-
-:: Start Python HTTP Server
 python -m http.server %PORT% --directory "%BUGS_HTML_DIR%"
 exit /b 0
 
 :show_help
 echo Usage: %~nx0 [--skip-build] [--port ^<number^>]
 echo.
-echo Builds the Docsify bugs catalog and starts a local preview web server.
+echo Builds (if needed) and serves Bugs ^& Parity documentation locally.
 exit /b 0

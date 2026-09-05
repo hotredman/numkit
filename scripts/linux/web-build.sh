@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 IDE_DIR="${PROJECT_DIR}/ide"
-WASM_DIST="${PROJECT_DIR}/build/browser/wasm/dist"
+WASM_DIST="${PROJECT_DIR}/build/wasm/release/wasm/dist"
 DEPLOY_DIR="${PROJECT_DIR}/deploy"
 
 if ! command -v node &>/dev/null; then
@@ -11,26 +12,17 @@ if ! command -v node &>/dev/null; then
     exit 1
 fi
 
-# Source emsdk env if present so emcc is in PATH for sub-shells.
-if [ -f "${PROJECT_DIR}/.claude_emsdk_env.sh" ]; then
-    # shellcheck source=/dev/null
-    source "${PROJECT_DIR}/.claude_emsdk_env.sh"
-fi
-
 SKIP_WASM=0
 for arg in "$@"; do
     if [ "$arg" == "--skip-wasm" ]; then SKIP_WASM=1; fi
 done
 
-# Build the WASM engine. FAIL-CLOSED: a silent fallback to a pre-built
-# wasm once shipped a stale engine into a publish run — reusing an
-# existing artifact is allowed ONLY with an explicit --skip-wasm.
 if command -v emcc &>/dev/null; then
     if [ "$SKIP_WASM" -eq 1 ]; then
         echo "Skipping WASM rebuild (--skip-wasm)..."
     else
-        echo "Building WASM..."
-        bash "$(dirname "$0")/engine-build.sh" --wasm
+        echo "Building WASM (wasm-release)..."
+        bash "$SCRIPT_DIR/engine-build.sh" --wasm
     fi
     echo "Copying freshly-built WASM into ide/public/..."
     cp "${WASM_DIST}/numkit_ide.js"   "${IDE_DIR}/public/"
@@ -42,25 +34,20 @@ else
     exit 1
 fi
 
-# Generate examples manifest
 if [ -f "${IDE_DIR}/scripts/generate-manifest.js" ]; then
     echo "Generating examples manifest..."
     node "${IDE_DIR}/scripts/generate-manifest.js"
 fi
 
-# Install deps and build
 cd "${IDE_DIR}"
 [ ! -d "node_modules" ] && npm install
 echo "Building Vite production bundle..."
 npm run build
 
-# Copy the built site into deploy/ (local output dir; gitignored)
 rm -rf "${DEPLOY_DIR}"
 mkdir -p "${DEPLOY_DIR}"
 cp -r "${IDE_DIR}/dist/"* "${DEPLOY_DIR}/"
 touch "${DEPLOY_DIR}/.nojekyll"
 
-echo ""
-echo "Build complete! Static IDE site in deploy/ (gitignored)."
-echo "Serve it from any static host — the base is relative, so it works at the"
-echo "web root OR a sub-path. Preview locally with: (cd ide && npm run preview)."
+echo
+echo "=== Build complete! Static IDE site in deploy/ ==="

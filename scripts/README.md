@@ -1,50 +1,47 @@
 # scripts/
 
-Thin wrappers around the project's two toolchains — the **C++ engine** (CMake)
-and the **IDE** (npm / Vite / Electron). Naming: `build-*` produces an artifact,
-`run-*` launches something. `.sh` = Linux/macOS/git-bash, `.bat` = Windows; where
-only one flavour exists, that path is currently used on that platform only
-(desktop packaging is Windows-only today).
+Thin wrappers around the project's toolchains — the **C++ engine** (CMake)
+and the **IDE** (npm / Vite / Electron).
 
-## Engine (C++ / CMake)
+Scripts are organized by operating system:
+- **`scripts/windows/`** — Windows NT command scripts (`.cmd`) and PowerShell tools (`coverage.ps1`).
+- **`scripts/linux/`** — POSIX bash scripts (`.sh`) for Linux and macOS (compatible with WSL).
 
-| Script | Does |
-|---|---|
-| `engine-build.{sh,bat}` | Configure + build the engine. `--fast` → `desktop-fast` preset (Highway SIMD), `--wasm` → `browser` preset (Emscripten; needs `EMSDK`), no arg → `portable`. |
-| `rebuild-all.{sh,bat}` | From-scratch rebuild: wipes the build dirs, engine `desktop-fast`, `--wasm` adds the browser stack + web bundle, runs the gtest suite, refreshes the npm dist. |
-| `test.sh` | Build `desktop-fast` + run the gtest suite via `ctest --preset=desktop-fast`. Args pass through, e.g. `test.sh -R Haart`. |
-| `coverage.ps1` | Ninja + clang-cl coverage build → `llvm-cov` report (enters a VS Dev Shell first). |
+Naming convention:
+- `*-build` produces an artifact (compiles engine, builds web/desktop distribution).
+- `*-run` launches an application, dev server, or test suite.
+- `*-publish` handles publishing or synchronization with remotes and registries.
 
-## IDE (npm / Vite / Electron)
+## Engine & Tests (C++ / CMake)
 
-The IDE is **one** Vite app delivered several ways. What decides asset/fetch
-resolution is **where `index.html` lands** — i.e. what `base` /
-`import.meta.env.BASE_URL` resolves against — *not* "dev vs server" (a dev server
-and a hosted build are both HTTP servers). The real axes are source-vs-built and
-HTTP-vs-`file://`:
-
-```
-Vite DEV server — live source, HMR                        BASE_URL = /
-   web-run.{sh,bat}      browser dev server at :3000
-   desktop-run.bat       Electron window pointed at that same dev server
-
-vite build → dist/ — static bundle                        BASE_URL = ./ (relative)
-   web-build.{sh,bat}    → deploy/ ; host anywhere over HTTP (root OR sub-path)
-   desktop-build.bat     → packaged .exe ; Electron loadFile over file://
-```
-
-| Script | Does | Transport |
+| Windows (`scripts/windows/`) | Linux/macOS (`scripts/linux/`) | Description |
 |---|---|---|
-| `web-run.{sh,bat}` | Copy WASM → `ide/public/`, run the Vite **dev server** (source + HMR) at `:3000`. | HTTP, root |
-| `desktop-run.bat` *(win)* | Launch the Electron shell in **dev mode** — `main.js` spawns the same Vite dev server and loads the window from it. | HTTP, root |
-| `web-build.{sh,bat}` | Build the static site (WASM + `vite build`) into `deploy/` (gitignored). Host it anywhere. | HTTP, root or sub-path |
-| `code-publish.{sh,bat}` | Push source code, main branch, and tags to GitHub source mirror repository. | Git / GitHub |
-| `npm-publish.{sh,bat}` | Publish `packages/numkit` (WASM CLI, `npx numkit`) to the npm registry. Rebuilds WASM → refreshes `dist/` → smoke test → `npm publish --access public`. `--skip-build` reuses existing artifacts, `--dry-run` stops before the upload. Requires `npm login`. | npm registry |
-| `web-publish.{sh,bat}` | Synchronize built static site (`deploy/`) into GitHub Pages distribution repository (`--push` to push). | Git / GitHub Pages |
-| `doxy-run.{sh,bat}` | Build (if needed) and serve Doxygen API documentation locally at `http://localhost:8080/`. | HTTP, local server |
-| `doxy-publish.{sh,bat}` | Generate Doxygen API documentation and deploy/push directly to `numkit-doxy` GitHub Pages repo. | Git / GitHub Pages |
-| `all-publish.{sh,bat}` | Publish source code repository, Web IDE distribution, and Doxygen API docs in one command. | Git / GitHub |
-| `desktop-build.bat` *(win)* | Full desktop build: WASM + `vite build --base ./` + `electron-builder --win portable` → `.exe`. | file:// |
+| `engine-build.cmd` | `engine-build.sh` | Build the engine. Flags: `--wasm` (WASM via Emscripten), `--debug`, `--portable` (no SIMD), default = release with Highway SIMD. |
+| `tests-run.cmd` | `tests-run.sh` | Incremental build + run gtest suite (`numkit_gtest`). Forwards arguments to gtest (e.g. `--gtest_filter=*Ordqz*`). Use `--build-only` to skip running. |
+| `rebuild-all.cmd` | `rebuild-all.sh` | From-scratch rebuild: wipes build dirs, rebuilds release engine, runs test suite, refreshes npm dist (`--wasm` adds web bundle). |
+| `coverage.ps1` | — | Ninja + clang-cl coverage build → `llvm-cov` report (enters VS Dev Shell first). |
+
+## IDE & Tooling (npm / Vite / Electron)
+
+| Windows (`scripts/windows/`) | Linux/macOS (`scripts/linux/`) | Description |
+|---|---|---|
+| `web-run.cmd` | `web-run.sh` | Copy WASM → `ide/public/`, run Vite **dev server** at `:3000`. |
+| `web-build.cmd` | `web-build.sh` | Build static web distribution (WASM + `vite build`) into `deploy/web/`. |
+| `desktop-run.cmd` | `desktop-run.sh` | Launch Electron desktop shell in **dev mode** with live reload. |
+| `desktop-build.cmd` | `desktop-build.sh` | Build packaged Electron desktop application (`.exe` on Windows, `AppImage` / dir on Linux). |
+| `doxy-run.cmd` | `doxy-run.sh` | Generate Doxygen docs (if needed) and serve locally on `http://localhost:8080/`. |
+| `bugs-run.cmd` | `bugs-run.sh` | Generate static bugs catalog site and serve locally at `http://localhost:8081/`. |
+
+## Publishing & Deployment
+
+| Windows (`scripts/windows/`) | Linux/macOS (`scripts/linux/`) | Description |
+|---|---|---|
+| `code-publish.cmd` | `code-publish.sh` | Push source code, main branch, and tags to GitHub public mirror. |
+| `web-publish.cmd` | `web-publish.sh` | Deploy built web static distribution to GitHub Pages (`--push` to push). |
+| `doxy-publish.cmd` | `doxy-publish.sh` | Generate and deploy Doxygen API docs to `numkit-doxy` Pages repo (`--push` to push). |
+| `bugs-publish.cmd` | `bugs-publish.sh` | Generate and deploy bugs catalog site to `numkit-bugs` Pages repo (`--push` to push). |
+| `npm-publish.cmd` | `npm-publish.sh` | Refresh WASM package and publish `packages/numkit` to npm (`--dry-run` to preview). |
+| `all-publish.cmd` | `all-publish.sh` | One-shot publish: code, web, doxy, and bugs sites (`--push` to push). |
 
 ### Why `base: './'` (relative)
 
@@ -53,12 +50,8 @@ target: at a web root, under a sub-path, and over `file://` in the packaged
 desktop app. In the Vite **dev** server the base normalises to `/` (dev serves at
 root) → `BASE_URL = /`; in any **build** it bakes to `./` (relative). The
 Explorer's bundled Examples are fetched as `${BASE_URL}examples/manifest.json`,
-so this is exactly what makes them resolve everywhere. `desktop-build.bat` also
-passes `--base ./` as an explicit guarantee for the file:// shell.
-
-> GitHub Pages hosting has been retired — there is no `numkit-m` sub-path
-> deployment anymore. `web-build` produces a static bundle you host yourself
-> (or preview with `npm run preview` from `ide/`).
+so this is exactly what makes them resolve everywhere. Desktop build scripts also
+pass `--base ./` as an explicit guarantee for the file:// shell.
 
 ## Notes
 

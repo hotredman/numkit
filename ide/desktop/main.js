@@ -578,6 +578,18 @@ function resolveExe(settingPath, exeName) {
   try {
     const repoRoot = path.resolve(__dirname, '..', '..');
     const devCandidates = [
+      path.join(repoRoot, 'build', 'windows', 'release', 'apps', 'numkit',  'Release', exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'release', 'apps', 'numkit',  exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', 'numkit',    'Debug', exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', 'numkit',    exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'release', 'apps', exeName,   'Release', exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'release', 'apps', exeName,   exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', exeName,     'Debug', exeOnWin),
+      path.join(repoRoot, 'build', 'windows', 'debug', 'apps', exeName,     exeOnWin),
+      path.join(repoRoot, 'build', 'linux', 'release', 'apps', 'numkit',    exeOnWin),
+      path.join(repoRoot, 'build', 'linux', 'debug', 'apps', 'numkit',      exeOnWin),
+      path.join(repoRoot, 'build', 'linux', 'release', 'apps', exeName,     exeOnWin),
+      path.join(repoRoot, 'build', 'linux', 'debug', 'apps', exeName,       exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'numkit',  'Release', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'apps', 'numkit',  'Debug', exeOnWin),
       path.join(repoRoot, 'build', 'desktop-fast', 'apps', exeName,   'Release', exeOnWin),

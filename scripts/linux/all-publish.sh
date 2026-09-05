@@ -13,7 +13,7 @@ fi
 echo "======================================================="
 echo "  [1/4] Publishing Source Code to GitHub"
 echo "======================================================="
-"$SCRIPT_DIR/github-push.sh"
+"$SCRIPT_DIR/code-publish.sh"
 
 echo
 echo "======================================================="

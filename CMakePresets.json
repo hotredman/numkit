@@ -1,12 +1,101 @@
 {
   "version": 3,
-  "cmakeMinimumRequired": {"major": 3, "minor": 21, "patch": 0},
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
   "configurePresets": [
+    {
+      "name": "windows-release",
+      "displayName": "Windows x86_64 Release (Highway SIMD + Threads)",
+      "description": "Standard optimized release build for Windows with Highway SIMD and thread pool.",
+      "binaryDir": "${sourceDir}/build/windows/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "NUMKIT_WITH_SIMD": "ON",
+        "NUMKIT_WITH_THREADS": "ON"
+      }
+    },
+    {
+      "name": "windows-debug",
+      "displayName": "Windows x86_64 Debug (Highway SIMD + Threads)",
+      "description": "Debug build for Windows with debug symbols and Highway SIMD.",
+      "binaryDir": "${sourceDir}/build/windows/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "NUMKIT_WITH_SIMD": "ON",
+        "NUMKIT_WITH_THREADS": "ON"
+      }
+    },
+    {
+      "name": "windows-portable",
+      "displayName": "Windows x86_64 Portable (no SIMD)",
+      "description": "Scalar reference build for Windows without SIMD.",
+      "binaryDir": "${sourceDir}/build/windows/portable",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "NUMKIT_WITH_SIMD": "OFF",
+        "NUMKIT_WITH_THREADS": "OFF"
+      }
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux x86_64 Release (Highway SIMD + Threads + Ninja)",
+      "description": "Standard optimized release build for Linux/WSL with Highway SIMD and Ninja.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "NUMKIT_WITH_SIMD": "ON",
+        "NUMKIT_WITH_THREADS": "ON"
+      }
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Linux x86_64 Debug (Highway SIMD + Threads + Ninja)",
+      "description": "Debug build for Linux/WSL with debug symbols and Ninja.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "NUMKIT_WITH_SIMD": "ON",
+        "NUMKIT_WITH_THREADS": "ON"
+      }
+    },
+    {
+      "name": "linux-portable",
+      "displayName": "Linux x86_64 Portable (no SIMD + Ninja)",
+      "description": "Scalar reference build for Linux without SIMD.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux/portable",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "NUMKIT_WITH_SIMD": "OFF",
+        "NUMKIT_WITH_THREADS": "OFF"
+      }
+    },
+    {
+      "name": "wasm-release",
+      "displayName": "WebAssembly Release (Emscripten + WASM SIMD128)",
+      "description": "WebAssembly release build for the Numkit IDE browser UI.",
+      "binaryDir": "${sourceDir}/build/wasm/release",
+      "generator": "Ninja",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "NUMKIT_BUILD_REPL": "ON",
+        "NUMKIT_BUILD_CLI": "OFF",
+        "NUMKIT_WITH_SIMD": "ON",
+        "CMAKE_CXX_FLAGS": "-msimd128 -mrelaxed-simd -fexceptions",
+        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions"
+      }
+    },
     {
       "name": "portable",
       "displayName": "Portable (reference, no optimizations)",
       "description": "Minimal build — all NUMKIT_WITH_* features OFF. Baseline reference that compiles anywhere; used for CI sanity and exotic platforms.",
-      "binaryDir": "${sourceDir}/build/portable",
+      "binaryDir": "${sourceDir}/build/windows/portable",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
@@ -16,7 +105,7 @@
       "inherits": "portable",
       "displayName": "Desktop x86_64 (Highway SIMD)",
       "description": "Native desktop build for Windows/Linux x86_64. Enables Highway dynamic-dispatch SIMD — picks the best ISA (SSE4 / AVX2 / AVX-512 / …) at runtime on first call to any vectorised kernel.",
-      "binaryDir": "${sourceDir}/build/desktop-fast",
+      "binaryDir": "${sourceDir}/build/windows/release",
       "cacheVariables": {
         "NUMKIT_WITH_SIMD": "ON",
         "NUMKIT_WITH_THREADS": "ON"
@@ -81,15 +170,15 @@
       "name": "browser",
       "displayName": "Browser (WASM via Emscripten + SIMD128)",
       "description": "WebAssembly build for the Numkit IDE browser UI. Requires EMSDK env var pointing to an Emscripten SDK install. Uses the Emscripten toolchain file directly — no need to launch via emcmake if EMSDK is set. Highway is ON and targets WASM SIMD128 via -msimd128 -mrelaxed-simd; requires Chromium 91+ / Firefox 89+ / Safari 16.4+. Electron 33 (Chromium 130) supports this fully.",
-      "binaryDir": "${sourceDir}/build/browser",
+      "binaryDir": "${sourceDir}/build/wasm/release",
       "generator": "Ninja",
       "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE":    "Release",
+        "CMAKE_BUILD_TYPE": "Release",
         "NUMKIT_BUILD_REPL": "ON",
-        "NUMKIT_BUILD_CLI":   "OFF",
-        "NUMKIT_WITH_SIMD":    "ON",
-        "CMAKE_CXX_FLAGS":     "-msimd128 -mrelaxed-simd -fexceptions",
+        "NUMKIT_BUILD_CLI": "OFF",
+        "NUMKIT_WITH_SIMD": "ON",
+        "CMAKE_CXX_FLAGS": "-msimd128 -mrelaxed-simd -fexceptions",
         "CMAKE_EXE_LINKER_FLAGS": "-fexceptions"
       }
     },
@@ -116,14 +205,14 @@
       "description": "WebAssembly benchmark build. Enables Highway WASM-SIMD128 backend and compiles the numkit_bench Google-Benchmark driver for Node.js. Run after building with: node build-bench-wasm/benchmarks/numkit_bench.js",
       "binaryDir": "${sourceDir}/build/bench-wasm",
       "cacheVariables": {
-        "NUMKIT_BUILD_REPL":        "OFF",
-        "NUMKIT_BUILD_TESTS":       "OFF",
-        "NUMKIT_BUILD_CLI":          "OFF",
-        "NUMKIT_BUILD_BENCHMARKS":  "ON",
-        "NUMKIT_INSTALL":           "OFF",
-        "NUMKIT_WITH_SIMD":           "ON",
-        "CMAKE_CXX_FLAGS":            "-msimd128 -mrelaxed-simd -fexceptions",
-        "CMAKE_EXE_LINKER_FLAGS":     "-fexceptions"
+        "NUMKIT_BUILD_REPL": "OFF",
+        "NUMKIT_BUILD_TESTS": "OFF",
+        "NUMKIT_BUILD_CLI": "OFF",
+        "NUMKIT_BUILD_BENCHMARKS": "ON",
+        "NUMKIT_INSTALL": "OFF",
+        "NUMKIT_WITH_SIMD": "ON",
+        "CMAKE_CXX_FLAGS": "-msimd128 -mrelaxed-simd -fexceptions",
+        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions"
       }
     },
     {
@@ -133,9 +222,9 @@
       "description": "Same as 'browser' but adds Emscripten pthreads. Each pthread becomes a Web Worker; shared memory uses SharedArrayBuffer + Atomics. Requires the host page to be served with COOP=same-origin and COEP=require-corp (or to run in Electron with sharedArrayBufferAvailable). PTHREAD_POOL_SIZE pre-spawns workers at startup so the parallel SIMD kernels don't pay Worker spawn latency. Memory is fixed-size (no growth) — em++ warns that ALLOW_MEMORY_GROWTH + pthread runs non-wasm code slowly because every access checks shared state; we trade growth for the perf.",
       "binaryDir": "${sourceDir}/build/browser-threads",
       "cacheVariables": {
-        "NUMKIT_BUILD_TESTS":   "OFF",
-        "NUMKIT_WITH_THREADS":    "ON",
-        "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
+        "NUMKIT_BUILD_TESTS": "OFF",
+        "NUMKIT_WITH_THREADS": "ON",
+        "CMAKE_CXX_FLAGS": "-msimd128 -mrelaxed-simd -fexceptions -pthread",
         "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6 -sINITIAL_MEMORY=268435456"
       }
     },
@@ -146,8 +235,8 @@
       "description": "Same as bench-wasm but enables Emscripten pthreads to run the Highway parallel-SIMD kernels across Web Workers. Apples-to-apples vs bench-wasm to see what threading buys on WASM. Run with: node --experimental-wasm-threads build-bench-wasm-threads/benchmarks/numkit_bench.js (recent Node has it on by default).",
       "binaryDir": "${sourceDir}/build/bench-wasm-threads",
       "cacheVariables": {
-        "NUMKIT_WITH_THREADS":    "ON",
-        "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
+        "NUMKIT_WITH_THREADS": "ON",
+        "CMAKE_CXX_FLAGS": "-msimd128 -mrelaxed-simd -fexceptions -pthread",
         "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6 -sINITIAL_MEMORY=536870912"
       }
     },
@@ -170,33 +259,191 @@
     }
   ],
   "buildPresets": [
-    {"name": "portable",     "configurePreset": "portable",     "configuration": "Release", "jobs": 0},
-    {"name": "desktop-fast", "configurePreset": "desktop-fast", "configuration": "Release", "jobs": 0},
-    {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release", "jobs": 0},
-    {"name": "bench",        "configurePreset": "bench",        "configuration": "Release", "jobs": 0},
-    {"name": "bench-simd",          "configurePreset": "bench-simd",          "configuration": "Release", "jobs": 0},
-    {"name": "desktop-fast-threads","configurePreset": "desktop-fast-threads","configuration": "Release", "jobs": 0},
-    {"name": "bench-simd-threads",  "configurePreset": "bench-simd-threads",  "configuration": "Release", "jobs": 0},
-    {"name": "bench-clang",      "configurePreset": "bench-clang",      "configuration": "Release", "jobs": 0},
-    {"name": "bench-simd-clang", "configurePreset": "bench-simd-clang", "configuration": "Release", "jobs": 0},
-    {"name": "browser",            "configurePreset": "browser",            "jobs": 0},
-    {"name": "browser-threads",    "configurePreset": "browser-threads",    "jobs": 0},
-    {"name": "bench-wasm",         "configurePreset": "bench-wasm",         "jobs": 0},
-    {"name": "bench-wasm-threads", "configurePreset": "bench-wasm-threads", "jobs": 0},
-    {"name": "coverage",           "configurePreset": "coverage",           "jobs": 0}
-  ],
-  "testPresets": [
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug",
+      "configuration": "Debug",
+      "jobs": 0
+    },
+    {
+      "name": "windows-portable",
+      "configurePreset": "windows-portable",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug",
+      "configuration": "Debug",
+      "jobs": 0
+    },
+    {
+      "name": "linux-portable",
+      "configurePreset": "linux-portable",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "wasm-release",
+      "configurePreset": "wasm-release",
+      "jobs": 0
+    },
     {
       "name": "portable",
       "configurePreset": "portable",
       "configuration": "Release",
-      "output": {"outputOnFailure": true}
+      "jobs": 0
     },
     {
       "name": "desktop-fast",
       "configurePreset": "desktop-fast",
       "configuration": "Release",
-      "output": {"outputOnFailure": true}
+      "jobs": 0
+    },
+    {
+      "name": "apple-m",
+      "configurePreset": "apple-m",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "bench",
+      "configurePreset": "bench",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "bench-simd",
+      "configurePreset": "bench-simd",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "desktop-fast-threads",
+      "configurePreset": "desktop-fast-threads",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "bench-simd-threads",
+      "configurePreset": "bench-simd-threads",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "bench-clang",
+      "configurePreset": "bench-clang",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "bench-simd-clang",
+      "configurePreset": "bench-simd-clang",
+      "configuration": "Release",
+      "jobs": 0
+    },
+    {
+      "name": "browser",
+      "configurePreset": "browser",
+      "jobs": 0
+    },
+    {
+      "name": "browser-threads",
+      "configurePreset": "browser-threads",
+      "jobs": 0
+    },
+    {
+      "name": "bench-wasm",
+      "configurePreset": "bench-wasm",
+      "jobs": 0
+    },
+    {
+      "name": "bench-wasm-threads",
+      "configurePreset": "bench-wasm-threads",
+      "jobs": 0
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-portable",
+      "configurePreset": "windows-portable",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-portable",
+      "configurePreset": "linux-portable",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "portable",
+      "configurePreset": "portable",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "desktop-fast",
+      "configurePreset": "desktop-fast",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }

@@ -42,7 +42,7 @@ if (!process.argv.includes("--allow-stale")) {
       `numkit: STALE ENGINE — src/ has commits newer than the wasm build:\n` +
         `  last src commit: ${new Date(srcCommit).toISOString()}\n` +
         `  wasm build:      ${new Date(wasmMtime).toISOString()}\n` +
-        `Rebuild first:  scripts\\engine-build.bat --wasm  (or scripts/engine-build.sh --wasm)\n` +
+        `Rebuild first:  scripts\\windows\\engine-build.cmd --wasm  (or scripts/linux/engine-build.sh --wasm)\n` +
         `Override only deliberately:  node scripts/refresh-dist.js --allow-stale`
     );
     process.exit(1);
@@ -55,7 +55,7 @@ for (const f of files) {
   if (!fs.existsSync(src)) {
     console.error(
       `numkit: missing ${src}\n` +
-        `Build the WASM engine first:  scripts\\web-build.bat  (or scripts/web-build.sh)\n` +
+        `Build the WASM engine first:  scripts\\windows\\web-build.cmd  (or scripts/linux/web-build.sh)\n` +
         `then re-run npm publish from packages/numkit.`
     );
     process.exit(1);
