@@ -14,6 +14,7 @@ The map lives here; the content lives in two wings:
 | Document | What it is |
 |------|------------|
 | [library_api.md](handbook/library_api.md) | **Authoritative public-API ruleset** (argument order, types, overloads, Doxygen + layering standards). Read before adding/refactoring any public `toolboxes/` function. |
+| [full_fidelity.md](handbook/full_fidelity.md) | **The complete-function rule** (user rule 2026-09-06): a function is implemented only when it matches MATLAB for every documented argument form and input type, with per-branch test coverage; gaps are filed, never silent. Read before implementing any function. |
 | [callback_pausability.md](handbook/callback_pausability.md) | How-to for making a VM callback pausable (debugger-visible): decision rule + per-mechanism recipes. |
 | [core_architecture.md](handbook/core_architecture.md) | The core architecture article (RU): Value substrate (16-byte tagged, COW/PMR), layer DAG, dual engine, pausable VM. |
 | [object_model.md](handbook/object_model.md) | Object-model design: type + registry + clone infrastructure. |

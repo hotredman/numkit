@@ -49,10 +49,13 @@ Structure and the rules for using it:
 | `dev-docs/todo/` | open non-defect work (tech-debt, deferred design) — one file per task | when picking up deferred work | when work is deliberately deferred (not a bug → not `bugs/`; not done → not `memory/`); on completion record the outcome in `memory/` and delete the file |
 
 Situational must-reads (in `handbook/`): `library_api.md` (any public
-`toolboxes/` function), `callback_pausability.md` (VM callbacks),
-`object_model.md` (classdef/object model), `core_architecture.md` (engine
-design), plus `src/codegen/DESIGN.md` for the transpiler. `dev-docs/README.md`
-is the full map.
+`toolboxes/` function), `full_fidelity.md` (**before implementing ANY
+function** — the complete-function rule: MATLAB-identical behavior for
+every documented argument form and input type, per-branch test coverage,
+gaps filed never silent; user rule 2026-09-06), `callback_pausability.md`
+(VM callbacks), `object_model.md` (classdef/object model),
+`core_architecture.md` (engine design), plus `src/codegen/DESIGN.md` for
+the transpiler. `dev-docs/README.md` is the full map.
 
 Naming: content documents are `lowercase_snake.md` everywhere (`handbook/`,
 `memory/`, `todo/`, `bugs/missing.md`); CAPS is reserved for tool-discovered
@@ -105,7 +108,13 @@ artefacts is incomplete and must be flagged before the cycle is closed.
 ### 1. C++ implementation
 In `src/toolboxes/<lib>/src/...` and `src/toolboxes/<lib>/include/...`. Probe MATLAB
 (`help fnname` + `doc fnname`) before writing code; implement every
-documented branch or document the gap explicitly in PROGRESS.md.
+documented branch or document the gap explicitly in PROGRESS.md. The bar is
+[dev-docs/handbook/full_fidelity.md](dev-docs/handbook/full_fidelity.md):
+MATLAB-identical behavior for every documented argument form and input
+type (type polymorphism, empties, special values, nargout variants,
+error messages); a happy-path-only implementation is NOT done — defer
+out-of-scope branches as filed bugs/stubs with DISABLED_ guards, never
+silently.
 
 ### 2. Parity spec — `tools/parity/specs/<name>.json`
 Cross-engine validation against MATLAB R2025b (and Octave when it ships
