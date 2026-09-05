@@ -52,8 +52,11 @@ Situational must-reads (in `handbook/`): `library_api.md` (any public
 `toolboxes/` function), `full_fidelity.md` (**before implementing ANY
 function** — the complete-function rule: MATLAB-identical behavior for
 every documented argument form and input type, per-branch test coverage,
-gaps filed never silent; user rule 2026-09-06), `callback_pausability.md`
-(VM callbacks), `object_model.md` (classdef/object model),
+gaps filed never silent; user rule 2026-09-06), `clean_code.md`
+(**before writing any fix** — no crutches/dirty solutions, root-cause
+fixes only, temporary bridges need a filed bug id; user rule
+2026-09-06), `callback_pausability.md` (VM callbacks),
+`object_model.md` (classdef/object model),
 `core_architecture.md` (engine design), plus `src/codegen/DESIGN.md` for
 the transpiler. `dev-docs/README.md` is the full map.
 
