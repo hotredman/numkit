@@ -58,3 +58,4 @@ target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/scope_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
 )
+target_sources(numkit_gtest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ide_serializer_test.cpp)
