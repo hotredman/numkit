@@ -34,3 +34,15 @@ TEST_F(StrfunTest, StringTransformations) {
     Value rep = engine->eval("strrep('abc123abc', '123', 'XYZ');");
     EXPECT_EQ(rep.toString(), "abcXYZabc");
 }
+
+// --- bugs/opened/lang/num2str-complex-array.md ---
+// Complex ARRAY formatting (even all-zero imaginary parts — complex-typed
+// storage of real data) must format like MATLAB, not throw.
+TEST_F(StrfunTest, DISABLED_Num2strComplexArray)
+{
+    // MATLAB: '13    24' — imag==0 prints as real. Must not throw and
+    // must not emit an 'i'.
+    Value s = engine->eval("num2str(complex([1 2; 3 4]));");
+    EXPECT_EQ(s.toString().find('i'), std::string::npos);
+    EXPECT_NE(s.toString().find("13"), std::string::npos);
+}

@@ -50,3 +50,13 @@ TEST_F(FminuncTest, ColumnOrientation) {
 TEST_F(FminuncTest, RejectsNonHandle) {
     EXPECT_THROW(eval("fminunc(5, 0);"), std::exception);
 }
+
+// --- bugs/opened/optim/linprog-rank-deficient-error.md ---
+TEST_F(FminuncTest, DISABLED_LinprogRankDeficientSolves)
+{
+    eval("c=[-2;4;-2;2]; A=[-2 0 -3 0;-3 2 0 -4]; b=[-6;-8];");
+    eval("Aeq=[4 -3 8 -1;1 0 0 1]; beq=[20;18]; lb=[1;0;2;0]; ub=[Inf;Inf;10;Inf];");
+    eval("[x, f] = linprog(c, A, b, Aeq, beq, lb, ub);");
+    EXPECT_NEAR(eval("f;").toScalar(), 14.4, 1e-6);
+    EXPECT_NEAR(eval("x(1);").toScalar(), 4.4, 1e-6);
+}

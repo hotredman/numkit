@@ -1,5 +1,5 @@
 {
- "qualified": "2026-08-31T17:01:13",
+ "qualified": "2026-09-05T18:15:02",
  "scripts": [
   {
    "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\anonymous_function_mysinc.m",
@@ -176,6 +176,294 @@
   {
    "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\symbolic_computation\\ult_1.m",
    "matlab_ms": 9531
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Program_1b.m",
+   "matlab_ms": 35935
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Program_1c.m",
+   "matlab_ms": 26518
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Program_1d.m",
+   "matlab_ms": 26489
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Program_2b.m",
+   "matlab_ms": 9437
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Program_3g.m",
+   "matlab_ms": 9230
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Program_6a.m",
+   "matlab_ms": 26792
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Program_7c.m",
+   "matlab_ms": 32747
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_14a.m",
+   "matlab_ms": 25488
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_14c.m",
+   "matlab_ms": 8937
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_14e.m",
+   "matlab_ms": 32983
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_15a.m",
+   "matlab_ms": 9671
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_15c.m",
+   "matlab_ms": 27203
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_15d.m",
+   "matlab_ms": 32343
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_15g.m",
+   "matlab_ms": 32201
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_15h.m",
+   "matlab_ms": 34888
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_16a.m",
+   "matlab_ms": 9967
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_20d.m",
+   "matlab_ms": 26710
+  },
+  {
+   "path": "corpus\\work\\springer-math--Dynamical-Systems-with-Applications-using-MATLAB\\Lynch R2016a\\Programs_20h.m",
+   "matlab_ms": 112616
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter1\\main.m",
+   "matlab_ms": 36663
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter2\\bm_demo.m",
+   "matlab_ms": 26763
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter2\\mc_euler_demo.m",
+   "matlab_ms": 9213
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter2\\mc_wz_euler_demo.m",
+   "matlab_ms": 9407
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter2\\qmc_euler_demo.m",
+   "matlab_ms": 8994
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter2\\sgc_euler_demo.m",
+   "matlab_ms": 8722
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter2\\sgc_wz_euler_demo.m",
+   "matlab_ms": 9228
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise\\MATLAB Source Code\\chapter7\\fourier_diff_mat.m",
+   "matlab_ms": 9315
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Bisection.m",
+   "matlab_ms": 9150
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\CGS.m",
+   "matlab_ms": 8980
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\FitFunctionNormaleq.m",
+   "matlab_ms": 27052
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\FitFunctionQRCGS.m",
+   "matlab_ms": 26616
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\HessenbergQR.m",
+   "matlab_ms": 33297
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Hornersrule_5roots.m",
+   "matlab_ms": 33358
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Hornersrule_bisection_classic.m",
+   "matlab_ms": 27068
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\InverseIteration.m",
+   "matlab_ms": 27058
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\MainHatFit.m",
+   "matlab_ms": 26627
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\MethodOrtIter.m",
+   "matlab_ms": 26243
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\MethodQR_Wshift.m",
+   "matlab_ms": 33102
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\MethodQR_iter.m",
+   "matlab_ms": 26363
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\MethodQR_shift.m",
+   "matlab_ms": 31022
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_Chol.m",
+   "matlab_ms": 25072
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_ConjugateGrad.m",
+   "matlab_ms": 26614
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_Gauss_Seidel.m",
+   "matlab_ms": 33090
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_Gauss_SeidelRedBlack.m",
+   "matlab_ms": 26899
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_Jacobi.m",
+   "matlab_ms": 28843
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_LU.m",
+   "matlab_ms": 27090
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_PrecConjugateGrad.m",
+   "matlab_ms": 26047
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\Poisson2D_SOR.m",
+   "matlab_ms": 27272
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\PowerM.m",
+   "matlab_ms": 26544
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\TestHagersCondAlg.m",
+   "matlab_ms": 9045
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\testClassicalJacobi.m",
+   "matlab_ms": 9271
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\testDC.m",
+   "matlab_ms": 33141
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\testRayleigh.m",
+   "matlab_ms": 9303
+  },
+  {
+   "path": "corpus\\work\\springer-math--Numerical_Linear_Algebra_Theory_and_Applications\\Matlab_code\\testSVDJacobi.m",
+   "matlab_ms": 8951
+  },
+  {
+   "path": "corpus\\work\\springer-math--linear-programming-using-MATLAB\\codes\\appendix A\\example1a.m",
+   "matlab_ms": 10314
+  },
+  {
+   "path": "corpus\\work\\springer-math--linear-programming-using-MATLAB\\codes\\appendix A\\example1b.m",
+   "matlab_ms": 9609
+  },
+  {
+   "path": "corpus\\work\\springer-math--linear-programming-using-MATLAB\\codes\\appendix A\\example2a.m",
+   "matlab_ms": 9176
+  },
+  {
+   "path": "corpus\\work\\springer-math--linear-programming-using-MATLAB\\codes\\appendix A\\example2b.m",
+   "matlab_ms": 9639
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-1\\pr1_1.m",
+   "matlab_ms": 32193
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-1\\pr1_2.m",
+   "matlab_ms": 26335
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-1\\pr1_3.m",
+   "matlab_ms": 32443
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-2\\pr2_1.m",
+   "matlab_ms": 25976
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-2\\pr2_2.m",
+   "matlab_ms": 32557
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-2\\pr2_3.m",
+   "matlab_ms": 26768
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-2\\pr2_4.m",
+   "matlab_ms": 27782
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-4\\pr4_1.m",
+   "matlab_ms": 10014
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-4\\pr4_2.m",
+   "matlab_ms": 9759
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_6.m",
+   "matlab_ms": 8946
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_7.m",
+   "matlab_ms": 9215
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_8.m",
+   "matlab_ms": 8733
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-6\\pr6_1.m",
+   "matlab_ms": 26540
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-7\\pr7_1.m",
+   "matlab_ms": 26762
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-7\\pr7_2.m",
+   "matlab_ms": 32614
   }
  ],
  "catalog_compiled": "2026-08-30"

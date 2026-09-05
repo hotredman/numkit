@@ -1,0 +1,79 @@
+# group: springer-math — Signals and Systems + Numerical Methods + LP (springer-math/*)
+# source: portion 10 qualify 2026-09-05, 72/74 MATLAB-qualified
+# run: python fieldtest/compare.py springer-math
+#
+# trailing '# known: <bug>' marks a divergence already filed — the runner
+# prints those as KNOWN; anything else diverging is NEW (exit code 1).
+
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Program_1b.m    # known: missing: ezplot (bugs/missing.md)
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Program_1c.m
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Program_1d.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Program_2b.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Program_3g.m
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Program_6a.m
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Program_7c.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_14a.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_14c.m    # known: missing: ode23s (bugs/missing.md)
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_14e.m    # known: missing: ode23s (bugs/missing.md)
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_15a.m    # known: missing: dsolve (bugs/missing.md)
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_15c.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_15d.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_15g.m    # known: untriaged runtime-error
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_15h.m    # known: untriaged runtime-error
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_16a.m    # known: missing: syms (bugs/missing.md)
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_20d.m    # known: untriaged runtime-error
+corpus/work/springer-math--Dynamical-Systems-with-Applications-using-MATLAB/Lynch R2016a/Programs_20h.m    # known: missing: ? (bugs/missing.md)
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter1/main.m    # known: missing: saveas (bugs/missing.md)
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter2/bm_demo.m    # known: untriaged runtime-error
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter2/mc_euler_demo.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter2/mc_wz_euler_demo.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter2/qmc_euler_demo.m    # known: missing: scramble (bugs/missing.md)
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter2/sgc_euler_demo.m    # known: untriaged runtime-error
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter2/sgc_wz_euler_demo.m    # known: untriaged runtime-error
+corpus/work/springer-math--Numerical-Methods-for-Stochastic-Partial-Differential-Equations-with-White-Noise/MATLAB Source Code/chapter7/fourier_diff_mat.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Bisection.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/CGS.m    # known: untriaged runtime-error
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/FitFunctionNormaleq.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/FitFunctionQRCGS.m    # known: untriaged runtime-error
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/HessenbergQR.m    # known: lang/num2str-complex-array
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Hornersrule_5roots.m    # known: missing: syms (bugs/missing.md)
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Hornersrule_bisection_classic.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/InverseIteration.m    # known: lang/num2str-complex-array
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MainHatFit.m    # known: untriaged runtime-error
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodOrtIter.m    # known: lang/num2str-complex-array
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_Wshift.m    # known: linalg/eig-complex-input-rejected
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_iter.m    # known: lang/num2str-complex-array
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_shift.m    # known: lang/num2str-complex-array
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_Chol.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_ConjugateGrad.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_Gauss_Seidel.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_Gauss_SeidelRedBlack.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_Jacobi.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_LU.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_PrecConjugateGrad.m    # known: missing: ichol (bugs/missing.md)
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_SOR.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/PowerM.m    # known: lang/num2str-complex-array
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/TestHagersCondAlg.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/testClassicalJacobi.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/testDC.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/testRayleigh.m
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/testSVDJacobi.m    # known: untriaged workspace-mismatch
+corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example1a.m    # known: optim/linprog-rank-deficient-error
+corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example1b.m    # known: optim/linprog-rank-deficient-error
+corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example2a.m    # known: optim/linprog-rank-deficient-error
+corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example2b.m    # known: optim/linprog-rank-deficient-error
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-1/pr1_1.m    # known: missing: inline (bugs/missing.md)
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-1/pr1_2.m    # known: missing: inline (bugs/missing.md)
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-1/pr1_3.m    # known: missing: inline (bugs/missing.md)
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-2/pr2_1.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-2/pr2_2.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-2/pr2_3.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-2/pr2_4.m    # known: untriaged runtime-error
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-4/pr4_1.m    # known: missing: syms (bugs/missing.md)
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-4/pr4_2.m    # known: missing: syms (bugs/missing.md)
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_6.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_7.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_8.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-6/pr6_1.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-7/pr7_1.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-7/pr7_2.m    # known: untriaged runtime-error

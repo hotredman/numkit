@@ -61,6 +61,10 @@ question, not a code gap. Revisit if/when the project wants a data pack.
 
 **Symbolic Math Toolbox:** `syms` (7 uses in the same portion; the whole
 symbolic stack is out of scope — tracked here as a gap, not planned)
+**Springer math books (fieldtest portion 10, 2026-09-05):** `inline`
+(3 — the legacy anonymous-function constructor), `ode23s` (2 — covered by
+the ode-stiff entry), `ezplot`, `dsolve`, `saveas`, `scramble`
+(communications), `ichol` (incomplete Cholesky)
 
 **Entering Commands:** `commandhistory`, `commandwindow`, `diary`, `more`
 
