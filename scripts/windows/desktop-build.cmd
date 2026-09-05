@@ -10,6 +10,8 @@ set WASM_DIST=%PROJECT_DIR%build\wasm\release\wasm\dist
 set SKIP_WASM=0
 set NO_PACKAGE=0
 set SKIP_NATIVE=0
+if "%1"=="--help" goto show_help
+if "%1"=="-h"     goto show_help
 if "%1"=="--skip-wasm"   set SKIP_WASM=1
 if "%2"=="--skip-wasm"   set SKIP_WASM=1
 if "%3"=="--skip-wasm"   set SKIP_WASM=1
@@ -47,7 +49,7 @@ if not "%SKIP_WASM%"=="1" (
 )
 
 if "%SKIP_NATIVE%"=="1" (
-    echo [1b/7] Skipping native C++ build (--skip-native)
+    echo [1b/7] Skipping native C++ build ^(--skip-native^)
 ) else (
     echo [1b/7] Building native executables (windows-release preset^)...
     cd /d "%PROJECT_DIR%"
@@ -150,4 +152,16 @@ echo.
 echo === Done! ===
 echo Packaged exe : %DESKTOP_DIR%\release\
 echo Deploy bundle: %DEPLOY_DIR%\
+exit /b 0
+
+:show_help
+echo Usage: desktop-build.cmd [--skip-wasm] [--skip-native] [--no-package]
+echo.
+echo Builds the Numkit Desktop application using Electron and CMake.
+echo.
+echo Options:
+echo   --skip-wasm    Do not rebuild WASM engine (reuse existing build)
+echo   --skip-native  Do not rebuild native C++ binaries
+echo   --no-package   Build frontend bundle only, skip electron-builder
+echo   -h, --help     Show this help message
 exit /b 0

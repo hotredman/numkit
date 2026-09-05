@@ -16,6 +16,18 @@ for arg in "$@"; do
         --skip-wasm)   SKIP_WASM=1 ;;
         --no-package)  NO_PACKAGE=1 ;;
         --skip-native) SKIP_NATIVE=1 ;;
+        -h|--help)
+            echo "Usage: desktop-build.sh [--skip-wasm] [--skip-native] [--no-package]"
+            echo
+            echo "Builds the Numkit Desktop application using Electron and CMake."
+            echo
+            echo "Options:"
+            echo "  --skip-wasm    Do not rebuild WASM engine (reuse existing build)"
+            echo "  --skip-native  Do not rebuild native C++ binaries"
+            echo "  --no-package   Build frontend bundle only, skip electron-builder"
+            echo "  -h, --help     Show this help message"
+            exit 0
+            ;;
     esac
 done
 

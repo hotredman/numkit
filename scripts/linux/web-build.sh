@@ -7,15 +7,27 @@ IDE_DIR="${PROJECT_DIR}/ide"
 WASM_DIST="${PROJECT_DIR}/build/wasm/release/wasm/dist"
 DEPLOY_DIR="${PROJECT_DIR}/deploy"
 
+SKIP_WASM=0
+for arg in "$@"; do
+    case "$arg" in
+        --skip-wasm) SKIP_WASM=1 ;;
+        -h|--help)
+            echo "Usage: web-build.sh [--skip-wasm]"
+            echo
+            echo "Builds the static Web IDE distribution to deploy/web/."
+            echo
+            echo "Options:"
+            echo "  --skip-wasm  Reuse existing WASM files without rebuilding"
+            echo "  -h, --help   Show this help message"
+            exit 0
+            ;;
+    esac
+done
+
 if ! command -v node &>/dev/null; then
     echo "node not found. Install Node.js 18+."
     exit 1
 fi
-
-SKIP_WASM=0
-for arg in "$@"; do
-    if [ "$arg" == "--skip-wasm" ]; then SKIP_WASM=1; fi
-done
 
 if command -v emcc &>/dev/null; then
     if [ "$SKIP_WASM" -eq 1 ]; then

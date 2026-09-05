@@ -20,6 +20,9 @@ if not defined EMCC_DIR (
 echo === Numkit IDE Static Build -- output to deploy\ ===
 echo.
 
+if "%1"=="--help" goto show_help
+if "%1"=="-h"     goto show_help
+
 set SKIP_WASM=0
 if "%1"=="--skip-wasm" set SKIP_WASM=1
 if "%2"=="--skip-wasm" set SKIP_WASM=1
@@ -37,9 +40,9 @@ if not exist "%EMCC_DIR%\emcc.bat" (
 )
 
 if "%SKIP_WASM%"=="1" (
-    echo [WASM] Skipping rebuild (--skip-wasm)
+    echo [WASM] Skipping rebuild ^(--skip-wasm^)
 ) else (
-    echo Building WASM (wasm-release)...
+    echo Building WASM ^(wasm-release^)...
     call "%SCRIPT_DIR%engine-build.cmd" --wasm
     if errorlevel 1 exit /b 1
 )
@@ -74,4 +77,14 @@ echo.> "%DEPLOY_DIR%\.nojekyll"
 
 echo.
 echo === Build complete! Static IDE site in deploy\ ===
+exit /b 0
+
+:show_help
+echo Usage: web-build.cmd [--skip-wasm]
+echo.
+echo Builds the static Web IDE distribution to deploy\web\.
+echo.
+echo Options:
+echo   --skip-wasm  Reuse existing WASM files without rebuilding
+echo   -h, --help   Show this help message
 exit /b 0
