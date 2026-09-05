@@ -8,7 +8,13 @@ const fs = require("fs");
 const path = require("path");
 
 const repoRoot = path.resolve(__dirname, "..", "..", "..");
-const srcDir = path.join(repoRoot, "build", "browser", "wasm", "dist");
+// OS-scoped preset first (build/wasm/release — the canonical layout since
+// the scripts reorg), legacy browser preset as fallback.
+const wasmCandidates = [
+  path.join(repoRoot, "build", "wasm", "release", "wasm", "dist"),
+  path.join(repoRoot, "build", "browser", "wasm", "dist"),
+];
+const srcDir = wasmCandidates.find((d) => fs.existsSync(path.join(d, "numkit_ide.wasm")));
 const outDir = path.join(__dirname, "..", "dist");
 
 const files = ["numkit_ide.js", "numkit_ide.wasm"];
