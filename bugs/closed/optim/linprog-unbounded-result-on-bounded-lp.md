@@ -1,6 +1,6 @@
 # optim.linprog — bounded LP returns an unbounded, bound-violating point (objVal −3.3e9 vs MATLAB −1.2)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (043c8b4b2, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P1 wrong result (silently incorrect, constraint-violating "solution")
 - **Found:** 2026-09-06 via the springer-math compare group — example1a/example1b (linear-programming-using-MATLAB, appendix A) flagged objVal/x divergence after their rank-deficiency blocker was closed

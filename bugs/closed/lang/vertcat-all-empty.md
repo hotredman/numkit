@@ -1,6 +1,6 @@
 # lang.[..] — all-empty concatenation returned an UNSET Value (assignment target never bound); empties ignored for dims
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (043c8b4b2, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P1 wrong result (silent: the variable simply stays undefined)
 - **Found:** 2026-09-06 during the linprog portion — the rewritten quadprog m-source builds `A = [C; Be]` with empty C/Be for unconstrained problems and died with "Undefined function or variable"
