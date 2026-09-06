@@ -453,3 +453,21 @@ TEST_F(ConvolutionTest, OutputOrientationFollowsLongerInput)
     EXPECT_DOUBLE_EQ(evalScalar("size(yc,1)"), 5.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(yc,2)"), 1.0);
 }
+
+// --- bugs/closed/lang/deconv-outputs-swapped.md (NOT REPRODUCED; live
+// guard pinning the four probed cases incl. the strictly-proper form) ---
+TEST_F(ConvolutionTest, DeconvQuotientRemainderProbedCases)
+{
+    eval("[u1, r1] = deconv([1], [1 2 1]);");      // strictly-proper
+    EXPECT_DOUBLE_EQ(evalScalar("numel(u1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u1"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("r1"), 1.0);
+    eval("[u2, r2] = deconv([1 3 2], [1 1]);");    // exact division
+    EXPECT_DOUBLE_EQ(evalScalar("numel(u2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("u2(2)"), 2.0);
+    eval("[u3, r3] = deconv([2 5 3 6], [1 6 11 6]);");  // quotient + rem
+    EXPECT_DOUBLE_EQ(evalScalar("u3"), 2.0);
+    EXPECT_NEAR(evalScalar("r3(3)"), -19.0, 1e-12);
+    eval("[u4, r4] = deconv([1 2 1], [1 1]);");    // (s+1)^2/(s+1)
+    EXPECT_DOUBLE_EQ(evalScalar("u4(2)"), 1.0);
+}
