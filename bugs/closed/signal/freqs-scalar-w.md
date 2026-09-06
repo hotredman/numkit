@@ -1,6 +1,6 @@
 # signal.freqs — scalar `w` treated as a frequency, not a point count
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (e71a5e817, 2026-09-06)
 - **Severity:** P3 (edge-case input form)
 - **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE

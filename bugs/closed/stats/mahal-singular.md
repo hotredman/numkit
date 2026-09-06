@@ -1,6 +1,6 @@
 # stats.mahal — throws on rank-deficient reference (MATLAB handles it)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (e71a5e817, 2026-09-06)
 - **Severity:** P2 (over-strict — errors where MATLAB returns a value)
 - **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE (stats coverage)
