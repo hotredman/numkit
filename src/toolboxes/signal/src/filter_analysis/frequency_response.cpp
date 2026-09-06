@@ -76,8 +76,11 @@ freqz(const Value &b, const Value &a, const Value &wvec, std::pmr::memory_resour
     const size_t n = wvec.numel();
     const double *wd = wvec.doubleData();
 
-    auto W = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    auto H = Value::complexMatrix(n, 1, mr);
+    // MATLAB R2025b (probed): H and W preserve w's orientation — a row w
+    // yields a row H, a column w a column H.
+    const size_t rows = wvec.dims().rows(), cols = wvec.dims().cols();
+    auto W = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    auto H = Value::complexMatrix(rows, cols, mr);
     for (size_t k = 0; k < n; ++k) {
         const double w = wd[k];
         W.doubleDataMut()[k] = w;

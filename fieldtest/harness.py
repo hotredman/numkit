@@ -91,7 +91,12 @@ def harvest(limit=None, flt=None):
             if m.stat().st_size > 40_000 or txt.count("\n") > 500:
                 continue
             low = txt.lower()
-            if any(b.lower() in low for b in BAD_TOKENS):
+            # Call-shaped tokens ("input(", "pause(") substring-match; bare
+            # words (tic, clock, mex, ...) match on word boundaries — a
+            # plain substring hit rejected pr5_5.m via 'elliptic' containing
+            # 'tic' (found 2026-09-06).
+            if any(b in low if "(" in b else re.search(r"\b" + re.escape(b) + r"\b", low)
+                   for b in BAD_TOKENS):
                 continue
             if flt and flt.lower() not in str(m).lower():
                 continue

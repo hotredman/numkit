@@ -373,3 +373,84 @@ TEST_F(FilterDesignTest, ImpulseBATSimpleAndFeedthrough)
     EXPECT_NEAR(evalScalar("h2(1)"), -1.0, 1e-12);
     EXPECT_NEAR(evalScalar("h2(2)"), -0.6065306597, 1e-9);
 }
+
+// --- MATLAB R2025b canonical pole/zero ORDER for the analog prototypes ---
+// (probed element-by-element at N=3/5/8; found via pr5_5's workspace diff —
+// same root SET, different emission order.) buttap: conj pairs by upper
+// imag descending, +imag first, real last. cheb1ap: imag descending (the
+// k-loop already emits this). cheb2ap: z pairs by |imag| ascending (+first),
+// poles by angle descending. ellipap: z pairs |imag| descending (-first),
+// p pairs |real| descending (-first), real pole last.
+TEST_F(FilterDesignTest, ApPrototypeRootOrderMatchesMatlab)
+{
+    // buttap(5): (−0.3090±0.9511i), (−0.8090±0.5878i), −1
+    eval("[z,p,k] = buttap(5);");
+    EXPECT_NEAR(evalScalar("real(p(1))"), -0.3090, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(p(1))"),  0.9511, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(p(2))"), -0.9511, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(p(3))"),  0.5878, 1e-4);
+    EXPECT_NEAR(evalScalar("real(p(5))"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(p(5))"),  0.0, 1e-12);
+    // buttap(8): first pair ±0.9808i at real −0.1951 (+ first).
+    eval("[~,p8,~] = buttap(8);");
+    EXPECT_NEAR(evalScalar("imag(p8(1))"),  0.9808, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(p8(2))"), -0.9808, 1e-4);
+    EXPECT_NEAR(evalScalar("real(p8(1))"), -0.1951, 1e-4);
+
+    // cheb1ap(5,1): imag descending, real pole mid (index 3).
+    eval("[~,pc1,~] = cheb1ap(5, 1);");
+    EXPECT_NEAR(evalScalar("imag(pc1(1))"),  0.9901, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pc1(2))"),  0.6119, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pc1(3))"),  0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("real(pc1(3))"), -0.2895, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pc1(5))"), -0.9901, 1e-4);
+
+    // cheb2ap(5,35): z pairs |imag| ascending (+ first); poles angle
+    // descending with the real pole mid.
+    eval("[zc2,pc2,~] = cheb2ap(5, 35);");
+    EXPECT_NEAR(evalScalar("imag(zc2(1))"),  1.0515, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(zc2(2))"), -1.0515, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(zc2(3))"),  1.7013, 1e-4);
+    EXPECT_NEAR(evalScalar("real(pc2(1))"), -0.1609, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pc2(1))"), -0.6718, 1e-4);
+    EXPECT_NEAR(evalScalar("real(pc2(3))"), -0.9163, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pc2(3))"),  0.0, 1e-12);
+
+    // ellipap(5,1,35): z pairs |imag| descending (- first); p pairs |real|
+    // descending (- first); real pole LAST.
+    eval("[ze,pe,~] = ellipap(5, 1, 35);");
+    EXPECT_NEAR(evalScalar("imag(ze(1))"), -1.6061, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(ze(2))"),  1.6061, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(ze(3))"), -1.1776, 1e-4);
+    EXPECT_NEAR(evalScalar("real(pe(1))"), -0.2118, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pe(1))"), -0.7718, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pe(2))"),  0.7718, 1e-4);
+    EXPECT_NEAR(evalScalar("real(pe(5))"), -0.4133, 1e-4);
+    // ellipap(8,1,35): p ordered by |real| descending (0.3237 first).
+    eval("[~,pe8,~] = ellipap(8, 1, 35);");
+    EXPECT_NEAR(evalScalar("real(pe8(1))"), -0.3237, 1e-4);
+    EXPECT_NEAR(evalScalar("imag(pe8(1))"), -0.4346, 1e-4);
+    EXPECT_NEAR(evalScalar("real(pe8(7))"), -0.0037, 1e-4);
+}
+
+// --- impulse(b,a,t) / freqz(b,a,w) output orientation (MATLAB-probed) ---
+TEST_F(FilterDesignTest, ImpulseAndFreqzOrientation)
+{
+    // impulse: h is Nx1 COLUMN whatever t's orientation; tout is EMPTY.
+    eval("th = 0:.5:2; [h, tout] = impulse([1],[1 3 2],th);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(h,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(h,2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(tout)"), 0.0);
+    eval("tc = (0:.5:2).'; h2 = impulse([1],[1 3 2],tc);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(h2,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(h2,2)"), 1.0);
+
+    // freqz(b,a,w): H (and W) preserve w's orientation.
+    eval("w = 0:pi/255:pi; [H,W] = freqz([1 2],[1 1],w);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(H,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(H,2)"), 256.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(W,1)"), 1.0);
+    eval("wc = (0:pi/255:pi).'; H2 = freqz([1 2],[1 1],wc);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(H2,1)"), 256.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(H2,2)"), 1.0);
+}

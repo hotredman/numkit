@@ -97,3 +97,20 @@ TEST_F(OptimKnownBug, Fsolve)
     EXPECT_NEAR(evalScalar("x3(2)"), 2.0, 1e-5);
     EXPECT_NEAR(evalScalar("x3(3)"), 3.0, 1e-5);
 }
+
+// bugs/opened/optim/linprog-unbounded-result-on-bounded-lp.md — the
+// KKT solve returns a bound-violating point (x3 far below lb=2) with
+// objVal -3.3e9 where MATLAB finds objVal = -1.2.
+TEST_F(OptimKnownBug, DISABLED_LinprogBoundedLpOptimum)
+{
+    eval("c = [-2; 4; -2; 2];");
+    eval("A = [-2 0 -3 0; -3 2 0 -4]; b = [-6; -8];");
+    eval("Aeq = [4 -3 8 -1; 4 0 -1 4]; beq = [20; 18];");
+    eval("lb = [1 0 2 0]; ub = [Inf Inf 10 Inf];");
+    eval("[x, objVal] = linprog(c, A, b, Aeq, beq, lb, ub);");
+    EXPECT_NEAR(evalScalar("objVal"), -1.2, 1e-6);
+    EXPECT_NEAR(evalScalar("x(1)"), 1.8, 1e-4);
+    EXPECT_NEAR(evalScalar("x(2)"), 0.0, 1e-6);
+    EXPECT_NEAR(evalScalar("x(3)"), 2.0, 1e-6);
+    EXPECT_NEAR(evalScalar("x(4)"), 3.2, 1e-4);
+}

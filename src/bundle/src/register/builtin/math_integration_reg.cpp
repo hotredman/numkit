@@ -510,7 +510,10 @@ function [h, tout, x] = impulse(b, a, t)
     end
     [rk, pk, ~] = residue(b, a);
     n = numel(pk);
-    h = zeros(size(t));
+    % MATLAB R2025b shape contract (probed): h is a Nx1 COLUMN whatever
+    % t's orientation, and tout is EMPTY for the (b,a,t) form.
+    tc = t(:);
+    h = zeros(numel(t), 1);
     tol = 1e-8;
     for k = 1:n
         m = 1;
@@ -519,12 +522,12 @@ function [h, tout, x] = impulse(b, a, t)
                 m = k - j + 1;
             end
         end
-        h = h + rk(k) .* t.^(m-1) ./ factorial(m-1) .* exp(pk(k) .* t);
+        h = h + rk(k) .* tc.^(m-1) ./ factorial(m-1) .* exp(pk(k) .* tc);
     end
     if isreal(b) && isreal(a)
         h = real(h);
     end
-    tout = t;
+    tout = [];
     x = [];
 )NKM";
 

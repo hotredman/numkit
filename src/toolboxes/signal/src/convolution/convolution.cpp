@@ -51,6 +51,19 @@ static Value convPromoteToDouble(const Value &v, std::pmr::memory_resource *mr)
     return r;
 }
 
+// MATLAB conv output orientation (probed vs R2025b): the result follows
+// the LONGER vector; equal lengths give a COLUMN (row only when the first
+// input is a row AND strictly longer than a column second input, or both
+// are rows).
+static bool convRowOut(const Value &a, const Value &b)
+{
+    auto isCol = [](const Value &v) {
+        return v.dims().cols() == 1 && v.numel() > 1;
+    };
+    if (isCol(a)) return false;
+    return a.numel() > b.numel() || !isCol(b);
+}
+
 Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pmr::memory_resource *mr)
 {
     auto needsPromote = [](const Value &v) {
@@ -100,7 +113,9 @@ Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pm
             throw Error("conv: shape must be 'full', 'same', or 'valid'",
                          0, 0, "conv", "", "numkit:conv:badShape");
         }
-        auto rc = Value::matrix(1, outLenC, ValueType::COMPLEX, mr);
+        auto rc = convRowOut(a, b)
+                      ? Value::matrix(1, outLenC, ValueType::COMPLEX, mr)
+                      : Value::matrix(outLenC, 1, ValueType::COMPLEX, mr);
         Complex *rcd = rc.complexDataMut();
         for (size_t i = 0; i < outLenC; ++i) rcd[i] = full[outStartC + i];
         return rc;
@@ -128,7 +143,9 @@ Value conv(const Value &aIn, const Value &bIn, const std::string &shape, std::pm
                      0, 0, "conv", "", "numkit:conv:badShape");
     }
 
-    auto r = Value::matrix(1, outLen, ValueType::DOUBLE, mr);
+    auto r = convRowOut(a, b)
+                 ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
+                 : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = c[outStart + i];
     return r;

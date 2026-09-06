@@ -325,7 +325,13 @@ std::vector<double> freqsAutoGridVec(const Value &b, const Value &a)
         const double x = (i == 199) ? static_cast<double>(f.size()) : 1.0 + i * dxi;
         const size_t j = static_cast<size_t>(x) - 1;
         const double t = x - (j + 1);
-        const double lv = lw[j] + t * (lw[j + 1] - lw[j]);
+        // At the last sample (x == f.size(), t == 0) the upper knot j+1
+        // is one past the end — clamp it so the read stays in bounds
+        // (the value is unchanged: t == 0 kills the difference). The
+        // unclamped read was benign in Release but tripped the MSVC
+        // Debug iterator assert (bugs/closed/signal/freqs-autogrid-debug-oob).
+        const size_t j2 = std::min(j + 1, lw.size() - 1);
+        const double lv = lw[j] + t * (lw[j2] - lw[j]);
         out[i] = std::pow(10.0, lv);
     }
     return out;

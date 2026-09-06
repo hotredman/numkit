@@ -423,3 +423,33 @@ TEST_F(ConvolutionTest, XcovMaxlag)
     EXPECT_NEAR(evalScalar("cmb(3)"), 1.0, 1e-12);
     EXPECT_NEAR(evalScalar("cmb(1)"), 0.76, 1e-12);
 }
+
+// --- conv output orientation (MATLAB R2025b, probed) ---
+// The result follows the LONGER vector; equal lengths give a COLUMN.
+TEST_F(ConvolutionTest, OutputOrientationFollowsLongerInput)
+{
+    eval("y1 = conv([1 2 3], [1; 2]);");          // row longer -> row
+    EXPECT_DOUBLE_EQ(evalScalar("size(y1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y1,2)"), 4.0);
+    eval("y2 = conv([1 2], [1; 2; 3]);");         // col longer -> col
+    EXPECT_DOUBLE_EQ(evalScalar("size(y2,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y2,2)"), 1.0);
+    eval("y3 = conv([1 2 3], [1; 2; 3]);");       // tie -> col
+    EXPECT_DOUBLE_EQ(evalScalar("size(y3,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y3,2)"), 1.0);
+    eval("y4 = conv([1; 2; 3], [1 2]);");         // col first, longer -> col
+    EXPECT_DOUBLE_EQ(evalScalar("size(y4,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y4,2)"), 1.0);
+    eval("y5 = conv([1 2 3], [1 2]);");           // row/row -> row
+    EXPECT_DOUBLE_EQ(evalScalar("size(y5,1)"), 1.0);
+    eval("y6 = conv([1; 2; 3], [1; 2]);");        // col/col -> col
+    EXPECT_DOUBLE_EQ(evalScalar("size(y6,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y6,2)"), 1.0);
+    eval("y7 = conv(5, [1; 2; 3]);");             // scalar vs col -> col
+    EXPECT_DOUBLE_EQ(evalScalar("size(y7,1)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(y7,2)"), 1.0);
+    // Complex path obeys the same rule.
+    eval("yc = conv([1 2 3], complex([1; 1; 1]));");  // tie -> col
+    EXPECT_DOUBLE_EQ(evalScalar("size(yc,1)"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(yc,2)"), 1.0);
+}

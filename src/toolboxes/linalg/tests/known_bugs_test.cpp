@@ -138,3 +138,18 @@ TEST_F(LinalgKnownBug, CholAcceptsComplexHermitian)
     eval("err = norm(R'*R - A, 'fro');");
     EXPECT_NEAR(evalScalar("err"), 0.0, 1e-12);
 }
+
+// bugs/opened/linalg/qr-last-column-sign-convention.md — the trailing
+// Householder column/row of qr comes out sign-flipped vs MATLAB (LAPACK):
+// Q's last column and R's last row are negated. Q*R stays valid and the
+// RQ-iteration results match — the divergence is convention-only, but
+// workspace compares flag Q/R at max rel 2.0.
+TEST_F(LinalgKnownBug, DISABLED_QrLastColumnSignConvention)
+{
+    eval("[Q1, R1] = qr([0 -5 2; 6 0 -12; 1 3 0]);");
+    EXPECT_NEAR(evalScalar("R1(3,3)"),  2.71638, 1e-4);   // MATLAB: +; numkit: -
+    EXPECT_NEAR(evalScalar("Q1(1,3)"),  0.509321, 1e-5);  // MATLAB: +; numkit: -
+    EXPECT_NEAR(evalScalar("Q1(3,3)"),  0.848868, 1e-5);  // MATLAB: +; numkit: -
+    EXPECT_NEAR(evalScalar("R1(1,1)"), -6.08276, 1e-5);   // these already match
+    EXPECT_NEAR(evalScalar("Q1(2,1)"), -0.986394, 1e-5);
+}

@@ -1,5 +1,5 @@
 {
- "qualified": "2026-09-05T18:15:02",
+ "qualified": "2026-09-06T11:38:02",
  "scripts": [
   {
    "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\anonymous_function_mysinc.m",
@@ -440,6 +440,10 @@
   {
    "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-4\\pr4_2.m",
    "matlab_ms": 9759
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_5.m",
+   "matlab_ms": 35235
   },
   {
    "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_6.m",

@@ -29,6 +29,51 @@ namespace {
 
 using Cd = std::complex<double>;
 
+// Canonical MATLAB output ordering for the analog prototypes (probed vs
+// R2025b at N=3/5/8): emit conjugate pairs sorted by a per-family key of
+// the UPPER (+imag) member — buttap poles: imag descending; cheb2ap
+// zeros: |imag| ascending; ellipap zeros: |imag| descending; ellipap
+// poles: |real| descending — the -imag member leads in the elliptic
+// families, and real roots go last. cheb1ap poles and cheb2ap poles
+// already emit in MATLAB order from their k-loops (imag descending /
+// pole-angle descending respectively).
+std::vector<Cd> orderRootsCanonical(std::vector<Cd> v, bool byAbsReal,
+                                    bool keyDesc, bool negFirst)
+{
+    std::vector<std::pair<double, Cd>> uppers;
+    std::vector<Cd> reals;
+    std::vector<bool> used(v.size(), false);
+    for (size_t i = 0; i < v.size(); ++i) {
+        if (used[i] || v[i].imag() == 0.0) continue;
+        for (size_t j = i + 1; j < v.size(); ++j) {
+            if (used[j]) continue;
+            if (std::abs(v[j] - std::conj(v[i])) <= 1e-10 * (1.0 + std::abs(v[i]))) {
+                used[i] = used[j] = true;
+                const Cd up = v[i].imag() > 0.0 ? v[i] : v[j];
+                const double key = byAbsReal ? std::abs(up.real()) : up.imag();
+                uppers.emplace_back(key, up);
+                break;
+            }
+        }
+    }
+    for (size_t i = 0; i < v.size(); ++i)
+        if (!used[i]) reals.push_back(v[i]);
+    std::stable_sort(uppers.begin(), uppers.end(),
+                     [keyDesc](const auto &a, const auto &b) {
+                         return keyDesc ? a.first > b.first : a.first < b.first;
+                     });
+    std::vector<Cd> out;
+    out.reserve(v.size());
+    for (const auto &kv : uppers) {
+        const Cd &up = kv.second;
+        const Cd lo = std::conj(up);
+        out.push_back(negFirst ? lo : up);
+        out.push_back(negFirst ? up : lo);
+    }
+    out.insert(out.end(), reals.begin(), reals.end());
+    return out;
+}
+
 std::vector<Cd> readComplexVec(const Value &v)
 {
     const size_t n = v.numel();
@@ -83,6 +128,8 @@ buttap(int N, std::pmr::memory_resource *mr)
         const double theta = M_PI * (2.0 * k - 1.0) / (2.0 * N) + 0.5 * M_PI;
         p[k - 1] = std::exp(Cd(0.0, theta));
     }
+    p = orderRootsCanonical(std::move(p), /*byAbsReal=*/false,
+                            /*keyDesc=*/true, /*negFirst=*/false);
     return std::make_tuple(packComplexCol(z, mr),
                            packComplexCol(p, mr),
                            Value::scalar(1.0, mr));
@@ -324,6 +371,11 @@ ellipap(int N, double Rp, double Rs, std::pmr::memory_resource *mr)
         poles.emplace_back(real_pole, 0.0);
     }
 
+    zeros = orderRootsCanonical(std::move(zeros), /*byAbsReal=*/false,
+                                /*keyDesc=*/true, /*negFirst=*/true);
+    poles = orderRootsCanonical(std::move(poles), /*byAbsReal=*/true,
+                                /*keyDesc=*/true, /*negFirst=*/true);
+
     // Gain to normalize: real(prod(-p) / prod(-z)). For even N divide
     // by sqrt(1+eps^2) so the passband peaks at 1 (the equiripple
     // pattern for even-order elliptic sits at 1/sqrt(1+eps^2) at DC).
@@ -366,6 +418,8 @@ cheb2ap(int N, double Rs, std::pmr::memory_resource *mr)
         if (std::abs(c) < 1e-12) continue;
         z.push_back(Cd(0.0, 1.0 / c));
     }
+    z = orderRootsCanonical(std::move(z), /*byAbsReal=*/false,
+                            /*keyDesc=*/false, /*negFirst=*/false);
     // Gain: real(prod(-poles) / prod(-zeros)) — preserves the DC value
     // of the analog prototype.
     Cd num(1.0, 0.0), den(1.0, 0.0);
