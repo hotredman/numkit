@@ -1,6 +1,6 @@
 # lang.deconv — reported swapped quotient/remainder: NOT REPRODUCED (report was a misattributed probe)
 
-- **Status:** ✅ CLOSED not-reproduced (HASH, 2026-09-06) — outputs match MATLAB on every probed case
+- **Status:** ✅ CLOSED not-reproduced (577624fb5, 2026-09-06) — outputs match MATLAB on every probed case
 - **Severity:** P1 (a core polynomial builtin giving wrong results silently)
 - **Kind:** bug
 - **Found:** 2026-09-05 while building a Heaviside recursion for

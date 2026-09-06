@@ -1,6 +1,6 @@
 # core.tests — Debug gtest crashed in DualEngineTest SetUp: gtest suite-name collision (TEST_F + TEST_P both "BuiltinTest")
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (699ca1001, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P2 latent UB (silent in Release — the official full-suite config — crashes every Debug run)
 - **Found:** 2026-09-06 during the linprog portion: running the optim suites in the locally built Debug gtest aborted with `SEH exception with code 0xc0000005 thrown in SetUp()`.
