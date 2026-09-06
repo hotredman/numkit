@@ -98,10 +98,9 @@ TEST_F(OptimKnownBug, Fsolve)
     EXPECT_NEAR(evalScalar("x3(3)"), 3.0, 1e-5);
 }
 
-// bugs/opened/optim/linprog-unbounded-result-on-bounded-lp.md — the
-// KKT solve returns a bound-violating point (x3 far below lb=2) with
-// objVal -3.3e9 where MATLAB finds objVal = -1.2.
-TEST_F(OptimKnownBug, DISABLED_LinprogBoundedLpOptimum)
+// bugs/closed/optim/linprog-unbounded-result-on-bounded-lp.md (FIXED;
+// live guard) — the ADMM+polish quadprog finds the true optimum.
+TEST_F(OptimKnownBug, LinprogBoundedLpOptimum)
 {
     eval("c = [-2; 4; -2; 2];");
     eval("A = [-2 0 -3 0; -3 2 0 -4]; b = [-6; -8];");

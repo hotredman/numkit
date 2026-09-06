@@ -1,6 +1,6 @@
 # optim.linprog — bounded LP returns an unbounded, bound-violating point (objVal −3.3e9 vs MATLAB −1.2)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (HASH, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P1 wrong result (silently incorrect, constraint-violating "solution")
 - **Found:** 2026-09-06 via the springer-math compare group — example1a/example1b (linear-programming-using-MATLAB, appendix A) flagged objVal/x divergence after their rank-deficiency blocker was closed
@@ -26,22 +26,26 @@ lb = [1 0 2 0]; ub = [Inf Inf 10 Inf];
 
 ## Root cause
 
-Not yet diagnosed — the regularized KKT solve is returning a point far
-outside the box; the active-set/bound handling appears to accept the
-unconstrained KKT step. The portion-11 repro (rank-deficient proximal
-LP) stays green, so this is a different failure branch.
+The constraint-accumulation active set CYCLED: with H = eps*I (the
+linprog regularization) the delta-regularized saddle returns
+multipliers at O(1/delta) = 1e12 scale, whose SIGNS are noise — the
+drop step removes wrong constraints, the loop re-adds them, hits the
+iteration cap (60+5m) and then RETURNS THE LAST GARBAGE x silently
+(traced live: the active set oscillated over all 110 iterations,
+intermediate x already at 1e9).
 
-## Suggested fix
+## Fix
 
-Diagnose the bound-constraint path in quadprog's KKT solve (which
-linprog feeds): likely missing rejection/clamping of steps that leave
-the box, or the regularizer interacting with the equality-constrained
-subproblem. Cross-check against OSQP-style primal-dual updates; add
-this repro as a live guard once fixed.
+nk_qp_activeset is REPLACED by nk_qp_admm: an OSQP-style ADMM (no
+feasible start, rank-deficiency tolerant) plus an exact POLISH that
+solves the equality-KKT on the final active set through the existing
+nk_qp_kkt saddle and keeps the vertex when feasible and at least as
+good. Live guard: `OptimKnownBug.LinprogBoundedLpOptimum` (this
+repro, exact values). All 161 optim-suite tests green, including the
+portion-11 rank-deficient repro and fmincon's SQP (a quadprog
+consumer).
 
 ## References
 
-- Guard: `DISABLED_LinprogBoundedLpOptimum` in
+- Guard: `OptimKnownBug.LinprogBoundedLpOptimum` (live) in
   `src/toolboxes/optim/tests/known_bugs_test.cpp`
-- Affected corpus scripts: example1a.m, example1b.m
-  (`# known: optim/linprog-unbounded-result-on-bounded-lp` in the group)

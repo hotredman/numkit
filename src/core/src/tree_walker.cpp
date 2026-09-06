@@ -2444,7 +2444,11 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
     bool anyChar = false, allChar = true;
 
     auto pushElem = [&](Value &&val, std::vector<Value> &dst) {
-        if (val.isEmpty()) return;
+        // Empties PARTICIPATE in concatenation (MATLAB: [zeros(0,2),
+        // zeros(0,2)] is 0x4) — dropping them here lost the dims and,
+        // for all-empty concats, left the assignment unbound
+        // (bugs/closed/lang/vertcat-all-empty). Value::horzcat/vertcat
+        // apply the probed empty rules.
         if (val.isChar()) anyChar = true;
         else              allChar = false;
         dst.push_back(std::move(val));

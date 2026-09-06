@@ -58,8 +58,8 @@ corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matl
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/testDC.m
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/testRayleigh.m
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/testSVDJacobi.m    # known: untriaged workspace-mismatch
-corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example1a.m  # known: optim/linprog-unbounded-result-on-bounded-lp
-corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example1b.m  # known: optim/linprog-unbounded-result-on-bounded-lp
+corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example1a.m
+corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example1b.m
 corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example2a.m
 corpus/work/springer-math--linear-programming-using-MATLAB/codes/appendix A/example2b.m
 corpus/work/springer-math--signals-and-systems/Source code/Chapter-1/pr1_1.m

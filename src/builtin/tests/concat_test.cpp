@@ -319,3 +319,33 @@ TEST_P(ConcatTest, HorzcatCharDoubleVector)
 }
 
 INSTANTIATE_DUAL(ConcatTest);
+
+// --- bugs/closed/lang/vertcat-all-empty.md (FIXED; live guard) ---
+// MATLAB (probed R2025b): empties PARTICIPATE in concat dims —
+// [zeros(0,1); zeros(0,1)] -> 0x1, [zeros(0,1); zeros(0,3)] -> 0x3 (max,
+// no error), [[ ]; [ ]] -> 0x0, horzcat mirrors with sums
+// ([zeros(0,2), zeros(0,2)] -> 0x4). The old code skipped empties and
+// returned an UNSET Value() for all-empty concats — the assignment
+// target never bound ("Undefined function or variable").
+TEST_P(ConcatTest, EmptyOperandsParticipateAndAllEmptyBinds)
+{
+    eval("a1 = [zeros(0,1); zeros(0,1)];");
+    auto *a1 = getVarPtr("a1");
+    ASSERT_NE(a1, nullptr);
+    EXPECT_EQ(a1->dims().rows(), 0u);
+    EXPECT_EQ(a1->dims().cols(), 1u);
+    eval("a2 = [zeros(0,1); zeros(0,3)];");          // max, no error
+    EXPECT_EQ(getVarPtr("a2")->dims().cols(), 3u);
+    eval("a3 = [[]; []];");
+    EXPECT_EQ(getVarPtr("a3")->numel(), 0u);
+    eval("a4 = [[], []];");
+    EXPECT_EQ(getVarPtr("a4")->numel(), 0u);
+    eval("a5 = [zeros(0,2), zeros(0,2)];");          // horzcat sums cols
+    EXPECT_EQ(getVarPtr("a5")->dims().cols(), 4u);
+    eval("a6 = [zeros(0,1); [1; 2]];");              // empty + non-empty
+    EXPECT_EQ(getVarPtr("a6")->dims().rows(), 2u);
+    EXPECT_EQ(getVarPtr("a6")->dims().cols(), 1u);
+    eval("a7 = [[1 2]; []];");                       // [] neutral
+    EXPECT_EQ(getVarPtr("a7")->dims().rows(), 1u);
+    EXPECT_EQ(getVarPtr("a7")->dims().cols(), 2u);
+}

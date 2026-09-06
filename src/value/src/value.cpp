@@ -889,18 +889,27 @@ Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource
     bool rowsSet = false, pagesSet = false;
 
     for (size_t i = 0; i < count; ++i) {
-        if (elems[i].isEmpty())
-            continue;
         size_t eR, eC, eP;
         getElemDims(elems[i], eR, eC, eP);
         totalCols += eC;
-        matchDim(rows, eR, rowsSet);
-        matchDim(pages, eP, pagesSet);
+        if (elems[i].isEmpty()) {
+            // Mirror of the vertcat empty rule (probed R2025b): empties
+            // add 0 columns and participate with MAX height —
+            // [zeros(0,2), zeros(0,2)] is 0x4, [zeros(3,0), 5] is 3x1.
+            rows = std::max(rows, eR);
+            pages = std::max(pages, eP);
+        } else {
+            matchDim(rows, eR, rowsSet);
+            matchDim(pages, eP, pagesSet);
+        }
     }
-    if (totalCols == 0)
-        return Value();
-    if (!rows)
-        rows = 1;
+    if (totalCols == 0) {
+        // All-empty concat returns a PROPER empty (never an unset Value —
+        // the old fallthrough left the assignment target unbound).
+        return Value::matrix(rows, 0, ValueType::DOUBLE, mr);
+    }
+    // rows can only still be 0 for an ALL-empty concat with columns
+    // (e.g. [zeros(0,1), zeros(0,1)] -> 0x2): MATLAB keeps the 0 height.
 
     ValueType outType = promoteNumericType(elems, count);
     // Integer output is computed in DOUBLE then cast (round+saturate) at the
@@ -949,18 +958,31 @@ Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource
     bool hasCell = false;
 
     for (size_t i = 0; i < count; ++i) {
-        if (elems[i].isEmpty())
-            continue;
         if (elems[i].isCell())
             hasCell = true;
         size_t eR, eC, eP;
         getElemDims(elems[i], eR, eC, eP);
         totalRows += eR;
-        matchDim(cols, eC, colsSet);
-        matchDim(pages, eP, pagesSet);
+        if (elems[i].isEmpty()) {
+            // MATLAB (probed R2025b): empties contribute 0 rows and
+            // participate with MAX width — [zeros(0,1); zeros(0,3)] is a
+            // legal 0x3, [[ ]; [ ]] is 0x0. They used to be skipped
+            // entirely, so an all-empty concat fell through to an UNSET
+            // Value() that never bound its assignment target
+            // (bugs/closed/lang/vertcat-all-empty).
+            cols = std::max(cols, eC);
+            pages = std::max(pages, eP);
+        } else {
+            matchDim(cols, eC, colsSet);
+            matchDim(pages, eP, pagesSet);
+        }
     }
-    if (!cols)
-        return Value();
+    if (totalRows == 0) {
+        // All-empty concat returns a PROPER empty, never an unset Value.
+        if (hasCell)
+            return Value::matrix(0, cols, ValueType::CELL, mr);
+        return Value::matrix(0, cols, ValueType::DOUBLE, mr);
+    }
 
     // Char vertcat
     bool hasChar = false;

@@ -36,7 +36,7 @@ function [x, fval, exitflag] = quadprog(H, f, A, b, Aeq, beq, lb, ub, x0)
   else
     Be = zeros(0, n); ce = zeros(0, 1);
   end
-  x = nk_qp_activeset(H, f, C, d, Be, ce, n);
+  x = nk_qp_admm(H, f, C, d, Be, ce, n);
   fval = 0.5 * x.' * H * x + f.' * x;
   exitflag = 1;
 end
@@ -62,41 +62,59 @@ function [x, mu] = nk_qp_kkt(H, f, Amat, cvec, n)
   mu = sol(n+1:end);
 end
 
-function x = nk_qp_activeset(H, f, C, d, Be, ce, n)
-  m = size(C, 1);
-  W = false(m, 1);
-  neq = size(Be, 1);
-  x = zeros(n, 1);
-  for iter = 1:(60 + 5*m)
-    idx = find(W);
-    if isempty(idx)
-      Amat = Be; cvec = ce;
-    else
-      Amat = [Be; C(idx, :)]; cvec = [ce; d(idx)];
+function x = nk_qp_admm(H, f, C, d, Be, ce, n)
+  % OSQP-style ADMM (no feasible start needed, rank-deficiency-tolerant)
+  % followed by an exact POLISH: solve the equality-KKT on the final
+  % active set via nk_qp_kkt and keep the polished vertex when it is
+  % feasible and at least as good. Replaces the old constraint-
+  % accumulation active set, whose delta-regularised multipliers (O(1/
+  % delta)) drove noise add/drop CYCLING to the iteration cap, which it
+  % then returned silently (bugs/closed/optim/linprog-unbounded-result-
+  % on-bounded-lp).
+  A = [C; Be];
+  mA = size(A, 1);
+  l = [-inf(size(C, 1), 1); ce];
+  u = [d; ce];
+  if mA == 0
+    [x, ~] = nk_qp_kkt(H, f, zeros(0, n), zeros(0, 1), n);
+    return;
+  end
+  rho = 0.1; sig = 1e-6;
+  K = H + rho * (A' * A) + sig * eye(n);
+  x = zeros(n, 1); z = zeros(mA, 1); y = zeros(mA, 1);
+  for it = 1:4000
+    x = K \ (-f + rho * A' * (z - y / rho) + sig * x);
+    w = A * x + y / rho;
+    z = min(max(w, l), u);
+    y = y + rho * (A * x - z);
+    rz = A * x - z;
+    pr = norm(rz, inf);
+    dr = norm(H * x + f + A' * y, inf);
+    if pr < 1e-9 && dr < 1e-9
+      break;
     end
-    [x, mu] = nk_qp_kkt(H, f, Amat, cvec, n);
-    muIneq = mu(neq+1:end);
-    if m > 0
-      resid = C * x - d;        % <= 0 means feasible
-      if ~isempty(idx), resid(idx) = -inf; end   % ignore active constraints
-      [maxv, jmax] = max(resid);
+  end
+  % POLISH: rows where z clamped to a (finite) bound are the active set.
+  act = find((w <= l + 1e-7 & ~isinf(l)) | (w >= u - 1e-7 & ~isinf(u)));
+  if isempty(act)
+    return;
+  end
+  bact = zeros(numel(act), 1);
+  for k = 1:numel(act)
+    if w(act(k)) >= u(act(k)) - 1e-7
+      bact(k) = u(act(k));
     else
-      maxv = -inf;
+      bact(k) = l(act(k));
     end
-    if maxv > 1e-9
-      W(jmax) = true;           % add the most-violated inactive constraint
-    else
-      if ~isempty(muIneq)
-        [minmu, jmin] = min(muIneq);
-      else
-        minmu = 0;
-      end
-      if minmu < -1e-9
-        W(idx(jmin)) = false;   % drop the most-negative active multiplier
-      else
-        return;                 % KKT satisfied -> optimum
-      end
-    end
+  end
+  [xp, ~] = nk_qp_kkt(H, f, A(act, :), bact, n);
+  feas = max([C * xp - d; abs(Be * xp - ce)]);
+  % Accept the polish on FEASIBILITY alone: the ADMM iterate is only
+  % residual-tolerance feasible, so its objective can sit *below* the
+  % true optimum — comparing objectives would reject the exact vertex
+  % (observed as a 2e-9 objVal drift on the LP-book repro).
+  if isempty(feas) || max(feas) < 1e-7
+    x = xp;
   end
 end
 )NKM";
