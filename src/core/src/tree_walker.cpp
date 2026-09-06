@@ -2963,6 +2963,62 @@ Value TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
 {
     const std::string &name = node->strValue;
 
+    // MATLAB (probed R2025b): a variable-headed glued -/ form (`N-1`,
+    // `x -1`, `a/2` — the `which -all` idiom shape) is the binary
+    // expression when the head is a VARIABLE. The VM handles this via
+    // Engine::rewriteVarHeadedCommands before compiling; TW executes the
+    // AST directly, so disambiguate here at runtime with the live env.
+    if (node->children.size() == 1
+        && node->children[0]->type == NodeType::STRING_LITERAL) {
+        const std::string &arg = node->children[0]->strValue;
+        const Value *lhs = (arg.size() >= 2 && (arg[0] == '-' || arg[0] == '/')
+                            && (std::isalnum(static_cast<unsigned char>(arg[1]))
+                                || arg[1] == '.'))
+                               ? env->getLocal(name) : nullptr;
+        if (lhs) {
+            const std::string tail = arg.substr(1);
+            bool isNum = !tail.empty();
+            for (char c : tail)
+                if (!(std::isdigit(static_cast<unsigned char>(c)) || c == '.'))
+                    { isNum = false; break; }
+            bool isIdent = !tail.empty()
+                           && (std::isalpha(static_cast<unsigned char>(tail[0]))
+                               || tail[0] == '_');
+            if (isIdent)
+                for (char c : tail)
+                    if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_'))
+                        { isIdent = false; break; }
+            if (isNum || isIdent) {
+                Value rhs;
+                if (isNum) {
+                    rhs = Value::scalar(std::stod(tail), engine_.mr_);
+                } else {
+                    const Value *rv = env->getLocal(tail);
+                    if (!rv)
+                        throw std::runtime_error(
+                            "Undefined function or variable '" + tail + "'");
+                    rhs = *rv;
+                }
+                // Reuse the expression evaluator: rebuild a tiny
+                // BINARY_OP AST and exec it (same path as parsed code).
+                auto bin = std::make_unique<ASTNode>(NodeType::BINARY_OP);
+                bin->strValue = (arg[0] == '-') ? "-" : "/";
+                auto l = std::make_unique<ASTNode>(NodeType::IDENTIFIER);
+                l->strValue = name;
+                auto r = std::make_unique<ASTNode>(
+                    isNum ? NodeType::NUMBER_LITERAL : NodeType::IDENTIFIER);
+                if (isNum) r->numValue = std::stod(tail);
+                else r->strValue = tail;
+                bin->children.push_back(std::move(l));
+                bin->children.push_back(std::move(r));
+                Value result = execBinaryOp(bin.get(), env);
+                env->set("ans", result);
+                if (!node->suppressOutput) displayValue("ans", result);
+                return result;
+            }
+        }
+    }
+
     std::vector<Value> args;
     args.reserve(node->children.size());
     for (auto &child : node->children)

@@ -462,3 +462,54 @@ TEST_F(EvalFamilyKnownBug, EvalFamilyCallerVarVisibility)
     EXPECT_DOUBLE_EQ(evalScalar("w"), 21.0);
 }
 
+
+// bugs/closed/lang/command-var-head-glued-op.md (direct-statement +
+// dual-engine coverage beyond the eval-form guard): variable-headed
+// glued -// statements are expressions on BOTH backends; real commands
+// (function heads) keep command semantics; the write side of
+// eval-family (an eval-DEFINED name read later in the SAME chunk)
+// resolves too.
+class CommandGlueTest : public ::testing::TestWithParam<numkit::Engine::Backend> {
+public:
+    numkit::StandardEngine engine;
+    void SetUp() override { engine.setBackend(GetParam()); }
+    numkit::Value eval(const std::string &c) { return engine.eval(c); }
+    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
+};
+
+TEST_P(CommandGlueTest, DirectStatementGluedForms)
+{
+    eval("clear; x = 5; y = x-1; z = x/2;");
+    EXPECT_DOUBLE_EQ(evalScalar("y"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("z"), 2.5);
+    // Bare statements (display path) evaluate without dying:
+    EXPECT_NO_THROW(eval("x-1"));
+    EXPECT_NO_THROW(eval("x/2"));
+    // Identifier operand on both sides:
+    eval("w = 3; v = x-w;");
+    EXPECT_DOUBLE_EQ(evalScalar("v"), 2.0);
+    eval("u = x/w;");
+    EXPECT_NEAR(evalScalar("u"), 5.0 / 3.0, 1e-12);
+}
+
+TEST_P(CommandGlueTest, RealCommandsUnaffected)
+{
+    // Function heads keep COMMAND semantics (glue-form args): `hold on`
+    // must NOT become a subtraction even though `hold` is undefined as
+    // a variable (no workspace shadow -> stays a command).
+    EXPECT_NO_THROW(eval("hold on"));
+    EXPECT_NO_THROW(eval("hold off"));
+    EXPECT_NO_THROW(eval("grid on"));
+}
+
+TEST_P(CommandGlueTest, EvalWriteSideVisibleLaterInChunk)
+{
+    // eval() DEFINES a name mid-chunk; later statements of the SAME
+    // script chunk resolve it (write side of eval-family).
+    eval("eval('m = 7'); n = m + 1;");
+    EXPECT_DOUBLE_EQ(evalScalar("n"), 8.0);
+}
+
+INSTANTIATE_TEST_SUITE_P(Backends, CommandGlueTest,
+                         ::testing::Values(numkit::Engine::Backend::VM,
+                                           numkit::Engine::Backend::TreeWalker));

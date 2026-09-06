@@ -73,3 +73,15 @@ TEST_P(DistNcx2RiceNakaTest, NakaRndShapeAndMean)
 }
 
 INSTANTIATE_DUAL(DistNcx2RiceNakaTest);
+
+// lambda == 0 is the CENTRAL chi2 (portion 23b poisson guard): the
+// Poisson mixing mean is 0 — std::poisson_distribution's constructor
+// asserts on a non-positive mean in MSVC Debug; the guard must keep the
+// draw central (J=0) and finite.
+TEST_P(DistNcx2RiceNakaTest, Ncx2rndLambdaZeroIsCentralChi2)
+{
+    eval("rng(0); z0 = ncx2rnd(4, 0, 1000, 1);");
+    EXPECT_NEAR(evalScalar("mean(z0)"), 4.0, 0.4);   // chi2(4) mean
+    eval("rng(0); zz = ncx2rnd(4, 1e-12, 1000, 1);");
+    EXPECT_TRUE(std::isfinite(evalScalar("mean(zz)")));
+}

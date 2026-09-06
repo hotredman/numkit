@@ -165,3 +165,14 @@ TEST_F(ImageBatch2Test, FilterGeom)
     eval("B = imtranslate([1 2; 3 4], [1 1]);");
     EXPECT_DOUBLE_EQ(evalScalar("numel(B)"), 4.0);
 }
+
+// bugs: portion 23b poisson guard — imnoise(I,'poisson') on a BLACK
+// image gives every pixel mean 0; std::poisson_distribution's
+// constructor rejects a non-positive mean (MSVC Debug assert), so the
+// zero-mean draw must short-circuit to 0.
+TEST_F(ImageBatch2Test, ImnoisePoissonBlackImageStaysZero)
+{
+    eval("rng(1); P = imnoise(zeros(8), 'poisson');");
+    EXPECT_DOUBLE_EQ(evalScalar("max(P(:))"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min(P(:))"), 0.0);
+}
