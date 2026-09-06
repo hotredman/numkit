@@ -139,12 +139,13 @@ TEST_F(LinalgKnownBug, CholAcceptsComplexHermitian)
     EXPECT_NEAR(evalScalar("err"), 0.0, 1e-12);
 }
 
-// bugs/opened/linalg/qr-last-column-sign-convention.md — the trailing
-// Householder column/row of qr comes out sign-flipped vs MATLAB (LAPACK):
-// Q's last column and R's last row are negated. Q*R stays valid and the
-// RQ-iteration results match — the divergence is convention-only, but
-// workspace compares flag Q/R at max rel 2.0.
-TEST_F(LinalgKnownBug, DISABLED_QrLastColumnSignConvention)
+// bugs/opened/linalg/qr-last-column-sign-convention.md — trailing-column
+// HALF fixed (LIVE guard): qr now applies the dlarfg tail rule (zero
+// subdiagonal tail -> no reflector -> R's last diagonal keeps its sign)
+// and is element-exact vs MATLAB on hilb(10)/rand(4)/[0 -5 2;6 0 -12;1
+// 3 0]/[3 7 8 9;5 -7 4 -7;1 -1 1 -1;9 3 2 5]. The remaining 4 corpus
+// scripts diverge elsewhere in their pipelines (see the bug file).
+TEST_F(LinalgKnownBug, QrLastColumnSignConvention)
 {
     eval("[Q1, R1] = qr([0 -5 2; 6 0 -12; 1 3 0]);");
     EXPECT_NEAR(evalScalar("R1(3,3)"),  2.71638, 1e-4);   // MATLAB: +; numkit: -

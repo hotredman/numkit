@@ -250,15 +250,25 @@ void qrFullHouseholder(const T *A_in, std::size_t m, std::size_t n,
     std::copy(A_in, A_in + m * n, R_work.begin());
 
     for (std::size_t k = 0; k < n; ++k) {
-        double norm_sq = 0.0;
-        for (std::size_t i = k; i < m; ++i) {
-            norm_sq += detail::abs_sq(R_work[i + k * m]);
+        // LAPACK dlarfg rule: when the SUBDIAGONAL tail is entirely
+        // zero, tau = 0 and the diagonal is left UNCHANGED — no
+        // reflector is applied. (Always true for the trailing 1x1
+        // block of a square matrix, which is why our last R diagonal
+        // and Q column came out sign-flipped vs MATLAB/LAPACK.)
+        double tail_sq = 0.0;
+        for (std::size_t i = k + 1; i < m; ++i)
+            tail_sq += detail::abs_sq(R_work[i + k * m]);
+        if (tail_sq == 0.0) {
+            tau[k] = T(0);
+            continue;
         }
+        double norm_sq = tail_sq;
+        const T xk = R_work[k + k * m];
+        norm_sq += detail::abs_sq(xk);
         if (norm_sq == 0.0) {
             tau[k] = T(0);
             continue;
         }
-        const T xk = R_work[k + k * m];
         const double norm = std::sqrt(norm_sq);
 
         T alpha;
@@ -357,10 +367,13 @@ void qrPivotedHouseholder(const T *A_in, std::size_t m, std::size_t n,
                 std::swap(R_work[i + k * m], R_work[i + pj * m]);
             std::swap(permOut[k], permOut[pj]);
         }
+        // dlarfg tail rule — see qrFullHouseholder.
         double norm_sq = 0.0;
-        for (std::size_t i = k; i < m; ++i) {
+        for (std::size_t i = k + 1; i < m; ++i) {
             norm_sq += detail::abs_sq(R_work[i + k * m]);
         }
+        if (norm_sq == 0.0) { tau[k] = T(0); continue; }
+        norm_sq += detail::abs_sq(R_work[k + k * m]);
         if (norm_sq == 0.0) { tau[k] = T(0); continue; }
         const T xk = R_work[k + k * m];
         const double norm = std::sqrt(norm_sq);
