@@ -1,6 +1,6 @@
 # signal.zp2sos — section ORDER was inverted vs MATLAB (ascending |p|, ties ascending |Re|)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (c266701e3, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P3 wrong order (values per-section are right; the section sequence differs)
 - **Found:** 2026-09-06 via the interactive-book portion — pr5_1 (buttap + zp2sos) flags `sos: values diverge (max rel 5.9e-01)` after its z-typing was fixed
