@@ -52,12 +52,26 @@ TEST_F(SignalKnownBug, DeconvIntegerInput)
     EXPECT_TRUE(eval("isa(deconv([1 3 5 3], int8([1 1])), 'double')").toBool());
 }
 
-// bugs/signal/instfreq-instbw.md — instfreq must track a 10->40 Hz chirp.
-TEST_F(SignalKnownBug, DISABLED_InstfreqTracksChirp)
+// bugs/opened/signal/instfreq-instbw.md — the DEFAULT (tfmoment) method
+// needs a pspectrum port; this guard pins MATLAB's DEFAULT-method values
+// until then (numkit's default is the hilbert method, guarded live below).
+TEST_F(SignalKnownBug, DISABLED_InstfreqTfmomentDefault)
 {
     eval("fs=1000; t=(0:1/fs:1-1/fs)'; x=chirp(t,10,1,40); ifr=instfreq(x,fs);");
     EXPECT_NEAR(evalScalar("ifr(1)"),   13.96, 0.5);
     EXPECT_NEAR(evalScalar("ifr(end)"), 38.46, 0.5);
+}
+
+// instfreq 'hilbert' method — MATLAB-verbatim IF = fs/(2pi)*diff(unwrap(
+// angle(hilbert(x)))); values MATLAB-probed (2026-09-06) to 6 decimals.
+TEST_F(SignalKnownBug, InstfreqHilbertMethodExact)
+{
+    eval("fs=1000; t=(0:1/fs:1-1/fs)'; x=chirp(t,10,1,40);");
+    eval("ih = instfreq(x, fs, 'Method', 'hilbert');");
+    EXPECT_NEAR(evalScalar("numel(ih)"), 999.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ih(2)"), 16.761585, 1e-5);
+    EXPECT_NEAR(evalScalar("ih(500)"), 24.967185, 1e-5);
+    EXPECT_NEAR(evalScalar("ih(end)"), 27.511913, 1e-5);
 }
 
 // NOTE: dct/idct Type 1/3/4 FIXED — live tests in

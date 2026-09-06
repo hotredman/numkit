@@ -600,15 +600,13 @@ Value instfreq(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
     const size_t n = re.size();
     if (n < 2) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
-    // Centred-difference of unwrapped phase. We avoid a full unwrap by
-    // computing the phase delta between consecutive samples directly
-    // and wrapping into (-π, π]; this is what `unwrap` would yield on
-    // the local difference.
-    //
-    // numkit's hilbert produces the conjugate analytic signal pattern
-    // (verified by smoke test: hilbert(cos θ) ≈ cos θ - i sin θ on the
-    // signal interior). We negate the phase delta so that a positive-
-    // frequency signal yields positive instantaneous frequency.
+    // MATLAB's hilbert method, verbatim (instfreq.m):
+    //   IF = fs/(2*pi) * diff(unwrap(angle(hilbert(x))))
+    // Wrapping each consecutive phase delta into (-pi, pi] is exactly
+    // what unwrap does on the local difference. (An old comment claimed
+    // numkit's hilbert returns the CONJUGATE analytic signal and
+    // negated the delta — stale: hilbert matches MATLAB now, and the
+    // negation turned correct positive frequencies negative.)
     auto out = Value::matrix(n - 1, 1, ValueType::DOUBLE, mr);
     double *d = out.doubleDataMut();
     constexpr double kPi = 3.14159265358979323846;
@@ -618,7 +616,7 @@ Value instfreq(const Value &x, const Value &fs, std::pmr::memory_resource *mr)
         double dp = p1 - p0;
         while (dp >  kPi) dp -= 2.0 * kPi;
         while (dp <= -kPi) dp += 2.0 * kPi;
-        d[i] = -dp * fsv / (2.0 * kPi);
+        d[i] = dp * fsv / (2.0 * kPi);
     }
     return out;
 }

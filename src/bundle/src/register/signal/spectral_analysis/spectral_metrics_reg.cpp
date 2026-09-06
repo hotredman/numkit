@@ -79,7 +79,35 @@ NK_SPEC1_REG(snr,              snr)
 NK_SPEC1_REG(sinad,            sinad)
 NK_SPEC1_REG(thd,              thd)
 NK_SPEC1_REG(sfdr,             sfdr)
-NK_SPEC1_REG(instfreq,         instfreq)
+// instfreq: x, fs, plus MATLAB's 'Method' name-value ('hilbert' exact;
+// 'tfmoment' — MATLAB's DEFAULT — pending the pspectrum port, honest
+// not-supported error; bugs/opened/signal/instfreq-instbw.md).
+void instfreq_reg(Span<const Value> args, size_t, Span<Value> outs,
+                  CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("instfreq: requires at least 1 argument",
+                     0, 0, "instfreq", "", "numkit:instfreq:nargin");
+    std::string method = "hilbert";
+    for (size_t i = 1; i < args.size(); ++i) {
+        if ((args[i].isChar() || args[i].isString())
+            && args[i].toString() == "Method" && i + 1 < args.size()) {
+            if (!(args[i + 1].isChar() || args[i + 1].isString()))
+                throw Error("instfreq: 'Method' value must be a string",
+                             0, 0, "instfreq", "", "numkit:instfreq:method");
+            method = args[i + 1].toString();
+            ++i;
+        }
+    }
+    if (method != "hilbert")
+        throw Error("instfreq: method '" + method + "' is not yet supported "
+                    "(the default tfmoment needs a pspectrum port — see "
+                    "bugs/opened/signal/instfreq-instbw.md)",
+                     0, 0, "instfreq", "", "numkit:instfreq:method");
+    const Value &fs = (args.size() >= 2 && !args[1].isChar() && !args[1].isString())
+                          ? args[1] : Value::Empty;
+    outs[0] = instfreq(args[0], fs, ctx.engine->resource());
+}
 NK_SPEC1_REG(instbw,           instbw)
 
 #undef NK_SPEC1_REG

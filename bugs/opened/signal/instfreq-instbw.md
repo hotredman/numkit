@@ -48,6 +48,28 @@ moment over the spectrogram/pspectrum TFD** (then `instbw` = 2nd central
 moment). Matching MATLAB's TFD defaults (window/overlap) to parity tol is
 the work. Substantial — not the quick win the hilbert recheck hoped for.
 
+## Progress 2026-09-06 (portion 21): 'hilbert' method FIXED exactly; tfmoment reverse-engineered
+
+- The stale "conjugate hilbert" comment was wrong: numkit's hilbert
+  MATCHES MATLAB (probed at signal edge and deep interior, phase delta
+  +0.1885 identical). The real defect was the leftover NEGATION of the
+  phase delta — correct positive frequencies came out negative.
+  instfreq is now MATLAB's verbatim `fs/(2π)·diff(unwrap(angle(z)))`
+  and matches 'Method','hilbert' to 6 decimals on the chirp probe
+  (16.761585 / 24.967185 / 27.511913). 'Method' name-value added;
+  'tfmoment' errors honestly. Live guard: InstfreqHilbertMethodExact.
+- DEFAULT-method reverse-engineering data (for the pspectrum port):
+  [P,F,T]=pspectrum(x,t,'spectrogram') on chirp N=1000,fs=1000 gives
+  nF=1024, nT=30, F=linspace(0,fs/2,1024) (dF=500/1023 — an
+  INTERPOLATED grid, not a raw FFT grid), T(1)=0.0625 dT=0.031.
+  Geometry across N: wlen=round(N/8) & hop≈round(wlen/4)+1 for
+  N≤2000 (63/16, 125/31, 250/61); N=12345 switches regime (wlen=193,
+  hop=47) — the large-N rule still unknown. instfreq = Σ F·P / Σ P
+  over the COLUMNS of the LINEAR power spectrogram (verified exact);
+  instbw = sqrt(second central moment)·(sqrt(4π)-related scale) and is
+  tfmoment-ONLY (no hilbert method exists). Porting pspectrum's
+  window/heuristic/interpolation pipeline is the remaining work.
+
 ## Suggested fix
 Reconcile with MATLAB's definition: default `instfreq(x,fs)` is the
 first conditional spectral moment over the `pspectrum`/spectrogram TFD
@@ -56,6 +78,6 @@ fix the sign/scaling, validate against a linear chirp (should rise linearly
 from f0 to f1). Same TFD underlies `instbw` (2nd central moment). Medium.
 
 ## References
-- **Guard:** `DISABLED_InstfreqTracksChirp`
+- **Guard:** `InstfreqHilbertMethodExact` (live, the fixed half) + `DISABLED_InstfreqTfmomentDefault` (the pspectrum-pending half)
 - `src/toolboxes/signal/src/.../instfreq*`, `instbw*`
 - MATLAB `doc instfreq` (note: default is the spectral-moment method)
