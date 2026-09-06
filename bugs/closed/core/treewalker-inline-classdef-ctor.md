@@ -1,6 +1,6 @@
 # core.treewalker — inline classdef: CONSTRUCTOR throws on the TreeWalker backend ("Cell contents indexing requires a cell array")
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (HASH, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P2 missing feature on one backend (TW) / P1-class impact contained by VM default
 - **Found:** 2026-09-06 via the dual-engine guard added for the clear-all fix (`ClearSemanticsTest.InlineObjectWithoutClearControl/1`)
@@ -26,24 +26,24 @@ in a test; the CLI/IDE always run the VM, so users don't hit it today.)
 
 ## Root cause
 
-Not yet diagnosed. The throw happens INSIDE the constructor invocation
-(`g = inline('2*t','t')` itself), so it is the TW classdef-constructor
-dispatch path — likely the `varargin` packing for the ctor call or the
-method-body brace-indexing of a packed argument list differs on TW.
-The classdef source is `kInlineClassSource` in
-`src/bundle/src/register/builtin/math_integration_reg.cpp` (ctor takes
-`varargin`; `subsref` calls `feval(obj.fh, s(1).subs{:})`).
+TreeWalker::runClassCtor bound constructor parameters POSITIONALLY
+only: a ctor declaring `varargin` received the RAW first argument in
+the `varargin` slot instead of a packed cell, so `varargin{1}` threw
+"Cell contents indexing requires a cell array". (Plain methods went
+through callUserFunctionMulti, which packs correctly — only the ctor
+path lacked it.)
 
-## Suggested fix
+## Fix
 
-Diagnose `TreeWalker::execCall` → class-ctor dispatch (invokeClassCtor /
-invokeClassMethod) vs the VM's CALL handling for the same classdef;
-compare how `varargin` reaches the ctor body on both. Likely a TW-side
-packing fix in one place, not an inline-specific workaround.
+runClassCtor now packs extras into a 1xN cell exactly like the regular
+function-call path (and skips the too-many-args throw when varargin is
+declared). Live guard: `TwBackendKnownBug.InlineCtorTreeWalker`; the
+inline clear-semantics case is dual-engine again
+(`Backends/ClearSemanticsTest.ClearAllKeepsInlineClassdef`).
 
 ## References
 
-- Guard: `DISABLED_InlineCtorTreeWalker` in `src/bundle/tests/known_bugs_test.cpp`
+- Guard: `InlineCtorTreeWalker` (live) in `src/bundle/tests/known_bugs_test.cpp`
 - Dual-engine control that found it: `src/bundle/tests/clear_semantics_test.cpp`
   (inline cases are VM-only there, commented with this bug id)
 - `src/core/src/tree_walker.cpp` (execCall / invokeClassMethod),

@@ -412,10 +412,11 @@ TEST_F(BuiltinKnownBug, CellCommaListExpansion)
 }
 
 
-// bugs/opened/core/treewalker-inline-classdef-ctor.md — the inline classdef
-// CONSTRUCTOR throws on the TreeWalker ("Cell contents indexing requires a
-// cell array"); the VM constructs it fine (see ClearSemanticsVMTest). Asserts
-// the MATLAB-correct result on TW.
+// bugs/closed/core/treewalker-inline-classdef-ctor.md (FIXED; live
+// guard) — TreeWalker::runClassCtor bound ctor parameters positionally,
+// so a ctor's varargin received the RAW first argument instead of a
+// packed cell and varargin{1} threw. Now packs like the regular call
+// path.
 class TwBackendKnownBug : public ::testing::Test {
 public:
     StandardEngine engine;
@@ -424,7 +425,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-TEST_F(TwBackendKnownBug, DISABLED_InlineCtorTreeWalker)
+TEST_F(TwBackendKnownBug, InlineCtorTreeWalker)
 {
     eval("g = inline('2*t', 't');");
     EXPECT_EQ(eval("class(g);").toString(), "inline");
@@ -454,3 +455,4 @@ TEST_F(EvalFamilyKnownBug, DISABLED_EvalFamilyCallerVarVisibility)
     eval("y = input('q: ');");
     EXPECT_DOUBLE_EQ(evalScalar("y"), 21.0);
 }
+

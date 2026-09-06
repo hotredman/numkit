@@ -3291,7 +3291,14 @@ Value TreeWalker::runClassCtor(const UserFunction &func, const Value &seed,
                                Span<const Value> args)
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
-    if (args.size() > func.params.size())
+    // varargin: pack extras into a cell exactly like the regular
+    // function-call path — the old positional-only binding handed a
+    // ctor's varargin the RAW first argument, so varargin{1} died on TW
+    // ("Cell contents indexing requires a cell array"; the inline
+    // classdef ctor, bugs/.../treewalker-inline-classdef-ctor).
+    const bool va = !func.params.empty() && func.params.back() == "varargin";
+    const size_t required = va ? func.params.size() - 1 : func.params.size();
+    if (!va && args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments to constructor '" + func.name
                                  + "'");
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
@@ -3299,8 +3306,16 @@ Value TreeWalker::runClassCtor(const UserFunction &func, const Value &seed,
     Environment localEnv(parentEnv, engine_.globalsEnv_.get());
     FrameGuard frameGuard(activeFrames_, &localEnv, {});
 
-    for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
+    for (size_t i = 0; i < required && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
+    if (va) {
+        Value vaCell = args.size() > required
+                           ? Value::cell(1, args.size() - required, engine_.mr_)
+                           : Value::cell(0, 0, engine_.mr_);
+        for (size_t i = required; i < args.size(); ++i)
+            vaCell.cellAt(i - required) = args[i];
+        localEnv.setLocal("varargin", std::move(vaCell));
+    }
     // MATLAB seeds the constructor's output variable with a default instance.
     if (!func.returns.empty())
         localEnv.setLocal(func.returns[0], seed);

@@ -14,12 +14,8 @@
 // MATLAB-probed reference values: f(3)=6, h(2)=0.238651 for
 // impulse([1],[1 3 2],0:.5:2), exist('x')=0 after clear all.
 //
-// The inline-classdef cases are VM-only for now: the TreeWalker cannot
-// construct the inline object AT ALL (pre-existing, filed as
-// bugs/opened/core/treewalker-inline-classdef-ctor.md, DISABLED_ guard
-// InlineCtorTreeWalker in known_bugs_test.cpp). The m-source replay
-// itself is backend-independent and covered by the impulse/ode45 dual
-// tests below.
+// The inline-classdef cases run on BOTH backends since the TW ctor
+// varargin fix (bugs/closed/core/treewalker-inline-classdef-ctor).
 
 #include <cmath>
 
@@ -70,22 +66,10 @@ TEST_P(ClearSemanticsTest, ClearAllClearsVariables)
     EXPECT_DOUBLE_EQ(evalScalar("exist('y')"), 0.0);
 }
 
-INSTANTIATE_TEST_SUITE_P(Backends, ClearSemanticsTest,
-                         ::testing::Values(numkit::Engine::Backend::VM,
-                                           numkit::Engine::Backend::TreeWalker));
-
-// ── VM-only: the inline classdef (TW ctor defect filed separately) ──
-
-class ClearSemanticsVMTest : public ::testing::Test {
-public:
-    numkit::StandardEngine engine;  // default backend: VM
-    numkit::Value eval(const std::string &c) { return engine.eval(c); }
-    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
-};
-
-// clear all / clear classes keep the startup CLASSDEF callable, including
-// same-chunk use.
-TEST_F(ClearSemanticsVMTest, ClearAllKeepsInlineClassdef)
+// clear all / clear classes keep the startup CLASSDEF callable,
+// including same-chunk use. Dual-engine since the TW ctor varargin fix
+// (bugs/closed/core/treewalker-inline-classdef-ctor).
+TEST_P(ClearSemanticsTest, ClearAllKeepsInlineClassdef)
 {
     eval("clear all; g = inline('2*t', 't');");
     EXPECT_EQ(eval("class(g);").toString(), "inline");
@@ -93,5 +77,9 @@ TEST_F(ClearSemanticsVMTest, ClearAllKeepsInlineClassdef)
     eval("clear classes; g2 = inline('t', 't');");
     EXPECT_DOUBLE_EQ(evalScalar("g2(7)"), 7.0);
 }
+
+INSTANTIATE_TEST_SUITE_P(Backends, ClearSemanticsTest,
+                         ::testing::Values(numkit::Engine::Backend::VM,
+                                           numkit::Engine::Backend::TreeWalker));
 
 } // namespace
