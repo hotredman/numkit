@@ -227,7 +227,7 @@ struct FreqsRoot {
     double re, im;
 };
 
-std::vector<double> freqsAutoGridVec(const Value &b, const Value &a)
+std::vector<double> freqsAutoGridVec(const Value &b, const Value &a, int npts)
 {
     using numkit::ops::polyRootsDurandKerner;
     constexpr double kEps = 2.220446049250313e-16;
@@ -316,13 +316,13 @@ std::vector<double> freqsAutoGridVec(const Value &b, const Value &a)
     std::vector<double> lw(f.size());
     for (size_t i = 0; i < f.size(); ++i)
         lw[i] = std::log10(f[i]);
-    const double dxi = static_cast<double>(f.size() - 1) / 199.0;
-    std::vector<double> out(200);
-    for (int i = 0; i < 200; ++i) {
+    const double dxi = static_cast<double>(f.size() - 1) / (npts - 1);
+    std::vector<double> out(npts);
+    for (int i = 0; i < npts; ++i) {
         // 1-based index into lw; the last sample is EXACTLY the last knot
         // (linspace-forced), where interp1 returns log10(w_long(end)) as-is
         // and the pow round-trip gives back the exact decade endpoint.
-        const double x = (i == 199) ? static_cast<double>(f.size()) : 1.0 + i * dxi;
+        const double x = (i == npts - 1) ? static_cast<double>(f.size()) : 1.0 + i * dxi;
         const size_t j = static_cast<size_t>(x) - 1;
         const double t = x - (j + 1);
         // At the last sample (x == f.size(), t == 0) the upper knot j+1
@@ -337,12 +337,13 @@ std::vector<double> freqsAutoGridVec(const Value &b, const Value &a)
     return out;
 }
 
-Value freqsAutoGrid(const Value &b, const Value &a, std::pmr::memory_resource *mr)
+Value freqsAutoGrid(const Value &b, const Value &a, std::pmr::memory_resource *mr,
+                    int npts = 200)
 {
-    auto v = freqsAutoGridVec(b, a);
-    Value w = Value::matrix(1, 200, ValueType::DOUBLE, mr);
+    auto v = freqsAutoGridVec(b, a, npts);
+    Value w = Value::matrix(1, npts, ValueType::DOUBLE, mr);
     double *wd = w.doubleDataMut();
-    for (int i = 0; i < 200; ++i)
+    for (int i = 0; i < npts; ++i)
         wd[i] = v[i];
     return w;
 }
@@ -363,6 +364,18 @@ void freqs_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 3)
         throw Error("freqs: requires (b, a, w)",
                      0, 0, "freqs", "", "numkit:freqs:nargin");
+    // MATLAB freqs(b, a, n): a SCALAR third argument is the NUMBER of
+    // auto-spaced points (same freqint grid machinery as the two-arg
+    // form, resampled to n); only a VECTOR means "exactly these
+    // frequencies" (bugs/closed/signal/freqs-scalar-w).
+    if (args[2].numel() == 1 && !args[2].isChar() && !args[2].isString()) {
+        const int npts = std::max(2, static_cast<int>(args[2].toScalar()));
+        auto w = freqsAutoGrid(args[0], args[1], ctx.engine->resource(), npts);
+        outs[0] = freqs(args[0], args[1], w, ctx.engine->resource());
+        if (nargout > 1)
+            outs[1] = std::move(w);
+        return;
+    }
     outs[0] = freqs(args[0], args[1], args[2], ctx.engine->resource());
     if (nargout > 1)
         outs[1] = args[2];

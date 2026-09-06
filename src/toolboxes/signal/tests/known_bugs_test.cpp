@@ -131,11 +131,17 @@ TEST_F(SignalKnownBug, Stmcb)
     EXPECT_NEAR(evalScalar("a(2)"), -0.5, 1e-4);
 }
 
-// bugs/signal/freqs-scalar-w.md — scalar w means N points (MATLAB), not a freq.
-TEST_F(SignalKnownBug, DISABLED_FreqsScalarIsNPoints)
+// bugs/closed/signal/freqs-scalar-w.md (FIXED; live guard) — scalar n
+// means N auto-spaced points (the freqint machinery, resampled to n),
+// probed: n=2 -> w=[0.01 10], |h|=[0.01 0.1005].
+TEST_F(SignalKnownBug, FreqsScalarIsNPoints)
 {
-    eval("h = freqs([1 0], [1 1 1], 2);");
-    EXPECT_EQ(static_cast<int>(evalScalar("numel(h)")), 2);  // numkit currently 1
+    eval("[h, w] = freqs([1 0], [1 1 1], 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(h)")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 0.01);
+    EXPECT_DOUBLE_EQ(evalScalar("w(2)"), 10.0);
+    EXPECT_NEAR(evalScalar("abs(h(1))"), 0.010000, 1e-6);
+    EXPECT_NEAR(evalScalar("abs(h(2))"), 0.100499, 1e-6);
 }
 
 // bugs/signal/resample-values.md — resample output values (FIXED, promoted live).

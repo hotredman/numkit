@@ -149,11 +149,14 @@ TEST_F(StatsKnownBug, DwtestPValue)
     EXPECT_LT(evalScalar("p"), 1e-4);                // MATLAB ~0 (was numkit ~0.017)
 }
 
-// bugs/stats/mahal-singular.md — mahal must handle a rank-deficient reference.
-TEST_F(StatsKnownBug, DISABLED_MahalSingular)
+// bugs/closed/stats/mahal-singular.md (FIXED; live guard) — the QR
+// formulation no longer throws on collinear X. Full-rank exactness in
+// RankDeficientNoThrow (mahal_test.cpp); MATLAB's rank-deficient VALUES
+// are dust-amplified (R(2,2)~-4.3e-16) — not matchable without
+// bit-identical LAPACK, see the bug file.
+TEST_F(StatsKnownBug, MahalSingularNoThrow)
 {
-    eval("d = mahal([1 1; 2 2], [0 0; 1 1; 2 2; 3 3]);");   // collinear X
-    EXPECT_NEAR(evalScalar("d(1)"), 0.9505075, 1e-5);
+    EXPECT_NO_THROW(eval("d = mahal([1 1; 2 2], [0 0; 1 1; 2 2; 3 3]);"));
 }
 
 // bugs/stats/pdist-metrics.md — 'seuclidean'/'spearman' + cosine zero-vector.

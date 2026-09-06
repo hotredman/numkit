@@ -1,6 +1,6 @@
 # signal.freqs — scalar `w` treated as a frequency, not a point count
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (HASH, 2026-09-06)
 - **Severity:** P3 (edge-case input form)
 - **Kind:** bug
 - **Found:** 2026-06 via DEEP-PROBE
@@ -42,6 +42,6 @@ real work here — deferred until someone reads `freqint`'s point-placement
 loop. Endpoints alone (`logspace(lo,hi,n)`) would NOT match the interior.
 
 ## References
-- **Guard:** `DISABLED_FreqsScalarIsNPoints`
+- **Guard:** `FreqsScalarIsNPoints` (LIVE) + the existing two-arg auto-grid guards (the n-point form is the same freqint machinery, resampled to n — freqsAutoGridVec is parameterized)
 - `src/toolboxes/signal/src/.../freqs*`
 - MATLAB `doc freqs`

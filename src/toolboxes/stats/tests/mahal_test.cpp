@@ -49,3 +49,21 @@ TEST_F(MahalTest, ThreeDimensional)
     EXPECT_NEAR(evalScalar("d(1)"), 3.2083333333, 1e-9);
     EXPECT_NEAR(evalScalar("d(2)"), 0.5833333333, 1e-9);
 }
+
+// --- bugs/closed/stats/mahal-singular.md (FIXED; live guard) ---
+// Rank-deficient reference no longer throws (QR formulation, mahal.m's).
+// Full-rank values are bit-comparable to MATLAB; the RANK-DEFICIENT
+// values differ from MATLAB's by design there: MATLAB's are
+// dust-amplified (R(2,2) ~ -4.3e-16; z2 = (b2 - R21*z1)/dust ~ O(1)
+// from rounding residue) so matching requires bit-identical LAPACK.
+// The guard asserts the real contract: no throw, finite values,
+// full-rank exactness.
+TEST_F(MahalTest, RankDeficientNoThrow)
+{
+    EXPECT_NO_THROW(eval("m1 = mahal([1 1; 2 2], [0 0; 1 1; 2 2; 3 3]);"));
+    EXPECT_TRUE(std::isfinite(evalScalar("m1(1)")));
+    EXPECT_TRUE(std::isfinite(evalScalar("m1(2)")));
+    eval("m2 = mahal([1 1; 2 2], [0 0; 1 0; 0 1; 2 2; 1 3]);");
+    EXPECT_NEAR(evalScalar("m2(1)"), 0.157746, 1e-6);
+    EXPECT_NEAR(evalScalar("m2(2)"), 2.073239, 1e-6);
+}

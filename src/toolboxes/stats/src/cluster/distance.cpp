@@ -317,52 +317,76 @@ Value mahal(const Value &Y, const Value &X, std::pmr::memory_resource *mr)
         for (size_t k = 0; k < D; ++k) mu[k] += X.elemAsDouble(k * Mx + i);
     for (auto &m : mu) m /= double(Mx);
 
-    // Sample covariance (unbiased, divisor n-1).
-    ScratchVec<double> C(D * D, 0.0, &scratch);
-    ScratchVec<double> dx(D, &scratch);
-    for (size_t i = 0; i < Mx; ++i) {
-        for (size_t k = 0; k < D; ++k) dx[k] = X.elemAsDouble(k * Mx + i) - mu[k];
-        for (size_t a = 0; a < D; ++a)
-            for (size_t b = 0; b < D; ++b)
-                C[a * D + b] += dx[a] * dx[b];
-    }
-    const double inv_n = 1.0 / double(Mx - 1);
-    for (auto &c : C) c *= inv_n;
+    // MATLAB's mahal formulation (mahal.m): QR of the CENTERED
+    // reference, d² = (n−1)·|Rᵀ⁻¹(y−μ)|². Defined for rank-deficient X
+    // (the old covariance+Cholesky path threw "not positive definite"
+    // on collinear references where MATLAB returns a value —
+    // bugs/closed/stats/mahal-singular).
+    ScratchVec<double> Xc(Mx * D, &scratch);
+    for (size_t i = 0; i < Mx; ++i)
+        for (size_t k = 0; k < D; ++k)
+            Xc[i + k * Mx] = X.elemAsDouble(k * Mx + i) - mu[k];
 
-    // Cholesky decomposition: C = L · Lᵀ. Solve L · z = (y - μ) and return
-    // |z|² (Mahalanobis distance squared).
-    ScratchVec<double> L(D * D, 0.0, &scratch);
-    for (size_t i = 0; i < D; ++i) {
-        for (size_t j = 0; j <= i; ++j) {
-            double s = C[i * D + j];
-            for (size_t k = 0; k < j; ++k) s -= L[i * D + k] * L[j * D + k];
-            if (i == j) {
-                if (s <= 0.0)
-                    throw Error("mahal: covariance matrix is not positive definite",
-                                0, 0, "mahal", "", "numkit:mahal:notpd");
-                L[i * D + j] = std::sqrt(s);
-            } else {
-                L[i * D + j] = s / L[j * D + j];
+    // Householder QR (column-major work copy), R kept D×D upper.
+    ScratchVec<double> R(D * D, 0.0, &scratch);
+    {
+        double xnorm = 0.0;
+        for (size_t i = 0; i < Mx * D; ++i) xnorm += Xc[i] * Xc[i];
+        (void)xnorm;
+        for (size_t k = 0; k < D; ++k) {
+            double tail_sq = 0.0;
+            for (size_t i = k + 1; i < Mx; ++i)
+                tail_sq += Xc[i + k * Mx] * Xc[i + k * Mx];
+            if (tail_sq == 0.0) {
+                R[k + k * D] = Xc[k + k * Mx];   // dlarfg tail rule
+                continue;
             }
+            double norm_sq = tail_sq + Xc[k + k * Mx] * Xc[k + k * Mx];
+            const double norm = std::sqrt(norm_sq);
+            const double xk = Xc[k + k * Mx];
+            const double alpha = (xk >= 0.0) ? -norm : norm;
+            ScratchVec<double> v(Mx - k, &scratch);
+            v[0] = xk - alpha;
+            for (size_t i = k + 1; i < Mx; ++i) v[i - k] = Xc[i + k * Mx];
+            double v_sq = 0.0;
+            for (double e : v) v_sq += e * e;
+            const double tau = 2.0 / v_sq;
+            for (size_t j = k; j < D; ++j) {
+                double dot = 0.0;
+                for (size_t i = k; i < Mx; ++i)
+                    dot += v[i - k] * Xc[i + j * Mx];
+                const double s = tau * dot;
+                for (size_t i = k; i < Mx; ++i)
+                    Xc[i + j * Mx] -= s * v[i - k];
+            }
+            R[k + k * D] = alpha;
+            for (size_t j = k + 1; j < D; ++j)
+                R[k + j * D] = Xc[k + j * Mx];
         }
     }
 
+    // Solve Rᵀ z = (y−μ) by forward substitution; a (near-)zero diagonal
+    // (rank-deficient direction) contributes z_i = 0, mirroring mldivide's
+    // thresholded triangular solve.
+    const double diagTol = 1e-12;
     Value out = Value::matrix(My, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     ScratchVec<double> dy(D, &scratch);
     ScratchVec<double> z(D, 0.0, &scratch);
     for (size_t r = 0; r < My; ++r) {
         for (size_t k = 0; k < D; ++k) dy[k] = Y.elemAsDouble(k * My + r) - mu[k];
-        // Forward substitution: L · z = dy.
         std::fill(z.begin(), z.end(), 0.0);
         for (size_t i = 0; i < D; ++i) {
+            const double Rii = R[i + i * D];
+            if (std::abs(Rii) < diagTol)
+                continue;
             double s = dy[i];
-            for (size_t k = 0; k < i; ++k) s -= L[i * D + k] * z[k];
-            z[i] = s / L[i * D + i];
+            for (size_t k = 0; k < i; ++k) s -= R[k + i * D] * z[k];
+            z[i] = s / Rii;
         }
         double m2 = 0.0;
         for (auto v : z) m2 += v * v;
-        od[r] = m2;
+        od[r] = m2 * double(Mx - 1);
     }
     return out;
 }
