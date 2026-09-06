@@ -98,11 +98,13 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             // Build base X vector — explicit when given, else 1..Yr.
             std::vector<double> xb(Yr);
             if (xArg) {
-                for (size_t r = 0; r < Yr; ++r) xb[r] = xArg->doubleData()[r];
+                for (size_t r = 0; r < Yr; ++r) xb[r] = xArg->elemAsDouble(r);
             } else {
                 for (size_t r = 0; r < Yr; ++r) xb[r] = (double)(r + 1);
             }
-            const double *Yp = yArg->doubleData();
+            std::vector<double> Ybuf(yArg->numel());
+            for (size_t i = 0; i < Ybuf.size(); ++i) Ybuf[i] = yArg->elemAsDouble(i);
+            const double *Yp = Ybuf.data();
             if (mode == "stacked") {
                 // Cumulative sums; emit column Yc-1 first so lower
                 // bands overdraw the bottom of higher ones (same idea
@@ -184,7 +186,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
         std::vector<double> xs;
         xs.reserve(X.numel());
         for (size_t i = 0; i < X.numel(); ++i) {
-            const double v = X.doubleData()[i];
+            const double v = X.elemAsDouble(i);
             if (std::isfinite(v)) xs.push_back(v);
         }
         if (xs.empty()) { outs[0] = Value(); return; }
@@ -228,7 +230,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             std::vector<double> xs;
             for (size_t i = 0; i < args[0].numel(); ++i) {
-                const double v = args[0].doubleData()[i];
+                const double v = args[0].elemAsDouble(i);
                 if (std::isfinite(v)) xs.push_back(v);
             }
             if (xs.size() < 2) { outs[0] = Value(); return; }
@@ -304,7 +306,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             std::vector<double> ys;
             for (size_t i = 0; i < args[0].numel(); ++i) {
-                const double v = args[0].doubleData()[i];
+                const double v = args[0].elemAsDouble(i);
                 if (std::isfinite(v)) ys.push_back(v);
             }
             if (ys.empty()) { outs[0] = Value(); return; }
@@ -351,7 +353,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             if (args.empty() || args[0].numel() == 0) { outs[0] = Value(); return; }
             std::vector<double> xs;
             for (size_t i = 0; i < args[0].numel(); ++i) {
-                const double v = args[0].doubleData()[i];
+                const double v = args[0].elemAsDouble(i);
                 if (std::isfinite(v)) xs.push_back(v);
             }
             if (xs.size() < 2) { outs[0] = Value(); return; }
@@ -442,7 +444,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             std::vector<double> groupKeys;
             std::vector<int> groupIdx(N);
             for (size_t i = 0; i < N; ++i) {
-                const double k = G.doubleData()[i];
+                const double k = G.elemAsDouble(i);
                 int found = -1;
                 for (size_t j = 0; j < groupKeys.size(); ++j) {
                     if (groupKeys[j] == k) { found = (int)j; break; }
@@ -471,8 +473,8 @@ void buildBarPlots(std::vector<PlotEntry> &table)
                     if (groupIdx[i] != (int)gi) continue;
                     if (!first) { sx << ','; sy << ','; }
                     first = false;
-                    sx << X.doubleData()[i];
-                    sy << Y.doubleData()[i];
+                    sx << X.elemAsDouble(i);
+                    sy << Y.elemAsDouble(i);
                 }
                 sx << ']'; sy << ']';
                 if (first) continue;
@@ -505,7 +507,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             bool first = true;
             for (size_t c = 0; c < C; ++c) {
                 for (size_t r = 0; r < R; ++r) {
-                    const double v = M.doubleData()[c * R + r];
+                    const double v = M.elemAsDouble(c * R + r);
                     if (v == 0.0 || !std::isfinite(v)) continue;
                     if (!first) { xs << ','; ys << ','; }
                     first = false;
@@ -589,10 +591,10 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             }
             auto &data = args[0];
             int bins = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 10;
-            double mn = data.doubleData()[0], mx = data.doubleData()[0];
+            double mn = data.elemAsDouble(0), mx = data.elemAsDouble(0);
             for (size_t i = 1; i < data.numel(); ++i) {
-                mn = std::min(mn, data.doubleData()[i]);
-                mx = std::max(mx, data.doubleData()[i]);
+                mn = std::min(mn, data.elemAsDouble(i));
+                mx = std::max(mx, data.elemAsDouble(i));
             }
             double bw = (mx - mn) / bins;
             if (bw == 0)
@@ -602,7 +604,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             for (int b = 0; b < bins; ++b)
                 centers.doubleDataMut()[b] = mn + bw * (b + 0.5);
             for (size_t i = 0; i < data.numel(); ++i) {
-                int b = static_cast<int>((data.doubleData()[i] - mn) / bw);
+                int b = static_cast<int>((data.elemAsDouble(i) - mn) / bw);
                 if (b >= bins)
                     b = bins - 1;
                 if (b < 0)
@@ -641,8 +643,8 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             int nx = 10, ny = 10;
             if (args.size() >= 3) {
                 if (args[2].numel() >= 2) {
-                    nx = (int)args[2].doubleData()[0];
-                    ny = (int)args[2].doubleData()[1];
+                    nx = (int)args[2].elemAsDouble(0);
+                    ny = (int)args[2].elemAsDouble(1);
                 } else if (args[2].numel() == 1) {
                     nx = ny = (int)args[2].toScalar();
                     if (args.size() >= 4 && args[3].numel() == 1)
@@ -652,11 +654,11 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             if (nx < 1) nx = 1;
             if (ny < 1) ny = 1;
 
-            double xmn = X.doubleData()[0], xmx = xmn;
-            double ymn = Y.doubleData()[0], ymx = ymn;
+            double xmn = X.elemAsDouble(0), xmx = xmn;
+            double ymn = Y.elemAsDouble(0), ymx = ymn;
             for (size_t k = 1; k < N; ++k) {
-                const double xv = X.doubleData()[k];
-                const double yv = Y.doubleData()[k];
+                const double xv = X.elemAsDouble(k);
+                const double yv = Y.elemAsDouble(k);
                 if (std::isfinite(xv)) {
                     if (xv < xmn) xmn = xv;
                     if (xv > xmx) xmx = xv;
@@ -682,8 +684,8 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             for (int j = 0; j < ny; ++j)
                 centers_y.doubleDataMut()[j] = ymn + bwy * (j + 0.5);
             for (size_t k = 0; k < N; ++k) {
-                const double xv = X.doubleData()[k];
-                const double yv = Y.doubleData()[k];
+                const double xv = X.elemAsDouble(k);
+                const double yv = Y.elemAsDouble(k);
                 if (!std::isfinite(xv) || !std::isfinite(yv))
                     continue;
                 int i = (int)((xv - xmn) / bwx);
@@ -734,8 +736,8 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             if (c > 0) { xs << ",null,"; ys << ",null,"; }
             for (size_t r = 0; r < R; ++r) {
                 if (r > 0) { xs << ','; ys << ','; }
-                xs << X.doubleData()[c * R + r];
-                ys << Y.doubleData()[c * R + r];
+                xs << X.elemAsDouble(c * R + r);
+                ys << Y.elemAsDouble(c * R + r);
             }
         }
         xs << ']'; ys << ']';
@@ -761,9 +763,9 @@ void buildBarPlots(std::vector<PlotEntry> &table)
                     }
                 }
             } else if (Carg.numel() >= 3) {
-                const int r = (int)std::round(255 * std::clamp(Carg.doubleData()[0], 0.0, 1.0));
-                const int g = (int)std::round(255 * std::clamp(Carg.doubleData()[1], 0.0, 1.0));
-                const int b = (int)std::round(255 * std::clamp(Carg.doubleData()[2], 0.0, 1.0));
+                const int r = (int)std::round(255 * std::clamp(Carg.elemAsDouble(0), 0.0, 1.0));
+                const int g = (int)std::round(255 * std::clamp(Carg.elemAsDouble(1), 0.0, 1.0));
+                const int b = (int)std::round(255 * std::clamp(Carg.elemAsDouble(2), 0.0, 1.0));
                 char buf[16];
                 std::snprintf(buf, sizeof buf, "#%02x%02x%02x", r, g, b);
                 color = buf;
@@ -802,7 +804,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
         const size_t N = X.numel();
         double total = 0;
         for (size_t i = 0; i < N; ++i) {
-            const double v = X.doubleData()[i];
+            const double v = X.elemAsDouble(i);
             if (std::isfinite(v) && v > 0) total += v;
         }
         if (total <= 0) { outs[0] = Value(); return; }
@@ -825,7 +827,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
 
         double angle = 0;
         for (size_t i = 0; i < N; ++i) {
-            const double v = X.doubleData()[i];
+            const double v = X.elemAsDouble(i);
             if (!std::isfinite(v) || v <= 0) continue;
             const double dθ = v / total * TAU;
             const double θ0 = angle;
@@ -834,7 +836,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
 
             // Explode: shift centre along the wedge bisector.
             double cx = 0, cy = 0;
-            if (expl && expl->numel() > i && expl->doubleData()[i] != 0) {
+            if (expl && expl->numel() > i && expl->elemAsDouble(i) != 0) {
                 const double mid = (θ0 + θ1) / 2;
                 const double off = 0.1;
                 cx = off * std::cos(mid);
@@ -906,8 +908,8 @@ void buildBarPlots(std::vector<PlotEntry> &table)
             col.reserve(nPerBox);
             for (size_t r = 0; r < nPerBox; ++r) {
                 const double v = single
-                    ? M.doubleData()[r]
-                    : M.doubleData()[bi * R + r];
+                    ? M.elemAsDouble(r)
+                    : M.elemAsDouble(bi * R + r);
                 if (std::isfinite(v)) col.push_back(v);
             }
             if (col.size() < 2) continue;
@@ -1040,8 +1042,8 @@ void buildBarPlots(std::vector<PlotEntry> &table)
                 col.reserve(nPerColumn);
                 for (size_t r = 0; r < nPerColumn; ++r) {
                     const double v = single
-                        ? M.doubleData()[r]
-                        : M.doubleData()[bi * R + r];
+                        ? M.elemAsDouble(r)
+                        : M.elemAsDouble(bi * R + r);
                     if (std::isfinite(v)) col.push_back(v);
                 }
                 if (col.size() < 2) continue;
@@ -1160,7 +1162,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
                 zs << '[';
                 for (size_t c = 0; c < C; ++c) {
                     if (c) zs << ',';
-                    const double v = Z.doubleData()[c * R + r];
+                    const double v = Z.elemAsDouble(c * R + r);
                     if (std::isfinite(v)) zs << v;
                     else                  zs << "null";
                 }
@@ -1204,9 +1206,9 @@ void buildBarPlots(std::vector<PlotEntry> &table)
                 if (c > 0) { xs << ",null,"; ys << ",null,"; zs << ",null,"; }
                 for (size_t r = 0; r < R; ++r) {
                     if (r > 0) { xs << ','; ys << ','; zs << ','; }
-                    const double xv = X.doubleData()[c * R + r];
-                    const double yv = Y.doubleData()[c * R + r];
-                    const double zv = Z.doubleData()[c * R + r];
+                    const double xv = X.elemAsDouble(c * R + r);
+                    const double yv = Y.elemAsDouble(c * R + r);
+                    const double zv = Z.elemAsDouble(c * R + r);
                     if (std::isfinite(xv)) xs << xv; else xs << "null";
                     if (std::isfinite(yv)) ys << yv; else ys << "null";
                     if (std::isfinite(zv)) zs << zv; else zs << "null";
@@ -1405,7 +1407,7 @@ void buildBarPlots(std::vector<PlotEntry> &table)
                     auto &fm = gc.fm;
                     for (size_t r = 0; r < R; ++r) {
                         for (size_t cc = 0; cc < W; ++cc) {
-                            const double v = C.doubleData()[cc * R + r];
+                            const double v = C.elemAsDouble(cc * R + r);
                             const double t_ = (cmx == cmn) ? 0.5
                                 : (v - cmn) / (cmx - cmn);
                             // Dark background ↔ low t (blue/cyan side

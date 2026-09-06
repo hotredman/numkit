@@ -144,7 +144,7 @@ symbolic stack is out of scope — tracked here as a gap, not planned)
 
 **Line Plots:** `area`, `fimplicit`, `plot3`, `stackedplot`
 
-**Polar Plots:** `compassplot`, `fpolarplot`, `polaraxes`, `polarbubblechart`, `polarhistogram`, `polarregion`, `polarscatter`, `radiusregion`, `rtickangle`, `rtickformat`, `rticklabels`, `rticks`, `thetaregion`, `thetatickformat`, `thetaticklabels`, `thetaticks`
+**Polar Plots:** `compassplot`, `fpolarplot`, `polar` (legacy alias of polarplot), `polaraxes`, `polarbubblechart`, `polarhistogram`, `polarregion`, `polarscatter`, `radiusregion`, `rtickangle`, `rtickformat`, `rticklabels`, `rticks`, `thetaregion`, `thetatickformat`, `thetaticklabels`, `thetaticks`
 
 **Contour Plots:** `clabel`, `contour3`, `contourc`, `contourslice`
 

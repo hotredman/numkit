@@ -138,13 +138,22 @@ void registerWorkspaceRuntime(Engine &engine)
                                             ctx.engine->restoreImplicitImports(env);
                                             ctx.engine->clearUserFunctions();
                                             ctx.engine->clearClassDefs();
+                                            // MATLAB reloads cleared functions and
+                                            // classes from disk on the next call;
+                                            // the engine-startup registrations have
+                                            // no disk backing, so re-register them
+                                            // (reinstallConstants is the same idea
+                                            // for constants).
+                                            ctx.engine->reinstallBuiltinSources();
                                             ctx.engine->figureManager().closeAll();
                                             ctx.engine->reinstallConstants();
                                             ctx.engine->markClearAll();
                                         }
                                     } else if (first == "functions") {
-                                        if (!insideFunc)
+                                        if (!insideFunc) {
                                             ctx.engine->clearUserFunctions();
+                                            ctx.engine->reinstallBuiltinSources();
+                                        }
                                     } else {
                                         // `clear x`, `clear pi`, etc.
                                         // Un-shadow a built-in by removing the

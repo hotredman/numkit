@@ -1781,3 +1781,53 @@ TEST_F(FigureEngineTest, DISABLED_PlotFamilyBindsReturnHandle)
     EXPECT_NE(evalScalar("exist('h')"), 0.0);
     EXPECT_NO_THROW(eval("set(h(1), 'MarkerSize', 3);"));
 }
+
+// --- plot-family numeric conversion (MATLAB R2025b) ---
+// Any numeric input — logical, integer classes, single — is converted to
+// double at the marshaling boundary (plot(t, t >= 0) is the canonical
+// textbook step-response form; found via springer-math pr1_2/pr1_3).
+TEST_F(FigureEngineTest, PlotFamilyAcceptsLogicalInput)
+{
+    for (const char *call : {
+             "plot(logical([1 0 1 1]));",
+             "stem(logical([1 0 1 1]));",
+             "stairs(logical([1 0 1 1]));",
+             "scatter(logical([1 0 1 1]));",
+             "bar(logical([1 0 1 1]));",
+             "barh(logical([1 0 1 1]));",
+             "area(logical([1 0 1 1]));",
+             "plot3([1 2 3], [1 2 3], logical([1 0 1]));",
+             "stem3([1 2 3], [1 2 3], logical([1 0 1]));",
+             "surf(logical([1 0; 0 1]));",
+             "mesh(logical([1 0; 0 1]));",
+             "waterfall(logical([1 0; 0 1]));",
+             "contour(logical([1 0; 0 1]));",
+             "imagesc(logical([1 0; 0 1]));",
+             "quiver([1 2 3], [1 2 3], logical([1 0 1]), logical([0 1 0]));",
+             "errorbar(1:3, logical([1 0 1]), logical([1 0 1]));",
+             "pie(logical([1 0 1]));",
+             "compass(complex(1:3, 1:3));",
+             "polarplot(0:0.1:0.5, logical([1 0 1 0 1 0]));",
+         })
+        EXPECT_NO_THROW(eval(call)) << call;
+}
+
+// The conversion is real data, not a swallowed error: y of plot(t, t>=1)
+// must reach the dataset as [0 1 1 1].
+TEST_F(FigureEngineTest, PlotLogicalValuesConvertToDouble)
+{
+    eval("t = 0:3; plot(t, t >= 1);");
+    const auto &fm = engine.figureManager();
+    const auto &ds = fm.figures().at(fm.currentFigureId()).axes[0].datasets[0];
+    EXPECT_NE(ds.yJson.find("0,1,1,1"), std::string::npos) << ds.yJson;
+}
+
+// Integer-class inputs convert the same way.
+TEST_F(FigureEngineTest, PlotIntegerInputConvertsToDouble)
+{
+    eval("plot(int32([1 2 3]), uint8([3 2 1]));");
+    const auto &fm = engine.figureManager();
+    const auto &ds = fm.figures().at(fm.currentFigureId()).axes[0].datasets[0];
+    EXPECT_NE(ds.yJson.find("3,2,1"), std::string::npos) << ds.yJson;
+    EXPECT_NO_THROW(eval("bar(int16([1 2]), [4 5]); surf(single([1 2; 3 4]));"));
+}

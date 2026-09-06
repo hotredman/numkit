@@ -61,12 +61,12 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
         if (R < 2 || C < 2) { outs[0] = Value(); return; }
 
         const auto Zat = [&](size_t r, size_t c) {
-            return Z_arg->doubleData()[c * R + r];
+            return Z_arg->elemAsDouble(c * R + r);
         };
         std::vector<double> Xs(C), Ys(R);
         if (X_arg && Y_arg && X_arg->numel() >= C && Y_arg->numel() >= R) {
-            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->doubleData()[c];
-            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->doubleData()[r];
+            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->elemAsDouble(c);
+            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->elemAsDouble(r);
         } else {
             for (size_t c = 0; c < C; ++c) Xs[c] = (double)(c + 1);
             for (size_t r = 0; r < R; ++r) Ys[r] = (double)(r + 1);
@@ -226,9 +226,9 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
         // Default coordinate vectors when X/Y/Z aren't supplied.
         std::vector<double> Xs(N), Ys(M), Zs(P);
         if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
-            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
-            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
-            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->elemAsDouble(i);
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->elemAsDouble(i);
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->elemAsDouble(i);
         } else {
             for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
             for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
@@ -763,9 +763,9 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
 
         std::vector<double> Xs(N), Ys(M), Zs(P);
         if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
-            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
-            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
-            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->elemAsDouble(i);
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->elemAsDouble(i);
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->elemAsDouble(i);
         } else {
             for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
             for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
@@ -955,15 +955,15 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
         std::vector<double> Xs(N), Ys(M), Zs(P);
         if (X && Y && Z && X->numel() >= M * N * P
             && Y->numel() >= M * N * P && Z->numel() >= M * N * P) {
-            for (size_t j = 0; j < N; ++j) Xs[j] = X->doubleData()[j * M];
-            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
-            for (size_t k = 0; k < P; ++k) Zs[k] = Z->doubleData()[k * M * N];
+            for (size_t j = 0; j < N; ++j) Xs[j] = X->elemAsDouble(j * M);
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->elemAsDouble(i);
+            for (size_t k = 0; k < P; ++k) Zs[k] = Z->elemAsDouble(k * M * N);
         } else if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
             // Fallback for the 1-D vector form: x, y, z passed as
             // straight vectors rather than meshgrid output.
-            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
-            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
-            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->elemAsDouble(i);
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->elemAsDouble(i);
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->elemAsDouble(i);
         } else {
             for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
             for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
@@ -1153,9 +1153,9 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
 
         std::vector<double> Xs(N), Ys(M), Zs(P);
         if (X && Y && Z && X->numel() >= N && Y->numel() >= M && Z->numel() >= P) {
-            for (size_t i = 0; i < N; ++i) Xs[i] = X->doubleData()[i];
-            for (size_t i = 0; i < M; ++i) Ys[i] = Y->doubleData()[i];
-            for (size_t i = 0; i < P; ++i) Zs[i] = Z->doubleData()[i];
+            for (size_t i = 0; i < N; ++i) Xs[i] = X->elemAsDouble(i);
+            for (size_t i = 0; i < M; ++i) Ys[i] = Y->elemAsDouble(i);
+            for (size_t i = 0; i < P; ++i) Zs[i] = Z->elemAsDouble(i);
         } else {
             for (size_t i = 0; i < N; ++i) Xs[i] = (double)(i + 1);
             for (size_t i = 0; i < M; ++i) Ys[i] = (double)(i + 1);
@@ -1352,7 +1352,7 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
                 zs << '[';
                 for (size_t c = 0; c < C; ++c) {
                     if (c) zs << ',';
-                    const double v = Z_arg->doubleData()[c * R + r];
+                    const double v = Z_arg->elemAsDouble(c * R + r);
                     if (std::isfinite(v)) zs << v;
                     else                  zs << "null";
                 }
@@ -1366,10 +1366,9 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
                     sty << "n=" << (int)levels_arg->toScalar();
                 } else {
                     sty << "levels=[";
-                    const double *p = levels_arg->doubleData();
                     for (size_t i = 0; i < levels_arg->numel(); ++i) {
                         if (i) sty << ',';
-                        sty << p[i];
+                        sty << levels_arg->elemAsDouble(i);
                     }
                     sty << "]";
                 }
@@ -1434,7 +1433,7 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
                 zs << '[';
                 for (size_t c = 0; c < C; ++c) {
                     if (c) zs << ',';
-                    const double v = Z.doubleData()[c * R + r];
+                    const double v = Z.elemAsDouble(c * R + r);
                     if (std::isfinite(v)) zs << v;
                     else                  zs << "null";
                 }

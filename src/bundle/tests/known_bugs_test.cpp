@@ -410,3 +410,23 @@ TEST_F(BuiltinKnownBug, CellCommaListExpansion)
     eval("d = {3, 8};");
     EXPECT_DOUBLE_EQ(evalScalar("max(d{:})"), 8.0);     // max(3, 8) = 8
 }
+
+
+// bugs/opened/core/treewalker-inline-classdef-ctor.md — the inline classdef
+// CONSTRUCTOR throws on the TreeWalker ("Cell contents indexing requires a
+// cell array"); the VM constructs it fine (see ClearSemanticsVMTest). Asserts
+// the MATLAB-correct result on TW.
+class TwBackendKnownBug : public ::testing::Test {
+public:
+    StandardEngine engine;
+    void SetUp() override { engine.setBackend(Engine::Backend::TreeWalker); }
+    Value eval(const std::string &c) { return engine.eval(c); }
+    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
+};
+
+TEST_F(TwBackendKnownBug, DISABLED_InlineCtorTreeWalker)
+{
+    eval("g = inline('2*t', 't');");
+    EXPECT_EQ(eval("class(g);").toString(), "inline");
+    EXPECT_DOUBLE_EQ(evalScalar("g(3)"), 6.0);
+}

@@ -99,7 +99,7 @@ void heatmapImpl(
         const auto getRaw = [&](size_t idx) -> double {
             if (C_arg->isComplex())
                 return std::abs(C_arg->complexData()[idx]);
-            return C_arg->doubleData()[idx];
+            return C_arg->elemAsDouble(idx);
         };
         const auto getVal = [&](size_t idx) -> double {
             const double r = getRaw(idx);

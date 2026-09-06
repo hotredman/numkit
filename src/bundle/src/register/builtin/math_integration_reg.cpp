@@ -530,9 +530,11 @@ function [h, tout, x] = impulse(b, a, t)
 
 void registerInlineImpulseM(Engine &engine)
 {
-    // The classdef needs the full eval path (class registration);
-    // registerBuiltinMSource only adopts FUNCTION_DEF nodes.
-    engine.evalSafe(kInlineClassSource);
+    // registerBuiltinClassSource parses the CLASSDEF_DEF and calls
+    // registerClassDef directly (the same call the compiler makes for a
+    // classdef statement) AND retains the text so `clear all/classes`
+    // can replay it — the evalSafe form died with the first clear.
+    engine.registerBuiltinClassSource(kInlineClassSource);
     engine.registerBuiltinMSource(kImpulseMSource);
 }
 

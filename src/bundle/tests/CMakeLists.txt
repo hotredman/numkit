@@ -6,6 +6,7 @@
 target_sources(numkit_gtest PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/builtins_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cell_struct_numtheory_batch_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/clear_semantics_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/construct_search_batch_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/known_bugs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/misc2_batch_test.cpp

@@ -70,13 +70,13 @@ void buildContourPlots(std::vector<PlotEntry> &table)
         if (R < 2 || C < 2) { outs[0] = Value(); return; }
 
         const auto Zat = [&](size_t r, size_t c) {
-            return Z_arg->doubleData()[c * R + r];   // column-major
+            return Z_arg->elemAsDouble(c * R + r);   // column-major
         };
 
         std::vector<double> Xs(C), Ys(R);
         if (X_arg && Y_arg && X_arg->numel() >= C && Y_arg->numel() >= R) {
-            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->doubleData()[c];
-            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->doubleData()[r];
+            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->elemAsDouble(c);
+            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->elemAsDouble(r);
         } else {
             for (size_t c = 0; c < C; ++c) Xs[c] = (double)(c + 1);
             for (size_t r = 0; r < R; ++r) Ys[r] = (double)(r + 1);
@@ -85,7 +85,7 @@ void buildContourPlots(std::vector<PlotEntry> &table)
         double zmn = std::numeric_limits<double>::infinity();
         double zmx = -std::numeric_limits<double>::infinity();
         for (size_t i = 0; i < R * C; ++i) {
-            const double v = Z_arg->doubleData()[i];
+            const double v = Z_arg->elemAsDouble(i);
             if (std::isfinite(v)) {
                 if (v < zmn) zmn = v;
                 if (v > zmx) zmx = v;
@@ -99,9 +99,8 @@ void buildContourPlots(std::vector<PlotEntry> &table)
                 n = (int)levels_arg->toScalar();
                 if (n < 1) n = 1;
             } else {
-                const double *p = levels_arg->doubleData();
                 for (size_t i = 0; i < levels_arg->numel(); ++i)
-                    levels.push_back(p[i]);
+                    levels.push_back(levels_arg->elemAsDouble(i));
             }
         }
         if (levels.empty()) {
@@ -245,12 +244,12 @@ void buildContourPlots(std::vector<PlotEntry> &table)
         if (R < 2 || C < 2) { outs[0] = Value(); return; }
 
         const auto Zat = [&](size_t r, size_t c) {
-            return Z_arg->doubleData()[c * R + r];
+            return Z_arg->elemAsDouble(c * R + r);
         };
         std::vector<double> Xs(C), Ys(R);
         if (X_arg && Y_arg && X_arg->numel() >= C && Y_arg->numel() >= R) {
-            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->doubleData()[c];
-            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->doubleData()[r];
+            for (size_t c = 0; c < C; ++c) Xs[c] = X_arg->elemAsDouble(c);
+            for (size_t r = 0; r < R; ++r) Ys[r] = Y_arg->elemAsDouble(r);
         } else {
             for (size_t c = 0; c < C; ++c) Xs[c] = (double)(c + 1);
             for (size_t r = 0; r < R; ++r) Ys[r] = (double)(r + 1);
@@ -259,7 +258,7 @@ void buildContourPlots(std::vector<PlotEntry> &table)
         double zmn = std::numeric_limits<double>::infinity();
         double zmx = -std::numeric_limits<double>::infinity();
         for (size_t i = 0; i < R * C; ++i) {
-            const double v = Z_arg->doubleData()[i];
+            const double v = Z_arg->elemAsDouble(i);
             if (std::isfinite(v)) {
                 if (v < zmn) zmn = v;
                 if (v > zmx) zmx = v;
@@ -273,9 +272,8 @@ void buildContourPlots(std::vector<PlotEntry> &table)
                 n = (int)levels_arg->toScalar();
                 if (n < 1) n = 1;
             } else {
-                const double *p = levels_arg->doubleData();
                 for (size_t i = 0; i < levels_arg->numel(); ++i)
-                    levels.push_back(p[i]);
+                    levels.push_back(levels_arg->elemAsDouble(i));
             }
         }
         if (levels.empty()) {

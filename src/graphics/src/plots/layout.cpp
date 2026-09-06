@@ -210,8 +210,8 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
             DatasetInfo ds;
             ds.type = "text";
             std::ostringstream xs, ys;
-            xs << "[" << xv.doubleData()[0] << "]";
-            ys << "[" << yv.doubleData()[0] << "]";
+            xs << "[" << xv.elemAsDouble(0) << "]";
+            ys << "[" << yv.elemAsDouble(0) << "]";
             ds.xJson = xs.str();
             ds.yJson = ys.str();
             ds.label = argStr(args[2]);
@@ -228,7 +228,7 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
                 } else if (key == "fontsize") {
                     if (!extras.empty()) extras += ";";
                     std::ostringstream fs;
-                    fs << "fontSize=" << args[i + 1].doubleData()[0];
+                    fs << "fontSize=" << args[i + 1].elemAsDouble(0);
                     extras += fs.str();
                 }
             }
@@ -536,9 +536,9 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
                 for (std::size_t r = 0; r < R; ++r) {
                     if (r) os << ",";
                     // Column-major: M(r, c) = data[c * R + r].
-                    const double rv = M.doubleData()[0 * R + r];
-                    const double gv = M.doubleData()[1 * R + r];
-                    const double bv = M.doubleData()[2 * R + r];
+                    const double rv = M.elemAsDouble(0 * R + r);
+                    const double gv = M.elemAsDouble(1 * R + r);
+                    const double bv = M.elemAsDouble(2 * R + r);
                     os << "[" << rv << "," << gv << "," << bv << "]";
                 }
                 os << "]";
@@ -1108,8 +1108,8 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
                 el = args[1].toScalar();
                 ok = true;
             } else if (!ok && args[0].numel() >= 2) {
-                az = args[0].doubleData()[0];
-                el = args[0].doubleData()[1];
+                az = args[0].elemAsDouble(0);
+                el = args[0].elemAsDouble(1);
                 ok = true;
             }
             if (!ok) { outs[0] = Value(); return; }

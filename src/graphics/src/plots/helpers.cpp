@@ -23,10 +23,17 @@ std::string vecToJson(const Value &v)
             os << std::abs(v.complexData()[i]);
         }
     } else {
+        // MATLAB's plot family accepts any numeric input — logical,
+        // integer classes, single — converted to double at the boundary
+        // (plot(t, t >= 0) is the canonical textbook form). Fast path for
+        // plain double storage; elemAsDouble performs the same conversion
+        // for the other numeric types.
+        const bool fastDouble = v.isDoubleScalar() || v.isHeapDouble();
+        const double *fast = fastDouble ? v.doubleData() : nullptr;
         for (size_t i = 0; i < v.numel(); ++i) {
             if (i)
                 os << ",";
-            double val = v.doubleData()[i];
+            double val = fast ? fast[i] : v.elemAsDouble(i);
             if (std::isnan(val))
                 os << "null";
             else if (std::isinf(val))

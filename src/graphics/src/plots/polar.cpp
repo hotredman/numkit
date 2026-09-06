@@ -70,7 +70,7 @@ void buildPolarPlots(std::vector<PlotEntry> &table)
             } else if (args.size() >= 2 && args[1].numel() >= A.numel()) {
                 N = A.numel();
                 for (size_t i = 0; i < N; ++i)
-                    emit(A.doubleData()[i], args[1].doubleData()[i], i == 0);
+                    emit(A.elemAsDouble(i), args[1].elemAsDouble(i), i == 0);
                 nvStart = 2;
             } else {
                 outs[0] = Value();
@@ -152,7 +152,7 @@ void buildPolarPlots(std::vector<PlotEntry> &table)
         std::vector<double> counts(nbins, 0.0);
         const size_t N = theta.numel();
         for (size_t i = 0; i < N; ++i) {
-            double t = theta.doubleData()[i];
+            double t = theta.elemAsDouble(i);
             if (!std::isfinite(t)) continue;
             t = std::fmod(t, TAU);
             if (t < 0) t += TAU;
@@ -238,9 +238,9 @@ void buildPolarPlots(std::vector<PlotEntry> &table)
                     for (size_t i = 0; i < R; ++i) {
                         if (i) cs << ',';
                         cs << '['
-                           << c.doubleData()[i + 0 * R] << ','
-                           << c.doubleData()[i + 1 * R] << ','
-                           << c.doubleData()[i + 2 * R] << ']';
+                           << c.elemAsDouble(i + 0 * R) << ','
+                           << c.elemAsDouble(i + 1 * R) << ','
+                           << c.elemAsDouble(i + 2 * R) << ']';
                     }
                     cs << ']';
                     ds.colorJson = cs.str();

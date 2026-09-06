@@ -107,13 +107,15 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             const size_t N = std::min({X.numel(), Y.numel(), Z.numel()});
             if (N == 0) { outs[0] = Value(); return; }
 
-            // Stems: 2 points per stem with null between stems.
+            // Stems: 2 points per stem with null between stems. elemAsDouble:
+            // MATLAB's plot family converts any numeric input (logical,
+            // integer classes, single) to double at the boundary.
             std::ostringstream sx, sy, sz;
             sx << '['; sy << '['; sz << '[';
             for (size_t i = 0; i < N; ++i) {
-                const double x = X.doubleData()[i];
-                const double y = Y.doubleData()[i];
-                const double z = Z.doubleData()[i];
+                const double x = X.elemAsDouble(i);
+                const double y = Y.elemAsDouble(i);
+                const double z = Z.elemAsDouble(i);
                 if (i > 0) { sx << ",null,"; sy << ",null,"; sz << ",null,"; }
                 sx << x << ',' << x;
                 sy << y << ',' << y;
@@ -133,9 +135,9 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             mx << '['; my << '['; mz << '[';
             for (size_t i = 0; i < N; ++i) {
                 if (i) { mx << ','; my << ','; mz << ','; }
-                mx << X.doubleData()[i];
-                my << Y.doubleData()[i];
-                mz << Z.doubleData()[i];
+                mx << X.elemAsDouble(i);
+                my << Y.elemAsDouble(i);
+                mz << Z.elemAsDouble(i);
             }
             mx << ']'; my << ']'; mz << ']';
             DatasetInfo dsDot;
@@ -196,8 +198,8 @@ void buildLinePlots(std::vector<PlotEntry> &table)
                 if (i) { xs << ','; ys << ','; us << ','; vs << ','; }
                 xs << (i + 1);                      // origin: (1..N, 0)
                 ys << '0';
-                us << U.doubleData()[i];
-                vs << V.doubleData()[i];
+                us << U.elemAsDouble(i);
+                vs << V.elemAsDouble(i);
             }
             xs << ']'; ys << ']'; us << ']'; vs << ']';
             DatasetInfo ds;
@@ -301,7 +303,9 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             // and gets overdrawn from below — yielding visible bands
             // for c = Yc-1, Yc-2, ..., 0.
             std::vector<std::vector<double>> S(Yr, std::vector<double>(Yc, 0.0));
-            const double *Yp = yData->doubleData();
+            std::vector<double> Ybuf(yData->numel());
+            for (size_t i = 0; i < Ybuf.size(); ++i) Ybuf[i] = yData->elemAsDouble(i);
+            const double *Yp = Ybuf.data();
             for (size_t r = 0; r < Yr; ++r) {
                 double acc = 0;
                 for (size_t c = 0; c < Yc; ++c) {
@@ -315,7 +319,7 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             if (xData) {
                 for (size_t r = 0; r < Yr; ++r) {
                     if (r) xs << ',';
-                    xs << xData->doubleData()[r];
+                    xs << xData->elemAsDouble(r);
                 }
             } else {
                 for (size_t r = 0; r < Yr; ++r) {
@@ -393,8 +397,8 @@ void buildLinePlots(std::vector<PlotEntry> &table)
         const Value &fh = args[0];
         double a = -5, b = 5;
         if (args.size() >= 2 && args[1].numel() >= 2) {
-            a = args[1].doubleData()[0];
-            b = args[1].doubleData()[1];
+            a = args[1].elemAsDouble(0);
+            b = args[1].elemAsDouble(1);
         }
         const int N = 200;
         auto *mr = gc.mr;
@@ -469,13 +473,13 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             }
             double xa = -5, xb = 5, ya = -5, yb = 5;
             if (args.size() >= 2 && args[1].numel() >= 4) {
-                xa = args[1].doubleData()[0];
-                xb = args[1].doubleData()[1];
-                ya = args[1].doubleData()[2];
-                yb = args[1].doubleData()[3];
+                xa = args[1].elemAsDouble(0);
+                xb = args[1].elemAsDouble(1);
+                ya = args[1].elemAsDouble(2);
+                yb = args[1].elemAsDouble(3);
             } else if (args.size() >= 2 && args[1].numel() >= 2) {
-                xa = args[1].doubleData()[0];
-                xb = args[1].doubleData()[1];
+                xa = args[1].elemAsDouble(0);
+                xb = args[1].elemAsDouble(1);
                 ya = xa; yb = xb;
             }
             const int N = 30;
@@ -504,13 +508,13 @@ void buildLinePlots(std::vector<PlotEntry> &table)
         }
         double xa = -5, xb = 5, ya = -5, yb = 5;
         if (args.size() >= 2 && args[1].numel() >= 4) {
-            xa = args[1].doubleData()[0];
-            xb = args[1].doubleData()[1];
-            ya = args[1].doubleData()[2];
-            yb = args[1].doubleData()[3];
+            xa = args[1].elemAsDouble(0);
+            xb = args[1].elemAsDouble(1);
+            ya = args[1].elemAsDouble(2);
+            yb = args[1].elemAsDouble(3);
         } else if (args.size() >= 2 && args[1].numel() >= 2) {
-            xa = args[1].doubleData()[0];
-            xb = args[1].doubleData()[1];
+            xa = args[1].elemAsDouble(0);
+            xb = args[1].elemAsDouble(1);
             ya = xa; yb = xb;
         }
         const int N = 30;
@@ -548,8 +552,8 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             const Value &fz = args[2];
             double a = -5, b = 5;
             if (args.size() >= 4 && args[3].numel() >= 2) {
-                a = args[3].doubleData()[0];
-                b = args[3].doubleData()[1];
+                a = args[3].elemAsDouble(0);
+                b = args[3].elemAsDouble(1);
             }
             const int N = 200;
             auto *mr = gc.mr;
@@ -614,18 +618,18 @@ void buildLinePlots(std::vector<PlotEntry> &table)
         }
 
         std::vector<double> Xs(Cx), Ys(Ry);
-        for (size_t c = 0; c < Cx; ++c) Xs[c] = Xv.doubleData()[c];
-        for (size_t r = 0; r < Ry; ++r) Ys[r] = Yv.doubleData()[r];
+        for (size_t c = 0; c < Cx; ++c) Xs[c] = Xv.elemAsDouble(c);
+        for (size_t r = 0; r < Ry; ++r) Ys[r] = Yv.elemAsDouble(r);
         const double xMin = Xs.front(), xMax = Xs.back();
         const double yMin = Ys.front(), yMax = Ys.back();
         const double dxAvg = (xMax - xMin) / (double)(Cx - 1);
         const double dyAvg = (yMax - yMin) / (double)(Ry - 1);
 
         const auto Uat = [&](size_t r, size_t c) {
-            return Uv.doubleData()[c * Ry + r];
+            return Uv.elemAsDouble(c * Ry + r);
         };
         const auto Vat = [&](size_t r, size_t c) {
-            return Vv.doubleData()[c * Ry + r];
+            return Vv.elemAsDouble(c * Ry + r);
         };
 
         // Bilinear interp at (x, y). Returns false if out-of-bounds or
@@ -684,7 +688,7 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             const auto &SY = args[5];
             const size_t N = std::min(SX.numel(), SY.numel());
             for (size_t k = 0; k < N; ++k)
-                seeds.emplace_back(SX.doubleData()[k], SY.doubleData()[k]);
+                seeds.emplace_back(SX.elemAsDouble(k), SY.elemAsDouble(k));
         }
 
         // RK4 trace from a single seed in `dir` ∈ {+1, -1}. Appends
@@ -978,7 +982,9 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             fm.prepareForPlot();
 
             // Walk TRI column-major: row i, column k → T[k*M + i] (1-based).
-            const double *T = TRI.doubleData();
+            std::vector<double> Tbuf(TRI.numel());
+            for (std::size_t i = 0; i < Tbuf.size(); ++i) Tbuf[i] = TRI.elemAsDouble(i);
+            const double *T = Tbuf.data();
             std::ostringstream xs, ys;
             xs << '['; ys << '[';
             bool first = true;

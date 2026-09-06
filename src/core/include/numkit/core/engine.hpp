@@ -96,7 +96,20 @@ public:
     // `.m`-implemented builtins (e.g. fzero) whose callbacks must be pausable:
     // the `.m` body's f-calls compile to ordinary VM frames, debuggable for
     // free, no fiber / state machine. See vm_callbacks_plan.md.
+    // The source text is retained and replayed by reinstallBuiltinSources()
+    // after `clear all/classes/functions` — MATLAB transparently reloads
+    // cleared functions from disk; these have no disk backing, so the engine
+    // re-registers them instead (bugs/opened/runtime/clear-all-wipes-builtin-msources.md).
     void registerBuiltinMSource(const std::string &src);
+    // Same contract for startup `classdef` sources (e.g. the inline class):
+    // parses and registers each top-level CLASSDEF_DEF via registerClassDef —
+    // the identical call the compiler makes for a classdef statement — and
+    // retains the text for the same post-clear replay.
+    void registerBuiltinClassSource(const std::string &src);
+    // Replay every retained startup registration (m-source functions +
+    // classdefs). Parser/registry work only — no VM run — so it is safe to
+    // call from inside the `clear` external while a chunk is executing.
+    void reinstallBuiltinSources();
 
     // Register a user `classdef` (parsed CLASSDEF_DEF node) as a BuiltinClass
     // via the adapter: generic property get/set over ObjectState.props,
@@ -669,6 +682,16 @@ private:
     // before the synchronous external path. Full type in callback_builtin.hpp.
     std::unordered_map<std::string, std::shared_ptr<CallbackBuiltin>> callbackBuiltins_;
     std::unordered_map<std::string, UserFunction> userFuncs_;
+    // Startup registration sources retained for post-clear replay
+    // (reinstallBuiltinSources): m-source function texts and classdef
+    // source texts. Cleared functions/classes reload from disk in MATLAB —
+    // these have no disk backing, so the engine re-registers them.
+    std::vector<std::string> builtinMSourceTexts_;
+    std::vector<std::string> builtinClassSourceTexts_;
+    // Parse+adopt halves of the public register entry points, factored out
+    // for replay without re-appending to the retention lists.
+    void adoptBuiltinMSource_(const std::string &src);
+    void adoptBuiltinClassSource_(const std::string &src);
 
     // Class-execution context stack for classdef member-access enforcement
     // (private / protected / immutable). Each frame is the class whose

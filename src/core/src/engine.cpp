@@ -1953,6 +1953,15 @@ void Engine::adoptUserFunction(const std::string &name,
 
 void Engine::registerBuiltinMSource(const std::string &src)
 {
+    builtinMSourceTexts_.push_back(src);
+    adoptBuiltinMSource_(src);
+}
+
+// Parse and register one startup m-source: the parse+adopt half of
+// registerBuiltinMSource, factored out so reinstallBuiltinSources() can
+// replay a retained text without re-appending it to the retention list.
+void Engine::adoptBuiltinMSource_(const std::string &src)
+{
     Lexer lexer(src);
     Parser parser(lexer.tokenize());
     auto ast = parser.parse();
@@ -1992,6 +2001,43 @@ void Engine::registerBuiltinMSource(const std::string &src)
             if (c && c->type == NodeType::FUNCTION_DEF)
                 adopt(c.get());
     }
+}
+
+void Engine::registerBuiltinClassSource(const std::string &src)
+{
+    builtinClassSourceTexts_.push_back(src);
+    adoptBuiltinClassSource_(src);
+}
+
+// Parse and register each top-level CLASSDEF_DEF in one startup source —
+// the identical registerClassDef call the compiler makes for a classdef
+// statement, so direct registration is equivalent to evalSafe minus the
+// (codeless) run.
+void Engine::adoptBuiltinClassSource_(const std::string &src)
+{
+    Lexer lexer(src);
+    Parser parser(lexer.tokenize());
+    auto ast = parser.parse();
+    if (ast->type == NodeType::CLASSDEF_DEF) {
+        registerClassDef(ast.get());
+    } else {
+        for (const auto &c : ast->children)
+            if (c && c->type == NodeType::CLASSDEF_DEF)
+                registerClassDef(c.get());
+    }
+}
+
+// MATLAB reloads cleared functions/classes from disk on the next call;
+// engine-startup registrations have no disk backing, so after
+// clearUserFunctions()/clearClassDefs() wipe them, re-register from the
+// retained texts. Parser/registry work only — no VM run — safe to call
+// from inside the `clear` external mid-chunk.
+void Engine::reinstallBuiltinSources()
+{
+    for (const auto &src : builtinMSourceTexts_)
+        adoptBuiltinMSource_(src);
+    for (const auto &src : builtinClassSourceTexts_)
+        adoptBuiltinClassSource_(src);
 }
 
 void Engine::rehashMFiles()
