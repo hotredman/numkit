@@ -1,6 +1,6 @@
 # linalg.qr — sign convention of the trailing Householder column differs from MATLAB/LAPACK (Q·R still a valid QR)
 
-- **Status:** ✅ CLOSED (HASH, 2026-09-06) — trailing-column convention FIXED; the remainder is not-a-defect (1-ulp matmul rounding amplified by iteration chaos)
+- **Status:** ✅ CLOSED (d889c7060, 2026-09-06) — trailing-column convention FIXED; the remainder is not-a-defect (1-ulp matmul rounding amplified by iteration chaos)
 - **Kind:** bug
 - **Severity:** P3 convention divergence (valid factorization, different signs — visible in workspace compares)
 - **Found:** 2026-09-06 via the springer-math compare group — 6 Numerical_Linear_Algebra scripts (HessenbergQR, InverseIteration, MethodOrtIter, MethodQR_iter, MethodQR_shift, MethodQR_Wshift) flagged workspace-mismatch at max rel exactly 2.0 (sign flips) after their num2str/eig blockers were fixed
