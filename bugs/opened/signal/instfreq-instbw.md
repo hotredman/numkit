@@ -70,6 +70,29 @@ the work. Substantial — not the quick win the hilbert recheck hoped for.
   tfmoment-ONLY (no hilbert method exists). Porting pspectrum's
   window/heuristic/interpolation pipeline is the remaining work.
 
+## Reverse-engineering addendum (portion 23, 2026-09-06)
+
+- pspectrum.m DELEGATES the spectrogram to
+  signalanalyzer.internal.ZoomSpectrum — P-CODE, not readable. The .m
+  only sets: Npoints=4096 auto grid, kbeta =
+  convertLeakageToBeta(Leakage) with doc-stated default Leakage 0.5,
+  half-sample time corrections (t1 − 0.5/Fs, t2 + 0.5/Fs).
+- Geometry ladder VERIFIED (fs=1000, 14 lengths): regime N<=2000:
+  wlen = ceil(N/8) (all 8 probed points), nT = 30 for N>=777 with
+  hop = ceil((N−wlen)/29) (verified 777/1000/1500/2000 and the
+  sub-30-nT small-N corner 100/200/300/500 with nT = 23/26/28/29 —
+  hop formula holds there too, nT rule for the corner still unknown);
+  N>=3000 regime switches (wlen non-monotone: 188,157,250,193,157,391
+  at N=3000..50000; nT ~ 2^k-ish 63,129,129,260,524,524).
+- Manual kaiser(wlen,beta) STFT (zero-padded edge windows, centered at
+  wlen/2 + k*hop, nfft 4096, power interpolated onto linspace(0,fs/2,
+  1024)) does NOT reproduce ifr within 1.2 Hz for ANY beta in 5..12 —
+  structural unknowns remain (exact centering/padding or reassign
+  internals). STOPPED fitting per clean_code: an opaque-pipeline
+  match-the-probe implementation would be worse than this deferral.
+  Path forward if ever needed: binary-probe ZoomSpectrum outputs
+  (single-impulse/single-tone inputs) to pin its window alignment.
+
 ## Suggested fix
 Reconcile with MATLAB's definition: default `instfreq(x,fs)` is the
 first conditional spectral moment over the `pspectrum`/spectrogram TFD
