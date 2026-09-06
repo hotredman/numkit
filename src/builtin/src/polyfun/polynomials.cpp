@@ -712,67 +712,233 @@ ResidueResult residueZ(const Value &b, const Value &a,
                        std::pmr::memory_resource *mr)
 {
     const char *fn = "residuez";
-    // z-domain convention: a[0] + a[1]·z^-1 + ... + a[m]·z^-m. The
-    // leading scalar is a[0] (z^0 coefficient), not a[m].
+    // Port of MATLAB residuez.m (R2025b, read via `type`): the impulse/
+    // S-matrix method — simple poles by cover-up at 1/p over the
+    // FLIPPED polynomials, repeated poles by least-squares over the
+    // cumulative-filter basis (bugs/closed/signal/residuez-repeated-poles).
+    // z-domain convention: a[0] + a[1]·z^-1 + ... ascending.
     auto av = readPolyStripped(a, fn);
     auto bv = readPolyStripped(b, fn);
     if (av.empty() || av[0] == 0.0)
         throw Error("residuez: denominator a[0] must be non-zero",
                      0, 0, fn, "", "numkit:residuez:zeroDenom");
-
-    // Normalise: divide A, B by a[0] so a[0] becomes 1. Residues come
-    // out in MATLAB's residuez convention without further scaling.
     const double a0 = av[0];
     std::vector<double> A = av, B = bv;
     for (auto &x : A) x /= a0;
     for (auto &x : B) x /= a0;
 
-    // z-domain poles = roots(A). For a polynomial in z^-1 ascending,
-    // multiplying through by z^m gives a polynomial in z whose roots
-    // ARE the z-domain poles. polyRootsDurandKerner treats its input
-    // as MATLAB-descending; for our purpose both readings have the
-    // same roots (a + b·z^-1 mult by z → a·z + b, roots match s-form).
+    const std::size_t LA = A.size(), LB0 = B.size();
+    if (LA == 1) {
+        // No poles: everything is the direct term.
+        return {packComplexOrReal({}, mr), packComplexOrReal({}, mr),
+                packDirectTerm(B, mr)};
+    }
+    const std::size_t Nres = LA - 1;
+
     ScratchArena scratch(mr);
+
+    // Direct terms: [k, brem] = deconv(fliplr(B), fliplr(A)), k flipped;
+    // the remainder keeps the strictly-proper part.
+    std::vector<double> K;
+    std::vector<double> Bp = B;                 // strictly-proper numerator
+    if (LB0 > Nres) {
+        std::vector<double> bf(Bp.rbegin(), Bp.rend());
+        std::vector<double> af(A.rbegin(), A.rend());
+        const std::size_t qLen = bf.size() - af.size() + 1;
+        K.assign(qLen, 0.0);
+        for (std::size_t i = 0; i < qLen; ++i) {
+            const double coef = bf[i] / af[0];
+            K[i] = coef;
+            for (std::size_t j = 0; j < af.size(); ++j)
+                bf[i + j] -= coef * af[j];
+        }
+        std::reverse(K.begin(), K.end());
+        std::size_t rOff = qLen;
+        while (rOff < bf.size() && bf[rOff] == 0.0) ++rOff;
+        Bp.assign(bf.rbegin(), bf.rend() - rOff);   // flip back, strip zeros
+        if (Bp.empty()) Bp = {0.0};
+    }
+
+    // Poles and mpoles grouping (tol 1e-3 relative, groups consecutive,
+    // order = descending |p| — MATLAB mpoles' sort).
     auto rs = numkit::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
     std::vector<Complex> poles(rs.begin(), rs.end());
-
-    if (hasRepeatedPoles(poles))
-        throw Error("residuez: repeated-pole case not yet supported "
-                    "(v1 distinct-poles only — see KNOWN GAP)",
-                     0, 0, fn, "", "numkit:residuez:repeatedPole");
-
-    const std::size_t m = poles.size();
-
-    // Direct term: only the proper case (numel(B) <= numel(A)) is
-    // supported in v1 — k is empty. The general polynomial-in-z^-1
-    // quotient for improper TFs is a documented gap.
-    std::vector<double> K;
-    if (B.size() > A.size())
-        throw Error("residuez: improper transfer functions "
-                    "(numel(b) > numel(a)) not yet supported — direct "
-                    "term in z^-1 polynomial form is a v1 KNOWN GAP",
-                     0, 0, fn, "", "numkit:residuez:improperTF");
-
-    // Residue formula for distinct z-poles (Oppenheim & Schafer 3e §3.4):
-    //
-    //   r_i = B(p_i) · p_i^(m-1) / prod_{j ≠ i} (p_i - p_j)
-    //
-    // where B(p_i) is evaluated treating B as a polynomial in z^-1.
-    std::vector<Complex> residues(m, Complex(0, 0));
-    for (std::size_t i = 0; i < m; ++i) {
-        const Complex Bpi = evalZPolyCx(B.data(), B.size(), poles[i]);
-        Complex pPow(1, 0);
-        for (std::size_t k = 0; k + 1 < m; ++k) pPow *= poles[i];
-        Complex denom(1, 0);
-        for (std::size_t j = 0; j < m; ++j) {
-            if (j == i) continue;
-            denom *= (poles[i] - poles[j]);
+    {
+        // Real coefficients => a pole carrying only DK conjugate-dust on
+        // its imaginary part IS real (LAPACK returns these real via
+        // balancing; DK leaves up to ~1e-4 dust on multiple roots that
+        // otherwise complexifies the whole S/least-squares pipeline).
+        // A conjugate pair this close to the axis merges to a double
+        // real pole — consistent with the mpoles grouping tolerance.
+        for (auto &pz : poles)
+            if (std::abs(pz.imag()) < 1e-4 * (1.0 + std::abs(pz)))
+                pz = Complex(pz.real(), 0.0);
+        std::vector<std::pair<double, std::size_t>> keyed;
+        keyed.reserve(poles.size());
+        for (std::size_t i = 0; i < poles.size(); ++i)
+            keyed.emplace_back(-std::abs(poles[i]), i);   // stable desc |p|
+        std::stable_sort(keyed.begin(), keyed.end());
+        std::vector<Complex> sorted;
+        sorted.reserve(poles.size());
+        for (auto &kv : keyed) sorted.push_back(poles[kv.second]);
+        poles = std::move(sorted);
+    }
+    constexpr double kMpolesTol = 1e-3;
+    std::size_t m = poles.size();
+    std::vector<std::size_t> mults;
+    {
+        // mpoles semantics: take the first unprocessed pole, gather ALL
+        // poles within tol*|p| ANYWHERE in the remaining list, emit them
+        // CONSECUTIVELY (groups compact together — a bare in-place
+        // marking split interleaved groups like [2 1 -1 1]).
+        std::vector<bool> used(m, false);
+        std::vector<Complex> grouped;
+        grouped.reserve(m);
+        for (std::size_t i = 0; i < m; ++i) {
+            if (used[i]) continue;
+            bool allNonzero = true;
+            for (std::size_t k = i; k < m; ++k)
+                if (!used[k] && std::abs(poles[k]) == 0.0) { allNonzero = false; break; }
+            const double thresh = allNonzero ? kMpolesTol * std::abs(poles[i])
+                                             : kMpolesTol;
+            std::vector<std::size_t> members;
+            for (std::size_t k = i; k < m; ++k)
+                if (!used[k] && std::abs(poles[k] - poles[i]) < thresh) {
+                    used[k] = true;
+                    members.push_back(k);
+                }
+            for (std::size_t d = 0; d < members.size(); ++d) {
+                grouped.push_back(poles[members[d]]);
+                mults.push_back(d + 1);
+            }
         }
-        if (std::abs(denom) < 1e-300)
-            throw Error("residuez: denominator vanishes at a pole — "
-                        "likely repeated pole undetected by tolerance",
+        poles = std::move(grouped);
+        m = poles.size();
+    }
+
+    // Direct-form IIR filter (local: the signal layer's filter is above
+    // this layer). y(n) = sum b_k x(n-k) - sum a_k y(n-k), a[0]==1.
+    auto zfilter = [](const std::vector<Complex> &bb,
+                      const std::vector<Complex> &aa,
+                      const std::vector<Complex> &xx) {
+        std::vector<Complex> y(xx.size(), Complex(0, 0));
+        for (std::size_t n = 0; n < xx.size(); ++n) {
+            Complex acc(0, 0);
+            for (std::size_t k = 0; k < bb.size() && k <= n; ++k)
+                acc += bb[k] * xx[n - k];
+            for (std::size_t k = 1; k < aa.size() && k <= n; ++k)
+                acc -= aa[k] * y[n - k];
+            y[n] = acc;
+        }
+        return y;
+    };
+
+    // h = filter(Bp, A, imp), imp = [1 0 ... 0] of length N+1.
+    const std::size_t NH = m + 1;
+    std::vector<Complex> imp(NH, Complex(0, 0));
+    imp[0] = Complex(1, 0);
+    std::vector<Complex> Bc(Bp.size()), Ac(A.size());
+    for (std::size_t i = 0; i < Bp.size(); ++i) Bc[i] = Complex(Bp[i], 0.0);
+    for (std::size_t i = 0; i < A.size(); ++i) Ac[i] = Complex(A[i], 0.0);
+    std::vector<Complex> h = zfilter(Bc, Ac, imp);
+
+    // S columns: first-of-group from imp, continuations cumulative.
+    std::vector<std::vector<Complex>> S(m);
+    for (std::size_t j = 0; j < m; ++j) {
+        if (mults[j] > 1)
+            S[j] = zfilter({Complex(1, 0)}, {Complex(1, 0), -poles[j]}, S[j - 1]);
+        else
+            S[j] = zfilter({Complex(1, 0)}, {Complex(1, 0), -poles[j]}, imp);
+    }
+
+    // Simple-pole cover-up at 1/p over flipped polys (poly in z^-1
+    // evaluated at 1/p == polynomial with reversed coefficient order).
+    std::vector<Complex> residues(m, Complex(0, 0));
+    std::vector<bool> jdone(m, false);
+    std::vector<Complex> bflip(Bp.rbegin(), Bp.rend());
+    for (std::size_t i = 0; i < m; ++i) {
+        std::size_t ii = 0;
+        if (i == m - 1) ii = m;
+        else if (mults[i + 1] == 1) ii = i + 1;
+        if (ii == 0) continue;
+        // Other poles = all except this pole's group [i-mults[i]+1, i].
+        std::vector<Complex> others;
+        for (std::size_t j = 0; j < m; ++j)
+            if (j < i - mults[i] + 1 || j > i) others.push_back(poles[j]);
+        // temp = poly(others) with DESCENDING coefficients, then flipped.
+        std::vector<Complex> temp{Complex(1, 0)};
+        for (const auto &o : others) {
+            std::vector<Complex> next(temp.size() + 1, Complex(0, 0));
+            for (std::size_t t = 0; t < temp.size(); ++t) {
+                next[t] += temp[t];
+                next[t + 1] -= o * temp[t];
+            }
+            temp = std::move(next);
+        }
+        // polyval at 1/p (Horner on flipped coefficient order).
+        auto polyvalAt = [](const std::vector<Complex> &c, Complex x) {
+            Complex acc(0, 0);
+            for (const auto &co : c) acc = acc * x + co;
+            return acc;
+        };
+        const Complex xInv = Complex(1, 0) / poles[i];
+        // MATLAB evaluates fliplr(poly(others)) — the ASCENDING
+        // coefficient order (a polynomial in z^-1 at z = p). Evaluating
+        // the descending build directly differs by (1/p)^deg — a sign
+        // for odd degrees at negative poles.
+        const Complex den = polyvalAt(
+            std::vector<Complex>(temp.rbegin(), temp.rend()), xInv);
+        if (std::abs(den) < 1e-300)
+            throw Error("residuez: cover-up denominator vanishes",
                          0, 0, fn, "", "numkit:residuez:denomZero");
-        residues[i] = Bpi * pPow / denom;
+        residues[i] = polyvalAt(bflip, xInv) / den;
+        jdone[i] = true;
+    }
+
+    // Repeated-pole residues: least squares S(:,jkl) \ h via normal
+    // equations (the basis is small and well-conditioned; MATLAB's \
+    // is QR on the same system).
+    std::vector<std::size_t> jkl;
+    for (std::size_t j = 0; j < m; ++j)
+        if (!jdone[j]) jkl.push_back(j);
+    if (!jkl.empty()) {
+        for (std::size_t j = 0; j < m; ++j)
+            if (jdone[j]) {
+                for (std::size_t n = 0; n < NH; ++n)
+                    h[n] -= S[j][n] * residues[j];
+            }
+        const std::size_t M = jkl.size();
+        std::vector<std::vector<Complex>> ATA(M, std::vector<Complex>(M));
+        std::vector<Complex> ATb(M, Complex(0, 0));
+        for (std::size_t r = 0; r < M; ++r) {
+            for (std::size_t n = 0; n < NH; ++n)
+                ATb[r] += std::conj(S[jkl[r]][n]) * h[n];
+            for (std::size_t c = 0; c < M; ++c) {
+                Complex acc(0, 0);
+                for (std::size_t n = 0; n < NH; ++n)
+                    acc += std::conj(S[jkl[r]][n]) * S[jkl[c]][n];
+                ATA[r][c] = acc;
+            }
+        }
+        // Gaussian elimination with partial pivot on ATA t = ATb.
+        for (std::size_t col = 0; col < M; ++col) {
+            std::size_t piv = col;
+            for (std::size_t r = col + 1; r < M; ++r)
+                if (std::abs(ATA[r][col]) > std::abs(ATA[piv][col])) piv = r;
+            std::swap(ATA[col], ATA[piv]);
+            std::swap(ATb[col], ATb[piv]);
+            const Complex d = ATA[col][col];
+            for (std::size_t c = col; c < M; ++c) ATA[col][c] /= d;
+            ATb[col] /= d;
+            for (std::size_t r = 0; r < M; ++r) {
+                if (r == col) continue;
+                const Complex f = ATA[r][col];
+                for (std::size_t c = col; c < M; ++c) ATA[r][c] -= f * ATA[col][c];
+                ATb[r] -= f * ATb[col];
+            }
+        }
+        for (std::size_t r = 0; r < M && r < jkl.size(); ++r)
+            residues[jkl[r]] = ATb[r];
     }
 
     return {

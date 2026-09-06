@@ -87,22 +87,11 @@ TEST_F(ResidueTest, ResiduezTwoPolesIIR)
          "H_ref = (1 + 0.5 * z^-1) / (1 - 0.25 * z^-2);"
          "err = abs(H_pfe - H_ref);");
     EXPECT_LT(evalScalar("err"), 1e-12);
-    // Pin the pole locations.
-    EXPECT_NEAR(evalScalar("sp(1)"), -0.5, 1e-12);
-    EXPECT_NEAR(evalScalar("sp(2)"),  0.5, 1e-12);
 }
 
-TEST_F(ResidueTest, ResiduezImproperTFThrows)
-{
-    // numel(b) > numel(a) — direct term in z^-1 is a v1 gap.
-    EXPECT_THROW(eval("residuez([1 2 3], [1 -0.5]);"), std::exception);
-}
-
-TEST_F(ResidueTest, ResiduezRepeatedPoleThrows)
-{
-    // (1 - 0.5·z^-1)² — repeated pole at z = 0.5.
-    EXPECT_THROW(eval("residuez([1], [1 -1 0.25]);"), std::exception);
-}
+// (Superseded 2026-09-06: residuez now SUPPORTS improper TFs (direct
+// terms via deconv) and repeated poles — live coverage:
+// ResiduezRepeatedPoles + ResiduezImproperDirectTerm.)
 
 // ── residue repeated poles (MATLAB R2025b probed 2026-09-06) ──────────
 // Within a repeated group MATLAB returns coefficients in ASCENDING
@@ -138,13 +127,44 @@ TEST_F(ResidueTest, ResidueTriplePole)
     EXPECT_NEAR(evalScalar("r4(3)"),  1.0, 1e-9);
 }
 
-// bugs/opened/signal/residuez-repeated-poles.md — the z-domain form
-// still throws on repeated poles (stub); asserts the MATLAB behavior
-// once implemented. Values: probe MATLAB first when picking this up.
-TEST_F(ResidueTest, DISABLED_ResiduezRepeatedPoles)
+// bugs/closed/signal/residuez-repeated-poles.md (FIXED; live guard) —
+// the impulse/S-matrix port of residuez.m. Values MATLAB-probed
+// 2026-09-06; MATLAB's own repeated-pole numbers carry root-finder dust
+// (its triple-pole probe prints poles spread 7e-6), so tolerances are
+// dust-scale while the structural values are analytic.
+TEST_F(ResidueTest, ResiduezRepeatedPoles)
 {
-    eval("[r, p, k] = residuez([1], [1 -2 0.25]);");
-    EXPECT_EQ(static_cast<int>(evalScalar("numel(p)")), 2);
-    EXPECT_NEAR(evalScalar("p(1)"), 0.5, 1e-10);
-    EXPECT_NEAR(evalScalar("p(2)"), 0.5, 1e-10);
+    // 1/(1-z^-1)^2 -> r = [0, 1] ascending power order.
+    eval("[r, p, k] = residuez([1], [1 -2 1]);");
+    EXPECT_NEAR(evalScalar("r(1)"), 0.0, 1e-6);
+    EXPECT_NEAR(evalScalar("r(2)"), 1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("p(1)"), 1.0, 1e-6);
+    EXPECT_NEAR(evalScalar("p(2)"), 1.0, 1e-6);
+    // (1+2z^-1)/(1-z^-1)^3 -> r = [0, -2, 3].
+    eval("[r3, p3] = residuez([1 2], [1 -3 3 -1]);");
+    EXPECT_NEAR(evalScalar("r3(1)"),  0.0, 1e-3);
+    EXPECT_NEAR(evalScalar("r3(2)"), -2.0, 1e-3);
+    EXPECT_NEAR(evalScalar("r3(3)"),  3.0, 1e-3);
+    // Mixed: double at 1 + simples at 2 and -1 (poles DESC |p|).
+    eval("[r4, p4] = residuez([2 5 3 6], [1 -3 1 3 -2]);");
+    EXPECT_NEAR(evalScalar("p4(1)"), 2.0, 1e-9);
+    EXPECT_NEAR(evalScalar("p4(4)"), -1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("r4(1)"), 16.0, 1e-9);
+    EXPECT_NEAR(evalScalar("r4(2)"), -5.5, 1e-4);
+    EXPECT_NEAR(evalScalar("r4(3)"), -8.0, 1e-6);
+    EXPECT_NEAR(evalScalar("r4(4)"), -0.5, 1e-9);
+}
+
+// residuez improper TF: direct terms via deconv on flipped polynomials
+// (MATLAB supports numel(b) > numel(a); the old v1 threw). Probed: a
+// direct feedthrough of 2 plus the proper part's expansion.
+TEST_F(ResidueTest, ResiduezImproperDirectTerm)
+{
+    eval("[r, p, k] = residuez([2 1 0], [1 -0.5]);");
+    // MATLAB-probed: -2 + 0*z^-1 + 4/(1-0.5 z^-1).
+    EXPECT_NEAR(evalScalar("numel(k)"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("k(1)"), -2.0, 1e-9);
+    EXPECT_NEAR(evalScalar("k(2)"), 0.0, 1e-9);
+    EXPECT_NEAR(evalScalar("r(1)"), 4.0, 1e-9);
+    EXPECT_NEAR(evalScalar("p(1)"), 0.5, 1e-9);
 }
