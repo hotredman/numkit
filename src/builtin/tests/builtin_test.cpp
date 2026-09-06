@@ -5,7 +5,12 @@
 
 using namespace numkit;
 
-class BuiltinTest : public ::testing::Test {
+// Suite name must NOT collide with the parameterized BuiltinTest in
+// bundle/tests/builtins_test.cpp: two different fixture classes under
+// one gtest suite name is documented UB (mixed TEST_F/TEST_P) — it
+// crashed every Debug-config run with an access violation while
+// Release survived (bugs/closed/core/debug-build-setup-crash).
+class BuiltinLayerTest : public ::testing::Test {
 protected:
     void SetUp() override {
         engine = std::make_unique<Engine>();
@@ -15,7 +20,7 @@ protected:
     std::unique_ptr<Engine> engine;
 };
 
-TEST_F(BuiltinTest, FullLibraryInstalled) {
+TEST_F(BuiltinLayerTest, FullLibraryInstalled) {
     // Math
     EXPECT_DOUBLE_EQ(engine->eval("sin(0);").toScalar(), 0.0);
     EXPECT_DOUBLE_EQ(engine->eval("sqrt(100);").toScalar(), 10.0);
