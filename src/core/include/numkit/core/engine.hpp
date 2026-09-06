@@ -330,6 +330,9 @@ public:
     //   r = eval('a + b');   % no inner ans display
     //   eval('a + b');       % inner ans display proceeds normally
     Value eval(const std::string &code, bool suppressTopLevelDisplay = false);
+    // See engine.cpp: rewrites variable-headed glued -// COMMAND_CALLs
+    // into binary expressions BEFORE compiling (MATLAB-probed rule).
+    void rewriteVarHeadedCommands(ASTNode *root);
 
     // Scoped variant: top-level imports and variable assignments inside
     // `code` are routed to `scope` instead of workspaceEnv. Used by

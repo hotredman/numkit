@@ -1,4 +1,5 @@
 // src/engine.cpp
+#include <cstdio>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/caching_memory_resource.hpp>
 #include <numkit/core/value_stats.hpp>
@@ -2662,6 +2663,82 @@ static void markTopLevelSuppressed(ASTNode *ast)
     }
 }
 
+// MATLAB (probed R2025b): a statement like `N-1` / `x -1` / `a/2` —
+// IDENT, glued - or /, operand — lexes as a COMMAND_CALL (the `which -all`
+// idiom), but when the head names a WORKSPACE VARIABLE the statement is the
+// binary subtraction/division (x=5; x -1 -> 4). The parser cannot see
+// variables, so rewrite such top-level nodes into real BINARY_OP ASTs here,
+// BEFORE compiling — both backends then run the plain expression path with
+// correct statement-value/ans semantics. (bugs: eval-family sibling found
+// it via eval('N/2').)
+void Engine::rewriteVarHeadedCommands(ASTNode *root)
+{
+    if (!root) return;
+    std::vector<ASTNode *> stmts;
+    if (root->type == NodeType::BLOCK) {
+        for (auto &c : root->children)
+            if (c) stmts.push_back(c.get());
+    } else {
+        stmts.push_back(root);
+    }
+    for (ASTNode *node : stmts) {
+        if (!node || node->type != NodeType::COMMAND_CALL)
+            continue;
+        if (node->children.size() != 1
+            || node->children[0]->type != NodeType::STRING_LITERAL)
+            continue;
+        const std::string &name = node->strValue;
+        const std::string &arg = node->children[0]->strValue;
+        if (arg.size() < 2 || (arg[0] != '-' && arg[0] != '/'))
+            continue;
+        if (!std::isalnum(static_cast<unsigned char>(arg[1])) && arg[1] != '.')
+            continue;
+        if (!workspaceEnv_->getLocal(name))
+            continue;
+        const std::string tail = arg.substr(1);
+        bool isNum = !tail.empty();
+        for (char c : tail)
+            if (!(std::isdigit(static_cast<unsigned char>(c)) || c == '.'))
+                { isNum = false; break; }
+        bool isIdent = !tail.empty()
+                       && (std::isalpha(static_cast<unsigned char>(tail[0]))
+                           || tail[0] == '_');
+        if (isIdent)
+            for (char c : tail)
+                if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_'))
+                    { isIdent = false; break; }
+        if (!isNum && !isIdent) continue;
+        const int ln = node->line, cl = node->col;
+        const bool suppress = node->suppressOutput;
+        auto ident = std::make_unique<ASTNode>(NodeType::IDENTIFIER);
+        ident->strValue = name;
+        ident->line = ln; ident->col = cl;
+        std::unique_ptr<ASTNode> operand;
+        if (isNum) {
+            operand = std::make_unique<ASTNode>(NodeType::NUMBER_LITERAL);
+            operand->numValue = std::stod(tail);
+        } else {
+            operand = std::make_unique<ASTNode>(NodeType::IDENTIFIER);
+            operand->strValue = tail;
+        }
+        operand->line = ln; operand->col = cl;
+        // Replicate parseExpressionStatement's shape: the statement
+        // becomes EXPR_STMT(BINARY_OP) so the expr-statement compiler
+        // binds/displays/returns the value like any expression
+        // statement (a bare BINARY_OP statement skips that path and
+        // yields an empty chunk result).
+        auto bin = std::make_unique<ASTNode>(NodeType::BINARY_OP);
+        bin->strValue = (arg[0] == '-') ? "-" : "/";
+        bin->line = ln; bin->col = cl;
+        bin->children.push_back(std::move(ident));
+        bin->children.push_back(std::move(operand));
+        node->type = NodeType::EXPR_STMT;
+        node->strValue.clear();
+        node->children.clear();
+        node->children.push_back(std::move(bin));
+        node->suppressOutput = suppress;
+    }
+}
 Value Engine::eval(const std::string &code, bool suppressTopLevelDisplay)
 {
     refreshStaleMFiles();
@@ -2747,6 +2824,7 @@ Value Engine::eval(const std::string &code, bool suppressTopLevelDisplay)
         for (auto &c : ast->children) {
             if (!c || c->type == NodeType::FUNCTION_DEF)
                 continue;
+            rewriteVarHeadedCommands(c.get());
             result = runOneChunk(c.get(), src);
         }
         return result;
@@ -2754,6 +2832,7 @@ Value Engine::eval(const std::string &code, bool suppressTopLevelDisplay)
 
     // Single-statement path: works for REPL lines, lone expressions, and
     // scripts consisting of just one top-level construct.
+    rewriteVarHeadedCommands(ast.get());
     return runOneChunk(ast.get(), src);
 }
 

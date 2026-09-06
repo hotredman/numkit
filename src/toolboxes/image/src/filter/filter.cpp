@@ -1765,8 +1765,12 @@ Value imnoise(::numkit::ops::RngContext &rng, const Value &I, const std::string 
         for (size_t i = 0; i < N; ++i) {
             const double x = toUnit(I.elemAsDouble(i));
             const double mean = std::max(x * scale, 0.0);
-            std::poisson_distribution<long long> P(mean);
-            const long long k = P(rng);
+            // mean == 0 → the Poisson draw is 0; constructing the
+            // distribution with 0 is UB (MSVC Debug asserts on a
+            // non-positive mean).
+            const long long k = (mean <= 0.0)
+                ? 0
+                : std::poisson_distribution<long long>(mean)(rng);
             fromUnit(out, i, (double)k / scale);
         }
     }

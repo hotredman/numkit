@@ -88,9 +88,12 @@ Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t ro
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     // Draw J ~ Poisson(λ/2), then X ~ chi²(k + 2J) = Gamma(shape=k/2+J, scale=2).
-    std::poisson_distribution<int> pd(lambda / 2.0);
+    // λ == 0 is the CENTRAL χ²: the Poisson mean is 0, which
+    // std::poisson_distribution rejects (MSVC Debug asserts) — J = 0.
+    const bool central = (lambda == 0.0);
+    std::poisson_distribution<int> pd(central ? 1.0 : lambda / 2.0);
     for (size_t i = 0; i < n; ++i) {
-        const int J = pd(gen);
+        const int J = central ? 0 : pd(gen);
         std::gamma_distribution<double> gd(k / 2.0 + double(J), 2.0);
         od[i] = gd(gen);
     }

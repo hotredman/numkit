@@ -2645,6 +2645,23 @@ enter_frame:
                             break;
                         }
                     }
+                    // The BASE frame also consults the workspace env:
+                    // names created MID-CHUNK by eval()/assignin land
+                    // there after the inner chunk syncs, but this
+                    // chunk's registers predate them (write side of the
+                    // eval-family bug). Only frames_.front() — function
+                    // frames allocate their private env LAZILY (env can
+                    // still be null mid-body), so `!frame.env` was the
+                    // wrong predicate and leaked base variables into
+                    // functions (ScopeIsolationTest regression).
+                    if (&frame == &frames_.front()) {
+                        const Value *wv = engine_.workspaceEnv().get(
+                            chunk.strings[I.d]);
+                        if (wv && !wv->isUnset() && !wv->isDeleted()) {
+                            R[I.a] = *wv;
+                            break;
+                        }
+                    }
                     const std::string &n = chunk.strings[I.d];
                     if (n == "nargin" || n == "nargout")
                         throw std::runtime_error(

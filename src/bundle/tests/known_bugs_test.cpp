@@ -432,11 +432,12 @@ TEST_F(TwBackendKnownBug, InlineCtorTreeWalker)
     EXPECT_DOUBLE_EQ(evalScalar("g(3)"), 6.0);
 }
 
-// bugs/opened/core/eval-family-frame-visibility.md — mid-chunk, variables
-// live in VM registers and reach the Environment only at the chunk
-// boundary, so BOTH eval() and input() evaluating a string mid-script
-// cannot see the script's earlier variables (MATLAB evaluates in the
-// caller's workspace). Found via the input() caller-workspace guard.
+// bugs/closed/core/eval-family-frame-visibility.md (FIXED; live guard) —
+// mid-chunk eval()/input() now see the caller's variables: the
+// workspaceEnv ASSERT_DEF fallback (vars synced by earlier statements)
+// plus the callerSnapshot base-frame fallback, and variable-headed
+// glued command forms (`N-1` — the lex-level sibling defect) are
+// rewritten to expressions before compiling.
 class EvalFamilyKnownBug : public ::testing::Test {
 public:
     StandardEngine engine;
@@ -444,7 +445,7 @@ public:
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
 
-TEST_F(EvalFamilyKnownBug, DISABLED_EvalFamilyCallerVarVisibility)
+TEST_F(EvalFamilyKnownBug, EvalFamilyCallerVarVisibility)
 {
     // eval() half: script variable referenced by the eval'd string.
     eval("N = 42;");
@@ -454,5 +455,10 @@ TEST_F(EvalFamilyKnownBug, DISABLED_EvalFamilyCallerVarVisibility)
     engine.setInputProvider([] { return std::string("N/2"); });
     eval("y = input('q: ');");
     EXPECT_DOUBLE_EQ(evalScalar("y"), 21.0);
+    // Glued command forms evaluate too (N-1, N/2 as statements).
+    eval("v = eval('N-1');");
+    EXPECT_DOUBLE_EQ(evalScalar("v"), 41.0);
+    eval("w = eval('N/2');");
+    EXPECT_DOUBLE_EQ(evalScalar("w"), 21.0);
 }
 

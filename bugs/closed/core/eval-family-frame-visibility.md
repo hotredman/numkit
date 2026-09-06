@@ -1,6 +1,6 @@
 # core.eval — variables created by eval() INSIDE FUNCTIONS are invisible later in the script (eval-family frame visibility)
 
-- **Status:** 🔴 OPEN (deferred with the assignin family — same root, user decision)
+- **Status:** ✅ FIXED (HASH, 2026-09-06) (deferred with the assignin family — same root, user decision)
 - **Severity:** P2 (clear error, not silent)
 - **Kind:** bug
 - **Found:** 2026-08-30 — the two unfiled corpus failures behind PUBLISH.md's "3 known OPEN bugs" (only assignin had a catalog entry)
@@ -48,3 +48,21 @@ top-level eval is NOT a reproducer (verified working).
 - **Guard:** `DISABLED_EvalFamilyCallerVarVisibility` in `src/bundle/tests/known_bugs_test.cpp` (both halves: eval() and input() cannot see mid-chunk caller variables; replaced the earlier
   assignin fix (the corpus scripts are the reliable reproducers).
 - Corpus gate: these two + assignin_setter are PUBLISH.md's "3 known FAIL".
+
+
+## Fix (2026-09-06, portion 23b)
+
+Both directions fixed, plus the lex-level sibling found on the way:
+1. READ side — eval()/input() mid-chunk now see the caller's variables:
+   ASSERT_DEF (top-level frames) falls back to workspaceEnv (names synced
+   by earlier split-statement chunks), and snapshotFrameVars resolves a
+   workspaceEnv request to the BASE frame's live registers.
+2. WRITE side — the same workspaceEnv ASSERT_DEF fallback resolves names
+   CREATED by an inner eval in later statements of the running chunk.
+3. SIBLING (its own file: lang/command-var-head-glued-op) — `N-1`/`a/2`
+   statements mislex as COMMAND calls; now rewritten to expressions when
+   the head is a workspace variable. This was the actual cause of the
+   eval('N/2') CALL-shaped error that the original guard surfaced.
+
+Live guard: EvalFamilyKnownBug.EvalFamilyCallerVarVisibility (eval + input
++ glued forms).

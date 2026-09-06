@@ -177,10 +177,14 @@ Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delt
         return out;
     double *od = out.doubleDataMut();
     const std::size_t n = rows * cols;
-    std::poisson_distribution<int>   pd(0.5 * delta);
+    // delta == 0 is the CENTRAL F: the Poisson mixing mean is 0 and
+    // std::poisson_distribution REQUIRES a positive mean (MSVC asserts
+    // in Debug). Skip the mixing draw — J = 0 always.
+    const bool central = (delta == 0.0);
+    std::poisson_distribution<int>   pd(central ? 1.0 : 0.5 * delta);
     std::gamma_distribution<double>  g2(0.5 * nu2, 2.0);   // χ²(ν₂)
     for (std::size_t i = 0; i < n; ++i) {
-        const int J = pd(gen);
+        const int J = central ? 0 : pd(gen);
         std::gamma_distribution<double> g1(0.5 * nu1 + static_cast<double>(J), 2.0);
         const double X1 = g1(gen);   // χ²(ν₁ + 2J) — noncentral χ² draw
         const double X2 = g2(gen);

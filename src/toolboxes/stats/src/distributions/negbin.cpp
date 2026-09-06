@@ -55,8 +55,11 @@ Value nbinrnd(::numkit::ops::RngContext &rng, double r, double p, size_t rows, s
     std::poisson_distribution<int>  pd_dummy(1.0); (void)pd_dummy;
     for (size_t i = 0; i < cnt; ++i) {
         const double lam = gd(gen);
-        std::poisson_distribution<int> pd(lam <= 0.0 ? 0.0 : lam);
-        od[i] = static_cast<double>(pd(gen));
+        // Gamma can return exactly 0 (degenerate draw); poisson requires
+        // a POSITIVE mean (MSVC Debug asserts) — a zero-λ draw is 0.
+        od[i] = (lam <= 0.0) ? 0.0
+                             : static_cast<double>(
+                                   std::poisson_distribution<int>(lam)(gen));
     }
     return out;
 }
