@@ -1,6 +1,6 @@
 # signal.freqs — auto-grid resample reads one-past-the-end (Debug assert; benign-but-UB in Release)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (54a1f3f07, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P3 latent UB (wrong-value risk nil — t == 0 — but a real out-of-bounds read)
 - **Found:** 2026-09-06 while re-running the filter-design suite in a Debug-config gtest build (MSVC `_ITERATOR_DEBUG_LEVEL=2` assert: "vector subscript out of range")

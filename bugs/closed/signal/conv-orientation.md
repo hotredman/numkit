@@ -1,6 +1,6 @@
 # signal.conv — output orientation ignores the FIRST input (columns collapsed to rows)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (54a1f3f07, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P1 wrong shape (silently mis-shaped result feeding downstream code)
 - **Found:** 2026-09-06 via the springer-math compare group — pr2_4's `y` (book convint over `conv(x, h)` with column h) came out 1×801 vs MATLAB 801×1
