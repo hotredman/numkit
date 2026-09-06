@@ -6,6 +6,14 @@ pick it up cold. This is the sole bug tracker (the old flat BUGS.md was retired 
 its open items migrated here). The full MATLAB parity-gap inventory (missing / partial
 functions) lives in [missing.md](missing.md).
 
+**Immediate-filing rule (user rule, 2026-09-06):** anything found while
+reading, testing or fixing code is filed in `bugs/opened/` RIGHT AWAY —
+in the same portion, not "for later triage". Three triggers:
+found a **bug** → `Kind: bug` (+ repro + DISABLED_ guard);
+found a **crutch** → `Kind: crutch` (code location + the defect it dodges);
+found **legacy / stale code** → `Kind: cleanup` ("чистить": code location +
+why it rots).
+
 ## Layout
 
 ```
@@ -98,6 +106,21 @@ real bugs isn't inflated by unimplemented functions:
   severity, and reference a **benchmark** (`benchmarks/*.cpp`) rather than a
   `DISABLED_` gtest — timing assertions are too flaky for gtest. Always
   include the measured numbers + the bottleneck analysis.
+- **crutch** — a workaround bridge found LIVING IN THE CODE (the
+  clean_code.md kind): a call rerouted to dodge a dispatch gap, a
+  special case patched around a defect, a copy of logic that exists
+  because the real owner is broken. File with the code location
+  (`file:line`), what it dodges (link the underlying `bug` entry), and
+  the exit condition. No `Repro` block and no `DISABLED_` gtest — carry
+  a `**Guard:** deferred — crutch entry, code-health not behavior` line
+  instead. Closes by REMOVING the bridge together with the underlying
+  defect's fix (the in-code comment must name this file so
+  `git grep <bug-id>` finds every bridge).
+- **cleanup** — legacy / stale / dead code to clean (`"чистить"`):
+  unreachable branches, retired-feature leftovers, commented-out
+  experiments, rotting duplicates. File with the code location and why
+  it is stale; no `Repro`, no gtest — `**Guard:** deferred — cleanup
+  entry, code-health not behavior`. Closes by deleting the code.
 
   **When to flag as `perf`** (numkit is single-threaded; MATLAB is often
   multithreaded + MKL/FFTW, so a 1.5–3× gap on parallelisable ops is normal,
@@ -122,7 +145,10 @@ Add `- **Kind:** <kind>` to each file (right after Severity).
 
 ## Every bug also gets a test
 
-**Found a bug → add a test.** Each OPEN bug has a matching `DISABLED_`
+**Found a bug → add a test.** (Behavioral kinds only: `bug`, `stub`,
+`missing-output`. The code-health kinds `crutch` / `cleanup` and the
+`perf` kind carry a `**Guard:** deferred` line instead — nothing to
+assert.) Each OPEN bug has a matching `DISABLED_`
 gtest in `src/toolboxes/<lib>/tests/known_bugs_test.cpp` that asserts the
 MATLAB-correct behaviour. Disabled means it does NOT run in the normal
 suite (the green baseline stays green), but it is visible

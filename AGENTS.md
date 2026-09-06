@@ -191,6 +191,16 @@ numbers.
 ## Bug catalog (`bugs/`)
 
 Structured one-file-per-bug catalog.
+**Immediate-filing rule (user rule, 2026-09-06): anything you find goes
+into `bugs/opened/` RIGHT AWAY, in the same portion — never "later".**
+Three triggers, three kinds:
+- found a **bug** → file it (`Kind: bug`) with repro + DISABLED_ guard;
+- found a **crutch** (a workaround bridge in the code) → file it with
+  `Kind: crutch`, referencing the code location and the underlying
+  defect it dodges;
+- found **legacy / stale / dead code** → file it with `Kind: cleanup`
+  ("чистить"), referencing the code location and why it rots.
+
 **Every bug you find gets TWO things:**
 
 1. its own `bugs/opened/<namespace>/<fn>.md` with a self-contained repro (numkit
@@ -209,7 +219,10 @@ option), `stub` (documented option/branch throws "not supported"),
 `missing-output` (documented Nth output not emitted), `missing-fn` (function
 not implemented at all — a **parity gap, also tracked in PROGRESS.md, NOT a
 defect**), `perf` (correct but slower than MATLAB — use a `Slowdown:` line +
-a benchmark, not a `DISABLED_` gtest). Don't conflate them — a missing
+a benchmark, not a `DISABLED_` gtest), `crutch` (a workaround bridge in the
+code, marked for removal when its underlying defect closes — no gtest, use
+`**Guard:** deferred`), `cleanup` (legacy / stale / dead code to clean —
+no gtest, use `**Guard:** deferred`). Don't conflate them — a missing
 function is not a bug. **`perf` threshold:** numkit is single-threaded vs
 MATLAB's multithreaded MKL/FFTW, so flag only ≥3× (or 1.5–3× with a FIXABLE
 cause, or ANY ratio if worse big-O); <1.5× is noise. See bugs/README.md.
