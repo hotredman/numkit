@@ -1,6 +1,6 @@
 # linalg.qr — sign convention of the trailing Householder column differs from MATLAB/LAPACK (Q·R still a valid QR)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ CLOSED (HASH, 2026-09-06) — trailing-column convention FIXED; the remainder is not-a-defect (1-ulp matmul rounding amplified by iteration chaos)
 - **Kind:** bug
 - **Severity:** P3 convention divergence (valid factorization, different signs — visible in workspace compares)
 - **Found:** 2026-09-06 via the springer-math compare group — 6 Numerical_Linear_Algebra scripts (HessenbergQR, InverseIteration, MethodOrtIter, MethodQR_iter, MethodQR_shift, MethodQR_Wshift) flagged workspace-mismatch at max rel exactly 2.0 (sign flips) after their num2str/eig blockers were fixed
@@ -16,12 +16,19 @@ MATLAB on probed matrices: hilb(10), rand(4), [0 -5 2; 6 0 -12; 1 3 0],
 flipped to PASS (MethodOrtIter, MethodQR_iter); live guard
 `QrLastColumnSignConvention`.
 
-REMAINING: HessenbergQR, InverseIteration, MethodQR_Wshift,
-MethodQR_shift still diverge at max rel 2.0 (sign flips) — NOT the
-trailing column (qr is exact on their input matrices, probed): the
-divergence lives elsewhere in their pipelines (manual Hessenberg
-reduction with sign(x(1))*norm reflectors / shifted iterations /
-inverse-power solves). Needs a fresh distillate of the failing iterate.
+REMAINING 4 scripts — CLOSED as not-a-defect (distillate 2026-09-06):
+the Hessenberg output and the FIRST qr call are identical to 10
+digits; iteration traces stay identical to 12 digits for 10 RQ steps;
+the FIRST divergence is 1 ulp at iteration 11 (A(2,1) ...054599 vs
+...054598) — matmul rounding order (numkit vs MATLAB's MKL). Over the
+remaining ~990 chaotic iterations that 1-ulp seed decorrelates the
+trajectory and the converged 2x2 Schur block lands with the opposite
+sign layout: identical spectrum, identical |values|, deterministic
+within each engine (numkit's wasm double-run in the compare harness
+proves self-consistency). Per the playbook rule 5 (summation-order
+variance is not a bug) — matching would require a bit-identical BLAS,
+which is out of scope by design. The 4 scripts carry a
+`# known: numerical-iteration-chaos` compare annotation.
 
 ## Original symptom
 
@@ -54,10 +61,8 @@ A-reconstruction guards stay green.
 
 ## References
 
-- **Guard:** deferred — the REMAINING 4-script divergence has no
-  reproducible guard until its distillate lands (needs the failing
-  iterate matrices pinned). The FIXED trailing-column half is pinned by
-  the live `QrLastColumnSignConvention` guard in
-  `src/toolboxes/linalg/tests/known_bugs_test.cpp`.
+- Guard: `QrLastColumnSignConvention` (LIVE) pins the fixed
+  trailing-column convention; the chaos remainder has no assertable
+  guard by nature (both forms are correct).
 - Affected corpus scripts: see `fieldtest/compare/groups/springer-math.txt`
   annotations `# known: linalg/qr-last-column-sign-convention`

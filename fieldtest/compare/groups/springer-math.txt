@@ -35,15 +35,15 @@ corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matl
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/CGS.m  # known: untriaged runtime-error
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/FitFunctionNormaleq.m    # known: untriaged workspace-mismatch
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/FitFunctionQRCGS.m  # known: untriaged runtime-error
-corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/HessenbergQR.m  # known: linalg/qr-last-column-sign-convention
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/HessenbergQR.m  # known: numerical-iteration-chaos (1-ulp matmul rounding over ~1000 QR iterations; same spectrum — bugs/closed/linalg/qr-last-column-sign-convention)
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Hornersrule_5roots.m    # known: missing: syms (bugs/missing.md)
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Hornersrule_bisection_classic.m
-corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/InverseIteration.m  # known: linalg/qr-last-column-sign-convention
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/InverseIteration.m  # known: numerical-iteration-chaos (1-ulp matmul rounding over ~1000 QR iterations; same spectrum — bugs/closed/linalg/qr-last-column-sign-convention)
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MainHatFit.m  # known: untriaged runtime-error
-corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodOrtIter.m  # known: linalg/qr-last-column-sign-convention
-corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_Wshift.m  # known: linalg/qr-last-column-sign-convention
-corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_iter.m  # known: linalg/qr-last-column-sign-convention
-corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_shift.m  # known: linalg/qr-last-column-sign-convention
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodOrtIter.m  # known: numerical-iteration-chaos (1-ulp matmul rounding over ~1000 QR iterations; same spectrum — bugs/closed/linalg/qr-last-column-sign-convention)
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_Wshift.m  # known: numerical-iteration-chaos (1-ulp matmul rounding over ~1000 QR iterations; same spectrum — bugs/closed/linalg/qr-last-column-sign-convention)
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_iter.m  # known: numerical-iteration-chaos (1-ulp matmul rounding over ~1000 QR iterations; same spectrum — bugs/closed/linalg/qr-last-column-sign-convention)
+corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/MethodQR_shift.m  # known: numerical-iteration-chaos (1-ulp matmul rounding over ~1000 QR iterations; same spectrum — bugs/closed/linalg/qr-last-column-sign-convention)
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_Chol.m
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_ConjugateGrad.m
 corpus/work/springer-math--Numerical_Linear_Algebra_Theory_and_Applications/Matlab_code/Poisson2D_Gauss_Seidel.m
