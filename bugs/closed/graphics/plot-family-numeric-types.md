@@ -1,6 +1,6 @@
 # graphics.plot-family — logical/integer/single inputs rejected ("Not a double array") across the plot family
 
-- **Status:** ✅ FIXED (b44d8da7d, 2026-09-06)
+- **Status:** ✅ FIXED (2c5a18370, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P2 missing feature (textbook-breaking: `plot(t, t >= 0)` is the canonical step-response form)
 - **Found:** 2026-09-06 via springer-math book scripts pr1_2/pr1_3 (after the clear-all fix let them reach the plot call)

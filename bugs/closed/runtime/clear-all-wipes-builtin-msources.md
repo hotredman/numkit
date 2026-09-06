@@ -1,6 +1,6 @@
 # runtime.clear — `clear all/classes/functions` permanently wipes engine-startup builtin m-source functions and the inline classdef
 
-- **Status:** ✅ FIXED (b44d8da7d, 2026-09-06)
+- **Status:** ✅ FIXED (2c5a18370, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P1 wrong result (functions become undefined / mis-dispatch after `clear all`)
 - **Found:** 2026-09-06 via springer-math book scripts (pr1_1–pr1_3, pr2_4 all fail although the functions were implemented in the 2026-09-05 fidelity pass)
