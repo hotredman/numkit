@@ -42,11 +42,17 @@ struct RootPair { Complex a, b; bool isPair; };
 bool popPair(ScratchVec<Complex> &pool, RootPair &out)
 {
     if (pool.empty()) return false;
+    // Section order (MATLAB R2025b, probed on buttap N=4/6, cheb1/cheb2/
+    // ellip N=4): pole pairs are emitted by ASCENDING |p|, ties by
+    // ascending |Re(p)| (buttap's equal-radius pairs → the pair nearest
+    // the imaginary axis first). The old max-|p| pick emitted the
+    // opposite order (bugs/closed/signal/zp2sos-section-order).
     size_t pickIdx = 0;
-    double bestMag = std::abs(pool[0]);
+    auto key = [&](size_t i) {
+        return std::make_pair(std::abs(pool[i]), std::abs(pool[i].real()));
+    };
     for (size_t i = 1; i < pool.size(); ++i) {
-        const double m = std::abs(pool[i]);
-        if (m > bestMag) { bestMag = m; pickIdx = i; }
+        if (key(i) < key(pickIdx)) pickIdx = i;
     }
     const Complex pick = pool[pickIdx];
     if (isReal(pick)) {
@@ -270,16 +276,13 @@ zp2sosWithGain(const Value &zerosV, const Value &polesV, double gain, std::pmr::
 
     // MATLAB's default 'up' section ordering: sections sorted by ASCENDING
     // pole radius — poles nearest the ORIGIN first, nearest the unit circle
-    // last. popPair pairs poles largest-magnitude-first (correct pairing),
-    // so the section arrays are currently in DESCENDING radius; reverse them
-    // to match MATLAB. The overall gain is applied by the caller to row 0,
-    // which after the reversal is the origin-nearest section — exactly where
-    // MATLAB folds it in. ('down' ordering is a non-default option: deferred.)
-    std::reverse(b1s.begin(), b1s.end());
-    std::reverse(b2s.begin(), b2s.end());
-    std::reverse(a1s.begin(), a1s.end());
-    std::reverse(a2s.begin(), a2s.end());
-    std::reverse(noZeros.begin(), noZeros.end());
+    // last. popPair already selects by ascending (|p|, |Re(p)|), so the
+    // section arrays come out in MATLAB order directly (the old pipeline
+    // paired largest-first and reversed here, which inverted the
+    // equal-radius tie order — bugs/closed/signal/zp2sos-section-order).
+    // Row 0 is the origin-nearest section — exactly where the caller folds
+    // the overall gain in. ('down' ordering is a non-default option:
+    // deferred.)
 
     return std::make_tuple(buildSosMatrix(b1s.data(), b2s.data(), a1s.data(), a2s.data(), noZeros.data(), surplusAtOrigin, L, /*leadingGain=*/1.0, mr),
                            gain);

@@ -226,3 +226,16 @@ TEST_F(SignalKnownBug, ButterBandpassVectorWn)
     EXPECT_NEAR(evalScalar("a(5)"),  0.2722149379250068, 1e-12);
 }
 
+
+// bugs/closed/signal/zp2sos-section-order.md (FIXED; live guard) —
+// sections are emitted by ASCENDING |p|, ties by ascending |Re(p)|:
+// buttap(4) row 1 = the 0.7654 pair (|Re|=0.3827), row 2 = 1.8478.
+TEST_F(SignalKnownBug, Zp2sosSectionOrderButtap)
+{
+    eval("[~, p, k] = buttap(4); sos = zp2sos(zeros(0,0), p, k);");
+    EXPECT_NEAR(evalScalar("sos(1,5)"), 0.765367, 1e-5);
+    EXPECT_NEAR(evalScalar("sos(2,5)"), 1.847759, 1e-5);
+    eval("[~, p6, k6] = buttap(6); s6 = zp2sos(zeros(0,0), p6, k6);");
+    EXPECT_NEAR(evalScalar("s6(1,5)"), 0.517638, 1e-5);
+    EXPECT_NEAR(evalScalar("s6(3,5)"), 1.931852, 1e-5);
+}

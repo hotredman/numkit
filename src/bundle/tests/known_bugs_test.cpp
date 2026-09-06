@@ -430,3 +430,27 @@ TEST_F(TwBackendKnownBug, DISABLED_InlineCtorTreeWalker)
     EXPECT_EQ(eval("class(g);").toString(), "inline");
     EXPECT_DOUBLE_EQ(evalScalar("g(3)"), 6.0);
 }
+
+// bugs/opened/core/eval-family-frame-visibility.md — mid-chunk, variables
+// live in VM registers and reach the Environment only at the chunk
+// boundary, so BOTH eval() and input() evaluating a string mid-script
+// cannot see the script's earlier variables (MATLAB evaluates in the
+// caller's workspace). Found via the input() caller-workspace guard.
+class EvalFamilyKnownBug : public ::testing::Test {
+public:
+    StandardEngine engine;
+    Value eval(const std::string &c) { return engine.eval(c); }
+    double evalScalar(const std::string &c) { return eval(c).toScalar(); }
+};
+
+TEST_F(EvalFamilyKnownBug, DISABLED_EvalFamilyCallerVarVisibility)
+{
+    // eval() half: script variable referenced by the eval'd string.
+    eval("N = 42;");
+    eval("r = eval('N/2');");
+    EXPECT_DOUBLE_EQ(evalScalar("r"), 21.0);
+    // input() half: same through the entered line (provider-injected).
+    engine.setInputProvider([] { return std::string("N/2"); });
+    eval("y = input('q: ');");
+    EXPECT_DOUBLE_EQ(evalScalar("y"), 21.0);
+}

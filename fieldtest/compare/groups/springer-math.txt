@@ -75,6 +75,11 @@ corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_6.m
 corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_7.m
 corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_8.m
 corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_5.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_1.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_2.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_3.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-5/pr5_4.m
 corpus/work/springer-math--signals-and-systems/Source code/Chapter-6/pr6_1.m
+corpus/work/springer-math--signals-and-systems/Source code/Chapter-6/pr6_2.m
 corpus/work/springer-math--signals-and-systems/Source code/Chapter-7/pr7_1.m
 corpus/work/springer-math--signals-and-systems/Source code/Chapter-7/pr7_2.m

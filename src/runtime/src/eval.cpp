@@ -15,6 +15,7 @@
 #include <numkit/value/value.hpp>
 
 #include <cstdlib>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 
@@ -98,6 +99,59 @@ void registerEvalFamily(Engine &engine)
             outs[0] = ctx.engine->eval(args[0].toString(),
                                        resolveEvalScope(ctx),
                                        suppress);
+        });
+
+    // ── input ────────────────────────────────────────────────
+    // x = input(prompt): display the prompt, read ONE line, evaluate it
+    // as an expression in the caller's workspace (the eval path above).
+    // x = input(prompt, 's'): return the raw line as char. MATLAB
+    // R2025b doc semantics: an empty line gives [] (or '' with 's');
+    // prompt is a char vector or string scalar; the format argument
+    // must be exactly 's'. Interactive-only behaviors that Windows
+    // -batch cannot probe (it rejects input() before any validation)
+    // are documented divergences: on an erroneous expression we
+    // propagate the error (interactive MATLAB re-prompts); on stdin
+    // EOF we treat it as an empty line (returns []). The entered
+    // expression inherits eval()'s caller-visibility limitation
+    // (bugs/opened/core/eval-family-frame-visibility.md): mid-chunk,
+    // script variables live in VM registers, not yet in the
+    // Environment — input is at parity with eval(), guarded there.
+    engine.registerFunction(
+        "input", [resolveEvalScope](Span<const Value> args, size_t nargout,
+                                     Span<Value> outs, CallContext &ctx) {
+            if (args.empty() || (!args[0].isChar() && !args[0].isString()))
+                throw std::runtime_error(
+                    "input: prompt must be a character vector or string scalar");
+            bool asText = false;
+            if (args.size() > 1) {
+                if (!args[1].isChar() && !args[1].isString())
+                    throw std::runtime_error(
+                        "input: format must be the character 's'");
+                const std::string fmt = args[1].toString();
+                if (fmt != "s")
+                    throw std::runtime_error(
+                        "input: format must be the character 's'");
+                asText = true;
+            }
+            if (nargout > 1)
+                throw std::runtime_error("input: Too many output arguments");
+
+            ctx.engine->outputText(args[0].toString());
+            std::string line;
+            const auto &provider = ctx.engine->inputProvider();
+            if (provider) {
+                line = provider();
+            } else {
+                if (!std::getline(std::cin, line))  // EOF -> empty line
+                    line.clear();
+            }
+            if (asText)
+                outs[0] = Value::fromString(line, ctx.engine->resource());
+            else if (line.empty())
+                outs[0] = Value::Empty;
+            else
+                outs[0] = ctx.engine->eval(line, resolveEvalScope(ctx),
+                                           /*suppressDisplay=*/true);
         });
 
     // ── evalin ───────────────────────────────────────────────

@@ -203,11 +203,42 @@ function runCode(mod, code, label) {
   }
 }
 
+// ── Piped stdin for input() ────────────────────────────────────────────────
+//
+// The wasm engine has no stdin; when process stdin is a pipe (not a
+// TTY), read it fully up front and hand the text to the engine, which
+// queues it line-by-line for input(). EOF == empty queue == empty-line
+// semantics, matching the native CLI.
+function feedPipedStdin(mod) {
+  if (process.stdin.isTTY) return;
+  try {
+    const chunks = [];
+    const buf = Buffer.alloc(65536);
+    for (;;) {
+      let n;
+      try {
+        n = fs.readSync(0, buf, 0, buf.length, null);
+      } catch (e) {
+        if (e.code === "EAGAIN") continue; // Windows pipe timing
+        break;
+      }
+      if (n <= 0) break;
+      chunks.push(Buffer.from(buf.subarray(0, n)));
+    }
+    const text = Buffer.concat(chunks).toString("utf8");
+    if (text.length && typeof mod.repl_set_stdin_text === "function")
+      mod.repl_set_stdin_text(text);
+  } catch {
+    // No stdin available — input() falls back to EOF (empty line) semantics.
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) return process.stdout.write(usage() + "\n");
 
   const mod = await loadEngine();
+  feedPipedStdin(mod);
 
   if (args.version) {
     // Package version (from package.json) + engine build stamp — a bug

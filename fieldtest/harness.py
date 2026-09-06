@@ -71,7 +71,41 @@ BAD_TOKENS = ["input(", "urlread", "system(", "java.", "actxserver", "parfor",
 # Scripts do NOT need to print anything (R4: the workspace is the result) —
 # the empirical MATLAB gate in qualify() is what decides runnability.
 
-def harvest(limit=None, flt=None):
+ANSWERS_FILE = HERE / "answers.json"
+
+def answers_for(script):
+    """Canned input() answers for INTERACTIVE scripts (list[str] or None).
+
+    Scripts listed here qualify and compare through run_engine(answers=...):
+    numkit reads the lines on piped stdin (the real input() builtin);
+    MATLAB runs with a harness-generated input() stub (Windows -batch
+    rejects the real one). Same answers on both sides — apples-to-apples.
+    """
+    if not ANSWERS_FILE.exists():
+        return None
+    rel = str(Path(script).relative_to(HERE)).replace("\\", "/")
+    doc = json.loads(ANSWERS_FILE.read_text(encoding="utf-8"))
+    return doc.get(rel)
+
+
+def harvest(limit=None, flt=None, answered=False):
+    if answered:
+        # Answered-interactive mode: exactly the scripts in answers.json
+        # (they normally carry the `input(` BAD_TOKEN), optional flt.
+        out = []
+        doc = json.loads(ANSWERS_FILE.read_text(encoding="utf-8")) if ANSWERS_FILE.exists() else {}
+        for rel in sorted(doc):
+            s = HERE / rel
+            if not s.exists():
+                continue
+            if flt and flt.lower() not in str(s).lower():
+                continue
+            out.append(str(s))
+        return out[:limit] if limit is not None else out
+    return _harvest_default(limit, flt)
+
+
+def _harvest_default(limit=None, flt=None):
     picked, seen = [], set()
     for repo in sorted(WORK.iterdir()):
         if not repo.is_dir():
@@ -123,16 +157,61 @@ def _tmpdir(script):
     return d
 
 
-def run_engine(kind, script, mat_out=None):
+def run_engine(kind, script, mat_out=None, answers=None):
     """Run `script`; if mat_out is given, save the workspace there after it.
 
     cwd stays the script's directory so sibling data files resolve (MATLAB
     CLI semantics); the .mat target is absolute so nothing pollutes the
     corpus. numkit kinds run a generated wrapper (`run(...); save(...)`)
     because the CLI executes exactly one file per invocation.
+
+    `answers` (list of strings, one per input() call) makes INTERACTIVE
+    scripts runnable: numkit kinds receive the lines on piped stdin (the
+    real input() builtin reads them); MATLAB gets an input.m stub in the
+    script's dir for the duration of the run — Windows -batch rejects the
+    real input() outright ("Support for user input is required"), and the
+    stub mirrors its semantics (evaluate the line / 's' returns raw text,
+    exhausted queue == empty line).
     """
     s = Path(script)
     cwd = str(s.parent)
+    t0 = time.perf_counter()
+    stub = s.parent / "input.m"
+    stdin_text = None
+    if answers is not None:
+        stdin_text = "\n".join(answers) + "\n"
+        if kind == "matlab":
+            quoted = " ".join("'{}'".format(a.replace("'", "''")) for a in answers)
+            stub.write_text(
+                "function varargout = input(prompt, fmt)\n"
+                "% numkit fieldtest stub (harness-generated): answers injected\n"
+                "% because Windows MATLAB -batch rejects the real input().\n"
+                "persistent QUEUE\n"
+                "if isempty(QUEUE)\n"
+                f"  QUEUE = {{ {quoted} }};\n"
+                "end\n"
+                "if isempty(QUEUE)\n"
+                "  s = '';\n"
+                "else\n"
+                "  s = QUEUE{1};\n"
+                "  QUEUE(1) = [];\n"
+                "end\n"
+                "if nargin > 1\n"
+                "  varargout{1} = s;\n"
+                "elseif isempty(s)\n"
+                "  varargout{1} = [];\n"
+                "else\n"
+                "  varargout{1} = eval(s);\n"
+                "end\n",
+                encoding="utf-8")
+    try:
+        return _run_engine_argv(kind, s, cwd, mat_out, stdin_text)
+    finally:
+        if stub.exists():
+            stub.unlink()
+
+
+def _run_engine_argv(kind, s, cwd, mat_out, stdin_text):
     t0 = time.perf_counter()
     if kind == "matlab":
         # restoredefaultpath: hermetic session — a polluted saved path
@@ -158,7 +237,9 @@ def run_engine(kind, script, mat_out=None):
         raise ValueError(kind)
     to = 180 if kind == "matlab" else 90
     try:
-        p = subprocess.run(argv, cwd=cwd, capture_output=True, timeout=to)
+        p = subprocess.run(argv, cwd=cwd, capture_output=True, timeout=to,
+                           input=(stdin_text.encode("utf-8") if stdin_text is not None
+                                  else None))
         ms = int((time.perf_counter() - t0) * 1000)
         dec = lambda b: (b or b"").decode("utf-8", "replace")
         return {"exit": p.returncode, "out": dec(p.stdout), "err": dec(p.stderr), "ms": ms}
@@ -309,14 +390,14 @@ def classify(nk, ml):
 
 # ── Qualify (R3): MATLAB-verified run corpus ───────────────────────────────
 
-def qualify(limit=None, flt=None):
+def qualify(limit=None, flt=None, answered=False):
     """MATLAB-verify candidates in PORTIONS; results merge into runnable.json.
 
     Each run qualifies only the selected slice (path filter = repo dir, e.g.
     `qualify 50 mdadams--`); verified paths replace their old entries, other
     entries persist — portions accumulate instead of restarting the catalog.
     """
-    cands = harvest(limit, flt)
+    cands = harvest(limit, flt, answered=answered)
     # Merge base: previous portions survive; entries for vanished scripts drop.
     prev = {}
     if RUNNABLE.exists():
@@ -325,7 +406,7 @@ def qualify(limit=None, flt=None):
                 prev[e["path"]] = e
     qualified = []
     for i, s in enumerate(cands):
-        r = run_engine("matlab", s)  # no save: runnability check only
+        r = run_engine("matlab", s, answers=answers_for(s))  # no save
         rel = str(Path(s).relative_to(HERE))
         if r["exit"] == 0:
             qualified.append({"path": rel, "matlab_ms": r["ms"]})
@@ -408,7 +489,7 @@ if __name__ == "__main__":
     if cmd == "harvest":
         harvest(n, flt)
     elif cmd == "qualify":
-        qualify(n, flt)
+        qualify(n, flt, answered="--answered" in sys.argv)
     elif cmd == "run":
         run(load_runnable(n, flt))
     elif cmd == "matdiff":

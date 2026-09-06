@@ -1,6 +1,7 @@
 #include <emscripten/bind.h>
 #include <string>
 #include <sstream>
+#include <deque>
 #include <memory>
 #include <iostream>
 #include <map>
@@ -1585,6 +1586,31 @@ private:
 
 static std::unique_ptr<ReplSession> g_session;
 
+// Piped-stdin bridge for the node CLI: the JS shell pre-reads stdin when
+// it is not a TTY and hands the whole text here; the engine's input()
+// provider pops one line per call (empty queue == EOF == empty-line
+// semantics). The browser IDE supplies its own transport later
+// (dev-docs/todo/ide_input_adapter.md).
+static std::deque<std::string> g_stdin_lines;
+
+std::string repl_init();  // defined below
+
+void repl_set_stdin_text(const std::string& text) {
+    if (!g_session) repl_init();
+    g_stdin_lines.clear();
+    std::istringstream ss(text);
+    std::string line;
+    while (std::getline(ss, line))
+        g_stdin_lines.push_back(line);
+    g_session->engine()->setInputProvider([]() {
+        if (g_stdin_lines.empty())
+            return std::string();
+        std::string front = std::move(g_stdin_lines.front());
+        g_stdin_lines.pop_front();
+        return front;
+    });
+}
+
 std::string repl_init() {
     // Idempotent: construct the session on first call, otherwise just
     // return the greeting. The IDE calls this once at startup before
@@ -1904,6 +1930,7 @@ std::string getEnv(const std::string &name) {
 
 EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_init",      &repl_init);
+    emscripten::function("repl_set_stdin_text", &repl_set_stdin_text);
     emscripten::function("repl_set_compat_mode", &repl_set_compat_mode);
     emscripten::function("repl_execute",   &repl_execute);
     emscripten::function("repl_complete",  &repl_complete);

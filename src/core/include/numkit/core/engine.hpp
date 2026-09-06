@@ -374,6 +374,15 @@ public:
     using OutputFunc = std::function<void(const std::string &)>;
     void setOutputFunc(OutputFunc f);
     OutputFunc outputFunc() const { return outputFunc_; }
+    // Injectable line source for `input()` (the setOutputFunc pattern):
+    // the provider returns ONE entered line (no trailing newline). When
+    // unset, the input builtin reads stdin — the CLI path. Tests feed
+    // canned lines; the WASM/JS shell pre-loads piped stdin through the
+    // bindings (see repl_bindings); the IDE later supplies its own
+    // transport (dev-docs/todo/ide_input_adapter.md).
+    using InputProvider = std::function<std::string()>;
+    void setInputProvider(InputProvider p) { inputProvider_ = std::move(p); }
+    const InputProvider &inputProvider() const { return inputProvider_; }
     void setMaxRecursionDepth(int depth);
 
     std::vector<std::string> workspaceVarNames() const;
@@ -740,6 +749,7 @@ private:
     void reregisterDerivedClasses(const std::string &base);
 
     OutputFunc outputFunc_;
+    InputProvider inputProvider_;   // empty → input() reads stdin
     FigureManager figureManager_;
 
     // Tic/toc timer

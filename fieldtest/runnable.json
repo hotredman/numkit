@@ -1,5 +1,5 @@
 {
- "qualified": "2026-09-06T11:38:02",
+ "qualified": "2026-09-06T17:37:49",
  "scripts": [
   {
    "path": "corpus\\work\\mdadams--sigsysbook_companion\\slides\\matlab\\basics\\anonymous_function_mysinc.m",
@@ -442,6 +442,22 @@
    "matlab_ms": 9759
   },
   {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_1.m",
+   "matlab_ms": 15215
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_2.m",
+   "matlab_ms": 10062
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_3.m",
+   "matlab_ms": 8969
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_4.m",
+   "matlab_ms": 9895
+  },
+  {
    "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-5\\pr5_5.m",
    "matlab_ms": 35235
   },
@@ -460,6 +476,10 @@
   {
    "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-6\\pr6_1.m",
    "matlab_ms": 26540
+  },
+  {
+   "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-6\\pr6_2.m",
+   "matlab_ms": 33627
   },
   {
    "path": "corpus\\work\\springer-math--signals-and-systems\\Source code\\Chapter-7\\pr7_1.m",

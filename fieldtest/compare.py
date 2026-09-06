@@ -49,14 +49,15 @@ def parse_group(path):
 def verdict_of(script):
     """One dual-run; returns (verdict, detail, diff_lines)."""
     s = str(script)
+    ans = H.answers_for(s)   # canned input() answers, same on both sides
     d = H._tmpdir(s)
     try:
-        wasm = H.run_engine("wasm", s, mat_out=d / "out_wasm.mat")
-        ml = H.run_engine("matlab", s, mat_out=d / "out_matlab.mat")
+        wasm = H.run_engine("wasm", s, mat_out=d / "out_wasm.mat", answers=ans)
+        ml = H.run_engine("matlab", s, mat_out=d / "out_matlab.mat", answers=ans)
         v, detail = H.classify(wasm, ml)
         lines = []
         if v is None:
-            wasm2 = H.run_engine("wasm", s, mat_out=d / "out_wasm2.mat")
+            wasm2 = H.run_engine("wasm", s, mat_out=d / "out_wasm2.mat", answers=ans)
             if (d / "out_wasm.mat").exists() and (d / "out_wasm2.mat").exists():
                 ok, det = H.matdiff(d / "out_wasm.mat", d / "out_wasm2.mat")
                 if not ok:

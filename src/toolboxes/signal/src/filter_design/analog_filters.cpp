@@ -97,8 +97,13 @@ std::vector<double> readVec(const Value &v)
 
 Value packComplexCol(const std::vector<Cd> &v, std::pmr::memory_resource *mr)
 {
+    // MATLAB's "no roots" convention (probed vs R2025b): an empty root
+    // set is a REAL 0x0 double — buttap/cheb1ap's z — not a complex
+    // 0x1. (A genuinely complex empty — complex(zeros(0,1)) — saves with
+    // its complex flag intact; only the "no roots" empties are real.)
+    if (v.empty())
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     auto out = Value::complexMatrix(v.size(), 1, mr);
-    if (v.empty()) return out;
     Cd *cd = out.complexDataMut();
     std::memcpy(cd, v.data(), v.size() * sizeof(Cd));
     return out;

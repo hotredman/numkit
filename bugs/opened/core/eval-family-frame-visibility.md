@@ -45,6 +45,6 @@ top-level eval is NOT a reproducer (verified working).
 
 - Sibling: `opened/core/assignin-caller-write-through.md` (same root, P1,
   deferred by user decision 2026-08-30).
-- **Guard:** deferred — minimal function-frame repro to extract with the
+- **Guard:** `DISABLED_EvalFamilyCallerVarVisibility` in `src/bundle/tests/known_bugs_test.cpp` (both halves: eval() and input() cannot see mid-chunk caller variables; replaced the earlier
   assignin fix (the corpus scripts are the reliable reproducers).
 - Corpus gate: these two + assignin_setter are PUBLISH.md's "3 known FAIL".
