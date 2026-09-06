@@ -454,3 +454,18 @@ TEST_F(FilterDesignTest, ImpulseAndFreqzOrientation)
     EXPECT_DOUBLE_EQ(evalScalar("size(H2,1)"), 256.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(H2,2)"), 1.0);
 }
+
+// --- impulse(b,a,t) REPEATED poles (residue multiplicity support) ---
+// 1/(s+1)^2 -> h(t) = t*exp(-t) (MATLAB-probed samples).
+TEST_F(FilterDesignTest, ImpulseBATRepeatedPoles)
+{
+    eval("th = 0:.5:2; h = impulse([1], [1 2 1], th);");
+    EXPECT_NEAR(evalScalar("h(1)"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("h(2)"), 0.303265, 1e-6);
+    EXPECT_NEAR(evalScalar("h(3)"), 0.367879, 1e-6);
+    EXPECT_NEAR(evalScalar("h(4)"), 0.334695, 1e-6);
+    EXPECT_NEAR(evalScalar("h(5)"), 0.270671, 1e-6);
+    // Triple pole: 1/(s+1)^3 -> h(t) = t^2/2 * exp(-t).
+    eval("h3 = impulse([1], [1 3 3 1], 1);");
+    EXPECT_NEAR(evalScalar("h3"), 0.5 * exp(-1.0), 1e-6);
+}

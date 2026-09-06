@@ -496,10 +496,80 @@ ResidueResult residueS(const Value &b, const Value &a,
     auto rs = numkit::ops::polyRootsDurandKerner(&scratch, A.data(), A.size());
     std::vector<Complex> poles(rs.begin(), rs.end());
 
-    if (hasRepeatedPoles(poles))
-        throw Error("residue: repeated-pole case not yet supported "
-                    "(v1 distinct-poles only — see KNOWN GAP)",
-                     0, 0, fn, "", "numkit:residue:repeatedPole");
+    // Group the roots into distinct poles. Durand-Kerner converges only
+    // LINEARLY on multiple roots, so a true m-fold pole arrives as a
+    // cluster spread up to ~1e-4*scale — cluster with that tolerance
+    // (the old 1e-6 check missed such clusters entirely and the
+    // distinct-pole cover-up then produced garbage), take the centroid,
+    // and POLISH it: after deflating (s-p)^(m-1) out of A the root is
+    // simple, so Newton converges quadratically to machine precision.
+    // Groups keep first-occurrence order. Within a group MATLAB returns
+    // the partial-fraction coefficients in ASCENDING power order —
+    // r = [c1 c2 ... cm] for c1/(s-p) + ... + cm/(s-p)^m (probed R2025b:
+    // residue([1 0 0],[1 3 3 1]) gives r = [1 -2 1] for (s+1)^(1..3)).
+    struct PoleGroup { Complex p; std::size_t m; };
+    std::vector<PoleGroup> groups;
+    {
+        auto polyDivRoot = [](const std::vector<Complex> &c, Complex p) {
+            std::vector<Complex> q(c.size() - 1);
+            if (q.empty()) return q;
+            q[0] = c[0];
+            for (std::size_t i = 1; i + 1 < c.size(); ++i)
+                q[i] = c[i] + p * q[i - 1];
+            return q;
+        };
+        auto hornerC = [](const std::vector<Complex> &c, Complex x) {
+            if (c.empty()) return Complex(0, 0);
+            Complex acc = c[0];
+            for (std::size_t i = 1; i < c.size(); ++i) acc = acc * x + c[i];
+            return acc;
+        };
+        std::vector<Complex> Acx(A.size());
+        for (std::size_t i = 0; i < A.size(); ++i) Acx[i] = Complex(A[i], 0.0);
+        std::vector<bool> grouped(poles.size(), false);
+        for (std::size_t i = 0; i < poles.size(); ++i) {
+            if (grouped[i]) continue;
+            grouped[i] = true;
+            PoleGroup g{poles[i], 1};
+            for (std::size_t j = i + 1; j < poles.size(); ++j) {
+                if (grouped[j]) continue;
+                const double scale = std::max(1.0,
+                    std::max(std::abs(poles[i]), std::abs(poles[j])));
+                if (std::abs(poles[j] - poles[i]) < 5e-4 * scale) {
+                    grouped[j] = true;
+                    ++g.m;
+                    g.p += poles[j];
+                }
+            }
+            if (g.m > 1) {
+                g.p /= static_cast<double>(g.m);
+                // A has REAL coefficients here (complex rejected at the
+                // door), so a multiple root clustered near the real axis
+                // IS real — the DK cluster need not be conjugate-
+                // symmetric and its centroid carries O(spread) imaginary
+                // dust. Snap it; Schroeder then stays in real arithmetic.
+                if (std::abs(g.p.imag()) < 5e-4 * (1.0 + std::abs(g.p)))
+                    g.p = Complex(g.p.real(), 0.0);
+                // Schroeder's iteration for a known-multiplicity root:
+                // p <- p - m*A(p)/A'(p) is QUADRATIC for an m-fold
+                // root (plain Newton is only linear there), and it
+                // works on A directly — no deflation noise floor.
+                const double mD = static_cast<double>(g.m);
+                for (int it = 0; it < 30; ++it) {
+                    const Complex fv = hornerC(Acx, g.p);
+                    Complex dacc(0, 0);
+                    for (std::size_t k = 0; k + 1 < Acx.size(); ++k)
+                        dacc = dacc * g.p + Acx[k] * static_cast<double>(Acx.size() - 1 - k);
+                    if (std::abs(dacc) < 1e-300) break;
+                    const Complex step = mD * fv / dacc;
+                    g.p -= step;
+                    if (std::abs(step) < 1e-15 * (1.0 + std::abs(g.p))) break;
+                }
+            }
+            groups.push_back(g);
+        }
+    }
+    const bool anyRepeated = groups.size() != poles.size();
 
     // Derivative coefficients (descending).
     std::vector<double> Aprime;
@@ -510,23 +580,130 @@ ResidueResult residueS(const Value &b, const Value &a,
             Aprime[i] = A[i] * static_cast<double>(n - i);
     }
 
-    // Residues via standard cover-up: r_i = R(p_i) / A'(p_i).
-    std::vector<Complex> residues(poles.size(), Complex(0, 0));
-    if (!R.empty()) {
-        for (std::size_t i = 0; i < poles.size(); ++i) {
-            const Complex num = hornerCx(R.data(), R.size(), poles[i]);
-            const Complex den = hornerCx(Aprime.data(), Aprime.size(), poles[i]);
-            if (std::abs(den) < 1e-300)
-                throw Error("residue: derivative vanishes at a pole — "
-                            "likely repeated pole undetected by tolerance",
+    std::vector<Complex> residues;
+    std::vector<Complex> polesOut;
+    residues.reserve(poles.size());
+    polesOut.reserve(poles.size());
+
+    if (!anyRepeated) {
+        // Residues via standard cover-up: r_i = R(p_i) / A'(p_i).
+        if (!R.empty()) {
+            for (std::size_t i = 0; i < poles.size(); ++i) {
+                const Complex num = hornerCx(R.data(), R.size(), poles[i]);
+                const Complex den = hornerCx(Aprime.data(), Aprime.size(), poles[i]);
+                if (std::abs(den) < 1e-300)
+                    throw Error("residue: derivative vanishes at a pole — "
+                                "likely repeated pole undetected by tolerance",
+                                 0, 0, fn, "", "numkit:residue:denomZero");
+                residues.push_back(num / den);
+            }
+        } else {
+            residues.assign(poles.size(), Complex(0, 0));
+        }
+        polesOut = poles;
+    } else {
+        // Repeated poles: Taylor-series method. For a pole p of
+        // multiplicity m, write N/D = H(s)/(s-p)^m with
+        // H(s) = R(s) / (A(s)/(s-p)^m) analytic at p, expand
+        // H(s) = sum h_j (s-p)^j; then the coefficient of (s-p)^(-i)
+        // is h_{m-i}. H's Taylor coefficients come from the Taylor
+        // series of R and of the reciprocal of A/(s-p)^m at p.
+        // Synthetic division of complex descending coeffs by (s - p).
+        auto divideOut = [](std::vector<Complex> c, Complex p) {
+            std::vector<Complex> q(c.size() - 1);
+            if (q.empty()) return q;
+            q[0] = c[0];
+            for (std::size_t i = 1; i + 1 < c.size(); ++i)
+                q[i] = c[i] + p * q[i - 1];
+            return q;
+        };
+        // Taylor coefficients 0..order-1 of a polynomial (descending
+        // coeffs) at s = p, via the derivative chain / factorial.
+        auto taylorCoeffs = [](const auto &c, Complex p, std::size_t order) {
+            std::vector<Complex> t;
+            std::vector<std::complex<double>> q(c.begin(), c.end());
+            std::vector<std::complex<double>> fact(1, Complex(1, 0));
+            for (std::size_t d = 0; d < order; ++d) {
+                // Horner at p.
+                std::complex<double> acc(0, 0);
+                if (!q.empty()) {
+                    acc = q[0];
+                    for (std::size_t i = 1; i < q.size(); ++i)
+                        acc = acc * p + q[i];
+                }
+                t.push_back(acc / fact.back());
+                // fact = (d+1)!
+                fact.push_back(fact.back() * Complex(static_cast<double>(d) + 1, 0));
+                // q := q' (formal derivative, descending coeffs).
+                if (q.size() > 1) {
+                    const std::size_t n = q.size() - 1;
+                    std::vector<std::complex<double>> dq(n);
+                    for (std::size_t i = 0; i < n; ++i)
+                        dq[i] = q[i] * static_cast<double>(n - i);
+                    q = std::move(dq);
+                } else {
+                    q.clear();
+                }
+            }
+            return t;
+        };
+
+        for (const auto &g : groups) {
+            if (g.m == 1) {
+                const Complex num = hornerCx(R.data(), R.empty() ? 0 : R.size(), g.p);
+                const Complex den = hornerCx(Aprime.data(), Aprime.size(), g.p);
+                if (std::abs(den) < 1e-300)
+                    throw Error("residue: derivative vanishes at a pole — "
+                                "likely repeated pole undetected by tolerance",
+                                 0, 0, fn, "", "numkit:residue:denomZero");
+                residues.push_back(R.empty() ? Complex(0, 0) : num / den);
+                polesOut.push_back(g.p);
+                continue;
+            }
+            // D_k = A / (s-p)^m (synthetic division m times).
+            std::vector<Complex> Dk(A.size());
+            for (std::size_t i = 0; i < A.size(); ++i) Dk[i] = Complex(A[i], 0.0);
+            for (std::size_t d = 0; d < g.m && Dk.size() > 1; ++d)
+                Dk = divideOut(Dk, g.p);
+            const auto dser = taylorCoeffs(Dk, g.p, g.m);   // D_k series
+            if (dser.empty() || std::abs(dser[0]) < 1e-300)
+                throw Error("residue: deflated denominator vanishes at a "
+                            "repeated pole",
                              0, 0, fn, "", "numkit:residue:denomZero");
-            residues[i] = num / den;
+            // Reciprocal series of D_k at p, order m.
+            std::vector<Complex> recip(g.m, Complex(0, 0));
+            recip[0] = Complex(1, 0) / dser[0];
+            for (std::size_t j = 1; j < g.m; ++j) {
+                Complex s(0, 0);
+                for (std::size_t i = 1; i <= j; ++i) {
+                    Complex di = i < dser.size() ? dser[i] : Complex(0, 0);
+                    s += di * recip[j - i];
+                }
+                recip[j] = -s / dser[0];
+            }
+            // R series at p, order m.
+            std::vector<Complex> rser(g.m, Complex(0, 0));
+            if (!R.empty()) {
+                auto rt = taylorCoeffs(R, g.p, g.m);
+                for (std::size_t j = 0; j < g.m && j < rt.size(); ++j)
+                    rser[j] = rt[j];
+            }
+            // h_j = sum r_i recip_{j-i}; residues for powers 1..m =
+            // h_{m-1}, h_{m-2}, ..., h_0.
+            std::vector<Complex> h(g.m, Complex(0, 0));
+            for (std::size_t j = 0; j < g.m; ++j)
+                for (std::size_t i = 0; i <= j; ++i)
+                    h[j] += rser[i] * recip[j - i];
+            for (std::size_t i = 0; i < g.m; ++i) {
+                residues.push_back(h[g.m - 1 - i]);
+                polesOut.push_back(g.p);
+            }
         }
     }
 
     return {
         packComplexOrReal(residues, mr),
-        packComplexOrReal(poles, mr),
+        packComplexOrReal(polesOut, mr),
         packDirectTerm(K, mr),
     };
 }

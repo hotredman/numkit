@@ -60,11 +60,8 @@ TEST_F(ResidueTest, ResidueHeavisideReconstructsBOverA)
     EXPECT_LT(evalScalar("err"), 1e-10);
 }
 
-// Repeated pole (s-1)² → throws.
-TEST_F(ResidueTest, ResidueRepeatedPoleThrows)
-{
-    EXPECT_THROW(eval("residue([1], [1 -2 1]);"), std::exception);
-}
+// Repeated poles are SUPPORTED since 2026-09-06 (the old stub threw
+// here). Live coverage: ResidueDoublePole* / ResidueTriplePole below.
 
 // ── residuez (z-domain) ────────────────────────────────────────────
 
@@ -105,4 +102,49 @@ TEST_F(ResidueTest, ResiduezRepeatedPoleThrows)
 {
     // (1 - 0.5·z^-1)² — repeated pole at z = 0.5.
     EXPECT_THROW(eval("residuez([1], [1 -1 0.25]);"), std::exception);
+}
+
+// ── residue repeated poles (MATLAB R2025b probed 2026-09-06) ──────────
+// Within a repeated group MATLAB returns coefficients in ASCENDING
+// power order: r = [c1 ... cm] for c1/(s-p) + ... + cm/(s-p)^m.
+TEST_F(ResidueTest, ResidueDoublePoleUnit)
+{
+    eval("[r, p, k] = residue([1], [1 2 1]);");      // 1/(s+1)^2
+    EXPECT_NEAR(evalScalar("r(1)"), 0.0, 1e-10);
+    EXPECT_NEAR(evalScalar("r(2)"), 1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("p(1)"), -1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("p(2)"), -1.0, 1e-10);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(k)")), 0);
+}
+
+TEST_F(ResidueTest, ResidueDoublePoleWithNumerator)
+{
+    eval("[r, p] = residue([1 0], [1 2 1]);");       // s/(s+1)^2
+    EXPECT_NEAR(evalScalar("r(1)"),  1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("r(2)"), -1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("p(1)"), -1.0, 1e-10);
+}
+
+TEST_F(ResidueTest, ResidueTriplePole)
+{
+    eval("[r, p] = residue([1 0 0], [1 3 3 1]);");   // s^2/(s+1)^3
+    EXPECT_NEAR(evalScalar("r(1)"),  1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("r(2)"), -2.0, 1e-9);
+    EXPECT_NEAR(evalScalar("r(3)"),  1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("p(3)"), -1.0, 1e-10);
+    eval("[r4, ~] = residue([1 1 1], [1 3 3 1]);");  // (s^2+s+1)/(s+1)^3
+    EXPECT_NEAR(evalScalar("r4(1)"),  1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("r4(2)"), -1.0, 1e-9);
+    EXPECT_NEAR(evalScalar("r4(3)"),  1.0, 1e-9);
+}
+
+// bugs/opened/signal/residuez-repeated-poles.md — the z-domain form
+// still throws on repeated poles (stub); asserts the MATLAB behavior
+// once implemented. Values: probe MATLAB first when picking this up.
+TEST_F(ResidueTest, DISABLED_ResiduezRepeatedPoles)
+{
+    eval("[r, p, k] = residuez([1], [1 -2 0.25]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(p)")), 2);
+    EXPECT_NEAR(evalScalar("p(1)"), 0.5, 1e-10);
+    EXPECT_NEAR(evalScalar("p(2)"), 0.5, 1e-10);
 }

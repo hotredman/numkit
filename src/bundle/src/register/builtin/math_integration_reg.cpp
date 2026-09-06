@@ -493,13 +493,13 @@ static const char *kImpulseMSource = R"NKM(
 function [h, tout, x] = impulse(b, a, t)
     % impulse(b, a, t): analog impulse response of b(s)/a(s) on the t
     % grid — the legacy Signals & Systems textbook form (probed vs
-    % MATLAB R2025b). SIMPLE poles only for now: the residue builtin
-    % does not handle repeated poles (documented gap), and deconv —
-    % needed for a Heaviside recursion — has its own output-order bug
-    % (bugs/opened/lang/deconv-outputs-swapped.md). Direct-feedthrough
-    % k terms are not representable on a grid — MATLAB samples the
-    % strictly-proper part only (probed: impulse([1 0],[1 1]) at t=0
-    % gives -e^0, not delta).
+    % MATLAB R2025b). Repeated poles supported since 2026-09-06:
+    % residue returns the partial-fraction coefficients in ascending
+    % power order within each repeated group, and the m-loop below
+    % turns them into t^(m-1)/(m-1)! * exp(p t) terms. Direct-
+    % feedthrough k terms are not representable on a grid — MATLAB
+    % samples the strictly-proper part only (probed: impulse([1 0],
+    % [1 1]) at t=0 gives -e^0, not delta).
     if isstruct(b)
         if nargin >= 2
             [h, tout, x] = impulse_lti(b, a);
