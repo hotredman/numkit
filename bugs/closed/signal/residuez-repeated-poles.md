@@ -1,6 +1,6 @@
 # signal.residuez — repeated z-poles throw "not yet supported" (stub); the s-domain residue now supports repeats
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (9caf0d286, 2026-09-06)
 - **Kind:** stub
 - **Severity:** P2 missing feature
 - **Found:** 2026-09-06 while adding repeated-pole support to `residue` — `residuez` shares the concept but has its own distinct-pole-only path
