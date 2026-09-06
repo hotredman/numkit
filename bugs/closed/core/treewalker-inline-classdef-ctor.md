@@ -1,6 +1,6 @@
 # core.treewalker — inline classdef: CONSTRUCTOR throws on the TreeWalker backend ("Cell contents indexing requires a cell array")
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (490e57f08, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P2 missing feature on one backend (TW) / P1-class impact contained by VM default
 - **Found:** 2026-09-06 via the dual-engine guard added for the clear-all fix (`ClearSemanticsTest.InlineObjectWithoutClearControl/1`)
