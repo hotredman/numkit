@@ -1,6 +1,6 @@
 # core.eval — variables created by eval() INSIDE FUNCTIONS are invisible later in the script (eval-family frame visibility)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06) (deferred with the assignin family — same root, user decision)
+- **Status:** ✅ FIXED (23ddec5ad, 2026-09-06) (deferred with the assignin family — same root, user decision)
 - **Severity:** P2 (clear error, not silent)
 - **Kind:** bug
 - **Found:** 2026-08-30 — the two unfiled corpus failures behind PUBLISH.md's "3 known OPEN bugs" (only assignin had a catalog entry)

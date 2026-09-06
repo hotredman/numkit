@@ -1,6 +1,6 @@
 # lang.command — `N-1` / `a/2` statements mislex as COMMAND calls when the head is a variable (MATLAB: expression)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-06)
+- **Status:** ✅ FIXED (23ddec5ad, 2026-09-06)
 - **Kind:** bug
 - **Severity:** P1 wrong result (the statement dies with "undefined function 'N'" instead of evaluating)
 - **Found:** 2026-09-06 while chasing the eval-family guard — `eval('N/2')` failed with a CALL-shaped error although `eval('N / 2')` worked; bisected to the lex level, no eval involved at all.
