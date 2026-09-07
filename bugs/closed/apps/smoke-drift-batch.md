@@ -1,6 +1,6 @@
 # apps.smokes — 11 smokes red on main (two residual classes after the complex-linalg split)
 
-- **Status:** 🔴 OPEN (triage list)
+- **Status:** ✅ FIXED (HASH, 2026-09-07)
 - **Severity:** P2 (test-suite drift + one fixture-path class)
 - **Kind:** bug
 - **Found:** 2026-08-30 via the full 710-smoke sweep (699 pass; the complex-linalg cluster is filed separately as `opened/linalg/complex-linalg-regression.md`)
@@ -47,3 +47,26 @@ then). Add the smoke corpus to a CI/scheduled sweep so drift is caught same-day.
 
 Sweep logs: this session (710 files, with/without `--compat`); related
 consolidation commits `41c0f328`, `e95e6054`.
+
+
+## Fix (portion 26, 2026-09-07) — all three drift classes resolved; all 6 smokes exit 0
+
+- fixture path: the smokes' relative data paths resolve against the
+  SCRIPT's directory (sibling-origin resolution), not the process CWD —
+  `imread_tiff_smoke.m` now uses `fullfile('..', 'fixtures', …)`
+  (robust from ANY invocation cwd). imregionalmax had no fixture issue.
+- ttest-family API shape: the 4th outputs of ttest/ttest2 (stats
+  struct: tstat/df/sd) and vartest/vartest2 (chisqstat/df;
+  fstat/df1/df2) are MATLAB-CORRECT struct returns — the SMOKES
+  predated them and printed the struct as a scalar. Updated to
+  `t.tstat` / `T6.chisqstat` / `F.fstat`. Engine unchanged.
+- cummax_cummin: the smoke used doubled quotes (`''reverse''` — an
+  eval-string escape) in a plain .m context → parse error; fixed to
+  single quotes (direction flags now also exercise the fixed parser).
+- The complex-linalg class remains separately filed
+  (opened/linalg/complex-linalg-regression.md — actually already
+  closed; this file's reference is historical).
+
+Verification: all six smokes exit 0 from the repo root via the
+documented command. No engine change → no new guards needed (the
+underlying struct returns have their own gtests).

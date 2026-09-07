@@ -15,4 +15,4 @@ fprintf('  right tail: h=%d p=%.4f\n', h, p);
 
 fprintf('\n=== vartest2 NV ===\n');
 [h, p, ci, F] = vartest2(x, y, 'Alpha', 0.01, 'Tail', 'both');
-fprintf('  h=%d p=%.4f F=%.4f ci=[%.4f %.4f]\n', h, p, F, ci(1), ci(2));
+fprintf('  h=%d p=%.4f F=%.4f ci=[%.4f %.4f]\n', h, p, F.fstat, ci(1), ci(2));

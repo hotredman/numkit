@@ -3,7 +3,7 @@ clear
 % image/imread for TIFF — minimal baseline reader (cycle 90).
 % Reads MATLAB-generated uncompressed TIFFs and checks element parity.
 
-fixdir = 'toolboxes/image/tests/fixtures';
+fixdir = fullfile('..', 'fixtures');
 
 fprintf('=== imread TIFF baseline (cycle 90) ===\n');
 
