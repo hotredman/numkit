@@ -1,6 +1,6 @@
 # lang.calls — `f(c{:})` with a VARIABLE (function-handle) callee rejects the CSL ("Too many values")
 
-- **Status:** ✅ FIXED (HASH, 2026-09-07)
+- **Status:** ✅ FIXED (7587ff101, 2026-09-07)
 - **Severity:** P2 (core MATLAB idiom; named callees work, handle callees don't)
 - **Kind:** bug
 - **Found:** 2026-09-05 while implementing the inline class (its subsref
