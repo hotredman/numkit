@@ -2332,6 +2332,36 @@ uint8_t Compiler::compileFieldAccess(const ASTNode *node)
                             prefixLen = k;
                             break;
                         }
+                // MATLAB `gcf.Number`: NOTHING dotted is registered, but
+                // the HEAD is a callable function name → the expression
+                // is a 0-arg call of the head with field reads on the
+                // result — exactly what the TreeWalker does. Class heads
+                // are excluded: classdef Static/Constant members register
+                // the full dotted name (caught above), and an
+                // unregistered drift must not silently construct an
+                // instance. Package-like heads (`pkg.sub.fn` m-files,
+                // lazily resolved at runtime) are not callable names
+                // either — they keep the qualified CALL below.
+                // (bugs/closed/lang/dotted-rvalue-on-call-result.md)
+                if (prefixLen == segs.size()
+                    && !engine_.hasExternalFunction(qualified)
+                    && !engine_.findClass(segs[0])
+                    && !engine_.classCtor(segs[0])
+                    && engine_.hasCallableName(segs[0])) {
+                    uint8_t hd = tempReg();
+                    uint8_t argBase = nextReg_;
+                    int16_t funcIdx = addStringConstant(segs[0]);
+                    emit(Instruction::make_abcde(OpCode::CALL, hd, argBase, 0,
+                                                 funcIdx, 0));
+                    for (size_t i = 1; i < segs.size(); ++i) {
+                        uint8_t nd = tempReg();
+                        int16_t nameIdx = addStringConstant(segs[i]);
+                        emitABC(OpCode::FIELD_GET, nd, hd, 0);
+                        chunk_.code.back().d = nameIdx;
+                        hd = nd;
+                    }
+                    return hd;
+                }
                 uint8_t dst = tempReg();
                 uint8_t argBase = nextReg_;
                 int16_t funcIdx = addStringConstant(join(prefixLen));

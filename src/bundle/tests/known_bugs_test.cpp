@@ -514,11 +514,12 @@ INSTANTIATE_TEST_SUITE_P(Backends, CommandGlueTest,
                          ::testing::Values(numkit::Engine::Backend::VM,
                                            numkit::Engine::Backend::TreeWalker));
 
-// bugs/opened/lang/dotted-rvalue-on-call-result.md — `gcf.Number`
+// bugs/closed/lang/dotted-rvalue-on-call-result.md — `gcf.Number`
 // (dotted rvalue whose head is a FUNCTION, not a variable) must evaluate
-// as call-then-field-access on BOTH engines. VM miscompiles it to a
-// dotted function name today ("undefined function 'gcf.Number'").
-TEST_P(CommandGlueTest, DISABLED_DottedRvalueOnCallResult)
+// as call-then-field-access on BOTH engines. FIXED: compileFieldAccess
+// now emits a 0-arg call of the head + FIELD_GET chain when nothing
+// dotted is registered but the head is a callable name.
+TEST_P(CommandGlueTest, DottedRvalueOnCallResult)
 {
     eval("f = figure();");
     // Temp-var form works on both engines and anchors the expectation:

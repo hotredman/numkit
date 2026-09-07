@@ -70,8 +70,10 @@ modified and emits.
 - smoke `src/graphics/tests/smoke/graphics_handle_smoke.m` all-expect;
 - found+fixed en route: `plot(x,y,x2,y2)` dropped all series after the
   first (bugs/closed/graphics/plot-multi-series-dropped.md); found+filed:
-  `gcf.Number` dotted-rvalue VM/TW divergence
-  (bugs/opened/lang/dotted-rvalue-on-call-result.md).
+  `gcf.Number` dotted-rvalue VM/TW divergence — FIXED in portion 30
+  (compileFieldAccess mirrors TW: unregistered dotted name + callable
+  head → 0-arg CALL of the head + FIELD_GET chain;
+  bugs/closed/lang/dotted-rvalue-on-call-result.md).
 
 ## Gotchas for the next session
 

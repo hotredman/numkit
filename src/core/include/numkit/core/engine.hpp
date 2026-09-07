@@ -402,6 +402,12 @@ public:
     bool hasFunction(const std::string &name) const;
     bool hasUserFunction(const std::string &name) const;
     bool hasExternalFunction(const std::string &name) const;
+    // Compile-time probe for the compiler's dotted-rvalue decision: can
+    // `name` be CALLED with no parentheses? True when it is a registered
+    // external (full name), a short-name leaf of one, or an
+    // already-registered user function. No lazy m-file probing — the
+    // predicate must stay side-effect-free.
+    bool hasCallableName(const std::string &name) const;
 
     // ── Public callback API for builtins ──────────────────────
     // Invoke a function-handle Value from C++. Routes through TW so

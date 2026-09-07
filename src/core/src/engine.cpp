@@ -2387,6 +2387,13 @@ bool Engine::hasExternalFunction(const std::string &name) const
     return externalFuncs_.count(name) > 0;
 }
 
+bool Engine::hasCallableName(const std::string &name) const
+{
+    return externalFuncs_.count(name) > 0
+        || shortNameIndex_.count(name) > 0
+        || lookupUserFunctionLocal(name) != nullptr;
+}
+
 Value Engine::callFunctionHandle(const Value &handle,
                                   Span<const Value> args,
                                   Environment *env)
