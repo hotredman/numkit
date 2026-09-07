@@ -52,7 +52,10 @@ Situational must-reads (in `handbook/`): `library_api.md` (any public
 `toolboxes/` function), `full_fidelity.md` (**before implementing ANY
 function** — the complete-function rule: MATLAB-identical behavior for
 every documented argument form and input type, per-branch test coverage,
-gaps filed never silent; user rule 2026-09-06), `clean_code.md`
+gaps filed never silent; user rule 2026-09-06 — AND the portion-close
+coverage gate: every new branch tested in the SAME commit, dual-engine
+for execution changes, BEFORE the portion closes; user rule
+2026-09-07), `clean_code.md`
 (**before writing any fix** — no crutches/dirty solutions, root-cause
 fixes only, temporary bridges need a filed bug id; user rule
 2026-09-06), `callback_pausability.md` (VM callbacks),
