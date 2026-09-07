@@ -58,7 +58,9 @@ for execution changes, BEFORE the portion closes; user rule
 2026-09-07), `clean_code.md`
 (**before writing any fix** — no crutches/dirty solutions, root-cause
 fixes only, temporary bridges need a filed bug id; user rule
-2026-09-06), `callback_pausability.md` (VM callbacks),
+2026-09-06 — AND the pre-proposal self-evaluation gate: evaluate your
+own solution BEFORE proposing it; if it is not 10/10, refine it first;
+user rule 2026-09-07), `callback_pausability.md` (VM callbacks),
 `object_model.md` (classdef/object model),
 `core_architecture.md` (engine design), plus `src/codegen/DESIGN.md` for
 the transpiler. `dev-docs/README.md` is the full map.

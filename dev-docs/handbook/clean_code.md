@@ -54,3 +54,24 @@ test in this same commit — dual-engine for execution changes?"*
 (full_fidelity.md's portion-close coverage gate; user rule 2026-09-07).
 Uncovered branches are the same class of debt as unexplained
 workarounds: found now, cheap; found by the user, expensive.
+
+## Pre-proposal self-evaluation gate (user rule, 2026-09-07)
+
+**Before presenting a solution to a problem, evaluate your own
+proposal. If it is not 10/10 — refine it before proposing.** The
+evaluation is an explicit pass over the proposal against the CODE (not
+your memory of it): trace every mechanism you plan to touch, name the
+edge cases, name what the proposal does NOT cover. A proposal found
+~70% correct under this pass is a proposal that was not ready.
+
+Origin: the register-exhaustion portion (2026-09-07) — the first plan
+("switch the literal builder to the accumulator, add the fallback")
+sounded complete and was ~70%: the self-evaluation pass, run only
+after the user asked to assess it, found three concrete gaps —
+`constRegCache_` never evicts (distinct literals still burn N
+registers), no `VERTCAT_APPEND` opcode exists for column literals, and
+generic-append is O(N²) for matrix-valued elements. All three were
+invisible in the plan-as-stated and obvious against the code.
+
+The pass is cheap; shipping the 70% plan costs a portion. Do the pass
+FIRST — the user should never be the one who finds the 30%.
