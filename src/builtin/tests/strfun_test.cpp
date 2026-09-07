@@ -83,3 +83,17 @@ TEST_F(StrfunTest, Num2strComplexArraySpacing)
     EXPECT_EQ(engine->eval("num2str(complex([1+2i 3-4i]));").toString(), "1+2i   3-4i");
     EXPECT_EQ(engine->eval("size(num2str(complex([1 2; 3 4])), 1);").toScalar(), 2.0);
 }
+
+// --- bugs/closed/lang/handle-call-csl-splat.md (FIXED; dual-engine live
+// guard) — f(c{:}) with a VARIABLE callee flattens the CSL into the call
+// args on BOTH backends (CALL_INDIRECT_FLATTEN on the VM; the TW always
+// spliced). Values MATLAB-probed R2025b. Also covers the retired inline
+// feval-bridge: inline objects now call their stored handle directly.
+TEST_F(StrfunTest, InlineObjectCallAfterBridgeRetirement)
+{
+    engine->eval("f = inline('2*t', 't');");
+    EXPECT_EQ(engine->eval("class(f);").toString(), "inline");
+    EXPECT_NEAR(engine->eval("f(3);").toScalar(), 6.0, 1e-12);  // direct obj.fh(subs{:})
+    engine->eval("g = inline('a + b', 'a', 'b');");
+    EXPECT_NEAR(engine->eval("g(2, 5);").toScalar(), 7.0, 1e-12);
+}

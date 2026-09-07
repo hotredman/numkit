@@ -2453,6 +2453,27 @@ enter_frame:
                 // to field-value + CALL_INDIRECT (func handle / index).
                 const std::string &mname = chunk.strings[I.d];
                 const Value &obj = R[I.b];
+                // obj.fh(c{:}) / obj.method(c{:}): flatten any CSL arg ONCE
+                // at the top so every dispatch below sees the splatted
+                // runtime list (bugs/closed/lang/handle-call-csl-splat).
+                std::vector<Value> flatBuf;
+                const Value *argPtr = I.e ? &R[I.c] : nullptr;
+                uint8_t argN = I.e;
+                for (uint8_t k = 0; k < I.e; ++k)
+                    if (R[I.c + k].isCsl()) {
+                        flatBuf.reserve(I.e);
+                        for (uint8_t j = 0; j < I.e; ++j) {
+                            const Value &a = R[I.c + j];
+                            if (a.isCsl())
+                                for (size_t q = 0; q < a.cslCount(); ++q)
+                                    flatBuf.push_back(a.cslAt(q));
+                            else
+                                flatBuf.push_back(a);
+                        }
+                        argPtr = flatBuf.empty() ? nullptr : flatBuf.data();
+                        argN = static_cast<uint8_t>(flatBuf.size());
+                        break;
+                    }
                 if (obj.isObject()) {
                     const BuiltinClass *cls = engine_.findClass(obj.objectClassName());
                     // classdef method → native VM frame (debuggable). Receiver
@@ -2464,10 +2485,10 @@ enter_frame:
                             if (mc) {
                                 engine_.enforceMethodAccess(obj.objectClassName(), mname);
                                 std::vector<Value> frameArgs;
-                                frameArgs.reserve(static_cast<size_t>(I.e) + 1);
+                                frameArgs.reserve(static_cast<size_t>(argN) + 1);
                                 frameArgs.push_back(obj);
-                                for (uint8_t k = 0; k < I.e; ++k)
-                                    frameArgs.push_back(R[I.c + k]);
+                                for (uint8_t k = 0; k < argN; ++k)
+                                    frameArgs.push_back(argPtr[k]);
                                 frame.ip = ip + 1;
                                 pushCallFrame(*mc, frameArgs.data(),
                                               static_cast<uint8_t>(frameArgs.size()), I.a, 1, false,
@@ -2478,7 +2499,7 @@ enter_frame:
                     }
                     if (cls && cls->methods.count(mname)) {
                         Value self = obj; // handle: shares state; value: own copy
-                        Span<const Value> args((I.e ? &R[I.c] : nullptr), I.e);
+                        Span<const Value> args(argPtr, argN);
                         Value out[1];
                         CallContext ctx{&engine_, currentCallEnv()};
                         cls->methods.at(mname)(self, args, 1, Span<Value>(out, 1), ctx);
@@ -2491,7 +2512,7 @@ enter_frame:
                     if (!cls || !cls->propGet || !cls->propGet(obj, mname, out, ctx))
                         throw std::runtime_error("No appropriate property '" + mname
                                                  + "' for class '" + obj.objectClassName() + "'");
-                    if (execCallIndirectTarget(out, I.a, I.c, I.e, R, frame, ip))
+                    if (execCallIndirectSpan(out, I.a, argPtr, argN, R, frame, ip))
                         goto enter_frame;
                 } else {
                     // Struct field holding a func handle, or a value to index
@@ -2501,7 +2522,7 @@ enter_frame:
                     if (!obj.hasField(mname))
                         throw std::runtime_error("Reference to non-existent field '" + mname + "'");
                     Value fv = obj.field(mname);
-                    if (execCallIndirectTarget(fv, I.a, I.c, I.e, R, frame, ip))
+                    if (execCallIndirectSpan(fv, I.a, argPtr, argN, R, frame, ip))
                         goto enter_frame;
                 }
                 break;
@@ -2588,6 +2609,100 @@ enter_frame:
                 if (execCallIndirectMulti(I, R, frame, ip))
                     goto enter_frame;
                 break;
+
+            case OpCode::CALL_INDIRECT_FLATTEN: {
+                // f(c{:}) with a variable callee: flatten any CSL arg,
+                // then the CALL_INDIRECT(_MULTI) dispatch over the
+                // flattened span (bugs/closed/lang/handle-call-csl-splat).
+                const uint8_t fhReg = I.b, fargBase = I.c, fna = I.d;
+                const uint8_t fnout = I.e;
+                bool anyCsl = false;
+                for (uint8_t i = 0; i < fna; ++i)
+                    if (R[fargBase + i].isCsl()) { anyCsl = true; break; }
+                if (!anyCsl && fnout <= 1) {
+                    if (execCallIndirectSpan(R[fhReg], I.a,
+                                             fna ? &R[fargBase] : nullptr, fna,
+                                             R, frame, ip))
+                        goto enter_frame;
+                    break;
+                }
+                if (!anyCsl) {
+                    if (execCallIndirectMulti(I, R, frame, ip))
+                        goto enter_frame;
+                    break;
+                }
+                std::vector<Value> flat;
+                flat.reserve(fna);
+                for (uint8_t i = 0; i < fna; ++i) {
+                    const Value &a = R[fargBase + i];
+                    if (a.isCsl())
+                        for (size_t kk = 0; kk < a.cslCount(); ++kk)
+                            flat.push_back(a.cslAt(kk));
+                    else
+                        flat.push_back(a);
+                }
+                const Value *ABf = flat.empty() ? nullptr : flat.data();
+                const uint8_t nflat = static_cast<uint8_t>(flat.size());
+                if (fnout <= 1) {
+                    if (execCallIndirectSpan(R[fhReg], I.a, ABf, nflat,
+                                             R, frame, ip))
+                        goto enter_frame;
+                    break;
+                }
+                // Multi-output flattened handle call: resolve + push a
+                // MULTI frame over the flattened args (captures appended).
+                Value fh;
+                size_t ncaps = 0;
+                if (R[fhReg].isCell() && R[fhReg].numel() >= 1
+                    && R[fhReg].cellAt(0).isFuncHandle()) {
+                    fh = R[fhReg].cellAt(0);
+                    ncaps = R[fhReg].numel() - 1;
+                } else if (R[fhReg].isFuncHandle()) {
+                    fh = R[fhReg];
+                } else {
+                    throw std::runtime_error(
+                        "VM: multi-output call of a value that is not a "
+                        "function handle");
+                }
+                const std::string &fName = fh.funcHandleName();
+                std::vector<Value> cargs(nflat + ncaps);
+                for (uint8_t i = 0; i < nflat; ++i) cargs[i] = flat[i];
+                for (size_t i = 0; i < ncaps; ++i)
+                    cargs[nflat + i] = R[fhReg].cellAt(1 + i);
+                const uint8_t ctot =
+                    static_cast<uint8_t>(std::min(cargs.size(), size_t(255)));
+                if (const BytecodeChunk *fc = findCompiledFunc(fName)) {
+                    frame.ip = ip + 1;
+                    returnCount_ = 0;
+                    pushCallFrame(*fc, cargs.data(), ctot, 0, fnout,
+                                  true, I.a, fnout);
+                    goto enter_frame;
+                }
+                if (auto *uf = engine_.lookupUserFunction(fName, currentCallEnv())) {
+                    if (const BytecodeChunk *fc = findCompiledFunc(uf->name)) {
+                        frame.ip = ip + 1;
+                        returnCount_ = 0;
+                        pushCallFrame(*fc, cargs.data(), ctot, 0, fnout,
+                                      true, I.a, fnout);
+                        goto enter_frame;
+                    }
+                }
+                if (const ExternalFunc *fp =
+                        engine_.findExternal(fName, currentCallEnv())) {
+                    std::vector<Value> ob(fnout);
+                    CallContext ctx{&engine_, currentCallEnv()};
+                    (*fp)(Span<const Value>(cargs.data(), ctot), fnout,
+                          Span<Value>(ob.data(), fnout), ctx);
+                    for (uint8_t i = 0; i < fnout; ++i)
+                        if (ob[i].isUnset())
+                            throw std::runtime_error("Too many output arguments.");
+                    for (uint8_t i = 0; i < fnout; ++i)
+                        R[I.a + i] = std::move(ob[i]);
+                    break;
+                }
+                throw std::runtime_error(
+                    "VM: undefined function in handle '@" + fName + "'");
+            }
 
             // ── Display ──────────────────────────────────────────
             case OpCode::DISPLAY:
@@ -2940,6 +3055,7 @@ static std::string describeInstruction(const Instruction &instr,
         return nm ? std::string("in call to '") + nm + "'" : "in builtin call";
     }
     case OpCode::CALL_INDIRECT:
+    case OpCode::CALL_INDIRECT_FLATTEN:
     case OpCode::CALL_INDIRECT_MULTI:
         return "in function call";
     case OpCode::CALL_METHOD:
@@ -3826,6 +3942,18 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
 bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t argBase, uint8_t na,
                                 Value *R, CallFrame &frame, const Instruction *ip)
 {
+    return execCallIndirectSpan(target, dstReg, na ? &R[argBase] : nullptr, na,
+                                R, frame, ip);
+}
+
+// Span form of execCallIndirectTarget: the argument list arrives as an
+// explicit AB[0..na) span rather than a register window — the
+// CALL_INDIRECT_FLATTEN path materializes its flattened CSL args in a
+// vector and reuses this dispatch verbatim
+// (bugs/closed/lang/handle-call-csl-splat).
+bool VM::execCallIndirectSpan(const Value &target, uint8_t dstReg, const Value *AB, uint8_t na,
+                              Value *R, CallFrame &frame, const Instruction *ip)
+{
     // Resolve function handle (plain or closure cell)
     Value funcHandleVal;
     size_t numCaptures = 0;
@@ -3843,7 +3971,7 @@ bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t arg
         {
             std::vector<Value> idx(na);
             for (uint8_t i = 0; i < na; ++i)
-                idx[i] = R[argBase + i];
+                idx[i] = AB[i];
             // classdef subsref → same-stack VM frame (pausable, P4e). Returns
             // true on push; the caller then `goto enter_frame`. Without this
             // the body runs through the engine call below — outside any VM
@@ -3861,11 +3989,11 @@ bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t arg
         // N-D), routed through the OBJECT-aware Value index methods.
         const Value &mv = target;
         if (na == 1) {
-            auto idxs = Value::resolveIndices(R[argBase], mv.objectCount());
+            auto idxs = Value::resolveIndices(AB[0], mv.objectCount());
             R[dstReg] = mv.objectSubArray(idxs, engine_.mr_);
         } else if (na == 2) {
-            auto rids = Value::resolveIndices(R[argBase], mv.dims().rows());
-            auto cids = Value::resolveIndices(R[argBase + 1], mv.dims().cols());
+            auto rids = Value::resolveIndices(AB[0], mv.dims().rows());
+            auto cids = Value::resolveIndices(AB[1], mv.dims().cols());
             R[dstReg] = mv.indexGet2D(rids.data(), rids.size(), cids.data(), cids.size(),
                                    engine_.mr_);
         } else {
@@ -3875,7 +4003,7 @@ bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t arg
             std::vector<size_t> counts(nd);
             for (int i = 0; i < nd; ++i) {
                 const size_t lim = (i < mv.dims().ndim()) ? mv.dims().dim(i) : 1;
-                lists[i] = Value::resolveIndices(R[argBase + i], lim);
+                lists[i] = Value::resolveIndices(AB[i], lim);
                 ptrs[i] = lists[i].data();
                 counts[i] = lists[i].size();
             }
@@ -3884,7 +4012,7 @@ bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t arg
         return false;
     } else {
         // Array indexing fallback
-        execIndirectIndexTarget(target, dstReg, argBase, na, R);
+        execIndirectIndexSpan(target, dstReg, AB, na, R);
         return false;
     }
 
@@ -3894,7 +4022,7 @@ bool VM::execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t arg
     size_t totalArgsN = static_cast<size_t>(na) + numCaptures;
     std::vector<Value> argsBuf(totalArgsN);
     for (uint8_t i = 0; i < na; ++i)
-        argsBuf[i] = R[argBase + i];
+        argsBuf[i] = AB[i];
     for (size_t i = 0; i < numCaptures; ++i)
         argsBuf[na + i] = target.cellAt(1 + i);
     uint8_t totalArgs = static_cast<uint8_t>(std::min(totalArgsN, size_t(255)));
@@ -4011,8 +4139,15 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
 
 void VM::execIndirectIndexTarget(const Value &mv, uint8_t dstReg, uint8_t argBase, uint8_t na, Value *R)
 {
+    execIndirectIndexSpan(mv, dstReg, na ? &R[argBase] : nullptr, na, R);
+}
+
+// Span twin of execIndirectIndexTarget (AB[0..na) args) — shared with the
+// CALL_INDIRECT_FLATTEN dispatch.
+void VM::execIndirectIndexSpan(const Value &mv, uint8_t dstReg, const Value *AB, uint8_t na, Value *R)
+{
     if (na == 1) {
-        const Value &ix = R[argBase];
+        const Value &ix = AB[0];
         if (mv.isCell()) {
             auto indices = Value::resolveIndices(ix, mv.numel());
             R[dstReg] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
@@ -4054,8 +4189,8 @@ void VM::execIndirectIndexTarget(const Value &mv, uint8_t dstReg, uint8_t argBas
             R[dstReg] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
         }
     } else if (na == 2) {
-        const Value &ri = R[argBase];
-        const Value &ci = R[argBase + 1];
+        const Value &ri = AB[0];
+        const Value &ci = AB[1];
         auto rowIds = Value::resolveIndices(ri, mv.dims().rows());
         auto colIds = Value::resolveIndices(ci, mv.dims().cols());
         R[dstReg] = mv.indexGet2D(rowIds.data(), rowIds.size(),
@@ -4063,14 +4198,14 @@ void VM::execIndirectIndexTarget(const Value &mv, uint8_t dstReg, uint8_t argBas
                                engine_.mr_);
     } else if (na == 3) {
         if (mv.isCell()) {
-            size_t r = (size_t) R[argBase].toScalar() - 1;
-            size_t c = (size_t) R[argBase + 1].toScalar() - 1;
-            size_t p = (size_t) R[argBase + 2].toScalar() - 1;
+            size_t r = (size_t) AB[0].toScalar() - 1;
+            size_t c = (size_t) AB[1].toScalar() - 1;
+            size_t p = (size_t) AB[2].toScalar() - 1;
             R[dstReg] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
         } else {
-            auto rowIds = Value::resolveIndices(R[argBase], mv.dims().rows());
-            auto colIds = Value::resolveIndices(R[argBase + 1], mv.dims().cols());
-            auto pageIds = Value::resolveIndices(R[argBase + 2], mv.dims().pages());
+            auto rowIds = Value::resolveIndices(AB[0], mv.dims().rows());
+            auto colIds = Value::resolveIndices(AB[1], mv.dims().cols());
+            auto pageIds = Value::resolveIndices(AB[2], mv.dims().pages());
             R[dstReg] = mv.indexGet3D(rowIds.data(), rowIds.size(),
                                    colIds.data(), colIds.size(),
                                    pageIds.data(), pageIds.size(),
@@ -4084,7 +4219,7 @@ void VM::execIndirectIndexTarget(const Value &mv, uint8_t dstReg, uint8_t argBas
         std::vector<size_t> idxCounts(nd);
         for (int i = 0; i < nd; ++i) {
             const size_t lim = (i < mv.dims().ndim()) ? mv.dims().dim(i) : 1;
-            idxLists[i] = Value::resolveIndices(R[argBase + i], lim);
+            idxLists[i] = Value::resolveIndices(AB[i], lim);
             idxPtrs[i] = idxLists[i].data();
             idxCounts[i] = idxLists[i].size();
         }

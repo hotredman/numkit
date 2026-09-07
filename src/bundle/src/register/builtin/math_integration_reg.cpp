@@ -466,10 +466,11 @@ classdef inline
         end
         function r = subsref(obj, s)
             if strcmp(s(1).type, '()')
-                % feval + CSL-splat: a direct obj.fh(s(1).subs{:}) hits the
-                % handle-call CSL gap (f(c{:}) with a VARIABLE callee is not
-                % flattened by the compiler; feval is a named callee and is).
-                r = feval(obj.fh, s(1).subs{:});
+                % Direct handle call with CSL-splat — the underlying
+                % f(c{:}) gap is fixed (CALL_INDIRECT_FLATTEN), so the
+                % old feval bridge is retired
+                % (bugs/closed/lang/handle-call-csl-splat).
+                r = obj.fh(s(1).subs{:});
             else
                 r = builtin('subsref', obj, s);
             end

@@ -93,6 +93,12 @@ enum class OpCode : uint8_t {
     // stored function handle can return several outputs (e.g. fmincon nonlcon
     // `[c, ceq] = nonlcon(x)`).
     CALL_INDIRECT_MULTI,
+    // f(c{:}) with a VARIABLE callee (handle or indexable value):
+    // a=outBase, b=fhReg, c=argBase, d=nargs, e=nout. Same as
+    // CALL_INDIRECT(_MULTI) but any CSL argument is flattened into the
+    // runtime arg list first (handle-callee brace-splat:
+    // bugs/closed/lang/handle-call-csl-splat).
+    CALL_INDIRECT_FLATTEN,
     // Fused element-wise idiom (VM fusion). a=dst, b=operandBase, c=nOps,
     // d=ruleIdx (into engine.fusionRules()), e=skip. Gather R[base..base+nOps)
     // → rule.execute; on success R[dst]=result and skip the `e` following

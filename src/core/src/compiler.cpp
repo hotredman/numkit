@@ -1052,6 +1052,37 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
                 return nout ? outBase : 0;
             return outRegs.empty() ? 0 : outRegs[0];
         }
+        // VARIABLE callee with brace args — f(c{:}) where f holds a
+        // handle or an indexable value: same expansion compile, but
+        // CALL_INDIRECT_FLATTEN so the runtime flattens the CSL and
+        // resolves the callee value
+        // (bugs/closed/lang/handle-call-csl-splat).
+        if (anyBraceArg && calleeIsVar) {
+            std::vector<uint8_t> flatRegs;
+            for (size_t i = 1; i < callNode->children.size(); ++i)
+                flatRegs.push_back(compileNodeExpand(callNode->children[i].get()));
+            uint8_t flatBase = nextReg_;
+            for (size_t i = 0; i < flatRegs.size(); ++i) {
+                uint8_t slot = tempReg();
+                if (flatRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, flatRegs[i]);
+            }
+            uint8_t fhReg = varRegLookup(fname);
+            int16_t nameIdx = addStringConstant(fname);
+            emitAD(OpCode::ASSERT_DEF, fhReg, nameIdx);
+            uint8_t outBase = nextReg_;
+            const uint8_t noutF = static_cast<uint8_t>(std::max<size_t>(nout, 1));
+            for (size_t i = 0; i < noutF; ++i)
+                tempReg();
+            emit(Instruction::make_abcde(OpCode::CALL_INDIRECT_FLATTEN,
+                                         outBase, fhReg, flatBase,
+                                         static_cast<uint8_t>(flatRegs.size()),
+                                         noutF));
+            distribute(outBase);
+            if (complex)
+                return nout ? outBase : 0;
+            return outRegs.empty() ? 0 : outRegs[0];
+        }
     }
 
     // Compile call arguments
@@ -3029,9 +3060,20 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     if (funcNode->type == NodeType::FIELD_ACCESS && !argHasEnd) {
         uint8_t objReg = compileNode(funcNode->children[0].get());
         const size_t nargs = node->children.size() - 1;
+        // Brace-index args with a dotted callee (obj.fh(c{:}),
+        // obj.method(c{:})): expansion compile — the CALL_METHOD handler
+        // flattens the CSL at runtime
+        // (bugs/closed/lang/handle-call-csl-splat).
+        bool mAnyBrace = false;
+        for (size_t i = 1; i < node->children.size(); ++i)
+            if (node->children[i]->type == NodeType::CELL_INDEX)
+                { mAnyBrace = true; break; }
         std::vector<uint8_t> argRegs;
         argRegs.reserve(nargs);
-        {
+        if (mAnyBrace) {
+            for (size_t i = 1; i < node->children.size(); ++i)
+                argRegs.push_back(compileNodeExpand(node->children[i].get()));
+        } else {
             IndexContextGuard guard(*this, objReg, static_cast<uint8_t>(nargs));
             for (size_t i = 1; i < node->children.size(); ++i) {
                 guard.setDim(static_cast<uint8_t>(i - 1));
@@ -3063,6 +3105,31 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     if (funcNode->type != NodeType::IDENTIFIER) {
         uint8_t fhReg = compileNode(funcNode);
         const size_t nargs = node->children.size() - 1;
+        // Brace-index args with a computed callee (obj.fh(c{:}),
+        // s.f(x, c{:})): expansion compile + CALL_INDIRECT_FLATTEN —
+        // the same CSL splat the identifier-callee gate provides
+        // (bugs/closed/lang/handle-call-csl-splat).
+        bool faAnyBrace = false;
+        for (size_t i = 1; i < node->children.size(); ++i)
+            if (node->children[i]->type == NodeType::CELL_INDEX)
+                { faAnyBrace = true; break; }
+        if (faAnyBrace) {
+            std::vector<uint8_t> argRegs;
+            for (size_t i = 1; i < node->children.size(); ++i)
+                argRegs.push_back(compileNodeExpand(node->children[i].get()));
+            uint8_t argBase = nextReg_;
+            for (size_t i = 0; i < argRegs.size(); ++i) {
+                uint8_t slot = tempReg();
+                if (argRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, argRegs[i]);
+            }
+            uint8_t dst = tempReg();
+            emit(Instruction::make_abcde(OpCode::CALL_INDIRECT_FLATTEN,
+                                         dst, fhReg, argBase,
+                                         static_cast<uint8_t>(argRegs.size()),
+                                         std::max<size_t>(nargoutContext_, 1)));
+            return dst;
+        }
         std::vector<uint8_t> argRegs;
         argRegs.reserve(nargs);
         {
@@ -3201,6 +3268,33 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 
     if (isKnownVar) {
         uint8_t fhReg = varRegLookup(name);
+
+        // Brace-index args with a VARIABLE callee: compile expanded
+        // (CSL-preserving) and emit CALL_INDIRECT_FLATTEN so the runtime
+        // flattens c{:} into the arg list before resolving the handle
+        // (bugs/closed/lang/handle-call-csl-splat). Mirrors the named-
+        // callee CALL_FLATTEN gate below.
+        bool varAnyBrace = false;
+        for (size_t i = 1; i < node->children.size(); ++i)
+            if (node->children[i]->type == NodeType::CELL_INDEX)
+                { varAnyBrace = true; break; }
+        if (varAnyBrace) {
+            std::vector<uint8_t> argRegs;
+            for (size_t i = 1; i < node->children.size(); ++i)
+                argRegs.push_back(compileNodeExpand(node->children[i].get()));
+            uint8_t argBase = nextReg_;
+            for (size_t i = 0; i < argRegs.size(); ++i) {
+                uint8_t slot = tempReg();
+                if (argRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, argRegs[i]);
+            }
+            uint8_t dst = tempReg();
+            emit(Instruction::make_abcde(OpCode::CALL_INDIRECT_FLATTEN,
+                                         dst, fhReg, argBase,
+                                         static_cast<uint8_t>(argRegs.size()),
+                                         std::max<size_t>(nargoutContext_, 1)));
+            return dst;
+        }
 
         IndexContextGuard guard(*this, fhReg, static_cast<uint8_t>(nargs));
 

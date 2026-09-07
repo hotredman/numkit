@@ -1926,8 +1926,24 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                                            nargout, Span<Value>(outBuf, 1), ctx);
                     return outBuf[0];
                 }
-                // Not a method → property read, then index with the args.
+                // Not a method → property read, then CALL (a func-handle
+                // property: obj.fh(args) — the inline classdef's direct
+                // dispatch, bugs/closed/lang/handle-call-csl-splat) or
+                // index with the args.
                 Value prop = objectPropGet(*objPtr, mname, env);
+                if (prop.isFuncHandle()) {
+                    std::vector<Value> args;
+                    args.reserve(node->children.size() - 1);
+                    for (size_t i = 1; i < node->children.size(); ++i) {
+                        Value v = execNodeExpand(node->children[i].get(), env);
+                        if (v.isCsl())
+                            for (size_t k = 0; k < v.cslCount(); ++k)
+                                args.push_back(std::move(v.cslAt(k)));
+                        else
+                            args.push_back(std::move(v));
+                    }
+                    return callFuncHandle(prop, args, env, node);
+                }
                 return execIndexAccess(prop, node, env);
             }
         }
@@ -1978,10 +1994,19 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             target = execNode(funcNode, env);
 
         if (target.isFuncHandle()) {
+            // CSL-splice args (obj.fh(c{:}) — the computed-callee twin of
+            // the identifier path's buildArgs;
+            // bugs/closed/lang/handle-call-csl-splat).
             std::vector<Value> args;
             args.reserve(node->children.size() - 1);
-            for (size_t i = 1; i < node->children.size(); ++i)
-                args.push_back(execNode(node->children[i].get(), env));
+            for (size_t i = 1; i < node->children.size(); ++i) {
+                Value v = execNodeExpand(node->children[i].get(), env);
+                if (v.isCsl())
+                    for (size_t k = 0; k < v.cslCount(); ++k)
+                        args.push_back(std::move(v.cslAt(k)));
+                else
+                    args.push_back(std::move(v));
+            }
             return callFuncHandle(target, args, env, node);
         }
 

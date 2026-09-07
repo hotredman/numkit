@@ -729,3 +729,26 @@ TEST_P(GlobalTest, BareGlobalIsEmptyAndVisible)
 }
 
 INSTANTIATE_DUAL(GlobalTest);
+
+// --- bugs/closed/lang/handle-call-csl-splat.md (FIXED; live guard) ---
+// f(c{:}) with a handle VARIABLE callee: the CSL flattens into the call
+// args (MATLAB-probed: f(c{:})=5, g(1,c{:})=6, g(c{:},4)=9, f(c{1},c{2})=5,
+// h(c1{:})=36; and a too-long splat errors like MATLAB).
+TEST_P(CellTest, HandleCalleeCslSplat)
+{
+    eval("f = @(a,b) a + b; g = @(a,b,c) a + b + c; c = {2, 3}; c1 = {6};");
+    eval("q1 = f(c{:});");
+    EXPECT_DOUBLE_EQ(getVar("q1"), 8.0 - 3.0);
+    eval("q2 = g(1, c{:});");
+    EXPECT_DOUBLE_EQ(getVar("q2"), 6.0);
+    eval("q3 = g(c{:}, 4);");
+    EXPECT_DOUBLE_EQ(getVar("q3"), 9.0);
+    eval("q4 = f(c{1}, c{2});");
+    EXPECT_DOUBLE_EQ(getVar("q4"), 5.0);
+    eval("h = @(x) x.^2; q5 = h(c1{:});");
+    EXPECT_DOUBLE_EQ(getVar("q5"), 36.0);
+    // Too-long splat errors like MATLAB ("Too many input arguments").
+    eval("try; e = f(1, c{:}); catch er; msg = er.message; end");
+    EXPECT_NE(eval("msg;").toString().find("Too many input arguments"),
+              std::string::npos);
+}

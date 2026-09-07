@@ -431,6 +431,9 @@ private:
                           CallFrame &frame, const Instruction *ip);
     bool execCallIndirectTarget(const Value &target, uint8_t dstReg, uint8_t argBase, uint8_t na,
                                 Value *R, CallFrame &frame, const Instruction *ip);
+    bool execCallIndirectSpan(const Value &target, uint8_t dstReg,
+                           const Value *AB, uint8_t na, Value *R, CallFrame &frame,
+                           const Instruction *ip);
     // Multi-output indirect (handle-variable) call: `[a,b] = h(x)`. Returns
     // true if it pushed a VM frame (caller re-enters the dispatch loop).
     bool execCallIndirectMulti(const Instruction &I, Value *R,
@@ -438,6 +441,8 @@ private:
     void execIndirectIndex(const Instruction &I, Value *R);
     void execIndirectIndexTarget(const Value &target, uint8_t dstReg, uint8_t argBase, uint8_t na,
                                  Value *R);
+    void execIndirectIndexSpan(const Value &mv, uint8_t dstReg, const Value *AB,
+                               uint8_t na, Value *R);
     void execDisplay(const Instruction &I, Value *R, const BytecodeChunk &chunk);
     void execWho(const Instruction &I, Value *R, const BytecodeChunk &chunk);
     void execWhos(const Instruction &I, Value *R, const BytecodeChunk &chunk);
