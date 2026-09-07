@@ -120,6 +120,7 @@ public:
     {
         const BytecodeChunk *chunk = nullptr;
         Value *registers = nullptr;
+        bool wasReentrantEval = false;
     };
     FrameView currentFrameView()
     {
@@ -182,6 +183,10 @@ public:
     // Saved/restored across re-entrant execute() boundaries via
     // PausedState.
     Environment *inheritedScope_ = nullptr;
+    // True while a re-entrant engine->eval()/external callback
+    // executes with the outer frames parked (savePausedState) — top-
+    // level-only errors like bare nargin must NOT fire there.
+    bool inReentrantEval_ = false;
 
     // ── dbstop-if-error ──────────────────────────────────────
     // When set by a debug session, an uncaught error pauses at the failing
@@ -341,6 +346,7 @@ public:
         std::unordered_map<const BytecodeChunk *,
                            std::vector<const BytecodeChunk *>>
             chunkCallCache;
+        bool wasReentrantEval = false;
     };
 private:
 

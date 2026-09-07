@@ -1,4 +1,5 @@
 // src/vm.cpp
+#include <cstdio>
 #include <numkit/core/vm.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/value/span.hpp>
@@ -277,12 +278,15 @@ std::unique_ptr<VM::PausedState> VM::savePausedState()
     s->chunkCallCache = std::move(chunkCallCache_);
     // Snapshot only the used portion of the register stack
     s->regSnapshot.assign(regStack_.begin(), regStack_.begin() + regStackTop_);
+    s->wasReentrantEval = inReentrantEval_;
+    inReentrantEval_ = true;
     return s;
 }
 
 void VM::restorePausedState(std::unique_ptr<PausedState> s)
 {
     if (!s) return;
+    inReentrantEval_ = s->wasReentrantEval;
     frames_ = std::move(s->frames);
     forStack_ = std::move(s->forStack);
     tryStack_ = std::move(s->tryStack);
@@ -421,6 +425,9 @@ enter_frame:
 
     {
         CallFrame &frame = frames_.back();
+    if (frames_.size() >= 2) {
+        auto &pf = frames_[frames_.size() - 2];
+    }
         const Instruction *ip = frame.ip;
         const BytecodeChunk &chunk = *frame.chunk;
         const Instruction *end = chunk.code.data() + chunk.code.size();
@@ -2752,6 +2759,16 @@ enter_frame:
 
             case OpCode::ASSERT_DEF:
                 if (R[I.a].isUnset() || R[I.a].isDeleted()) {
+                    // nargin/nargout at top level are illegal in MATLAB —
+                    // this check must precede the env fallbacks below
+                    // (workspaceEnv HOLDS a top-level nargin value, which
+                    // would otherwise silently resolve the name).
+                    if (!inReentrantEval_) {
+                        const std::string &nn = chunk.strings[I.d];
+                        if (nn == "nargin" || nn == "nargout")
+                            throw std::runtime_error(
+                                "You can only call nargin/nargout from within a MATLAB function.");
+                    }
                     // Fallback: check dynamic variables (debug eval, runtime eval)
                     if (frame.dynVars) {
                         auto it = frame.dynVars->find(chunk.strings[I.d]);
@@ -2776,12 +2793,24 @@ enter_frame:
                             R[I.a] = *wv;
                             break;
                         }
+                    } else if (frame.env) {
+                        // Function frame: consult the frame's OWN locals
+                        // only (getLocal — no parent-chain walk, so no
+                        // base-variable leak into function scope).
+                        // assignin('caller', ...) lands here via
+                        // Engine::assignToCaller's env-side write when
+                        // the register write was clobbered by an
+                        // intervening call
+                        // (bugs/closed/core/assignin-caller-write-through).
+                        const Value *lv = frame.env->getLocal(
+                            chunk.strings[I.d]);
+                        if (lv && !lv->isUnset() && !lv->isDeleted()) {
+                            R[I.a] = *lv;
+                            break;
+                        }
                     }
-                    const std::string &n = chunk.strings[I.d];
-                    if (n == "nargin" || n == "nargout")
-                        throw std::runtime_error(
-                            "You can only call nargin/nargout from within a MATLAB function.");
-                    throw std::runtime_error("Undefined function or variable '" + n + "'");
+                    throw std::runtime_error(
+                        "Undefined function or variable '" + std::string(chunk.strings[I.d]) + "'");
                 }
                 break;
 

@@ -752,3 +752,32 @@ TEST_P(CellTest, HandleCalleeCslSplat)
     EXPECT_NE(eval("msg;").toString().find("Too many input arguments"),
               std::string::npos);
 }
+
+// --- bugs/closed/core/assignin-caller-write-through.md (FIXED; live
+// dual-engine guard) — names injected by assignin('caller', ...) read
+// back as ordinary locals in the caller's compiled frame, INCLUDING when
+// an intervening call sits between the injection and the read (the
+// register write-through is clobbered by intervening calls; the
+// frame-env side is now the authoritative fallback). Base-workspace
+// isolation is NOT weakened: function frames consult their OWN locals
+// only.
+TEST_P(AssignTest, AssigninCallerWriteThrough)
+{
+    // Core repro: callee injects, caller reads after an intervening call.
+    // (Functions defined in separate evals — a functions+statements
+    // paste is script-scoped and drops them.)
+    eval("function setup(prefix); assignin('caller', [prefix '_one'], 1);"
+         " assignin('caller', [prefix '_two'], 2);"
+         " assignin('caller', [prefix '_three'], 3); end");
+    eval("function r = f(); setup('cfg'); num2str(1);"
+         " r = cfg_one + cfg_two + cfg_three; end");
+    eval("t = f();");
+    EXPECT_DOUBLE_EQ(getVar("t"), 6.0);
+    // Direct read without an intervening call (register path).
+    eval("function r = g(); setup('k'); r = k_one * 10 + k_two; end");
+    eval("u = g();");
+    EXPECT_DOUBLE_EQ(getVar("u"), 12.0);
+    // No base leak: the injected names die with the function frame.
+    eval("leaked = exist('cfg_one');");
+    EXPECT_DOUBLE_EQ(getVar("leaked"), 0.0);
+}

@@ -1,6 +1,6 @@
 # core.assignin — `assignin('caller', …)` names not visible to the caller's compiled frame
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (HASH, 2026-09-07)
 - **Severity:** P1 wrong result
 - **Found:** 2026-08-29 via npm CLI corpus run (examples/ through packages/numkit, WASM engine); reproduces identically on the native `numkit_repl` CLI, so it is engine-level, not WASM/packaging.
 
@@ -47,3 +47,29 @@ names directly, yet the write-through still does not land.
 
 ## References
 - **Guard:** deferred — engine-level; guard pending a compiled-frame fixture.
+
+
+## Fix (portion 25, 2026-09-07)
+
+Root cause (traced with instrumented WROTE/MISS/pop prints): the
+VM-side write-through in VM::assignInCallerFrame lands in the caller
+frame's register, but an INTERVENING CALL between the assignin and the
+read leaves that register unset again (the write is lost across the
+call boundary — see the g2/g3 isolation: a bare `num2str(1);` statement
+between setup and the reads kills every injected name; without one it
+works). Engine::assignToCaller already writes the env side — the
+caller frame's lazily-allocated private env — so the fix makes ASSERT_DEF
+consult it: function frames fall back to their OWN frame.env locals
+(getLocal — no parent-chain walk, so NO base-variable leak into
+function scope; ScopeIsolationTest stays green). The base frame keeps
+its workspaceEnv fallback from the eval-family fix.
+
+All three original repros now pass end-to-end on the CLI:
+assignin_setter (Total: 6), eval_dynamic_code, workspace_introspection
+(exit 0 each; the last two were the same dynamic-names-vs-compiled-
+frames class).
+
+Guard: TW_VM/AssignTest.AssigninCallerWriteThrough — dual-engine,
+covers the intervening-call case (the register-path failure), the
+direct-read case, and the no-base-leak assertion (exist('cfg_one')==0
+after f returns).
