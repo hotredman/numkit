@@ -1,6 +1,6 @@
 # core.compiler — register exhaustion (>255) surfaces as a user error on real code instead of the TreeWalker fallback
 
-- **Status:** ✅ FIXED (HASH, 2026-09-07)
+- **Status:** ✅ FIXED (a89273172, 2026-09-07)
 - **Severity:** P2 (works in MATLAB, refused in numkit)
 - **Kind:** bug
 - **Found:** 2026-08-30 via fieldtest (real-world `sa_tsp.m` — simulated
