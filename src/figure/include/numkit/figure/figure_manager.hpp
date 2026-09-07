@@ -7,6 +7,8 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 #include <cmath>
 #include <cstdlib>
@@ -419,6 +421,76 @@ class FigureManager
 {
 public:
     using OutputFunc = std::function<void(const std::string &)>;
+
+    // ── Graphics handle registry (bugs/closed/graphics/plot-family-no-
+    // return-value.md) ────────────────────────────────────────────────
+    // Plot-family builtins create a handle record for each dataset they
+    // push; the returned handle object references it by id. set/get/
+    // delete/isgraphics consult this registry. Properties are the
+    // user-set values (defaults resolved by the accessor layer).
+    struct HandleRecord
+    {
+        std::string type;       // "line", "stem", "bar", …
+        std::string className;  // "matlab.graphics.chart.primitive.Line"
+        int figureId = 0;
+        size_t datasetIndex = 0;
+        // Property name → JSON-encoded value. The figure layer stays
+        // core-free (no Value); the adapter (which has Value access)
+        // encodes/decodes.
+        std::map<std::string, std::string> props;
+        bool deleted = false;
+    };
+
+    int createHandle(std::string type, std::string className)
+    {
+        const int id = nextHandleId_++;
+        HandleRecord rec;
+        rec.type = std::move(type);
+        rec.className = std::move(className);
+        rec.figureId = currentFigure_;
+        auto &ax = currentAxes();
+        rec.datasetIndex = ax.datasets.empty() ? 0 : ax.datasets.size() - 1;
+        handleRegistry_[id] = std::move(rec);
+        return id;
+    }
+
+    HandleRecord *findHandle(int id)
+    {
+        auto it = handleRegistry_.find(id);
+        if (it == handleRegistry_.end() || it->second.deleted)
+            return nullptr;
+        return &it->second;
+    }
+
+    void deleteHandle(int id)
+    {
+        auto it = handleRegistry_.find(id);
+        if (it == handleRegistry_.end() || it->second.deleted)
+            return;
+        it->second.deleted = true;
+        // Remove the dataset from its axes so the payload no longer
+        // carries it.
+        auto fit = figures_.find(it->second.figureId);
+        if (fit != figures_.end()) {
+            for (auto &ax : fit->second.axes) {
+                if (it->second.datasetIndex < ax.datasets.size()) {
+                    ax.datasets.erase(ax.datasets.begin()
+                                      + it->second.datasetIndex);
+                    fit->second.modified = true;
+                    // Reindex the surviving handles of this figure.
+                    for (auto &[hid, rec] : handleRegistry_) {
+                        if (!rec.deleted && rec.figureId == it->second.figureId
+                            && rec.datasetIndex > it->second.datasetIndex)
+                            --rec.datasetIndex;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    std::unordered_map<int, HandleRecord> &handles() { return handleRegistry_; }
+
 
     /** Set the output callback for figure/close markers.
      *  When set, emitModified() and close notifications route through this
@@ -1124,6 +1196,8 @@ private:
     std::map<int, FigureState> figures_;
     int currentFigure_ = 1;
     OutputFunc outputFunc_;
+    int nextHandleId_ = 1;
+    std::unordered_map<int, HandleRecord> handleRegistry_;
 };
 
 
