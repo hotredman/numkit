@@ -5,6 +5,7 @@
 #include <numkit/value/scratch.hpp>
 #include <numkit/core/vm.hpp>
 #include <numkit/runtime/runtime.hpp>
+#include <numkit/graphics/graphics_handle.hpp>
 
 #include <algorithm>
 #include <iomanip>
@@ -325,9 +326,35 @@ void register_general(Engine &engine) {
                                     outs[1] = Value::fromString(msg, ctx.engine->resource());
                             });
 
+    // delete — ONE name, dispatched by argument type (MATLAB semantics):
+    //   • graphics handle → delete the object behind it (chart dataset /
+    //     axes / figure) via the FigureManager handle registry;
+    //   • char/string     → delete the file(s).
+    // The graphics TU cannot own this name too — registerFunctionImpl_
+    // throws on duplicates — so the handle payload probe lives in the
+    // shared graphics_handle.hpp header.
     engine.registerFunction("delete",
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                                auto &fm = ctx.engine->figureManager();
+                                bool anyFigureClosed = false;
                                 for (const auto &a : args) {
+                                    const int hid = graphicsHandleIdOf(a);
+                                    if (hid >= 0) {
+                                        auto *rec = fm.findHandle(hid);
+                                        if (!rec)
+                                            continue;   // already deleted — idempotent
+                                        if (rec->type == "figure") {
+                                            fm.closeFigureNotify(rec->figureId);
+                                            anyFigureClosed = true;
+                                        } else if (rec->type == "axes") {
+                                            fm.removeAxes(rec->figureId,
+                                                          rec->axesIndex);
+                                            fm.markFigureModified(rec->figureId);
+                                        } else {
+                                            fm.deleteHandle(hid);
+                                        }
+                                        continue;
+                                    }
                                     if (!a.isChar())
                                         throw std::runtime_error("delete: filename must be a string");
                                     std::string p = a.toString();
@@ -336,6 +363,11 @@ void register_general(Engine &engine) {
                                         throw std::runtime_error("delete: cannot resolve '" + p + "'");
                                     rp.fs->unlink(rp.path);
                                 }
+                                // Chart/axes removals mark the figure
+                                // modified; closeFigureNotify already
+                                // emitted its own marker.
+                                if (!anyFigureClosed)
+                                    fm.emitModified();
                                 outs[0] = Value();
                             });
 

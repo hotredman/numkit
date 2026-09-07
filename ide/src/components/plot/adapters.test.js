@@ -65,3 +65,38 @@ describe('adaptFigure — log-axis auto-range padding', () => {
     expect(f.xRange[1]).toBeGreaterThanOrEqual(100);
   });
 });
+
+// ── set(h, …) render-effect dialect (portion 29) ─────────────────────
+// The engine's set() rewrites ds.style into the kv dialect
+// ("color=#hex;lineStyle=--;marker=o") and emits lineWidth / markerSize /
+// visible fields. parseLineSpec must understand lineStyle/marker keys and
+// datasetToLayer must skip visible:false datasets.
+import { parseLineSpec } from './adapters.linespec';
+import { datasetToLayer } from './adapters.layer';
+
+describe('parseLineSpec — kv lineStyle/marker (set() render-effect)', () => {
+  it('parses lineStyle and marker keys', () => {
+    const p = parseLineSpec('color=#ff0000;lineStyle=--;marker=s');
+    expect(p.color).toBe('#ff0000');
+    expect(p.lineStyle).toBe('--');
+    expect(p.marker).toBe('s');
+  });
+  it("lineStyle=none suppresses the path (marker-only series)", () => {
+    const p = parseLineSpec('marker=o;lineStyle=none');
+    expect(p.lineStyle).toBe('none');
+    expect(p.marker).toBe('o');
+  });
+});
+
+describe('datasetToLayer — visible:false hides the dataset', () => {
+  it('returns null for a hidden dataset', () => {
+    const ctx = { figId: 1, axIdx: 0, dsIdx: 0 };
+    expect(datasetToLayer({ x: [1, 2], y: [1, 2], type: 'line', visible: false }, 0, ctx))
+      .toBeNull();
+  });
+  it('still renders when visible is absent (wire-format back-compat)', () => {
+    const ctx = { figId: 1, axIdx: 0, dsIdx: 0 };
+    const l = datasetToLayer({ x: [1, 2], y: [1, 2], type: 'line' }, 0, ctx);
+    expect(l).not.toBeNull();
+  });
+});

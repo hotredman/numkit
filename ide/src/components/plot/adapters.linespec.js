@@ -23,6 +23,8 @@ export function parseLineSpec(s) {
       if (!k || v == null) continue;
       const key = k.trim(), val = v.trim();
       if (key === 'color') out.color = val;
+      else if (key === 'lineStyle' || key === 'linestyle') out.lineStyle = val;
+      else if (key === 'marker') out.marker = val;
       else if (key === 'lineWidth' || key === 'linewidth') out.lineWidth = Number(val);
       else if (key === 'fontSize' || key === 'fontsize') out.fontSize = Number(val);
       else if (key === 'fillOpacity' || key === 'fillopacity') out.fillOpacity = Number(val);

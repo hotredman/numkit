@@ -7,6 +7,9 @@ import { parseLineSpec, KIND_PALETTE } from './adapters.linespec';
  * the renderer maps them through current sx/sy at draw time.
  */
 export function datasetToLayer(d, palette_idx, ctx) {
+  // set(h,'Visible','off') — the dataset stays in the model (get(h,…) /
+  // set(h,'Visible','on') revive it) but renders nothing.
+  if (d.visible === false) return null;
   const t = (d.type || '').toLowerCase();
   const styleObj = typeof d.style === 'string' ? parseLineSpec(d.style)
                  : (d.style || {});

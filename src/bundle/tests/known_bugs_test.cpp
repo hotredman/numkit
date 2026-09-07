@@ -513,3 +513,19 @@ TEST_P(CommandGlueTest, EvalWriteSideVisibleLaterInChunk)
 INSTANTIATE_TEST_SUITE_P(Backends, CommandGlueTest,
                          ::testing::Values(numkit::Engine::Backend::VM,
                                            numkit::Engine::Backend::TreeWalker));
+
+// bugs/opened/lang/dotted-rvalue-on-call-result.md — `gcf.Number`
+// (dotted rvalue whose head is a FUNCTION, not a variable) must evaluate
+// as call-then-field-access on BOTH engines. VM miscompiles it to a
+// dotted function name today ("undefined function 'gcf.Number'").
+TEST_P(CommandGlueTest, DISABLED_DottedRvalueOnCallResult)
+{
+    eval("f = figure();");
+    // Temp-var form works on both engines and anchors the expectation:
+    eval("g0 = gcf;");
+    EXPECT_DOUBLE_EQ(evalScalar("g0.Number"), 1.0);
+    // The direct dotted rvalue: MATLAB returns the figure number (1).
+    // TW: 1. VM: throws "VM: undefined function 'gcf.Number'".
+    EXPECT_NO_THROW(eval("g = gcf.Number;"));
+    EXPECT_DOUBLE_EQ(evalScalar("g"), 1.0);
+}

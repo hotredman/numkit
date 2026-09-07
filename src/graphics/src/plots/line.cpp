@@ -43,11 +43,57 @@ void buildLinePlots(std::vector<PlotEntry> &table)
             }
             auto &fm = gc.fm;
             fm.prepareForPlot();
-            DatasetInfo ds;
-            ds.type = "line";
-            size_t nvStart = parsePlotXYStyle(args, ds);
-            parsePlotArgs(args, nvStart, ds);
-            fm.pushDataset(std::move(ds));
+            // MATLAB multi-series grammar: (X, Y [, LineSpec] [, N/V…])*,
+            // then plot(Y) / plot(Y, LineSpec) single-vector forms. Each
+            // pair is its own dataset → its own Line handle
+            // (plot(x,y,x2,y2) returns a 1×2 Line array).
+            // Discriminator: a char arg that is entirely linespec alphabet
+            // ("-:.o+*xsd^v<>phrgbcymw") is a LineSpec; any other char
+            // starts an N/V pair ('LineWidth', 2, …).
+            auto isSpec = [](const Value &v) {
+                if (!v.isChar()) return false;
+                static const std::string alpha = "-:.o+*xsd^v<>phrgbcymw";
+                std::string s = v.toString();
+                if (s.empty()) return false;
+                for (char c : s)
+                    if (alpha.find(c) == std::string::npos) return false;
+                return true;
+            };
+            auto isData = [](const Value &v) {
+                return v.isNumeric() || v.isLogical();
+            };
+            size_t i = 0;
+            while (i < args.size()) {
+                DatasetInfo ds;
+                ds.type = "line";
+                if (i + 1 < args.size() && isData(args[i]) && isData(args[i + 1])) {
+                    ds.xJson = vecToJson(args[i]);
+                    ds.yJson = vecToJson(args[i + 1]);
+                    i += 2;
+                } else if (isData(args[i])) {
+                    ds.xJson = makeIndexJson(args[i].numel());
+                    ds.yJson = vecToJson(args[i]);
+                    i += 1;
+                } else {
+                    break;   // leading non-data arg — nothing plottable
+                }
+                if (i < args.size() && isSpec(args[i])) {
+                    ds.style = args[i].toString();
+                    ++i;
+                }
+                while (i + 1 < args.size() && args[i].isChar()
+                       && !isSpec(args[i])) {
+                    std::string key = args[i].toString();
+                    for (auto &c : key)
+                        c = (char)std::tolower((unsigned char)c);
+                    if (key == "linewidth")
+                        ds.lineWidth = args[i + 1].toScalar();
+                    else if (key == "markersize")
+                        ds.markerSize = args[i + 1].toScalar();
+                    i += 2;   // unknown names consumed silently (lenient)
+                }
+                fm.pushDataset(std::move(ds));
+            }
             fm.emitModified();
             outs[0] = Value();
         });
@@ -68,20 +114,51 @@ void buildLinePlots(std::vector<PlotEntry> &table)
         }
         auto &fm = gc.fm;
         fm.prepareForPlot();
-        DatasetInfo ds;
-        ds.type = typeName;
-        ds.xJson = vecToJson(args[0]);
-        ds.yJson = vecToJson(args[1]);
-        ds.zJson = vecToJson(args[2]);   // 1-D vector here, distinct from
-                                          // imagesc's 2-D zJson — adapter
-                                          // disambiguates by `type`.
-        size_t nvStart = 3;
-        if (args.size() >= 4 && args[3].isChar()) {
-            ds.style = args[3].toString();
-            nvStart = 4;
+        // MATLAB multi-series grammar (triples): (X, Y, Z [, LineSpec]
+        // [, N/V…])* — same spec/N/V discriminator as plot().
+        auto isSpec = [](const Value &v) {
+            if (!v.isChar()) return false;
+            static const std::string alpha = "-:.o+*xsd^v<>phrgbcymw";
+            std::string s = v.toString();
+            if (s.empty()) return false;
+            for (char c : s)
+                if (alpha.find(c) == std::string::npos) return false;
+            return true;
+        };
+        auto isData = [](const Value &v) {
+            return v.isNumeric() || v.isLogical();
+        };
+        size_t i = 0;
+        while (i + 2 < args.size()) {
+            if (!(isData(args[i]) && isData(args[i + 1])
+                  && isData(args[i + 2])))
+                break;
+            DatasetInfo ds;
+            ds.type = typeName;
+            ds.xJson = vecToJson(args[i]);
+            ds.yJson = vecToJson(args[i + 1]);
+            ds.zJson = vecToJson(args[i + 2]);   // 1-D vector here, distinct
+                                                  // from imagesc's 2-D zJson —
+                                                  // adapter disambiguates by
+                                                  // `type`.
+            i += 3;
+            if (i < args.size() && isSpec(args[i])) {
+                ds.style = args[i].toString();
+                ++i;
+            }
+            while (i + 1 < args.size() && args[i].isChar()
+                   && !isSpec(args[i])) {
+                std::string key = args[i].toString();
+                for (auto &c : key)
+                    c = (char)std::tolower((unsigned char)c);
+                if (key == "linewidth")
+                    ds.lineWidth = args[i + 1].toScalar();
+                else if (key == "markersize")
+                    ds.markerSize = args[i + 1].toScalar();
+                i += 2;
+            }
+            fm.pushDataset(std::move(ds));
         }
-        parsePlotArgs(args, nvStart, ds);
-        fm.pushDataset(std::move(ds));
         fm.emitModified();
         outs[0] = Value();
     };

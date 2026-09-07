@@ -5,6 +5,7 @@
 
 #include "plot_internal.hpp"
 #include <numkit/graphics/graphics_context.hpp>
+#include <numkit/graphics/graphics_handle.hpp>
 
 #include <algorithm>
 #include <array>
@@ -39,19 +40,30 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
 
     regCore("layout", "figure",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+            (void)nargout;
             auto *mr = gc.mr;
             auto &fm = gc.fm;
             int id;
             if (args.empty()) {
                 id = fm.newFigure();
+            } else if (const int hid = graphicsHandleIdOf(args[0]); hid >= 0) {
+                // figure(f) with a Figure handle — make its figure current.
+                auto *rec = fm.findHandle(hid);
+                if (!rec || rec->type != "figure")
+                    throw std::runtime_error(
+                        "figure: value must be a Figure handle or a number");
+                id = rec->figureId;
+                fm.setFigure(id);
             } else {
                 id = static_cast<int>(args[0].toScalar());
                 fm.setFigure(id);
             }
             fm.current().modified = true;
             fm.emitModified();
-            if (nargout > 0)
-                outs[0] = Value::scalar(static_cast<double>(id), mr);
+            // The bundle adapter wraps this id into a matlab.ui.Figure
+            // handle object (kHandleReturning wrap). Always emit the id —
+            // MATLAB binds a bare `figure` statement's Figure into `ans`.
+            outs[0] = Value::scalar(static_cast<double>(id), mr);
         });
     regCore("layout", "close",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
@@ -60,6 +72,14 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
                 fm.closeCurrentNotify();
             } else if (args[0].isChar() && args[0].toString() == "all") {
                 fm.closeAllNotify();
+            } else if (const int hid = graphicsHandleIdOf(args[0]); hid >= 0) {
+                // close(f) with a handle — close that figure. A deleted /
+                // non-figure handle errors (MATLAB: "Invalid object handle").
+                auto *rec = fm.findHandle(hid);
+                if (!rec)
+                    throw std::runtime_error("Invalid or deleted object.");
+                if (rec->type == "figure")
+                    fm.closeFigureNotify(rec->figureId);
             } else {
                 int id = static_cast<int>(args[0].toScalar());
                 fm.closeFigureNotify(id);
@@ -70,6 +90,11 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
         [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             auto &fm = gc.fm;
             auto &fig = fm.current();
+            // Everything drawn in this figure dies — stale handles must
+            // read as deleted (MATLAB semantics over a cleared figure).
+            // The Figure itself survives clf.
+            fm.invalidateHandles(fig.id, -1,
+                                 /*axes records*/ true, /*figure record*/ false);
             fig.axes.clear();
             fig.axes.push_back(AxesState{});
             fig.currentAxes = 0;
@@ -872,9 +897,27 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
             fm.emitModified();
             outs[0] = Value();
         });
-    reg("layout", "axes", noop_ret1);
-    reg("layout", "gca", noop_ret1);
-    reg("layout", "gcf", noop_ret1);
+    // gca / gcf / axes — ensure the target exists; the bundle adapter
+    // wraps the result into an axes/figure handle object
+    // (matlab.graphics.axis.Axes / matlab.ui.Figure).
+    reg("layout", "axes",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+            // MATLAB axes(...) with no output makes the (new) axes
+            // current. numkit has one axes per non-subplot figure, so
+            // this reduces to ensuring it exists (Position etc. no-op).
+            gc.fm.currentAxes();
+            outs[0] = Value();
+        });
+    reg("layout", "gca",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+            gc.fm.currentAxes();   // create-on-demand, like MATLAB
+            outs[0] = Value();
+        });
+    reg("layout", "gcf",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+            gc.fm.current();       // create-on-demand, like MATLAB
+            outs[0] = Value();
+        });
     // cla([reset]) — clear the current axes' datasets. With 'reset'
     // also clears the per-axis config (title, xlabel, etc.). MATLAB's
     // 'reset' is opt-in; default cla preserves axes properties.

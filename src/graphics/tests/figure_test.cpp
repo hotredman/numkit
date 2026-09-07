@@ -1772,10 +1772,11 @@ TEST_F(FigureEngineTest, LegendCellAndNameValue)
     EXPECT_NO_THROW(eval("legend(names, 'Location', 'bestoutside');"));
 }
 
-// --- bugs/opened/graphics/plot-family-no-return-value.md ---
+// --- bugs/closed/graphics/plot-family-no-return-value.md ---
 // h = plot(...) must bind a usable handle (exist != 0) and set(h(1), ...)
-// must not die with "undefined function 'h'".
-TEST_F(FigureEngineTest, DISABLED_PlotFamilyBindsReturnHandle)
+// must not die with "undefined function 'h'". FIXED in portion 28/29
+// (handle binding + accessor layer).
+TEST_F(FigureEngineTest, PlotFamilyBindsReturnHandle)
 {
     eval("n = 0:5; h = stem(n, sin(n), 'filled', 'b');");
     EXPECT_NE(evalScalar("exist('h')"), 0.0);

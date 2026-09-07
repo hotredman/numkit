@@ -2,6 +2,7 @@
 /// @ingroup group_graphics
 #pragma once
 
+#include <cstdio>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -105,6 +106,9 @@ struct DatasetInfo
     std::string style;     // MATLAB style hint, e.g. "r--o", "b:", "g-."
     double lineWidth = 0;  // 0 = default
     double markerSize = 0; // 0 = default
+    // set(h,'Visible','off') — emitted as "visible":false only when off
+    // (absence = visible, so the wire format stays back-compatible).
+    bool visible = true;
 
     // yyaxis side. Empty = left (default). When the user calls
     // yyaxis('right') and then plots, FigureManager::pushDataset stamps
@@ -424,32 +428,44 @@ public:
 
     // ── Graphics handle registry (bugs/closed/graphics/plot-family-no-
     // return-value.md) ────────────────────────────────────────────────
-    // Plot-family builtins create a handle record for each dataset they
-    // push; the returned handle object references it by id. set/get/
-    // delete/isgraphics consult this registry. Properties are the
-    // user-set values (defaults resolved by the accessor layer).
+    // Chart builtins create a handle record for each dataset they push;
+    // gca/gcf/figure create records for axes/figures. The returned handle
+    // object references it by id. set/get/delete/isgraphics consult this
+    // registry. Properties are the user-set values (defaults resolved by
+    // the accessor layer).
     struct HandleRecord
     {
-        std::string type;       // "line", "stem", "bar", …
+        std::string type;       // "line", "stem", … | "axes" | "figure"
         std::string className;  // "matlab.graphics.chart.primitive.Line"
         int figureId = 0;
-        size_t datasetIndex = 0;
+        size_t axesIndex = 0;
+        // Chart records: index into axes[axesIndex].datasets.
+        // kNoDataset for figure records (axes records carry kNoDataset
+        // too — they address the axes itself, not a dataset).
+        static constexpr size_t kNoDataset = static_cast<size_t>(-1);
+        size_t datasetIndex = kNoDataset;
         // Property name → JSON-encoded value. The figure layer stays
         // core-free (no Value); the adapter (which has Value access)
         // encodes/decodes.
         std::map<std::string, std::string> props;
         bool deleted = false;
+
+        bool isChart() const { return datasetIndex != kNoDataset; }
     };
 
-    int createHandle(std::string type, std::string className)
+    // Create a chart-record for the dataset just pushed at `datasetIndex`
+    // of the current axes, or an axes/figure record (kNoDataset).
+    int createHandle(std::string type, std::string className,
+                     size_t datasetIndex = HandleRecord::kNoDataset)
     {
         const int id = nextHandleId_++;
         HandleRecord rec;
         rec.type = std::move(type);
         rec.className = std::move(className);
         rec.figureId = currentFigure_;
-        auto &ax = currentAxes();
-        rec.datasetIndex = ax.datasets.empty() ? 0 : ax.datasets.size() - 1;
+        rec.datasetIndex = datasetIndex;
+        auto &fig = current();
+        rec.axesIndex = static_cast<size_t>(fig.currentAxes);
         handleRegistry_[id] = std::move(rec);
         return id;
     }
@@ -468,24 +484,102 @@ public:
         if (it == handleRegistry_.end() || it->second.deleted)
             return;
         it->second.deleted = true;
-        // Remove the dataset from its axes so the payload no longer
-        // carries it.
+        if (!it->second.isChart())
+            return;
+        // Remove the dataset from its axes so the render no longer
+        // carries it; reindex the surviving chart handles of that axes
+        // (their dataset slots shift down by one).
+        DatasetInfo *ds = datasetOf(it->second);
+        if (!ds)
+            return;
         auto fit = figures_.find(it->second.figureId);
-        if (fit != figures_.end()) {
-            for (auto &ax : fit->second.axes) {
-                if (it->second.datasetIndex < ax.datasets.size()) {
-                    ax.datasets.erase(ax.datasets.begin()
-                                      + it->second.datasetIndex);
-                    fit->second.modified = true;
-                    // Reindex the surviving handles of this figure.
-                    for (auto &[hid, rec] : handleRegistry_) {
-                        if (!rec.deleted && rec.figureId == it->second.figureId
-                            && rec.datasetIndex > it->second.datasetIndex)
-                            --rec.datasetIndex;
-                    }
-                    break;
-                }
-            }
+        auto &ax = fit->second.axes[it->second.axesIndex];
+        ax.datasets.erase(ax.datasets.begin() + it->second.datasetIndex);
+        fit->second.modified = true;
+        for (auto &[hid, rec] : handleRegistry_) {
+            if (!rec.deleted && rec.figureId == it->second.figureId
+                && rec.axesIndex == it->second.axesIndex
+                && rec.datasetIndex > it->second.datasetIndex)
+                --rec.datasetIndex;
+        }
+    }
+
+    // Remove one axes from a figure (delete(axesHandle)). Reindexes the
+    // surviving records' axesIndex; marks the figure modified.
+    void removeAxes(int figureId, size_t axesIndex)
+    {
+        auto fit = figures_.find(figureId);
+        if (fit == figures_.end() || axesIndex >= fit->second.axes.size())
+            return;
+        for (auto &[hid, rec] : handleRegistry_)
+            if (!rec.deleted && rec.figureId == figureId
+                && rec.axesIndex == axesIndex)
+                rec.deleted = true;
+        fit->second.axes.erase(fit->second.axes.begin() + axesIndex);
+        if (fit->second.currentAxes >= (int)axesIndex
+            && fit->second.currentAxes > 0)
+            --fit->second.currentAxes;
+        for (auto &[hid, rec] : handleRegistry_) {
+            if (!rec.deleted && rec.figureId == figureId
+                && rec.axesIndex > axesIndex)
+                --rec.axesIndex;
+        }
+        fit->second.modified = true;
+    }
+
+    // Live dataset behind a chart record (nullptr when the axes or the
+    // dataset slot is gone — e.g. after prepareForPlot/closing).
+    DatasetInfo *datasetOf(const HandleRecord &rec)
+    {
+        if (!rec.isChart())
+            return nullptr;
+        auto fit = figures_.find(rec.figureId);
+        if (fit == figures_.end() || rec.axesIndex >= fit->second.axes.size())
+            return nullptr;
+        auto &ax = fit->second.axes[rec.axesIndex];
+        if (rec.datasetIndex >= ax.datasets.size())
+            return nullptr;
+        return &ax.datasets[rec.datasetIndex];
+    }
+
+    AxesState *axesOf(const HandleRecord &rec)
+    {
+        auto fit = figures_.find(rec.figureId);
+        if (fit == figures_.end() || rec.axesIndex >= fit->second.axes.size())
+            return nullptr;
+        return &fit->second.axes[rec.axesIndex];
+    }
+
+    void markFigureModified(int figureId)
+    {
+        auto fit = figures_.find(figureId);
+        if (fit != figures_.end())
+            fit->second.modified = true;
+    }
+
+    // Invalidate handle records whose backing state died wholesale.
+    //   close(fig)          → the whole tree: charts + axes + the figure
+    //                          record itself        (axesIdx=-1, T, T)
+    //   clf                 → charts + axes records, figure survives
+    //                                               (axesIdx=-1, T, F)
+    //   prepareForPlot      → ONLY the charts of one axes — the axes
+    //                          record survives the content reset
+    //                                               (axesIdx=k,  F, F)
+    // Stale handles then read as deleted, exactly like MATLAB handles
+    // over a cleared axes.
+    void invalidateHandles(int figureId, int axesIdx,
+                           bool includeAxesRecord, bool includeFigureRecord)
+    {
+        for (auto &[hid, rec] : handleRegistry_) {
+            if (rec.figureId != figureId || rec.deleted)
+                continue;
+            if (axesIdx >= 0 && rec.axesIndex != (size_t)axesIdx)
+                continue;
+            if (!includeFigureRecord && rec.type == "figure")
+                continue;
+            if (!includeAxesRecord && rec.type == "axes")
+                continue;
+            rec.deleted = true;
         }
     }
 
@@ -615,8 +709,17 @@ public:
 
     void prepareForPlot()
     {
-        auto &ax = currentAxes();
+        auto &fig = current();
+        auto &ax = fig.cur();
         if (!ax.holdOn) {
+            // The previous charts die with the fresh axes — their handles
+            // go stale (MATLAB: hold off + plot invalidates old Lines).
+            // The axes itself (and the figure) survive the content reset.
+            invalidateHandles(fig.id, fig.currentAxes,
+                              /*axes records*/ false, /*figure record*/ false);
+            // The datasets this axes held are about to be wiped, so the
+            // chart-call handle base restarts at 0 (see beginChartCall).
+            chartCallBase_ = 0;
             // Preserve fields that "survive a fresh plot" — subplot position
             // and colorScale (the latter so `colorscale('log'); imagesc(M)`
             // bakes log into the new dataset's quantization).
@@ -626,8 +729,17 @@ public:
             ax.subplotIndex = savedSubplot;
             ax.colorScale = savedColorScale;
         }
-        current().modified = true;
+        fig.modified = true;
     }
+
+    // ── Chart-call handle base ─────────────────────────────────────
+    // The adapter (graphics_library.cpp) snapshots the current axes'
+    // dataset count before running a chart builtin's body; prepareForPlot
+    // resets it to 0 when it wipes the axes. The post-hook then binds
+    // handles for datasets [base, after) — exactly the ones THIS call
+    // pushed, whether or not a wipe intervened.
+    void beginChartCall() { chartCallBase_ = currentAxes().datasets.size(); }
+    size_t chartCallBase() const { return chartCallBase_; }
 
     /** Emit JSON for all modified figures */
     void emitModified()
@@ -676,6 +788,8 @@ public:
                         os << ",\"lineWidth\":" << ds.lineWidth;
                     if (ds.markerSize > 0)
                         os << ",\"markerSize\":" << ds.markerSize;
+                    if (!ds.visible)
+                        os << ",\"visible\":false";
                     // Per-point size / colour columns — used by
                     // polarbubblechart and (future) bubblechart on
                     // cartesian axes. Emitted as `size` / `pointColor`
@@ -852,6 +966,7 @@ public:
 
     void closeFigure(int id)
     {
+        invalidateHandles(id, -1, /*axes records*/ true, /*figure record*/ true);
         figures_.erase(id);
         if (currentFigure_ == id) {
             if (!figures_.empty())
@@ -881,6 +996,8 @@ public:
 
     void closeAll()
     {
+        for (auto &[hid, rec] : handleRegistry_)
+            rec.deleted = true;
         figures_.clear();
         currentFigure_ = 1;
     }
@@ -1198,6 +1315,7 @@ private:
     OutputFunc outputFunc_;
     int nextHandleId_ = 1;
     std::unordered_map<int, HandleRecord> handleRegistry_;
+    size_t chartCallBase_ = 0;
 };
 
 

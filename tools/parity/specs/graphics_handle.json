@@ -1,0 +1,20 @@
+{
+  "name": "graphics_handle",
+  "namespace": "graphics",
+  "setup": "x = 1:5;",
+  "expr": "h = plot(x, x.^2); lw0 = get(h, 'LineWidth'); ms = get(h, 'MarkerSize'); set(h, 'LineWidth', 2); lw1 = get(h, 'LineWidth'); set(h, 'LineStyle', '--'); ls = double(strcmp(get(h, 'LineStyle'), '--')); set(h, 'YData', [10 20 30 40 50]); y3 = get(h, 'YData'); y3v = y3(3); ok = isgraphics(h); ih = ishandle(h); ig = double(isa(h, 'handle')); dn = double(strcmp(get(h, 'DisplayName'), '')); close all;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "lw0",
+    "ms",
+    "lw1",
+    "ls",
+    "y3v",
+    "ok",
+    "ih",
+    "ig",
+    "dn"
+  ],
+  "comment": "plot-family handle introspection vs MATLAB R2025b: documented defaults (LineWidth 0.5, MarkerSize 6, empty DisplayName), set/get round-trips, YData replacement, isgraphics/ishandle/isa(h,'handle'). class(h) differs by design (numkit reports the same matlab.graphics.* names but the fingerprint stays numeric). Multi-series form plot(x,y,x2,y2) is guarded in TW_VM/GraphicsHandleTest.MultiSeriesPlotReturnsHandleArray. Deferred: title/legend return handles, ZData on surface (bugs/opened/graphics/handle-surface-gaps.md)."
+}

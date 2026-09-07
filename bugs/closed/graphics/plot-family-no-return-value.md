@@ -1,6 +1,9 @@
 # graphics.plot-family — `h = plot(...)` binds NOTHING: graphics builtins return no value; first use dies with a misleading "undefined function"
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (portion 28 handle binding, portion 29 full accessor
+  layer: set/get/isgraphics/ishandle/isvalid, unified delete, MATLAB-exact
+  class(), dot-syntax via BuiltinClass, gca/gcf/figure handles; commit
+  backfilled below)
 - **Severity:** P2 (works in MATLAB, refused in numkit; handle-using plotting
   code is the textbook norm — `h = stem(...); set(h(1), 'MarkerSize', 3)`)
 - **Kind:** bug
@@ -44,5 +47,7 @@ path — exact set() option coverage is separate.
 
 ## References
 
-- **Guard:** `DISABLED_PlotFamilyBindsReturnHandle` in
-  `src/graphics/tests/figure_test.cpp`.
+- **Guard:** `PlotFamilyBindsReturnHandle` (enabled) in
+  `src/graphics/tests/figure_test.cpp`; full behaviour covered by the
+  dual-engine `TW_VM/GraphicsHandleTest.*` suite in
+  `src/graphics/tests/graphics_handle_test.cpp`.
