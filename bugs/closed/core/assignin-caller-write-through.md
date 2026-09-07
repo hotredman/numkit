@@ -1,6 +1,6 @@
 # core.assignin — `assignin('caller', …)` names not visible to the caller's compiled frame
 
-- **Status:** ✅ FIXED (HASH, 2026-09-07)
+- **Status:** ✅ FIXED (8fee45c65, 2026-09-07)
 - **Severity:** P1 wrong result
 - **Found:** 2026-08-29 via npm CLI corpus run (examples/ through packages/numkit, WASM engine); reproduces identically on the native `numkit_repl` CLI, so it is engine-level, not WASM/packaging.
 
