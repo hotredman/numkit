@@ -1,6 +1,6 @@
 # lang.vm — dotted rvalue on a call result (`gcf.Number`) miscompiles to a dotted FUNCTION name in the VM; TreeWalker evaluates it correctly
 
-- **Status:** ✅ FIXED (portion 30, commit backfilled below)
+- **Status:** ✅ FIXED (portion 30, commit 8902bde37)
 - **Severity:** P3 (MATLAB-legal field access on a function's return value;
   workaround: assign to a temp variable first)
 - **Kind:** bug
