@@ -1,6 +1,6 @@
 # graphics.plot — `plot(x,y,x2,y2)` silently DROPS every series after the first
 
-- **Status:** ✅ FIXED (portion 29; commit hash backfilled below)
+- **Status:** ✅ FIXED (portion 29; commit 9d2df9116)
 - **Severity:** P1 (textbook multi-series form renders one line, no error)
 - **Kind:** bug
 - **Found:** 2026-09-07 during portion 29 (graphics-handle work) —
