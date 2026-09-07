@@ -85,34 +85,22 @@ TEST_P(CompilerRegisterOverflowTest, ManyStatementsInsideTryBlock)
 
 // ── C: forced overflow — a *single* expression with so many distinct
 //    sub-expressions that even with statement-boundary release we hit
-//    the 256-slot wall mid-statement. The bytecode compiler must
-//    surface a clear "register exhaustion" error rather than silently
-//    corrupt state. The TreeWalker has no per-chunk register file, so
-//    it just evaluates the sum.
+//    the 256-slot wall mid-statement. Since the register-exhaustion
+//    fix (bugs/closed/core/register-exhaustion-no-fallback) the VM
+//    path no longer throws: Engine::runOneChunk catches
+//    RegisterExhaustionError and dispatches to the TreeWalker — the
+//    documented dual-engine contract. Both backends now evaluate the
+//    chain identically.
 TEST_P(CompilerRegisterOverflowTest, OverflowInSingleExpression)
 {
     // Build `s = 1 + 2 + 3 + ... + 1000;` — 1000 distinct literals.
-    // compileBlock has only ONE statement here so no statement-
-    // boundary release can save us; the VM compiler must throw.
     std::string body = "s = 1";
     for (int i = 2; i <= 1000; ++i)
         body += " + " + std::to_string(i);
     body += ";";
 
-    if (GetParam() == BackendParam::VM) {
-        try {
-            eval(body);
-            FAIL() << "expected register-exhaustion compile error, got success";
-        } catch (const std::exception &e) {
-            const std::string msg = e.what();
-            EXPECT_NE(msg.find("register"), std::string::npos)
-                << "expected 'register' in error, got: " << msg;
-        }
-    } else {
-        // TreeWalker: no register-allocation, just evaluate.
-        EXPECT_NO_THROW(eval(body));
-        EXPECT_EQ(evalScalar("s"), 500500.0);
-    }
+    EXPECT_NO_THROW(eval(body));
+    EXPECT_EQ(evalScalar("s"), 500500.0);
 }
 
 // ── D: end-to-end contract test — a variable assigned via the

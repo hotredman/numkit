@@ -1543,7 +1543,7 @@ TEST_F(VMTest, StressComplexArithmetic)
 // does — via register reuse or the TreeWalker fallback — not surface
 // "Compiler: register exhaustion" to the user.
 
-TEST_F(VMTest, DISABLED_RegisterExhaustionMatrixLiteralFallsBack)
+TEST_F(VMTest, RegisterExhaustionMatrixLiteralFallsBack)
 {
     std::string literal;
     for (int i = 0; i < 253; ++i) {
@@ -1551,4 +1551,89 @@ TEST_F(VMTest, DISABLED_RegisterExhaustionMatrixLiteralFallsBack)
         literal += "1";
     }
     EXPECT_DOUBLE_EQ(runScalar("y = [" + literal + "]; numel(y)"), 253.0);
+}
+// bugs/closed/core/register-exhaustion-no-fallback (FIXED; live guards)
+// — every shape that previously exhausted the 255-register VM limit
+// now compiles or falls back to the TreeWalker. Values MATLAB-probed.
+TEST_F(VMTest, RegisterExhaustionAllShapesCompile)
+{
+    auto evalS = [&](const std::string &code) {
+        return engine.eval(code).toScalar();
+    };
+    // Same-literal row, 300 elements (accumulator path, >16 threshold).
+    std::string same;
+    for (int i = 0; i < 300; ++i) {
+        if (i) same += " ";
+        same += "1";
+    }
+    EXPECT_DOUBLE_EQ(evalS("y = [" + same + "]; numel(y)"), 300.0);
+
+    // Distinct-literal row, 300 elements (constRegCache_ released at
+    // the mark between appends — the constRegCache_ leak).
+    std::string dist;
+    for (int i = 0; i < 300; ++i) {
+        if (i) dist += " ";
+        dist += std::to_string(i % 10);
+    }
+    EXPECT_DOUBLE_EQ(evalS("y = [" + dist + "]; numel(y)"), 300.0);
+    EXPECT_DOUBLE_EQ(evalS("y(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalS("y(300)"), 9.0);
+
+    // Column literal, 300 rows (VERTCAT_APPEND accumulator).
+    std::string col;
+    for (int i = 0; i < 300; ++i) {
+        if (i) col += ";";
+        col += std::to_string(i);
+    }
+    EXPECT_DOUBLE_EQ(evalS("y = [" + col + "]; numel(y)"), 300.0);
+    EXPECT_DOUBLE_EQ(evalS("size(y, 2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalS("y(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalS("y(300)"), 299.0);
+
+    // Arithmetic chain, 300 operands — TreeWalker fallback at top level.
+    std::string chain;
+    for (int i = 0; i < 300; ++i) {
+        if (i) chain += "+";
+        chain += "1";
+    }
+    engine.eval("clear;");
+    engine.eval("y = " + chain + ";");
+    EXPECT_DOUBLE_EQ(engine.eval("y;").toScalar(), 300.0);
+
+    // Function body with a big literal — accumulator handles it
+    // in-function.
+    engine.eval("clear;");
+    engine.eval("function r = biglit(); y = [" + same + "]; r = numel(y); end");
+    engine.eval("q = biglit();");
+    EXPECT_DOUBLE_EQ(engine.eval("q;").toScalar(), 300.0);
+}
+
+// Small literals still use the block+HORZCAT fast path — semantics
+// identical across the threshold.
+TEST_F(VMTest, LiteralThresholdSemanticsIdentical)
+{
+    auto evalS = [&](const std::string &code) {
+        return engine.eval(code).toScalar();
+    };
+    std::string a16, a17;
+    for (int i = 1; i <= 16; ++i) { if (i > 1) a16 += " "; a16 += std::to_string(i); }
+    for (int i = 1; i <= 17; ++i) { if (i > 1) a17 += " "; a17 += std::to_string(i); }
+    EXPECT_DOUBLE_EQ(evalS("a = [" + a16 + "]; sum(a)"), 136.0);
+    EXPECT_DOUBLE_EQ(evalS("b = [" + a17 + "]; sum(b)"), 153.0);
+    // Column and 2D shapes.
+    EXPECT_DOUBLE_EQ(evalS("c = [1;2;3]; c(3)"), 3.0);
+    EXPECT_DOUBLE_EQ(evalS("d = [1 2 3; 4 5 6]; d(2,3)"), 6.0);
+    EXPECT_DOUBLE_EQ(evalS("size(d,1)"), 2.0);
+    // Matrix with many rows and many columns (both accumulators).
+    std::string rows;
+    for (int r = 0; r < 20; ++r) {
+        if (r) rows += "; ";
+        for (int c = 0; c < 20; ++c) {
+            if (c) rows += " ";
+            rows += std::to_string(r * 20 + c + 1);
+        }
+    }
+    EXPECT_DOUBLE_EQ(evalS("e = [" + rows + "]; numel(e)"), 400.0);
+    EXPECT_DOUBLE_EQ(evalS("e(20,20)"), 400.0);
+    EXPECT_DOUBLE_EQ(evalS("e(1,1)"), 1.0);
 }

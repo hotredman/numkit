@@ -2607,7 +2607,30 @@ Value Engine::runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string>
     clearAllCalled_ = false;
     vm_->clearLastVarMap();
 
-    auto chunk = compiler_->compile(ast, src);
+    auto chunk = [&]() {
+        try {
+            return compiler_->compile(ast, src);
+        } catch (const RegisterExhaustionError &) {
+            // The documented dual-engine contract: a chunk that cannot
+            // fit the 255-register VM limit executes on the TreeWalker
+            // instead of dying with an internal compiler error
+            // (bugs/closed/core/register-exhaustion-no-fallback).
+            // Under an attached debug observer we RE-THROW — silently
+            // switching to the TW would disable breakpoints/stepping
+            // for this code without any signal.
+            if (debugObserver_)
+                throw;
+            if (!treeWalker_)
+                throw;
+            return BytecodeChunk();
+        }
+    }();
+    if (chunk.code.empty() && chunk.varMap.empty() && chunk.numRegisters == 0
+        && chunk.constants.empty() && chunk.strings.empty()) {
+        // Fallback path: run the AST on the TreeWalker against the
+        // workspace, mirroring the TW branch of Engine::eval.
+        return treeWalker_->execute(ast, workspaceEnv_.get());
+    }
     vm_->setCompiledFuncs(&compiler_->compiledFuncs(),
                           &compiler_->scriptLocalCompiledFuncs());
 

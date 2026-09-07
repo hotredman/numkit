@@ -199,6 +199,12 @@ enum class OpCode : uint8_t {
     // value, so [a, c{idx}, b] flattens for any subscript. See csl_first_class.md.
     HORZCAT_APPEND_FLATTEN, // a=dst, b=elem
     VERTCAT,      // dst, base, count       R[dst] = [R[base]; ...; R[base+count-1]]
+    // dst = [dst; val] — the vertical twin of HORZCAT_APPEND: scalar
+    // fast path grows a {n,1} column in place (appendScalarCol);
+    // anything else falls back to the generic two-element vertcat.
+    // The accumulator operand of large column literals
+    // (bugs/closed/core/register-exhaustion-no-fallback).
+    VERTCAT_APPEND, // a=dst, b=val
     MATRIX_BUILD, // [reserved] compiler uses HORZCAT/VERTCAT instead
     CELL_LITERAL, // dst, base, count       {R[base]..R[base+count-1]}
 

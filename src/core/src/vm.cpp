@@ -933,6 +933,24 @@ enter_frame:
             case OpCode::VERTCAT:
                 R[I.a] = Value::vertcat(&R[I.b], I.c, engine_.mr_);
                 break;
+            case OpCode::VERTCAT_APPEND: {
+                // dst = [dst; val] — vertical twin of HORZCAT_APPEND:
+                // appendScalarCol fast path when dst is an (or empty)
+                // uniquely-owned column and val a real scalar; generic
+                // two-element vertcat otherwise.
+                Value &dst = R[I.a];
+                const Value &val = R[I.b];
+                if (val.isScalar() && !val.isComplex()
+                    && dst.heapRefCount() == 1
+                    && (dst.isEmpty()
+                        || (dst.isHeapDouble() && dst.dims().cols() == 1))) {
+                    dst.appendScalarCol(val.toScalar(), engine_.mr_);
+                    break;
+                }
+                Value elems[2] = { dst, val };
+                R[I.a] = Value::vertcat(elems, 2, engine_.mr_);
+                break;
+            }
             case OpCode::HORZCAT_APPEND_CSL: {
                 // a = dst (in/out), b = struct array source, d = nameIdx.
                 // Expand `[dst, src(0).f, ..., src(N-1).f]` in one
@@ -3164,6 +3182,7 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::HORZCAT:
     case OpCode::HORZCAT_APPEND:
     case OpCode::VERTCAT:
+    case OpCode::VERTCAT_APPEND:
         return "in matrix construction";
     case OpCode::CELL_LITERAL:
         return "in cell construction";

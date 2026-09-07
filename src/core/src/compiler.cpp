@@ -1996,14 +1996,15 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
                 && (elem->children.size() == 2 || elem->children.size() == 3));
     };
 
-    // Compile each row into a single register
-    std::vector<uint8_t> rowRegs;
-    for (auto &row : node->children) {
+    // Row compiler: compiles one row (a semicolon-separated line of the
+    // literal) into a single register. Shared by the vertical
+    // strategies below so both produce identical row semantics.
+    constexpr size_t kLiteralBlockMax = 16;
+    auto compileRow = [&](const ASTNode *row) -> uint8_t {
         if (row->children.empty()) {
             uint8_t dst = tempReg();
             emitA(OpCode::LOAD_EMPTY, dst);
-            rowRegs.push_back(dst);
-            continue;
+            return dst;
         }
 
         // Single-element row: skip the HORZCAT path entirely UNLESS the
@@ -2011,8 +2012,7 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
         // multiple values at runtime, so it has to go through the
         // append-CSL builder even though the AST has only one child.
         if (row->children.size() == 1 && !isCslCandidate(row->children[0].get())) {
-            rowRegs.push_back(compileNode(row->children[0].get()));
-            continue;
+            return compileNode(row->children[0].get());
         }
 
         bool hasCsl = false;
@@ -2045,8 +2045,42 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
                     emitAB(OpCode::HORZCAT_APPEND, dst, valReg);
                 }
             }
-            rowRegs.push_back(dst);
-            continue;
+            return dst;
+        }
+
+        // Multi-element row. Two compilation strategies:
+        //
+        // SMALL rows (≤ kLiteralBlockMax): compile each element, move
+        // into a consecutive block, one HORZCAT — the single-opcode
+        // vectorized fast path.
+        //
+        // LARGE rows: the ACCUMULATOR — seed dst with LOAD_EMPTY, then
+        // HORZCAT_APPEND each element, releasing the element's temps
+        // back to a mark after each append (the compileBlock
+        // register-release pattern). Register usage is O(1) regardless
+        // of the element count, so a literal of ANY size compiles
+        // (bugs/closed/core/register-exhaustion-no-fallback — the
+        // block path burned one register per element and died at 252).
+        // Scalar appends hit the appendScalar fast path (amortised
+        // O(1)); matrix-valued elements go through the generic
+        // two-element horzcat (O(N²) total for exotic all-matrix
+        // literals — documented, rare).
+        if (row->children.size() > kLiteralBlockMax) {
+            uint8_t dst = tempReg();
+            emitA(OpCode::LOAD_EMPTY, dst);
+            const int mark = nextReg_;
+            for (auto &elem : row->children) {
+                uint8_t v = compileNode(elem.get());
+                emitAB(OpCode::HORZCAT_APPEND, dst, v);
+                if (nextReg_ > mark) {
+                    for (int r = mark; r < nextReg_; ++r)
+                        emitA(OpCode::CLEAR_VAR, static_cast<uint8_t>(r));
+                    nextReg_ = mark;
+                    constRegCache_.clear();
+                    scalarRegs_.reset();
+                }
+            }
+            return dst;
         }
 
         // Multi-element row: compile each, move into consecutive block, HORZCAT
@@ -2065,14 +2099,40 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
 
         uint8_t dst = tempReg();
         emitABC(OpCode::HORZCAT, dst, hBase, static_cast<uint8_t>(elemRegs.size()));
-        rowRegs.push_back(dst);
+        return dst;
+    };
+
+    const size_t rowCount = node->children.size();
+    if (rowCount == 1)
+        return compileRow(node->children[0].get());
+
+    // MANY rows: vertical accumulator with mark/reset per row — each
+    // row's temps are dead the moment VERTCAT_APPEND consumes them, so
+    // a 1000-row column literal `[1;2;3;…]` compiles in O(1)
+    // registers (the block path burned one per row).
+    if (rowCount > kLiteralBlockMax) {
+        uint8_t dst = tempReg();
+        emitA(OpCode::LOAD_EMPTY, dst);
+        const int mark = nextReg_;
+        for (auto &row : node->children) {
+            uint8_t rr = compileRow(row.get());
+            emitAB(OpCode::VERTCAT_APPEND, dst, rr);
+            if (nextReg_ > mark) {
+                for (int r = mark; r < nextReg_; ++r)
+                    emitA(OpCode::CLEAR_VAR, static_cast<uint8_t>(r));
+                nextReg_ = mark;
+                constRegCache_.clear();
+                scalarRegs_.reset();
+            }
+        }
+        return dst;
     }
 
-    if (rowRegs.size() == 1) {
-        return rowRegs[0];
-    }
+    // Few rows: compile each, move into consecutive block, VERTCAT
+    std::vector<uint8_t> rowRegs;
+    for (auto &row : node->children)
+        rowRegs.push_back(compileRow(row.get()));
 
-    // Multiple rows: move into consecutive block, VERTCAT
     uint8_t vBase = nextReg_;
     for (size_t i = 0; i < rowRegs.size(); ++i) {
         uint8_t slot = tempReg();

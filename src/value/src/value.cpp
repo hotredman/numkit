@@ -3492,6 +3492,71 @@ void Value::appendScalar(double v, std::pmr::memory_resource *mr)
     heap_->appendCapacity = nc;
 }
 
+void Value::appendScalarCol(double v, std::pmr::memory_resource *mr)
+{
+    // Column twin of appendScalar: same buffer/growth mechanics, but the
+    // dims stay {newN, 1} — a column vector grows DOWN, not right.
+    size_t oldN = numel(), newN = oldN + 1;
+
+    if (isEmpty()) {
+        size_t cap = 8;
+        auto *h = new HeapObject();
+        h->type = ValueType::DOUBLE;
+        h->dims = {newN, 1};
+        h->mr = mr;
+        h->buffer = new DataBuffer(cap * sizeof(double), mr);
+        h->appendCapacity = cap;
+        double *d = static_cast<double *>(h->buffer->data());
+        std::memset(d, 0, cap * sizeof(double));
+        d[0] = v;
+        heap_ = h;
+        return;
+    }
+    if (heap_ == nullptr) {
+        double old = scalar_;
+        size_t cap = std::max(size_t(8), newN * 2);
+        auto *h = new HeapObject();
+        h->type = ValueType::DOUBLE;
+        h->dims = {newN, 1};
+        h->mr = mr;
+        h->buffer = new DataBuffer(cap * sizeof(double), mr);
+        h->appendCapacity = cap;
+        double *d = static_cast<double *>(h->buffer->data());
+        std::memset(d, 0, cap * sizeof(double));
+        d[0] = old;
+        d[1] = v;
+        heap_ = h;
+        return;
+    }
+    if (!isHeap())
+        throw std::runtime_error("Cannot append");
+    detach();
+    if (!mr)
+        mr = heap_->mr;
+    size_t cap = heap_->appendCapacity;
+    if (!cap && heap_->buffer)
+        cap = heap_->buffer->bytes() / sizeof(double);
+    if (newN <= cap && heap_->buffer) {
+        static_cast<double *>(heap_->buffer->data())[oldN] = v;
+        heap_->dims = {newN, 1};
+        return;
+    }
+    size_t nc = std::max(newN, cap * 2);
+    if (nc < 8)
+        nc = 8;
+    auto *nb = new DataBuffer(nc * sizeof(double), mr);
+    double *d = static_cast<double *>(nb->data());
+    std::memset(d, 0, nc * sizeof(double));
+    if (oldN > 0 && heap_->buffer)
+        std::memcpy(d, heap_->buffer->data(), oldN * sizeof(double));
+    d[oldN] = v;
+    if (heap_->buffer && heap_->buffer->release())
+        heap_->buffer = nullptr;
+    heap_->buffer = nb;
+    heap_->appendCapacity = nc;
+    heap_->dims = {newN, 1};
+}
+
 Value &Value::cellAt(size_t i)
 {
     if (!isHeap() || !heap_->cellData)

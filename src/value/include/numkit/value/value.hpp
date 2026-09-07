@@ -474,6 +474,11 @@ public:
     void resizeND(const size_t *newDims, int nd, std::pmr::memory_resource *mr = nullptr);
     void ensureSize(size_t linearIdx, std::pmr::memory_resource *mr = nullptr);
     void appendScalar(double v, std::pmr::memory_resource *mr = nullptr);
+    // Column twin of appendScalar: grows a {n,1} column vector by one
+    // scalar in place (geometric capacity, amortised O(1)) — the
+    // VERTCAT_APPEND fast path for column literals `[1;2;3;…]`
+    // (bugs/closed/core/register-exhaustion-no-fallback).
+    void appendScalarCol(double v, std::pmr::memory_resource *mr = nullptr);
 
     // ── Promote double → complex ─────────────────────────────
     void promoteToComplex(std::pmr::memory_resource *mr = nullptr);
