@@ -1,6 +1,6 @@
 # apps.smokes — 11 smokes red on main (two residual classes after the complex-linalg split)
 
-- **Status:** ✅ FIXED (HASH, 2026-09-07)
+- **Status:** ✅ FIXED (9df044f20, 2026-09-07)
 - **Severity:** P2 (test-suite drift + one fixture-path class)
 - **Kind:** bug
 - **Found:** 2026-08-30 via the full 710-smoke sweep (699 pass; the complex-linalg cluster is filed separately as `opened/linalg/complex-linalg-regression.md`)
