@@ -38,11 +38,40 @@ happens to exercise:
 - **gtest**: one `TEST_F` per documented branch, extended to one per
   branch × input-type family wherever behavior differs (type
   promotion, empty handling, special values).
+- **Dual-engine**: any change that alters how CODE EXECUTES (compiler,
+  VM opcodes, TreeWalker paths, engine evaluation flow) gets coverage
+  on BOTH backends — a `TEST_P` fixture instantiated over
+  VM + TreeWalker. A VM-only test of an execution change is incomplete
+  coverage, even when it passes.
 - **Parity spec** (`tools/parity/specs/<fn>.json`) validating numeric
   behavior against MATLAB R2025b — expected values come from MATLAB
   probes, NEVER from your own reasoning ("trust the reference engine";
   three real bugs in cycles 65–75 had passed hand-written expectations).
 - **Smoke** printing MATLAB-expected values inline per branch.
+
+## Portion-close coverage gate (user rule, 2026-09-07)
+
+**The tests are written BEFORE the portion closes, by the author —
+completeness is not something the user should have to challenge.**
+A portion is NOT done when the code works; it is done when the code
+works AND its coverage is complete:
+
+1. Enumerate the diff: every new branch, form, and input-type family
+   the change introduces must have a named test in the same commit.
+2. Execution changes: dual-engine (above) in the same commit.
+3. A branch that cannot be covered through the public interface gets
+   an inline comment saying why (honest-uncoverable) and a line in the
+   commit message — never silence, never a fake test that doesn't
+   reach the branch.
+4. The "minimum targeted run" that gates the commit INCLUDES the new
+   tests. Coverage added only after a user challenge means the portion
+   was closed incomplete — flag it, don't normalize it.
+
+Origin: portion 23b shipped the command-glue rewrite with VM-only
+verification; the TreeWalker backend stayed broken
+(`x-1` → "Undefined function: x") until the user asked
+"все покрыл тестами?" — the missing dual test hid a live defect that
+the audit then had to fix retroactively (commit 51b122ec8).
 
 ## Honest deferral
 

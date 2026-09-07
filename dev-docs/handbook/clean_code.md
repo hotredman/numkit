@@ -48,3 +48,9 @@ Ask once per portion: *"Is there anything in this diff I would be
 uncomfortable defending line-by-line?"* — any workaround must be
 grep-referenced to a bug id; anything unexplained is a reason to redo
 it before committing, not after.
+
+And one more question: *"Is every new branch in this diff covered by a
+test in this same commit — dual-engine for execution changes?"*
+(full_fidelity.md's portion-close coverage gate; user rule 2026-09-07).
+Uncovered branches are the same class of debt as unexplained
+workarounds: found now, cheap; found by the user, expensive.
