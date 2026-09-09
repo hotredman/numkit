@@ -14,6 +14,20 @@
 
 ---
 
+## 🎯 Project Goal — Run the Books
+
+The compatibility target is concrete, not aspirational: **every companion script from the textbooks catalogued in [awesome-matlab-books](https://github.com/hotredman/awesome-matlab-books) must run unmodified** — the ~922,000 lines of MATLAB across 78 repositories spanning robotics, signal & audio processing, control systems, image processing, wireless/SDR, machine learning, numerical methods, and finance.
+
+How the goal drives development:
+
+- The catalog's empirical function-usage statistics (which built-ins real book code actually calls) prioritise toolbox coverage — the long tail is implemented demand-first, not alphabetically.
+- The `fieldtest/` harness runs each book's scripts against the engine and diffs results against MATLAB R2025b, turning "MATLAB-compatible" into a measured per-book pass rate.
+- Every divergence found this way is filed in the structured [bug catalog](bugs/README.md) with a self-contained repro and a regression guard, then fixed at the root — no silent gaps.
+
+Status so far: the *Signals and Systems* book's examples pass end-to-end (19/19 non-symbolic; the 2 symbolic-toolbox examples are out of scope by decision), and graphics handles (`h = plot(...)`, `set`/`get`, dot-syntax) now match MATLAB semantics for the plot family.
+
+---
+
 ## 🤖 Built for AI Agents & LLMs
 
 Modern AI coding agents (Claude, Cursor, Antigravity, AutoGen, LangChain) need to execute mathematics, DSP, and numerical analysis reliably. Running Python/Jupyter in Docker is heavy, slow to boot, and token-expensive. NumKit provides the ideal execution runtime for agent tool-calling loops:
@@ -157,6 +171,10 @@ For development servers, documentation generators, and deployment workflows, see
 - `ide/` — React + Vite IDE frontend and Electron desktop shell.
 - `wasm/` — Emscripten bindings and WASM build pipeline.
 - `examples/` — MATLAB-compatible demonstration scripts across all toolboxes.
+- `fieldtest/` — Book-corpus harness: fetches companion-code repos from the
+  [awesome-matlab-books](https://github.com/hotredman/awesome-matlab-books)
+  catalog, runs every script, and diffs against MATLAB (the corpus itself is
+  disposable and gitignored; see `fieldtest/README.md`).
 - `tests/` — Comprehensive C++ unit and integration test suite.
 - `tools/` — Parity testing harness, benchmarks, and validation utilities.
 - `bugs/` — Structured defect catalog and MATLAB parity tracking ([live catalog](https://hotredman.github.io/numkit-bugs/)).
