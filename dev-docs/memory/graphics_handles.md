@@ -126,3 +126,29 @@ fix extended into the CALL paths: compileCall's qualified branches
 (single+multi) fall through to CALL_METHOD (property-then-index) when
 nothing dotted is registered but the head is a plain callable; TW's
 execCall mirrors via execIndexAccess.
+
+
+## Portion 32 addendum — engine-side figure export (2026-09-11)
+
+saveas/exportgraphics/print now render FIGURES IN-ENGINE: a pixel-space
+display list built from FigureState (figrender in figure_render.hpp —
+STL-only, header-only like the rest of the figure layer) with two
+backends: SVG (text as <text>) and a raster RGB buffer (Bresenham +
+scanline fill + the classic public-domain 5x7 bitmap font). The bundle
+export_reg.cpp owns the MATLAB argument forms and encodes PNG via the
+image toolbox's imwriteToBytes.
+
+GOTCHA that cost an hour: Value is COLUMN-MAJOR — filling matrix3d(H,W,3)
+from a row-major RGB buffer linearly scrambles the image into diagonal
+noise; transpose into d[r + c*H + ch*H*W]. Visual verification (render a
+PNG, inspect it with the image analyzer) is now the acceptance gate for
+renderer changes — the SVG backend doubles as a text-mode display-list
+debugger (grep polyline points).
+
+Found+filed en route: exist(absolutePath,'file') returns 0 INSIDE a
+function but 2 at top level (vfsExists swallows a scope-dependent throw —
+bugs/opened/runtime/exist-file-function-scope.md; parity specs running in
+isolated local functions hit it, probe files with numel(dir(p)) instead).
+Export surface gaps tracked in
+bugs/opened/graphics/figure-export-gaps.md (pdf/eps, imagesc/3D/polar
+rendering, axes-scoped exportgraphics).

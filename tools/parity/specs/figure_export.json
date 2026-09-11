@@ -1,0 +1,15 @@
+{
+  "name": "figure_export",
+  "namespace": "graphics",
+  "setup": "x = 0:0.1:6;",
+  "expr": "plot(x, sin(x)); title('t'); xlabel('x'); ylabel('y'); legend('s'); grid on; saveas(gcf, [tempdir 'parity_export.png']); e1 = numel(dir([tempdir 'parity_export.png'])); saveas(gcf, [tempdir 'parity_export.svg'], 'svg'); e2 = numel(dir([tempdir 'parity_export.svg'])); print(gcf, '-dpng', [tempdir 'parity_print.png']); e3 = numel(dir([tempdir 'parity_print.png'])); exportgraphics(gca, [tempdir 'parity_eg.png']); e4 = numel(dir([tempdir 'parity_eg.png'])); close all;",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "e1",
+    "e2",
+    "e3",
+    "e4"
+  ],
+  "comment": "saveas/exportgraphics/print vs MATLAB R2025b — CONTRACT level (file created: numel(dir(path))==1), not byte equality: raster content is numkit's own software renderer (portion 32; SVG vector, PNG via the image toolbox encoder). exist(path,'file') is NOT used as the probe: it mis-reports inside functions on numkit today (bugs/opened/runtime/exist-file-function-scope.md). Deferred formats (.pdf/.eps/.fig) throw with a gap reference — bugs/opened/graphics/figure-export-gaps.md."
+}

@@ -7,6 +7,7 @@
 # its OutputFunc to the engine output sink.
 list(APPEND NUMKIT_FIGURE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 list(APPEND NUMKIT_FIGURE_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/figure/figure_manager.hpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/figure/figure_manager.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/numkit/figure/figure_render.hpp)
 set(NUMKIT_FIGURE_INCLUDE_DIRS ${NUMKIT_FIGURE_INCLUDE_DIRS} PARENT_SCOPE)
 set(NUMKIT_FIGURE_HEADERS      ${NUMKIT_FIGURE_HEADERS}      PARENT_SCOPE)

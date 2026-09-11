@@ -46,6 +46,9 @@
 
 namespace numkit {
 
+// export_reg.cpp — saveas/exportgraphics/print (portion 32).
+void registerFigureExport(Engine &engine);
+
 namespace {
 
 constexpr const char *kFigureClass = "matlab.ui.Figure";
@@ -992,6 +995,7 @@ void GraphicsLibrary::install(Engine &engine)
 {
     registerHandleAccessors(engine);
     registerGraphicsClasses(engine);
+    registerFigureExport(engine);
 
     std::vector<PlotEntry> table;
     buildPlotTable(table);
