@@ -1,6 +1,6 @@
 # graphics.export-raster — every glyph after the uppercase region rendered +3 shifted ("time" → "wlph")
 
-- **Status:** ✅ FIXED (portion 34, commit HASH_BACKFILL)
+- **Status:** ✅ FIXED (portion 34, commit 6628a04ae)
 - **Severity:** P3 (all raster-PNG text was subtly wrong; SVG export and the
   IDE renderer were unaffected — they use real font rendering)
 - **Kind:** bug
