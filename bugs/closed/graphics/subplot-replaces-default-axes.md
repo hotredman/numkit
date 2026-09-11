@@ -1,6 +1,6 @@
 # graphics.subplot — `subplot(m,n,p)` never reuses/replaces the pre-existing default axes; gcf.Children exposes the ghost
 
-- **Status:** ✅ FIXED (portion 31, commit backfilled below)
+- **Status:** ✅ FIXED (portion 31, commit 1972cd76d)
 - **Severity:** P3 (invisible until a handle-tree walk: extra ghost axes in
   the figure; render unaffected — the ghost has no subplotIndex)
 - **Kind:** bug
