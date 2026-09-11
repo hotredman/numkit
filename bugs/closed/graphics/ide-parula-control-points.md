@@ -1,6 +1,6 @@
 # graphics.ide-colormaps — IDE parula (and jet/hot/bone/…) control points diverged from MATLAB by up to 50/255 in the interior
 
-- **Status:** ✅ FIXED (portion 35, commit HASH_BACKFILL)
+- **Status:** ✅ FIXED (portion 35, commit 951ab92d1)
 - **Severity:** P3 (every IDE heatmap rendered subtly wrong colors vs
   MATLAB books output — endpoints happened to match, interiors did not)
 - **Kind:** bug
