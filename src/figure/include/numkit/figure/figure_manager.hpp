@@ -262,6 +262,10 @@ struct AxesState
     // legendBoxOn — `legend boxoff` toggles the legend frame off.
     // Default true (MATLAB default). JSON emits only when off.
     bool legendBoxOn = true;
+    // legendHidden — `legend off` / `legend('hide')` / Visible='off' on
+    // the Legend handle: labels and location are PRESERVED (MATLAB
+    // semantics), the render is suppressed. JSON emits only when true.
+    bool legendHidden = false;
     // Colorbar placement. MATLAB: east (default), west, north, south,
     // and *outside variants. Same lowercase normalisation.
     std::string colorbarLocation;
@@ -429,21 +433,30 @@ public:
     // ── Graphics handle registry (bugs/closed/graphics/plot-family-no-
     // return-value.md) ────────────────────────────────────────────────
     // Chart builtins create a handle record for each dataset they push;
-    // gca/gcf/figure create records for axes/figures. The returned handle
-    // object references it by id. set/get/delete/isgraphics consult this
-    // registry. Properties are the user-set values (defaults resolved by
-    // the accessor layer).
+    // gca/gcf/figure create records for axes/figures; title/xlabel/…
+    // create slot-bound Text records; legend a per-axes Legend record;
+    // groot one global Root record. The returned handle object references
+    // it by id. set/get/delete/isgraphics consult this registry.
+    // Properties are the user-set values (defaults resolved by the
+    // accessor layer).
     struct HandleRecord
     {
         std::string type;       // "line", "stem", … | "axes" | "figure"
+                                // | "text" | "legend" | "root"
         std::string className;  // "matlab.graphics.chart.primitive.Line"
         int figureId = 0;
+        // kNoAxes marks figure-scoped records (sgtitle Text) — scoped
+        // axes sweeps (prepareForPlot) leave them alone; full-figure
+        // sweeps (clf/close) invalidate them.
+        static constexpr size_t kNoAxes = static_cast<size_t>(-1);
         size_t axesIndex = 0;
         // Chart records: index into axes[axesIndex].datasets.
-        // kNoDataset for figure records (axes records carry kNoDataset
-        // too — they address the axes itself, not a dataset).
+        // kNoDataset for everything else (they address state directly).
         static constexpr size_t kNoDataset = static_cast<size_t>(-1);
         size_t datasetIndex = kNoDataset;
+        // Text records: which label slot this Text writes to
+        // ("title", "subtitle", "sgtitle", "xlabel", "ylabel", "zlabel").
+        std::string slot;
         // Property name → JSON-encoded value. The figure layer stays
         // core-free (no Value); the adapter (which has Value access)
         // encodes/decodes.
@@ -453,19 +466,34 @@ public:
         bool isChart() const { return datasetIndex != kNoDataset; }
     };
 
-    // Create a chart-record for the dataset just pushed at `datasetIndex`
-    // of the current axes, or an axes/figure record (kNoDataset).
+    // Chart record for the dataset just pushed at `datasetIndex` of the
+    // CURRENT axes; non-chart records of the current figure/axes.
     int createHandle(std::string type, std::string className,
-                     size_t datasetIndex = HandleRecord::kNoDataset)
+                     size_t datasetIndex = HandleRecord::kNoDataset,
+                     std::string slot = "")
+    {
+        auto &fig = current();
+        return createHandleAt(currentFigure_,
+                              static_cast<size_t>(fig.currentAxes),
+                              std::move(type), std::move(className),
+                              std::move(slot), datasetIndex);
+    }
+
+    // Fully-explicit form (root records pass figureId 0 + kNoAxes;
+    // sgtitle passes the figure + kNoAxes; gcf.Children addresses
+    // non-current axes).
+    int createHandleAt(int figureId, size_t axesIndex, std::string type,
+                       std::string className, std::string slot = "",
+                       size_t datasetIndex = HandleRecord::kNoDataset)
     {
         const int id = nextHandleId_++;
         HandleRecord rec;
         rec.type = std::move(type);
         rec.className = std::move(className);
-        rec.figureId = currentFigure_;
+        rec.figureId = figureId;
+        rec.axesIndex = axesIndex;
+        rec.slot = std::move(slot);
         rec.datasetIndex = datasetIndex;
-        auto &fig = current();
-        rec.axesIndex = static_cast<size_t>(fig.currentAxes);
         handleRegistry_[id] = std::move(rec);
         return id;
     }
@@ -548,6 +576,12 @@ public:
         if (fit == figures_.end() || rec.axesIndex >= fit->second.axes.size())
             return nullptr;
         return &fit->second.axes[rec.axesIndex];
+    }
+
+    FigureState *figureOf(int figureId)
+    {
+        auto it = figures_.find(figureId);
+        return it == figures_.end() ? nullptr : &it->second;
     }
 
     void markFigureModified(int figureId)
@@ -693,10 +727,26 @@ public:
         fig.subplotRows = m;
         fig.subplotCols = n;
 
-        // Find or create axes for this subplot position
+        // Find the axes for this subplot position
         for (int i = 0; i < static_cast<int>(fig.axes.size()); ++i) {
             if (fig.axes[i].subplotIndex == p) {
                 fig.currentAxes = i;
+                return;
+            }
+        }
+        // MATLAB subplot DELETES the overlapping default axes (a lone
+        // subplotIndex-0 axes spans the whole figure): the first subplot
+        // call adopts its slot instead of ghosting it, so
+        // gcf.Children counts match MATLAB
+        // (bugs/closed/graphics/subplot-replaces-default-axes.md).
+        for (int i = 0; i < static_cast<int>(fig.axes.size()); ++i) {
+            if (fig.axes[i].subplotIndex == 0) {
+                invalidateHandles(fig.id, i,
+                                  /*axes records*/ true, /*figure rec*/ false);
+                fig.axes[i] = AxesState{};
+                fig.axes[i].subplotIndex = p;
+                fig.currentAxes = i;
+                fig.modified = true;
                 return;
             }
         }
@@ -920,6 +970,8 @@ public:
                     }
                     os << "]";
                 }
+                if (ax.legendHidden)
+                    os << ",\"legendHidden\":true";
                 if (!ax.legendLocation.empty())
                     os << ",\"legendLocation\":\"" << ax.legendLocation << "\"";
                 if (!ax.legendBoxOn)

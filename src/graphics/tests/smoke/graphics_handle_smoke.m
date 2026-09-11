@@ -47,3 +47,27 @@ fprintf('get(h) struct: LineWidth = %g (expect 3), Type = %s (expect line)\n', .
 
 fprintf('isa(h, ''handle'') = %g (expect 1), isgraphics(h) = %g (expect 1)\n', ...
         isa(h, 'handle'), isgraphics(h));
+
+% portion 31 — Text / Legend / groot handles
+hT2 = title('Handle smoke');
+fprintf('class(hT2) = %s (expect matlab.graphics.primitive.Text)\n', class(hT2));
+fprintf('hT2.String = %s (expect Handle smoke), FontSize = %g (expect 11)\n', ...
+        hT2.String, hT2.FontSize);
+hT2.String = 'Rewritten';
+fprintf('after write: get(gca,''Title'').String = %s (expect Rewritten)\n', ...
+        get(gca,'Title').String);
+
+hL2 = legend('series1');
+fprintf('class(hL2) = %s (expect matlab.graphics.illustration.Legend)\n', class(hL2));
+set(hL2,'Location','south','Visible','off');
+fprintf('Location = %s (expect south), Visible = %s (expect off), labels kept = %g\n', ...
+        get(hL2,'Location'), get(hL2,'Visible'), numel(get(hL2,'String')));
+legend show;
+fprintf('after legend show: Visible = %s (expect on)\n', get(hL2,'Visible'));
+
+g2 = groot;
+fprintf('class(groot) = %s (expect matlab.Root), gcf.Parent.Type = %s (expect root)\n', ...
+        class(g2), gcf.Parent.Type);
+subplot(2,1,1); plot(1:5);
+subplot(2,1,2); plot(1:5);
+fprintf('numel(gcf.Children) = %g (expect 2)\n', numel(gcf.Children));

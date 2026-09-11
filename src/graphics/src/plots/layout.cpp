@@ -92,9 +92,11 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
             auto &fig = fm.current();
             // Everything drawn in this figure dies — stale handles must
             // read as deleted (MATLAB semantics over a cleared figure).
-            // The Figure itself survives clf.
+            // The Figure itself survives clf; the super title is figure
+            // CONTENT, so it dies too (MATLAB clf clears sgtitle).
             fm.invalidateHandles(fig.id, -1,
                                  /*axes records*/ true, /*figure record*/ false);
+            fig.superTitle.clear();
             fig.axes.clear();
             fig.axes.push_back(AxesState{});
             fig.currentAxes = 0;
@@ -359,18 +361,23 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
             // Other (Name, Value) pairs (FontSize, NumColumns, ...) are
             // not yet honoured but parsed-and-skipped so they don't
             // pollute legendLabels.
-            // Special arg: 'boxoff'/'boxon' alone should NOT clear
-            // existing labels (it's a frame-only toggle). Detect that
-            // up front before zapping legendLabels.
-            bool onlyBoxToggle = !args.empty();
-            for (size_t i = 0; i < args.size() && onlyBoxToggle; ++i) {
-                if (!args[i].isChar()) { onlyBoxToggle = false; break; }
+            // Pure-visibility args ('boxoff'/'boxon'/'show'/'on'/
+            // 'hide'/'off') must NOT clear existing labels — they toggle
+            // frame/visibility only (MATLAB semantics). Detect up front
+            // before zapping legendLabels.
+            bool visibilityOnly = !args.empty();
+            for (size_t i = 0; i < args.size() && visibilityOnly; ++i) {
+                if (!args[i].isChar()) { visibilityOnly = false; break; }
                 std::string s = args[i].toString();
                 std::string sl;
                 for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
-                if (sl != "boxoff" && sl != "boxon") { onlyBoxToggle = false; break; }
+                if (sl != "boxoff" && sl != "boxon" && sl != "show"
+                    && sl != "on" && sl != "hide" && sl != "off") {
+                    visibilityOnly = false;
+                    break;
+                }
             }
-            if (!onlyBoxToggle) ax.legendLabels.clear();
+            if (!visibilityOnly) ax.legendLabels.clear();
             // Don't reset legendLocation if the user calls bare `legend(...)`
             // again — but DO accept an explicit override.
             bool sawLocation = false;
@@ -399,17 +406,17 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
                     ++i;  // skip the value
                     continue;
                 }
-                // MATLAB also accepts `'show'` / `'hide'` / `'off'` as the
-                // first arg. We treat 'off'/'hide' as clear-and-stop, the
-                // rest fall through as labels.
+                // MATLAB 'show'/'hide'/'off' as the first arg: visibility
+                // toggles that PRESERVE labels + location (Visible prop).
                 if (i == 0 && (sLower == "off" || sLower == "hide")) {
-                    ax.legendLocation.clear();
+                    ax.legendHidden = true;
                     fm.current().modified = true;
                     fm.emitModified();
                     outs[0] = Value();
                     return;
                 }
                 if (i == 0 && (sLower == "show" || sLower == "on")) {
+                    ax.legendHidden = false;
                     // No labels passed — keep whatever was set previously.
                     continue;
                 }

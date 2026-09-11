@@ -1900,6 +1900,19 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                 (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
                 return outBuf[0];
             }
+            // MATLAB `gca.Parent.Children(2)` / `gcf.Color(2)`: nothing
+            // registered under the dotted name, but the HEAD is a plain
+            // callable → the callee is a VALUE (the call-then-fields
+            // chain — execFieldAccess resolves it) and the call args
+            // INDEX it (a func-handle property is called instead).
+            if (engine_.hasCallableName(rootIdent->strValue)
+                && !engine_.findClass(rootIdent->strValue)
+                && !engine_.classCtor(rootIdent->strValue)) {
+                Value callee = execNode(funcNode, env);
+                if (callee.isFuncHandle())
+                    return callFuncHandle(callee, args, env, node);
+                return execIndexAccess(callee, node, env);
+            }
             throw std::runtime_error("Undefined function or variable: " + qualified);
         }
 

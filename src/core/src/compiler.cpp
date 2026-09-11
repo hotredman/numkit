@@ -979,7 +979,15 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
             return ar.size();
         };
 
-        if (!qualified.empty() && !rootIsVar) {
+        if (!qualified.empty() && !rootIsVar
+            // MATLAB `gca.Parent.Children(2)`: nothing registered under
+            // the dotted name, but the HEAD is a plain callable → the
+            // callee is a VALUE (call-then-fields chain, portion 30) and
+            // the args index it — fall through to CALL_METHOD_MULTI.
+            && !(engine_.hasCallableName(rootIdent->strValue)
+                 && !engine_.findClass(rootIdent->strValue)
+                 && !engine_.classCtor(rootIdent->strValue)
+                 && !engine_.hasExternalFunction(qualified))) {
             uint8_t argBase = 0;
             size_t nargs = compileArgsBlock(argBase);
             uint8_t outBase = nextReg_;
@@ -3099,7 +3107,17 @@ uint8_t Compiler::compileCall(const ASTNode *node)
             const bool isLocalVar = varRegisters_.find(root) != varRegisters_.end();
             const bool isWorkspaceVar =
                 engine_.workspaceEnv().getLocal(root) != nullptr;
-            if (!isLocalVar && !isWorkspaceVar) {
+            if (!isLocalVar && !isWorkspaceVar
+                // MATLAB `gca.Parent.Children(2)`: nothing registered
+                // under the dotted name, but the HEAD is a plain
+                // callable → the callee is a VALUE (call-then-fields
+                // chain, portion 30) and the args index it — fall
+                // through to the CALL_METHOD (property-then-index) path
+                // below.
+                && !(engine_.hasCallableName(root)
+                     && !engine_.findClass(root)
+                     && !engine_.classCtor(root)
+                     && !engine_.hasExternalFunction(qualified))) {
                 // Compile arguments and emit a regular CALL with the
                 // dotted name as the function reference. Resolution is
                 // delegated to the runtime CALL handler, which already

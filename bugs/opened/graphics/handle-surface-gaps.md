@@ -8,17 +8,21 @@
 
 ## What is deferred
 
-The portion-29 handle layer ships: chart handles for the plot family,
-set/get (+dot-syntax) with defaults and render-effect for the common
-props, gca/gcf/figure handles, unified delete, eq/ne, get(h) struct.
-Explicitly NOT yet MATLAB-complete:
+Portion 31 CLOSED items 1-3 and 8: title/xlabel/ylabel/zlabel/sgtitle/
+subtitle return matlab.graphics.primitive.Text handles (String live
+round-trip, FontSize 11 parity-verified), legend returns
+matlab.graphics.illustration.Legend (Location/Box/Visible with
+render-effect, `legend off/show/hide/on` preserve labels), groot is
+matlab.ui.Root (figure.Parent chain, Children = figure array),
+gcf.Children is the full ordered axes array, and get(gca,'Title'/
+'XLabel'/…) returns Text handles. Plus: setSubplot adopts the default
+axes (bugs/closed/graphics/subplot-replaces-default-axes.md), and the
+indexed dotted form `gca.Parent.Children(2)` works on both engines
+(call-then-fields + index). Still NOT MATLAB-complete:
 
-1. **`hT = title(...)` / `hX = xlabel(...)` / `hL = legend(...)` return
-   values** — MATLAB returns Text/Legend objects; numkit still returns
-   the legacy no-op value. Needs Text/Legend handle kinds + property maps.
-2. **Root object** — `groot` / `figure.Parent` above the Figure level.
-3. **`gcf.Children`** — returns the CURRENT axes handle when any axes
-   exist; MATLAB returns the full axes ARRAY (ordered).
+1. ~~title/xlabel/legend return values~~ — CLOSED in portion 31.
+2. ~~Root object / groot~~ — CLOSED in portion 31.
+3. ~~gcf.Children full array~~ — CLOSED in portion 31.
 4. **Chart class construction** — `matlab.graphics.chart.primitive.Line()`
    called directly errors instead of constructing.
 5. **`get(h,'ZData')`** on surface/contour records (2-D matrix payload —
@@ -26,21 +30,19 @@ Explicitly NOT yet MATLAB-complete:
 6. **`set(h)` listing output** — MATLAB prints the settable property
    catalogue; numkit is silent.
 7. **Axes/figure property breadth** — only the render-effective subset
-   (XLim/YLim/ZLim/XScale/YScale/grids/labels/Title, Number/Type/
-   CurrentAxes) is mapped; everything else stores per-record without
-   render effect (e.g. FontSize, Position, OuterPosition).
-8. **`get(gca,'XLabel')`** returns the label STRING; MATLAB returns a
-   Text handle.
+   is mapped; Text FontSize/Color/FontWeight on titles/labels store
+   per-record without render effect (renderer has no per-label font
+   field in the wire format yet).
+8. ~~get(gca,'XLabel') returns a string~~ — CLOSED in portion 31.
 
 ## Repro (self-contained)
 
 ```matlab
 clear;
 h = plot(1:5);
-hT = title('t');
-% numkit: hT is the legacy no-op value; MATLAB R2025b: 1x1 Text object
-disp(get(gca, 'XLabel'));
-% numkit: 't' (char); MATLAB: 1x1 Text object (String 't')
+matlab.graphics.chart.primitive.Line();   % numkit: error; MATLAB: constructs
+s = surf(peaks); get(s, 'ZData');         % numkit: ''; MATLAB: 49x49 matrix
+set(h);                                   % numkit: silent; MATLAB: property listing
 ```
 
 ## References

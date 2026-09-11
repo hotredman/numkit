@@ -88,3 +88,41 @@ modified and emits.
   bugs/opened/graphics/handle-surface-gaps.md (title/legend handles, root,
   Children arrays, chart-class construction, ZData, set-listing,
   axes/figure prop breadth, Text-handle labels).
+
+
+## Portion 31 addendum — Text/Legend/Root + Children (2026-09-11)
+
+Slot-bound record kinds extend the registry: `type="text"` carries
+`slot` ∈ {title,subtitle,sgtitle,xlabel,ylabel,zlabel} with LIVE String
+(the AxesState field is the source of truth — ylabel routes to ylabel2
+under yyaxis-right); `type="legend"` reads Location/Box/Visible from the
+LIVE axes fields BEFORE rec->props (a stored prop would shadow a later
+`legend show` command — caught by the smoke); `type="root"` is ONE
+global record (figureId 0 + kNoAxes: never matches a real figure, so no
+sweep invalidates it). recordGetProp/recordSetProp are now the SINGLE
+body shared by get()/set() and the BuiltinClass propGet/propSet hooks
+(strict flag: dot-syntax errors on unknown props, external get stays
+lenient "").
+
+**MATLAB facts learned by probing R2025b directly (assumptions were
+wrong twice):** class(groot) is `matlab.ui.Root` (NOT matlab.Root), it
+has no Number; legend is `matlab.graphics.illustration.Legend` (NOT
+chart.legend.Legend); Text FontSize default is 11 (NOT 10). Probe, don't
+recall. Also: MATLAB FORBIDS dot-indexing a call result without parens
+(`get(gca,'T').String` is a parse error; legal form `gcf().Parent`) —
+numkit deliberately keeps evaluating the bare `gcf.Parent` form
+(permissive superset, TW heritage; documented in the parity spec
+comment).
+
+setSubplot now ADOPTS the lone default axes instead of ghosting it
+(bugs/closed/graphics/subplot-replaces-default-axes.md — the ghost
+appeared even for subplot-first scripts, because setSubplot itself
+materialises the default axes). `legend off/show/hide/on` are
+visibility-only (labels+location preserved) — the old pre-scan CLEARED
+labels on `legend show`.
+
+The INDEXED dotted chain `gca.Parent.Children(2)` needed the portion-30
+fix extended into the CALL paths: compileCall's qualified branches
+(single+multi) fall through to CALL_METHOD (property-then-index) when
+nothing dotted is registered but the head is a plain callable; TW's
+execCall mirrors via execIndexAccess.

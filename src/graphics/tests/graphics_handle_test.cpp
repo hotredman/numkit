@@ -196,7 +196,8 @@ TEST_P(GraphicsHandleTest, AxesPropsRenderEffect)
     EXPECT_NEAR(v.elemAsDouble(1), 10.0, 1e-12);
     eval("set(a,'Title','My Title');");
     EXPECT_EQ(ax().title, "My Title");
-    EXPECT_EQ(evalString("get(a,'Title')"), "My Title");
+    // Portion 31: label slots read back as Text handles (MATLAB).
+    EXPECT_EQ(evalString("get(a,'Title').String"), "My Title");
 }
 
 TEST_P(GraphicsHandleTest, CloseFigureHandleInvalidatesChildren)
@@ -225,3 +226,114 @@ TEST_P(GraphicsHandleTest, DeleteStringStillRoutesToFileBranch)
 }
 
 INSTANTIATE_DUAL(GraphicsHandleTest);
+
+// bugs/closed/graphics/subplot-replaces-default-axes.md — the first
+// subplot must ADOPT (not ghost) the pre-existing default axes.
+TEST_P(GraphicsHandleTest, SubplotAdoptsDefaultAxes)
+{
+    eval("plot(1:5); subplot(2,1,1); plot(1:5); subplot(2,1,2); plot(1:5);");
+    EXPECT_EQ(evalScalar("numel(gca.Parent.Children)"), 2.0);
+}
+
+// ── Text handles (portion 31) ────────────────────────────────────────
+
+TEST_P(GraphicsHandleTest, TitleReturnsTextHandle)
+{
+    eval("h = plot(1:5); hT = title('My Title');");
+    EXPECT_EQ(evalString("class(hT)"), "matlab.graphics.primitive.Text");
+    EXPECT_EQ(evalString("hT.String"), "My Title");
+    EXPECT_NEAR(evalScalar("hT.FontSize"), 11.0, 1e-12);
+    EXPECT_EQ(evalString("get(gca,'Title').String"), "My Title");
+    // String write renders: the axes field is the source of truth.
+    eval("hT.String = 'Changed';");
+    EXPECT_EQ(ax().title, "Changed");
+    EXPECT_EQ(evalString("get(gca,'Title').String"), "Changed");
+    // set(gca,'Title',char) keeps working and the read stays a handle.
+    eval("set(gca,'Title','By set');");
+    EXPECT_EQ(ax().title, "By set");
+    EXPECT_EQ(evalString("class(get(gca,'Title'))"),
+              "matlab.graphics.primitive.Text");
+}
+
+TEST_P(GraphicsHandleTest, XLabelIsTextHandle)
+{
+    eval("hX = xlabel('X axis');");
+    EXPECT_EQ(evalString("class(hX)"), "matlab.graphics.primitive.Text");
+    EXPECT_EQ(evalString("get(gca,'XLabel').String"), "X axis");
+    EXPECT_NEAR(evalScalar("get(gca,'XLabel').FontSize"), 11.0, 1e-12);
+}
+
+TEST_P(GraphicsHandleTest, SgtitleSurvivesAxesResetDiesWithClf)
+{
+    eval("sg = sgtitle('Super'); h1 = plot(1:5);");
+    EXPECT_EQ(evalString("class(sg)"), "matlab.graphics.primitive.Text");
+    EXPECT_EQ(evalString("sg.String"), "Super");
+    eval("h2 = plot(1:5);");   // hold off → axes content reset, sgtitle lives
+    EXPECT_TRUE(evalBool("ishandle(sg)"));
+    EXPECT_TRUE(evalBool("ishandle(h2)"));
+    EXPECT_FALSE(evalBool("ishandle(h1)"));
+    eval("clf;");
+    EXPECT_FALSE(evalBool("ishandle(sg)"));
+    EXPECT_EQ(fm().current().superTitle, "");
+}
+
+TEST_P(GraphicsHandleTest, TitleHandleDiesWithClf)
+{
+    eval("hT = title('T'); clf;");
+    EXPECT_FALSE(evalBool("ishandle(hT)"));
+}
+
+// ── Legend handle (portion 31) ───────────────────────────────────────
+
+TEST_P(GraphicsHandleTest, LegendReturnsHandleWithProps)
+{
+    eval("h = plot(1:5); hL = legend('data1');");
+    EXPECT_EQ(evalString("class(hL)"), "matlab.graphics.illustration.Legend");
+    EXPECT_EQ(evalString("get(hL,'Location')"), "northeast");
+    EXPECT_EQ(evalString("hL.Location"), "northeast");
+    eval("hL.Location = 'south';");
+    EXPECT_EQ(ax().legendLocation, "south");
+    EXPECT_EQ(evalString("get(hL,'Location')"), "south");
+    EXPECT_EQ(evalString("hL.String{1}"), "data1");
+}
+
+TEST_P(GraphicsHandleTest, LegendVisibleOffPreservesLabels)
+{
+    eval("h = plot(1:5); hL = legend('data1','data2');");
+    ASSERT_EQ(ax().legendLabels.size(), 2u);
+    eval("set(hL,'Visible','off');");
+    EXPECT_TRUE(ax().legendHidden);
+    EXPECT_EQ(ax().legendLabels.size(), 2u);   // preserved
+    EXPECT_EQ(evalString("get(hL,'Visible')"), "off");
+    eval("hL.Visible = 'on';");
+    EXPECT_FALSE(ax().legendHidden);
+    // The command form behaves identically.
+    eval("legend off;");
+    EXPECT_TRUE(ax().legendHidden);
+    EXPECT_EQ(ax().legendLabels.size(), 2u);
+    eval("legend show;");
+    EXPECT_FALSE(ax().legendHidden);
+}
+
+// ── groot / parent chain / Children arrays (portion 31) ─────────────
+
+TEST_P(GraphicsHandleTest, GrootAndFigureParent)
+{
+    eval("g = groot; f = gcf;");
+    EXPECT_EQ(evalString("class(g)"), "matlab.ui.Root");
+    EXPECT_EQ(evalString("g.Type"), "root");
+    EXPECT_TRUE(evalBool("groot == g"));
+    EXPECT_EQ(evalString("class(f.Parent)"), "matlab.ui.Root");
+    EXPECT_TRUE(evalBool("f.Parent == g"));
+}
+
+TEST_P(GraphicsHandleTest, FigureChildrenIsFullAxesArray)
+{
+    eval("subplot(2,1,1); plot(1:5); subplot(2,1,2); plot(1:5);");
+    Value ch = eval("gca.Parent.Children;");
+    EXPECT_EQ(ch.numel(), 2u);
+    EXPECT_EQ(evalString("class(gca.Parent.Children(2))"),
+              "matlab.graphics.axis.Axes");
+    // Children(2) IS the current axes handle (create-or-reuse identity).
+    EXPECT_TRUE(evalBool("gca == gca.Parent.Children(2)"));
+}

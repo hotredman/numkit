@@ -322,8 +322,11 @@ export function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     // Legend labels (positional override of layer.name) + placement.
     // legend is an array of strings — empty / undefined disables the
     // legend block. legendLocation defaults to 'best' when labels are
-    // present but no explicit location was set.
-    legend: Array.isArray(cfg.legend) ? cfg.legend.slice() : [],
+    // present but no explicit location was set. legendHidden (set(h,
+    // 'Visible','off') on the Legend handle / `legend off`) suppresses
+    // the render but PRESERVES the labels + location (MATLAB semantics).
+    legend: (cfg.legendHidden === true) ? [] :
+            (Array.isArray(cfg.legend) ? cfg.legend.slice() : []),
     legendLocation: cfg.legendLocation || '',
     // Colorbar placement — only honoured when there's a heatmap layer.
     // Empty = bar hidden (the default until `colorbar()` is called).

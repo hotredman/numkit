@@ -50,6 +50,56 @@ namespace {
 
 constexpr const char *kFigureClass = "matlab.ui.Figure";
 constexpr const char *kAxesClass   = "matlab.graphics.axis.Axes";
+constexpr const char *kTextClass   = "matlab.graphics.primitive.Text";
+constexpr const char *kLegendClass = "matlab.graphics.illustration.Legend";
+constexpr const char *kRootClass   = "matlab.ui.Root";
+
+// Builtin name → Text slot for the title/label family (adapter wrap).
+const std::string &textSlotOf(const std::string &fnName)
+{
+    static const std::map<std::string, std::string> m = {
+        {"title", "title"}, {"subtitle", "subtitle"}, {"sgtitle", "sgtitle"},
+        {"xlabel", "xlabel"}, {"ylabel", "ylabel"}, {"zlabel", "zlabel"},
+    };
+    static const std::string kEmpty;
+    auto it = m.find(fnName);
+    return it == m.end() ? kEmpty : it->second;
+}
+
+// Axes PROPERTY name → Text slot (get(gca,'Title') family — capitalized).
+const std::string &textSlotOfProp(const std::string &prop)
+{
+    static const std::map<std::string, std::string> m = {
+        {"Title", "title"}, {"Subtitle", "subtitle"},
+        {"XLabel", "xlabel"}, {"YLabel", "ylabel"}, {"ZLabel", "zlabel"},
+    };
+    static const std::string kEmpty;
+    auto it = m.find(prop);
+    return it == m.end() ? kEmpty : it->second;
+}
+
+// Which AxesState field a Text slot reads/writes ("sgtitle" → the
+// FigureState instead). ylabel under yyaxis-right routes to ylabel2.
+std::string *textFieldOf(FigureManager &fm, FigureManager::HandleRecord &rec)
+{
+    if (rec.slot == "sgtitle") {
+        FigureState *fig = fm.figureOf(rec.figureId);
+        return fig ? &fig->superTitle : nullptr;
+    }
+    AxesState *ax = fm.axesOf(rec);
+    if (!ax)
+        return nullptr;
+    if (rec.slot == "title")    return &ax->title;
+    if (rec.slot == "subtitle") return &ax->subtitle;
+    if (rec.slot == "xlabel")   return &ax->xlabel;
+    if (rec.slot == "ylabel") {
+        if (ax->yyEnabled && ax->activeYside == "right")
+            return &ax->ylabel2;
+        return &ax->ylabel;
+    }
+    if (rec.slot == "zlabel")   return &ax->zlabel;
+    return nullptr;
+}
 
 // Builtin name → (type, MATLAB class name)
 const std::unordered_map<std::string, std::pair<std::string, std::string>> &
@@ -425,6 +475,268 @@ Value makeFigureHandle(FigureManager &fm, std::pmr::memory_resource *mr)
     return makeFigureHandleFor(fm, fm.currentFigureId(), mr);
 }
 
+// Axes handle at an EXPLICIT index (gcf.Children addresses non-current
+// subplot cells too).
+Value makeAxesHandleFor(FigureManager &fm, int figureId, size_t axesIndex,
+                        std::pmr::memory_resource *mr)
+{
+    if (auto *rec = findRecordBy(fm, "axes", figureId, axesIndex))
+        return makeGraphicsHandleValue(kAxesClass, handleIdOfRecord(fm, rec), mr);
+    const int id = fm.createHandleAt(figureId, axesIndex, "axes", kAxesClass);
+    return makeGraphicsHandleValue(kAxesClass, id, mr);
+}
+
+// Text handle bound to a label slot ("sgtitle" is figure-scoped: kNoAxes
+// so scoped axes sweeps keep it alive while clf/close invalidate it).
+Value makeTextHandleFor(FigureManager &fm, int figureId, size_t axesIndex,
+                        const std::string &slot, std::pmr::memory_resource *mr)
+{
+    for (auto &[id, rec] : fm.handles())
+        if (!rec.deleted && rec.type == "text" && rec.figureId == figureId
+            && rec.slot == slot && rec.axesIndex == axesIndex)
+            return makeGraphicsHandleValue(kTextClass, id, mr);
+    const int id = fm.createHandleAt(figureId, axesIndex, "text", kTextClass,
+                                     slot);
+    return makeGraphicsHandleValue(kTextClass, id, mr);
+}
+
+Value makeLegendHandleFor(FigureManager &fm, int figureId, size_t axesIndex,
+                          std::pmr::memory_resource *mr)
+{
+    if (auto *rec = findRecordBy(fm, "legend", figureId, axesIndex))
+        return makeGraphicsHandleValue(kLegendClass, handleIdOfRecord(fm, rec), mr);
+    const int id = fm.createHandleAt(figureId, axesIndex, "legend", kLegendClass);
+    return makeGraphicsHandleValue(kLegendClass, id, mr);
+}
+
+// Root (groot) — ONE global record (figureId 0 never matches a real
+// figure, so figure sweeps leave it alone).
+Value makeRootHandle(FigureManager &fm, std::pmr::memory_resource *mr)
+{
+    for (auto &[id, rec] : fm.handles())
+        if (!rec.deleted && rec.type == "root")
+            return makeGraphicsHandleValue(kRootClass, id, mr);
+    const int id = fm.createHandleAt(0, FigureManager::HandleRecord::kNoAxes,
+                                     "root", kRootClass);
+    return makeGraphicsHandleValue(kRootClass, id, mr);
+}
+
+// Array of handles (gcf.Children / groot.Children).
+Value makeHandleArray(const std::string &className,
+                      const std::vector<int> &ids,
+                      std::pmr::memory_resource *mr)
+{
+    if (ids.empty())
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    std::vector<std::shared_ptr<ObjectState>> states;
+    states.reserve(ids.size());
+    for (int id : ids) {
+        auto payload = std::make_shared<GraphicsHandlePayload>();
+        payload->handleId = id;
+        auto st = std::make_shared<ObjectState>(mr);
+        st->native = std::move(payload);
+        states.push_back(std::move(st));
+    }
+    Dims d{1, ids.size()};
+    return Value::objectArray(className, d, std::move(states),
+                              /*isHandle=*/true, mr);
+}
+
+// ── Unified record property access ───────────────────────────────────
+// ONE body shared by get(h,'Prop') / set(h,'Prop',v) AND the dot-syntax
+// h.Prop / h.Prop = v (BuiltinClass propGet/propSet). Live state fields
+// (Text.String, Legend.Location/Box/Visible, chart XData) read from the
+// figure state; everything user-set lives in rec->props; documented
+// MATLAB defaults fill the rest.
+Value recordGetProp(FigureManager &fm, FigureManager::HandleRecord *rec,
+                    const std::string &name, std::pmr::memory_resource *mr,
+                    bool strict = false)
+{
+    auto str = [&](const char *s) { return Value::fromString(s, mr); };
+    auto num = [&](double d) { return Value::scalar(d, mr); };
+    auto rgb = [&](double r, double g, double b) {
+        auto v = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+        v.doubleDataMut()[0] = r; v.doubleDataMut()[1] = g; v.doubleDataMut()[2] = b;
+        return v;
+    };
+    if (rec->type == "root") {
+        if (name == "Type")   return str("root");
+        if (name == "Children") {
+            std::vector<int> ids;
+            for (const auto &[fid, fig] : fm.figures()) {
+                (void)fig;
+                int hid = -1;
+                for (auto &[id, r] : fm.handles())
+                    if (!r.deleted && r.type == "figure" && r.figureId == fid) {
+                        hid = id;
+                        break;
+                    }
+                if (hid < 0)
+                    hid = fm.createHandleAt(fid, 0, "figure", kFigureClass);
+                ids.push_back(hid);
+            }
+            return makeHandleArray(kFigureClass, ids, mr);
+        }
+        auto it = rec->props.find(name);
+        return it != rec->props.end() ? decodeProp(it->second, mr) : Value();
+    }
+    if (rec->type == "text") {
+        // Live String from the label slot (the render source of truth).
+        if (name == "String") {
+            std::string *f = textFieldOf(fm, *rec);
+            return str(f ? f->c_str() : "");
+        }
+        if (name == "Type")       return str("text");
+        if (name == "Parent") {
+            // sgtitle's parent is the Figure; other slots the Axes.
+            if (rec->slot == "sgtitle")
+                return makeFigureHandleFor(fm, rec->figureId, mr);
+            return makeAxesHandleFor(fm, rec->figureId, rec->axesIndex, mr);
+        }
+        auto it = rec->props.find(name);
+        if (it != rec->props.end())
+            return decodeProp(it->second, mr);
+        // MATLAB Text defaults (R2025b, parity-verified: 11pt).
+        if (name == "FontSize")   return num(11.0);
+        if (name == "FontWeight") return str("normal");
+        if (name == "FontName")   return str("Helvetica");
+        if (name == "Visible")    return str("on");
+        if (name == "Color")      return rgb(0.15, 0.15, 0.15);
+        return Value();
+    }
+    if (rec->type == "legend") {
+        AxesState *ax = fm.axesOf(*rec);
+        if (name == "String") {
+            size_t n = ax ? ax->legendLabels.size() : 0;
+            if (!n)
+                return Value::cell(0, 0, mr);
+            Value c = Value::cell(1, n, mr);
+            for (size_t i = 0; i < n; ++i)
+                c.cellAt(i) = Value::fromString(ax->legendLabels[i], mr);
+            return c;
+        }
+        if (name == "Type") return str("legend");
+        if (name == "Parent")
+            return makeAxesHandleFor(fm, rec->figureId, rec->axesIndex, mr);
+        // Live render state first — a stored prop would shadow later
+        // command-form changes (`legend show` after set(hL,'Visible','off')).
+        if (name == "Location")
+            return str(ax && !ax->legendLocation.empty()
+                           ? ax->legendLocation.c_str() : "northeast");
+        if (name == "Box")  return str(!ax || ax->legendBoxOn ? "on" : "off");
+        if (name == "Visible")
+            return str(!ax || !ax->legendHidden ? "on" : "off");
+        auto it = rec->props.find(name);
+        if (it != rec->props.end())
+            return decodeProp(it->second, mr);
+        return Value();
+    }
+    if (rec->type == "figure") {
+        if (name == "Type")   return str("figure");
+        if (name == "Number") return num(rec->figureId);
+        if (name == "Parent") return makeRootHandle(fm, mr);
+        if (name == "CurrentAxes")
+            return makeAxesHandle(fm, mr);
+        if (name == "Children") {
+            FigureState *fig = fm.figureOf(rec->figureId);
+            const size_t n = fig ? fig->axes.size() : 0;
+            std::vector<int> ids;
+            for (size_t k = 0; k < n; ++k) {
+                int hid = -1;
+                for (auto &[id, r] : fm.handles())
+                    if (!r.deleted && r.type == "axes"
+                        && r.figureId == rec->figureId && r.axesIndex == k) {
+                        hid = id;
+                        break;
+                    }
+                if (hid < 0)
+                    hid = fm.createHandleAt(rec->figureId, k, "axes", kAxesClass);
+                ids.push_back(hid);
+            }
+            return makeHandleArray(kAxesClass, ids, mr);
+        }
+        auto it = rec->props.find(name);
+        return it != rec->props.end()
+                   ? decodeProp(it->second, mr)
+                   : (strict ? Value() : Value::fromString("", mr));
+    }
+    if (rec->type == "axes") {
+        if (name == "Parent")
+            return makeFigureHandleFor(fm, rec->figureId, mr);
+        // Label slots return Text handles (MATLAB), not strings.
+        const std::string &slot = textSlotOfProp(name);
+        if (!slot.empty())
+            return makeTextHandleFor(fm, rec->figureId, rec->axesIndex, slot, mr);
+        Value v = axesGetProp(fm, rec, name, mr);
+        if (!v.isEmpty())
+            return v;
+        auto it = rec->props.find(name);
+        return it != rec->props.end()
+                   ? decodeProp(it->second, mr)
+                   : (strict ? Value() : Value::fromString("", mr));
+    }
+    // Chart records.
+    if (name == "Parent")
+        return makeAxesHandleFor(fm, rec->figureId, rec->axesIndex, mr);
+    auto it = rec->props.find(name);
+    if (it != rec->props.end())
+        return decodeProp(it->second, mr);
+    {
+        Value v = chartDataProp(fm, rec, name, mr);
+        if (!v.isEmpty())
+            return v;
+    }
+    Value d = chartDefaultProp(rec->type, name, mr);
+    if (!d.isEmpty())
+        return d;
+    return strict ? Value() : Value::fromString("", mr);
+}
+
+// Returns true when the property is known/accepted (stored at minimum).
+bool recordSetProp(FigureManager &fm, FigureManager::HandleRecord *rec,
+                   const std::string &name, const Value &val)
+{
+    rec->props[name] = encodeProp(val);
+    if (rec->type == "text") {
+        if (name == "String") {
+            std::string *f = textFieldOf(fm, *rec);
+            if (f) {
+                *f = (val.isChar() || val.isString()) ? val.toString() : "";
+                fm.markFigureModified(rec->figureId);
+            }
+        }
+        return true;   // FontSize/Color/… store-only (renderer gap filed)
+    }
+    if (rec->type == "legend") {
+        AxesState *ax = fm.axesOf(*rec);
+        if (!ax)
+            return true;
+        if (name == "Location") {
+            ax->legendLocation = val.toString();
+            fm.markFigureModified(rec->figureId);
+        } else if (name == "Box") {
+            ax->legendBoxOn = val.toString() != "off";
+            fm.markFigureModified(rec->figureId);
+        } else if (name == "Visible") {
+            ax->legendHidden = val.toString() == "off";
+            fm.markFigureModified(rec->figureId);
+        } else if (name == "String" && val.isCell()) {
+            ax->legendLabels.clear();
+            for (size_t i = 0; i < val.numel(); ++i)
+                ax->legendLabels.push_back(val.cellAt(i).toString());
+            fm.markFigureModified(rec->figureId);
+        }
+        return true;
+    }
+    if (rec->type == "root")
+        return true;   // root properties are read-only at this layer
+    if (rec->type == "axes")
+        applyAxesProp(fm, rec, name, val);
+    else
+        applyChartProp(fm, rec, name, val);
+    return true;
+}
+
 } // anonymous namespace
 
 // ============================================================
@@ -435,63 +747,9 @@ namespace {
 
 void registerHandleAccessors(Engine &engine)
 {
-    // set(h, 'Prop', val [, 'Prop2', val2, …]) — chart/axes/figure
-    // records; dot-syntax h.Prop = val routes through the SAME body via
-    // the BuiltinClass propSet hook.
-    auto setProp = [&engine](FigureManager::HandleRecord *rec,
-                             const std::string &name, const Value &val) {
-        rec->props[name] = encodeProp(val);
-        if (rec->type == "axes")
-            applyAxesProp(engine.figureManager(), rec, name, val);
-        else
-            applyChartProp(engine.figureManager(), rec, name, val);
-    };
-
-    // get(h, 'Prop')
-    auto getProp = [&engine](FigureManager::HandleRecord *rec,
-                             const std::string &name) -> Value {
-        auto &fm = engine.figureManager();
-        auto *mr = engine.resource();
-        auto it = rec->props.find(name);
-        if (it != rec->props.end())
-            return decodeProp(it->second, mr);
-        if (rec->type == "figure") {
-            if (name == "Type")   return Value::fromString("figure", mr);
-            if (name == "Number") return Value::scalar(rec->figureId, mr);
-            if (name == "CurrentAxes") return makeAxesHandle(fm, mr);
-            if (name == "Children") {
-                auto fit = fm.figures().find(rec->figureId);
-                size_t n = fit != fm.figures().end() ? fit->second.axes.size() : 0;
-                return n ? makeAxesHandle(fm, mr)   // ≥1 axes → current (gap: full array)
-                         : Value::matrix(0, 0, ValueType::DOUBLE, mr);
-            }
-            return Value::fromString("", mr);
-        }
-        if (rec->type == "axes") {
-            if (name == "Parent") {
-                // Axes.Parent → the containing Figure (MATLAB: Root is
-                // above that; root handles are a deferred gap).
-                return makeFigureHandleFor(fm, rec->figureId, mr);
-            }
-            Value v = axesGetProp(fm, rec, name, mr);
-            if (!v.isEmpty())
-                return v;
-            return Value::fromString("", mr);
-        }
-        if (name == "Parent")
-            return makeAxesHandle(fm, mr);
-        {
-            Value v = chartDataProp(fm, rec, name, mr);
-            if (!v.isEmpty())
-                return v;
-        }
-        Value d = chartDefaultProp(rec->type, name, mr);
-        return d.isEmpty() ? Value::fromString("", mr) : d;
-    };
-
     // set(h, …)
     {
-        ExternalFunc fn = [&engine, setProp](
+        ExternalFunc fn = [&engine](
                 Span<const Value> args, size_t,
                 Span<Value> outs, CallContext &) {
             if (args.empty()) { outs[0] = Value(); return; }
@@ -502,7 +760,8 @@ void registerHandleAccessors(Engine &engine)
                 throw std::runtime_error("Invalid or deleted object.");
             for (size_t i = 1; i + 1 < args.size(); i += 2) {
                 if (!args[i].isChar() && !args[i].isString()) continue;
-                setProp(rec, args[i].toString(), args[i + 1]);
+                recordSetProp(engine.figureManager(), rec,
+                              args[i].toString(), args[i + 1]);
             }
             engine.figureManager().emitModified();
             outs[0] = Value();
@@ -512,7 +771,7 @@ void registerHandleAccessors(Engine &engine)
     }
     // get(h [, 'Prop']) — without a property name: struct of all
     {
-        ExternalFunc fn = [&engine, getProp](
+        ExternalFunc fn = [&engine](
                 Span<const Value> args, size_t,
                 Span<Value> outs, CallContext &) {
             if (args.empty()) { outs[0] = Value(); return; }
@@ -526,7 +785,8 @@ void registerHandleAccessors(Engine &engine)
             if (!rec)
                 throw std::runtime_error("Invalid or deleted object.");
             if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
-                outs[0] = getProp(rec, args[1].toString());
+                outs[0] = recordGetProp(engine.figureManager(), rec,
+                                        args[1].toString(), engine.resource());
                 return;
             }
             // get(h) → struct: stored props ∪ documented defaults.
@@ -558,6 +818,17 @@ void registerHandleAccessors(Engine &engine)
                     if (!v.isEmpty())
                         fields[p] = encodeProp(v);
                 }
+            } else if (rec->type == "text") {
+                fields["Type"] = "text";
+                Value v = recordGetProp(engine.figureManager(), rec, "String", mr);
+                if (!v.isEmpty())
+                    fields["String"] = encodeProp(v);
+            } else if (rec->type == "legend") {
+                fields["Type"] = "legend";
+                fields["Location"] = encodeProp(
+                    recordGetProp(engine.figureManager(), rec, "Location", mr));
+                fields["Visible"] = encodeProp(
+                    recordGetProp(engine.figureManager(), rec, "Visible", mr));
             }
             for (const auto &[k, v] : fields)
                 st.setFieldAll(k, decodeProp(v, mr));
@@ -588,6 +859,17 @@ void registerHandleAccessors(Engine &engine)
         engine.registerFunction("", "isgraphics", fn);
         engine.registerFunction("compat", "isgraphics", std::move(fn));
     }
+    // groot — the root graphics object (figure.Parent).
+    {
+        ExternalFunc fn = [&engine](
+                Span<const Value>, size_t,
+                Span<Value> outs, CallContext &) {
+            outs[0] = makeRootHandle(engine.figureManager(),
+                                     engine.resource());
+        };
+        engine.registerFunction("", "groot", fn);
+        engine.registerFunction("compat", "groot", std::move(fn));
+    }
     // ishandle(h) / isvalid(h)
     {
         ExternalFunc fn = [&engine](
@@ -611,8 +893,11 @@ void registerHandleAccessors(Engine &engine)
 // ============================================================
 void registerGraphicsClasses(Engine &engine)
 {
-    // Distinct MATLAB class names across the chart table + axes + figure.
-    std::unordered_set<std::string> names = {kFigureClass, kAxesClass};
+    // Distinct MATLAB class names across the chart table + axes + figure
+    // + text/legend/root records.
+    std::unordered_set<std::string> names = {kFigureClass, kAxesClass,
+                                             kTextClass, kLegendClass,
+                                             kRootClass};
     for (const auto &kv : handleTypes())
         names.insert(kv.second.second);
 
@@ -621,8 +906,9 @@ void registerGraphicsClasses(Engine &engine)
         cls.name = clsName;
         cls.isHandle = true;
         cls.superclasses = {"matlab.mixin.Handle", "handle"};
-        // propGet / propSet mirror set()/get() exactly (same registry,
-        // same defaults, same render-effect).
+        // propGet / propSet mirror set()/get() exactly — one shared body
+        // (recordGetProp / recordSetProp), same registry, same defaults,
+        // same render-effect.
         cls.propGet = [&engine](const Value &self, const std::string &name,
                                 Value &out, CallContext &) -> bool {
             const int id = graphicsHandleIdOf(self);
@@ -631,46 +917,11 @@ void registerGraphicsClasses(Engine &engine)
             auto *rec = engine.figureManager().findHandle(id);
             if (!rec)
                 throw std::runtime_error("Invalid or deleted object.");
-            auto it = rec->props.find(name);
-            if (it != rec->props.end()) {
-                out = decodeProp(it->second, engine.resource());
-                return true;
-            }
-            if (rec->type == "figure") {
-                if (name == "Type")   { out = Value::fromString("figure", engine.resource()); return true; }
-                if (name == "Number") { out = Value::scalar(rec->figureId, engine.resource()); return true; }
-                if (name == "CurrentAxes") { out = makeAxesHandle(engine.figureManager(), engine.resource()); return true; }
-                return false;
-            }
-            if (rec->type == "axes") {
-                if (name == "Parent") {
-                    out = makeFigureHandleFor(engine.figureManager(),
-                                              rec->figureId, engine.resource());
-                    return true;
-                }
-                Value v = axesGetProp(engine.figureManager(), rec, name,
-                                      engine.resource());
-                if (v.isEmpty())
-                    return false;
-                out = std::move(v);
-                return true;
-            }
-            if (name == "Parent") {
-                out = makeAxesHandle(engine.figureManager(), engine.resource());
-                return true;
-            }
-            {
-                Value v = chartDataProp(engine.figureManager(), rec, name,
-                                        engine.resource());
-                if (!v.isEmpty()) {
-                    out = std::move(v);
-                    return true;
-                }
-            }
-            Value d = chartDefaultProp(rec->type, name, engine.resource());
-            if (d.isEmpty())
-                return false;
-            out = std::move(d);
+            Value v = recordGetProp(engine.figureManager(), rec, name,
+                                    engine.resource(), /*strict=*/true);
+            if (v.isEmpty())
+                return false;   // unknown prop → engine's MATLAB error
+            out = std::move(v);
             return true;
         };
         cls.propSet = [&engine](Value &self, const std::string &name,
@@ -681,11 +932,7 @@ void registerGraphicsClasses(Engine &engine)
             auto *rec = engine.figureManager().findHandle(id);
             if (!rec)
                 throw std::runtime_error("Invalid or deleted object.");
-            rec->props[name] = encodeProp(val);
-            if (rec->type == "axes")
-                applyAxesProp(engine.figureManager(), rec, name, val);
-            else
-                applyChartProp(engine.figureManager(), rec, name, val);
+            recordSetProp(engine.figureManager(), rec, name, val);
             engine.figureManager().emitModified();
             return true;
         };
@@ -755,9 +1002,11 @@ void GraphicsLibrary::install(Engine &engine)
         "set", "get", "isgraphics", "ishandle", "isvalid",
     };
     // Layout functions whose RESULT the adapter wraps into a handle
-    // object (the core-free body only prepares the state / numeric id).
+    // object (the core-free body only prepares the state / label field).
     static const std::unordered_set<std::string> kHandleReturning = {
         "figure", "gcf", "gca", "axes",
+        "title", "subtitle", "sgtitle", "xlabel", "ylabel", "zlabel",
+        "legend",
     };
 
     for (PlotEntry &entry : table) {
@@ -840,12 +1089,34 @@ void GraphicsLibrary::install(Engine &engine)
                         }
                     }
                 } else if (wrapHandle) {
-                    // figure/gcf → matlab.ui.Figure, gca/axes → Axes.
+                    // figure/gcf → Figure, gca/axes → Axes, the title/
+                    // label family → slot-bound Text, legend → Legend.
                     auto *mr = ctx.engine->resource();
-                    if (name == "figure" || name == "gcf")
+                    if (name == "figure" || name == "gcf") {
                         outs[0] = makeFigureHandle(fm, mr);
-                    else
+                    } else if (const std::string &slot = textSlotOf(name);
+                               !slot.empty()) {
+                        // sgtitle is figure-scoped (kNoAxes) so scoped
+                        // axes sweeps keep it; the rest bind the axes.
+                        outs[0] =
+                            (name == "sgtitle")
+                                ? makeTextHandleFor(
+                                      fm, fm.currentFigureId(),
+                                      FigureManager::HandleRecord::kNoAxes,
+                                      slot, mr)
+                                : makeTextHandleFor(
+                                      fm, fm.currentFigureId(),
+                                      static_cast<size_t>(
+                                          fm.current().currentAxes),
+                                      slot, mr);
+                    } else if (name == "legend") {
+                        outs[0] = makeLegendHandleFor(
+                            fm, fm.currentFigureId(),
+                            static_cast<size_t>(fm.current().currentAxes),
+                            mr);
+                    } else {
                         outs[0] = makeAxesHandle(fm, mr);
+                    }
                 }
             };
 

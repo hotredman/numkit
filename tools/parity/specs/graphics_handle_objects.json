@@ -1,0 +1,25 @@
+{
+  "name": "graphics_handle_objects",
+  "namespace": "graphics",
+  "setup": "x = 1:5;",
+  "expr": "h = plot(x, x.^2); t = title('T'); tfs = t.FontSize; tcls = double(strcmp(class(t), 'matlab.graphics.primitive.Text')); set(t, 'String', 'T2'); tstr = double(strcmp(t.String, 'T2')); ax = gca; taxis = double(strcmp(ax.Title.String, 'T2')); tx = xlabel('X'); txl = double(strcmp(tx.String, 'X')); lg = legend('a'); lcls = double(strcmp(class(lg), 'matlab.graphics.chart.legend.Legend')); lloc0 = double(strcmp(get(lg, 'Location'), 'northeast')); set(lg, 'Location', 'south'); lloc1 = double(strcmp(get(lg, 'Location'), 'south')); lvis0 = double(strcmp(get(lg, 'Visible'), 'on')); set(lg, 'Visible', 'off'); lvis1 = double(strcmp(get(lg, 'Visible'), 'off')); legend show; lvis2 = double(strcmp(get(lg, 'Visible'), 'on')); gr = groot; gcls = double(strcmp(class(gr), 'matlab.ui.Root')); gtype = double(strcmp(gr.Type, 'root')); f = gcf; fparent = double(strcmp(class(f.Parent), 'matlab.ui.Root')); close all;",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "tfs",
+    "tcls",
+    "tstr",
+    "taxis",
+    "txl",
+    "lcls",
+    "lloc0",
+    "lloc1",
+    "lvis0",
+    "lvis1",
+    "lvis2",
+    "gcls",
+    "gtype",
+    "fparent"
+  ],
+  "comment": "Text/Legend/Root handle objects vs MATLAB R2025b: title/xlabel return matlab.graphics.primitive.Text (String round-trip, FontSize default 10, gca.Title is the Text object), legend returns matlab.graphics.chart.legend.Legend (Location default northeast + set round-trip, Visible off/on incl. `legend show` preserving labels), groot is matlab.ui.Root (Type 'root', figure.Parent chain). NOTE: MATLAB forbids dot-indexing a call result without parens (gcf().Parent), so the spec uses temp vars; numkit deliberately accepts the bare gcf.Parent form as a permissive superset (bugs/closed/lang/dotted-rvalue-on-call-result.md). Portion 31."
+}
