@@ -1,6 +1,6 @@
 # runtime.exist — `exist(absolutePath, 'file')` returns 0 inside a FUNCTION (works at top level)
 
-- **Status:** ✅ FIXED (portion 33, commit backfilled below)
+- **Status:** ✅ FIXED (portion 33, commit 07e185a85)
 - **Severity:** P3 (file-presence probes in function/library code silently
   mis-report; found via the portion-32 export parity spec — saveas WORKS
   but exist() in the spec's local function said 0)
