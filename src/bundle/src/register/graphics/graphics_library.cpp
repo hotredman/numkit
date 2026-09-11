@@ -32,6 +32,7 @@
 
 #include <numkit/core/engine.hpp>  // Engine, CallContext, ExternalFunc, Span, Value
 #include <numkit/figure/figure_manager.hpp>
+#include <numkit/figure/figure_render.hpp>
 #include <numkit/value/object.hpp>
 
 #include <cstddef>
@@ -349,6 +350,114 @@ void applyChartProp(FigureManager &fm, FigureManager::HandleRecord *rec,
         fm.markFigureModified(rec->figureId);
 }
 
+// Auto tick positions for get(gca,'XTick') in 'auto' mode — the SAME
+// niceTicks the renderer uses, over the explicit xlim if set, else the
+// data range (portion 34; MATLAB returns the drawn ticks).
+std::vector<double> axesAutoTicks(FigureManager &fm,
+                                  FigureManager::HandleRecord *rec, char axis)
+{
+    AxesState *ax = fm.axesOf(*rec);
+    if (!ax)
+        return {};
+    const bool log = (axis == 'x' ? ax->xscale : ax->yscale) == "log";
+    double lo = 0, hi = 1;
+    const std::string &lim = axis == 'x' ? ax->xlimJson : ax->ylimJson;
+    if (!lim.empty()) {
+        auto v = figdetail::parseFlatDoubles(lim);
+        if (v.size() == 2) {
+            lo = v[0];
+            hi = v[1];
+        }
+    } else {
+        lo = +INFINITY;
+        hi = -INFINITY;
+        for (const auto &ds : ax->datasets) {
+            if (!ds.visible)
+                continue;
+            const std::string &j = axis == 'x' ? ds.xJson : ds.yJson;
+            for (double v : figdetail::parseFlatDoubles(j))
+                if (std::isfinite(v)) {
+                    lo = std::min(lo, v);
+                    hi = std::max(hi, v);
+                }
+        }
+        if (!(hi > lo)) {
+            lo = 0;
+            hi = 1;
+        }
+        double d = (hi - lo) * 0.05;
+        lo -= d;
+        hi += d;
+    }
+    if (log) {
+        if (!(lo > 0) || !(hi > lo))
+            return {};
+        return figrender::logTicks(lo, hi);
+    }
+    return figrender::niceTicks(lo, hi);
+}
+
+// MATLAB R2025b (probe-verified): setting the AXES font RESETS even an
+// explicitly-set label-Text font — the texts fall back to the axes
+// values (FontSize ×1.1). Drop their stored font props.
+void resetAxesTextFonts(FigureManager &fm, FigureManager::HandleRecord *rec)
+{
+    for (auto &[id, r] : fm.handles())
+        if (!r.deleted && r.type == "text" && r.figureId == rec->figureId
+            && r.axesIndex == rec->axesIndex) {
+            r.props.erase("FontSize");
+            r.props.erase("FontWeight");
+            r.props.erase("FontName");
+        }
+}
+
+// tick vector Value ← json "[a,b,c]"
+Value decodeTickVec(const std::string &json, std::pmr::memory_resource *mr)
+{
+    auto v = figdetail::parseFlatDoubles(json);
+    if (v.empty())
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < v.size(); ++i)
+        out.doubleDataMut()[i] = v[i];
+    return out;
+}
+
+// ["a","b"] json → 1×N cell of char.
+Value decodeTickLabels(const std::string &json, std::pmr::memory_resource *mr)
+{
+    std::vector<std::string> labels;
+    size_t i = 0;
+    while (i < json.size()) {
+        size_t q1 = json.find('"', i);
+        if (q1 == std::string::npos)
+            break;
+        size_t q2 = json.find('"', q1 + 1);
+        if (q2 == std::string::npos)
+            break;
+        labels.push_back(json.substr(q1 + 1, q2 - q1 - 1));
+        i = q2 + 1;
+    }
+    if (labels.empty())
+        return Value::cell(0, 0, mr);
+    Value c = Value::cell(1, labels.size(), mr);
+    for (size_t k = 0; k < labels.size(); ++k)
+        c.cellAt(k) = Value::fromString(labels[k], mr);
+    return c;
+}
+
+// cell/string-array/char → ["a","b"] json.
+std::string encodeTickLabels(const Value &v)
+{
+    std::string out = "[";
+    for (size_t i = 0; i < v.numel(); ++i) {
+        if (i)
+            out += ",";
+        out += "\"" + v.cellAt(i).toString() + "\"";
+    }
+    return out + "]";
+}
+
 // ── Axes / figure property mapping (render-effect) ───────────────────
 bool applyAxesProp(FigureManager &fm, FigureManager::HandleRecord *rec,
                    const std::string &name, const Value &val)
@@ -375,6 +484,60 @@ bool applyAxesProp(FigureManager &fm, FigureManager::HandleRecord *rec,
     else if (name == "YLabel") ax->ylabel = val.toString();
     else if (name == "ZLabel") ax->zlabel = val.toString();
     else if (name == "Title")  ax->title  = val.toString();
+    // ── Portion 34 (MATLAB R2025b probe-verified semantics) ──
+    else if (name == "FontSize" && val.isNumeric() && v.size() == 1) {
+        ax->fontSize = v[0];
+        resetAxesTextFonts(fm, rec);   // label Texts follow the axes font
+    }
+    else if (name == "FontWeight") {
+        ax->fontWeight = val.toString();
+        resetAxesTextFonts(fm, rec);
+    }
+    else if (name == "FontName") {
+        ax->fontName = val.toString();
+        resetAxesTextFonts(fm, rec);
+    }
+    else if (name == "LineWidth" && val.isNumeric() && v.size() == 1)
+        ax->lineWidth = v[0];   // axes frame; series LineWidth is per-chart
+    else if ((name == "XTick" || name == "YTick" || name == "ZTick")
+             && (val.isNumeric() || val.isEmpty())) {
+        std::ostringstream os;
+        os << '[';
+        for (size_t i = 0; i < v.size(); ++i) {
+            if (i) os << ',';
+            os << formatPropDouble(v[i]);
+        }
+        os << ']';
+        (name == "XTick" ? ax->xTicksJson
+         : name == "YTick" ? ax->yTicksJson : ax->zTicksJson) = os.str();
+        (name == "XTick" ? ax->xTicksAuto
+         : name == "YTick" ? ax->yTicksAuto : ax->zTicksAuto) = false;
+    }
+    else if ((name == "XTickLabel" || name == "YTickLabel"
+              || name == "ZTickLabel")
+             && (val.isCell() || val.isChar() || val.isString())) {
+        std::string json = val.isCell() ? encodeTickLabels(val)
+                                        : "[\"" + val.toString() + "\"]";
+        (name == "XTickLabel" ? ax->xTickLabelsJson
+         : name == "YTickLabel" ? ax->yTickLabelsJson
+                                : ax->zTickLabelsJson) = json;
+    }
+    else if (name == "XTickMode" || name == "YTickMode"
+             || name == "ZTickMode") {
+        bool auto_ = val.toString() == "auto";
+        if (name == "XTickMode") { ax->xTicksAuto = auto_; if (auto_) ax->xTicksJson.clear(); }
+        if (name == "YTickMode") { ax->yTicksAuto = auto_; if (auto_) ax->yTicksJson.clear(); }
+        if (name == "ZTickMode") { ax->zTicksAuto = auto_; if (auto_) ax->zTicksJson.clear(); }
+    }
+    else if (name == "XTickLabelMode" || name == "YTickLabelMode"
+             || name == "ZTickLabelMode") {
+        bool auto_ = val.toString() == "auto";
+        if (name == "XTickLabelMode" && auto_) ax->xTickLabelsJson.clear();
+        if (name == "YTickLabelMode" && auto_) ax->yTickLabelsJson.clear();
+        if (name == "ZTickLabelMode" && auto_) ax->zTickLabelsJson.clear();
+    }
+    else if (name == "CLim" && v.size() == 2)
+        ax->climJson = limJson(v);
     else touched = false;
     if (touched)
         fm.markFigureModified(rec->figureId);
@@ -385,6 +548,7 @@ Value axesGetProp(FigureManager &fm, FigureManager::HandleRecord *rec,
                   const std::string &name, std::pmr::memory_resource *mr)
 {
     auto str = [&](const char *s) { return Value::fromString(s, mr); };
+    auto num = [&](double d) { return Value::scalar(d, mr); };
     if (name == "Type") return str("axes");
     AxesState *ax = fm.axesOf(*rec);
     if (!ax)
@@ -398,6 +562,63 @@ Value axesGetProp(FigureManager &fm, FigureManager::HandleRecord *rec,
     if (name == "YLabel") return str(ax->ylabel.c_str());
     if (name == "ZLabel") return str(ax->zlabel.c_str());
     if (name == "Title")  return str(ax->title.c_str());
+    // ── Portion 34 live reads (MATLAB R2025b probe-verified) ──
+    if (name == "FontSize")   return num(ax->fontSize);
+    if (name == "FontWeight") return str(ax->fontWeight.c_str());
+    if (name == "FontName")   return str(ax->fontName.c_str());
+    if (name == "LineWidth")  return num(ax->lineWidth);
+    if (name == "XTick") {
+        if (!ax->xTicksAuto)
+            return decodeTickVec(ax->xTicksJson, mr);
+        auto v = axesAutoTicks(fm, rec, 'x');
+        if (v.empty())
+            return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < v.size(); ++i)
+            out.doubleDataMut()[i] = v[i];
+        return out;
+    }
+    if (name == "YTick") {
+        if (!ax->yTicksAuto)
+            return decodeTickVec(ax->yTicksJson, mr);
+        auto v = axesAutoTicks(fm, rec, 'y');
+        if (v.empty())
+            return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < v.size(); ++i)
+            out.doubleDataMut()[i] = v[i];
+        return out;
+    }
+    if (name == "XTickMode")
+        return str(ax->xTicksAuto ? "auto" : "manual");
+    if (name == "YTickMode")
+        return str(ax->yTicksAuto ? "auto" : "manual");
+    if (name == "XTickLabelMode")
+        return str(ax->xTickLabelsJson.empty() ? "auto" : "manual");
+    if (name == "YTickLabelMode")
+        return str(ax->yTickLabelsJson.empty() ? "auto" : "manual");
+    if (!ax->xTickLabelsJson.empty() && name == "XTickLabel")
+        return decodeTickLabels(ax->xTickLabelsJson, mr);
+    if (!ax->yTickLabelsJson.empty() && name == "YTickLabel")
+        return decodeTickLabels(ax->yTickLabelsJson, mr);
+    if (name == "CLim") {
+        if (!ax->climJson.empty())
+            return decodeProp(ax->climJson, mr);
+        // auto: imagesc cmin/cmax if present, else MATLAB's [0 1].
+        for (const auto &ds : ax->datasets)
+            if (!ds.zQuantized.empty()) {
+                auto c = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+                c.doubleDataMut()[0] = ds.cminOrig;
+                c.doubleDataMut()[1] = ds.cmaxOrig;
+                return c;
+            }
+        auto c = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        c.doubleDataMut()[0] = 0;
+        c.doubleDataMut()[1] = 1;
+        return c;
+    }
+    if (name == "CLimMode")
+        return str(ax->climJson.empty() ? "auto" : "manual");
     return Value();
 }
 
@@ -599,10 +820,17 @@ Value recordGetProp(FigureManager &fm, FigureManager::HandleRecord *rec,
         auto it = rec->props.find(name);
         if (it != rec->props.end())
             return decodeProp(it->second, mr);
-        // MATLAB Text defaults (R2025b, parity-verified: 11pt).
-        if (name == "FontSize")   return num(11.0);
-        if (name == "FontWeight") return str("normal");
-        if (name == "FontName")   return str("Helvetica");
+        // MATLAB R2025b (probe-verified): label Texts inherit the AXES
+        // font — FontSize at 1.1× — unless the axes font was set (which
+        // RESETS any explicit Text font, see resetAxesTextFonts).
+        AxesState *ax = rec->slot == "sgtitle" ? nullptr
+                                               : fm.axesOf(*rec);
+        if (name == "FontSize")
+            return num(ax ? ax->fontSize * 1.1 : 11.0);
+        if (name == "FontWeight")
+            return str(ax ? ax->fontWeight.c_str() : "normal");
+        if (name == "FontName")
+            return str(ax ? ax->fontName.c_str() : "Helvetica");
         if (name == "Visible")    return str("on");
         if (name == "Color")      return rgb(0.15, 0.15, 0.15);
         return Value();

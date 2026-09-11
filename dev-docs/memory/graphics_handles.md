@@ -152,3 +152,33 @@ isolated local functions hit it, probe files with numel(dir(p)) instead).
 Export surface gaps tracked in
 bugs/opened/graphics/figure-export-gaps.md (pdf/eps, imagesc/3D/polar
 rendering, axes-scoped exportgraphics).
+
+## Portion 34 — axes property depth + the raster font lesson
+
+Probe-first table (MATLAB R2025b, all measured not recalled) drove the
+implementation: Text.FontSize reads back as axes FontSize × 1.1; setting
+AXES FontSize/FontWeight/FontName RESETS even explicitly-set title/xlabel
+fonts (they follow the axes until individually overridden); auto ticks =
+10 intervals via the 1/2/5 ladder (breakpoints ≤1/≤2/≤5, step =
+pow(10,floor(log10(range/10))) then ×2/×5/×10 — [0,10] gives 11 ticks);
+CLim auto is [0 1]; axes LineWidth default 0.5. The same tick rule now
+lives in three places that MUST stay in sync: figure_render.hpp
+(niceTicks, engine export), ide/src/components/plot/plotTicks.js, and
+this paragraph.
+
+BUG WORTH REMEMBERING (bugs/closed/graphics/raster-font-table-shifted.md):
+the 5x7 font table in figure_render.hpp had 92 of 95 rows — the array was
+declared F[95][5] so C++ zero-filled the gap silently and every glyph
+after it rendered +3 shifted ("time" → "wlph"). Fix: table replaced 1:1
+with the canonical Adafruit glcdfont rows 0x20..0x7E (byte-verified
+against the fetched reference, never hand-typed), array now unsized F[][5]
++ static_assert(count == 95) so a dropped row is a compile error. Guard:
+FigureExportTest.RasterFontGlyphAlignment.
+
+VERIFICATION LESSON: the image-analyzer MCP read a STALE cached CDN
+artifact twice (same path → same signed URL → old bytes) and
+"confirmed" the bug as still present after the fix; an ASCII decode of
+the PNG pixels (zlib + unfilter, print #/. bitmap) proved the fix worked
+within minutes. When a vision check contradicts mechanics, decode the
+pixels — and for renderers, prefer the ASCII-decode probe as the primary
+gate, the vision model as the secondary "does it look right" pass.

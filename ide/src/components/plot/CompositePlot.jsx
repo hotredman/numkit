@@ -404,6 +404,14 @@ export default function CompositePlot({
   const cbarWanted = showColorbar === true
                   || (showColorbar !== false && !!cbarLocRaw);
 
+  // Axes font (portion 34): tick labels scale with fontSize, title/
+  // labels at 1.1× (MATLAB-probe-verified), frame stroke at
+  // axesLineWidth. fontScale stays the UI zoom on top.
+  const axesFS = Number.isFinite(figure.fontSize) ? figure.fontSize : 10;
+  const axesFontScale = (axesFS / 10) * fontScale;
+  const axesFontWeight = figure.fontWeight === 'bold' ? 'bold' : 'normal';
+  const axesFontFamily = figure.fontName || 'Helvetica';
+  const axesFrameW = Math.max(0.5, Number(figure.axesLineWidth) || 0.5);
   let padL = 60 * fontScale;
   // Right pad: extra space for the colorbar (only when it's actually
   // shown) OR for a yyaxis right-side axis. Both reserve roughly the
@@ -608,8 +616,8 @@ export default function CompositePlot({
   // Custom tick positions from xticks() / yticks() override the
   // auto-generated set. Filter to the visible range so off-screen
   // ticks don't bleed into the margin.
-  const xTicksAuto = xLogActive ? logTicks(xMin, xMax) : niceTicks(xMin, xMax, 8);
-  const yTicksAuto = yLogActive ? logTicks(yMin, yMax) : niceTicks(yMin, yMax, 6);
+  const xTicksAuto = xLogActive ? logTicks(xMin, xMax) : niceTicks(xMin, xMax);
+  const yTicksAuto = yLogActive ? logTicks(yMin, yMax) : niceTicks(yMin, yMax);
   const xTicks = (Array.isArray(figure.xTicks) && figure.xTicks.length > 0)
     ? { major: figure.xTicks.filter((v) => v >= xMin && v <= xMax), minor: [] }
     : xTicksAuto;
@@ -1788,7 +1796,7 @@ export default function CompositePlot({
       ))}
 
       {axisVisible && (boxOn ? (
-        <rect x={padL} y={padT} width={W} height={H} fill="none" stroke="var(--plot-frame)" />
+        <rect x={padL} y={padT} width={W} height={H} fill="none" stroke="var(--plot-frame)" strokeWidth={axesFrameW} />
       ) : (
         // box off — only left + bottom edges (MATLAB convention).
         <>
@@ -1808,7 +1816,8 @@ export default function CompositePlot({
         return (
           <g key={`xl${i}`}>
             <line x1={x} x2={x} y1={padT + H} y2={padT + H + 4} stroke="var(--plot-tick)" />
-            <text x={x} y={ty} fill="var(--plot-text)" fontSize={10 * fontScale}
+            <text x={x} y={ty} fill="var(--plot-text)" fontSize={10 * axesFontScale}
+                  fontWeight={axesFontWeight} fontFamily={axesFontFamily}
                   textAnchor={anchor} transform={transform}>{fmtXTickLabel(v, i)}</text>
           </g>
         );
@@ -1822,7 +1831,8 @@ export default function CompositePlot({
         return (
           <g key={`yl${i}`}>
             <line x1={padL - 4} x2={padL} y1={y} y2={y} stroke="var(--plot-tick)" />
-            <text x={tx} y={y + 3} fill="var(--plot-text)" fontSize={10 * fontScale}
+            <text x={tx} y={y + 3} fill="var(--plot-text)" fontSize={10 * axesFontScale}
+                  fontWeight={axesFontWeight} fontFamily={axesFontFamily}
                   textAnchor="end" transform={transform}>{fmtYTickLabel(v, i)}</text>
           </g>
         );
@@ -1832,7 +1842,7 @@ export default function CompositePlot({
           independently from the left axis so the two scales are visibly
           decoupled. */}
       {yy2 && (() => {
-        const yTicks2 = yLog2Active ? logTicks(yMin2, yMax2) : niceTicks(yMin2, yMax2, 6);
+        const yTicks2 = yLog2Active ? logTicks(yMin2, yMax2) : niceTicks(yMin2, yMax2);
         return (
           <>
             <line x1={padL + W} x2={padL + W} y1={padT} y2={padT + H}
@@ -1919,10 +1929,10 @@ export default function CompositePlot({
           flag from FigureWindow's display ▾ menu so the user can hide
           the text without losing it from the figure data. */}
       {showXLabel && figure.xLabel && (
-        <text x={padL + W / 2} y={height - 8} fill="var(--plot-text)" fontSize={11 * fontScale} textAnchor="middle">{figure.xLabel}</text>
+        <text x={padL + W / 2} y={height - 8} fill="var(--plot-text)" fontSize={11 * axesFontScale} fontWeight={axesFontWeight} fontFamily={axesFontFamily} textAnchor="middle">{figure.xLabel}</text>
       )}
       {showYLabel && figure.yLabel && (
-        <text x={14} y={padT + H / 2} fill="var(--plot-text)" fontSize={11 * fontScale} textAnchor="middle"
+        <text x={14} y={padT + H / 2} fill="var(--plot-text)" fontSize={11 * axesFontScale} fontWeight={axesFontWeight} fontFamily={axesFontFamily} textAnchor="middle"
           transform={`rotate(-90 14 ${padT + H / 2})`}>{figure.yLabel}</text>
       )}
       {yy2 && showYLabel && figure.yLabel2 && (
@@ -1934,7 +1944,7 @@ export default function CompositePlot({
       )}
       {showTitle && figure.title && (
         <text x={padL + W / 2} y={padT - (figure.subtitle ? 22 : 12) * fontScale}
-              fill="var(--plot-text-strong)" fontSize={12 * fontScale} textAnchor="middle">{figure.title}</text>
+              fill="var(--plot-text-strong)" fontSize={12 * axesFontScale} fontWeight={axesFontWeight} fontFamily={axesFontFamily} textAnchor="middle">{figure.title}</text>
       )}
       {figure.subtitle && (
         <text x={padL + W / 2} y={padT - 8 * fontScale}

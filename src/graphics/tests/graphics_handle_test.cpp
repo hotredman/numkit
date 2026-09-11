@@ -337,3 +337,71 @@ TEST_P(GraphicsHandleTest, FigureChildrenIsFullAxesArray)
     // Children(2) IS the current axes handle (create-or-reuse identity).
     EXPECT_TRUE(evalBool("gca == gca.Parent.Children(2)"));
 }
+
+// ── Axes font / ticks / clim (portion 34; MATLAB R2025b probe-verified) ──
+
+TEST_P(GraphicsHandleTest, AxesFontDefaultsAndPropagation)
+{
+    eval("ax = gca; t = title('T');");
+    EXPECT_NEAR(evalScalar("ax.FontSize"), 10.0, 1e-12);
+    EXPECT_NEAR(evalScalar("t.FontSize"), 11.0, 1e-12);
+    eval("set(gca,'FontSize',14);");
+    EXPECT_NEAR(evalScalar("ax.FontSize"), 14.0, 1e-12);
+    EXPECT_NEAR(evalScalar("t.FontSize"), 15.4, 1e-12);   // 1.1× axes
+    // MATLAB surprise (probe-verified): the axes font RESETS even an
+    // explicitly-set Text font.
+    eval("t.FontSize = 20;");
+    EXPECT_NEAR(evalScalar("t.FontSize"), 20.0, 1e-12);
+    eval("set(gca,'FontSize',8);");
+    EXPECT_NEAR(evalScalar("t.FontSize"), 8.8, 1e-12);
+    eval("set(gca,'FontName','Times New Roman','FontWeight','bold');");
+    EXPECT_EQ(evalString("ax.FontName"), "Times New Roman");
+    EXPECT_EQ(evalString("t.FontWeight"), "bold");
+    EXPECT_EQ(evalString("get(gca,'FontName')"), "Times New Roman");
+}
+
+TEST_P(GraphicsHandleTest, AxesTickManualModeRoundTrip)
+{
+    eval("ax = gca;");
+    eval("set(ax,'XTick',[0 0.5 1 2]);");
+    Value x = eval("get(ax,'XTick')");
+    ASSERT_EQ(x.numel(), 4u);
+    EXPECT_NEAR(x.elemAsDouble(1), 0.5, 1e-12);
+    EXPECT_EQ(evalString("get(ax,'XTickMode')"), "manual");
+    // xlim does not touch manual ticks.
+    eval("set(ax,'XLim',[-1 5]);");
+    EXPECT_EQ(eval("get(ax,'XTick')").numel(), 4u);
+    // Cell labels round-trip.
+    eval("set(ax,'XTickLabel',{'lo','mid','hi','max'});");
+    EXPECT_EQ(evalString("get(ax,'XTickLabel'){2}"), "mid");
+    EXPECT_EQ(evalString("get(ax,'XTickLabelMode')"), "manual");
+    // Empty freezes; auto regenerates (MATLAB's 10-interval rule).
+    eval("set(ax,'XTick',[]);");
+    EXPECT_EQ(eval("get(ax,'XTick')").numel(), 0u);
+    eval("set(ax,'XTickMode','auto'); set(ax,'XLim',[0 10]);");
+    EXPECT_EQ(eval("get(ax,'XTick')").numel(), 11u);
+    // xticks()/xticklabels() builtins share the same mode flags.
+    eval("yticks([1 2 3]);");
+    EXPECT_EQ(evalString("get(gca,'YTickMode')"), "manual");
+    EXPECT_EQ(eval("get(gca,'YTick')").numel(), 3u);
+    // Render-effect: the wire json carries the manual ticks (X went
+    // back to auto above — Y is the surviving manual set).
+    EXPECT_FALSE(ax().yTicksJson.empty());
+}
+
+TEST_P(GraphicsHandleTest, AxesClimAndLineWidth)
+{
+    eval("ax = gca;");
+    Value c0 = eval("get(ax,'CLim')");
+    ASSERT_EQ(c0.numel(), 2u);
+    EXPECT_NEAR(c0.elemAsDouble(0), 0.0, 1e-12);
+    EXPECT_NEAR(c0.elemAsDouble(1), 1.0, 1e-12);
+    EXPECT_EQ(evalString("get(ax,'CLimMode')"), "auto");
+    eval("set(ax,'CLim',[0 100]);");
+    EXPECT_NEAR(evalScalar("get(ax,'CLim')(2)"), 100.0, 1e-12);
+    EXPECT_EQ(evalString("get(ax,'CLimMode')"), "manual");
+    EXPECT_NEAR(evalScalar("get(ax,'LineWidth')"), 0.5, 1e-12);
+    eval("set(ax,'LineWidth',2);");
+    EXPECT_NEAR(evalScalar("get(ax,'LineWidth')"), 2.0, 1e-12);
+    EXPECT_NEAR(ax().lineWidth, 2.0, 1e-12);   // render-effect
+}

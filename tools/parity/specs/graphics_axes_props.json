@@ -1,0 +1,28 @@
+{
+  "name": "graphics_axes_props",
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "ax = gca; t = title('T'); fs0 = ax.FontSize; tfs0 = t.FontSize; set(gca,'FontSize',14); a14 = ax.FontSize; t14 = t.FontSize; t.FontSize = 20; set(gca,'FontSize',8); t88 = t.FontSize; fn0 = double(strcmp(ax.FontName,'Helvetica')); set(gca,'FontName','Times New Roman','FontWeight','bold'); fnb = double(strcmp(t.FontName,'Times New Roman') & strcmp(t.FontWeight,'bold')); set(ax,'XTick',[0 0.5 1 2]); n1 = numel(get(ax,'XTick')); m1 = double(strcmp(get(ax,'XTickMode'),'manual')); set(ax,'XLim',[-1 5]); n2 = numel(get(ax,'XTick')); set(ax,'XTickLabel',{'lo','mid','hi','max'}); tl = get(ax,'XTickLabel'); lb = double(strcmp(tl{2},'mid')); set(ax,'XTick',[]); n3 = numel(get(ax,'XTick')); set(ax,'XTickMode','auto'); set(ax,'XLim',[0 10]); n4 = numel(get(ax,'XTick')); c0 = get(ax,'CLim'); clim0 = c0(1)+2*c0(2); set(ax,'CLim',[0 100]); c1 = get(ax,'CLim'); clim1 = c1(2); lw0 = ax.LineWidth; set(ax,'LineWidth',2); lw2 = ax.LineWidth; close all;",
+  "iters": 3,
+  "tol": 1e-12,
+  "fingerprint": [
+    "fs0",
+    "tfs0",
+    "a14",
+    "t14",
+    "t88",
+    "fn0",
+    "fnb",
+    "n1",
+    "m1",
+    "n2",
+    "lb",
+    "n3",
+    "n4",
+    "clim0",
+    "clim1",
+    "lw0",
+    "lw2"
+  ],
+  "comment": "Axes font/tick/clim semantics vs MATLAB R2025b, every value probe-verified before implementation (portion 34): defaults FontSize 10 / label Texts 1.1× (11); set(gca,'FontSize') RESETS even an explicitly-set Text font (20 → 8.8 after axes 8); FontName/Weight propagate to texts; XTick manual freeze survives xlim; XTickLabel cell round-trip; XTick=[] stays manual; XTickMode auto regenerates with MATLAB's 10-interval rule ([0,10] → 11 ticks); CLim auto [0 1] / manual round-trip; LineWidth 0.5 → 2."
+}

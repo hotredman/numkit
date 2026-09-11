@@ -10,13 +10,16 @@
  * snapped to the 1/2/5×10ⁿ ladder. Minor ticks at step/5 (excluding the
  * majors). Returns { major: number[], minor: number[] }.
  */
-export function niceTicks(min, max, target = 6) {
+// MATLAB-exact auto ticks (probe-verified against R2025b, portion 34):
+// target 10 intervals, ladder breakpoints at 1/2/5 — [0,1]→0:0.1:1,
+// [0,3]→0:0.5:3 (7), [0,7]→0:1:7 (8), [0,10]→0:1:10 (11).
+export function niceTicks(min, max, target = 10) {
   const range = max - min;
   if (range <= 0) return { major: [min], minor: [] };
   const rough = range / target;
   const pow = Math.pow(10, Math.floor(Math.log10(rough)));
   const norm = rough / pow;
-  const step = norm < 1.5 ? pow : norm < 3 ? 2 * pow : norm < 7 ? 5 * pow : 10 * pow;
+  const step = norm <= 1 ? pow : norm <= 2 ? 2 * pow : norm <= 5 ? 5 * pow : 10 * pow;
   const start = Math.ceil(min / step) * step;
   const majorArr = [];
   for (let v = start; v <= max + step * 1e-6; v += step) majorArr.push(+v.toFixed(12));

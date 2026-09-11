@@ -281,9 +281,29 @@ struct AxesState
     std::string xTicksJson;
     std::string yTicksJson;
     std::string zTicksJson;
+    // Tick MODE (MATLAB XTickMode semantics, probe-verified R2025b):
+    // 'auto' until any explicit tick assignment (set(gca,'XTick',v) /
+    // xticks(v)); the renderer then generates ticks itself (empty json).
+    // 'manual' freezes the json as the exact set; a later xlim change
+    // leaves it untouched. xticks('auto') / XTickMode 'auto' clears the
+    // json and re-enables generation.
+    bool xTicksAuto = true;
+    bool yTicksAuto = true;
+    bool zTicksAuto = true;
     std::string xTickLabelsJson;   // ["lo","mid","hi"] format
     std::string yTickLabelsJson;
     std::string zTickLabelsJson;
+
+    // ── Axes font / frame (portion 34; MATLAB R2025b probe-verified) ──
+    // FontSize/Weight/Name apply to tick labels AND propagate to the
+    // label Text objects (title/xlabel/… default to 1.1× the axes font;
+    // setting the axes font RESETS even an explicitly-set Text font —
+    // MATLAB behaviour, not a default-tracking inheritance).
+    double fontSize = 10.0;
+    std::string fontWeight = "normal";   // normal | bold
+    std::string fontName = "Helvetica";
+    // Axes frame (box + tick marks) stroke width.
+    double lineWidth = 0.5;
     // sprintf-style format string for tick labels (e.g. "%.2f").
     // Empty = renderer's auto format. Honoured only when no explicit
     // tick labels are set.
@@ -939,6 +959,16 @@ public:
                     os << ",\"xtickangle\":" << ax.xTickAngle;
                 if (ax.yTickAngle != 0.0)
                     os << ",\"ytickangle\":" << ax.yTickAngle;
+                // Axes font / frame (portion 34). Emitted only when
+                // non-default so untouched figures keep the wire shape.
+                if (ax.fontSize != 10.0)
+                    os << ",\"fontSize\":" << ax.fontSize;
+                if (ax.fontWeight != "normal")
+                    os << ",\"fontWeight\":\"" << ax.fontWeight << "\"";
+                if (ax.fontName != "Helvetica")
+                    os << ",\"fontName\":\"" << jsonEscapeFig(ax.fontName) << "\"";
+                if (ax.lineWidth != 0.5)
+                    os << ",\"axesLineWidth\":" << ax.lineWidth;
                 // axisVisible default = true; emit only when off
                 // (imshow / `axis off` set this).
                 if (!ax.axisVisible)

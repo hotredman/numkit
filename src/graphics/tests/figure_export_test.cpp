@@ -7,7 +7,10 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <numkit/figure/figure_render.hpp>
+
 #include <cstdio>
+#include <cstring>
 #include <string>
 
 using namespace m_test;
@@ -96,6 +99,28 @@ TEST_P(FigureExportTest, DeletedHandleErrors)
 {
     eval("f = figure(); close(f);");
     EXPECT_THROW(eval("saveas(f, 'x.png');"), std::runtime_error);
+}
+
+// Raster font alignment guard: the 5x7 table must map each char to its
+// OWN glyph. The original table had 92 of 95 rows — three dropped rows
+// silently shifted every later glyph +3 ("time" rendered as "wlph").
+// The static_assert in figure_render.hpp now guards the row COUNT; this
+// guard pins glyph IDENTITY for distinctive shapes across the alphabet.
+TEST_P(FigureExportTest, RasterFontGlyphAlignment)
+{
+    using numkit::figrender::font5x7;
+    const std::uint8_t *t = font5x7('t');
+    EXPECT_EQ(t[2], 0x3F) << "'t' must have its crossbar";
+    const std::uint8_t *I = font5x7('I');
+    const std::uint8_t expI[5] = {0x00, 0x41, 0x7F, 0x41, 0x00};
+    EXPECT_EQ(0, std::memcmp(I, expI, 5)) << "'I' must be symmetric";
+    // The +3 shift bug made font5x7('t') return the 'w' glyph
+    // {0x3C,0x40,0x30,0x40,0x3C}; assert it is NOT that.
+    const std::uint8_t expW[5] = {0x3C, 0x40, 0x30, 0x40, 0x3C};
+    EXPECT_NE(0, std::memcmp(t, expW, 5)) << "'t' returned the 'w' glyph";
+    // A digit and an uppercase letter after the historic gap region.
+    EXPECT_EQ(font5x7('8')[0], 0x36);
+    EXPECT_EQ(font5x7('A')[0], 0x7C);
 }
 
 INSTANTIATE_DUAL(FigureExportTest);

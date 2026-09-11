@@ -721,8 +721,9 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
     // numeric vector OR the string "auto" to clear. With no args,
     // the v1 returns an empty value (true MATLAB returns the
     // auto-generated tick set; needs renderer-side query plumbing).
-    auto ticksReg = [](std::string AxesState::*field) {
-        return [field](Span<const Value> args, size_t nargout,
+    auto ticksReg = [](std::string AxesState::*field,
+                       bool AxesState::*autoFlag) {
+        return [field, autoFlag](Span<const Value> args, size_t nargout,
                        Span<Value> outs, GraphicsContext &gc) {
             (void)nargout;
             auto &fm = gc.fm;
@@ -736,6 +737,7 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
                 for (auto &c : s) c = (char)std::tolower((unsigned char)c);
                 if (s == "auto") {
                     (ax.*field).clear();
+                    ax.*autoFlag = true;   // MATLAB XTickMode 'auto'
                     fm.current().modified = true;
                     fm.emitModified();
                 }
@@ -751,14 +753,15 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
             }
             os << ']';
             ax.*field = os.str();
+            ax.*autoFlag = false;   // explicit ticks freeze the mode
             fm.current().modified = true;
             fm.emitModified();
             outs[0] = Value();
         };
     };
-    reg("layout", "xticks", ticksReg(&AxesState::xTicksJson));
-    reg("layout", "yticks", ticksReg(&AxesState::yTicksJson));
-    reg("layout", "zticks", ticksReg(&AxesState::zTicksJson));
+    reg("layout", "xticks", ticksReg(&AxesState::xTicksJson, &AxesState::xTicksAuto));
+    reg("layout", "yticks", ticksReg(&AxesState::yTicksJson, &AxesState::yTicksAuto));
+    reg("layout", "zticks", ticksReg(&AxesState::zTicksJson, &AxesState::zTicksAuto));
     // xticklabels / yticklabels / zticklabels — set custom tick label
     // strings. Accept a cell of strings, a string array, or a single
     // multiline string. v1: cell-of-chars (most common) supported via

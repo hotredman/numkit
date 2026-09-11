@@ -282,6 +282,12 @@ export function adaptAxes(figId, cellId, datasets, cfg, axIdx = 0) {
     subtitle: cfg.subtitle || '',
     xLabel: cfg.xlabel || '',
     yLabel: cfg.ylabel || '',
+    // Axes font / frame (portion 34; MATLAB: tick labels at fontSize,
+    // title/labels at 1.1×, frame at axesLineWidth).
+    fontSize: Number.isFinite(cfg.fontSize) ? Number(cfg.fontSize) : 10,
+    fontWeight: cfg.fontWeight || 'normal',
+    fontName: cfg.fontName || 'Helvetica',
+    axesLineWidth: Number.isFinite(cfg.axesLineWidth) ? Number(cfg.axesLineWidth) : 0.5,
     xRange, yRange,
     // 2-D default is `off` (MATLAB parity). cfg.grid is present only
     // when grid(...) was explicitly called.
