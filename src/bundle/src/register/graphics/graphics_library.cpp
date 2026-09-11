@@ -619,6 +619,10 @@ Value axesGetProp(FigureManager &fm, FigureManager::HandleRecord *rec,
     }
     if (name == "CLimMode")
         return str(ax->climJson.empty() ? "auto" : "manual");
+    if (name == "YDir")
+        return str(ax->yDir.empty() ? "normal" : ax->yDir.c_str());
+    if (name == "XDir")
+        return str(ax->xDir.empty() ? "normal" : ax->xDir.c_str());
     return Value();
 }
 

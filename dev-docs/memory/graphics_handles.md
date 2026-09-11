@@ -182,3 +182,47 @@ the PNG pixels (zlib + unfilter, print #/. bitmap) proved the fix worked
 within minutes. When a vision check contradicts mechanics, decode the
 pixels — and for renderers, prefer the ASCII-decode probe as the primary
 gate, the vision model as the secondary "does it look right" pass.
+
+## Portion 35 — imagesc/imshow/image export + colormap ground truth
+
+Engine-side export now renders image datasets (Cmd::IMAGE: quantized
+indices + clim + palette, or imshow RGBA quads) in BOTH backends — the
+raster blits a shared imageCmdRgb() buffer and the SVG embeds it as a
+base64 PNG through an injectable SvgImageEmbedder (the figure layer
+stays codec-free; export_reg supplies imwriteToBytes+base64). Geometry
+follows MATLAB probes: image edges = centers ± spacing/2 (default
+[1,C] → ±0.5), edge vectors as-is; auto axes limits pad by
+span/(2·(cells−1)); image-only axes skip the 5% breathing room;
+YDir reverse rides the existing transform; axis off drops decorations;
+axis image/equal shrinks the plot rect to the data aspect.
+
+COLORMAP GROUND TRUTH (probe, never port from memory): scaled CData v
+maps to palette entry round(t·(N−1))+1 (1-based, N = colormap size) with
+t=(v−clo)/(chi−clo) clamped; NaN renders as ENTRY 1 (the first color,
+not white/transparent!). Named tables for the engine (figure_render.hpp
+kNamedPaletteHex) and the IDE (colormapTables.js) are generated from the
+SAME MATLAB R2025b dump feval(<name>,256) — byte-identical across
+engine/IDE. MATLAB R2025b has NO viridis() (exist==0): the matplotlib-
+approx stops are the shared ground truth there.
+
+MATLAB QUIRK worth remembering: in this environment MATLAB's own
+imshow+saveas renders an all-black image and exportgraphics gives a
+7×6 black/white oddity (headless-render quirk, reproducible); the
+parity spec therefore uses imagesc+colormap(gray)+axis ij off, which
+MATLAB renders correctly and which exercises the same mapping chain.
+
+Bugs found en route (all fixed same-portion except the last):
+- base64 encoder: (char)0xFF << 16 sign-extends → every PNG byte ≥0x80
+  corrupted (SVG images were silently broken from day one).
+- parseCustomPalette: parseFlatDoubles stops at the first ']' (flat
+  arrays) → nested colormap(M) JSON parsed ONE triplet → all cells
+  entry-1. Strip brackets first.
+- DatasetInfo comment lied: rgbBytes are RGBA QUADS (4 bytes/px,
+  alpha synthesized), not RGB triplets — stride 4 in the renderer.
+- numkit's 254-level imagesc quantization can round a value to the
+  ADJACENT palette entry (half-integer cases, e.g. v=128 gray): pixel
+  guards use ±3/channel, parity tol=1.
+- OPEN bugs/opened/runtime/dir-nargout-in-argument.md: a call in
+  ARGUMENT position inherits the outer call's nargout — statement
+  context (fprintf(...)) makes dir print its listing and return
+  nothing. Guard: DirNargoutInsideCallArgument (DISABLED_).

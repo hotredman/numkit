@@ -210,8 +210,9 @@ struct DatasetInfo
 
     // ── Image-RGB (truecolor, set by imshow with M×N×3 input) ──────────
     // Source bytes are ALWAYS uint8 0..255 — imshow casts double→u8 with
-    // *255 and clamps before reaching here. Layout is row-major triplets
-    // (r0,g0,b0, r1,g1,b1, ...). originalRows/originalCols give the
+    // *255 and clamps before reaching here. Layout is row-major RGBA
+    // QUADS (r0,g0,b0,a0, r1,g1,b1,a1, ...) — alpha is synthesized 255
+    // for plain RGB input. originalRows/originalCols give the
     // pixel dims (same field as imagesc reuses).
     //
     // rgbJson is the inline preview: "[[r,g,b],[r,g,b],...]" row-major,

@@ -158,3 +158,162 @@ TEST_P(FigureExportTest, PngPixelsDecodeColumnMajor)
     EXPECT_TRUE(found) << "palette-green line pixel not found near (445,301)";
     removeFile(p);
 }
+
+// ── Image export (portion 35: imagesc / imshow / colormap) ───────────
+// All expected colors are MATLAB R2025b pixel-probed (2026-09-11): a
+// scaled value v maps to palette entry round(t*(N-1))+1 with
+// t=(v-clo)/(chi-clo) clamped; NaN renders as entry 1. numkit's 254-
+// level quantization costs at most one adjacent palette entry → ±3 on
+// each uint8 channel. Canvas layout is deterministic (840×630, single
+// axes, margins ml=64/mr=14/mt=20/mb=48) → cell centers are computed,
+// not scanned.
+
+namespace {
+
+// Sample A(y, x, :) from an exported PNG loaded via imread; returns
+// false when the pixel is not within ±tol of the expected RGB.
+::testing::AssertionResult pixelMatches(FigureExportTest *t,
+                                        const std::string &a, int y, int x,
+                                        int r, int g, int b, int tol)
+{
+    double pr = t->evalScalar(a + "(" + std::to_string(y) + ","
+                              + std::to_string(x) + ",1)");
+    double pg = t->evalScalar(a + "(" + std::to_string(y) + ","
+                              + std::to_string(x) + ",2)");
+    double pb = t->evalScalar(a + "(" + std::to_string(y) + ","
+                              + std::to_string(x) + ",3)");
+    if (std::abs(pr - r) <= tol && std::abs(pg - g) <= tol
+        && std::abs(pb - b) <= tol)
+        return ::testing::AssertionSuccess();
+    return ::testing::AssertionFailure()
+           << "pixel(" << y << "," << x << ") = (" << pr << "," << pg << ","
+           << pb << "), expected (" << r << "," << g << "," << b
+           << ") ±" << tol;
+}
+
+// Cell-center pixel of the 3x4 default imagesc layout. plot rect:
+// x∈[74,826], y∈[20,582] (no title); limits [0.5,4.5]x[0.5,3.5] with
+// YDir reverse (row 1 at top).
+int cellX(int col) { return 74 + (int)((col + 0.5) / 4.0 * 752.0); }
+int cellY(int row) { return 20 + (int)((row + 0.5) / 3.0 * 562.0); }
+
+} // namespace
+
+// MATLAB probe p35_k: parula 256, CLim auto [1 12]. Every expected
+// value below was read from the MATLAB-exported PNG at the same cell.
+TEST_P(FigureExportTest, ImagescParulaPixelColors)
+{
+    std::string p = tmpPath("_nk_img.png");
+    eval("C = [1 2 3 4; 5 6 7 8; 9 10 NaN 12];");
+    eval("imagesc(C);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    // row 1: v2, v3, v4
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(0), cellX(1), 71, 63, 227, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(0), cellX(2), 70, 96, 251, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(0), cellX(3), 47, 130, 250, 3));
+    // row 2: v6, v7, v8
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(1), cellX(1), 4, 182, 206, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(1), cellX(2), 47, 197, 163, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(1), cellX(3), 103, 205, 108, 3));
+    // row 3: v10, NaN, v12 — NaN renders as palette entry 1 (62,38,168),
+    // the same color as the clim-saturated v1 (MATLAB behavior).
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(2), cellX(1), 245, 186, 59, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(2), cellX(2), 62, 38, 168, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(2), cellX(3), 249, 251, 21, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(0), cellX(0), 62, 38, 168, 3));
+    // Axes state round-trip (MATLAB probe A: YDir reverse, CLim [1 12]).
+    EXPECT_EQ(evalString("get(gca, 'YDir');"), "reverse");
+    auto cl = eval("get(gca, 'CLim');");
+    EXPECT_NEAR(cl.numel(), 2, 0);
+    removeFile(p);
+}
+
+// clim([2 11]) narrows the window: v1 saturates low, v10 high, v6 maps
+// mid-window (MATLAB probe p35_c pixels).
+TEST_P(FigureExportTest, ImagescClimOverride)
+{
+    std::string p = tmpPath("_nk_clim.png");
+    eval("C = [1 2 3 4; 5 6 7 8; 9 10 NaN 12];");
+    eval("imagesc(C); clim([2 11]);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(0), cellX(0), 62, 38, 168, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(1), cellX(1), 8, 180, 209, 3));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(2), cellX(3), 249, 251, 21, 3));
+    removeFile(p);
+}
+
+// colormap(M) custom palette: gray(4) endpoints are exact under any
+// rounding rule (t=0 → entry 1, t=1 → entry 4).
+TEST_P(FigureExportTest, ImagescCustomGrayPalette)
+{
+    std::string p = tmpPath("_nk_gray.png");
+    eval("C = [1 2 3 4; 5 6 7 8; 9 10 NaN 12];");
+    eval("imagesc(C); colormap(gray(4));");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(0), cellX(0), 0, 0, 0, 0));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(2), cellX(2), 0, 0, 0, 0));
+    EXPECT_TRUE(pixelMatches(this, "A", cellY(2), cellX(3), 255, 255, 255, 0));
+    removeFile(p);
+}
+
+// imshow grayscale: uint8 values render as their own gray level
+// (CLim [0 255]) with axis off and square pixels.
+TEST_P(FigureExportTest, ImshowGrayscalePixelExact)
+{
+    std::string p = tmpPath("_nk_gray2.png");
+    eval("imshow(uint8([0 64 128; 192 255 32]));");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_NEAR(evalScalar("size(A,1)"), 630.0, 0.5);
+    EXPECT_NEAR(evalScalar("size(A,2)"), 840.0, 0.5);
+    // Layout-independent counts: every gray level paints a solid block.
+    for (int v : {0, 64, 128, 192, 255, 32}) {
+        std::string vv = std::to_string(v);
+        EXPECT_GT(evalScalar(
+            "sum(sum(A(:,:,1) == " + vv + " & A(:,:,2) == " + vv
+            + " & A(:,:,3) == " + vv + "))"), 500.0) << "gray " << v;
+    }
+    removeFile(p);
+}
+
+// imshow truecolor: RGB bytes pass through unmodified.
+TEST_P(FigureExportTest, ImshowRgbPixelExact)
+{
+    std::string p = tmpPath("_nk_rgb.png");
+    eval("I = zeros(2, 3, 3, 'uint8');");
+    eval("I(1,1,:) = [255 0 0]; I(1,2,:) = [0 255 0]; I(1,3,:) = [0 0 255];");
+    eval("I(2,1,:) = [255 255 0]; I(2,2,:) = [0 255 255]; I(2,3,:) = [255 0 255];");
+    eval("imshow(I);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    // Count exact-color blocks (each cell ≥ 3000 px).
+    EXPECT_GT(evalScalar("sum(sum(A(:,:,1) == 255 & A(:,:,2) == 0 & A(:,:,3) == 0))"), 3000.0);
+    EXPECT_GT(evalScalar("sum(sum(A(:,:,1) == 0 & A(:,:,2) == 255 & A(:,:,3) == 0))"), 3000.0);
+    EXPECT_GT(evalScalar("sum(sum(A(:,:,1) == 0 & A(:,:,2) == 0 & A(:,:,3) == 255))"), 3000.0);
+    EXPECT_GT(evalScalar("sum(sum(A(:,:,1) == 255 & A(:,:,2) == 255 & A(:,:,3) == 0))"), 3000.0);
+    EXPECT_GT(evalScalar("sum(sum(A(:,:,1) == 0 & A(:,:,2) == 255 & A(:,:,3) == 255))"), 3000.0);
+    EXPECT_GT(evalScalar("sum(sum(A(:,:,1) == 255 & A(:,:,2) == 0 & A(:,:,3) == 255))"), 3000.0);
+    removeFile(p);
+}
+
+// SVG export embeds the image as a base64 PNG <image> element.
+TEST_P(FigureExportTest, SvgEmbedsImagesc)
+{
+    std::string p = tmpPath("_nk_img.svg");
+    eval("imagesc([1 2; 3 4]);");
+    eval("saveas(gcf, '" + p + "', 'svg');");
+    FILE *f = std::fopen(p.c_str(), "rb");
+    ASSERT_NE(f, nullptr);
+    std::string svg;
+    char buf[4096];
+    size_t n;
+    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0)
+        svg.append(buf, n);
+    std::fclose(f);
+    EXPECT_NE(svg.find("<image"), std::string::npos);
+    EXPECT_NE(svg.find("data:image/png;base64,"), std::string::npos);
+    removeFile(p);
+}

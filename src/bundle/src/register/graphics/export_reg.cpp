@@ -38,6 +38,57 @@ std::string lowerExtOf(const std::string &path)
     return e;
 }
 
+// PNG + base64 data-URL embedder for SVG <image> elements. The buffer
+// arrives top-down row-major from figrender::imageCmdRgb; it goes to
+// imwriteToBytes as a column-major uint8 H×W×3 Value (the transpose is
+// the same column-major contract the raster export path uses).
+const char kBase64[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+figrender::SvgImageEmbedder svgPngEmbedder(
+    std::pmr::memory_resource *mr)
+{
+    return [mr](const std::vector<std::uint8_t> &rgb, int w, int h) {
+        const size_t Hp = (size_t)h, Wp = (size_t)w;
+        Value A = Value::matrix3d(Hp, Wp, 3, ValueType::UINT8, mr);
+        std::uint8_t *d = A.uint8DataMut();
+        for (size_t r = 0; r < Hp; ++r)
+            for (size_t c = 0; c < Wp; ++c)
+                for (size_t ch = 0; ch < 3; ++ch)
+                    d[r + c * Hp + ch * Hp * Wp] =
+                        rgb[(r * Wp + c) * 3 + ch];
+        std::string png = image::imwriteToBytes(A, "png", mr);
+        std::string b64 = "data:image/png;base64,";
+        b64.reserve(b64.size() + (png.size() / 3 + 1) * 4);
+        size_t i = 0;
+        for (; i + 2 < png.size(); i += 3) {
+            // Cast through uint8_t FIRST: png[i] is signed char, so
+            // (char)0xFF << 16 sign-extends and corrupts every byte
+            // >= 0x80 (most of any PNG).
+            std::uint32_t v = ((std::uint32_t)(std::uint8_t)png[i] << 16)
+                            | ((std::uint32_t)(std::uint8_t)png[i + 1] << 8)
+                            | (std::uint8_t)png[i + 2];
+            b64 += kBase64[(v >> 18) & 63];
+            b64 += kBase64[(v >> 12) & 63];
+            b64 += kBase64[(v >> 6) & 63];
+            b64 += kBase64[v & 63];
+        }
+        size_t rem = png.size() - i;
+        std::uint8_t b0 = rem >= 1 ? (std::uint8_t)png[i] : 0;
+        std::uint8_t b1 = rem >= 2 ? (std::uint8_t)png[i + 1] : 0;
+        if (rem == 1) {
+            b64 += kBase64[b0 >> 2];
+            b64 += kBase64[(b0 & 3) << 4];
+            b64 += "==";
+        } else if (rem == 2) {
+            b64 += kBase64[b0 >> 2];
+            b64 += kBase64[((b0 & 3) << 4) | (b1 >> 4)];
+            b64 += kBase64[((b1 & 15) << 2)];
+            b64 += '=';
+        }
+        return b64;
+    };
+}
+
 // Resolve the TARGET FIGURE from any graphics handle / figure number.
 // exportgraphics(gca)/saveas(chart) scope to the axes in MATLAB; the
 // portion-32 renderer works per-figure, so axes/chart targets map to
@@ -147,7 +198,9 @@ void runExport(Engine &engine, const ExportArgs &ea, const char *who)
 
     if (ea.ext == "svg") {
         rp.fs->writeFile(rp.path,
-                         figrender::renderFigureSvg(*ea.fig, W, H));
+                         figrender::renderFigureSvg(*ea.fig, W, H,
+                                                     svgPngEmbedder(
+                                                         engine.resource())));
         return;
     }
     if (ea.ext == "pdf" || ea.ext == "eps" || ea.ext == "eps2"

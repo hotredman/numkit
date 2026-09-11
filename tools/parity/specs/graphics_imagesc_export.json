@@ -1,0 +1,16 @@
+{
+  "name": "graphics_imagesc_export",
+  "namespace": "graphics",
+  "setup": "img = double(uint8([0 64 128; 192 255 32]));",
+  "expr": "figure; imagesc(img); colormap(gray(256)); axis ij; axis off; p = [tempdir 'parity_img.png']; saveas(gcf, p); A = double(imread(p)); H = size(A,1); W = size(A,2); c1 = A(round(0.3*H), round(0.5*W), 1); c2 = A(round(0.75*H), round(0.2*W), 1); c3 = A(round(0.3*H), round(0.83*W), 1); c4 = A(round(0.75*H), round(0.5*W), 1); c5 = A(round(0.3*H), round(0.17*W), 1); close all;",
+  "iters": 3,
+  "tol": 1,
+  "fingerprint": [
+    "c1",
+    "c2",
+    "c3",
+    "c4",
+    "c5"
+  ],
+  "comment": "imagesc/imshow export COLORS vs MATLAB R2025b (portion 35). NOTE: MATLAB R2025b renders imshow+saveas as an all-black image in this environment (probed 2026-09-11; exportgraphics gives a 7x6 black/white oddity) — the spec therefore uses the equivalent imagesc(img)+colormap(gray(256))+axis ij off path, which MATLAB renders correctly and which exercises the SAME mapping chain (scaled CData -> palette entry round(t*(N-1))+1, t=(v-clo)/(chi-clo) clamped, NaN -> entry 1). Probes hit cell centres at canvas-relative positions that land inside the same cell under both engines' layouts; tol=1 covers numkit's 254-level quantization (half-integer cases can round to the adjacent palette entry). Deferred: pcolor export (vertex alignment), colorbar, axes-scoped exportgraphics — figure-export-gaps.md."
+}

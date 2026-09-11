@@ -548,3 +548,25 @@ TEST_P(CommandGlueTest, ExistFileInsideFunction)
     EXPECT_DOUBLE_EQ(evalScalar("eTop"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("eIn"), 2.0);
 }
+
+// bugs/opened/runtime/dir-nargout-in-argument.md — a call in ARGUMENT
+// position must request one output: MATLAB gives numel(dir(path))==1
+// inside fprintf(...) just like in an assignment. numkit currently
+// invokes the argument call with nargout=0, so dir prints its listing
+// and returns nothing → numel = 0.
+TEST_P(CommandGlueTest, DISABLED_DirNargoutInsideCallArgument)
+{
+    const std::string tmp = (std::string)std::tmpnam(nullptr) + "_dirarg.txt";
+    eval("fid = fopen('" + tmp + "', 'w'); fwrite(fid, uint8('x')); fclose(fid);");
+    // Assignment context: outer call requests an output, the inner dir
+    // inherits it — works today.
+    eval("a = numel(dir('" + tmp + "'));");
+    EXPECT_DOUBLE_EQ(evalScalar("a"), 1.0);
+    // Statement context (outer call itself has nargout=0): the inner
+    // dir currently runs at nargout=0, prints its listing and returns
+    // nothing — MATLAB requests one output for ANY argument position,
+    // so ans must be 1 there too. Observable via ans.
+    eval("numel(dir('" + tmp + "'));");
+    EXPECT_DOUBLE_EQ(evalScalar("ans"), 1.0);
+    ::remove(tmp.c_str());
+}
