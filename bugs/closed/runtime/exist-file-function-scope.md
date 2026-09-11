@@ -1,6 +1,6 @@
 # runtime.exist — `exist(absolutePath, 'file')` returns 0 inside a FUNCTION (works at top level)
 
-- **Status:** 🔴 OPEN
+- **Status:** ✅ FIXED (portion 33, commit backfilled below)
 - **Severity:** P3 (file-presence probes in function/library code silently
   mis-report; found via the portion-32 export parity spec — saveas WORKS
   but exist() in the spec's local function said 0)
@@ -30,19 +30,24 @@ fprintf('top exist=%g\n', exist([tempdir 'probe_exist.txt'], 'file'));
 % MATLAB R2025b: fn exist=2, fn dir=1, top exist=2
 ```
 
-## Root cause (suspected)
+## Root cause (confirmed by instrumentation)
 
-exist's `vfsExists` swallows every exception (`catch (...) return false`).
-resolvePath or the native fs `exists()` throws in the function context
-(something scope-dependent — script-origin/cwd resolution — needs a
-debug print to pin down); the catch hides it and exist reports "no file".
+NOT the catch(...) (it never fired). Inside functions the compiler rewrites
+`exist(name[, filter])` into the EXIST_VAR opcode (compiler.cpp "workspace
+introspection builtins → opcodes inside functions"), and that opcode's
+'file'/'dir'/'class' branches were a stub that printed a warning and
+returned 0. The top level calls the registered exist() external (correct),
+so the divergence looked scope-dependent.
 
-## Suggested fix
+## Fix (portion 33)
 
-Find the throwing call (log it), fix the scope dependence, and narrow the
-swallow to expected "not found" misses only.
+EXIST_VAR's 'file'/'dir'/'class' branches now delegate to the registered
+exist() external (one true implementation: resolvePath + fs checks); the
+no-filter form also falls through to it when the local var/function probes
+find nothing, so MATLAB's file=2 / m-file=2 answers work inside functions
+too. The 'var'/'builtin' fast paths stay local.
 
 ## References
 
-- **Guard:** `DISABLED_ExistFileInsideFunction` (dual-engine) in
+- **Guard:** `ExistFileInsideFunction` (dual-engine, enabled) in
   `src/bundle/tests/known_bugs_test.cpp`.

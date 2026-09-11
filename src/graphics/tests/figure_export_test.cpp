@@ -99,3 +99,37 @@ TEST_P(FigureExportTest, DeletedHandleErrors)
 }
 
 INSTANTIATE_DUAL(FigureExportTest);
+
+// Column-major guard (portion 33): decode the exported PNG back through
+// imread and verify ACTUAL PIXELS — the geometry is deterministic
+// (plot(1:5,3s) horizontal line at y=3 → pixel ≈ (445,301) must carry
+// the palette green #7fd99a; background white; dims 630×840). A linear
+// row-major→Value transfer scrambles exactly this and would fail here.
+TEST_P(FigureExportTest, PngPixelsDecodeColumnMajor)
+{
+    std::string p = tmpPath("_nkpx.png");
+    eval("plot([1 2], [3 3]);");   // no title → margins deterministic
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_NEAR(evalScalar("size(A,1)"), 630.0, 0.5);
+    EXPECT_NEAR(evalScalar("size(A,2)"), 840.0, 0.5);
+    EXPECT_NEAR(evalScalar("size(A,3)"), 3.0, 0.5);
+    // White background well inside the canvas.
+    EXPECT_GT(evalScalar("A(20, 400, 1)"), 250.0);
+    EXPECT_GT(evalScalar("A(20, 400, 3)"), 250.0);
+    // The series line: scan a ±6px window around (445,301) for the
+    // palette green (127, 217, 154).
+    bool found = false;
+    for (int dy = -8; dy <= 8 && !found; ++dy)
+        for (int dx = -8; dx <= 8 && !found; ++dx) {
+            std::string px = "A(" + std::to_string(301 + dy) + ", "
+                           + std::to_string(445 + dx) + ", :)";
+            double r = evalScalar(px + "(1)"), g = evalScalar(px + "(2)"),
+                   b = evalScalar(px + "(3)");
+            if (r > 100 && r < 160 && g > 190 && g < 245 && b > 130
+                && b < 180)
+                found = true;
+        }
+    EXPECT_TRUE(found) << "palette-green line pixel not found near (445,301)";
+    removeFile(p);
+}

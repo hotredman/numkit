@@ -2856,6 +2856,30 @@ enter_frame:
 
                 double code = 0;
 
+                // The var/builtin filters (and the var/function probes of
+                // the no-filter form) are local fast checks. Everything
+                // with a FILESYSTEM answer ('file', 'dir', 'class', and
+                // the file/m-file fallback of the no-filter form) belongs
+                // to the registered exist() external — the old stub
+                // returned 0 with a warning, so exist(absolutePath,
+                // 'file') silently mis-reported inside functions
+                // (bugs/closed/runtime/exist-file-function-scope.md).
+                auto delegateToExternal = [&]() -> bool {
+                    const ExternalFunc *fn =
+                        engine_.findExternal("exist", currentCallEnv());
+                    if (!fn)
+                        return false;
+                    Value argv[2] = {Value::fromString(varName, engine_.mr_),
+                                     Value::fromString(filter, engine_.mr_)};
+                    Span<const Value> as(argv, filter.empty() ? 1u : 2u);
+                    Value ob[1];
+                    CallContext ctx{&engine_, currentCallEnv()};
+                    (*fn)(as, 1, Span<Value>(ob, 1), ctx);
+                    if (ob[0].isScalar())
+                        code = ob[0].toScalar();
+                    return true;
+                };
+
                 if (filter.empty()) {
                     // No filter: check variables first, then functions
                     for (auto &[vn, reg] : chunk.varMap) {
@@ -2867,6 +2891,9 @@ enter_frame:
                     }
                     if (code == 0 && engine_.hasFunction(varName))
                         code = 5;
+                    // …then files / m-files (MATLAB returns 2 for those).
+                    if (code == 0)
+                        delegateToExternal();
                 } else if (filter == "var") {
                     // Only check local variables
                     for (auto &[vn, reg] : chunk.varMap) {
@@ -2879,11 +2906,9 @@ enter_frame:
                 } else if (filter == "builtin") {
                     if (engine_.hasExternalFunction(varName))
                         code = 5;
-                } else if (filter == "file" || filter == "dir" || filter == "class") {
-                    // Not supported — return 0
-                    if (engine_.outputFunc_)
-                        engine_.outputFunc_("Warning: exist(name, '" + filter
-                                            + "') is not yet supported.\n");
+                } else if (filter == "file" || filter == "dir"
+                           || filter == "class") {
+                    delegateToExternal();
                 }
 
                 R[I.a] = Value::scalar(code, engine_.mr_);

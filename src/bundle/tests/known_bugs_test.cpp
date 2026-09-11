@@ -531,12 +531,14 @@ TEST_P(CommandGlueTest, DottedRvalueOnCallResult)
     EXPECT_DOUBLE_EQ(evalScalar("g"), 1.0);
 }
 
-// bugs/opened/runtime/exist-file-function-scope.md — exist(path,'file')
-// must see freshly written files from INSIDE a function, like dir() and
-// the top level do (the catch(...) in vfsExists hides a throw).
-TEST_P(CommandGlueTest, DISABLED_ExistFileInsideFunction)
+// bugs/closed/runtime/exist-file-function-scope.md — exist(path,'file')
+// must see files from INSIDE a function. Root cause: inside functions
+// the compiler emits the EXIST_VAR opcode, whose 'file'/'dir'/'class'
+// branches were a return-0 stub; they now delegate to the registered
+// exist() external.
+TEST_P(CommandGlueTest, ExistFileInsideFunction)
 {
-    eval("function q(p)\n e = exist(p, 'file');\nend\n");
+    eval("function e = q(p)\n e = exist(p, 'file');\nend\n");
     const std::string tmp = (std::string)std::tmpnam(nullptr) + "_ex.txt";
     engine.figureManager();   // no-op; keep engine warm
     eval("fid = fopen('" + tmp + "', 'w'); fwrite(fid, uint8('x')); fclose(fid);");
