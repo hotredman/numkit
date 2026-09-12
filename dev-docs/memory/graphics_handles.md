@@ -455,3 +455,18 @@ DISABLED_ guards of that one bug; element-write equivalence, budget,
 cycles, parse errors all green. Likely in the VM chunk-local register
 sync for a re-executed loop statement — next session starts there
 (vm_->lastVarMap / syncVMToWorkspace on re-run).
+
+## Play portion B follow-up — the AF bug was a FALSE ALARM (closed)
+
+Numeric re-analysis killed bugs/closed/core/reactive-multiparam-af-
+stale.md: the equivalence tests' REFERENCE pre-pended params before
+the script, whose own def lines then overwrote them — the "reference"
+computed with defaults while the session was CORRECT (verified to 6
+digits: session ph/mag match the closed-form values for the set
+params; "full" matched the script defaults exactly). The AF-vs-mag
+"inconsistency" was real-part (elemAsDouble on complex) vs magnitude
+(abs) — different quantities, both right. LESSON (twice now): when an
+equivalence test fails, verify the REFERENCE first — compute the
+expected value in closed form / python before hunting engine ghosts.
+Both tests re-enabled with param-def-line REPLACEMENT references; 6/6
+green; the wildcard-prefix rule (double accumulation, real) stays.

@@ -1,6 +1,6 @@
-# core.ReactiveSession — multi-param tick sequence leaves AF/mag inconsistent (single-param equivalence holds)
+# core.ReactiveSession — equivalence tests mismatched: FALSE ALARM (the REFERENCE was wrong, the session was correct)
 
-- **Status:** 🟡 OPEN
+- **Status:** ✅ FIXED (not a product bug — a test-reference bug; commit pending below)
 - **Severity:** P2 (affects any script whose dirty tail contains a
   WILDCARD loop — single- or multi-param; precise (wildcard-free)
   scripts, element writes and parse/budget semantics are unaffected)
@@ -35,7 +35,24 @@ s.setParam("theta0", 0.0); s.evalDirty();
 // ph OK; AF(1) and mag(1) disagree with each other.
 ```
 
-## Root-cause hypothesis (unconfirmed)
+## Resolution (2026-09-12, numeric proof)
+
+NOT a VM sync bug. The test REFERENCE built the full run by
+pre-pending `theta0 = -10;` to the script — but the script's own
+`theta0 = 25;` line then OVERWRODE it, so the "reference" computed with
+the default. The session's values were mathematically correct all
+along (verified to 6 digits: session ph(1) = -2.596061 = exactly
+2*pi*0.5*(sin(-90°) - sin(-10°)); the "full" ph(1) = -4.469287 =
+exactly the theta0=25 value; session mag(1) = 0.061006 = the exact
+|sum|/16 for theta0=-10). The AF-vs-mag "inconsistency" was real-part
+(elemAsDouble on complex) vs magnitude (abs()) — not a divergence.
+
+Reference construction fixed: param def lines REPLACED in the source
+string, not pre-pended. Both equivalence tests enabled and green; the
+wildcard-prefix rule fix from the SAME debugging session was a REAL
+bug and stays (double accumulation, 18x mag error).
+
+## Original (wrong) hypothesis, kept for the record
 
 The `for` statement re-runs as ONE chunk whose body assigns `AF` in
 chunk-local registers; the workspace sync on chunk completion may
@@ -48,10 +65,9 @@ AF sees a third value.
 
 ## References
 
-- **Guards:** `ReactiveTest.DISABLED_DirtySkippingMatchesFullRerun`
-  (single-param minimal repro) and
-  `ReactiveTest.DISABLED_EquivalenceAcrossSequences` (sequence form) in
-  `src/core/tests/reactive_session_test.cpp`.
+- **Guards:** `ReactiveTest.DirtySkippingMatchesFullRerun` and
+  `ReactiveTest.EquivalenceAcrossSequences` (both ENABLED — they now
+  assert the equivalence with corrected references).
 - Green: element writes + their equivalence, tick budget, cycles
   guard, parse errors, generation (`ReactiveTest.*`, `ElemRegions.*`).
   Probe data (in the memory note): params + ph recompute CORRECTLY;

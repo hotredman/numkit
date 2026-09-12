@@ -61,9 +61,7 @@ const char *kBeamformingish =
 
 }  // namespace
 
-// bugs/opened/core/reactive-multiparam-af-stale.md — same
-// for-chunk write-back divergence, single-param minimal repro.
-TEST_F(ReactiveTest, DISABLED_DirtySkippingMatchesFullRerun)
+TEST_F(ReactiveTest, DirtySkippingMatchesFullRerun)
 {
     ReactiveSession s(engine);
     ASSERT_TRUE(s.load(kBeamformingish));
@@ -78,9 +76,14 @@ TEST_F(ReactiveTest, DISABLED_DirtySkippingMatchesFullRerun)
     EXPECT_GT(ran, 0u);
     EXPECT_FALSE(s.hasDirty());
 
-    // EQUIVALENCE: fresh engine, full run with the param pre-set.
+    // EQUIVALENCE: fresh engine, full run with the param def line
+    // REPLACED (pre-pending would let the script's own `theta0 = 25`
+    // win — the false mismatch that got filed as
+    // bugs/closed/core/reactive-multiparam-af-stale.md).
     StandardEngine full;
-    full.eval(std::string("theta0 = -10;\n") + kBeamformingish, true);
+    full.eval(std::string(kBeamformingish).replace(
+                  std::string(kBeamformingish).find("theta0 = 25;"),
+                  13, "theta0 = -10;"), true);
     std::vector<std::string> vars{"theta", "ph", "mag", "AF"};
     EXPECT_EQ(snapshotVars(engine, vars), snapshotVars(full, vars));
 }
@@ -125,9 +128,7 @@ TEST_F(ReactiveTest, ElementWriteOnlyRecalcsTouchingFormulas)
     }
 }
 
-// bugs/opened/core/reactive-multiparam-af-stale.md — the third
-// tick leaves AF/mag mutually inconsistent (ph + params OK).
-TEST_F(ReactiveTest, DISABLED_EquivalenceAcrossSequences)
+TEST_F(ReactiveTest, EquivalenceAcrossSequences)
 {
     // Several param changes in sequence must equal ONE full run with
     // the final values (later writes win).
@@ -140,9 +141,14 @@ TEST_F(ReactiveTest, DISABLED_EquivalenceAcrossSequences)
     s.setParam("theta0", Value::scalar(0.0, engine.resource()));
     s.evalDirty();
 
+    // Reference: param def lines REPLACED in the source (see
+    // DirtySkippingMatchesFullRerun for why pre-pending is wrong).
+    std::string ref = kBeamformingish;
+    ref.replace(ref.find("N = 16;"), 7, "N = 8;");
+    ref.replace(ref.find("d = 0.5;"), 7, "d = 0.7;");
+    ref.replace(ref.find("theta0 = 25;"), 13, "theta0 = 0;");
     StandardEngine full;
-    full.eval(std::string("N = 8; theta0 = 0; d = 0.7;\n")
-                  + std::string(kBeamformingish), true);
+    full.eval(ref, true);
     std::vector<std::string> vars{"mag", "ph"};
     EXPECT_EQ(snapshotVars(engine, vars), snapshotVars(full, vars));
 }
