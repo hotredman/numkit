@@ -2046,7 +2046,6 @@ TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
     std::map<std::string, std::string> persisted;
     {
         numkit::StandardEngine local;
-        local.eval("import compat.*;");
         if (GetParam() == BackendParam::TreeWalker)
             local.setBackend(Engine::Backend::TreeWalker);
         else

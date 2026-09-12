@@ -110,7 +110,6 @@ TEST_P(ComplexMathTest, NarrowsIndexingAllRealSlice) {
 // Residual structural / reduction ops also narrow an all-real complex result
 // (MATLAB R2025b). Forced-complex() sources (arithmetic already narrows at source).
 TEST_P(ComplexMathTest, NarrowsResidualOps) {
-    e.eval("import compat.*;");  // median resolves through the stats namespace
     // reductions (sum/prod/mean route through the reduction adapter; cumsum /
     // cumprod / diff / median have their own compute paths).
     EXPECT_TRUE(e.eval("isreal(sum(complex([1 2 3])))").toBool());
@@ -150,7 +149,6 @@ TEST_P(ComplexMathTest, NarrowsResidualOps) {
 // trace / cummax / cummin gained complex support (previously threw "Not a
 // double array"). Values + ordering verified against MATLAB R2025b.
 TEST_P(ComplexMathTest, TraceCummaxCumminComplex) {
-    e.eval("import compat.*;");
     // trace = sum of the diagonal; narrows when the imaginary part is all-zero.
     EXPECT_EQ(re("trace(complex([1 2;3 4]))"), 5.0);
     EXPECT_TRUE(e.eval("isreal(trace(complex([1 2;3 4])))").toBool());

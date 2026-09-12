@@ -4,9 +4,8 @@
 //
 // Naming convention:
 //   Each function is registered under   `linalg.<sub>.<name>`
-//   and aliased into                    `compat.<name>`.
-// The `compat.<name>` alias keeps every script that does
-//   import compat.*
+// The bare-name resolver reaches every registration unqualified;
+// the compat.* alias layer is retired (see AGENTS.md).
 //   y = svd(A);
 // working without code changes — the same shape toolboxes/{stats,signal}
 // adopted when they moved out of toolboxes/builtin.

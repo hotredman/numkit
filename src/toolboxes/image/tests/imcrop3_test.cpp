@@ -13,8 +13,7 @@ class Imcrop3Test : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;"
-                    "V = reshape(1:60, 3, 4, 5);"
+        engine.eval("V = reshape(1:60, 3, 4, 5);"
                     "V4 = uint8(reshape(1:96, 4, 4, 3, 2));");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

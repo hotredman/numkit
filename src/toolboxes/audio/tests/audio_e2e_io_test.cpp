@@ -12,7 +12,6 @@ class AudioE2EIoTest : public ::testing::Test {
 protected:
     void SetUp() override {
         engine_ = makeStandardEngine();
-        engine_->eval("import compat.*;");
     }
 
     void TearDown() override {

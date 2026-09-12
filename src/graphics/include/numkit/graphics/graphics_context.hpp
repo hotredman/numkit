@@ -82,7 +82,8 @@ struct PlotEntry {
 // Builds the full table of graphics plotting bodies (core-free; defined in
 // plots.cpp). The bundle-side installer (library.cpp GraphicsLibrary::install)
 // wraps each entry's GraphicsFn in a CallContext→GraphicsContext adapter and
-// registers it under graphics.<sub>.<name> + compat.<name> (+ core when set).
+// registers it under graphics.<sub>.<name> (+ the bare core name when set;
+// non-core names resolve bare through the bare-name resolver).
 void buildPlotTable(std::vector<PlotEntry> &table);
 
 

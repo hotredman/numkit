@@ -4,8 +4,8 @@
 // Namespace layout (namespace_design.md §5, §9.3):
 //   moments/   → stats.descriptive.<fn>  (skewness, kurtosis, ...)
 //   nan_aware/ → stats.nan.<fn>          (nansum, nanmean, ...)
-// Each function is also aliased into `compat.<fn>` so MATLAB-style
-// scripts call them flat via the bare-name resolver.
+// Scripts call them flat via the bare-name resolver (the retired
+// compat.* alias layer used to duplicate every registration).
 
 #include <numkit/stats/library.hpp>
 

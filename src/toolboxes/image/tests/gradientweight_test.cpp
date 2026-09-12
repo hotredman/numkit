@@ -16,8 +16,7 @@ class GradientweightTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;"
-                    "I = double(magic(8)) / 100;");
+        engine.eval("I = double(magic(8)) / 100;");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

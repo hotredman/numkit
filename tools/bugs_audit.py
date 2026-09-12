@@ -13,6 +13,13 @@ Rules (static):
      in a comment (a documented non-bug limitation) — no orphans;
   R4 an md may only reference guards that exist (catches renamed tests).
 
+  R6 no registration into the retired `compat.*` namespace: a
+     `registerFunction("compat", ...)` outside the allowlist fails the
+     audit. The bare-name resolver reaches every registration
+     unqualified; compat was a duplicate-registration layer retired
+     2026-09-12 (portion 36). Allowlisted: core tests that exercise the
+     namespace/import MACHINERY through a fake `compat` namespace.
+
 Guard-run mode (add --guards <numkit_gtest.exe>):
   R5 every non-BY-DESIGN guard must FAIL under --gtest_also_run_disabled_tests
      (it reproduces its open bug). A passing guard means the bug was silently
@@ -113,10 +120,35 @@ def run_guards(guards, exe):
     return v
 
 
+def check_no_compat_registrations():
+    """R6: the compat.* namespace is retired — no new registrations."""
+    allowlist = {
+        'src/core/tests/functions_test.cpp',       # namespace shadowing test
+        'src/core/tests/namespace_resolver_test.cpp',  # resolver machinery
+    }
+    pat = re.compile(r'registerFunction\(\s*"compat"')
+    v = []
+    for f in ROOT.glob('src/**/*.cpp'):
+        rel = f.relative_to(ROOT).as_posix()
+        if rel in allowlist:
+            continue
+        try:
+            for i, line in enumerate(
+                    f.read_text(encoding='utf-8', errors='replace').splitlines(), 1):
+                if pat.search(line):
+                    v.append(f"R6 {rel}:{i}: registers into the retired "
+                             f"compat.* namespace — use the bare-name "
+                             f"resolver path (see AGENTS.md)")
+        except OSError:
+            pass
+    return v
+
+
 def main():
     args = sys.argv[1:]
     guards = inventory_guards()
     violations, open_refs, deferred = audit(guards)
+    violations += check_no_compat_registrations()
     print(f"guards inventoried: {len(guards)} "
           f"({sum(1 for _, _, b in guards.values() if b)} BY-DESIGN)")
     print(f"open bugs referencing guards: {len(open_refs)}, deferred: {len(deferred)}")

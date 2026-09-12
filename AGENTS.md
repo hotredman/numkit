@@ -71,6 +71,16 @@ entry points (`README.md`, `AGENTS.md`, `LICENSE`).
 
 ## Public API conventions
 
+**Never register into the `compat.*` namespace** (user rule, 2026-09-12):
+it was a duplicate-registration layer for pre-resolver flat access and is
+retired. Register the namespaced name (`registerFunction("stats", ...)`)
+and, where the function must be callable unqualified without resolver
+fallback (compiler fast paths), the bare name (`registerFunction("", ...)`).
+`tools/bugs_audit.py` R6 fails the audit on any new
+`registerFunction("compat", ...)` outside the two core namespace-machinery
+tests. `import compat.*` / `--compat` are accepted as no-ops for old
+scripts — never add new uses.
+
 Every public function in `src/toolboxes/<ns>/include/numkit/<ns>/**` follows
 [dev-docs/handbook/library_api.md](dev-docs/handbook/library_api.md) — the authoritative API
 ruleset (argument order, native scalar types vs `const Value &` vs
@@ -156,7 +166,6 @@ across src/toolboxes/stats, tests/math, src/toolboxes/signal):
 class HaartTest : public ::testing::Test {
 public:
     numkit::StandardEngine engine;
-    void SetUp() override { engine.eval("import compat.*;"); }
     numkit::Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
 };
@@ -174,9 +183,10 @@ documented branch.
 
 ### 4. Smoke `.m` — `src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`
 Hand-runnable demo. **Every smoke MUST start with `clear` on the first
-line**, then `import compat.*`, then the body. Use `fprintf` to print
+line**, then the body. Use `fprintf` to print
 expected values inline ("expect ~..."). Run via
-`build/desktop-fast/apps/numkit/Release/numkit_repl.exe src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`.
+`build/windows/release/apps/numkit/Release/numkit_repl.exe src/toolboxes/<lib>/tests/smoke/<name>_smoke.m`
+(or on Linux `build/linux/release/apps/numkit/numkit_repl <path>`).
 
 Three real bugs in cycles 65-75 were caught only by parity cross-check —
 hand-written smokes had passed all three. Don't trust your own
@@ -261,8 +271,9 @@ When hunting for bugs or fuzzing a function, systematically test these 5 vectors
 
 ### Self-Contained Repro Rule
 Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste runnable**:
-- Start with `clear;` — numkit runs the snippet with `--compat` (implicit
-  `import compat.*`), so the block stays copy-paste valid in MATLAB too.
+- Start with `clear;` — bare names resolve globally (the retired
+  `--compat` flag / `import compat.*` lines are still tolerated as
+  no-ops), so the block stays copy-paste valid in MATLAB too.
 - Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
 - Include the exact function call and comment the expected MATLAB vs NumKit output.
 - **No fieldtest/corpus references in the Repro.** A bug found in real-world

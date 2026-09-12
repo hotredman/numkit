@@ -248,8 +248,7 @@ void registerFigureExport(Engine &engine)
             runExport(*ctx.engine, ea, "saveas");
             outs[0] = Value();
         };
-        engine.registerFunction("", "saveas", fn);
-        engine.registerFunction("compat", "saveas", std::move(fn));
+        engine.registerFunction("", "saveas", std::move(fn));
     }
     // exportgraphics(obj, filename [, Name,Value…])
     {
@@ -264,8 +263,7 @@ void registerFigureExport(Engine &engine)
             runExport(*ctx.engine, ea, "exportgraphics");
             outs[0] = Value();
         };
-        engine.registerFunction("", "exportgraphics", fn);
-        engine.registerFunction("compat", "exportgraphics", std::move(fn));
+        engine.registerFunction("", "exportgraphics", std::move(fn));
     }
     // print(fig, filename, '-dpng' [, '-r###' …]) and the command form
     // `print -dpng file.png` (glue args arrive the same way).
@@ -278,8 +276,7 @@ void registerFigureExport(Engine &engine)
             runExport(*ctx.engine, ea, "print");
             outs[0] = Value();
         };
-        engine.registerFunction("", "print", fn);
-        engine.registerFunction("compat", "print", std::move(fn));
+        engine.registerFunction("", "print", std::move(fn));
     }
 }
 

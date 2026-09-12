@@ -6,7 +6,6 @@
 //
 // Convention: every signal function gets a *dual* registration —
 //   1. signal.<sub>.<name>      (e.g. signal.transforms.fft)
-//   2. compat.<name>            (so `import compat.*` flattens it)
 // 6 functions additionally get a third registration in core (whitelist
 // of cross-domain general-purpose ops): fft, ifft, fftshift, ifftshift,
 // conv, xcorr.

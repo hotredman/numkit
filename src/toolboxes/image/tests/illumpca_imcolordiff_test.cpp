@@ -18,8 +18,7 @@ class IllumPcaImcdTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;"
-                    "A = zeros(10, 10, 3);"
+        engine.eval("A = zeros(10, 10, 3);"
                     "for i = 1:10;"
                     "  for j = 1:10;"
                     "    A(i,j,1) = 0.01 * (10*(i-1) + (j-1));"

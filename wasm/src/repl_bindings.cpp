@@ -1836,13 +1836,11 @@ void repl_pop_script_origin() {
     g_session->popScriptOrigin();
 }
 
-void repl_set_compat_mode(bool enable) {
+// Retired no-op: the bare-name resolver makes every toolbox function
+// reachable unqualified, so the "matlabCompatibility" toggle has nothing
+// left to do. Kept (exported) because the IDE bridge still calls it.
+void repl_set_compat_mode(bool) {
     if (!g_session) repl_init();
-    if (enable) {
-        g_session->engine()->addImplicitImport({{"compat"}, true, ""});
-    } else {
-        g_session->engine()->clearImplicitImports();
-    }
 }
 
 // ════════════════════════════════════════════════════════════════

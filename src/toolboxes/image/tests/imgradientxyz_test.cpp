@@ -15,8 +15,7 @@ class ImgradientxyzTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;"
-                    "V = double(reshape(1:60, 3, 4, 5));");
+        engine.eval("V = double(reshape(1:60, 3, 4, 5));");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }

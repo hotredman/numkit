@@ -52,15 +52,10 @@ public:
         else
             engine.setBackend(Engine::Backend::VM);
 
-        // MATLAB-compat mode for tests: flatten all mirror-library
-        // functions into the workspace so existing tests can write
-        // `fft(x)`, `std(v)`, `plot(x,y)` etc. without explicit imports.
-        // Pre-Phase-7 this is a no-op (compat namespace empty); after
-        Import compatImp;
-        compatImp.path.push_back("compat");
-        compatImp.wildcard = true;
-        engine.addImplicitImport(compatImp);
-        engine.eval("import compat.*;");
+        // No implicit import: the bare-name resolver reaches every
+        // registered toolbox function unqualified (`fft(x)`, `plot(x,y)`
+        // …). The compat.* namespace is retired — do not re-add it
+        // (bugs_audit R6 fails the build on new registrations).
     }
 
     // ── Convenience helpers ──────────────────────────────────

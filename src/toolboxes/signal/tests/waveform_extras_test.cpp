@@ -18,7 +18,7 @@ class WaveformExtrasTest : public ::testing::Test
 {
 public:
     StandardEngine engine;
-    void SetUp() override { engine.eval("import compat.*;"); }
+    void SetUp() override {}
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };
@@ -133,7 +133,6 @@ TEST_F(WaveformExtrasTest, DiricVectorShape)
 TEST_F(WaveformExtrasTest, SquareAliasedIntoCompat)
 {
     StandardEngine fresh;
-    fresh.eval("import compat.*;");
     // Builtin reachable by short name → returns the waveform value (+1
     // inside first half-period), not an error.
     EXPECT_NEAR(fresh.eval("square(0.1);").toScalar(), 1.0, 1e-12);

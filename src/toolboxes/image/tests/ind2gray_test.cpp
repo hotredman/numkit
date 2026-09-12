@@ -22,8 +22,7 @@ class Ind2GrayTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;"
-                    "cm_gray = [0 0 0; 0.25 0.25 0.25; 0.5 0.5 0.5; 0.75 0.75 0.75; 1 1 1];"
+        engine.eval("cm_gray = [0 0 0; 0.25 0.25 0.25; 0.5 0.5 0.5; 0.75 0.75 0.75; 1 1 1];"
                     "cm_rgb  = [1 0 0; 0 1 0; 0 0 1; 0.5 0.5 0; 0.2 0.4 0.6];");
     }
     Value eval(const std::string &c) { return engine.eval(c); }

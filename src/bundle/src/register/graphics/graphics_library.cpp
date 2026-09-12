@@ -1001,8 +1001,7 @@ void registerHandleAccessors(Engine &engine)
             engine.figureManager().emitModified();
             outs[0] = Value();
         };
-        engine.registerFunction("", "set", fn);
-        engine.registerFunction("compat", "set", std::move(fn));
+        engine.registerFunction("", "set", std::move(fn));
     }
     // get(h [, 'Prop']) — without a property name: struct of all
     {
@@ -1069,8 +1068,7 @@ void registerHandleAccessors(Engine &engine)
                 st.setFieldAll(k, decodeProp(v, mr));
             outs[0] = std::move(st);
         };
-        engine.registerFunction("", "get", fn);
-        engine.registerFunction("compat", "get", std::move(fn));
+        engine.registerFunction("", "get", std::move(fn));
     }
     // isgraphics(h [, type])
     {
@@ -1091,8 +1089,7 @@ void registerHandleAccessors(Engine &engine)
             }
             outs[0] = Value::logicalScalar(ok);
         };
-        engine.registerFunction("", "isgraphics", fn);
-        engine.registerFunction("compat", "isgraphics", std::move(fn));
+        engine.registerFunction("", "isgraphics", std::move(fn));
     }
     // groot — the root graphics object (figure.Parent).
     {
@@ -1102,8 +1099,7 @@ void registerHandleAccessors(Engine &engine)
             outs[0] = makeRootHandle(engine.figureManager(),
                                      engine.resource());
         };
-        engine.registerFunction("", "groot", fn);
-        engine.registerFunction("compat", "groot", std::move(fn));
+        engine.registerFunction("", "groot", std::move(fn));
     }
     // ishandle(h) / isvalid(h)
     {
@@ -1117,9 +1113,7 @@ void registerHandleAccessors(Engine &engine)
                 id >= 0 && fm.findHandle(id) != nullptr);
         };
         engine.registerFunction("", "ishandle", fn);
-        engine.registerFunction("compat", "ishandle", fn);
-        engine.registerFunction("", "isvalid", fn);
-        engine.registerFunction("compat", "isvalid", std::move(fn));
+        engine.registerFunction("", "isvalid", std::move(fn));
     }
 }
 
@@ -1357,7 +1351,6 @@ void GraphicsLibrary::install(Engine &engine)
             };
 
         engine.registerFunction(std::string("graphics.") + entry.sub, entry.name, ext);
-        engine.registerFunction("compat", entry.name, ext);
         if (entry.core)
             engine.registerFunction("", entry.name, ext);  // bare core name
     }

@@ -226,3 +226,28 @@ Bugs found en route (all fixed same-portion except the last):
   ARGUMENT position inherits the outer call's nargout — statement
   context (fprintf(...)) makes dir print its listing and return
   nothing. Guard: DirNargoutInsideCallArgument (DISABLED_).
+
+## Portion 36 — compat.* retired for good (rule + mechanical guard)
+
+The compat namespace (duplicate flat-registration layer for pre-resolver
+access) is now EMPTY everywhere outside two core namespace-machinery
+tests. Removed: 10 graphics registrations (portions 29-35 had
+re-introduced the old toolbox dual-registration pattern — the bare ""
+registration and the bare-name resolver already covered flat access),
+the dual_engine_fixture implicit `import compat.*` (touched every dual
+test), 14 toolbox/core fixture imports, stale hub comments. Kept as
+NO-OPS for old scripts: the `--compat` CLI flag and the wasm
+`repl_set_compat_mode` bridge (the IDE still calls the latter from its
+settings — a future IDE portion may drop the toggle).
+
+ENFORCEMENT so it cannot return: bugs_audit.py R6 fails the audit on
+any `registerFunction("compat", ...)` outside the allowlist (verified
+to fire on an injected probe). AGENTS.md carries the user rule
+(2026-09-12) under "Public API conventions": register the namespaced
+name + (only where needed) the bare "" name; never compat.
+
+GOTCHA for batch edits: deleting "import compat.*;" from multi-line
+concatenated C++ eval literals with a regex ate the SETUP line next to
+it in 3 image test fixtures (suite caught it: 20 failures, "Undefined
+variable 'A'") — mechanical edits over string-concatenation literals
+need a diff review of every hunk, not just a green compile.

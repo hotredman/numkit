@@ -14,8 +14,7 @@ class GrayDiffWeightTest : public ::testing::Test
 public:
     StandardEngine engine;
     void SetUp() override {
-        engine.eval("import compat.*;"
-                    "I = double([1 2 3; 2 3 4; 3 4 5]);"
+        engine.eval("I = double([1 2 3; 2 3 4; 3 4 5]);"
                     "V = double(reshape(1:24, 2, 3, 4));");
     }
     Value eval(const std::string &c) { return engine.eval(c); }
