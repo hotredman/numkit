@@ -224,6 +224,109 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
     // (Color, FontSize) parsed minimally — extra pairs are ignored.
     // The IDE renders text overlays after the image / line layers so
     // labels stay on top of imagesc / scatter.
+    // annotation(type, x, y [, Name-Value]) — figure-level overlays in
+    // NORMALIZED FIGURE coordinates [0,1] (MATLAB convention; probes
+    // R2025b: Color (0.1294)^3, HeadSize 10, LineWidth 0.5; textarrow
+    // text sits at the TAIL). Accepted types: line / arrow / textarrow /
+    // ellipse / rectangle / textbox. NV: String, Color (name / short /
+    // 1x3 triplet), FaceColor, FontSize. Attached to the CURRENT
+    // figure; clf clears them (same lifecycle as superTitle). No
+    // handle object yet — deferred with the annotation IDE rendering
+    // (figure-export-gaps / handle-surface-gaps).
+    reg("layout", "annotation",
+        [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
+            if (args.empty() || !args[0].isChar()) { outs[0] = Value(); return; }
+            std::string type = args[0].toString();
+            for (auto &c : type) c = (char)std::tolower(c);
+            static const std::array<const char *, 6> kTypes = {
+                "line", "arrow", "textarrow", "ellipse", "rectangle",
+                "textbox"};
+            bool okType = false;
+            for (const char *t : kTypes)
+                if (type == t)
+                    okType = true;
+            if (!okType) { outs[0] = Value(); return; }
+            auto &fm = gc.fm;
+            auto &fig = fm.current();
+            FigureState::Annotation an;
+            an.type = type;
+            if (args.size() >= 2 && args[1].isNumeric()
+                && args[1].numel() >= 4
+                && !(args.size() >= 3 && args[2].isNumeric())) {
+                // Position form (ellipse / rectangle / textbox):
+                // annotation(type, [x y w h]) — one vector.
+                an.x1 = args[1].elemAsDouble(0);
+                an.y1 = args[1].elemAsDouble(1);
+                an.x2 = an.x1 + args[1].elemAsDouble(2);
+                an.y2 = an.y1 + args[1].elemAsDouble(3);
+            } else {
+                // Two-vector form (line / arrow / textarrow):
+                // annotation(type, x, y) with 2-element normalized x/y.
+                if (args.size() >= 2 && args[1].isNumeric()
+                    && args[1].numel() >= 2) {
+                    an.x1 = args[1].elemAsDouble(0);
+                    an.x2 = args[1].elemAsDouble(1);
+                }
+                if (args.size() >= 3 && args[2].isNumeric()
+                    && args[2].numel() >= 2) {
+                    an.y1 = args[2].elemAsDouble(0);
+                    an.y2 = args[2].elemAsDouble(1);
+                }
+            }
+            // Name-Value walk.
+            auto colorToHex = [](const Value &cv, std::string &hexOut) -> bool {
+                char buf[8];
+                if (cv.isChar()) {
+                    std::string s = cv.toString();
+                    for (auto &ch : s) ch = (char)std::tolower(ch);
+                    static const std::pair<const char *, const char *> kMap[] = {
+                        {"r", "#ff0000"}, {"g", "#008000"}, {"b", "#0000ff"},
+                        {"k", "#000000"}, {"w", "#ffffff"}, {"y", "#ffff00"},
+                        {"m", "#ff00ff"}, {"c", "#00ffff"},
+                        {"red", "#ff0000"}, {"green", "#008000"},
+                        {"blue", "#0000ff"}, {"black", "#000000"},
+                        {"white", "#ffffff"}, {"none", ""},
+                    };
+                    for (const auto &kv : kMap)
+                        if (s == kv.first) {
+                            hexOut = kv.second;
+                            return true;
+                        }
+                    return false;
+                }
+                if (cv.isNumeric() && cv.numel() >= 3) {
+                    std::snprintf(buf, sizeof buf, "#%02x%02x%02x",
+                                  (unsigned)(cv.elemAsDouble(0) * 255 + 0.5),
+                                  (unsigned)(cv.elemAsDouble(1) * 255 + 0.5),
+                                  (unsigned)(cv.elemAsDouble(2) * 255 + 0.5));
+                    hexOut = buf;
+                    return true;
+                }
+                return false;
+            };
+            // Name-Value scan: keys are CHAR args anywhere after the
+            // geometry (fixed i+=2 desyncs when the position vector
+            // shifts the parity).
+            for (size_t i = 1; i + 1 < args.size(); ++i) {
+                if (!args[i].isChar())
+                    continue;
+                std::string key = args[i].toString();
+                for (auto &c : key) c = (char)std::tolower(c);
+                if (key == "string" && args[i + 1].isChar()) {
+                    an.text = args[i + 1].toString();
+                } else if (key == "color") {
+                    colorToHex(args[i + 1], an.colorHex);
+                } else if (key == "facecolor") {
+                    colorToHex(args[i + 1], an.faceHex);
+                } else if (key == "fontsize" && args[i + 1].isNumeric()) {
+                    an.fontSize = args[i + 1].elemAsDouble(0);
+                }
+            }
+            fig.annotations.push_back(std::move(an));
+            fig.modified = true;
+            fm.emitModified();
+            outs[0] = Value();
+        });
     reg("layout", "text",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, GraphicsContext &gc) {
             if (args.size() < 3) { outs[0] = Value(); return; }

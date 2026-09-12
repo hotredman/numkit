@@ -366,3 +366,28 @@ GOTCHA: the nested-z parser must track bracket DEPTH — counting every
 vector (symptom: quads with garbage/degenerate geometry; found via the
 SVG display-list debugger). Deferred: shading interp, 3-D box tick
 labels, mesh hidden-line removal, lighting, fill3 vertex colours.
+
+## Portion 41 — findobj + quiver export + annotation
+
+findobj (probes R2025b): no handle = ROOT scope across figures
+(registry order); figure/axes handles scope to descendants; a CHART
+handle scopes to ITSELF (MATLAB returns it with no children modelled);
+'Color','r' filters compare NORMALIZED triplets ('r'==[1 0 0]) — the
+chart get(h,'Color') now reads back the EXPLICIT linespec MATLAB-exact
+(plot(x,y,'r') → [1 0 0]) instead of the documented default; the old
+"introspection reports defaults until set" contract only covers the
+palette-vs-MATLAB divergence, never explicit call intent. MATLAB HIDES
+title/label texts from findobj (probe: findobj('Type','text')==0 next
+to a title) — slot-bound Text records are excluded, user text() stays
+findable.
+
+annotation: normalized FIGURE coords; arrow/textarrow take (x, y)
+2-vectors but ellipse/rectangle/textbox take ONE [x y w h] position
+vector — the parser branches on numel==4; Name-Value keys are scanned
+by CONTENT, not fixed i+=2 parity (the position vector shifts the
+parity and silently drops every NV pair — the ellipse FaceColor
+"missing fill" bug). Deferred: annotation handles, IDE rendering.
+
+quiver: shaft + chevron head (~26°, max(4px, 12% of length)); tips
+extend the auto data range. boxplot already rendered via portion-39
+polygon/line/scatter coverage — verified, no work needed.

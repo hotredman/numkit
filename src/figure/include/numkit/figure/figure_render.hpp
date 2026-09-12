@@ -824,6 +824,20 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
         dataRange(ys[i], a, b);
         ylo = std::min(ylo, a);
         yhi = std::max(yhi, a * 0 + b);
+        // quiver: arrow tips extend the data range (u/v offsets).
+        if (ds.type == "quiver") {
+            auto uv = parseVec(ds.uJson);
+            auto vv = parseVec(ds.vJson);
+            const size_t nq = std::min(xs[i].size(), ys[i].size());
+            for (size_t k = 0; k < nq && k < uv.size(); ++k) {
+                xlo = std::min(xlo, xs[i][k] + uv[k]);
+                xhi = std::max(xhi, xs[i][k] + uv[k]);
+            }
+            for (size_t k = 0; k < nq && k < vv.size(); ++k) {
+                ylo = std::min(ylo, ys[i][k] + vv[k]);
+                yhi = std::max(yhi, ys[i][k] + vv[k]);
+            }
+        }
         // errorbar extents
         auto ext = [&](const std::string &j, bool pos) {
             auto e = parseVec(j);
@@ -1395,6 +1409,37 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
                 addPoly(out, {x0p, x0p + w, x0p + w, x0p},
                         {yBase, yBase, yTop, yTop}, col, true);
             }
+        } else if (t == "quiver") {
+            // Arrows: shaft (x,y)→(x+u,y+v) plus a chevron head at the
+            // tip (two strokes ~25° back, length = max(4px, 12% of the
+            // on-screen arrow length). NaN breaks skip the arrow.
+            auto uv = parseVec(ds.uJson);
+            auto vv = parseVec(ds.vJson);
+            for (size_t k = 0; k < n; ++k) {
+                double u = k < uv.size() ? uv[k] : 0.0;
+                double v = k < vv.size() ? vv[k] : 0.0;
+                if (!std::isfinite(xs[i][k]) || !std::isfinite(ys[i][k])
+                    || !std::isfinite(u) || !std::isfinite(v))
+                    continue;
+                double x0 = X(xs[i][k]), y0 = Y(ys[i][k]);
+                double x1 = X(xs[i][k] + u), y1 = Y(ys[i][k] + v);
+                addLine(out, {x0, x1}, {y0, y1}, col, 1.2, false);
+                double dx = x1 - x0, dy = y1 - y0;
+                double len = std::hypot(dx, dy);
+                if (len < 1e-9)
+                    continue;
+                double hl = std::max(4.0, len * 0.12);
+                double ux = dx / len, uy = dy / len;
+                // Back-left / back-right head strokes.
+                double a1 = 0.45;   // ~26 degrees off the shaft
+                double c1 = std::cos(a1), s1 = std::sin(a1);
+                double bxl = x1 - hl * (ux * c1 - uy * s1);
+                double byl = y1 - hl * (uy * c1 + ux * s1);
+                double bxr = x1 - hl * (ux * c1 + uy * s1);
+                double byr = y1 - hl * (uy * c1 - ux * s1);
+                addLine(out, {bxl, x1}, {byl, y1}, col, 1.2, false);
+                addLine(out, {bxr, x1}, {byr, y1}, col, 1.2, false);
+            }
         } else if (t == "polygon") {
             // Filled rings (contourf bands, patch) — null-separated in
             // one dataset; each ring fills with the dataset colour.
@@ -1723,6 +1768,71 @@ inline std::vector<Cmd> renderFigureDisplay(const FigureState &fig, int W,
             box.y0 += 10;
         }
         renderAxes(fig, *ordered[i], box, out);
+    }
+    // ── Figure-level annotations (portion 41): normalized [0,1] figure
+    // units mapped straight onto the canvas. MATLAB defaults: Color
+    // (0.1294)^3, HeadSize 10 (chevron ~12% of length), textarrow text
+    // at the TAIL.
+    for (const auto &an : fig.annotations) {
+        Rgb col = an.colorHex.empty() ? Rgb(33, 33, 33)
+                                      : Rgb::fromHex(an.colorHex);
+        double ax0 = an.x1 * W, ay0 = (1.0 - an.y1) * H;
+        double ax1 = an.x2 * W, ay1 = (1.0 - an.y2) * H;
+        if (an.type == "line" || an.type == "arrow"
+            || an.type == "textarrow") {
+            addLine(out, {ax0, ax1}, {ay0, ay1}, col, 0.75, false);
+            if (an.type != "line") {
+                double dx = ax1 - ax0, dy = ay1 - ay0;
+                double len = std::hypot(dx, dy);
+                if (len > 1e-9) {
+                    double hl = std::max(4.0, len * 0.12);
+                    double ux = dx / len, uy = dy / len;
+                    double a1 = 0.45;
+                    double c1 = std::cos(a1), s1 = std::sin(a1);
+                    addLine(out,
+                            {ax1 - hl * (ux * c1 - uy * s1), ax1},
+                            {ay1 - hl * (uy * c1 + ux * s1), ay1},
+                            col, 0.75, false);
+                    addLine(out,
+                            {ax1 - hl * (ux * c1 + uy * s1), ax1},
+                            {ay1 - hl * (uy * c1 - ux * s1), ay1},
+                            col, 0.75, false);
+                }
+            }
+            if (an.type == "textarrow" && !an.text.empty()) {
+                double w = 6.0 * (an.fontSize / 10.0) * an.text.size();
+                addText(out, an.text, ax0 - w - 6, ay0 - 3.5,
+                        an.fontSize, col);
+            }
+        } else if (an.type == "rectangle" || an.type == "textbox") {
+            double x0p = ax0, y0p = ay1, x1p = ax1, y1p = ay0;
+            if (!an.faceHex.empty()) {
+                Rgb fc = Rgb::fromHex(an.faceHex);
+                addPoly(out, {x0p, x1p, x1p, x0p}, {y0p, y0p, y1p, y1p},
+                        fc, true);
+            }
+            addLine(out, {x0p, x1p, x1p, x0p, x0p},
+                    {y0p, y0p, y1p, y1p, y0p}, col, 0.75, false);
+            if (an.type == "textbox" && !an.text.empty())
+                addText(out, an.text, x0p + 6, (y0p + y1p) / 2 - 3.5,
+                        an.fontSize, Rgb(0x28, 0x28, 0x30));
+        } else if (an.type == "ellipse") {
+            double cx = (ax0 + ax1) / 2, cy = (ay0 + ay1) / 2;
+            double rx = std::abs(ax1 - ax0) / 2, ry = std::abs(ay1 - ay0) / 2;
+            std::vector<double> ex, ey;
+            for (int k = 0; k <= 64; ++k) {
+                double t = 2 * 3.14159265358979323846 * k / 64.0;
+                ex.push_back(cx + rx * std::cos(t));
+                ey.push_back(cy + ry * std::sin(t));
+            }
+            if (!an.faceHex.empty()) {
+                Rgb fc = Rgb::fromHex(an.faceHex);
+                addPoly(out, ex, ey, fc, true);
+            }
+            for (size_t k = 0; k + 1 < ex.size(); ++k)
+                addLine(out, {ex[k], ex[k + 1]}, {ey[k], ey[k + 1]}, col,
+                        0.75, false);
+        }
     }
     return out;
 }

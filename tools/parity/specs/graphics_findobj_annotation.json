@@ -1,0 +1,19 @@
+{
+  "name": "graphics_findobj_annotation",
+  "namespace": "graphics",
+  "setup": "",
+  "expr": "close all; figure; h1 = plot(1:10); hold on; h2 = plot(1:10, 'r'); t = title('T'); a1 = numel(findobj('Type','line')); a2 = numel(findobj(gca,'Type','line')); a3 = numel(findobj('Type','text')); a4 = numel(findobj(h2,'Type','line')); a5 = numel(findobj('Color','r')); a6 = numel(findobj(h2)); close all; figure; plot(1:10); annotation('ellipse',[0.55 0.1 0.15 0.15],'FaceColor',[1 1 0]); annotation('textarrow',[0.15 0.7],[0.8 0.6],'String','note','Color','r'); p = [tempdir 'parity_fa.png']; saveas(gcf, p); A = double(imread(p)); f1 = sign(sum(sum(A(:,:,1) > 200 & A(:,:,2) > 200 & A(:,:,3) < 80))); f2 = sign(sum(sum(A(:,:,1) > 220 & A(:,:,2) < 40 & A(:,:,3) < 40))); close all;",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": [
+    "a1",
+    "a2",
+    "a3",
+    "a4",
+    "a5",
+    "a6",
+    "f1",
+    "f2"
+  ],
+  "comment": "findobj + annotation export vs MATLAB R2025b (portion 41). a1..a6 are VALUE fingerprints (exact counts): root-scope Type filter (2 lines), axes scope (2), text via title (1), chart-handle self-scope with filter (1), colour-shorthand filter findobj('Color','r') matching a 'r'-plotted line (1 — colours compare as normalized triplets, 'r'==[1 0 0]), no-filter chart scope (1). The 'r' linespec reads back MATLAB-exact [1 0 0] from get(h,'Color') — explicit call intent, distinct from the soft renderer palette. f1/f2 are theme-safe pixel fingerprints: annotation ellipse FaceColor [1 1 0] present (chromatic yellow survives any theme) and pure-red textarrow text present. Annotation semantics probed: normalized FIGURE coords; arrow/textarrow take (x, y) 2-vectors; ellipse/rectangle/textbox take ONE [x y w h] position vector; defaults Color (0.1294)^3, HeadSize 10, textarrow text at the TAIL. Deferred: annotation handles, -regexp/-depth findobj filters, IDE rendering of annotations — figure-export-gaps/handle-surface-gaps."
+}

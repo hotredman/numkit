@@ -578,3 +578,64 @@ TEST_P(FigureExportTest, WaterfallRowsRender)
     EXPECT_GT(chromatic, 300.0);
     removeFile(p);
 }
+
+// ── findobj / quiver / annotation (portion 41) ───────────────────────
+
+// findobj semantics (MATLAB R2025b probes): root scope, axes scope,
+// chart-handle self-scope, Type / Color / -property filters. The
+// linespec 'r' reads back MATLAB-exact [1 0 0] (explicit call intent,
+// unlike the soft renderer palette).
+TEST_P(FigureExportTest, FindobjScopesAndFilters)
+{
+    eval("figure; h1 = plot(1:10); hold on;");
+    eval("h2 = plot(1:10, 'r'); t = title('T');");
+    EXPECT_NEAR(evalScalar("numel(findobj('Type','line'))"), 2.0, 0);
+    EXPECT_NEAR(evalScalar("numel(findobj(gca,'Type','line'))"), 2.0, 0);
+    // MATLAB hides title/label texts from findobj (probe: 0 next to
+    // a title); user text() stays findable.
+    EXPECT_NEAR(evalScalar("numel(findobj('Type','text'))"), 0.0, 0);
+    EXPECT_NEAR(evalScalar("numel(findobj(h2,'Type','line'))"), 1.0, 0);
+    EXPECT_NEAR(evalScalar("numel(findobj(h2))"), 1.0, 0);
+    EXPECT_NEAR(evalScalar("numel(findobj('Color','r'))"), 1.0, 0);
+    // Same hiding: no user text() objects, so 0.
+    EXPECT_NEAR(evalScalar("numel(findobj('-property','String'))"), 0.0, 0);
+    auto c = eval("get(h2, 'Color');");
+    EXPECT_NEAR(c.elemAsDouble(0), 1.0, 1e-12);
+    EXPECT_NEAR(c.elemAsDouble(1), 0.0, 1e-12);
+    EXPECT_NEAR(c.elemAsDouble(2), 0.0, 1e-12);
+}
+
+// quiver(): arrows render — shaft + chevron heads inside the plot.
+TEST_P(FigureExportTest, QuiverArrowsRender)
+{
+    std::string p = tmpPath("_nk_qv.png");
+    eval("quiver([1 2 3], [1 1 1], [0.5 0 -0.5], [0 0.5 0]);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    // Content away from the frame: the middle band of the plot area.
+    double n = evalScalar(
+        "sum(sum(A(200:430, 200:640, 1) < 200))");
+    EXPECT_GT(n, 30.0);
+    removeFile(p);
+}
+
+// annotation(): figure-normalized overlays — yellow ellipse face, red
+// textarrow text, gray arrow shaft (MATLAB defaults (0.1294)^3).
+TEST_P(FigureExportTest, AnnotationOverlaysRender)
+{
+    std::string p = tmpPath("_nk_an.png");
+    eval("plot(1:10);");
+    eval("annotation('arrow',[0.2 0.8],[0.2 0.8]);");
+    eval("annotation('textarrow',[0.15 0.7],[0.8 0.6],'String','note','Color','r');");
+    eval("annotation('ellipse',[0.55 0.1 0.15 0.15],'FaceColor',[1 1 0]);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_GT(colorCount(this, "A", 255, 255, 0, 8), 200.0);   // ellipse
+    EXPECT_GT(colorCount(this, "A", 255, 0, 0, 10), 5.0);      // red text
+    double arrow = evalScalar(
+        "sum(sum(A(150:300, 150:700, 1) > 20 & A(150:300, 150:700, 1) < 60"
+        " & abs(double(A(150:300,150:700,1)) - double(A(150:300,150:700,2))) < 12"
+        " & abs(double(A(150:300,150:700,2)) - double(A(150:300,150:700,3))) < 12))");
+    EXPECT_GT(arrow, 30.0);
+    removeFile(p);
+}

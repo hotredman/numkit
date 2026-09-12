@@ -420,6 +420,22 @@ struct FigureState
     // Title.String. Empty = no super-title (no header strip drawn).
     std::string superTitle;
 
+    // ── annotation() overlays (portion 41). Coordinates are NORMALIZED
+    // FIGURE units [0,1] (MATLAB convention), independent of axes.
+    // 'line'/'arrow'/'textarrow': x1,y1=tail x2,y2=head;
+    // 'ellipse'/'rectangle'/'textbox': x1,y1=lower-left, x2,y2=width,
+    // height. MATLAB defaults probed R2025b: Color (0.1294)^3 gray,
+    // HeadSize 10, LineWidth 0.5, textarrow text at the TAIL.
+    struct Annotation {
+        std::string type;       // line|arrow|textarrow|ellipse|rectangle|textbox
+        double x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+        std::string text;       // textarrow/textbox String
+        std::string colorHex;   // "" = default gray
+        std::string faceHex;    // "" = none
+        double fontSize = 10;
+    };
+    std::vector<Annotation> annotations;
+
     /** Get the current axes, creating if needed */
     AxesState &cur()
     {
@@ -831,6 +847,25 @@ public:
                 os << ",\"linkMode\":\"" << fig.linkMode << "\"";
             if (!fig.superTitle.empty())
                 os << ",\"superTitle\":\"" << jsonEscapeFig(fig.superTitle) << "\"";
+            if (!fig.annotations.empty()) {
+                os << ",\"annotations\":[";
+                for (size_t ai = 0; ai < fig.annotations.size(); ++ai) {
+                    const auto &an = fig.annotations[ai];
+                    if (ai) os << ',';
+                    os << "{\"type\":\"" << an.type << "\""
+                       << ",\"x\":[" << an.x1 << ',' << an.x2 << "]"
+                       << ",\"y\":[" << an.y1 << ',' << an.y2 << "]"
+                       << ",\"text\":\"" << jsonEscapeFig(an.text) << "\"";
+                    if (!an.colorHex.empty())
+                        os << ",\"color\":\"" << an.colorHex << "\"";
+                    if (!an.faceHex.empty())
+                        os << ",\"face\":\"" << an.faceHex << "\"";
+                    if (an.fontSize != 10)
+                        os << ",\"fontSize\":" << an.fontSize;
+                    os << '}';
+                }
+                os << ']';
+            }
 
             os << ",\"axes\":[";
             for (size_t ai = 0; ai < fig.axes.size(); ++ai) {

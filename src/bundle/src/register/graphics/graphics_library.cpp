@@ -921,6 +921,90 @@ Value recordGetProp(FigureManager &fm, FigureManager::HandleRecord *rec,
         if (!v.isEmpty())
             return v;
     }
+    // An EXPLICIT linespec from the plot call (plot(x,y,'r--o')) is
+    // user intent and reads back MATLAB-exact — unlike the soft series
+    // palette the renderer draws. Colors map to MATLAB's table
+    // ('r'==[1 0 0]), kv hex to /255.
+    if (name == "Color" || name == "LineStyle" || name == "Marker") {
+        DatasetInfo *ds = fm.datasetOf(*rec);
+        if (ds && !ds->style.empty()) {
+            const std::string &s = ds->style;
+            auto rgb = [&](double r, double g, double b) {
+                auto v = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+                v.doubleDataMut()[0] = r;
+                v.doubleDataMut()[1] = g;
+                v.doubleDataMut()[2] = b;
+                return v;
+            };
+            auto strv = [&](const char *t) {
+                return Value::fromString(t, mr);
+            };
+            if (name == "LineStyle") {
+                if (s.find("--") != std::string::npos)
+                    return strv("--");
+                if (s.find("-.") != std::string::npos)
+                    return strv("-.");
+                if (s.find(':') != std::string::npos)
+                    return strv(":");
+            } else if (name == "Marker") {
+                static const char *kMarkers = "o+*.xsd^v<>ph";
+                for (char mc : s)
+                    if (mc && std::strchr(kMarkers, mc))
+                        return strv(std::string(1, mc).c_str());
+            } else {
+                struct ColEntry { char c; double rgb[3]; };
+                static const ColEntry kCol[] = {
+                    {'r', {1, 0, 0}},       {'g', {0, 0.5, 0}},
+                    {'b', {0, 0, 1}},       {'k', {0, 0, 0}},
+                    {'w', {1, 1, 1}},       {'y', {1, 1, 0}},
+                    {'m', {1, 0, 1}},       {'c', {0, 1, 1}},
+                };
+                size_t hp = s.find("color=#");
+                if (hp != std::string::npos) {
+                    unsigned R = 0, G = 0, B = 0;
+                    if (std::sscanf(s.c_str() + hp + 7, "%02x%02x%02x", &R,
+                                    &G, &B)
+                        == 3)
+                        return rgb(R / 255.0, G / 255.0, B / 255.0);
+                } else {
+                    // kv color= segment or a bare linespec letter; the
+                    // single-letter form must not collide with markers
+                    // first (handled above), so scan for a colour char.
+                    size_t cp = s.find("color=");
+                    std::string cand;
+                    if (cp != std::string::npos) {
+                        size_t e = s.find(';', cp);
+                        cand = s.substr(cp + 6,
+                                        e == std::string::npos
+                                            ? std::string::npos
+                                            : e - cp - 6);
+                    } else if (s.size() == 1) {
+                        cand = s;
+                    } else {
+                        for (char ch : s)
+                            if (std::strchr("rgbcymwkv", ch)) {
+                                cand = std::string(1, ch);
+                                break;
+                            }
+                    }
+                    if (cand.size() == 1) {
+                        for (const auto &cc : kCol)
+                            if (cand[0] == cc.c)
+                                return rgb(cc.rgb[0], cc.rgb[1],
+                                           cc.rgb[2]);
+                    }
+                    if (cand.size() > 1 && cand[0] == '#'
+                        && cand.size() >= 7) {
+                        unsigned R = 0, G = 0, B = 0;
+                        if (std::sscanf(cand.c_str() + 1, "%02x%02x%02x",
+                                        &R, &G, &B)
+                            == 3)
+                            return rgb(R / 255.0, G / 255.0, B / 255.0);
+                    }
+                }
+            }
+        }
+    }
     Value d = chartDefaultProp(rec->type, name, mr);
     if (!d.isEmpty())
         return d;
@@ -1069,6 +1153,209 @@ void registerHandleAccessors(Engine &engine)
             outs[0] = std::move(st);
         };
         engine.registerFunction("", "get", std::move(fn));
+    }
+    // findobj([h][, 'Prop', value, ...] | '-property', Name) — MATLAB
+    // R2025b probes: no handle → ROOT scope (every record across
+    // figures, registry order); a figure/axes handle scopes to its
+    // descendants; 'Type' matches the MATLAB class family
+    // (line/axes/figure/text/legend); Name-Value pairs compare via
+    // recordGetProp (chars exact, numerics element-wise within 1e-9).
+    // Deferred: '-regexp', '-depth', hidden handles.
+    {
+        ExternalFunc fn = [&engine](
+                Span<const Value> args, size_t, Span<Value> outs,
+                CallContext &ctx) {
+            auto &fm = ctx.engine->figureManager();
+            auto *mr = ctx.engine->resource();
+
+            // Scope: an optional leading handle narrows the search.
+            int scopeFig = -1;      // -1 = root scope
+            int scopeAxes = -1;
+            int scopeSelf = -1;      // chart-handle self-scope
+            size_t first = 0;
+            if (!args.empty()) {
+                int hid = graphicsHandleIdOf(args[0]);
+                if (hid >= 0) {
+                    auto *rec = fm.findHandle(hid);
+                    if (rec) {
+                        if (rec->type == "figure")
+                            scopeFig = rec->figureId;
+                        else if (rec->type == "axes") {
+                            scopeFig = rec->figureId;
+                            scopeAxes = (int)rec->axesIndex;
+                        } else {
+                            // chart/text/legend handle: MATLAB returns
+                            // the handle itself (no children modeled).
+                            if (!args.empty() && args.size() > 1
+                                && args[1].isChar()) {
+                                // has filters — evaluate them on itself
+                                scopeFig = rec->figureId;
+                                scopeAxes = (int)rec->axesIndex;
+                                scopeSelf = hid;
+                            } else {
+                                outs[0] = args[0];
+                                return;
+                            }
+                        }
+                        first = 1;
+                    }
+                }
+            }
+
+            // Filters.
+            struct Filt {
+                std::string prop;   // "Type" or a property name
+                Value want;
+                bool isPropTest;    // '-property' Name
+            };
+            std::vector<Filt> filts;
+            for (size_t i = first; i < args.size(); ++i) {
+                if (!args[i].isChar())
+                    continue;
+                std::string key = args[i].toString();
+                for (auto &c : key)
+                    c = (char)std::tolower((unsigned char)c);
+                if (key == "-property" && i + 1 < args.size()
+                    && args[i + 1].isChar()) {
+                    Filt f;
+                    f.isPropTest = true;
+                    f.prop = args[++i].toString();
+                    filts.push_back(std::move(f));
+                } else if (key == "-regexp" || key == "-depth") {
+                    // skip their option payload; unsupported, ignored
+                    ++i;
+                } else if (i + 1 < args.size()) {
+                    Filt f;
+                    f.isPropTest = false;
+                    f.prop = args[i].toString();
+                    f.want = args[i + 1];
+                    ++i;
+                    filts.push_back(std::move(f));
+                }
+            }
+
+            auto matlabType = [](const std::string &t) {
+                if (t == "figure" || t == "axes" || t == "text"
+                    || t == "line" || t == "legend" || t == "image")
+                    return t;
+                // chart records carry dataset-ish types (scatter, bar…)
+                return std::string("line");
+            };
+
+            std::vector<int> hits;
+            for (auto &kv : fm.handles()) {
+                auto *rec = &kv.second;
+                if (!rec || rec->deleted)
+                    continue;
+                // MATLAB hides title/label text objects from findobj
+                // (hidden handles; probe: findobj('Type','text') == 0
+                // next to a title). Slot-bound Texts follow suit;
+                // user text() stays findable.
+                if (rec->type == "text" && !rec->slot.empty())
+                    continue;
+                if (scopeFig >= 0 && rec->figureId != scopeFig)
+                    continue;
+                if (scopeSelf >= 0) {
+                    if (kv.first != scopeSelf)
+                        continue;
+                } else if (scopeAxes >= 0
+                           && rec->axesIndex != (size_t)scopeAxes
+                           && !(rec->type == "figure")) {
+                    continue;
+                }
+                bool pass = true;
+                for (const auto &f : filts) {
+                    if (f.isPropTest) {
+                        Value v = recordGetProp(fm, rec, f.prop, mr);
+                        if (v.isUnset() || v.isEmpty()) {
+                            pass = false;
+                            break;
+                        }
+                        continue;
+                    }
+                    if (f.prop == "Type") {
+                        if (!f.want.isChar()
+                            || matlabType(rec->type)
+                                   != f.want.toString()) {
+                            pass = false;
+                            break;
+                        }
+                        continue;
+                    }
+                    Value v = recordGetProp(fm, rec, f.prop, mr);
+                    if (v.isUnset() || v.isEmpty()) {
+                        pass = false;
+                        break;
+                    }
+                    // Colour shorthand: MATLAB compares findobj(
+                    // 'Color','r') against the RGB triplet [1 0 0].
+                    if (f.want.isChar() && !v.isChar()
+                        && v.numel() == 3
+                        && (f.prop == "Color" || f.prop == "EdgeColor"
+                            || f.prop == "FaceColor")) {
+                        struct ColEntry { const char *n; double rgb[3]; };
+                        static const ColEntry kCol[] = {
+                            {"r", {1, 0, 0}},     {"g", {0, 0.5, 0}},
+                            {"b", {0, 0, 1}},     {"k", {0, 0, 0}},
+                            {"w", {1, 1, 1}},     {"y", {1, 1, 0}},
+                            {"m", {1, 0, 1}},     {"c", {0, 1, 1}},
+                            {"red", {1, 0, 0}},   {"green", {0, 0.5, 0}},
+                            {"blue", {0, 0, 1}},  {"black", {0, 0, 0}},
+                            {"white", {1, 1, 1}},
+                        };
+                        std::string want = f.want.toString();
+                        bool matched = false;
+                        for (const auto &cc : kCol) {
+                            if (want != cc.n)
+                                continue;
+                            matched = std::abs(v.elemAsDouble(0) - cc.rgb[0]) < 1e-9
+                                   && std::abs(v.elemAsDouble(1) - cc.rgb[1]) < 1e-9
+                                   && std::abs(v.elemAsDouble(2) - cc.rgb[2]) < 1e-9;
+                            break;
+                        }
+                        if (!matched) {
+                            pass = false;
+                            break;
+                        }
+                        continue;
+                    }
+                    if (v.isChar() != f.want.isChar()) {
+                        pass = false;
+                        break;
+                    }
+                    if (v.isChar()) {
+                        if (v.toString() != f.want.toString()) {
+                            pass = false;
+                            break;
+                        }
+                    } else {
+                        if (v.numel() != f.want.numel()) {
+                            pass = false;
+                            break;
+                        }
+                        bool near = true;
+                        for (size_t k = 0; k < v.numel(); ++k)
+                            if (std::abs(v.elemAsDouble(k)
+                                         - f.want.elemAsDouble(k))
+                                > 1e-9)
+                                near = false;
+                        if (!near) {
+                            pass = false;
+                            break;
+                        }
+                    }
+                }
+                if (pass)
+                    hits.push_back(kv.first);   // registry key = handle id
+            }
+            std::sort(hits.begin(), hits.end());   // creation order
+            std::string cls = hits.empty()
+                ? std::string()
+                : fm.findHandle(hits[0])->className;
+            outs[0] = makeHandleArray(cls, hits, mr);
+            (void)engine;
+        };
+        engine.registerFunction("", "findobj", std::move(fn));
     }
     // isgraphics(h [, type])
     {
