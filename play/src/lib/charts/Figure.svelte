@@ -6,6 +6,7 @@
   import type { WireFigure } from './wire.js';
   import CartesianStage from './CartesianStage.svelte';
   import PolarStage from './PolarStage.svelte';
+  import HeatmapChart from './HeatmapChart.svelte';
   import Legend from './Legend.svelte';
 
   let { fig, width = 560, height = 420 }: {
@@ -38,7 +39,11 @@
     {#if polar}
       <PolarStage {ax} {box} />
     {:else}
-      <CartesianStage {ax} {box} />
+      {#if (ax.datasets ?? []).some((d) => d.type === 'imagesc')}
+        <HeatmapChart {ax} {box} />
+      {:else}
+        <CartesianStage {ax} {box} />
+      {/if}
     {/if}
     {#if hasLegend}
       <Legend labels={legendLabels} datasets={ax.datasets}

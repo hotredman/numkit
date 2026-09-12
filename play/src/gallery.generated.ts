@@ -3,6 +3,18 @@ import type { GalleryEntry } from './lib/galleryTypes.js';
 
 export const gallery: GalleryEntry[] = [
   {
+    "id": "damped-oscillation.m",
+    "title": "Затухающие колебания",
+    "description": "Влияние коэффициента демпфирования на переходный процесс",
+    "source": "%{\n@play\n{\n  \"title\": \"Затухающие колебания\",\n  \"description\": \"Влияние коэффициента демпфирования на переходный процесс\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры системы\",\n      \"controls\": [\n        { \"var\": \"zeta\", \"label\": \"Демпфирование ζ\", \"min\": 0.05, \"max\": 1.0, \"step\": 0.05, \"default\": 0.2 },\n        { \"var\": \"f0\", \"label\": \"Частота, Гц\", \"min\": 0.5, \"max\": 5.0, \"step\": 0.5, \"default\": 2.0 }\n      ]\n    }\n  ]\n}\n%}\n% Затухающие колебания: x(t) = exp(-zeta*w*t) * cos(wd*t)\nzeta = 0.2;\nf0 = 2;\nw = 2 * pi * f0;\nwd = w * sqrt(1 - zeta * zeta);\nt = 0:0.005:3;\nx = exp(-zeta * w * t) .* cos(wd * t);\nenv = exp(-zeta * w * t);\nplot(t, x, 'b');\nhold on;\nplot(t, env, 'r--');\nplot(t, -env, 'r--');\ntitle('Damped oscillation');\nxlabel('t, s');\nylabel('x(t)');\nlegend('x(t)', 'envelope');\ngrid on;\n"
+  },
+  {
+    "id": "gaussian-heatmap.m",
+    "title": "2D-гауссиана (imagesc)",
+    "description": "Тепловая карта двумерного гауссова распределения",
+    "source": "%{\n@play\n{\n  \"title\": \"2D-гауссиана (imagesc)\",\n  \"description\": \"Тепловая карта двумерного гауссова распределения\",\n  \"groups\": [\n    {\n      \"name\": \"Параметры распределения\",\n      \"controls\": [\n        { \"var\": \"sigma\", \"label\": \"σ\", \"min\": 0.3, \"max\": 2.0, \"step\": 0.1, \"default\": 0.8 },\n        { \"var\": \"n\", \"label\": \"Сетка N×N\", \"min\": 16, \"max\": 96, \"step\": 16, \"default\": 48 },\n        { \"var\": \"cm\", \"label\": \"Палитра\", \"type\": \"select\", \"options\": [\"hot\", \"parula\", \"jet\", \"gray\"], \"default\": \"parula\" }\n      ]\n    }\n  ]\n}\n%}\n% 2D-гауссиана на сетке N×N\nsigma = 0.8;\nn = 48;\nxs = linspace(-3, 3, n);\nZ = zeros(n, n);\nfor i = 1:n\n    for j = 1:n\n        Z(i, j) = exp(-(xs(i)^2 + xs(j)^2) / (2 * sigma^2));\n    end\nend\nimagesc(xs, xs, Z);\ncolormap(parula);\ncolorbar;\ntitle('2D Gaussian');\nxlabel('x');\nylabel('y');\n"
+  },
+  {
     "id": "phased-array-beamforming.m",
     "title": "Фазированная антенная решётка (Beamforming)",
     "description": "Интерактивный расчёт диаграммы направленности и подавления боковых лепестков",

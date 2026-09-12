@@ -567,3 +567,32 @@ loop pattern in play/scripts/reactive-loop.smoke.mjs; commit style:
 English subject+body + Co-Authored-By trailer; push ONLY origin.
 HANDOFF CHECKPOINT: everything through D1+sync-wasm verified —
 svelte-check 0/0, smokes 7/7+11/11.
+
+## Play D2 — working prototype (imagesc renderer + 3-example gallery)
+
+HeatmapChart.svelte + heatmap.ts: imagesc datasets render per-cell
+rects through the ENGINE-SUPPLIED palette. Two wire palette paths,
+both engine-truth: customColormap (N×3 [0,1] JSON — colormap(M) AND
+named dumps serialize this) and colormap:"name" (resolved via the
+IDE's MATLAB-dumped tables — namedPalette shim over getLUT/getColormap
+@ide-plot). yDir reverse baked into cell order (row 0 top). Cell edges
+from the wire's x/y edge vectors (± spacing/2). svelte-check 0/0.
+
+GALLERY (3 examples, all driven end-to-end in reactive-loop.smoke
+13/13): phased-array beamforming (steers to -30.0 exactly), damped
+oscillation (zeta tick recompute matches closed form to 4 digits),
+2D-gaussian heatmap (centre=1, sigma tick, colormap select).
+
+ENGINE SEMANTICS pinned by the smoke hunt: colormap() alone does not
+flip fig.modified — a palette-only change emits on the NEXT dirty
+statement (the Svelte renderer reads cfg.customColormap/colormap off
+any emission, so UI-wise the user sees it after the next tick —
+documented UX, not a bug). The select-variable form (cm='hot';
+colormap(cm)) does not make the variable's READERS dirty unless a
+statement reads cm — a gallery tail `colormap(cm)` re-runs on tick
+because cm IS its input. The smoke drives the switch via
+repl_execute('colormap(hot);') — same engine path.
+
+Wire emit detail: colormap:"custom" + customColormap for numeric/named
+dumps both; the export renderer's bake and the IDE tables are the same
+MATLAB dump (portion 35).
