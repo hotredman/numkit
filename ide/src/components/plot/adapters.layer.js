@@ -80,7 +80,7 @@ export function datasetToLayer(d, palette_idx, ctx) {
   const supported = ['line', 'plot', 'scatter', 'stem', 'stairs',
                      'bar', 'hist', 'semilogx', 'semilogy', 'loglog',
                      'errorbar', 'barh', 'area', 'quiver',
-                     'plot3', 'scatter3', 'polygon',
+                     'plot3', 'mesh', 'scatter3', 'polygon',
                      'surf', 'bar3', 'waterfall', 'fill3',
                      'quiver3', 'contour3',
                      'xline', 'yline'];
@@ -272,7 +272,7 @@ export function datasetToLayer(d, palette_idx, ctx) {
   else if (t === 'area') mode = 'area';
   else if (t === 'quiver') mode = 'quiver';
   else if (t === 'polygon') mode = 'polygon';
-  else if (t === 'plot3') mode = 'line';
+  else if (t === 'plot3' || t === 'mesh') mode = 'line';
   else if (t === 'scatter3') mode = 'scatter';
   else if (t === 'xline') mode = 'xline';
   else if (t === 'yline') mode = 'yline';
@@ -287,7 +287,7 @@ export function datasetToLayer(d, palette_idx, ctx) {
   // (cabinet-applied below for plot3/scatter3).
   const xRaw = x, yRaw = y;
   let xOut = x, yOut = y;
-  if (t === 'plot3' || t === 'scatter3') {
+  if (t === 'plot3' || t === 'mesh' || t === 'scatter3') {
     // For plot3/scatter3, d.z is a 1-D vector (different shape from
     // imagesc's 2-D matrix; disambiguated by the type field).
     const z = Array.isArray(d.z) && !Array.isArray(d.z[0])

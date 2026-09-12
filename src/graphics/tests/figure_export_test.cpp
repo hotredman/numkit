@@ -498,3 +498,83 @@ TEST_P(FigureExportTest, ContourfBandsRender)
     EXPECT_GT(colored, 5000.0);
     removeFile(p);
 }
+
+// ── 3-D surf / mesh / waterfall export (portion 40) ─────────────────
+
+// Orientation contract (probe-pinned, MATLAB R2025b): at view(0,90) a
+// hot corner Z(1,1)=1 renders LEFT-BOTTOM of the surface area. This
+// caught the wrong sy sign (xy component) during development.
+TEST_P(FigureExportTest, SurfTopViewCornerOrientation)
+{
+    std::string p = tmpPath("_nk_3d.png");
+    eval("Z = zeros(5); Z(1,1) = 1;");
+    eval("surf(Z); view(0,90);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    // Yellow (parula top) in the LEFT-BOTTOM quadrant of the canvas.
+    EXPECT_GT(colorCount(this, "A", 249, 251, 21, 12), 200.0);
+    double yellowLB = evalScalar(
+        "sum(sum(A(300:620, 1:400, 1) > 200 & A(300:620, 1:400, 2) > 200"
+        " & A(300:620, 1:400, 3) < 90))");
+    double yellowTR = evalScalar(
+        "sum(sum(A(1:300, 500:840, 1) > 200 & A(1:300, 500:840, 2) > 200"
+        " & A(1:300, 500:840, 3) < 90))");
+    EXPECT_GT(yellowLB, 100.0);
+    EXPECT_NEAR(yellowTR, 0.0, 0.0);
+    removeFile(p);
+}
+
+// Default view (-37.5, 30): full parula gradient on the surface.
+TEST_P(FigureExportTest, SurfDefaultViewGradient)
+{
+    std::string p = tmpPath("_nk_3dd.png");
+    eval("surf(peaks(20));");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    double blue = evalScalar(
+        "sum(sum(double(A(:,:,3)) > 150 & double(A(:,:,1)) < 100))");
+    double yellow = evalScalar(
+        "sum(sum(double(A(:,:,1)) > 200 & double(A(:,:,2)) > 200"
+        " & double(A(:,:,3)) < 90))");
+    EXPECT_GT(blue, 1000.0);
+    EXPECT_GT(yellow, 200.0);
+    removeFile(p);
+}
+
+// mesh(): lattice of SEGMENTS coloured by Z (EdgeColor 'flat') — no
+// filled faces: coloured coverage far below the surf fill.
+TEST_P(FigureExportTest, MeshColoredByZ)
+{
+    std::string p = tmpPath("_nk_3dm.png");
+    eval("mesh(peaks(20));");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    double chromatic = evalScalar(
+        "sum(sum(abs(double(A(:,:,1)) - double(A(:,:,2))) > 20"
+        " | abs(double(A(:,:,2)) - double(A(:,:,3))) > 20))");
+    double blue = evalScalar(
+        "sum(sum(double(A(:,:,3)) > 150 & double(A(:,:,1)) < 100))");
+    double yellow = evalScalar(
+        "sum(sum(double(A(:,:,1)) > 200 & double(A(:,:,2)) > 200"
+        " & double(A(:,:,3)) < 90))");
+    // Wireframe: present but sparse (< 1/4 of the surf fill density).
+    EXPECT_GT(chromatic, 500.0);
+    EXPECT_LT(chromatic, 40000.0);
+    EXPECT_GT(blue, 100.0);
+    EXPECT_GT(yellow, 30.0);
+    removeFile(p);
+}
+
+// waterfall(): row polylines coloured by Z.
+TEST_P(FigureExportTest, WaterfallRowsRender)
+{
+    std::string p = tmpPath("_nk_3dw.png");
+    eval("waterfall(peaks(15));");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    double chromatic = evalScalar(
+        "sum(sum(abs(double(A(:,:,1)) - double(A(:,:,2))) > 20"
+        " | abs(double(A(:,:,2)) - double(A(:,:,3))) > 20))");
+    EXPECT_GT(chromatic, 300.0);
+    removeFile(p);
+}

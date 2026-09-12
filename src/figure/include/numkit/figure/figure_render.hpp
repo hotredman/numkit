@@ -464,6 +464,56 @@ inline std::vector<std::uint8_t> imageCmdRgb(const Cmd &c)
     return buf;
 }
 
+// Nested 2-D JSON rows "[[a,b],[c,d]]" → row-major doubles + dims.
+// Null entries (NaN cells) → NaN. Depth-tracked: only INNER brackets
+// (depth 2) delimit rows — the outer pair is the wrapper (counting it
+// as a row over-read the value vector).
+inline void parseNestedDoubles(const std::string &j, std::vector<double> &out,
+                               size_t &rows, size_t &cols)
+{
+    out.clear();
+    rows = cols = 0;
+    size_t i = 0;
+    size_t colCount = 0;
+    int depth = 0;
+    while (i < j.size()) {
+        char c = j[i];
+        if (c == '[') {
+            ++depth;
+            if (depth == 2)
+                colCount = 0;
+            ++i;
+        } else if (c == ']') {
+            if (depth == 2) {
+                ++rows;
+                if (cols == 0)
+                    cols = colCount;
+            }
+            --depth;
+            ++i;
+        } else if (c == ',' || c == ' ' || c == '\n' || c == '\t') {
+            ++i;
+        } else if (depth >= 2) {
+            size_t e = i;
+            while (e < j.size() && j[e] != ',' && j[e] != ']')
+                ++e;
+            std::string tok = j.substr(i, e - i);
+            bool nullTok = tok.find("null") != std::string::npos;
+            try {
+                out.push_back(nullTok ? std::nan("") : std::stod(tok));
+            } catch (...) {
+                out.push_back(std::nan(""));
+            }
+            ++colCount;
+            i = e;
+        } else {
+            ++i;
+        }
+    }
+    if (!rows)
+        out.clear();
+}
+
 // ── Ticks (ported from ide/src/components/plot/plotTicks.js) ─────────
 // MATLAB-exact auto ticks (probe-verified R2025b, portion 34): target
 // 10 intervals, ladder breakpoints 1/2/5 — [0,10]→step 1 (11 ticks),
@@ -740,6 +790,10 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
         const DatasetInfo &ds = ax.datasets[i];
         if (!ds.visible)
             continue;
+        if (ds.type == "surf" || ds.type == "mesh" || ds.type == "waterfall"
+            || (ds.type == "plot3" && !ds.zJson.empty())) {
+            continue;   // rendered in the 3-D block above
+        }
         if (ds.type == "imagesc" || ds.type == "image-rgb") {
             ++imgDatasets;
             size_t cols = ds.originalCols ? ds.originalCols : 1;
@@ -914,12 +968,324 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
         out.push_back(std::move(c));
     }
 
+    // ── 3-D content (portion 40; MATLAB probes R2025b): surf = flat ──
+    // per-quad faces coloured by the FIRST corner's Z through the
+    // colormap (FaceColor 'flat', CData=Z), edges (0.129)x3; mesh /
+    // waterfall = segments coloured by Z (EdgeColor 'flat'); view from
+    // ax.viewJson, default (-37.5, 30); orthographic az/el projection;
+    // painter's sort (far quads first). clim auto = [min Z, max Z] —
+    // same rule as imagesc. The 3-D box replaces the 2-D frame.
+    {
+        bool has3d = false;
+        for (const auto &ds : ax.datasets)
+            if (ds.visible
+                && (ds.type == "surf" || ds.type == "mesh"
+                    || ds.type == "waterfall"
+                    || (ds.type == "plot3" && !ds.zJson.empty()))
+                && !ds.zJson.empty())
+                has3d = true;
+        if (has3d) {
+            // Bounds over all 3-D datasets.
+            double xlo3 = 1e300, xhi3 = -1e300, ylo3 = 1e300,
+                   yhi3 = -1e300, zlo3 = 1e300, zhi3 = -1e300;
+            auto acc = [](double &lo, double &hi, double v) {
+                if (!std::isfinite(v))
+                    return;
+                lo = std::min(lo, v);
+                hi = std::max(hi, v);
+            };
+            struct SurfGrid {
+                std::vector<double> z;   // row-major R x C
+                std::vector<double> gx;  // column coords
+                std::vector<double> gy;  // row coords
+                size_t r, c;
+            };
+            std::vector<SurfGrid> grids;
+            for (const auto &ds : ax.datasets) {
+                if (!ds.visible || ds.zJson.empty())
+                    continue;
+                if (ds.type == "surf" || ds.type == "waterfall") {
+                    auto xv = parseVec(ds.xJson);
+                    auto yv = parseVec(ds.yJson);
+                    std::vector<double> zf;
+                    size_t r = 0, c = 0;
+                    parseNestedDoubles(ds.zJson, zf, r, c);
+                    if (xv.empty() || yv.empty() || !r || !c)
+                        continue;
+                    SurfGrid g;
+                    g.z = std::move(zf);
+                    for (size_t cc = 0; cc < c; ++cc)
+                        g.gx.push_back(xv[std::min(cc, xv.size() - 1)]);
+                    for (size_t rr = 0; rr < r; ++rr)
+                        g.gy.push_back(yv[std::min(rr, yv.size() - 1)]);
+                    g.r = r;
+                    g.c = c;
+                    for (size_t rr = 0; rr < r; ++rr)
+                        for (size_t cc = 0; cc < c; ++cc) {
+                            acc(xlo3, xhi3, g.gx[cc]);
+                            acc(ylo3, yhi3, g.gy[rr]);
+                            acc(zlo3, zhi3, g.z[rr * c + cc]);
+                        }
+                    grids.push_back(std::move(g));
+                } else if (ds.type == "mesh" || ds.type == "plot3") {
+                    auto xv = parseVec(ds.xJson);
+                    auto yv = parseVec(ds.yJson);
+                    auto zv = parseVec(ds.zJson);
+                    size_t n = std::min(std::min(xv.size(), yv.size()),
+                                        zv.size());
+                    for (size_t k = 0; k < n; ++k) {
+                        acc(xlo3, xhi3, xv[k]);
+                        acc(ylo3, yhi3, yv[k]);
+                        acc(zlo3, zhi3, zv[k]);
+                    }
+                }
+            }
+            if (!(xhi3 > xlo3)) { xlo3 = 0; xhi3 = 1; }
+            if (!(yhi3 > ylo3)) { ylo3 = 0; yhi3 = 1; }
+            if (!(zhi3 > zlo3)) { zlo3 = 0; zhi3 = 1; }
+            applyLim(ax.xlimJson, xlo3, xhi3);
+            applyLim(ax.ylimJson, ylo3, yhi3);
+            applyLim(ax.zlimJson, zlo3, zhi3);
+            // CLim + palette (same resolution as imagesc/colorbar).
+            double clo3 = zlo3, chi3 = zhi3;
+            {
+                auto cl = figdetail::parseFlatDoubles(ax.climJson);
+                if (cl.size() == 2 && cl[0] < cl[1]) {
+                    clo3 = cl[0];
+                    chi3 = cl[1];
+                }
+            }
+            std::vector<Rgb> custom3;
+            if (!ax.customColormapJson.empty())
+                custom3 = parseCustomPalette(ax.customColormapJson);
+            int nPal3 = 256;
+            const std::uint8_t *pal3 =
+                custom3.empty()
+                    ? namedPalette(ax.colormapName.empty()
+                                       ? std::string("parula")
+                                       : ax.colormapName, nPal3)
+                    : nullptr;
+            if (!custom3.empty())
+                nPal3 = (int)custom3.size();
+            auto zColor = [&](double z) -> Rgb {
+                if (!std::isfinite(z))
+                    z = clo3;
+                double t = (z - clo3) / (chi3 - clo3);
+                if (t < 0) t = 0;
+                if (t > 1) t = 1;
+                int e = (int)std::lround(t * (nPal3 - 1));
+                if (e < 0) e = 0;
+                if (e >= nPal3) e = nPal3 - 1;
+                return pal3 ? Rgb(pal3[e * 3], pal3[e * 3 + 1],
+                                   pal3[e * 3 + 2])
+                            : custom3[(size_t)e];
+            };
+            // View (az, el) in degrees; MATLAB orthographic transform.
+            double azDeg = -37.5, elDeg = 30;
+            {
+                auto vv = figdetail::parseFlatDoubles(ax.viewJson);
+                if (vv.size() == 2) {
+                    azDeg = vv[0];
+                    elDeg = vv[1];
+                }
+            }
+            const double az = azDeg * 3.14159265358979323846 / 180.0;
+            const double el = elDeg * 3.14159265358979323846 / 180.0;
+            const double sAz = std::sin(az), cAz = std::cos(az);
+            const double sEl = std::sin(el), cEl = std::cos(el);
+            auto norm3 = [&](double v, double lo, double hi) {
+                return hi > lo ? (v - lo) / (hi - lo) - 0.5 : 0.0;
+            };
+            // (sx, sy) in MATLAB screen space (y up), empirically
+            // pinned by the corner-blob orientation test (view [0 90],
+            // hot corner at data (x_min, y_min) renders LEFT-BOTTOM in
+            // MATLAB R2025b): sx = -x*sin + y*cos; sy = (x*cos +
+            // y*sin)*sin(el) + z*cos(el). Depth toward the camera =
+            // -forward . p with forward = right x up (painter's sort,
+            // larger = nearer).
+            auto proj = [&](double x, double y, double z,
+                            double &sx, double &sy, double &depth) {
+                double xn = norm3(x, xlo3, xhi3);
+                double yn = norm3(y, ylo3, yhi3);
+                double zn = norm3(z, zlo3, zhi3);
+                sx = -xn * sAz + yn * cAz;
+                sy = (xn * cAz + yn * sAz) * sEl + zn * cEl;
+                depth = zn * sEl - cEl * (xn * cAz + yn * sAz);
+            };
+            // Fit the projected unit cube into the plot rect.
+            double minSx = 1e300, maxSx = -1e300, minSy = 1e300,
+                   maxSy = -1e300;
+            for (int corner = 0; corner < 8; ++corner) {
+                double sx, sy, d;
+                proj(corner & 1 ? xhi3 : xlo3, corner & 2 ? yhi3 : ylo3,
+                     corner & 4 ? zhi3 : zlo3, sx, sy, d);
+                minSx = std::min(minSx, sx);
+                maxSx = std::max(maxSx, sx);
+                minSy = std::min(minSy, sy);
+                maxSy = std::max(maxSy, sy);
+            }
+            double spanX = std::max(1e-9, maxSx - minSx);
+            double spanY = std::max(1e-9, maxSy - minSy);
+            double availW = (plot.x1 - plot.x0) * 0.92;
+            double availH = (plot.y1 - plot.y0) * 0.92;
+            double sc = std::min(availW / spanX, availH / spanY);
+            auto PX = [&](double sx) {
+                return (plot.x0 + plot.x1) / 2
+                     + (sx - (minSx + maxSx) / 2) * sc;
+            };
+            auto PY = [&](double sy) {
+                return (plot.y0 + plot.y1) / 2
+                     - (sy - (minSy + maxSy) / 2) * sc;
+            };
+            // Box: the 12 cube edges, projected.
+            if (ax.axisVisible) {
+                const double bx[2] = {xlo3, xhi3}, by[2] = {ylo3, yhi3},
+                             bz[2] = {zlo3, zhi3};
+                for (int axis = 0; axis < 3; ++axis)
+                    for (int f1 = 0; f1 <= 1; ++f1)
+                        for (int f2 = 0; f2 <= 1; ++f2) {
+                            double q0[3], q1[3];
+                            int o1 = (axis + 1) % 3, o2 = (axis + 2) % 3;
+                            double fd0[3] = {0, 0, 0}, fd1[3] = {0, 0, 0};
+                            fd0[axis] = 0; fd1[axis] = 1;
+                            fd0[o1] = f1; fd1[o1] = f1;
+                            fd0[o2] = f2; fd1[o2] = f2;
+                            double w0[3] = {bx[(int)fd0[0]], by[(int)fd0[1]],
+                                            bz[(int)fd0[2]]};
+                            double w1[3] = {bx[(int)fd1[0]], by[(int)fd1[1]],
+                                            bz[(int)fd1[2]]};
+                            (void)q0; (void)q1;
+                            double s0x, s0y, d0, s1x, s1y, d1;
+                            proj(w0[0], w0[1], w0[2], s0x, s0y, d0);
+                            proj(w1[0], w1[1], w1[2], s1x, s1y, d1);
+                            addLine(out, {PX(s0x), PX(s1x)},
+                                    {PY(s0y), PY(s1y)}, kAxisCol, 0.75,
+                                    false);
+                        }
+            }
+            // surf quads, painter's sort (far first).
+            for (const auto &g : grids) {
+                if (g.r < 2 || g.c < 2)
+                    continue;   // single cell — no quads (mesh lines only)
+                struct Q {
+                    double px[4], py[4], depth;
+                    Rgb col;
+                };
+                std::vector<Q> quads;
+                for (size_t rr = 0; rr + 1 < g.r; ++rr)
+                    for (size_t cc = 0; cc + 1 < g.c; ++cc) {
+                        double z00 = g.z[rr * g.c + cc];
+                        double z10 = g.z[(rr + 1) * g.c + cc];
+                        double z01 = g.z[rr * g.c + cc + 1];
+                        double z11 = g.z[(rr + 1) * g.c + cc + 1];
+                        if (!std::isfinite(z00) || !std::isfinite(z10)
+                            || !std::isfinite(z01) || !std::isfinite(z11))
+                            continue;
+                        double xs[4] = {g.gx[cc], g.gx[cc + 1], g.gx[cc + 1],
+                                        g.gx[cc]};
+                        double ys[4] = {g.gy[rr], g.gy[rr], g.gy[rr + 1],
+                                        g.gy[rr + 1]};
+                        double zs[4] = {z00, z01, z11, z10};
+                        Q q;
+                        q.depth = 0;
+                        for (int k = 0; k < 4; ++k) {
+                            double sx, sy, d;
+                            proj(xs[k], ys[k], zs[k], sx, sy, d);
+                            q.px[k] = PX(sx);
+                            q.py[k] = PY(sy);
+                            q.depth += d;
+                        }
+                        q.depth /= 4;
+                        q.col = zColor(z00);   // FaceColor 'flat'
+                        quads.push_back(q);
+                    }
+                std::sort(quads.begin(), quads.end(),
+                          [](const Q &a, const Q &b) {
+                              return a.depth < b.depth;
+                          });
+                const Rgb edge3(33, 33, 33);   // MATLAB 0.1294 gray
+                for (const auto &q : quads) {
+                    addPoly(out, {q.px[0], q.px[1], q.px[2], q.px[3]},
+                            {q.py[0], q.py[1], q.py[2], q.py[3]}, q.col,
+                            true);
+                    if (ax.axisVisible)
+                        addLine(out,
+                                {q.px[0], q.px[1], q.px[2], q.px[3],
+                                 q.px[0]},
+                                {q.py[0], q.py[1], q.py[2], q.py[3],
+                                 q.py[0]}, edge3, 0.75, false);
+                }
+            }
+            // mesh / waterfall / plot3 polylines: segments; mesh and
+            // waterfall coloured by the segment's first Z ('flat').
+            for (const auto &ds : ax.datasets) {
+                if (!ds.visible || ds.zJson.empty())
+                    continue;
+                if (ds.type != "mesh" && ds.type != "plot3"
+                    && ds.type != "waterfall")
+                    continue;
+                if (ds.type == "waterfall") {
+                    auto xv = parseVec(ds.xJson);
+                    auto yv = parseVec(ds.yJson);
+                    std::vector<double> zf;
+                    size_t r, c;
+                    parseNestedDoubles(ds.zJson, zf, r, c);
+                    if (!r || !c)
+                        continue;
+                    for (size_t rr = 0; rr < r; ++rr)
+                        for (size_t cc = 0; cc + 1 < c; ++cc) {
+                            double z0 = zf[rr * c + cc];
+                            double z1 = zf[rr * c + cc + 1];
+                            if (!std::isfinite(z0) || !std::isfinite(z1))
+                                continue;
+                            double s0x, s0y, d0, s1x, s1y, d1;
+                            proj(xv[std::min(cc, xv.size() - 1)],
+                                 yv[std::min(rr, yv.size() - 1)], z0, s0x,
+                                 s0y, d0);
+                            proj(xv[std::min(cc + 1, xv.size() - 1)],
+                                 yv[std::min(rr, yv.size() - 1)], z1, s1x,
+                                 s1y, d1);
+                            addLine(out, {PX(s0x), PX(s1x)},
+                                    {PY(s0y), PY(s1y)}, zColor(z0), 1.2,
+                                    false);
+                        }
+                    continue;
+                }
+                auto xv = parseVec(ds.xJson);
+                auto yv = parseVec(ds.yJson);
+                auto zv = parseVec(ds.zJson);
+                size_t n = std::min(std::min(xv.size(), yv.size()),
+                                    zv.size());
+                StyleParts st3 = parseStyle(ds.style);
+                for (size_t k = 0; k + 1 < n; ++k) {
+                    if (!std::isfinite(xv[k]) || !std::isfinite(yv[k])
+                        || !std::isfinite(zv[k]) || !std::isfinite(xv[k + 1])
+                        || !std::isfinite(yv[k + 1])
+                        || !std::isfinite(zv[k + 1]))
+                        continue;
+                    double s0x, s0y, d0, s1x, s1y, d1;
+                    proj(xv[k], yv[k], zv[k], s0x, s0y, d0);
+                    proj(xv[k + 1], yv[k + 1], zv[k + 1], s1x, s1y, d1);
+                    Rgb col = ds.type == "mesh"
+                                  ? zColor(zv[k])
+                                  : (st3.hasColor ? st3.color
+                                                  : Rgb(0x7f, 0xd9, 0x9a));
+                    addLine(out, {PX(s0x), PX(s1x)}, {PY(s0y), PY(s1y)},
+                            col, 1.2, false);
+                }
+            }
+        }
+    }
+
     // ── Series ──────────────────────────────────────────────────────
     size_t seriesIdx = 0;
     for (size_t i = 0; i < ax.datasets.size(); ++i) {
         const DatasetInfo &ds = ax.datasets[i];
         if (!ds.visible || xs[i].empty())
             continue;
+        if (ds.type == "surf" || ds.type == "mesh" || ds.type == "waterfall"
+            || (ds.type == "plot3" && !ds.zJson.empty()))
+            continue;   // rendered in the 3-D block above
         StyleParts st = parseStyle(ds.style);
         if (!st.hasColor)
             st.color = palette()[seriesIdx % palette().size()];

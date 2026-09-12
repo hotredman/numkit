@@ -148,10 +148,12 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
         }
         xV << ']'; yV << ']'; zV << ']';
 
-        // Two datasets so adapter applies cabinet projection via the
-        // plot3 path. Color uses a simple steel-blue stroke (mesh look).
+        // Two datasets (H sweep + V sweep). Type "mesh" (was "plot3"):
+        // the export renderer colours each SEGMENT by its Z through the
+        // colormap (MATLAB mesh EdgeColor 'flat'); the IDE adapter maps
+        // "mesh" onto its plot3 path unchanged (steel-blue look).
         DatasetInfo dsH;
-        dsH.type = "plot3";
+        dsH.type = "mesh";
         dsH.xJson = xH.str();
         dsH.yJson = yH.str();
         dsH.zJson = zH.str();
@@ -159,7 +161,7 @@ void buildSurfacePlots(std::vector<PlotEntry> &table)
         fm.pushDataset(std::move(dsH));
 
         DatasetInfo dsV;
-        dsV.type = "plot3";
+        dsV.type = "mesh";
         dsV.xJson = xV.str();
         dsV.yJson = yV.str();
         dsV.zJson = zV.str();

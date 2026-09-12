@@ -335,3 +335,34 @@ pixel references suddenly "MISMATCH" in the future, CHECK THEME +
 ALPHA FIRST: alpha-composited defaults shift with the background,
 colormap/line/text colours do not (all other graphics parity specs
 passed unchanged against the dark MATLAB).
+
+## Portion 40 — 3-D surf/mesh/waterfall export
+
+Probes (MATLAB R2025b): surf FaceColor 'flat' — each quad takes the
+palette colour of its FIRST corner's Z (perfect for a flat raster, no
+interpolation needed), edges (0.129)x3 gray; mesh FaceColor 'none' but
+EdgeColor 'flat' — individual LINE SEGMENTS coloured by Z through the
+colormap; waterfall rows by Z; clim auto = [min Z, max Z] (same rule
+as imagesc); default view (-37.5, 30).
+
+Projection (empirically pinned by the CORNER-BLOB TEST — do not
+derive from memory): a single hot corner Z(1,1)=1 rendered at
+view(0,90) must land LEFT-BOTTOM of the content in MATLAB. Correct
+transform (screen y up): sx = -x·sin(az) + y·cos(az); sy =
+(x·cos(az)+y·sin(az))·sin(el) + z·cos(el); depth toward camera =
+z·sin(el) − cos(el)·(x·cos(az)+y·sin(az)). The sign of the xy term in
+sy was the bug the corner test caught (a top view looked vertically
+mirrored). The parity spec pins this orientation forever via
+blob-vs-chromatic-bbox normalization (chromatic bbox excludes white
+AND gray → theme-independent under the dark OS theme).
+
+Engine: mesh datasets split from type "plot3" to type "mesh" (the
+export colours their segments by Z like MATLAB; the IDE adapter maps
+mesh → its plot3 path, keeping the steel-blue look — engine/export
+MATLAB-parity vs IDE aesthetic is the same split as the line palette).
+
+GOTCHA: the nested-z parser must track bracket DEPTH — counting every
+']' as a row end parsed 3 rows from a 2x2 matrix and read past the
+vector (symptom: quads with garbage/degenerate geometry; found via the
+SVG display-list debugger). Deferred: shading interp, 3-D box tick
+labels, mesh hidden-line removal, lighting, fill3 vertex colours.

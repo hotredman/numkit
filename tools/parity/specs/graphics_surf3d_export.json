@@ -1,0 +1,16 @@
+{
+  "name": "graphics_surf3d_export",
+  "namespace": "graphics",
+  "setup": "Zc = zeros(7); Zc(1,1) = 1;",
+  "expr": "figure; surf(Zc); view(0,90); p = [tempdir 'parity_s3d.png']; saveas(gcf, p); A = double(imread(p)); ymask = A(:,:,1) > 200 & A(:,:,2) > 200 & A(:,:,3) < 90; chrom = abs(A(:,:,1) - A(:,:,2)) > 20 | abs(A(:,:,2) - A(:,:,3)) > 20; [yb, xb] = find(ymask); [yc0, xc0] = find(chrom); fx = (mean(xb) - min(xc0)) / (max(xc0) - min(xc0)); fy = (mean(yb) - min(yc0)) / (max(yc0) - min(yc0)); o1 = sign(fy - 0.4); o2 = sign(0.6 - fx); close all; figure; surf(peaks(20)); p2 = [tempdir 'parity_s3d2.png']; saveas(gcf, p2); A2 = double(imread(p2)); o3 = sign(sum(sum(A2(:,:,3) > 150 & A2(:,:,1) < 100)) - 500); o4 = sign(sum(sum(A2(:,:,1) > 200 & A2(:,:,2) > 200 & A2(:,:,3) < 90))); close all; figure; mesh(peaks(20)); p3 = [tempdir 'parity_s3d3.png']; saveas(gcf, p3); A3 = double(imread(p3)); o5 = sign(sum(sum(abs(A3(:,:,1) - A3(:,:,2)) > 20 | abs(A3(:,:,2) - A3(:,:,3)) > 20)) - 500); close all;",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": [
+    "o1",
+    "o2",
+    "o3",
+    "o4",
+    "o5"
+  ],
+  "comment": "3-D surf/mesh export vs MATLAB R2025b (portion 40), theme-safe fingerprints. o1/o2 pin the VIEW ORIENTATION with the corner-blob test: surf(Zc) with a single hot corner Z(1,1)=1 at view(0,90) must land LEFT-BOTTOM of the chromatic content bbox (o1 = sign(fy-0.4) = 1, o2 = sign(0.6-fx) = 1) — this exact test caught a wrong sign in the sy screen component during development; blob position is normalized against the CHROMATIC bbox (parula cells + coloured edges) which excludes both white and gray backgrounds, so it is theme-independent. o3/o4 = default-view (-37.5, 30) parula gradient presence (blue-dominant valleys > 500 px, yellow peaks > 0). o5 = mesh lattice presence (segments coloured by Z, EdgeColor 'flat'). Probe-verified semantics: surf FaceColor 'flat' colours each quad by its FIRST corner's Z, edges (0.129)x3; mesh EdgeColor 'flat' (per-segment Z colours); waterfall rows by Z; clim auto = [min Z, max Z]; default view (-37.5, 30); orthographic az/el projection with painter's sort (far quads first). Deferred: shading interp (per-vertex gradients), 3-D tick labels on the box, hidden-line removal for mesh (wireframe overdraw), fill3/surf-generated per-vertex colours, lighting — figure-export-gaps.md."
+}

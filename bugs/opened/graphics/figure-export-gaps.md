@@ -20,9 +20,11 @@ accept-and-ignore) writing .svg plus every image-toolbox raster format.
    clear error pointing here. (Vector PDF could ride the display list;
    .fig is a MATLAB container format — likely never.)
 2. **Rendered chart types**: imagesc / image-rgb (portion 35),
-   colorbar + text() overlays (portion 38) now render; still silently
-   skipped: 3-D surfaces / contours / quiver / stream, polar, yyaxis
-   right scale (axes chrome still draws).
+   colorbar + text() overlays (portion 38), contour/contourf +
+   histogram (portion 39), 3-D surf/mesh/waterfall (portion 40: flat
+   quads by first-corner Z + painter's sort + orthographic view;
+   shading interp and 3-D tick labels still deferred) now render;
+   still skipped: quiver / stream, polar, yyaxis right scale.
 3. **Scoping**: exportgraphics(gca)/saveas(chart) export the containing
    FIGURE, not the tight axes region (MATLAB crops to the target).
 4. **print extras**: `-append`, `-loose/-tight`, `-noui`, figure
