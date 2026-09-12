@@ -17,6 +17,8 @@ set(NK_CORE_SOURCES
     # dependency analysis — pure, STL-only, engine-independent.
     ${CMAKE_CURRENT_SOURCE_DIR}/src/play_manifest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dependency_graph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/elem_region_extract.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/reactive_session.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/engine.cpp
     # lexer / parser / AST / compiler
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lexer.cpp
@@ -38,6 +40,8 @@ set(NK_CORE_SOURCES
 set(NK_CORE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/core/play_manifest.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/core/dependency_graph.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/core/elem_regions.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/nk/core/reactive_session.hpp
     # (Value substrate headers — value/span/heap_object/data_buffer/dims/
     #  value_type/object/shape_ops/fn_handle/function_ref/scratch — moved to
     #  value/ → nk_value L0 module)

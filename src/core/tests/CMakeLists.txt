@@ -2,6 +2,7 @@ target_sources(nk_gtest PRIVATE
     # lexer / parser / compiler
     ${CMAKE_CURRENT_SOURCE_DIR}/play_manifest_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dependency_graph_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reactive_session_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lexer_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/parser_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/command_syntax_test.cpp

@@ -419,3 +419,39 @@ Dependency semantics decisions (baked into dirtySetFor):
 
 Portion B next: ReactiveSession over Engine (setParam + evalDirty via
 runOneChunk) with the equivalence property evalDirty == full re-run.
+
+## Play portion B — reactive session (B1 done, B2 green core, B3 partial)
+
+B1 (index-aware facts, ALL IN + shipped): literal elem/range/stepped-
+covering extraction, ALL for linear/end/var-index/logical, size/
+numel/length/ndims args read ALL (merge-writes GROW the variable);
+kill-vs-accumulate edge semantics (scalar redefinition kills — nearest
+writer; merge-writes accumulate — whole-var readers depend on EVERY
+earlier writer, region readers on the nearest intersecting writer);
+merge-write LHS is NOT an rvalue read (lhsMergeBases) so cell
+definitions stay clean on element edits.
+
+PARSER FACT (test-pinned): paren access `C(...)` parses as CALL with
+the head as an IDENTIFIER child — `C(7)` is AST-identical to `foo(3)`;
+regions are recorded ONLY for unambiguous markers (CELLIDX braces,
+END_VAL arg, COLON arg). Brace access is what the table editor uses.
+
+B2: ReactiveSession — one semantics (evalStatement seam = rewrite +
+runOneChunk, the engine's own per-statement path), native param writes
+via a scratch carrier + real assignment statements, cycle guard
+(forward-only edges → SCCs structurally empty), generation counter.
+WILDCARD-PREFIX RULE (the big B2 lesson): a wildcard (for/while/if/…)
+may ACCUMULATE on earlier state (`AF = AF+…` over a prior def) — its
+re-run must pull the whole earlier prefix in, SKIPPING pure defs of
+every externally-set param (else param sliders get clobbered by script
+defaults). Without the rule equivalence fails on ANY loop-bearing
+script (double accumulation).
+
+B3 OPEN BUG (bugs/opened/core/reactive-multiparam-af-stale.md): after
+a wildcard-tail tick, params + ph are CORRECT but the for-chunk's AF
+write-back across consecutive evals diverges (mag sees the right new
+AF, a later raw read sees a third value). Both equivalence tests are
+DISABLED_ guards of that one bug; element-write equivalence, budget,
+cycles, parse errors all green. Likely in the VM chunk-local register
+sync for a re-executed loop statement — next session starts there
+(vm_->lastVarMap / syncVMToWorkspace on re-run).

@@ -2847,6 +2847,15 @@ Value Engine::eval(const std::string &code, bool suppressTopLevelDisplay)
     return runOneChunk(ast.get(), src);
 }
 
+Value Engine::evalStatement(const ASTNode *stmt,
+                            std::shared_ptr<const std::string> src)
+{
+    if (!stmt)
+        return Value();
+    rewriteVarHeadedCommands(const_cast<ASTNode *>(stmt));
+    return runOneChunk(stmt, std::move(src));
+}
+
 // ============================================================
 // evalSafe
 // ============================================================

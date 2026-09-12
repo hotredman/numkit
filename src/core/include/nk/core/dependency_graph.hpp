@@ -35,6 +35,7 @@
 #pragma once
 
 #include <nk/core/ast.hpp>
+#include <nk/core/elem_regions.hpp>
 
 #include <set>
 #include <string>
@@ -47,6 +48,19 @@ struct StatementFacts
     bool wildcardReads = false;      // Reads = * (opaque statement)
     std::set<std::string> reads;
     std::set<std::string> writes;
+
+    // Fine-grained element access (portion B1): variable → regions
+    // touched on the READ side / WRITE side. All accesses that are not
+    // statically literal collapse to VarRegions::all (conservative).
+    // Coarse `reads`/`writes` stay authoritative; the maps refine them.
+    ElemAccessMap elemReads;
+    ElemAccessMap elemWrites;
+
+    // Variables whose coarse `reads` entry came ONLY from a merge-write
+    // LHS (`C{5,2} = v` — the LHS does NOT read the old value; the
+    // coarse read exists for portion-A dirtySetFor compatibility).
+    // Element-level dirty sets use this to skip cell definitions.
+    std::set<std::string> lhsMergeBases;
 };
 
 /// Compute facts for every top-level statement of a parsed program
@@ -71,8 +85,34 @@ public:
     /// statements that may invisibly write var + transitive closure.
     std::vector<size_t> dirtySetFor(const std::string &var) const;
 
+    /// With the set of EXTERNALLY-DEFINED params (ReactiveSession):
+    /// the wildcard-prefix rule additionally skips the pure defs of
+    /// EVERY param in the set (a prefix re-run must not clobber other
+    /// sliders' values back to script defaults).
+    std::vector<size_t> dirtySetFor(
+        const std::string &var,
+        const std::set<std::string> &externalDefs) const;
+
+    /// Element-level variant: external write of ONE CELL (the table
+    /// editor's setParamElement). Affected = statements whose READ
+    /// regions touch (r,c) on var + wildcards + statements that
+    /// merge-write var while also reading it + transitive closure.
+    /// Statements that only WRITE regions of var (definitions of other
+    /// cells) stay clean — their inputs did not change.
+    std::vector<size_t> dirtySetForElement(const std::string &var,
+                                           size_t r, size_t c) const;
+    std::vector<size_t> dirtySetForElement(
+        const std::string &var, size_t r, size_t c,
+        const std::set<std::string> &externalDefs) const;
+
     const std::vector<StatementFacts> &facts() const { return facts_; }
     size_t size() const { return facts_.size(); }
+    /// Direct dependents of statement i (edges i → j). Const accessor
+    /// for cycle detection / debug tooling.
+    const std::vector<size_t> &downstreamOf(size_t i) const
+    {
+        return downstream_[i];
+    }
 
 private:
     std::vector<StatementFacts> facts_;
