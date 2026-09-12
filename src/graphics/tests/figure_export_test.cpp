@@ -317,3 +317,94 @@ TEST_P(FigureExportTest, SvgEmbedsImagesc)
     EXPECT_NE(svg.find("data:image/png;base64,"), std::string::npos);
     removeFile(p);
 }
+
+// ── colorbar + text() export (portion 38; MATLAB R2025b probes) ─────
+namespace {
+// Count pixels within ±tol of an RGB across the whole image.
+double colorCount(FigureExportTest *t, const std::string &a, int r, int g,
+                  int b, int tol)
+{
+    return t->evalScalar(
+        "sum(sum(abs(double(A(:,:,1)) - " + std::to_string(r)
+        + ") <= " + std::to_string(tol)
+        + " & abs(double(A(:,:,2)) - " + std::to_string(g)
+        + ") <= " + std::to_string(tol)
+        + " & abs(double(A(:,:,3)) - " + std::to_string(b)
+        + ") <= " + std::to_string(tol) + "))");
+}
+} // namespace
+
+// East colorbar: parula gradient strip with the low end at the BOTTOM.
+// Strip transect anchors are parula table entries round(t*255).
+TEST_P(FigureExportTest, ColorbarEastGradient)
+{
+    std::string p = tmpPath("_nk_cb.png");
+    eval("imagesc([1 2 3 4; 5 6 7 8; 9 10 NaN 12]); colorbar;");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    // Bottom of the strip ≈ parula entry 5 (64,43,183) — the first
+    // entries are nearly identical, so ±tol covers entry 0..8.
+    EXPECT_GT(colorCount(this, "A", 64, 43, 183, 6), 20.0);
+    // Top ≈ parula entry 250+ (247,244,28).
+    EXPECT_GT(colorCount(this, "A", 247, 244, 28, 8), 20.0);
+    // Middle region ≈ entry 128 (16,190,186)-ish.
+    EXPECT_GT(colorCount(this, "A", 16, 190, 186, 10), 20.0);
+    removeFile(p);
+}
+
+// South colorbar with a custom gray(256) palette: horizontal gradient
+// black→white left→right, plus the positional-location fix (the old
+// parser dropped colorbar('southoutside') and kept 'east').
+TEST_P(FigureExportTest, ColorbarSouthPositionalAndGray)
+{
+    std::string p = tmpPath("_nk_cbs.png");
+    eval("imagesc([1 2 3 4; 5 6 7 8; 9 10 NaN 12]);");
+    eval("colorbar('southoutside'); colormap(gray(256));");
+    // Engine state: the positional location must land in the axes.
+    EXPECT_EQ(engine.figureManager().currentAxes().colorbarLocation,
+              "southoutside");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_GT(colorCount(this, "A", 4, 4, 4, 4), 20.0);      // left end
+    EXPECT_GT(colorCount(this, "A", 254, 254, 254, 2), 20.0); // right end
+    removeFile(p);
+}
+
+// clim override narrows the colorbar window: v1 saturates LOW (entry 1)
+// and the strip's bottom stays entry 1 — same color as the NaN cell.
+TEST_P(FigureExportTest, ColorbarClimOverride)
+{
+    std::string p = tmpPath("_nk_cbc.png");
+    eval("imagesc([1 2 3 4; 5 6 7 8; 9 10 NaN 12]); colorbar;");
+    eval("clim([2 11]);");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    EXPECT_GT(colorCount(this, "A", 62, 38, 168, 4), 100.0);
+    removeFile(p);
+}
+
+// text() annotations: default black 10pt at data coords, colour specs
+// (name letter, RGB triplet — the triplet used to THROW "Not a char
+// array"), and HorizontalAlignment.
+TEST_P(FigureExportTest, TextAnnotationsRender)
+{
+    std::string p = tmpPath("_nk_txt.png");
+    eval("plot(1:10);");
+    eval("text(5, 5, 'mid');");
+    eval("text(2, 8, 'L', 'Color', [1 0.5 0], 'FontSize', 16);");
+    eval("text(8, 3, 'R', 'HorizontalAlignment', 'right', 'Color', 'r');");
+    eval("saveas(gcf, '" + p + "');");
+    eval("A = imread('" + p + "');");
+    // Orange triplet text (255,128,0) — the form that used to throw.
+    EXPECT_GT(colorCount(this, "A", 255, 128, 0, 10), 20.0);
+    // Red short-spec text: MATLAB-exact (255,0,0); a single 7-px glyph
+    // at scale 1 is ~18 pixels, so the floor is low.
+    EXPECT_GT(colorCount(this, "A", 255, 0, 0, 6), 10.0);
+    // Default black 'mid' near data (5,5): deterministic layout —
+    // xlo=0.55..10.45 → X(5)≈412, Y(5)≈329; scan a 40×24 box.
+    double n = evalScalar(
+        "sum(sum(A(318:338, 395:430, 1) < 100 & A(318:338, 395:430, 2) < 100"
+        " & A(318:338, 395:430, 3) < 100))");
+    EXPECT_GT(n, 15.0);
+    removeFile(p);
+}

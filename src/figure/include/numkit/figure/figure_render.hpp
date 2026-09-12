@@ -97,6 +97,113 @@ struct StyleParts {
     std::string marker;      // "", "o", "+", "*", ".", "x", "s", "d", …
 };
 
+// text() annotation extras, unpacked from the engine's ds.style
+// "key=val;key=val" wire format (layout.cpp text() builds it):
+//   color=<MATLAB colour spec>  rgb=r,g,b (0..1 floats)
+//   fontSize=N                  halign=left|center|right
+// Defaults are MATLAB R2025b probe-verified (2026-09-12): FontSize 10,
+// HorizontalAlignment LEFT, VerticalAlignment middle, black.
+struct TextExtras {
+    Rgb color{0, 0, 0};
+    double fontSize = 10;
+    int halign = 0;          // 0 left, 1 center, 2 right
+};
+
+// One MATLAB colour spec → Rgb. Accepts the linespec short letters,
+// long colour names, #rrggbb, and "r,g,b" / "r g b" float triplets
+// (0..1, MATLAB convention). Returns false when unrecognised.
+inline bool textColorSpec(const std::string &v, Rgb &out)
+{
+    // MATLAB-exact named colours (short letters are the SAME values:
+    // 'r' == 'red' == (1,0,0)) — NOT the soft series palette, which is
+    // a deliberate numkit aesthetic for LINES only.
+    static const std::pair<const char *, Rgb> kNames[] = {
+        {"red", {255, 0, 0}},       {"green", {0, 128, 0}},
+        {"blue", {0, 0, 255}},      {"cyan", {0, 255, 255}},
+        {"magenta", {255, 0, 255}}, {"yellow", {255, 255, 0}},
+        {"black", {0, 0, 0}},       {"white", {255, 255, 255}},
+        {"none", {255, 255, 255}},
+    };
+    std::string s;
+    for (char c : v)
+        if (c != ' ' && c != '[' && c != ']')
+            s += (char)std::tolower((unsigned char)c);
+    if (s.size() == 1) {
+        for (const auto &kv : kNames)
+            if (s[0] == kv.first[0]) {
+                out = kv.second;
+                return true;
+            }
+        return false;
+    }
+    for (const auto &kv : kNames)
+        if (s == kv.first) {
+            out = kv.second;
+            return true;
+        }
+    if (s.size() >= 7 && s[0] == '#') {
+        out = Rgb::fromHex(s);
+        return true;
+    }
+    double ch[3] = {0, 0, 0};
+    int n = 0;
+    size_t i = 0;
+    while (i < s.size() && n < 3) {
+        size_t e = i;
+        while (e < s.size() && s[e] != ',')
+            ++e;
+        try {
+            ch[n++] = std::stod(s.substr(i, e - i));
+        } catch (...) {
+            return false;
+        }
+        i = e + 1;
+    }
+    if (n == 3) {
+        out = Rgb((std::uint8_t)std::lround(std::min(1.0, std::max(0.0, ch[0])) * 255),
+                  (std::uint8_t)std::lround(std::min(1.0, std::max(0.0, ch[1])) * 255),
+                  (std::uint8_t)std::lround(std::min(1.0, std::max(0.0, ch[2])) * 255));
+        return true;
+    }
+    return false;
+}
+
+inline TextExtras parseTextExtras(const std::string &style)
+{
+    TextExtras t;
+    if (style.empty())
+        return t;
+    size_t i = 0;
+    while (i < style.size()) {
+        size_t semi = style.find(';', i);
+        std::string kv = style.substr(
+            i, (semi == std::string::npos ? style.size() : semi) - i);
+        size_t eq = kv.find('=');
+        if (eq != std::string::npos) {
+            std::string key = kv.substr(0, eq);
+            std::string val = kv.substr(eq + 1);
+            if (key == "color") {
+                Rgb c;
+                if (textColorSpec(val, c))
+                    t.color = c;
+            } else if (key == "rgb") {
+                Rgb c;
+                if (textColorSpec(val, c))
+                    t.color = c;
+            } else if (key == "fontSize") {
+                try {
+                    t.fontSize = std::stod(val);
+                } catch (...) {
+                }
+            } else if (key == "halign") {
+                t.halign = val == "center" ? 1 : val == "right" ? 2 : 0;
+            }
+        }
+        i = semi == std::string::npos ? style.size() : semi + 1;
+    }
+    return t;
+}
+
 inline StyleParts parseStyle(const std::string &s)
 {
     StyleParts p;
@@ -536,6 +643,26 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
     double ml = 64, mr = 14, mt = 20, mb = 48;
     if (!ax.title.empty())
         mt += 18;
+    // Colorbar reserves space on its side (MATLAB eastoutside shrinks the
+    // axes to ~0.68 width; we reserve strip + ticks + labels).
+    std::string cbSide = ax.colorbarLocation;
+    for (char &c : cbSide)
+        c = (char)std::tolower((unsigned char)c);
+    if (cbSide.size() > 7
+        && cbSide.compare(cbSide.size() - 7, 7, "outside") == 0)
+        cbSide.erase(cbSide.size() - 7);
+    if (cbSide.empty() || cbSide == "best")
+        cbSide = ax.colorbarLocation.empty() ? "" : "east";
+    if (!cbSide.empty() && cbSide != "none") {
+        if (cbSide == "east")
+            mr += 48;
+        else if (cbSide == "west")
+            ml += 48;
+        else if (cbSide == "south")
+            mb += 48;
+        else if (cbSide == "north")
+            mt += 34;
+    }
     Rect plot{box.x0 + ml, box.y0 + mt, box.x1 - mr, box.y1 - mb};
     if (!ax.axisVisible) {
         plot = Rect{box.x0 + 4, box.y0 + 4, box.x1 - 4, box.y1 - 4};
@@ -878,6 +1005,29 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
         // the portion-32 export-gaps bug.
     }
 
+    // ── text() annotations (portion 38; drawn OVER the series like ──
+    // MATLAB). Defaults probe-verified R2025b: FontSize 10,
+    // HorizontalAlignment LEFT, VerticalAlignment middle, black.
+    for (size_t i = 0; i < ax.datasets.size(); ++i) {
+        const DatasetInfo &ds = ax.datasets[i];
+        if (!ds.visible || ds.type != "text")
+            continue;
+        auto xv = parseVec(ds.xJson);
+        auto yv = parseVec(ds.yJson);
+        if (xv.empty() || yv.empty())
+            continue;
+        TextExtras te = parseTextExtras(ds.style);
+        double scale = std::max(1.0, (double)std::lround(te.fontSize / 7.0));
+        double w = 6.0 * scale * ds.label.size();
+        double x = X(xv[0]) - (te.halign == 1 ? w / 2
+                          : te.halign == 2 ? w : 0.0);
+        // Raster text() anchors at the glyph-box TOP; middle alignment
+        // lifts the anchor by half the glyph height.
+        double y = Y(yv[0]) - 3.5 * scale;
+        addText(out, ds.label, x, y, te.fontSize, te.color, false, false,
+                "");
+    }
+
     // ── Box + ticks + labels (portion 34: custom ticks/labels, fonts,
     // frame width — all MATLAB-probe-verified). `axis off` (imshow,
     // `axis off`) skips every decoration except the title. ───────────
@@ -945,6 +1095,112 @@ inline void renderAxes(const FigureState &fig, const AxesState &ax, Rect box,
     if (!ax.title.empty())
         addText(out, ax.title, (plot.x0 + plot.x1) / 2 - 3.2 * ax.title.size(),
                 plot.y0 - 18, labelFS + 2, kTextCol, false, fBold, fam);
+
+    // ── Colorbar (portion 38; probe-verified R2025b: limits = CLim, ──
+    // vertical ticks = the 10-interval ladder (12 for [1 12]), a
+    // horizontal strip uses the 5-interval ladder, FontSize 9, strip
+    // low end at bottom/left).
+    if (!cbSide.empty() && cbSide != "none") {
+        double lo = 0, hi = 1;
+        auto cl = figdetail::parseFlatDoubles(ax.climJson);
+        if (cl.size() == 2 && cl[0] < cl[1]) {
+            lo = cl[0];
+            hi = cl[1];
+        } else {
+            for (const auto &ds : ax.datasets)
+                if (!ds.zQuantized.empty()) {
+                    lo = ds.cminOrig;
+                    hi = ds.cmaxOrig;
+                    break;
+                }
+        }
+        std::vector<Rgb> customPal;
+        if (!ax.customColormapJson.empty())
+            customPal = parseCustomPalette(ax.customColormapJson);
+        int nPal = 256;
+        const std::uint8_t *pal =
+            customPal.empty()
+                ? namedPalette(ax.colormapName.empty()
+                                   ? std::string("parula")
+                                   : ax.colormapName,
+                               nPal)
+                : nullptr;
+        auto entryColor = [&](double t) -> Rgb {
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;
+            int e = (int)std::lround(t * (nPal - 1));
+            if (e < 0) e = 0;
+            if (e >= nPal) e = nPal - 1;
+            if (pal)
+                return Rgb(pal[e * 3], pal[e * 3 + 1], pal[e * 3 + 2]);
+            return customPal[(size_t)e];
+        };
+        const double cbFS = 9;      // probe: colorbar FontSize 9
+        const double thick = 14;
+        bool vert = cbSide == "east" || cbSide == "west";
+        double sx, sy, sw, sh;
+        if (vert) {
+            sx = cbSide == "west" ? plot.x0 - 8 - thick : plot.x1 + 8;
+            sy = plot.y0;
+            sw = thick;
+            sh = plot.y1 - plot.y0;
+        } else {
+            sx = plot.x0;
+            sw = plot.x1 - plot.x0;
+            sh = thick;
+            sy = cbSide == "north" ? plot.y0 - 8 - thick : plot.y1 + 8;
+        }
+        int pw = std::max(1, (int)std::lround(sw));
+        int ph = std::max(1, (int)std::lround(sh));
+        std::vector<std::uint8_t> grad((size_t)pw * ph * 4, 255);
+        for (int py = 0; py < ph; ++py)
+            for (int px = 0; px < pw; ++px) {
+                double t = vert ? 1.0 - (py + 0.5) / ph
+                                : (px + 0.5) / pw;
+                Rgb c = entryColor(t);
+                size_t o = ((size_t)py * pw + px) * 4;
+                grad[o] = c.r;
+                grad[o + 1] = c.g;
+                grad[o + 2] = c.b;
+            }
+        Cmd strip;
+        strip.kind = Cmd::IMAGE;
+        strip.rgbDirect = true;     // RGBA quads
+        strip.imgW = pw;
+        strip.imgH = ph;
+        strip.img = std::move(grad);
+        strip.xs = {sx, sx + pw};
+        strip.ys = {sy, sy + ph};
+        out.push_back(std::move(strip));
+        // Frame around the strip (MATLAB draws a thin box).
+        addLine(out, {sx, sx + sw, sx + sw, sx, sx},
+                {sy, sy, sy + sh, sy + sh, sy}, kAxisCol, 0.75, false);
+        auto ticks = niceTicks(lo, hi, vert ? 10 : 5);
+        for (double v : ticks) {
+            double t = (v - lo) / (hi - lo);
+            if (t < -1e-9 || t > 1 + 1e-9)
+                continue;
+            std::string lab = tickLabel(v);
+            double w = 6.0 * lab.size();
+            if (vert) {
+                double pyv = sy + sh - t * sh;
+                bool west = cbSide == "west";
+                addLine(out,
+                        {west ? sx - 4 : sx + sw, west ? sx : sx + sw + 4},
+                        {pyv, pyv}, kAxisCol, 0.75, false);
+                addText(out, lab, west ? sx - 7 - w : sx + sw + 7,
+                        pyv - 3.5, cbFS, kTextCol);
+            } else {
+                double pxv = sx + t * sw;
+                bool north = cbSide == "north";
+                addLine(out, {pxv, pxv},
+                        {north ? sy - 4 : sy + sh, north ? sy : sy + sh + 4},
+                        kAxisCol, 0.75, false);
+                addText(out, lab, pxv - w / 2,
+                        north ? sy - 9 - 7 : sy + sh + 9, cbFS, kTextCol);
+            }
+        }
+    }
 
     // ── Legend ──────────────────────────────────────────────────────
     if (!ax.legendLabels.empty() && !ax.legendHidden) {

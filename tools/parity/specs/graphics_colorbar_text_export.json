@@ -1,0 +1,14 @@
+{
+  "name": "graphics_colorbar_text_export",
+  "namespace": "graphics",
+  "setup": "C = [1 2 3 4; 5 6 7 8; 9 10 NaN 12];",
+  "expr": "figure; imagesc(C); colorbar; text(1.2, 2, 'RED', 'Color', 'r'); p = [tempdir 'parity_cb.png']; saveas(gcf, p); A = double(imread(p)); f1 = sign(sum(sum(A(:,:,1) > 230 & A(:,:,2) < 30 & A(:,:,3) < 30))); f2 = sign(sum(sum(abs(A(:,:,1) - 62) < 8 & abs(A(:,:,2) - 38) < 8 & abs(A(:,:,3) - 168) < 8))); f3 = sign(sum(sum(abs(A(:,:,1) - 249) < 10 & abs(A(:,:,2) - 251) < 10 & abs(A(:,:,3) - 21) < 12))); close all;",
+  "iters": 3,
+  "tol": 0,
+  "fingerprint": [
+    "f1",
+    "f2",
+    "f3"
+  ],
+  "comment": "colorbar + text() export vs MATLAB R2025b (portion 38), layout-INDEPENDENT fingerprints (sign of pixel-class counts — canvas sizes and margins differ between engines): f1 = pure-red (255,0,0) text pixels present (MATLAB text colours are exact, antialiasing keeps a pure core; numkit uses the same MATLAB-exact named colours for text, unlike the soft SERIES palette); f2 = parula entry-1 (62,38,168) present — colorbar low end + clim-saturated NaN cell; f3 = parula top (249,251,21) — colorbar high end + v12 cell. Colorbar semantics probe-verified: limits = CLim, vertical ticks = 10-interval ladder, horizontal = 5, FontSize 9, low end bottom/left. Engine fixes en route: positional colorbar('southoutside') was silently dropped ('east' kept); text(...,'Color',[r g b]) threw 'Not a char array' (Value::toString on a numeric triplet). Deferred: text handles (text() returns a handle in MATLAB), text Edge/Background/Interpreter, colorbar handle (cb.Ticks/FontSize get/set) — handle-surface-gaps.md."
+}

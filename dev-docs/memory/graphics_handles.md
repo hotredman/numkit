@@ -275,3 +275,32 @@ LESSON (again, stronger): the batch-regex that deleted
 form, leaving `ctx.engine->` glued to the following line — caught by
 the compile, but a review of every hunk (not just green build of the
 files you edited FIRST) is mandatory for mechanical edits.
+
+## Portion 38 — colorbar + text() export (probe table)
+
+Probes (MATLAB R2025b, 2026-09-12): colorbar limits = CLim exactly;
+VERTICAL tick ladder = the 10-interval rule (12 ticks on [1 12]) but a
+HORIZONTAL strip uses the 5-interval ladder (6 ticks) — orientation-
+dependent density, now matched in BOTH the export renderer and the IDE
+(the IDE used target 5 everywhere). Colorbar FontSize 9. text defaults
+DEFY memory: HorizontalAlignment LEFT (not center), VerticalAlignment
+middle, FontSize 10 which does NOT follow axes FontSize. TEXT COLOURS
+ARE MATLAB-EXACT ('r' = (255,0,0)) — do NOT reuse the soft series
+palette (that is a deliberate numkit line aesthetic only).
+
+Engine bugs fixed en route: (1) positional colorbar('southoutside')
+was silently DROPPED — the parser only handled 'Location',<v> pairs
+and pre-defaulted to 'east' (also affected the IDE); (2) text(..,
+'Color',[r g b]) threw "Not a char array" (argStr=toString on a
+numeric triplet — the recurring Value trap) — numeric 1x3 now encodes
+as "rgb=r,g,b" extras. text() extras wire format grew halign=left|
+center|right.
+
+Export geometry: colorbar reserves 48px margin on its side; the strip
+is 14px thick rendered as a Cmd::IMAGE rgbDirect gradient (reuses the
+portion-35 PNG/SVG image plumbing); ticks + tickLabel() at FontSize 9;
+text anchors: raster top-left of the glyph box with middle alignment
+lifted by 3.5*scale, halign shifts by 6*scale/char. Known backend
+mismatch (pre-existing): SVG <text> y is a baseline while the raster
+treats it as the glyph-box top — tick/annotation labels sit lower in
+SVG than PNG; filed with the export gaps.

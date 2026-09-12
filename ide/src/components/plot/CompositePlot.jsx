@@ -1613,7 +1613,10 @@ export default function CompositePlot({
     cbarX = padL + W + cbarGap;
     cbarY = padT;
   }
-  const cbarTicks = niceTicks(cminEff, cmaxEff, 5);
+  // Tick density per orientation (MATLAB R2025b probe, 2026-09-12):
+  // vertical bars use the 10-interval ladder ([1 12] → 12 ticks),
+  // horizontal strips the 5-interval one ([1 12] → 6).
+  const cbarTicks = niceTicks(cminEff, cmaxEff, cbarVertical ? 10 : 5);
   const cbarInterp = getColormap(effectiveColormap);
   const cbarStops = Array.from({ length: 11 }, (_, i) => ({
     offset: `${i * 10}%`,

@@ -242,21 +242,39 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
             ds.xJson = xs.str();
             ds.yJson = ys.str();
             ds.label = argStr(args[2]);
-            // Parse trailing name-value pairs for color / fontsize.
-            // Pack into ds.style as a compact "color=#rrggbb;fontSize=N" string
-            // — IDE side knows to split it.
+            // Parse trailing name-value pairs. Packed into ds.style as a
+            // compact "key=val;key=val" string — IDE side splits it.
+            //   color:  char (name / short / #hex) or numeric 1x3 triplet
+            //           → "color=<raw>" / "rgb=r,g,b" (argStr on the
+            //           numeric form would throw "Not a char array").
+            //   fontSize, horizontalalignment: scalar / char.
             std::string extras;
+            auto addExtra = [&](const std::string &kv) {
+                if (!extras.empty()) extras += ";";
+                extras += kv;
+            };
             for (size_t i = 3; i + 1 < args.size(); i += 2) {
                 std::string key = argStr(args[i]);
                 for (auto &c : key) c = std::tolower(c);
+                const Value &val = args[i + 1];
                 if (key == "color") {
-                    if (!extras.empty()) extras += ";";
-                    extras += "color=" + argStr(args[i + 1]);
-                } else if (key == "fontsize") {
-                    if (!extras.empty()) extras += ";";
+                    if (val.isChar() || val.isString()) {
+                        addExtra("color=" + argStr(val));
+                    } else if (val.isNumeric() && val.numel() >= 3) {
+                        std::ostringstream os2;
+                        os2 << "rgb=" << val.elemAsDouble(0) << ","
+                            << val.elemAsDouble(1) << "," << val.elemAsDouble(2);
+                        addExtra(os2.str());
+                    }
+                } else if (key == "fontsize" && val.isNumeric()) {
                     std::ostringstream fs;
-                    fs << "fontSize=" << args[i + 1].elemAsDouble(0);
-                    extras += fs.str();
+                    fs << "fontSize=" << val.elemAsDouble(0);
+                    addExtra(fs.str());
+                } else if (key == "horizontalalignment" && val.isChar()) {
+                    std::string a = argStr(val);
+                    for (auto &c : a) c = std::tolower(c);
+                    if (a == "left" || a == "center" || a == "right")
+                        addExtra("halign=" + a);
                 }
             }
             ds.style = extras;
@@ -457,6 +475,16 @@ void buildLayoutPlots(std::vector<PlotEntry> &table)
                     if (!loc.empty()) ax.colorbarLocation = loc;
                     ++i;
                     continue;
+                }
+                // Positional location: colorbar('southoutside') etc.
+                // (probe: MATLAB accepts it; the old parser silently
+                // dropped it and kept the 'east' default).
+                if (sLower != "off" && sLower != "hide" && sLower != "on") {
+                    auto loc = normLocation(s);
+                    if (!loc.empty()) {
+                        ax.colorbarLocation = loc;
+                        continue;
+                    }
                 }
                 if (sLower == "off" || sLower == "hide") {
                     ax.colorbarLocation.clear();

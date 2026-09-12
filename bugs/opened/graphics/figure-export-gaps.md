@@ -19,15 +19,17 @@ accept-and-ignore) writing .svg plus every image-toolbox raster format.
 1. **Formats**: `.pdf`, `.eps`, `.fig`, `.emf`, `.hdf` — refused with a
    clear error pointing here. (Vector PDF could ride the display list;
    .fig is a MATLAB container format — likely never.)
-2. **Rendered chart types**: imagesc / image-rgb / heatmap (needs the
-   colormap port + LOD sampling), 3-D surfaces / contours / quiver /
-   stream, polar, text overlays, yyaxis right scale — silently skipped
-   in the renderer for now (axes chrome still draws).
+2. **Rendered chart types**: imagesc / image-rgb (portion 35),
+   colorbar + text() overlays (portion 38) now render; still silently
+   skipped: 3-D surfaces / contours / quiver / stream, polar, yyaxis
+   right scale (axes chrome still draws).
 3. **Scoping**: exportgraphics(gca)/saveas(chart) export the containing
    FIGURE, not the tight axes region (MATLAB crops to the target).
 4. **print extras**: `-append`, `-loose/-tight`, `-noui`, figure
    PaperPosition/Units sizing, `-djpg` quality levels.
-5. **Aesthetic parity**: tick label layout is monospace-simple, the
+5. **Aesthetic parity**: SVG <text> y is a BASELINE while the raster
+   treats it as the glyph-box top — SVG labels sit lower than PNG
+   (portion 38 note). Tick label layout is monospace-simple, the
    bitmap font is terminal-grade at high Resolution, and bar grouping
    collapses adjacent bar datasets into shared slots.
 
