@@ -241,11 +241,6 @@ export default function PreferencesModal({ onClose }) {
                   hint="Overrides the NUMKIT_CXX environment variable when running Build & Run. Leave empty to use the env var or build-time default."
                   pickTitle="Select C++ compiler executable"
                 />
-                <ToggleRow
-                  label="MATLAB Compatibility Mode (Implicit compat.*)"
-                  settingKey="matlabCompatibility"
-                  hint="Automatically imports compat.* so you don't have to write import compat.* in every script. Survives 'clear all'."
-                />
               </div>
 
               {isElectron && !resolved && (

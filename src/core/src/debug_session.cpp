@@ -440,7 +440,6 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
     // Start from a clean slate so `clear` in the console doesn't race with
     // unrelated REPL variables.
     genv.clearAll();
-    engine_.restoreImplicitImports(&genv);
     for (const auto &imp : preEvalImports)
         genv.pushImport(imp);
 
@@ -495,7 +494,6 @@ std::string DebugSession::runInDebugScope(const std::string &code, bool applyCha
             genv.set(n, v);
         for (auto &g : preEvalGlobals)
             genv.declareGlobal(g);
-        engine_.restoreImplicitImports(&genv);
         for (const auto &imp : preEvalImports)
             genv.pushImport(imp);
         engine_.clearAllCalled_ = false;

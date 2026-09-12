@@ -110,7 +110,7 @@ TEST_F(CoderTest, RunNativeScript)
     // Using the engine's own eval to build the script would be circular; a
     // fixed string is enough to confirm the spawn + capture path works.
     const char *src =
-        "clear\nimport compat.*\nfprintf('nk_runnative_ok\\n')\n";
+        "clear\nimport probe_ns.*\nfprintf('nk_runnative_ok\\n')\n";
     char tmpPath[L_tmpnam];
     std::tmpnam(tmpPath);
     std::string path = std::string(tmpPath) + ".m";

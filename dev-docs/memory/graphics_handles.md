@@ -251,3 +251,27 @@ concatenated C++ eval literals with a regex ate the SETUP line next to
 it in 3 image test fixtures (suite caught it: 20 failures, "Undefined
 variable 'A'") — mechanical edits over string-concatenation literals
 need a diff review of every hunk, not just a green compile.
+
+## Portion 37 — compat legacy fully excised (follow-up to 36)
+
+Portion 36 left tolerated no-ops; this pass removed even those: the
+`--compat` CLI flag (parse branch + compatMode threading + usage line —
+an old script passing it now hits the unknown-flag fallthrough and is
+ignored), the wasm `repl_set_compat_mode` bridge + its emscripten
+registration, the IDE "MATLAB Compatibility Mode" preferences toggle +
+settings default + engine.js calls, and the whole core implicit-import
+machinery (`addImplicitImport` / `clearImplicitImports` /
+`implicitImports_` / `restoreImplicitImports` + its 7 call sites across
+workspace.cpp clear-paths and debug_session.cpp). The wasm
+ReplSession ctor/reset still had TWO live addImplicitImport(compat)
+sites portion 36 missed — the wasm engine was still implicitly
+importing compat on every session. The fake `compat` namespaces in
+core tests became `probe_ns`, so bugs_audit R6 now runs with NO
+allowlist. `import compat.*` still parses for old scripts (import
+statement machinery is intact); only the implicit layer is gone.
+
+LESSON (again, stronger): the batch-regex that deleted
+`restoreImplicitImports(...)` call lines didn't cover the `->` receiver
+form, leaving `ctx.engine->` glued to the following line — caught by
+the compile, but a review of every hunk (not just green build of the
+files you edited FIRST) is mandatory for mechanical edits.

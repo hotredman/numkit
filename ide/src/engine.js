@@ -330,21 +330,12 @@ export async function createWasmEngine(createModule) {
   return {
     type: 'wasm',
     init() {
-      const greeting = Module.repl_init();
-      try {
-        if (typeof Module.repl_set_compat_mode === 'function') {
-          Module.repl_set_compat_mode(loadSettings().matlabCompatibility);
-        }
-      } catch (e) {
-        console.warn('[engine] auto-import compat.* failed', e);
-      }
-      return greeting;
+      return Module.repl_init();
     },
 
-    updateSettings(settings) {
-      if (typeof Module.repl_set_compat_mode === 'function' && settings && typeof settings.matlabCompatibility === 'boolean') {
-        Module.repl_set_compat_mode(settings.matlabCompatibility);
-      }
+    updateSettings() {
+      // Retired: the compat-mode toggle had nothing left to do (bare-name
+      // resolver); kept as a no-op hook for the settings plumbing.
     },
 
     execute(code) {

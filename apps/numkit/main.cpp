@@ -144,10 +144,9 @@ void reportError(const Engine::EvalResult &r, const std::string &prefix)
         std::cerr << prefix << r.errorMessage << ctx << "\n";
 }
 
-int runScript(const std::string &path, bool compatMode)
+int runScript(const std::string &path)
 {
     StandardEngine engine;
-    // --compat removed: the bare-name resolver makes all toolbox
     // functions globally available without any implicit import.
     std::ifstream f(path, std::ios::binary);
     if (!f) {
@@ -190,7 +189,7 @@ int runScript(const std::string &path, bool compatMode)
     return 0;
 }
 
-int runRepl(bool compatMode)
+int runRepl()
 {
     StandardEngine engine;
     // --compat removed: the bare-name resolver makes all toolbox
@@ -454,7 +453,7 @@ static void handleDebugSession(StandardEngine&    engine,
 //   __QUIT__                              exit
 //
 // The Engine persists across calls -- workspace is preserved between runs.
-int runIdeSession(bool compatMode)
+int runIdeSession()
 {
     StandardEngine engine;
 
@@ -601,7 +600,6 @@ void printUsage(const char *prog)
               << "  --ide-session      persistent pipe session (used by the IDE)\n"
               << "  --fs=<fs>          select filesystem (native, temporary, local)\n"
               << "  --cwd=<path>       set current working directory\n"
-              << "  --compat           enable MATLAB compatibility (implicit import compat.*)\n"
               << "  -h | --help        show this message\n";
 }
 
@@ -609,7 +607,6 @@ void printUsage(const char *prog)
 
 int main(int argc, char **argv)
 {
-    bool compatMode = false; // no-op: bare-name resolver replaced compat
     std::string target;
     bool isIdeSession = false;
 
@@ -618,8 +615,6 @@ int main(int argc, char **argv)
         if (arg == "-h" || arg == "--help") {
             printUsage(argv[0]);
             return 0;
-        } else if (arg == "--compat") {
-            compatMode = true;
         } else if (arg == "--ide-session") {
             isIdeSession = true;
         } else if (arg.rfind("--fs=", 0) == 0) {
@@ -636,10 +631,10 @@ int main(int argc, char **argv)
     }
 
     if (isIdeSession)
-        return runIdeSession(compatMode);
+        return runIdeSession();
     
     if (target.empty())
-        return runRepl(compatMode);
+        return runRepl();
 
-    return runScript(target, compatMode);
+    return runScript(target);
 }

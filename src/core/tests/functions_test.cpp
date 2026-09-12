@@ -126,13 +126,13 @@ TEST_P(FunctionTest, DuplicateFunctionNameError)
 }
 
 // MATLAB precedence: a user-defined function with the same short name as
-// a registered builtin must win. The DualEngineTest fixture imports
-// `compat.*` in SetUp, so any compat-aliased builtin (e.g. signal.square
-// → compat.square) is reachable by short name. Defining `square` locally
+// a registered builtin must win. A namespaced builtin (e.g.
+// signal.square) is reachable by short name via the bare-name resolver;
+// defining `square` locally
 // must shadow the builtin on both backends.
 //
 // Regression: introduced when toolboxes/signal added square + aliased into
-// compat (commit a776474). VM resolved correctly via findCompiledFunc
+// a flat namespace (commit a776474). VM resolved correctly via findCompiledFunc
 // being tried before findExternal; TW had the opposite order and
 // returned the builtin. Fixed by swapping order in the TW resolution
 // paths (execCall, execCommandCall, qualified-name path, slow path with
@@ -140,12 +140,12 @@ TEST_P(FunctionTest, DuplicateFunctionNameError)
 TEST_P(FunctionTest, UserFunctionShadowsImportedBuiltin)
 {
     // Register a custom builtin under the leaf name `__shadowtest__`
-    // both directly and via compat (mimics signal.square + compat alias).
+    // both directly and via a probe namespace (mimics signal.square + ns).
     auto handler = [](Span<const Value>, size_t,
                       Span<Value> outs, CallContext &ctx) {
         outs[0] = Value::scalar(-1.0, ctx.engine->resource());
     };
-    engine.registerFunction("compat", "__shadowtest__", handler);
+    engine.registerFunction("probe_ns", "__shadowtest__", handler);
 
     eval("function y = __shadowtest__(x)\n  y = x + 100;\nend");
     eval("r = __shadowtest__(7);");

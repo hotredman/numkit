@@ -2493,15 +2493,15 @@ TEST_F(ParserImportTest, AsAlias)
 
 TEST_F(ParserImportTest, CompatWildcard)
 {
-    auto ast = parseSource("import compat.*;");
+    auto ast = parseSource("import probe_ns.*;");
     const auto &s = stmt(*ast, 0);
     ASSERT_EQ(s.children.size(), 1u);
-    EXPECT_EQ(importArg(s, 0).strValue, "compat.*");
+    EXPECT_EQ(importArg(s, 0).strValue, "probe_ns.*");
 }
 
 TEST_F(ParserImportTest, FollowedByOtherStatement)
 {
-    auto ast = parseSource("import compat.*; x = 42;");
+    auto ast = parseSource("import probe_ns.*; x = 42;");
     ASSERT_EQ(ast->children.size(), 2u);
     EXPECT_EQ(stmt(*ast, 0).type, NodeType::COMMAND_CALL);
     EXPECT_EQ(stmt(*ast, 0).strValue, "import");

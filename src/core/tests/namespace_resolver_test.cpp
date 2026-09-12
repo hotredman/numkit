@@ -9,7 +9,7 @@
 //   * Without import, calling the bare leaf name fails.
 //   * After `import test_ns.*`, the leaf name resolves.
 //   * `import test_ns.foo` form works for single-symbol imports.
-//   * `import compat.*` flattens compat-registered aliases.
+//   * `import probe_ns.*` flattens probe_ns-registered aliases.
 //   * Tests run against both TreeWalker and VM backends.
 //
 // See namespace_design.md Sections 3-5.
@@ -88,9 +88,9 @@ TEST_P(NamespaceResolverTest, ImportDoesNotLeakBetweenSessions)
 
 TEST_P(NamespaceResolverTest, CompatNamespaceWorks)
 {
-    // Manually populate compat (mirroring what Phase 7 will do for
+    // Manually populate probe_ns (mirroring toolbox registration:
     // mirror libs).
-    engine.registerFunction("compat", "answer", &answer_reg);
+    engine.registerFunction("probe_ns", "answer", &answer_reg);
     auto result = engine.eval("y = answer();");
     Value *y = engine.getVariable("y");
     ASSERT_NE(y, nullptr);

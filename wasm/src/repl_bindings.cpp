@@ -351,7 +351,6 @@ public:
     ReplSession() {
         engine_ = std::make_unique<numkit::Engine>();
         numkit::installStandardLibrary(*engine_);
-        engine_->addImplicitImport({{"compat"}, true, ""});
         restoreOutputFunc();
     }
 
@@ -542,7 +541,6 @@ public:
         debugSession_.reset();
         engine_ = std::make_unique<numkit::Engine>();
         numkit::installStandardLibrary(*engine_);
-        engine_->addImplicitImport({{"compat"}, true, ""});
         restoreOutputFunc();
         // Re-install VFS handlers on the fresh engine so csvread/csvwrite
         // keep routing through tempFS/localFS after a reset.
@@ -1836,13 +1834,6 @@ void repl_pop_script_origin() {
     g_session->popScriptOrigin();
 }
 
-// Retired no-op: the bare-name resolver makes every toolbox function
-// reachable unqualified, so the "matlabCompatibility" toggle has nothing
-// left to do. Kept (exported) because the IDE bridge still calls it.
-void repl_set_compat_mode(bool) {
-    if (!g_session) repl_init();
-}
-
 // ════════════════════════════════════════════════════════════════
 // Script-graph visualizer — offline AST → NodeGraph IR → JSON.
 // No engine session needed; pure analysis pass over the parsed AST.
@@ -1929,7 +1920,6 @@ std::string getEnv(const std::string &name) {
 EMSCRIPTEN_BINDINGS(numkit_ide) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_set_stdin_text", &repl_set_stdin_text);
-    emscripten::function("repl_set_compat_mode", &repl_set_compat_mode);
     emscripten::function("repl_execute",   &repl_execute);
     emscripten::function("repl_complete",  &repl_complete);
     emscripten::function("repl_reset",     &repl_reset);

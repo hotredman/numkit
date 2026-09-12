@@ -76,10 +76,9 @@ it was a duplicate-registration layer for pre-resolver flat access and is
 retired. Register the namespaced name (`registerFunction("stats", ...)`)
 and, where the function must be callable unqualified without resolver
 fallback (compiler fast paths), the bare name (`registerFunction("", ...)`).
-`tools/bugs_audit.py` R6 fails the audit on any new
-`registerFunction("compat", ...)` outside the two core namespace-machinery
-tests. `import compat.*` / `--compat` are accepted as no-ops for old
-scripts — never add new uses.
+`tools/bugs_audit.py` R6 fails the audit on any
+`registerFunction("compat", ...)` anywhere (the implicit-import engine
+machinery that served compat is gone too). Never add new uses.
 
 Every public function in `src/toolboxes/<ns>/include/numkit/<ns>/**` follows
 [dev-docs/handbook/library_api.md](dev-docs/handbook/library_api.md) — the authoritative API
@@ -271,9 +270,10 @@ When hunting for bugs or fuzzing a function, systematically test these 5 vectors
 
 ### Self-Contained Repro Rule
 Every `## Repro` block in `bugs/opened/<ns>/<fn>.md` **MUST be 100% copy-paste runnable**:
-- Start with `clear;` — bare names resolve globally (the retired
-  `--compat` flag / `import compat.*` lines are still tolerated as
-  no-ops), so the block stays copy-paste valid in MATLAB too.
+- Start with `clear;` — bare names resolve globally, so the block is
+  copy-paste valid in MATLAB too (legacy `--compat` flags /
+  `import compat.*` lines in old snippets are inert: unknown flags are
+  ignored and the import statement still parses).
 - Define all input variables explicitly inline (e.g., `x = [1, 2, 3];`).
 - Include the exact function call and comment the expected MATLAB vs NumKit output.
 - **No fieldtest/corpus references in the Repro.** A bug found in real-world
