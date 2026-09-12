@@ -29,3 +29,17 @@ todo nk_rebrand.md: numkit → nk everywhere.
   public mirror to `nk`, republish npm as `nk`. Git HISTORY still
   says numkit in old commits (immutable; no force-push) — the only
   sanctioned remainder, per plan.
+
+## Follow-up (same day): CamelCase form is Nk, not NK
+
+In CamelCase contexts the brand is `Nk` (Qt-style — QtWidgets), NOT
+`NK`: NkOptions.cmake (+ include(NkOptions)), NkASTView,
+NkASTTreeView, NkGraphView, NkIdeModule, benchmark names NkLoop /
+NkFilter, the NkObject save-sample — 60 replacements in 19 files
+(commit a26c22bd7). The first sweep's `Numkit → NK` rule had also
+produced a latent PORTABILITY bug the follow-up fixed:
+`import … from './NKASTView'` vs the file `NkASTView.jsx` — resolves
+on case-insensitive Windows, breaks on case-sensitive Linux. Uppercase
+NK stays ONLY in env vars (NK_FS / NK_CXX / NK_FUSE); anything else
+that greps as NK[a-zA-Z]+ is lock-file hash noise (package-lock
+integrity) or unrelated words (LINKER, UNKNOWN, RANKED).
