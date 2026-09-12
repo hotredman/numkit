@@ -547,3 +547,23 @@ TS 5.x not 7 (pinned ~5.7); @types/node for node: imports;
 Snippet-typed children instead of slots in Svelte 5; a named
 snippet {#snippet figures()} SHADOWS same-named state inside its
 block (renamed state to wireFigures).
+
+## Play D2 handoff state (2026-09-13, to flash session)
+
+DONE (uncommitted or just committed by predecessor): scripts/
+sync-wasm.mjs copies nk_ide.js/.wasm into play/public/ (wired into
+dev/build scripts) — the browser boot path now resolves. NEXT (the
+flash brief, in order): (1) HeatmapChart.svelte in lib/charts —
+imagesc rendering; typed shim over the IDE's buildHeatmapLUT
+(colormaps.js, pure JS) like ticks() did for niceTicks; clim from
+dataset cminOrig/cmaxOrig or axes config climJson; the wire carries
+z as nested row arrays + colormap name in config. (2) Two gallery
+examples: damped-oscillation (plot, cartesian line) + 2D-gaussian
+imagesc with a colormap select. (3) Build + loop smoke extension for
+imagesc + commit. RULES the flash session MUST follow: handbook
+svelte_architecture.md R1–R8 (no div/style on pages, one component
+per file, typed wire contract, TS zero svelte-check errors); smoke
+loop pattern in play/scripts/reactive-loop.smoke.mjs; commit style:
+English subject+body + Co-Authored-By trailer; push ONLY origin.
+HANDOFF CHECKPOINT: everything through D1+sync-wasm verified —
+svelte-check 0/0, smokes 7/7+11/11.

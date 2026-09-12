@@ -5,12 +5,13 @@
   "type": "module",
   "description": "NumKit Play — reactive gallery for @play scripts (Svelte 5, no React)",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/sync-wasm.mjs && vite",
+    "build": "node scripts/sync-wasm.mjs && node scripts/build-gallery.mjs && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "gallery": "node scripts/build-gallery.mjs",
-    "smoke:play": "node ../ide/scripts/play-bindings.smoke.mjs"
+    "smoke:play": "node ../ide/scripts/play-bindings.smoke.mjs",
+    "sync:wasm": "node scripts/sync-wasm.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
